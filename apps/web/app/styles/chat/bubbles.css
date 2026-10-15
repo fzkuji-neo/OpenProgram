@@ -2,6 +2,9 @@
    对应组件：components/chat/messages/user-bubble.tsx、assistant-bubble.tsx */
 
 .message {
+  /* The one vertical gap inside a reply: between markdown blocks, and
+     between the reply's parts (strip, text, error card, action row). */
+  --reply-gap: 12px;
   padding: 16px 24px;
   max-width: 100%;
   animation: msgAppear 0.3s ease forwards;
@@ -328,7 +331,7 @@
   border: 1px solid var(--border-light);
   border-radius: 8px;
   padding: 12px 14px;
-  margin: 15.5px 0;
+  margin: 0;
   overflow-x: auto;
   font-family: var(--font-mono);
   font-size: 0.867em;
@@ -355,8 +358,7 @@
 /* Fenced code block chrome (components/chat/messages/markdown.ts): the
    card moves to the wrapper so the language/copy header shares its border. */
 .message-content .md-code {
-  /* Block spacing: see "Reply block rhythm" below. */
-  margin: 15.5px 0;
+  margin: 0;
   background: light-dark(color-mix(in srgb, var(--text-bright) 3.5%, var(--bg-primary)), var(--bg-tertiary));
   border: 1px solid light-dark(var(--border), var(--border-light));
   border-radius: 10px;
@@ -423,43 +425,40 @@
   transition: background var(--transition), color var(--transition);
 }
 .md-mermaid-toggle:hover { background: var(--bg-hover); color: var(--text-primary); }
-/* Reply block rhythm. Every gap between two blocks of a reply reads as
-   ~19px of empty space between what is actually drawn: a text line's
-   glyphs (a 15px line in a 25.5px box carries ~3.5px of leading above
-   and below them), or a card's border.
-     text ↔ text   12px margin + leading on both sides  (≈19)
-     text ↔ card   15.5px margin + one leading           (≈19)
-     card ↔ card   19px margin                           (19)
-   A line holding only an inline-code pill has the pill as its edge,
-   which sits ~2px inside the line box, so a card after it lands ≈17.5
-   away — the same as the text line above the pill reads. Headings take extra room above and
-   little below: they belong to what follows. */
-.message-content p { margin: 0 0 12px; }
-.message-content p:last-child { margin-bottom: 0; }
-/* A reply's spacing comes from what sits around it (the execution strip,
-   the footer), so its first and last blocks — a code card, a heading, a
-   table — bring no outer margin of their own, just as a paragraph doesn't.
-   The footer makes up for a card's missing leading (message-actions.css). */
+/* Reply block rhythm (the Claude app's): a reply's markdown is one column
+   with a single gap, --reply-gap, between every pair of blocks — text,
+   lists, code cards, tables, quotes, rules. Blocks carry no margins of
+   their own, so nothing collapses or adds up and no pair needs its own
+   rule. The one exception is a heading: one extra gap above it and a
+   third of one below, so it belongs to what follows. */
+.message-content .md-rendered {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--reply-gap);
+}
+.message-content .md-rendered > * { margin: 0; }
+.message-content .md-rendered > :is(h1, h2, h3, h4, h5, h6) {
+  margin: var(--reply-gap) 0 calc(var(--reply-gap) / -3);
+}
 .message-content .md-rendered > :first-child { margin-top: 0; }
 .message-content .md-rendered > :last-child { margin-bottom: 0; }
-.message-content .md-rendered > :is(.md-code, pre, table, blockquote, hr)
-  + :is(.md-code, pre, table, blockquote, hr) { margin-top: 19px; }
-.message-content .md-rendered > :is(h1, h2, h3)
-  + :is(.md-code, pre, table, blockquote, hr) { margin-top: 8px; }
-.message-content ul, .message-content ol { margin: 12px 0; padding-left: 20px; }
+.message-content p { margin: 0; }
+/* Inside a quote or a loose list item, blocks keep the same gap. */
+.message-content :is(blockquote, li) > * + :is(p, pre, .md-code, table, blockquote) { margin-top: var(--reply-gap); }
+.message-content ul, .message-content ol { padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
 /* Tailwind preflight strips list markers; chat markdown needs them back. */
 .message-content ul { list-style: disc; }
 .message-content ol { list-style: decimal; }
 .message-content ul ul { list-style: circle; }
 .message-content li::marker { color: var(--text-muted); }
-.message-content li { margin: 2px 0; }
-.message-content li > :is(ul, ol) { margin: 2px 0; }
-.message-content h1, .message-content h2, .message-content h3 { margin: 22px 0 6px; color: var(--text-bright); }
+.message-content li { margin: 0; }
+.message-content li > :is(ul, ol) { margin: 4px 0 0; }
+.message-content h1, .message-content h2, .message-content h3 { color: var(--text-bright); }
 .message-content h1 { font-size: 1.3em; } .message-content h2 { font-size: 1.17em; } .message-content h3 { font-size: 1.05em; }
 .message-content a { color: var(--accent-blue); text-decoration: none; }
 .message-content a:hover { text-decoration: underline; }
-.message-content blockquote { border-left: 3px solid var(--border); margin: 15.5px 0; padding: 4px 12px; color: var(--text-secondary); }
-.message-content hr { margin: 15.5px 0; border: 0; border-top: 1px solid var(--border); }
+.message-content blockquote { border-left: 3px solid var(--border); margin: 0; padding: 4px 12px; color: var(--text-secondary); }
+.message-content hr { margin: 0; border: 0; border-top: 1px solid var(--border); }
 /* marked emits a bare <table> with no wrapper, so the table itself has
    to be the scroll container: `display:block` makes overflow-x apply
    (a `display:table` box ignores it and just widens the column, which
@@ -469,7 +468,7 @@
   max-width: 100%;
   overflow-x: auto;
   border-collapse: collapse;
-  margin: 15.5px 0;
+  margin: 0;
   line-height: 1.5;
 }
 /* Obsidian's reading-view table: a plain grid of hairlines, no fills.
@@ -586,15 +585,11 @@
 }
 
 /* Terminal failures follow the reply trace and survive history reload.
-   It keeps the reply's ~19px block rhythm (see "Reply block rhythm"):
-   the column gap (8px) plus 7.5px plus the leading of the text above,
-   or 11px after a reply that ends on a card. The footer below makes up
-   for its border the way it does for a trailing card. */
+   The stream column's gap places it (see "Reply block rhythm"). */
 .turn-error {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  margin-top: 7.5px;
   padding: 13px 14px;
   border-radius: 16px;
   /* Same raised card as the file cards (assistant-file-cards.module.css);
@@ -605,8 +600,6 @@
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
-.chat-stream-body > .chat-text:has(> .md-rendered > :last-child:is(.md-code, pre, table, blockquote, hr))
-  + .turn-error { margin-top: 11px; }
 .turn-error-icon {
   display: flex;
   align-items: center;

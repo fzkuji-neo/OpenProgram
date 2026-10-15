@@ -1,8 +1,9 @@
-/* Shared assistant content column; execution rows use execution-strip.css. */
+/* Shared assistant content column; execution rows use execution-strip.css.
+   Its parts sit one --reply-gap apart, like the blocks inside the text. */
 .chat-stream-body {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--reply-gap, 12px);
   margin-left: var(--avatar-gutter);
   margin-right: var(--avatar-gutter);
 }

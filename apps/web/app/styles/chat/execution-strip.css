@@ -6,25 +6,13 @@
    步骤行（圆形图标压线、标题 + 单行摘要、动作悬停出现、点行展开）。
    函数内部的 context_tree 递归成缩进一层的子时间线（.tl-sub）。 */
 .tl {
-  /* The summary row keeps the reply's ~19px block rhythm (chat/bubbles.css
-     "Reply block rhythm") to whatever sits next to it. Its 28px row leaves
-     ~4px above and ~7px below the summary text, so the margins here (with
-     the stream's 8px gap) only make up the rest. */
-  margin: 7px 0 1px;
+  /* Placed by the stream column's gap (chat/stream-blocks.css). */
+  margin: 0;
   --timeline-line: light-dark(rgba(36, 36, 32, 0.22), rgba(226, 225, 218, 0.28));
   --timeline-thinking: light-dark(#7c3aed, #b78cff);
   --timeline-function: light-dark(#d14a1f, #ff9a66);
   --timeline-llm: light-dark(#00849a, #45d7e8);
   --timeline-subagent: light-dark(#0b8a4b, #4bd58a);
-}
-/* After a paragraph the text's own leading already counts; after a card
-   it does not, so the default 7px stays. Before a card the same holds in
-   reverse. */
-.chat-stream-body > .chat-text:not(:has(> .md-rendered > :last-child:is(.md-code, pre, table, blockquote, hr))) + .tl {
-  margin-top: 3px;
-}
-.chat-stream-body > .tl + .chat-text:has(> .md-rendered > :first-child:is(.md-code, pre, table, blockquote, hr)) {
-  margin-top: 3px;
 }
 /* 展开/收起高度过渡：grid 0fr↔1fr，展开向下推开、收起平滑抽走。 */
 .tl-collapse {
