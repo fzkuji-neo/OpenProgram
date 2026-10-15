@@ -19,10 +19,14 @@ import openprogram.store.session.session_store as session_store
 HOME = Path(os.environ["HOME"])
 DB = SessionStore(HOME / "sessions")
 STORE = ExecutionStore(HOME / "execution.sqlite3")
-session_db.default_db = lambda: DB
-session_store.shared._default_store = DB
-execution.default_store = lambda: STORE
-providers.create_runtime = lambda **_kw: Runtime(call=lambda *_a, **_k: "unused")
+# Only the probe process and its spawned child carry the receipt variable.
+# Anything else that imports this file (pytest given its path) keeps its own
+# stores and provider instead of inheriting these for the rest of the run.
+if os.environ.get("PAGE_PROBE_RECEIPT"):
+    session_db.default_db = lambda: DB
+    session_store.shared._default_store = DB
+    execution.default_store = lambda: STORE
+    providers.create_runtime = lambda **_kw: Runtime(call=lambda *_a, **_k: "unused")
 
 
 def source_identity():
