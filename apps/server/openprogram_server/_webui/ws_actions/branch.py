@@ -99,6 +99,27 @@ def _extract_attach_label(m: dict) -> Optional[str]:
     return None
 
 
+def _extract_attach_job_id(m: dict) -> Optional[str]:
+    """``attach.job_id`` from an attach pointer row: the Job that ran the
+    spawned agent. Its branch root is the Job's admission id
+    ``<job_id>_user``, which names the branch while the row has no head."""
+    if m.get("function") != "attach":
+        return None
+    raw = m.get("attach") or m.get("extra")
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            return None
+    if isinstance(raw, dict) and "attach" in raw and isinstance(raw["attach"], dict):
+        raw = raw["attach"]
+    if isinstance(raw, dict):
+        v = raw.get("job_id")
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+    return None
+
+
 def _extract_function_name(m: dict) -> Optional[str]:
     """For a tool node, the underlying function name (``bash``, ``task``,
     ``read``, ...). Pulled from the legacy ``function`` field with a

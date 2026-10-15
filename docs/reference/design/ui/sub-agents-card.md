@@ -87,3 +87,21 @@ agent reaches a terminal status.
     reader scrolls up. A finished agent opens at its task.
 - The timeline's sub-agent step rows stay as they are; the card adds the
   agent's conversation and does not replace the step rows.
+
+## The way back
+
+On an agent's branch the transcript shows the sub-agent branch banner
+("Back to main conversation") and, above the branch's first prompt, the
+Spawned-from card with its Switch. Both return to the newest turn below
+the spawning reply, not to the spawning reply itself, which would hide
+later turns.
+
+A bounded session load ships no graph, so `session_loaded` carries
+`spawned_branch {root_id, caller_id, back_target, first_reply, label}`
+whenever the head is on a spawn branch (and `null` otherwise). The
+branch root is the user row with `source=agent_spawn` and no
+predecessor; its `caller` is the spawning reply. The root's
+`spawned_from` annotation needs no pointer head either: a Job spawn's
+root is found the same way, and its label comes from the spawn card with
+the matching `job_id`.
+
