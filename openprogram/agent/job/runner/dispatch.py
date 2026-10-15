@@ -585,7 +585,7 @@ class DispatchOperations:
                         terminal_fields=shared._terminal_fields(
                             projected_status,
                             execution.reason_code or projected_status.value,
-                            head_id=getattr(result, "head_id", None),
+                            head_id=shared._turn_head_id(self._execution_store, job_id, result),
                             result_text=getattr(result, "final_text", None),
                             error=getattr(result, "error", None),
                         ),

@@ -6,8 +6,12 @@
  * it runs) inside the card, so the turn's transcript keeps only its own
  * reply. Same raised surface as the file-change and error cards.
  */
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import {
+  type AnimatedNavIconHandle,
+  ArrowUpRightIcon,
+} from "@/components/animated-icons";
 import { SolarIcon } from "@/components/solar-icons";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -94,7 +98,11 @@ function Turn({ id, sessionId }: { id: string; sessionId: string }) {
   return <AssistantBubble msg={msg} sessionIdOverride={sessionId} embedded />;
 }
 
-function Transcript({ agent, sessionId }: { agent: Agent; sessionId: string }) {
+function Transcript({ agent, sessionId, onTip }: {
+  agent: Agent;
+  sessionId: string;
+  onTip: (key: string, tip: string) => void;
+}) {
   const { text } = useTranslation();
   const chatKey = subAgentChatKey(sessionId, agent.key);
   const order = useSessionStore((s) => s.messageOrder[chatKey]);
@@ -109,6 +117,7 @@ function Transcript({ agent, sessionId }: { agent: Agent; sessionId: string }) {
     const load = () => {
       setLoading(true);
       void loadSubAgentTranscript(sessionId, key, { jobId, headId })
+        .then((tip) => { if (live && tip) onTip(key, tip); })
         .finally(() => { if (live) setLoading(false); });
     };
     load();
@@ -125,7 +134,7 @@ function Transcript({ agent, sessionId }: { agent: Agent; sessionId: string }) {
       live = false;
       window.removeEventListener("op:job-status", onStatus);
     };
-  }, [sessionId, key, jobId, headId]);
+  }, [sessionId, key, jobId, headId, onTip]);
 
   // Stay at the newest output while it streams, unless the reader scrolled up.
   useLayoutEffect(() => {
@@ -173,6 +182,13 @@ function Transcript({ agent, sessionId }: { agent: Agent; sessionId: string }) {
 export function SubAgentsCard({ cards, sessionId }: { cards: ChatMsg[]; sessionId: string }) {
   const { text } = useTranslation();
   const [selected, setSelected] = useState<string | null>(null);
+  // Each agent's newest reply, from its loaded branch: later messages to the
+  // agent move it past the head its spawn card recorded.
+  const [tips, setTips] = useState<Record<string, string>>({});
+  const onTip = useCallback((key: string, tip: string) => {
+    setTips((value) => (value[key] === tip ? value : { ...value, [key]: tip }));
+  }, []);
+  const goIconRef = useRef<AnimatedNavIconHandle>(null);
   const agents = agentsOf(cards, text("Sub-agent", "子代理"));
   const current = agents.find((agent) => agent.key === selected) ?? null;
 
@@ -192,7 +208,7 @@ export function SubAgentsCard({ cards, sessionId }: { cards: ChatMsg[]; sessionI
     && typeof attach.status_version === "number"
     ? { executionId: attach.execution_id, version: attach.status_version }
     : null;
-  const headId = current?.headId;
+  const target = current ? tips[current.key] || current.headId : undefined;
 
   return (
     <div className="sub-agents-card" data-open={current ? "1" : "0"}>
@@ -222,18 +238,23 @@ export function SubAgentsCard({ cards, sessionId }: { cards: ChatMsg[]; sessionI
                 {text("Cancel", "取消")}
               </button>
             ) : null}
-            {headId ? (
+            {target ? (
               <button
                 type="button"
                 className={cn(buttonVariants({ variant: "elevated", size: "sm" }), "sub-agents-action")}
-                data-tip={text("Switch the conversation to this agent's branch", "把对话切换到这个子代理的分支")}
+                data-tip={text(
+                  "Open this agent's conversation; the banner there leads back",
+                  "打开这个子代理的对话；那里的横幅可以切回来",
+                )}
+                onMouseEnter={() => goIconRef.current?.startAnimation?.()}
+                onMouseLeave={() => goIconRef.current?.stopAnimation?.()}
                 onClick={() => {
-                  wsSend({ action: "checkout_branch", session_id: sessionId, head_msg_id: headId });
+                  wsSend({ action: "checkout_branch", session_id: sessionId, head_msg_id: target });
                   wsSend({ action: "load_session", session_id: sessionId });
                 }}
               >
-                <SolarIcon name="git-branch" size={14} motionPreset="none" />
-                <span>{text("Open branch", "打开分支")}</span>
+                <span>{text("Go to agent", "进入子代理")}</span>
+                <ArrowUpRightIcon ref={goIconRef} size={14} />
               </button>
             ) : null}
           </span>
@@ -254,7 +275,9 @@ export function SubAgentsCard({ cards, sessionId }: { cards: ChatMsg[]; sessionI
           </button>
         ))}
       </div>
-      {current ? <Transcript key={current.key} agent={current} sessionId={sessionId} /> : null}
+      {current ? (
+        <Transcript key={current.key} agent={current} sessionId={sessionId} onTip={onTip} />
+      ) : null}
     </div>
   );
 }

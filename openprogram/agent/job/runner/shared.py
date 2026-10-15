@@ -156,6 +156,23 @@ def _terminal_fields(
     }
 
 
+def _turn_head_id(execution_store: Any, job_id: str, result: Any) -> str | None:
+    """The Job's branch tip: the reply its turn wrote.
+
+    The canonical driver hands back the turn runner's ``TurnResult``, which
+    names that reply ``assistant_msg_id``. A turn that raised has no result,
+    so the reply id the Job was admitted with stands in.
+    """
+    head_id = getattr(result, "head_id", None) or getattr(result, "assistant_msg_id", None)
+    if head_id:
+        return head_id
+    try:
+        record = execution_store.get_execution_input(job_id)
+    except Exception:
+        return None
+    return getattr(record, "assistant_message_id", None) or None
+
+
 def _store_write_terminal(
     session_id: str,
     job_id: str,
