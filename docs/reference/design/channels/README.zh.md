@@ -6,3 +6,4 @@
 
 - [`audit.md`](audit.zh.md)
 - [`design.md`](design.zh.md)
+- [`chat-bots.md`](chat-bots.zh.md)

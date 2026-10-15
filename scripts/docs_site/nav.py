@@ -589,6 +589,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/channels/README.md",
             "reference/design/channels/audit.md",
             "reference/design/channels/design.md",
+            "reference/design/channels/chat-bots.md",
         ]),
         ('Security and permissions', '安全与权限', [
             "reference/design/runtime/sandbox-architecture.html",
