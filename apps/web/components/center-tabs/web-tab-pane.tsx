@@ -69,7 +69,7 @@ import {
   previewTabId,
   useBrowserResourceStore,
 } from "@/lib/chat/session-resources";
-import { isWebTabOccluded, measureWebTabBounds } from "@/lib/browser/web-tab-bounds";
+import { isMovedByAnimation, isWebTabOccluded, measureWebTabBounds } from "@/lib/browser/web-tab-bounds";
 import styles from "./center-tabs.module.css";
 import { webToolbarButton } from "./toolbar-button";
 import { BookmarksLibraryButton, BrowserMenu } from "./browser-controls";
@@ -446,21 +446,38 @@ function DesktopWebTabPane({
       registerVisibleWebTabBounds(bridge, tabId, bounds);
       setWebTabReady(tabId, true);
     };
-    report();
-    const ro = new ResizeObserver(report);
+    // While an animation moves the pane (picking a window in the overview
+    // zooms its card into place), measure every frame until it stops: its
+    // last frame changes neither the DOM nor the pane's size, so nothing
+    // else would report the final position and the native view would stay
+    // where the animation was mid-way.
+    let followFrame = 0;
+    const moving = () => isMovedByAnimation(el, document.getAnimations?.() ?? []);
+    const follow = () => {
+      followFrame = 0;
+      report();
+      if (moving()) followFrame = window.requestAnimationFrame(follow);
+    };
+    const reportAndFollow = () => {
+      report();
+      if (!followFrame && moving()) followFrame = window.requestAnimationFrame(follow);
+    };
+    reportAndFollow();
+    const ro = new ResizeObserver(reportAndFollow);
     ro.observe(el);
-    const mo = new MutationObserver(report);
+    const mo = new MutationObserver(reportAndFollow);
     mo.observe(document.body, { subtree: true, childList: true, attributes: true });
-    const offCanvasDrag = onCanvasDragChange(report);
-    window.addEventListener("resize", report);
-    window.addEventListener("scroll", report, true);
+    const offCanvasDrag = onCanvasDragChange(reportAndFollow);
+    window.addEventListener("resize", reportAndFollow);
+    window.addEventListener("scroll", reportAndFollow, true);
     return () => {
       disposed = true;
+      if (followFrame) window.cancelAnimationFrame(followFrame);
       offCanvasDrag();
       ro.disconnect();
       mo.disconnect();
-      window.removeEventListener("resize", report);
-      window.removeEventListener("scroll", report, true);
+      window.removeEventListener("resize", reportAndFollow);
+      window.removeEventListener("scroll", reportAndFollow, true);
       removeVisibleWebTabBounds(bridge, tabId);
     };
   }, [bridge, tabId, suspended]);
