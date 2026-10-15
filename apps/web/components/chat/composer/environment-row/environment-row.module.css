@@ -19,7 +19,9 @@
 .envChips {
   display: flex;
   align-items: center;
-  gap: 6px;
+  /* Same 8px as the control row under the input box, so the two rows'
+     circles line up in columns. */
+  gap: 8px;
   /* overflow-x: auto also clips the y axis, and the row is exactly as
      tall as its pills, so the pills' drop shadow was cut off flat. The
      6px padding is room for the shadow; the negative top margin, the
