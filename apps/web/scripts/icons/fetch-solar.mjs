@@ -26,6 +26,8 @@ const ICONS = {
   "eye-closed": "bold-duotone",
   "dumbbell-large-minimalistic": "bold-duotone",
   "plain-2": "bold-duotone",
+  // composer voice input
+  "microphone-2": "bold-duotone",
   // model / permission badges, question panel
   "chat-round-dots": "bold-duotone",
   "programming": "bold-duotone",

@@ -70,6 +70,8 @@ import { useComposerInputEffects } from "./input/use-composer-input-effects";
 import { EnvironmentRow } from "./environment-row/environment-row";
 import { ScopedDropOverlay } from "./attach/scoped-drop-overlay";
 import { ComposerBody } from "./modes/composer-body";
+import { useVoiceInput } from "./voice/use-voice-input";
+import { MicButton, VoiceStrip } from "./voice/voice-controls";
 import styles from "./composer.module.css";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -251,6 +253,14 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const controlsRowRef = useRef<HTMLDivElement | null>(null);
   useCompactControlsRow(controlsRowRef);
+  // Voice input dictates into this chat's draft (chat mode only).
+  const voice = useVoiceInput({
+    textareaRef,
+    input,
+    setInput,
+    wrapperRef,
+    disabled: fnFormActive,
+  });
   // Drives the animated send arrow from the whole button's hover.
   const sendIconRef = useRef<AnimatedNavIconHandle>(null);
   // `thinkingTriggerRef`: the effort pill expands inline (no portal).
@@ -567,6 +577,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
           composerRootRef.current = el;
         }}
         className={`${styles.inputWrapper} ${morphed ? styles.morphed : ""}`}
+        data-voice={voice.state !== "idle" ? voice.state : undefined}
       >
         <AttachmentStrip
           sessionId={currentSessionId}
@@ -601,6 +612,10 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
           slash={slash}
           fileMention={fileMention}
         />
+
+        {/* Voice input: mic on the left edge, live level strip before send. */}
+        {!fnFormActive ? <MicButton state={voice.state} onToggle={voice.toggle} /> : null}
+        {!fnFormActive ? <VoiceStrip state={voice.state} levels={voice.levels} /> : null}
 
         {/* Chat and function-form actions stay independent of decision cards. */}
         <button

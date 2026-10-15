@@ -180,6 +180,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       "/memory",
       "/scheduler",
       "/settings/environments",
+      "/settings/voice",
       "/settings/channels",
       "/settings/search",
       "/mcp",

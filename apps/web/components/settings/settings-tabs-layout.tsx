@@ -6,6 +6,7 @@ import {
   Bot,
   ChartNoAxesColumn,
   Brain,
+  Mic,
   MonitorCog,
   RadioTower,
   Server,
@@ -18,7 +19,7 @@ import { useTranslation } from "@/lib/i18n";
 import { ChromeIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "../animated-icons";
 import { sidebarToggleClass } from "../sidebar/nav-classes";
 
-export type SettingsTab = "providers" | "usage" | "search" | "environments" | "channels" | "browser" | "memory" | "general" | "system";
+export type SettingsTab = "providers" | "usage" | "search" | "environments" | "channels" | "browser" | "voice" | "memory" | "general" | "system";
 
 function readSettingsNavOpen(): boolean {
   if (typeof window === "undefined") return true;
@@ -80,6 +81,7 @@ export function SettingsTabsLayout({
     if (pathname.startsWith("/settings/environments")) return "environments";
     if (pathname.startsWith("/settings/channels")) return "channels";
     if (pathname.startsWith("/settings/browser")) return "browser";
+    if (pathname.startsWith("/settings/voice")) return "voice";
     if (pathname.startsWith("/settings/memory")) return "memory";
     if (pathname.startsWith("/settings/general")) return "general";
     if (pathname.startsWith("/settings/system")) return "system";
@@ -97,6 +99,7 @@ export function SettingsTabsLayout({
     { id: "memory" as const, href: "/settings/memory", label: t("settings.tab.memory"), Icon: Brain },
     { id: "search" as const, href: "/settings/search", label: t("settings.tab.search"), Icon: Search },
     { id: "browser" as const, href: "/settings/browser", label: t("settings.tab.browser"), Icon: ChromeIcon },
+    { id: "voice" as const, href: "/settings/voice", label: t("settings.tab.voice"), Icon: Mic },
     { id: "environments" as const, href: "/settings/environments", label: t("settings.tab.environments"), Icon: Server },
     { id: "channels" as const, href: "/settings/channels", label: t("settings.tab.channels"), Icon: RadioTower },
     { id: "usage" as const, href: "/settings/usage", label: t("settings.tab.usage"), Icon: ChartNoAxesColumn },

@@ -602,6 +602,29 @@ SETTINGS: list[SettingSpec] = [
              "that explicitly asserts target-policy enforcement.",
     ),
     SettingSpec(
+        key="voice.engine", path=("voice", "engine"),
+        group="Voice", label="Speech-to-text engine", widget="enum",
+        apply=APPLY_LIVE, default="auto",
+        choices=lambda: ["auto", "openai", "groq", "local"],
+        help="Turns the composer microphone's recording into text. `auto` uses local "
+             "whisper.cpp when its model is downloaded, then OpenAI, then Groq. "
+             "`local` keeps audio on this computer (needs `brew install whisper-cpp`).",
+    ),
+    SettingSpec(
+        key="voice.language", path=("voice", "language"),
+        group="Voice", label="Spoken language", widget="enum",
+        apply=APPLY_LIVE, default="auto",
+        choices=lambda: ["auto", "zh", "en", "ja", "ko", "fr", "de", "es"],
+        help="`auto` lets the engine detect the language of each phrase.",
+    ),
+    SettingSpec(
+        key="voice.model", path=("voice", "model"),
+        group="Voice", label="Speech model", widget="text",
+        apply=APPLY_LIVE, default="",
+        help="Empty uses the engine's default: gpt-4o-mini-transcribe (OpenAI), "
+             "whisper-large-v3-turbo (Groq), base (local). Applies only when an engine is chosen.",
+    ),
+    SettingSpec(
         key="search.default_provider", path=("search", "default_provider"),
         group="Search", label="Default web-search provider", widget="enum",
         apply=APPLY_LIVE, default="auto", choices=_search_choices,
