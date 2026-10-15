@@ -36,8 +36,9 @@
 .message.assistant .message-actions-footer {
   justify-content: flex-start; /* assistant: bottom-left */
   padding-left: var(--avatar-gutter);          /* align under the assistant text column */
-  /* 与回复内各块同一个间距（bubbles.css "Reply block rhythm"）。 */
-  margin-top: var(--reply-gap, 12px);
+  /* 与回复内各块同一个看得见的间距（bubbles.css "Reply block rhythm"）；
+     按钮行里时间戳文字上方自带约 3px 空白，扣掉。 */
+  margin-top: calc(var(--reply-gap, 12px) - 3px);
 }
 /* 时间戳自带 0 6px 内边距；行首那 6px 会让整排比正文右移，去掉。 */
 .message.assistant .message-actions-footer .message-timestamp {

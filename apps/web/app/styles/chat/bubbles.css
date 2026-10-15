@@ -344,24 +344,29 @@
 .message-content code {
   font-family: var(--font-mono);
   font-size: 0.875em;
-  /* Light schemes: a faint ink wash, not the tertiary panel tone. */
-  background: light-dark(color-mix(in srgb, var(--text-bright) 6%, var(--bg-primary)), var(--bg-tertiary));
-  padding: 2px 6px;
-  border-radius: 6px;
+  /* The Claude app's chip: a faint ink wash, a half-pixel hairline and
+     the danger tone on the text. */
+  background: color-mix(in srgb, var(--text-bright) 5%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--text-bright) 16%, transparent);
+  color: var(--accent-red);
+  padding: 1px 4px;
+  border-radius: 0.4rem;
   /* Inline code is one unbroken token by nature (paths, identifiers) —
      let it wrap rather than widen the column. `pre code` opts back out
      via the rule below, since the <pre> scrolls instead. */
   overflow-wrap: anywhere;
 }
-.message-content pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: inherit; }
+.message-content pre code { background: none; border: 0; color: inherit; padding: 0; font-size: inherit; overflow-wrap: inherit; }
 
-/* Fenced code block chrome (components/chat/messages/markdown.ts): the
-   card moves to the wrapper so the language/copy header shares its border. */
+/* Fenced code block chrome (components/chat/messages/markdown.ts), the
+   Claude app's: one hairline card, the language as a quiet label inside
+   it rather than a header bar, the copy button only while hovered. */
 .message-content .md-code {
+  position: relative;
   margin: 0;
-  background: light-dark(color-mix(in srgb, var(--text-bright) 3.5%, var(--bg-primary)), var(--bg-tertiary));
-  border: 1px solid light-dark(var(--border), var(--border-light));
-  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-input) 50%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--text-bright) 18%, transparent);
+  border-radius: 8px;
   overflow: hidden;
 }
 .message-content .md-code pre {
@@ -369,19 +374,23 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  padding: 10px 14px 12px;
+  padding: 8px 16px 16px;
+  font-size: 0.875rem;
+  line-height: 1.625;
 }
 .md-code-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   height: 30px;
-  padding: 0 6px 0 14px;
-  border-bottom: 1px solid light-dark(var(--border), var(--border-light));
+  padding: 6px 6px 0 16px;
   font-family: var(--font-sans);
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--text-muted);
 }
+.md-code-head .md-code-copy { opacity: 0; transition: opacity 0.15s ease, background var(--transition), color var(--transition); }
+.md-code:is(:hover, :focus-within) .md-code-head .md-code-copy,
+.md-code-head .md-code-copy.copied { opacity: 1; }
 .md-code-lang { text-transform: lowercase; letter-spacing: 0.02em; }
 .md-code-copy {
   display: inline-flex;
@@ -429,9 +438,13 @@
    with a single gap, --reply-gap, between every pair of blocks — text,
    lists, code cards, tables, quotes, rules. Blocks carry no margins of
    their own, so nothing collapses or adds up and no pair needs its own
-   rule. The one exception is a heading: one extra gap above it and a
-   third of one below, so it belongs to what follows. */
-.message.assistant { --reply-gap: 16px; }
+   rule. The one exception is a heading: half a gap more above it and a
+   third of one less below, so it belongs to what follows. A reply's gap
+   is clearly wider than the ~11px between the lines of a paragraph, or
+   paragraphs run together. */
+.message.assistant { --reply-gap: 22px; }
+/* The Claude app's reply leading. */
+.message.assistant .message-content { line-height: 1.6; }
 .message-content .md-rendered {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -439,7 +452,7 @@
 }
 .message-content .md-rendered > * { margin: 0; }
 .message-content .md-rendered > :is(h1, h2, h3, h4, h5, h6) {
-  margin: var(--reply-gap) 0 calc(var(--reply-gap) / -3);
+  margin: calc(var(--reply-gap) / 2) 0 calc(var(--reply-gap) / -3);
 }
 .message-content .md-rendered > :first-child { margin-top: 0; }
 .message-content .md-rendered > :last-child { margin-bottom: 0; }
@@ -451,7 +464,7 @@
    back the ~1.6px Chinese glyphs reach past those lines. An inline-code
    pill is taller still (more below the baseline than above), so a
    paragraph holding one gives back what the pill reaches past. Measured
-   on screen pixels, every pair of blocks then sits ~16px apart. */
+   on screen pixels, every pair of blocks then sits one gap apart. */
 .chat-stream-body > .chat-text > .md-rendered > :is(p, ul, ol, h1, h2, h3, h4, h5, h6) {
   text-box: trim-both cap alphabetic;
   padding-block: 1.6px;
@@ -459,21 +472,28 @@
 .chat-stream-body > .chat-text > .md-rendered > p:has(> code) { padding-block: 3.8px 6.1px; }
 /* Inside a quote or a loose list item, blocks keep the same gap. */
 .message-content :is(blockquote, li) > * + :is(p, pre, .md-code, table, blockquote) { margin-top: var(--reply-gap); }
-.message-content ul, .message-content ol { padding-left: 20px; }
+.message-content ul, .message-content ol { padding-left: 32px; }
+.message-content li { padding-left: 8px; }
 .message-content li + li { margin-top: 4px; }
 /* Tailwind preflight strips list markers; chat markdown needs them back. */
 .message-content ul { list-style: disc; }
 .message-content ol { list-style: decimal; }
 .message-content ul ul { list-style: circle; }
 .message-content li::marker { color: var(--text-muted); }
+.message-content ul > li::marker { font-size: 0.7em; }
 .message-content li { margin: 0; }
 .message-content li > :is(ul, ol) { margin: 4px 0 0; }
-.message-content h1, .message-content h2, .message-content h3 { color: var(--text-bright); }
-.message-content h1 { font-size: 1.3em; } .message-content h2 { font-size: 1.17em; } .message-content h3 { font-size: 1.05em; }
+/* Headings, the Claude app's: bold (Tailwind's preflight drops it) at
+   22 / 18 / 16 / 16 / 14 / 14px. */
+.message-content :is(h1, h2, h3, h4, h5, h6) { color: var(--text-bright); font-weight: 700; line-height: 1.4; }
+.message-content h1 { font-size: 1.375rem; }
+.message-content h2 { font-size: 1.125rem; }
+.message-content :is(h3, h4) { font-size: 1rem; }
+.message-content :is(h5, h6) { font-size: 0.875rem; }
 .message-content a { color: var(--accent-blue); text-decoration: none; }
 .message-content a:hover { text-decoration: underline; }
-.message-content blockquote { border-left: 3px solid var(--border); margin: 0; padding: 4px 12px; color: var(--text-secondary); }
-.message-content hr { margin: 0; border: 0; border-top: 1px solid var(--border); }
+.message-content blockquote { margin: 0 0 0 8px; border-left: 4px solid color-mix(in srgb, var(--text-bright) 10%, transparent); padding: 0 0 0 16px; color: var(--text-secondary); }
+.message-content hr { margin: 0 6px; border: 0; border-top: 0.5px solid var(--border); }
 /* marked emits a bare <table> with no wrapper, so the table itself has
    to be the scroll container: `display:block` makes overflow-x apply
    (a `display:table` box ignores it and just widens the column, which
@@ -484,15 +504,20 @@
   overflow-x: auto;
   border-collapse: collapse;
   margin: 0;
-  line-height: 1.5;
+  font-size: 0.875rem;
+  line-height: 1.7;
 }
-/* Obsidian's reading-view table: a plain grid of hairlines, no fills.
-   The header is set apart only by weight; every cell reads left to
-   right and from the top, the way the text around it does. */
+/* The Claude app's table: no grid and no fills, only a hairline under
+   each row — a firmer one under the bold header. Cells read left to
+   right and from the top, the way the text around them does. */
+/* With no rule on top, a table's visible top is its header text, ~11px
+   inside the box (cell padding plus leading); it gives that back so the
+   reply gap reads the same above a table as above anything else. */
+.message-content .md-rendered > table:not(:first-child) { margin-top: -11px; }
 .message-content th, .message-content td {
-  border: 1px solid var(--border);
-  padding: 4px 8px;
-  min-width: 6ch;
+  border: 0;
+  border-bottom: 0.5px solid color-mix(in srgb, var(--text-bright) 14%, transparent);
+  padding: 8px 16px 8px 0;
   text-align: start;
   vertical-align: top;
   /* The table scrolls, so cells keep their natural width instead of
@@ -502,7 +527,8 @@
 .message-content th {
   background: transparent;
   color: var(--text-bright);
-  font-weight: 600;
+  font-weight: 700;
+  border-bottom-color: color-mix(in srgb, var(--text-bright) 30%, transparent);
 }
 .message-content :is(th, td)[align="center"] { text-align: center; }
 .message-content :is(th, td)[align="right"] { text-align: end; }
