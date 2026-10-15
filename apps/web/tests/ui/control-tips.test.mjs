@@ -149,3 +149,12 @@ test("Reply markdown wears the Claude app's styles", () => {
   assert.match(bubbles, /\.md-code-head \.md-code-copy \{ opacity: 0;/);
   assert.match(bubbles, /\.message\.assistant \.message-content \{ line-height: 1\.6; \}/);
 });
+
+test("a long address breaks inside the tip instead of running out of it", () => {
+  const tips = read("components/control-tips.tsx");
+  assert.match(tips, /max-w-\[min\(360px,calc\(100vw-16px\)\)\] whitespace-pre-line \[overflow-wrap:anywhere\]/);
+  // A web tab names a local page by its path and decodes escapes elsewhere.
+  const tabs = read("components/center-tabs/tab-items.tsx");
+  assert.match(tabs, /tab\.kind === "web" \? readableUrl\(tab\.url\)/);
+  assert.match(tabs, /const local = localPathFromUrl\(url\);\n\s+if \(local\) return local;\n\s+try \{\n\s+return decodeURI\(url\);/);
+});

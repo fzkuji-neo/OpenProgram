@@ -107,7 +107,7 @@ export function ControlTips() {
   return createPortal(
     <div
       role="tooltip"
-      className="hover-tip rail-tip pointer-events-none fixed z-[100000] w-max max-w-[min(360px,calc(100vw-16px))] whitespace-pre-line rounded-[8px] px-[10px] py-[6px] text-[13px] shadow-[var(--shadow-popover)]"
+      className="hover-tip rail-tip pointer-events-none fixed z-[100000] w-max max-w-[min(360px,calc(100vw-16px))] whitespace-pre-line [overflow-wrap:anywhere] rounded-[8px] px-[10px] py-[6px] text-[13px] shadow-[var(--shadow-popover)]"
       data-side={tip.side}
       ref={node => {
         // Keep a tip near the window edge inside the window.
