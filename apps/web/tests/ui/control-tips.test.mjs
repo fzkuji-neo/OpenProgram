@@ -109,11 +109,11 @@ test("A reply keeps one block rhythm: a single gap between every block and every
   // The markdown is one grid column; its blocks carry no margins of their own.
   assert.match(bubbles, /\.message-content \.md-rendered \{[^}]*display: grid;[^}]*gap: var\(--reply-gap\);/);
   assert.match(bubbles, /\.message-content \.md-rendered > \* \{ margin: 0; \}/);
-  // Headings alone: a gap more above, a third less below.
-  assert.match(bubbles, /> :is\(h1, h2, h3, h4, h5, h6\) \{\s*margin: var\(--reply-gap\) 0 calc\(var\(--reply-gap\) \/ -3\);/);
+  // Headings alone: half a gap more above, a third less below.
+  assert.match(bubbles, /> :is\(h1, h2, h3, h4, h5, h6\) \{\s*margin: calc\(var\(--reply-gap\) \/ 2\) 0 calc\(var\(--reply-gap\) \/ -3\);/);
   // A reply's gap is measured between ink: text blocks trim their leading,
-  // the summary row gives back its empty row, and the reply's gap is 16px.
-  assert.match(bubbles, /\.message\.assistant \{ --reply-gap: 16px; \}/);
+  // the summary row gives back its empty row, and the reply's gap is 22px.
+  assert.match(bubbles, /\.message\.assistant \{ --reply-gap: 22px; \}/);
   assert.match(bubbles, /> \.md-rendered > :is\(p, ul, ol, h1, h2, h3, h4, h5, h6\) \{\s*text-box: trim-both cap alphabetic;\s*padding-block: 1\.6px;/);
   assert.match(bubbles, /> \.md-rendered > p:has\(> code\) \{ padding-block: 3\.8px 6\.1px; \}/);
   assert.match(read("app/styles/chat/execution-strip.css"), /\.chat-stream-body > \.tl\[data-open="0"\] \{ margin-bottom: -7\.5px; \}/);
@@ -124,11 +124,21 @@ test("A reply keeps one block rhythm: a single gap between every block and every
   assert.match(read("app/styles/chat/stream-blocks.css"), /\.chat-stream-body \{[^}]*gap: var\(--reply-gap, 12px\);/);
   assert.match(read("app/styles/chat/execution-strip.css"), /\.tl \{[^}]*margin: 0;/);
   assert.match(read("app/styles/chat/message-actions.css"),
-    /\.message\.assistant \.message-actions-footer \{[^}]*margin-top: var\(--reply-gap, 12px\);/);
+    /\.message\.assistant \.message-actions-footer \{[^}]*margin-top: calc\(var\(--reply-gap, 12px\) - 3px\);/);
 });
 
-test("Tables follow Obsidian's reading view: hairline grid, unfilled bold header", () => {
+test("Reply markdown wears the Claude app's styles", () => {
   const bubbles = read("app/styles/chat/bubbles.css");
-  assert.match(bubbles, /\.message-content th, \.message-content td \{[^}]*border: 1px solid var\(--border\);[^}]*padding: 4px 8px;/);
-  assert.match(bubbles, /\.message-content th \{[^}]*background: transparent;[^}]*font-weight: 600;/);
+  // Headings: bold at 22 / 18 / 16px.
+  assert.match(bubbles, /\.message-content :is\(h1, h2, h3, h4, h5, h6\) \{[^}]*font-weight: 700;/);
+  assert.match(bubbles, /\.message-content h1 \{ font-size: 1\.375rem; \}/);
+  assert.match(bubbles, /\.message-content h2 \{ font-size: 1\.125rem; \}/);
+  // Tables: a hairline under each row, no grid, no fills; pulled up by their header inset.
+  assert.match(bubbles, /\.message-content th, \.message-content td \{[^}]*border: 0;[^}]*border-bottom: 0\.5px solid/);
+  assert.match(bubbles, /\.message-content th \{[^}]*background: transparent;[^}]*font-weight: 700;/);
+  assert.match(bubbles, /> table:not\(:first-child\) \{ margin-top: -11px; \}/);
+  // Inline code chip and the code card whose copy button shows on hover.
+  assert.match(bubbles, /\.message-content code \{[^}]*border: 0\.5px solid[^}]*color: var\(--accent-red\);/);
+  assert.match(bubbles, /\.md-code-head \.md-code-copy \{ opacity: 0;/);
+  assert.match(bubbles, /\.message\.assistant \.message-content \{ line-height: 1\.6; \}/);
 });
