@@ -122,12 +122,14 @@ async def handle_switch_model(ws, cmd: dict):
                 # message must already be visible to them.
                 def _persist_override():
                     from openprogram.agent.session_db import default_db
+                    from openprogram.providers.last_used import record_last_used_model
                     default_db().update_session(
                         session_id,
                         provider_override=prov,
                         model_override=bare_model,
                     )
                     _s._save_session(session_id)
+                    record_last_used_model(prov, bare_model)
                 await asyncio.to_thread(_persist_override)
                 info = _s._get_provider_info(session_id)
                 _s._broadcast(json.dumps(
@@ -165,9 +167,9 @@ async def handle_switch_model(ws, cmd: dict):
             return
         # Same persistence as POST /api/model's global branch — a ws switch
         # must survive a restart too.
-        from openprogram.providers.storage import save_default_model
+        from openprogram.providers.last_used import record_last_used_model
         await asyncio.to_thread(
-            save_default_model,
+            record_last_used_model,
             target_provider or _s._runtime_management._default_provider,
             bare_model,
         )

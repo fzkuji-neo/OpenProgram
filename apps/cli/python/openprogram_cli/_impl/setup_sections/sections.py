@@ -30,11 +30,10 @@ def run_providers_section() -> int:
 
 
 def run_model_section() -> int:
-    """Pick the default agent's chat model across enabled providers."""
+    """Pick the model new chats start on; recorded as the last used model."""
     from openprogram.setup import _choose_one
     from openprogram.webui import _model_listing as mc
-    from openprogram.agent.management import manager as _agents
-    from openprogram.agent.management import runtime_registry as _runtimes
+    from openprogram.providers.last_used import read_last_used_model, record_last_used_model
     enabled = mc.list_enabled_models()
     if not enabled:
         print("No enabled models yet. Enable a provider in "
@@ -42,31 +41,27 @@ def run_model_section() -> int:
               "`openprogram config model`.")
         return 1
 
-    agent = _ensure_default_agent()
     labels = [f"{m['provider']}/{m['id']}  ({m.get('name', m['id'])})"
               for m in enabled]
     values = [f"{m['provider']}/{m['id']}" for m in enabled]
     label_to_value = dict(zip(labels, values))
 
     current_label = None
-    if agent.model.provider and agent.model.id:
-        target = f"{agent.model.provider}/{agent.model.id}"
+    last = read_last_used_model()
+    if last:
+        target = f"{last[0]}/{last[1]}"
         for lbl, val in label_to_value.items():
             if val == target:
                 current_label = lbl
                 break
 
-    picked = _choose_one(
-        f"Default chat model for agent `{agent.id}`:",
-        labels, current_label,
-    )
+    picked = _choose_one("Model for new chats:", labels, current_label)
     if picked is None:
         print("Cancelled.")
         return 1
     provider, model = label_to_value[picked].split("/", 1)
-    _agents.update(agent.id, {"model": {"provider": provider, "id": model}})
-    _runtimes.invalidate(agent.id)
-    print(f"Agent {agent.id}: default model set to {provider}/{model}")
+    record_last_used_model(provider, model)
+    print(f"New chats start on {provider}/{model} until you pick another model.")
     return 0
 
 

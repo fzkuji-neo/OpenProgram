@@ -548,7 +548,8 @@ in, and what tests use. The config key is `memory.backend`, and
 "backend" is the word for it throughout; "provider" in this codebase
 means an LLM vendor.
 
-The writer runs on the user's own login and default model, so background
+The writer runs on the user's own login and on the default Agent's model,
+or the last used model when that Agent has none, so background
 memory needs no separate credential. `openprogram memory sleep --model`
 and `scheduler.start_nightly_reorganizer(model=...)` override it.
 

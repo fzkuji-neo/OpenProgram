@@ -36,8 +36,10 @@ Language follows the content: the prompt instructs the model to generate the tit
 
 ## Model
 
-The current implementation uses the provider and model configured on the
-default agent. It does not yet have a separate `small_model` setting.
+Titles run on the last used model: `background_llm.build_background_llm()`
+reads `last_used_model` from config.json. When no model has been used yet,
+no title is generated and the first-line placeholder stays. There is no
+separate `small_model` setting yet.
 
 ## Consumer boundary
 
@@ -94,7 +96,7 @@ A single-session CLI tool, with no session list and no naming feature.
 
 | Source | Idea | Do we adopt it |
 |------|------|--------------|
-| OpenCode | A dedicated small-model config `small_model`, so auxiliary tasks like titles/summaries don't use the main model | Adopt — configure `small_model`, fall back to the default model |
+| OpenCode | A dedicated small-model config `small_model`, so auxiliary tasks like titles/summaries don't use the main model | Adopt — configure `small_model`, fall back to the last used model |
 | OpenCode | `<think>` tag cleanup, for compatibility with reasoning models | Reject for this consumer — structured validation replaces text repair |
 | OpenCode | A separate prompt file, for easier maintenance and multi-language support | Don't adopt — a single prompt constant is enough, no file management needed |
 | ChatGPT user request | Lock the manual title so it is never overwritten automatically | Don't adopt — we let the user regenerate with the LLM at any time, with no locking |
@@ -104,7 +106,7 @@ A single-session CLI tool, with no session list and no naming feature.
 
 ## Future Extensions (Out of Current Scope)
 
-- **Landing the `small_model` config**: the current Runtime uses the default agent model; a dedicated auxiliary model remains separate work
+- **Landing the `small_model` config**: titles currently use the last used model; a dedicated auxiliary model remains separate work
 - **Continuous mode**: regenerate the title once an idle threshold is reached after the conversation drifts (OpenCode has this feature)
 - **Branch name generation**: also generate a kebab-case slug (Claude Code's `teleport_generate_title`)
 - **Programmatic naming API**: a `PATCH /sessions/:id` REST endpoint

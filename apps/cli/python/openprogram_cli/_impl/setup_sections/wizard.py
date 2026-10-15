@@ -24,7 +24,7 @@ from openprogram.cli.setup_sections.backend import run_backend_section
 
 
 # QuickStart = the things a user MUST answer to have a working chat:
-#   provider login, default model, reasoning effort — plus the agent
+#   provider login, model, reasoning effort — plus the agent
 #   programs choice (which harnesses to install; sizes shown inline).
 # Advanced   = detail knobs with sane defaults, plus channel bots which
 #   are an opt-in "let external users talk to my agent" feature.
@@ -33,8 +33,8 @@ _QUICKSTART_SECTIONS = [
      "Import existing CLI logins (Claude Code / Codex / Gemini / GH CLI), "
      "or add API keys. At least one provider is required.",
      run_providers_section),
-    ("model", "Pick your default chat model",
-     "Choose which enabled model starts every new conversation.",
+    ("model", "Pick a chat model",
+     "New conversations start on the model you used last; pick the first one here.",
      run_model_section),
     ("agent", "Default reasoning effort",
      "How hard should the model think by default? "
@@ -122,7 +122,7 @@ def _print_intro() -> None:
         body = Text()
         body.append("Welcome to OpenProgram.\n\n", style="bold bright_blue")
         body.append(
-            "  ▸ QuickStart — provider login, default model, reasoning "
+            "  ▸ QuickStart — provider login, model, reasoning "
             "effort, optional chat channels\n"
             "  ▸ Advanced   — everything in QuickStart, plus tool toggles, "
             "skills, TTS, Web UI port, memory backend, profile, terminal "
@@ -154,7 +154,10 @@ def _print_intro() -> None:
 def _print_summary() -> None:
     """Recap the stored config at the end of the wizard."""
     from openprogram.setup import _read_config
+    from openprogram.providers.last_used import read_last_used_model
     cfg = _read_config()
+    last = read_last_used_model()
+    model_label = f"{last[0]}/{last[1]}" if last else "(none yet)"
     try:
         from rich.console import Console
         from rich.table import Table
@@ -162,8 +165,7 @@ def _print_summary() -> None:
         tbl = Table.grid(padding=(0, 2))
         tbl.add_column(style="bold")
         tbl.add_column()
-        tbl.add_row("default model:",
-                    f"{cfg.get('default_provider', '?')}/{cfg.get('default_model', '?')}")
+        tbl.add_row("model:", model_label)
         tbl.add_row("thinking effort:",
                     str((cfg.get("agent", {}) or {}).get("thinking_effort", "medium")))
         tools_disabled = (cfg.get("tools", {}) or {}).get("disabled", []) or []
@@ -182,7 +184,7 @@ def _print_summary() -> None:
         console.print(tbl)
     except ImportError:
         print("\nSetup complete.")
-        print(f"  default model:    {cfg.get('default_provider')}/{cfg.get('default_model')}")
+        print(f"  model:            {model_label}")
         print(f"  thinking effort:  {(cfg.get('agent') or {}).get('thinking_effort', 'medium')}")
 
     print("Optional desktop access: open Settings > System on the execution computer before using desktop control. "

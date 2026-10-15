@@ -8,8 +8,7 @@ do semantic processing but doesn't want to bring its own LLM key.
 
 Spec mapping into OpenProgram:
 
-  * Model selection: we use the host's default agent's configured
-    model. Servers can pass ``modelPreferences`` (hints / costPriority
+  * Model selection: we use the model the user ran last. Servers can pass ``modelPreferences`` (hints / costPriority
     / speedPriority); for v1 we ignore them — picking models per-call
     is a deeper integration than this layer is worth.
   * Multi-turn messages: the spec allows a full conversation array.
@@ -21,7 +20,7 @@ Spec mapping into OpenProgram:
     content types are skipped with a placeholder note. Most sampling
     requests are text-only anyway, and adding image+audio is a
     separate piece of work involving Context image refs.
-  * No default model configured → ``ErrorData`` so the server gets a
+  * No model used yet → ``ErrorData`` so the server gets a
     clean "host doesn't support sampling" signal (matches the SDK's
     default behaviour, just routed through our codepath).
 """
@@ -29,13 +28,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from typing import Any, Optional
-
-
-def _read_default_model() -> Optional[tuple[str, str]]:
-    """Return ``(provider, model_id)`` from the user's default agent."""
-    from openprogram.providers.default_llm import _read_default_model as _r
-    return _r()
+from typing import Any
 
 
 def _extract_text(content: Any) -> str:
@@ -98,12 +91,14 @@ async def sampling_callback(context, params) -> Any:  # noqa: ANN001
     """
     from mcp import types as _mcp_types
 
-    pair = _read_default_model()
+    from openprogram.providers.background_llm import background_model
+
+    pair = background_model()
     if pair is None:
         return _mcp_types.ErrorData(
             code=_mcp_types.INVALID_REQUEST,
-            message=("Sampling not configured: no default agent / model "
-                     "set on this OpenProgram host."),
+            message=("Sampling not available: no model has been used on "
+                     "this OpenProgram host yet."),
         )
     provider, model_id = pair
     model_uri = f"{provider}:{model_id}"

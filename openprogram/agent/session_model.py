@@ -1,10 +1,12 @@
 """Single source of truth for which chat model a session runs.
 
 Display, dispatch, retry, and logs must all call these helpers. A session
-pin always wins. The agent default is copied onto the session at create
-(or once at first send if the pin was lost) and then never re-read for
-that session — that is what stopped Sol chips from silently answering
-on Grok.
+pin always wins. A new session starts on its Agent's own model when the
+Agent has one, otherwise on the model the user ran last; that choice is
+copied onto the session at create (or once at first send if the pin was
+lost) and then never re-read for that session — that is what stopped Sol
+chips from silently answering on Grok. There is no default model: with
+nothing used yet, a new session has no model until the user picks one.
 """
 from __future__ import annotations
 
@@ -15,17 +17,28 @@ from typing import Optional
 _log = logging.getLogger(__name__)
 
 
-def default_chat_model(agent_id: Optional[str] = None) -> tuple[Optional[str], Optional[str]]:
-    """Agent.json default. Only for *new* sessions, never for a pinned turn."""
+def new_session_chat_model(agent_id: Optional[str] = None) -> tuple[Optional[str], Optional[str]]:
+    """Model a *new* session starts on; never consulted for a pinned turn.
+
+    The Agent's own model when it has one, else the last used model, else
+    nothing.
+    """
     try:
         from openprogram.agent.management.manager import DEFAULT_AGENT_ID, get as get_agent
         spec = get_agent(agent_id or DEFAULT_AGENT_ID)
-        provider = (spec.model.provider or "").strip() or None
-        model = (spec.model.id or "").strip() or None
-        if provider:
+        provider = (spec.model.provider or "").strip() or None if spec else None
+        model = (spec.model.id or "").strip() or None if spec else None
+        if provider and model:
             return provider, model
     except Exception as exc:
-        _log.warning("agent default chat model unavailable: %s", exc)
+        _log.warning("agent chat model unavailable: %s", exc)
+    try:
+        from openprogram.providers.last_used import read_last_used_model
+        pair = read_last_used_model()
+        if pair:
+            return pair
+    except Exception as exc:
+        _log.warning("last used model unavailable: %s", exc)
     return None, None
 
 
@@ -50,13 +63,13 @@ def ensure_session_chat_model(
     """Pin used for this turn.
 
     If the session already has a pin, return it. If the session exists
-    but the pin was dropped, freeze the agent default onto the session
-    once so chip and dispatch cannot diverge again.
+    but the pin was dropped, freeze the new-session choice onto it once so
+    chip and dispatch cannot diverge again.
     """
     provider, model = read_session_chat_model(session_id)
     if provider and model:
         return provider, model
-    provider, model = default_chat_model(agent_id)
+    provider, model = new_session_chat_model(agent_id)
     if session_id and provider and model:
         write_session_chat_model(session_id, provider, model)
     return provider, model

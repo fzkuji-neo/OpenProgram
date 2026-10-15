@@ -7,15 +7,12 @@ def _get_chat_runtime():
 
     Resolution order (first match wins):
 
-    1. The default agent's pinned model (``agent.model.provider`` /
-       ``agent.model.id`` from ``agents/<id>/agent.json``). If the
-       user spent time picking a provider in settings, that's the
-       contract — honour it. Earlier versions of this function went
-       straight to ``_chat_runtime`` (auto-detect default), which
-       silently overrode the agent setting whenever a higher-priority
-       provider was probeable (e.g. claude-code happened to be
-       configured, so openai-codex agents got hijacked to claude-code).
-    2. Global auto-detected default from ``_init_providers``.
+    1. The default agent's own model (``agent.model.provider`` /
+       ``agent.model.id`` from ``agents/<id>/agent.json``).
+    2. The model the user ran last.
+
+    There is no auto-detected default: with neither, this returns
+    ``(None, None)`` and the caller offers setup, which picks a model.
 
     Also applies the user's stored default thinking effort.
     """
@@ -34,6 +31,9 @@ def _get_chat_runtime():
     except Exception:
         spec = None
 
+    if not (agent_provider and agent_model):
+        agent_provider, agent_model = rm._last_used_chat_model()
+
     rt = None
     provider_name = None
     if agent_provider:
@@ -41,17 +41,10 @@ def _get_chat_runtime():
             rt = rm._create_runtime_for_visualizer(agent_provider, model=agent_model)
             provider_name = agent_provider
         except Exception:
-            # Agent's pinned provider couldn't be built (auth missing,
-            # daemon down, etc.). Fall through to auto-detect default
-            # so the user still gets a working REPL instead of a
-            # hard fail — but the next /agent or /model prompt should
-            # make it visible that the pin didn't take.
+            # The model's provider couldn't be built (auth missing,
+            # daemon down, etc.). Never swap in another model.
             rt = None
             provider_name = None
-
-    if rt is None:
-        rt = rm._chat_runtime
-        provider_name = rm._chat_provider
 
     if rt is None:
         return None, None

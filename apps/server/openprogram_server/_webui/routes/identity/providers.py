@@ -234,17 +234,22 @@ def register(app):
         })
 
     def _clear_stale_defaults():
-        """Disabling a model must actually FORGET it as a default.
+        """Disabling a model must actually FORGET it.
 
-        The chat/exec defaults live in three places: the runtime_management
-        globals, and (chat only) the default agent's model in agent.json —
-        which ``_resolve_session_provider_model`` consults UNGATED, so a
-        disabled model would both keep running existing conversations and
-        resurrect onto the top bar the moment it's re-enabled. When the
-        current default is no longer in the user-enabled set, clear all of
-        them; the user picks a new model explicitly."""
+        The last used model is what new conversations and background work
+        start on; the runtime_management chat/exec globals and the default
+        agent's model in agent.json mirror it. When it is no longer in the
+        user-enabled set, clear all of them, so a disabled model neither
+        keeps serving nor resurrects the moment it's re-enabled; the user
+        picks the next model explicitly."""
+        from openprogram.providers.last_used import (
+            forget_last_used_model, read_last_used_model,
+        )
         from openprogram.webui import server as _s
         _rm = _s._runtime_management
+        last = read_last_used_model()
+        if last and not _rm._default_is_enabled(*last):
+            forget_last_used_model()
         if _rm._chat_provider and not _rm._default_is_enabled(
             _rm._chat_provider, _rm._chat_model
         ):

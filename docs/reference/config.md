@@ -44,8 +44,7 @@ The top-level keys actually written to `~/.openprogram/config.json` (do not edit
 | `memory` | `{backend, writer: {model}}`, see the table above | `openprogram/config_schema.py`, `openprogram/memory/` |
 | `tools` | `{disabled: [tool name, ...]}` | `openprogram/setup.py`, `openprogram/config_schema.py` |
 | `sandbox` | `{mode, writable_roots, deny_read, deny_write, network, pass_env, unavailable_policy}`, see the table above | `openprogram/sandbox/__init__.py`, `openprogram/config_schema.py` |
-| `default_provider` | Default LLM provider (written by the setup wizard) | `openprogram/setup.py` |
-| `default_model` | Default model (written by the setup wizard) | `openprogram/setup.py` |
+| `last_used_model` | `{provider, model}` a new conversation starts on: the model last picked or sent with. Empty on a fresh install | `openprogram/providers/last_used.py` |
 | `default_workdir` | Default working directory for agents | `openprogram/paths.py` |
 | `providers` | Per-provider settings subtree (enabled models, custom models, etc.), managed by the Web UI model listing | `openprogram/providers/_config_read.py`, `openprogram/providers/storage.py` |
 | `api_keys` | Environment variable name → API key mapping, written by the setup wizard and exported into the environment at worker startup. Used for web-search / TTS keys; LLM provider keys live in the credential store (`openprogram providers login`), not here | `apps/cli/python/openprogram_cli/_impl/setup_sections/sections.py`, `apps/server/openprogram_server/server.py` |

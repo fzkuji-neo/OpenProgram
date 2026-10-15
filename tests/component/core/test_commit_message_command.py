@@ -68,7 +68,7 @@ def test_commit_message_reads_diff_without_changing_repository(
         return "Add project settings"
 
     monkeypatch.setattr(
-        "openprogram.providers.default_llm.build_default_llm",
+        "openprogram.providers.background_llm.build_background_llm",
         lambda: fake_llm,
     )
     import openprogram.commands.commit_message as commit_message
@@ -138,7 +138,7 @@ def test_commit_message_bounds_combined_status_and_diff_context(
 
     monkeypatch.setattr(commit_message, "_git", fake_git)
     monkeypatch.setattr(
-        "openprogram.providers.default_llm.build_default_llm",
+        "openprogram.providers.background_llm.build_background_llm",
         lambda: fake_llm,
     )
 

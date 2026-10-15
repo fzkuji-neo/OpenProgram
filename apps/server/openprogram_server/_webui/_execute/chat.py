@@ -256,6 +256,8 @@ def run_query(
     _picker_provider, _picker_model = ensure_session_chat_model(
         session_id, agent_id=agent_id,
     )
+    from openprogram.providers.last_used import record_last_used_model
+    record_last_used_model(_picker_provider, _picker_model)
     _model_override = override_string(_picker_provider, _picker_model)
     _s._log(
         f"[model resolve] session={session_id!r} "

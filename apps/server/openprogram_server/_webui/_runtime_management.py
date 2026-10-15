@@ -140,11 +140,10 @@ def _prev_rt_closed(rt) -> bool:
 # ---------------------------------------------------------------------------
 
 def _preferred_default_model(provider: str) -> str | None:
-    """Pick a non-hardcoded default model for a provider based on user config.
+    """Pick a non-hardcoded model for a provider based on user config.
 
     Priority:
-      1. Top-level ``default_model`` in ``~/.openprogram/config.json``
-         (only when ``default_provider`` matches or is unset).
+      1. The last used model, when it belongs to this provider.
       2. First id in ``providers.<provider>.models`` (spec rows) if the user
          has any models enabled for this provider — falling back to the legacy
          ``enabled_models`` id list for a not-yet-migrated config.
@@ -159,10 +158,10 @@ def _preferred_default_model(provider: str) -> str | None:
                 root_cfg = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             root_cfg = {}
-        default_provider = root_cfg.get("default_provider")
-        default_model = root_cfg.get("default_model")
-        if default_model and (not default_provider or default_provider == provider):
-            return default_model
+        from openprogram.providers.last_used import last_used_in_config
+        last = last_used_in_config(root_cfg)
+        if last and last[0] == provider:
+            return last[1]
         pcfg = _read_providers_cfg().get(provider, {})
         spec_ids = [r.get("id") for r in (pcfg.get("models") or []) if r.get("id") and r.get("enabled") is not False]
         enabled = spec_ids if "models" in pcfg else list(pcfg.get("enabled_models") or [])
@@ -318,23 +317,19 @@ def _probe_one_provider(p_name: str):
 
 
 def _probe_order() -> list[str]:
-    """Provider probe order: the user's saved ``default_provider`` first,
-    then ``_PROVIDER_PRIORITY``.
+    """Provider probe order: the last used model's provider first, then
+    ``_PROVIDER_PRIORITY``.
 
-    Without this, startup always re-picked the hardcoded head of the priority
-    list (openai-codex), so a model switched in the top bar reverted on every
-    restart even though it had been persisted.
+    Probing only prepares runtimes; it never chooses the chat model.
     """
     order = list(_PROVIDER_PRIORITY)
     try:
-        from openprogram.paths import get_config_path
-        import json
-        with open(get_config_path(), "r", encoding="utf-8") as f:
-            pinned = json.load(f).get("default_provider")
+        from openprogram.providers.last_used import read_last_used_model
+        pair = read_last_used_model()
     except Exception:
-        pinned = None
-    if pinned:
-        order = [pinned] + [p for p in order if p != pinned]
+        pair = None
+    if pair:
+        order = [pair[0]] + [p for p in order if p != pair[0]]
     return order
 
 
@@ -348,38 +343,39 @@ def _detect_default_provider() -> tuple:
     return None, None
 
 
-def _apply_config_default_model(provider: str, rt, models: list) -> None:
-    """Pin ``rt.model`` to the config's ``default_model`` when that model is
-    still available for ``provider``, else leave the probe's own pick.
-
-    The probe builds a runtime with ``_preferred_default_model``, which only
-    honours ``default_model`` when it isn't shadowed by the spec rows' first
-    entry. Re-apply it here against the provider's ACTUAL model set so the
-    restart lands on what the user last chose — and so a model the user has
-    since disabled (or that upstream dropped) falls back to an available one
-    instead of leaving the top bar blank.
-    """
+def _apply_last_used_model(provider: str, rt, models: list) -> None:
+    """Point ``rt.model`` at the last used model when it belongs to
+    ``provider`` and is still enabled, else leave the probe's own pick."""
     try:
-        from openprogram.paths import get_config_path
-        import json
-        with open(get_config_path(), "r", encoding="utf-8") as f:
-            cfg = json.load(f)
+        from openprogram.providers.last_used import read_last_used_model
+        pair = read_last_used_model()
     except Exception:
         return
-    if cfg.get("default_provider") not in (None, provider):
+    if not pair or pair[0] != provider:
         return
-    want = cfg.get("default_model")
-    if not want:
-        return
-    bare = want.split(":", 1)[1] if want.startswith(f"{provider}:") else want
+    want = pair[1]
     avail = {m for m in (models or []) if isinstance(m, str)}
-    for cand in (want, bare):
-        if cand in avail or _default_is_enabled(provider, cand):
-            rt.model = cand
-            if cand not in avail:
-                models.insert(0, cand)
-            return
-    # Not available any more — keep the probe's model (already a live one).
+    if want in avail or _default_is_enabled(provider, want):
+        rt.model = want
+        if want not in avail:
+            models.insert(0, want)
+
+
+def _last_used_chat_model() -> tuple[str | None, str | None]:
+    """Model for a conversation with no pin and no Agent model of its own.
+
+    There is no default model: this is the model the user ran last, and
+    ``(None, None)`` until something has been used or when that model is
+    no longer enabled.
+    """
+    try:
+        from openprogram.providers.last_used import read_last_used_model
+        pair = read_last_used_model()
+    except Exception:
+        pair = None
+    if pair and _default_is_enabled(*pair):
+        return pair
+    return None, None
 
 
 _rest_probe_started = False
@@ -439,7 +435,7 @@ def _init_providers():
             if result is None:
                 continue
             name, probe_rt, models = result
-            _apply_config_default_model(name, probe_rt, models)
+            _apply_last_used_model(name, probe_rt, models)
             _available_providers[name] = {"models": models, "default_model": probe_rt.model}
             provider_name = name
             rt = probe_rt
@@ -467,8 +463,7 @@ def _init_providers():
                     "  or `openprogram providers login <name>` for a specific provider."
                 )
 
-        _chat_provider = provider_name
-        _chat_model = rt.model if rt else None
+        _chat_provider, _chat_model = _last_used_chat_model()
         _chat_runtime = rt
 
         _exec_provider = provider_name
@@ -526,7 +521,8 @@ def _resolve_session_provider_model(conv: dict | None) -> tuple[str | None, str 
          persisted ``provider_name`` is treated as a runtime-cache only.
       2. The conversation's agent's configured model (agent.json
          ``model.provider`` / ``model.id``).
-      3. Global ``_chat_provider`` fallback when no agent / no model.
+      3. The last used model when no agent / no model. There is no
+         default model: with nothing used yet the conversation has none.
 
     All three are short-circuited when the user has NOTHING enabled in
     Settings: disabling every provider must mean "no chat runs", even for
@@ -545,7 +541,7 @@ def _resolve_session_provider_model(conv: dict | None) -> tuple[str | None, str 
             return provider, model
     if conv:
         if conv.get("provider_override"):
-            return conv["provider_override"], conv.get("model_override") or _chat_model
+            return conv["provider_override"], conv.get("model_override")
 
         agent_id = conv.get("agent_id")
         if agent_id:
@@ -560,15 +556,10 @@ def _resolve_session_provider_model(conv: dict | None) -> tuple[str | None, str 
                 if ap:
                     return ap, am or None
 
-    # Final fallback = the global auto-detected default. Gate it on the
-    # user-enabled set: the globals are stamped ONCE at startup, so after
-    # the user disables every provider in Settings they'd otherwise keep
-    # the conversation pinned to the old (e.g. gpt) default and silently
-    # send through it. When nothing is enabled, return no default so the
-    # send path raises a clear "enable a model" error instead.
-    if _default_is_enabled(_chat_provider, _chat_model):
-        return _chat_provider, _chat_model
-    return None, None
+    # Final fallback = the last used model, gated on the user-enabled set
+    # so a model the user since disabled never answers silently. With
+    # nothing usable the send path raises a clear "choose a model" error.
+    return _last_used_chat_model()
 
 
 def _enabled_model_keys() -> set[tuple[str, str]]:
@@ -723,20 +714,19 @@ def _get_provider_info(session_id: str = None) -> dict:
                     "session_id": None,
                 }
 
-    runtime = _default_runtime
-    provider_name = _default_provider
-    if runtime is None:
+    # Before a conversation exists the chip shows the last used model, or
+    # nothing on a fresh install — never a model picked by auto-detect.
+    provider_name, model = _last_used_chat_model()
+    if not provider_name:
         return {"provider": None, "type": None, "model": None,
                 "runtime": None, "session_id": None}
-
     provider_type = "CLI" if provider_name in _CLI_PROVIDERS else "API"
-    session_id = getattr(runtime, "_session_id", None)
     return {
         "provider": provider_name,
         "type": provider_type,
-        "model": runtime.model,
-        "runtime": getattr(runtime, "provider_id", None),
-        "session_id": session_id,
+        "model": model,
+        "runtime": None,
+        "session_id": None,
     }
 
 

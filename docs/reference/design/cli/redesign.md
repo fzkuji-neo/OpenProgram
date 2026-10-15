@@ -131,7 +131,7 @@ checkbox fields reuse `Picker` directly; number and text fields use
 |---|---|---|---|---|
 | | frontend port | number | next-start | `ui.web_port` |
 | | open browser | toggle | next-start | `ui.open_browser` |
-| Model | default model | picker | live | `default_provider` / `default_model` |
+| Model | model for new chats | picker | live | `last_used_model` |
 | | thinking effort | picker | live | `agent.thinking_effort` |
 | Providers | key status | status+action | live | `api_keys.*` |
 | Theme | color theme | picker+preview | live | TUI-local `setTheme` |

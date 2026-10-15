@@ -5,7 +5,8 @@ process-global chat runtime — fine for one-agent installs, wrong for
 multi-agent where each agent's provider/model/thinking effort are
 independent.
 
-Here we build and cache one runtime per agent. Cache key is
+Here we build and cache one runtime per agent, on the Agent's own model
+or, when it has none, the last used model. Cache key is
 ``(agent_id, provider, model, thinking_effort)``; if the user edits a model
 pick we invalidate the entry automatically so the next turn creates a
 fresh runtime.
@@ -34,8 +35,7 @@ def get_runtime_for(agent: AgentSpec) -> Any:
     """Return the runtime bound to this agent. Builds lazily; caches
     by (agent_id, provider, model, effort). Invalidates on config change."""
     key = agent.id
-    provider = agent.model.provider or ""
-    model_id = agent.model.id or ""
+    provider, model_id = _model_for(agent)
     effort = agent.thinking_effort
 
     with _cache_lock:
@@ -67,18 +67,27 @@ def invalidate_all() -> None:
 # Construction
 # ---------------------------------------------------------------------------
 
-def _build_runtime(provider: str, model_id: str) -> Any:
-    """Build a fresh runtime for (provider, model_id). Falls through
-    to auto-detection (claude-code, openai-codex, etc. in the
-    order used by the Web UI) when the agent hasn't picked a provider
-    yet.
+def _model_for(agent: AgentSpec) -> Tuple[str, str]:
+    """The Agent's own model, else the model the user ran last."""
+    provider = agent.model.provider or ""
+    model_id = agent.model.id or ""
+    if provider and model_id:
+        return provider, model_id
+    from openprogram.providers.last_used import read_last_used_model
+    return read_last_used_model() or ("", "")
 
-    Raises RuntimeError if we can't even construct a fallback — the
-    caller shows a "configure a provider" error to the user.
+
+def _build_runtime(provider: str, model_id: str) -> Any:
+    """Build a fresh runtime for (provider, model_id).
+
+    There is no default model to fall back on: with neither an Agent
+    model nor a last used model, the caller tells the user to pick one.
     """
     if provider and model_id:
         return _build_configured(provider, model_id)
-    return _build_autodetect()
+    raise RuntimeError(
+        "No model has been used yet. Pick one with /model <provider/id>."
+    )
 
 
 def _build_configured(provider: str, model_id: str) -> Any:
@@ -94,30 +103,12 @@ def _build_configured(provider: str, model_id: str) -> Any:
     from openprogram.agentic_programming.runtime import Runtime
     from openprogram.providers import get_model as _get_model
     if _get_model(provider, model_id) is None:
-        # Fall back to auto-detect rather than failing hard — user
-        # may have lost a model from their registry but still wants
-        # a working chat.
-        return _build_autodetect()
+        # Never swap in another model: say the pick is gone.
+        raise RuntimeError(
+            f"Model {provider}/{model_id} is not available. "
+            "Pick another one with /model."
+        )
     return Runtime(model=f"{provider}:{model_id}")
-
-
-def _build_autodetect() -> Any:
-    """Same pass the Web UI uses on fresh installs: try Codex / Gemini
-    CLI / Anthropic / OpenAI / Google / Claude Max proxy in order.
-    Raises if none are configured.
-    """
-    from openprogram.providers.registry import create_runtime
-    for p in ("openai-codex", "gemini-cli",
-              "anthropic", "gemini", "openai"):
-        try:
-            rt = create_runtime(provider=p)
-            if rt is not None:
-                return rt
-        except Exception:
-            continue
-    raise RuntimeError(
-        "No provider configured. Run `openprogram providers setup`."
-    )
 
 
 def _apply_thinking_effort(runtime: Any, effort: str) -> None:

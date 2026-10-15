@@ -675,8 +675,10 @@ def _handle_model(args: list[str], console, agent) -> bool:
             )
             return False
         cur = ""
-        if agent and agent.model.provider and agent.model.id:
-            cur = f"{agent.model.provider}/{agent.model.id}"
+        if agent is not None:
+            provider, model_id = _R._model_for(agent)
+            if provider and model_id:
+                cur = f"{provider}/{model_id}"
         console.print(
             f"[bold]Current model[/]: [cyan]{cur or '(none)'}[/]"
         )
@@ -709,7 +711,11 @@ def _handle_model(args: list[str], console, agent) -> bool:
     if agent is None:
         console.print("[yellow]No active agent.[/]")
         return False
-    _A.update(agent.id, {"model": {"provider": m["provider"], "id": m["id"]}})
+    from openprogram.providers.last_used import record_last_used_model
+    record_last_used_model(m["provider"], m["id"])
+    if agent.model.provider and agent.model.id:
+        # An Agent with a model of its own keeps running on its pick.
+        _A.update(agent.id, {"model": {"provider": m["provider"], "id": m["id"]}})
     _R.invalidate(agent.id)
     console.print(
         f"[green]Agent[/] [cyan]{agent.id}[/]: model = "

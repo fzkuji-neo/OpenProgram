@@ -1,8 +1,9 @@
-"""Global model choice must round-trip through config.json.
+"""New chats start on the last used model; there is no default model.
 
-Two halves of the same bug: the top-bar switch never wrote
-``default_provider``/``default_model``, and startup ignored them anyway —
-so every restart reverted to the head of ``_PROVIDER_PRIORITY``.
+The model the user last picked or sent with is recorded in config.json
+and survives a restart. A fresh install has none, so a new chat has no
+model until the user picks one. An install from before the record adopts
+its newest conversation's model once.
 """
 from __future__ import annotations
 
@@ -13,7 +14,7 @@ from types import SimpleNamespace
 import pytest
 
 from openprogram.webui import _runtime_management as rm
-from openprogram.providers import storage
+from openprogram.providers import last_used
 
 
 @pytest.fixture
@@ -37,6 +38,8 @@ def cfg_path(tmp_path, monkeypatch):
 
     monkeypatch.setattr("openprogram.setup._read_config", _read)
     monkeypatch.setattr("openprogram.setup._write_config", _write)
+    monkeypatch.setattr(last_used, "_newest_session_model", lambda: None)
+    monkeypatch.setattr(last_used, "_release_default_agent_model", lambda: None)
     return p
 
 
@@ -52,8 +55,17 @@ class _FakeRT:
 
 # --- read side ------------------------------------------------------------
 
-def test_probe_order_puts_config_provider_first(cfg_path):
-    _write_cfg(cfg_path, default_provider="anthropic")
+def _last(provider, model):
+    return {"last_used_model": {"provider": provider, "model": model}}
+
+
+def test_fresh_install_has_no_model(cfg_path):
+    assert last_used.read_last_used_model() is None
+    assert json.loads(cfg_path.read_text(encoding="utf-8"))["last_used_model"] == {}
+
+
+def test_probe_order_puts_last_used_provider_first(cfg_path):
+    _write_cfg(cfg_path, **_last("anthropic", "opus-x"))
     order = rm._probe_order()
     assert order[0] == "anthropic"
     # no duplicates, nothing dropped
@@ -64,97 +76,153 @@ def test_probe_order_falls_back_to_hardcoded_priority(cfg_path):
     assert rm._probe_order() == list(rm._PROVIDER_PRIORITY)
 
 
-def test_config_model_wins_over_first_available(cfg_path):
-    _write_cfg(cfg_path, default_provider="anthropic", default_model="opus-x")
+def test_last_used_model_wins_over_first_available(cfg_path):
+    _write_cfg(cfg_path, **_last("anthropic", "opus-x"))
     rt = _FakeRT("sonnet-x")
-    rm._apply_config_default_model("anthropic", rt, ["sonnet-x", "opus-x"])
+    rm._apply_last_used_model("anthropic", rt, ["sonnet-x", "opus-x"])
     assert rt.model == "opus-x"
 
 
-def test_config_model_ignored_for_other_provider(cfg_path):
-    _write_cfg(cfg_path, default_provider="anthropic", default_model="opus-x")
+def test_last_used_model_ignored_for_other_provider(cfg_path):
+    _write_cfg(cfg_path, **_last("anthropic", "opus-x"))
     rt = _FakeRT("gpt-x")
-    rm._apply_config_default_model("openai", rt, ["gpt-x"])
+    rm._apply_last_used_model("openai", rt, ["gpt-x"])
     assert rt.model == "gpt-x"
 
 
-def test_disabled_config_model_falls_back_not_blank(cfg_path, monkeypatch):
-    """A model the user has since disabled must not blank the top bar."""
-    _write_cfg(cfg_path, default_provider="anthropic", default_model="gone-x")
+def test_disabled_last_used_model_falls_back_not_blank(cfg_path, monkeypatch):
+    """A model the user has since disabled must not blank the runtime."""
+    _write_cfg(cfg_path, **_last("anthropic", "gone-x"))
     monkeypatch.setattr(rm, "_default_is_enabled", lambda p, m: False)
     rt = _FakeRT("sonnet-x")
-    rm._apply_config_default_model("anthropic", rt, ["sonnet-x"])
+    rm._apply_last_used_model("anthropic", rt, ["sonnet-x"])
     assert rt.model == "sonnet-x"
 
 
-def test_prefixed_config_model_matches_bare_id(cfg_path):
-    _write_cfg(cfg_path, default_provider="anthropic",
-               default_model="anthropic:opus-x")
-    rt = _FakeRT("sonnet-x")
-    rm._apply_config_default_model("anthropic", rt, ["sonnet-x", "opus-x"])
-    assert rt.model == "opus-x"
+def test_new_chat_shows_last_used_model_or_nothing(cfg_path, monkeypatch):
+    monkeypatch.setattr(rm, "_enabled_model_keys", lambda: {("anthropic", "opus-x")})
+    assert rm._get_provider_info()["model"] is None
+    last_used.record_last_used_model("anthropic", "opus-x")
+    info = rm._get_provider_info()
+    assert (info["provider"], info["model"]) == ("anthropic", "opus-x")
+
+
+def test_disabled_last_used_model_is_not_offered(cfg_path, monkeypatch):
+    _write_cfg(cfg_path, **_last("anthropic", "gone-x"))
+    monkeypatch.setattr(rm, "_enabled_model_keys", lambda: {("anthropic", "opus-x")})
+    assert rm._last_used_chat_model() == (None, None)
+    assert rm._resolve_session_provider_model({"id": None}) == (None, None)
+
+
+def test_forgotten_model_stays_forgotten(cfg_path, monkeypatch):
+    last_used.record_last_used_model("anthropic", "opus-x")
+    monkeypatch.setattr(
+        last_used, "_newest_session_model", lambda: ("anthropic", "opus-x")
+    )
+    last_used.forget_last_used_model()
+    # Empty record, not a missing one: the old conversation is not re-adopted.
+    assert last_used.read_last_used_model() is None
+
+
+def test_disabling_the_last_used_model_forgets_it():
+    from pathlib import Path
+
+    src = Path("apps/server/openprogram_server/_webui/routes/identity/providers.py")
+    body = src.read_text(encoding="utf-8").split("def _clear_stale_defaults", 1)[1]
+    body = body.split("def _broadcast_settings_changed", 1)[0]
+    assert "forget_last_used_model()" in body
+
+
+def test_existing_install_adopts_newest_conversation_model(cfg_path, monkeypatch):
+    released = []
+    _write_cfg(cfg_path, default_provider="deepseek", default_model="deepseek-flash")
+    monkeypatch.setattr(last_used, "_newest_session_model", lambda: ("openai-codex", "gpt-6.1-sol"))
+    monkeypatch.setattr(last_used, "_release_default_agent_model", lambda: released.append(True))
+    assert last_used.read_last_used_model() == ("openai-codex", "gpt-6.1-sol")
+    assert last_used.read_last_used_model() == ("openai-codex", "gpt-6.1-sol")
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    assert "default_provider" not in cfg and "default_model" not in cfg
+    assert released == [True]
+
+
+def test_unreadable_conversations_do_not_record_nothing(cfg_path, monkeypatch):
+    def fail():
+        raise OSError("synthetic")
+
+    monkeypatch.setattr(last_used, "_newest_session_model", fail)
+    assert last_used.read_last_used_model() is None
+    assert "last_used_model" not in json.loads(cfg_path.read_text(encoding="utf-8"))
+
+
+def test_adoption_releases_the_default_agent_model(monkeypatch):
+    from openprogram.agent.management import manager
+
+    patches = []
+    spec = SimpleNamespace(id="main", model=SimpleNamespace(provider="deepseek", id="deepseek-flash"))
+    monkeypatch.setattr(manager, "get_default", lambda: spec)
+    monkeypatch.setattr(manager, "update", lambda agent_id, patch: patches.append((agent_id, patch)))
+    last_used._release_default_agent_model()
+    assert patches == [("main", {"model": {"provider": "", "id": ""}})]
 
 
 # --- write side -----------------------------------------------------------
 
-def test_save_default_model_persists(cfg_path):
-    storage.save_default_model("anthropic", "opus-x")
+def test_record_persists(cfg_path):
+    last_used.record_last_used_model("anthropic", "opus-x")
     cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
-    assert cfg["default_provider"] == "anthropic"
-    assert cfg["default_model"] == "opus-x"
+    assert cfg["last_used_model"] == {"provider": "anthropic", "model": "opus-x"}
 
 
-def test_save_default_model_strips_provider_prefix(cfg_path):
-    storage.save_default_model("anthropic", "anthropic:opus-x")
-    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
-    assert cfg["default_model"] == "opus-x"
+def test_record_strips_provider_prefix(cfg_path):
+    last_used.record_last_used_model("anthropic", "anthropic:opus-x")
+    assert last_used.read_last_used_model() == ("anthropic", "opus-x")
 
 
-def test_save_default_model_preserves_other_keys(cfg_path):
-    _write_cfg(cfg_path, providers={"anthropic": {"enabled": True}})
-    storage.save_default_model("anthropic", "opus-x")
+def test_record_preserves_other_keys_and_drops_legacy_default(cfg_path):
+    _write_cfg(cfg_path, providers={"anthropic": {"enabled": True}},
+               default_provider="openai", default_model="gpt-x")
+    last_used.record_last_used_model("anthropic", "opus-x")
     cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
     assert cfg["providers"] == {"anthropic": {"enabled": True}}
-    assert cfg["default_model"] == "opus-x"
+    assert "default_provider" not in cfg and "default_model" not in cfg
 
 
 def test_round_trip_switch_then_restart(cfg_path):
-    """The actual bug: switch → restart → still the chosen model."""
-    storage.save_default_model("anthropic", "opus-x")
+    """Switch → restart → still the chosen model."""
+    last_used.record_last_used_model("anthropic", "opus-x")
     assert rm._probe_order()[0] == "anthropic"
     rt = _FakeRT("sonnet-x")
-    rm._apply_config_default_model("anthropic", rt, ["sonnet-x", "opus-x"])
+    rm._apply_last_used_model("anthropic", rt, ["sonnet-x", "opus-x"])
     assert rt.model == "opus-x"
 
 
-def test_session_global_fallback_preserves_runtime_prefixed_model(monkeypatch):
+def test_session_fallback_is_the_last_used_model(cfg_path, monkeypatch):
     monkeypatch.setattr(rm, "_enabled_model_keys", lambda: {
         ("minimax-cn-coding-plan", "MiniMax-M3"),
     })
-    monkeypatch.setattr(rm, "_chat_provider", "minimax-cn-coding-plan")
-    monkeypatch.setattr(
-        rm,
-        "_chat_model",
-        "minimax-cn-coding-plan:MiniMax-M3",
+    last_used.record_last_used_model(
+        "minimax-cn-coding-plan", "minimax-cn-coding-plan:MiniMax-M3",
     )
-    assert rm._resolve_session_provider_model({"id": "s"}) == (
+    assert rm._resolve_session_provider_model({"id": None}) == (
         "minimax-cn-coding-plan",
-        "minimax-cn-coding-plan:MiniMax-M3",
+        "MiniMax-M3",
     )
 
 
-# --- all three global write entry points route through save_default_model --
+# --- every switch and every send records the last used model --------------
 
-def test_all_global_entry_points_persist(monkeypatch):
-    """REST /api/model, /api/agent_settings exec, and the ws switch_model
-    global branch must each call ``save_default_model``."""
+def test_every_switch_and_send_records_the_last_used_model():
+    """REST /api/model (session and global), /api/agent_settings chat, the
+    ws switch_model (session and global) and the chat send path."""
     import inspect
     from openprogram.webui.routes.execution import runtime as rest
     from openprogram.webui.ws_actions import runtime as ws
+    from openprogram.webui._execute import chat
 
-    rest_src = inspect.getsource(rest)
-    assert rest_src.count("save_default_model") >= 4  # 2 imports + 2 calls
-    assert "save_default_model" in inspect.getsource(ws.handle_switch_model)
+    # Each call site imports the function and calls it (some via to_thread).
+    assert inspect.getsource(rest).count("record_last_used_model") >= 6
+    assert inspect.getsource(ws.handle_switch_model).count("record_last_used_model") >= 4
+    assert "record_last_used_model(" in inspect.getsource(chat)
 
 
 # --- per-session switch pins the picker choice, both entry points --------

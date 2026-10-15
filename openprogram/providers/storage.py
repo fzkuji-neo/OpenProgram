@@ -60,32 +60,6 @@ def _read_providers_cfg() -> dict[str, dict[str, Any]]:
     return providers
 
 
-def save_default_model(provider: str | None, model: str | None) -> None:
-    """Persist the global model choice as ``default_provider``/``default_model``.
-
-    The single write path for "the user switched the model in the top bar" —
-    REST, the agent-settings exec branch and the ws action all route here, so
-    the choice survives a restart (``_init_providers`` reads it back first).
-    ``model`` is stored bare (no ``provider:`` prefix). Falsy args clear.
-    Shares ``_cache_lock`` with the providers read-modify-write sequences.
-    """
-    from openprogram import setup as _setup
-    if isinstance(model, str) and provider and model.startswith(f"{provider}:"):
-        model = model[len(provider) + 1:]
-    with _cache_lock:
-        def update(cfg: dict) -> None:
-            if provider:
-                cfg["default_provider"] = provider
-            else:
-                cfg.pop("default_provider", None)
-            if model:
-                cfg["default_model"] = model
-            else:
-                cfg.pop("default_model", None)
-
-        _setup.update_config(update)
-
-
 def _write_providers_cfg(providers_cfg: dict[str, dict[str, Any]]) -> None:
     from openprogram import setup as _setup
     _setup.update_config(lambda cfg: cfg.__setitem__("providers", providers_cfg))
@@ -646,9 +620,9 @@ def delete_custom_provider(provider_id: str) -> dict[str, Any]:
     """Delete a custom provider's config key. Refuses non-custom providers.
 
     Leaves the AuthStore credential pool on disk (don't silently drop the
-    user's key) — only the config marker + spec rows go. A top-level
-    ``default_provider``/``default_model`` pointing at the deleted id is
-    cleared too, so a restart doesn't probe a provider that no longer exists.
+    user's key) — only the config marker + spec rows go. A last used model
+    on the deleted id is forgotten too, so a new chat never starts on a
+    provider that no longer exists.
     """
     pid = (provider_id or "").strip().lower()
     with _cache_lock:
@@ -667,9 +641,9 @@ def delete_custom_provider(provider_id: str) -> dict[str, Any]:
                 }
                 return
             del providers[pid]
-            if config.get("default_provider") == pid:
-                config.pop("default_provider", None)
-                config.pop("default_model", None)
+            last = config.get("last_used_model")
+            if isinstance(last, dict) and last.get("provider") == pid:
+                config["last_used_model"] = {}
             result = {"ok": True, "id": pid, "removed": True}
 
         _setup.update_config(delete)

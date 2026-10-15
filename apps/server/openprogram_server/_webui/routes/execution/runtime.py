@@ -190,8 +190,10 @@ def register(app):
                 )
                 def _persist_override():
                     from openprogram.agent.session_model import write_session_chat_model
+                    from openprogram.providers.last_used import record_last_used_model
                     write_session_chat_model(session_id, prov, bare_model)
                     _s._save_session(session_id)
+                    record_last_used_model(prov, bare_model)
                 await asyncio.to_thread(_persist_override)
                 info = _s._get_provider_info(session_id)
                 emit_ws_frame({"type": "provider_changed", "data": info})
@@ -235,12 +237,11 @@ def register(app):
         _s._user_pinned_provider = target_provider or _s._runtime_management._default_provider
         _s._user_pinned_model = bare_model
 
-        # Persist the global choice — without this the switch lived only in
-        # the module globals and every restart re-ran auto-detect, reverting
-        # the top bar to the first provider in the hardcoded priority list.
-        from openprogram.providers.storage import save_default_model
+        # Persist the choice — without this the switch lived only in the
+        # module globals, and a restart forgot what the user last picked.
+        from openprogram.providers.last_used import record_last_used_model
         await asyncio.to_thread(
-            save_default_model, _s._user_pinned_provider, bare_model,
+            record_last_used_model, _s._user_pinned_provider, bare_model,
         )
 
         info = _s._get_provider_info()
@@ -277,15 +278,10 @@ def register(app):
         elif _s._user_pinned_provider and _s._user_pinned_model:
             chat_provider, chat_model = _s._user_pinned_provider, _s._user_pinned_model
         else:
-            chat_provider = _s._runtime_management._chat_provider
-            chat_model = _s._runtime_management._chat_model
+            chat_provider, chat_model = _s._runtime_management._last_used_chat_model()
 
-        # Suppress a STALE default: the chat/exec globals are stamped once
-        # at startup from auto-detect, so after the user disables every
-        # provider in Settings they'd otherwise keep advertising the old
-        # (e.g. gpt) model in the top bar. Gate on the user-enabled set —
-        # the same source the model picker reads — so "picker empty" and
-        # "top bar shows no model" stay in lockstep.
+        # Gate on the user-enabled set — the same source the model picker
+        # reads — so a model disabled in Settings is never advertised.
         _rm = _s._runtime_management
         if not _rm._default_is_enabled(chat_provider, chat_model):
             chat_provider, chat_model = None, None
@@ -341,17 +337,8 @@ def register(app):
                 _s._runtime_management._chat_model = new_model
                 _s._user_pinned_provider = new_provider
                 _s._user_pinned_model = new_model
-                if body.get("persist_default"):
-                    try:
-                        from openprogram.agent.management import manager as _agents
-                        bare = new_model
-                        if new_model.startswith(f"{new_provider}:"):
-                            bare = new_model[len(new_provider) + 1:]
-                        _agents.update(_agents.DEFAULT_AGENT_ID, {
-                            "model": {"provider": new_provider, "id": bare},
-                        })
-                    except Exception:
-                        pass
+                from openprogram.providers.last_used import record_last_used_model
+                await asyncio.to_thread(record_last_used_model, new_provider, new_model)
                 changed = True
 
         if body and "exec" in body:
@@ -361,12 +348,6 @@ def register(app):
             )
             _s._runtime_management._exec_model = exec_cfg.get(
                 "model", _s._runtime_management._exec_model
-            )
-            from openprogram.providers.storage import save_default_model
-            await asyncio.to_thread(
-                save_default_model,
-                _s._runtime_management._exec_provider,
-                _s._runtime_management._exec_model,
             )
             changed = True
 

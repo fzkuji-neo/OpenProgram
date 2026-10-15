@@ -9,7 +9,7 @@ OpenProgram 的全部状态存在 `~/.openprogram/` 一个目录里。本页说�
 
 | 路径 | 内容 |
 |------|------|
-| `config.json` | 用户设置：端口、默认模型、provider 配置、禁用的工具等，见[配置参考](../reference/config.zh.md) |
+| `config.json` | 用户设置：端口、上次使用的模型、provider 配置、禁用的工具等，见[配置参考](../reference/config.zh.md) |
 | `sessions/`、`sessions-git/` | 聊天会话数据及其 git 存档 |
 | `agents/`、`agents.json` | agent 定义（persona、模型、技能） |
 | `auth/` | provider 凭据存储 |

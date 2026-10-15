@@ -1,15 +1,9 @@
-"""Glue between the memory subsystem and the LLM provider stack.
+"""A plain text-in/text-out callable on the last used model.
 
-Sleep (deep / REM) and session-end summarization both need to call an
-LLM but don't want to import the agent runtime. This module exposes
-one function::
-
-    callable_or_none = build_default_llm()
-
-returning a ``(system_prompt, user_text) -> str`` callable that uses
-the default agent's configured (provider, model). If no default agent
-is set up yet the function returns ``None`` and callers should skip
-the LLM phase gracefully.
+Turn titling, memory, commit messages and MCP sampling have no
+conversation of their own, so they run on the model the user ran last.
+There is no default model: with nothing used yet ``build_background_llm``
+returns ``None`` and callers skip their LLM step.
 """
 from __future__ import annotations
 
@@ -20,43 +14,23 @@ from typing import Callable
 logger = logging.getLogger(__name__)
 
 
-def _read_default_model() -> tuple[str, str] | None:
-    """Resolve the default agent's (provider, model_id).
-
-    Delegates to ``agents.manager.get_default()`` rather than re-reading
-    ``agents.json`` by hand. The hand-rolled version returned None
-    whenever the ``agents.json`` *index* file was absent — but a fresh
-    install often has only the per-agent record
-    (``agents/<id>/agent.json`` with ``"default": true``) and no index
-    yet. ``manager.get_default()`` has the fallback chain (index →
-    DEFAULT_AGENT_ID → first agent) that handles exactly that case, so
-    the memory subsystem was silently disabled (build_default_llm →
-    None → session-end ingest dropped every conversation) on any
-    machine where the index hadn't been written. Reuse the one
-    authoritative resolver instead of duplicating a buggy subset.
-    """
+def background_model() -> tuple[str, str] | None:
+    """``(provider, model_id)`` background work runs on: the last used model."""
     try:
-        from openprogram.agent.management import manager as _agents
-        spec = _agents.get_default()
+        from openprogram.providers.last_used import read_last_used_model
+        return read_last_used_model()
     except Exception:
         return None
-    if spec is None or spec.model is None:
-        return None
-    provider = (spec.model.provider or "").strip()
-    model_id = (spec.model.id or "").strip()
-    if not provider or not model_id:
-        return None
-    return provider, model_id
 
 
-def build_default_llm() -> Callable[[str, str], str] | None:
+def build_background_llm() -> Callable[[str, str], str] | None:
     """Return a synchronous ``(system_prompt, user_text) -> str`` callable.
 
-    Returns ``None`` if no default agent is configured or its provider /
-    model cannot be resolved. The callable runs the provider's stream
+    Returns ``None`` if no model has been used yet or it cannot be
+    resolved. The callable runs the provider's stream
     interface synchronously and concatenates ``text_delta`` events.
     """
-    pair = _read_default_model()
+    pair = background_model()
     if pair is None:
         return None
     provider_name, model_id = pair

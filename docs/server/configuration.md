@@ -9,7 +9,7 @@ The main files and subdirectories, grouped by purpose:
 
 | Path | Contents |
 |------|------|
-| `config.json` | User settings: ports, default model, provider configuration, disabled tools, etc. — see the [configuration reference](../reference/config.md) |
+| `config.json` | User settings: ports, last used model, provider configuration, disabled tools, etc. — see the [configuration reference](../reference/config.md) |
 | `sessions/`, `sessions-git/` | Chat session data and its git archive |
 | `agents/`, `agents.json` | Agent definitions (persona, model, skills) |
 | `auth/` | Provider credential store |

@@ -320,7 +320,7 @@ agent 循环、工具、网页端、CLI 都不指名任何实现，一律调 `ge
 `set_backend()` 是受支持的入口，测试也用它。配置键就叫 `memory.backend`，
 子系统里一律用 backend 这个词；本仓库里的 provider 专指 LLM 供应商。
 
-写入跑在用户自己的登录和默认模型上，所以后台记忆不需要另配凭证。
+写入跑在用户自己的登录上，用默认 Agent 的模型；该 Agent 没有模型时用上次使用的模型，所以后台记忆不需要另配凭证。
 `openprogram memory sleep --model` 和
 `scheduler.start_nightly_reorganizer(model=...)` 可以覆盖。
 

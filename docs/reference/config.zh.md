@@ -44,8 +44,7 @@ openprogram config set ui.web_port 8101
 | `memory` | `{backend, writer: {model}}`，见上表 | `openprogram/config_schema.py`、`openprogram/memory/` |
 | `tools` | `{disabled: [工具名, ...]}` | `openprogram/setup.py`、`openprogram/config_schema.py` |
 | `sandbox` | `{mode, writable_roots, deny_read, deny_write, network, pass_env, unavailable_policy}`，见上表 | `openprogram/sandbox/__init__.py`、`openprogram/config_schema.py` |
-| `default_provider` | 默认 LLM provider（setup 向导写入） | `openprogram/setup.py` |
-| `default_model` | 默认模型（setup 向导写入） | `openprogram/setup.py` |
+| `last_used_model` | `{provider, model}`，新会话使用的模型：上一次选择或发送消息时用的模型。全新安装时为空 | `openprogram/providers/last_used.py` |
 | `default_workdir` | agent 的默认工作目录 | `openprogram/paths.py` |
 | `providers` | 每个 provider 的设置子树（启用的模型、自定义模型等），由 Web UI 模型列表管理 | `openprogram/providers/_config_read.py`、`openprogram/providers/storage.py` |
 | `api_keys` | 环境变量名 → API key 的映射，setup 向导写入，worker 启动时导出到环境。用于 web 搜索 / TTS 的 key；LLM provider 的 key 存在凭据库（`openprogram providers login`），不在这里 | `apps/cli/python/openprogram_cli/_impl/setup_sections/sections.py`、`apps/server/openprogram_server/server.py` |
