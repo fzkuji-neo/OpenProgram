@@ -4,6 +4,27 @@ from . import shared
 
 
 class ExecutionOperations:
+    def _turn_event_sink(self, attempt: shared.AttemptRecord, request: shared.Any):
+        """The sink for one turn's frames.
+
+        A Job turn runs in its parent conversation's session, so its chat
+        frames carry that session id. Each one also carries ``job_id`` (the
+        Job's execution id), which lets a client keep the Job's output with
+        its Sub-agent card instead of in the conversation's own transcript.
+        """
+        sink = self.event_sink
+        if sink is None or getattr(request, "_job_context", None) is None:
+            return sink
+        job_id = attempt.execution_id
+
+        def emit(frame):
+            data = frame.get("data") if isinstance(frame, shared.Mapping) else None
+            if isinstance(data, shared.Mapping) and frame.get("type") == "chat_response":
+                frame = {**frame, "data": {**data, "job_id": job_id}}
+            sink(frame)
+
+        return emit
+
     async def _run_attempt(
         self,
         attempt: shared.AttemptRecord,
@@ -221,7 +242,7 @@ class ExecutionOperations:
                     execution_context["job_context"] = shared.copy.deepcopy(request._job_context)
                 result = process_agent_continuation(
                     continuation,
-                    on_event=self.event_sink,
+                    on_event=self._turn_event_sink(attempt, request),
                     cancel_event=cancel_event,
                     execution_context=execution_context,
                 )
@@ -246,7 +267,7 @@ class ExecutionOperations:
                     provider=request.provider,
                     model=request.model,
                     response_format=request.response_format,
-                    on_event=self.event_sink,
+                    on_event=self._turn_event_sink(attempt, request),
                     execution_id=attempt.execution_id,
                     attempt_id=attempt.attempt_id,
                     generation=attempt.generation,
@@ -288,7 +309,7 @@ class ExecutionOperations:
                 try:
                     parameters = shared.inspect.signature(self.turn_runner).parameters
                     if "on_event" in parameters:
-                        runner_kwargs["on_event"] = self.event_sink
+                        runner_kwargs["on_event"] = self._turn_event_sink(attempt, request)
                     if "execution_context" in parameters:
                         runner_kwargs["execution_context"] = {
                             "safe_point_hook": self._safe_point_hook(

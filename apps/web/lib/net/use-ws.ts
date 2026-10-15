@@ -48,6 +48,7 @@ import {
 import { mirrorUpsertConv } from "@/lib/runtime-bridge/conv-store-mirror";
 import { runtimeState, setSocket } from "@/lib/runtime-bridge/state";
 import { applyChatWsMessage, clearSessionByMsgId, flushPendingChatDeltas } from "@/lib/net/chat-stream";
+import { noteJobStatus } from "@/lib/chat/sub-agent-transcripts";
 import { waitForOwnerAuthBootstrap } from "@/lib/net/owner-auth-bootstrap";
 import { recoverOwnerAuth } from "@/lib/net/owner-auth-recovery";
 import { showToast } from "@/lib/format-utils/toast";
@@ -500,6 +501,7 @@ export function useWS(): void {
           );
           return true;
         case "job_status": {
+          noteJobStatus((d ?? {}) as JobStatusDetail);
           // Async job lifecycle broadcast. Dispatch a
           // window event so any panel listening (BranchesPanel,
           // JobsPanel) can update without prop-drilling. The

@@ -82,4 +82,94 @@ async def handle_spawn_agent(ws, cmd: dict) -> None:
     }, default=str))
 
 
-ACTIONS = {"spawn_agent": handle_spawn_agent}
+def _branch_tip(messages: list[dict], head_id: str) -> str:
+    """Follow a sub-agent branch to its newest turn.
+
+    Later messages to the same agent continue its branch from its last
+    reply, so the branch tip moves past the head its spawn recorded.
+    """
+    turns: dict[str, list[dict]] = {}
+    for message in messages:
+        parent = message.get("predecessor")
+        if (
+            parent
+            and message.get("role") in ("user", "assistant")
+            and message.get("display") != "runtime"
+            and message.get("function") != "attach"
+        ):
+            turns.setdefault(parent, []).append(message)
+    tip, seen = head_id, set()
+    while tip in turns and tip not in seen:
+        seen.add(tip)
+        tip = max(
+            turns[tip],
+            key=lambda message: message.get("created_at") or message.get("timestamp") or 0,
+        )["id"]
+    return tip
+
+
+def _transcript(session_id: str, job_id: str, head_id: str) -> tuple[str, list[dict]]:
+    from openprogram.agent.session_db import default_db
+    from openprogram.context.git import active_branch_chain
+    from openprogram.webui.persistence import aggregate_tool_messages
+
+    if not head_id and job_id:
+        from openprogram.execution import default_store
+
+        record = default_store().get_execution_input(job_id)
+        if record is not None and record.session_id == session_id:
+            head_id = record.assistant_message_id or ""
+    db = default_db()
+    messages = aggregate_tool_messages(db.get_messages(session_id) or [])
+    if not head_id or head_id not in {message.get("id") for message in messages}:
+        return head_id, []
+    tip = _branch_tip(messages, head_id)
+    # get_branch walks root-first; a reply placeholder can be written before
+    # its prompt, so the branch order, not storage order, places each turn.
+    order = {
+        message.get("id"): index
+        for index, message in enumerate(db.get_branch(session_id, tip) or [])
+    }
+    chain = active_branch_chain(messages, set(order), tip)
+    return tip, sorted(
+        (
+            message for message in chain
+            if message.get("role") in ("user", "assistant")
+            and message.get("function") != "attach"
+        ),
+        key=lambda message: order.get(message.get("id"), len(order)),
+    )
+
+
+async def handle_load_sub_agent_transcript(ws, cmd: dict) -> None:
+    """One sub-agent's own conversation, read without moving the session head."""
+    session_id = (cmd.get("session_id") or "").strip()
+    job_id = (cmd.get("job_id") or "").strip()
+    head_id = (cmd.get("head_id") or "").strip()
+    data = {
+        "session_id": session_id,
+        "job_id": job_id,
+        "head_id": head_id,
+        "messages": [],
+        "request_id": cmd.get("request_id"),
+        "action": "load_sub_agent_transcript",
+    }
+    if session_id and (job_id or head_id):
+        try:
+            data["head_id"], data["messages"] = await asyncio.to_thread(
+                _transcript, session_id, job_id, head_id,
+            )
+        except Exception as exc:
+            data["error"] = f"{type(exc).__name__}: {exc}"
+    else:
+        data["error"] = "session_id and job_id or head_id are required"
+    await ws.send_text(json.dumps(
+        {"type": "sub_agent_transcript", "data": data},
+        ensure_ascii=False, default=str,
+    ))
+
+
+ACTIONS = {
+    "spawn_agent": handle_spawn_agent,
+    "load_sub_agent_transcript": handle_load_sub_agent_transcript,
+}

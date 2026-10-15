@@ -47,6 +47,7 @@ import { AssistantFileCards } from "./assistant-file-cards";
 import { parseAttachments } from "./user-attachments";
 import { ActivityIndicator } from "./activity-indicator";
 import { UserBubble } from "./user-bubble";
+import { SubAgentsCard } from "./sub-agents-card";
 
 function SteeringInput({block, sessionId}: {block: AssistantBlock; sessionId?: string}) {
   const user = useSessionStore(s => block.message_id ? s.messagesById[block.message_id] : undefined);
@@ -159,9 +160,11 @@ function TypingIndicator() {
   );
 }
 
-export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
+export function AssistantBubble({ msg, verdict, sessionIdOverride, embedded = false }: {
   msg: ChatMsg;
   sessionIdOverride?: string;
+  /** A sub-agent's reply inside the Sub-agents card: no header or action row. */
+  embedded?: boolean;
   /** Internal Goal report, using the same trace and detail panel as tools. */
   verdict?: { summary: string; json: string };
 }) {
@@ -254,6 +257,8 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
     card.attach?.manual
     || (!!currentSessionId && !!card.attach?.session_id
       && card.attach.session_id !== currentSessionId));
+  // The same spawns, whole: the Sub-agents card lists every one of them.
+  const subAgentCards = [...attachFifo];
   const spawnNames = (cards: ChatMsg[]) => cards.map((card) =>
     (card.attach?.label || "").trim()
     || (card.attach?.head_id || "").slice(0, 8)
@@ -266,7 +271,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
   return (
     <div
       ref={containerRef}
-      className="message assistant"
+      className={embedded ? "message assistant sub-agent-reply" : "message assistant"}
       data-msg-id={msg.id}
       data-agent-id={msg.agentId || undefined}
       /* Each turn is an article so screen readers can jump message to
@@ -278,7 +283,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
       role="article"
       aria-label={sender}
     >
-      <div className="message-header" style={{ top: avatarTop }}>
+      {embedded ? null : <div className="message-header" style={{ top: avatarTop }}>
         {/* Per-message agent avatar. Seeded on the sender's display
             name (not the volatile agent_id) so the "Agent" / named
             agent always renders the same glyph across sessions. Falls
@@ -310,7 +315,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
           }
         />
         <div className="message-sender">{sender}</div>
-      </div>
+      </div>}
 
       {(
         <div className="chat-stream-body">
@@ -567,6 +572,9 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
               </span>
             </div>
           ) : null}
+          {subAgentCards.length > 0 && bubbleSessionId ? (
+            <SubAgentsCard cards={subAgentCards} sessionId={bubbleSessionId} />
+          ) : null}
           {!streaming && msg.status !== "error" && msg.status !== "cancelled" ? (
             <AssistantFileCards msg={msg} sessionId={bubbleSessionId} attachments={outboundFiles} />
           ) : null}
@@ -585,7 +593,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
       {/* Action row at the BOTTOM-RIGHT of the message — you finish
           reading, then reach for copy/retry/branch right where your
           eyes land, instead of back up at the header. */}
-      <div className="message-actions-footer">
+      {embedded ? null : <div className="message-actions-footer">
         {streaming ? (
           <div className="message-actions">
             <MessageTimestamp timestamp={msg.timestamp} />
@@ -593,7 +601,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
         ) : (
           <MessageActions msg={msg} sessionIdOverride={sessionIdOverride} />
         )}
-      </div>
+      </div>}
     </div>
   );
 }

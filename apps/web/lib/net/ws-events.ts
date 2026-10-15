@@ -63,6 +63,10 @@ export interface JobResourceView {
   project_id?: string;
   session_id?: string;
   parent_execution_id?: string | null;
+  label?: string | null;
+  subject?: string | null;
+  /** The Job's prompt, shortened. */
+  prompt_summary?: string | null;
   status_version?: number;
   capabilities?: {
     pause: boolean;
