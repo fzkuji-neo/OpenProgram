@@ -24,12 +24,16 @@ import openprogram.execution as execution
 import openprogram.providers.registry as providers
 import openprogram.store.session.session_store as session_store
 
-session_db.default_db = lambda: DB
-session_store.shared._default_store = DB
-execution.default_store = lambda: STORE
-providers.create_runtime = lambda **_kwargs: Runtime(
-    call=lambda *_args, **_opts: "unused"
-)
+# Only the probe process and its spawned child carry the receipt variable.
+# Anything else that imports this file (pytest given its path) keeps its own
+# stores and provider instead of inheriting these for the rest of the run.
+if os.environ.get("OWNER_PROBE_RECEIPT"):
+    session_db.default_db = lambda: DB
+    session_store.shared._default_store = DB
+    execution.default_store = lambda: STORE
+    providers.create_runtime = lambda **_kwargs: Runtime(
+        call=lambda *_args, **_opts: "unused"
+    )
 
 
 class OwnerSourceProbeAgent(Agent):
