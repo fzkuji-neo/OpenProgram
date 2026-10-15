@@ -48,7 +48,7 @@ The `worker` subcommands offer finer control:
 |------|------|
 | `worker run` | Run the worker in the foreground (blocking), for debugging; Ctrl-C to stop |
 | `worker start` | Start a worker in the background and return |
-| `worker stop` | Stop (SIGTERM, escalating to SIGKILL if needed) |
+| `worker stop` | Stop; an installed service stays stopped until the next start or login |
 | `worker restart` | Stop and start a fresh one |
 | `worker status` | Running or not, PID, port, uptime |
 | `worker install` | Install as a system service (macOS launchd / Linux systemd --user); starts at login, restarts after a crash |

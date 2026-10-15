@@ -12,7 +12,7 @@ OpenProgram 的 Web UI、TUI、CLI 背后是同一个常驻本地服务，代码
 openprogram worker start     # 后台启动一个 worker 并返回
 openprogram worker run       # 前台运行（阻塞），调试用，Ctrl-C 停止
 openprogram worker status    # 是否在跑、PID、端口、运行时长
-openprogram worker stop      # 停止（SIGTERM，必要时升级为 SIGKILL）
+openprogram worker stop      # 停止（已安装的服务会一直停着，直到下次 start 或登录）
 openprogram worker restart   # 停掉再起一个新的
 ```
 
@@ -68,10 +68,11 @@ macOS 使用 launchd（`~/Library/LaunchAgents/ai.openprogram.worker.plist`）�
 Linux 使用 systemd --user，Windows source checkout 使用最低权限的每用户任务计划。
 安装后 worker 随登录自动启动，崩溃后自动重启。`openprogram status` 会显示服务是否已安装。
 
-Linux 安装服务后，`worker start`、`stop`、`restart` 会继续通过已安装的
-systemd 用户服务执行，不会悄悄改成脱管的后台进程。`restart` 还会按当前 CLI
-runtime 刷新生成的 unit，因此不可变 release 升级后不会继续启动旧 runtime。
-每个命名 [profile](../install/profiles.zh.md) 都有独立 unit，所以一个 profile 的
+macOS 和 Linux 安装服务后，`worker start`、`stop`、`restart` 会继续通过已安装的
+launchd 或 systemd 用户服务执行，不会悄悄改成脱管的后台进程。macOS 上 `stop`
+会卸载 launchd 任务，worker 会一直停着，直到下次 `start` 或重新登录，不会被崩溃
+自动重启拉起来。`start` 和 `restart` 还会按当前 CLI runtime 刷新生成的 plist 或
+unit，因此不可变 release 升级后不会继续启动旧 runtime。Linux 上每个命名 [profile](../install/profiles.zh.md) 都有独立 unit，所以一个 profile 的
 服务命令不会停止或替换另一个 profile 的 worker。
 
 ## 相关页面

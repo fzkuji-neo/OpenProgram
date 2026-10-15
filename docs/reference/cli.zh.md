@@ -46,7 +46,7 @@ openprogram --profile <name>     # 状态目录 profile，改道到 ~/.openprogr
 |------|------|
 | `worker run` | 前台运行 worker（阻塞），调试用，Ctrl-C 停止 |
 | `worker start` | 后台启动一个 worker 并返回 |
-| `worker stop` | 停止（SIGTERM，必要时升级为 SIGKILL） |
+| `worker stop` | 停止；已安装的服务会一直停着，直到下次 start 或登录 |
 | `worker restart` | 停掉再起一个新的 |
 | `worker status` | 是否在跑、PID、端口、运行时长 |
 | `worker install` | 安装为系统服务（macOS launchd / Linux systemd --user），随登录启动、崩溃重启 |
