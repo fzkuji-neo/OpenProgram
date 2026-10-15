@@ -190,7 +190,7 @@ export function UserMenuFooter() {
               onMouseEnter={() => settingsIconRef.current?.startAnimation?.()}
               onMouseLeave={() => settingsIconRef.current?.stopAnimation?.()}
             >
-              <SettingsIcon ref={settingsIconRef} size={18} />
+              <SettingsIcon ref={settingsIconRef} size={16} />
               {t("user.settings")}
             </button>
             <a
@@ -202,7 +202,7 @@ export function UserMenuFooter() {
               onMouseEnter={() => docsIconRef.current?.startAnimation?.()}
               onMouseLeave={() => docsIconRef.current?.stopAnimation?.()}
             >
-              <BookTextIcon ref={docsIconRef} size={18} />
+              <BookTextIcon ref={docsIconRef} size={16} />
               Docs
             </a>
             <button
@@ -212,7 +212,7 @@ export function UserMenuFooter() {
               onMouseEnter={() => fsIconRef.current?.startAnimation?.()}
               onMouseLeave={() => fsIconRef.current?.stopAnimation?.()}
             >
-              <MonitorIcon ref={fsIconRef} size={18} />
+              <MonitorIcon ref={fsIconRef} size={16} />
               {isFullscreen ? text("Exit Full Screen", "退出全屏") : text("Full Screen", "全屏")}
             </button>
             <div className={styles.sep} />
@@ -225,7 +225,7 @@ export function UserMenuFooter() {
               onMouseEnter={() => aboutIconRef.current?.startAnimation?.()}
               onMouseLeave={() => aboutIconRef.current?.stopAnimation?.()}
             >
-              <CircleHelpIcon ref={aboutIconRef} size={18} />
+              <CircleHelpIcon ref={aboutIconRef} size={16} />
               {t("user.about")}
             </a>
           </div>

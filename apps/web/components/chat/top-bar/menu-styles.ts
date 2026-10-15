@@ -12,7 +12,8 @@ import { GLASS_SURFACE } from "@/lib/glass";
  *    width hugs content, 128–320px · scrolls past 60vh.
  *  Row (itemCls):      24px tall (2.5px + 19px line + 2.5px) · 6px
  *    radius · 0 8px padding · 13px/19px text · 6px icon↔label gap, a
- *    leading icon pulled 3px left (Solar glyphs carry their own margin) ·
+ *    leading icon 16px, pulled 3px left (Solar glyphs carry their own
+ *    margin) ·
  *    hover = `--bg-hover` fill, the ONLY row tint (a selected row shows
  *    a right-aligned blue check, never a fill). danger = red text +
  *    faint red hover. Radix items add MENU_ITEM_STATES so keyboard
@@ -114,7 +115,10 @@ export function itemCls(active: boolean, danger = false): string {
     // （模型名 + 能力图标）不动，否则正文会比分组标题更靠左。
     "flex min-h-[24px] shrink-0 cursor-pointer items-center gap-[6px] rounded-[6px] " +
     "px-[8px] py-[2.5px] text-[13px] leading-[19px] transition-colors duration-75 " +
-    "[&>:first-child:is(svg,:has(>svg:only-child),:has(>:only-child>svg:only-child))]:-ms-[3px] ";
+    "[&>:first-child:is(svg,:has(>svg:only-child),:has(>:only-child>svg:only-child))]:-ms-[3px] " +
+    // 行首图标统一 16px（Claude 菜单图标尺寸），各菜单不再各写 13/14/15。
+    "[&>svg:first-child]:size-[16px] [&>:first-child:has(>svg:only-child)>svg]:size-[16px] " +
+    "[&>:first-child:has(>:only-child>svg:only-child)>*>svg]:size-[16px] ";
   if (danger) {
     return (
       base +

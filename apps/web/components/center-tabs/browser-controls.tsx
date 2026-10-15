@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   Bookmark,
   ArrowRight,
-  Check,
   Clock3,
   Download,
   House,
@@ -56,6 +55,7 @@ import styles from "./center-tabs.module.css";
 import { webToolbarButton } from "./toolbar-button";
 import { ToolbarTip } from "./browser-chrome";
 import { useBookmarksBarPreference } from "./bookmark-bar";
+import { MenuCheck } from "@/components/chat/top-bar/menu-check";
 
 type BrowserMenuActions = {
   home(): void;
@@ -250,7 +250,7 @@ export function BrowserMenu({
       disabled={disabled}
       onSelect={() => runBrowserAction(id, router, actions)}
     >
-      {checked ? <Check size={14} aria-hidden="true" /> : icon}
+      {checked ? <MenuCheck /> : icon}
       <span className="flex-1">{text(english, chinese)}</span>
     </DropdownMenuItem>
   );
@@ -283,7 +283,7 @@ export function BrowserMenu({
         {row("bookmarks", <Bookmark size={14} />, "Bookmarks", "书签")}
         {row("history", <Clock3 size={14} />, "History", "历史")}
         {row("downloads", <Download size={14} />, "Downloads", "下载内容")}
-        {row("toggle-bookmarks-bar", <span className="w-[14px]" />, "Show bookmarks bar", "显示书签栏", visible)}
+        {row("toggle-bookmarks-bar", <span className="w-[16px] shrink-0" />, "Show bookmarks bar", "显示书签栏", visible)}
         <DropdownMenuSeparator className={MENU_SEPARATOR} />
         {canImport ? row("import", <Import size={14} />, "Import browser data", "导入浏览器资料") : null}
         {row("clear-data", <Trash2 size={14} />, "Clear browsing data", "清除浏览数据")}

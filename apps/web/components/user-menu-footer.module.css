@@ -125,7 +125,6 @@
   z-index: 50;
   display: flex;
   flex-direction: column;
-  gap: 1px;
   /* Glass popover recipe (app/styles/base.css --glass-*). */
   background: var(--glass-surface);
   -webkit-backdrop-filter: var(--glass-backdrop);
@@ -136,21 +135,19 @@
 }
 
 
+/* Row = the shared menu row (top-bar/menu-styles.ts itemCls): 24px,
+   2.5px 8px padding, 13px/19px text, 6px icon gap, 6px radius; the
+   leading icon pulled 3px left like every menu. */
 .item {
   display: flex;
   align-items: center;
-  /* Match `.conv-item` in the Recents list above so the menu's rows
-     are the same visual rhythm as the chat list: 32px row, 6px/8px
-     padding, 14px text, 12px gap, no oversized line-height. */
-  gap: 12px;
-  padding: 6px 8px;
-  height: 32px;
-  min-height: 32px;
-  max-height: 32px;
+  gap: 6px;
+  padding: 2.5px 8px;
+  min-height: 24px;
   box-sizing: border-box;
-  line-height: 20px;
-  border-radius: var(--ui-list-radius);
-  font-size: 14px;
+  line-height: 19px;
+  border-radius: 6px;
+  font-size: 13px;
   color: var(--text-primary);
   text-decoration: none;
   cursor: pointer;
@@ -162,12 +159,13 @@
 }
 .item:hover { background: var(--bg-hover); color: var(--text-bright); }
 .item svg { color: var(--text-muted); flex-shrink: 0; }
+.item > :first-child { margin-inline-start: -3px; }
 .item:hover svg { color: var(--text-primary); }
 
 .sep {
   height: 1px;
   background: var(--border);
-  margin: 4px 0;
+  margin: 4px 8px;
 }
 
 /* Collapsed-sidebar rules live in app/styles/02-sidebar.css and

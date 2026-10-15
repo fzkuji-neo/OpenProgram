@@ -1,8 +1,8 @@
 "use client";
 import { useRef, useState, type ReactNode, type MouseEvent } from "react";
 import * as Menu from "@radix-ui/react-dropdown-menu";
-import { MoreHorizontal, Check, ChevronRight, MessageSquarePlus, FolderOpen, Pencil, PanelsTopLeft, FolderSearch, GitBranch, Archive, FolderMinus } from "lucide-react";
-import { MENU_PANEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
+import { MoreHorizontal, ChevronRight, MessageSquarePlus, FolderOpen, Pencil, PanelsTopLeft, FolderSearch, GitBranch, Archive, FolderMinus } from "lucide-react";
+import { CHECK_SLOT_PAD, MENU_PANEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
 import { useTranslation } from "@/lib/i18n";
 import { useRecentsView, setRecentsView } from "@/lib/prefs/recents-view";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -18,6 +18,7 @@ import styles from "./project-settings.module.css";
 
 import { wsRequest } from "@/lib/net/ws-request";
 import { ProjectOperationDialog, type ProjectOperation } from "./project-operation-dialog";
+import { MenuCheck } from "@/components/chat/top-bar/menu-check";
 
 const item = itemCls(false) + " outline-none " + styles.menuItem;
 export function ProjectMenu({project, children, onOpen, onNewSession, onSaved}: {
@@ -74,7 +75,7 @@ export function ProjectMenu({project, children, onOpen, onNewSession, onSaved}: 
         <Menu.Item className={item} onSelect={()=>setEditing(true)}><Pencil size={14} className={styles.menuIcon}/>{text("Edit project", "编辑项目")}</Menu.Item>
         <Menu.Separator className={MENU_SEPARATOR}/>
         <Menu.Sub><Menu.SubTrigger className={item}><PanelsTopLeft size={14} className={styles.menuIcon}/><span className="flex-1">{text("Section", "分区")}</span><ChevronRight size={14}/></Menu.SubTrigger><Menu.Portal><Menu.SubContent className={MENU_PANEL+" "+styles.menu+" min-w-[180px]"}>
-          {["",...view.projectSectionNames].map(section=><Menu.Item key={section} className={item} onSelect={()=>selectSection(section)}><span className="flex-1">{section||text("Projects", "项目")}</span>{(view.projectSections[project.id]||"")===section&&<Check size={14}/>}</Menu.Item>)}
+          {["",...view.projectSectionNames].map(section=><Menu.Item key={section} className={item} onSelect={()=>selectSection(section)}><span className="flex-1">{section||text("Projects", "项目")}</span>{(view.projectSections[project.id]||"")===section?<MenuCheck/>:<span className={CHECK_SLOT_PAD}/>}</Menu.Item>)}
           <Menu.Separator className={MENU_SEPARATOR}/>
           <Menu.Item className={item} onSelect={()=>setAddingSection(true)}>{text("New section…", "新建分区…")}</Menu.Item>
         </Menu.SubContent></Menu.Portal></Menu.Sub>

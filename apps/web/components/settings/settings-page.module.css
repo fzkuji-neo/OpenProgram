@@ -538,7 +538,6 @@
   z-index: 100;
   display: flex;
   flex-direction: column;
-  gap: 1px;
   /* Glass popover recipe (app/styles/base.css --glass-*). */
   background: var(--glass-surface);
   -webkit-backdrop-filter: var(--glass-backdrop);
@@ -548,14 +547,17 @@
   box-shadow: var(--glass-shadow);
 }
 .settingsDropdownOption {
+  /* Row = the shared menu row (top-bar/menu-styles.ts itemCls); the
+     chosen option shows a check, never a fill. */
   display: flex;
   align-items: center;
+  gap: 6px;
   width: 100%;
-  min-width: 0;
-  height: 32px;
-  padding: 6px 10px;
-  font-size: var(--fs-base);
-  line-height: 20px;
+  min-height: 24px;
+  padding: 2.5px 8px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 19px;
   color: var(--text-primary);
   background: transparent;
   border: none;
@@ -569,11 +571,7 @@
   background: var(--bg-hover);
 }
 .settingsDropdownOptionActive {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-.settingsDropdownOptionActive:hover {
-  background: var(--bg-hover);
+  color: var(--text-bright);
 }
 
 /* `.input` — the API-key / base-URL fields are the shadcn <Input> now.

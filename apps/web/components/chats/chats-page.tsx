@@ -40,6 +40,8 @@ import {
   ClockIcon,
   MessageCircleIcon,
 } from "@/components/animated-icons";
+import { MenuCheck } from "@/components/chat/top-bar/menu-check";
+import { CHECK_SLOT_PAD } from "@/components/chat/top-bar/menu-styles";
 
 type SortKey = "recent" | "oldest" | "title";
 type StatusFilter = "all" | "active" | "archived";
@@ -400,7 +402,8 @@ function CustomSelect<T extends string>({
                 setOpen(false);
               }}
             >
-              {o.label}
+              <span className="min-w-0 flex-1 truncate">{o.label}</span>
+              {o.value === value ? <MenuCheck /> : <span className={CHECK_SLOT_PAD} />}
             </button>
           ))}
         </div>

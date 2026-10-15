@@ -39,7 +39,6 @@
   z-index: 100;
   display: flex;
   flex-direction: column;
-  gap: 1px;
   /* Glass popover recipe (app/styles/base.css --glass-*). */
   background: var(--glass-surface);
   -webkit-backdrop-filter: var(--glass-backdrop);
@@ -49,12 +48,17 @@
   box-shadow: var(--glass-shadow);
 }
 .selectOption {
+  /* Row = the shared menu row (top-bar/menu-styles.ts itemCls); the
+     chosen option shows a check, never a fill. */
   display: flex;
   align-items: center;
+  gap: 6px;
   width: 100%;
-  padding: 6px 10px;
+  min-height: 24px;
+  padding: 2.5px 8px;
   font-family: inherit;
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 19px;
   color: var(--text-primary);
   background: transparent;
   border: none;
@@ -69,6 +73,5 @@
   color: var(--text-bright);
 }
 .selectOptionActive {
-  background: var(--bg-selected);
   color: var(--text-bright);
 }

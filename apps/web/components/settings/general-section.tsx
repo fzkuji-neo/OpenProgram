@@ -36,6 +36,8 @@ import { useVisualEffectsPref } from "@/lib/prefs/visual-effects-pref";
 import { DRAG_SURFACE_STYLE, VISUAL_EFFECTS_LIMITS, type VisualEffectKey } from "@/lib/prefs/visual-effects-config";
 import styles from "./settings-page.module.css";
 import { DesktopAttentionSection } from "./desktop-attention-section";
+import { MenuCheck } from "@/components/chat/top-bar/menu-check";
+import { CHECK_SLOT_PAD } from "@/components/chat/top-bar/menu-styles";
 
 const FONT_OPTIONS: FontKey[] = ["system", "inter", "serif", "mono"];
 
@@ -117,7 +119,8 @@ function SettingsDropdown<T extends string>({
               style={option.style}
               onClick={() => { onChange(option.value); setOpen(false); }}
             >
-              {option.label}
+              <span className="min-w-0 flex-1 truncate">{option.label}</span>
+              {option.value === value ? <MenuCheck /> : <span className={CHECK_SLOT_PAD} />}
             </button>
           ))}
         </div>
