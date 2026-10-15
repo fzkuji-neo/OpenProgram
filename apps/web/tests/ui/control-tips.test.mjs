@@ -111,6 +111,12 @@ test("A reply keeps one block rhythm: a single gap between every block and every
   assert.match(bubbles, /\.message-content \.md-rendered > \* \{ margin: 0; \}/);
   // Headings alone: a gap more above, a third less below.
   assert.match(bubbles, /> :is\(h1, h2, h3, h4, h5, h6\) \{\s*margin: var\(--reply-gap\) 0 calc\(var\(--reply-gap\) \/ -3\);/);
+  // A reply's gap is measured between ink: text blocks trim their leading,
+  // the summary row gives back its empty row, and the reply's gap is 16px.
+  assert.match(bubbles, /\.message\.assistant \{ --reply-gap: 16px; \}/);
+  assert.match(bubbles, /> \.md-rendered > :is\(p, ul, ol, h1, h2, h3, h4, h5, h6\) \{\s*text-box: trim-both cap alphabetic;\s*padding-block: 1\.6px;/);
+  assert.match(bubbles, /> \.md-rendered > p:has\(> code\) \{ padding-block: 3\.8px 6\.1px; \}/);
+  assert.match(read("app/styles/chat/execution-strip.css"), /\.chat-stream-body > \.tl\[data-open="0"\] \{ margin-bottom: -7\.5px; \}/);
   // No pairwise compensation is left anywhere.
   for (const f of ["bubbles.css", "message-actions.css", "execution-strip.css", "stream-blocks.css"]) {
     assert.doesNotMatch(read(`app/styles/chat/${f}`), /:has\(> \.md-rendered/);

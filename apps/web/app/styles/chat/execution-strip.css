@@ -14,6 +14,12 @@
   --timeline-llm: light-dark(#00849a, #45d7e8);
   --timeline-subagent: light-dark(#0b8a4b, #4bd58a);
 }
+/* The summary row is 28px tall for its click target, which leaves ~7.5px
+   of empty row above and below the sentence. The stream column's gap is
+   meant between what is drawn, so the row gives that space back — below
+   only while collapsed, since the open timeline ends on its own steps. */
+.chat-stream-body > .tl:not(:first-child) { margin-top: -7.5px; }
+.chat-stream-body > .tl[data-open="0"] { margin-bottom: -7.5px; }
 /* 展开/收起高度过渡：grid 0fr↔1fr，展开向下推开、收起平滑抽走。 */
 .tl-collapse {
   display: grid;

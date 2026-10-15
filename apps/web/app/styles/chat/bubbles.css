@@ -2,8 +2,8 @@
    对应组件：components/chat/messages/user-bubble.tsx、assistant-bubble.tsx */
 
 .message {
-  /* The one vertical gap inside a reply: between markdown blocks, and
-     between the reply's parts (strip, text, error card, action row). */
+  /* The one vertical gap inside a message: between markdown blocks, and
+     between a reply's parts (strip, text, error card, action row). */
   --reply-gap: 12px;
   padding: 16px 24px;
   max-width: 100%;
@@ -431,6 +431,7 @@
    their own, so nothing collapses or adds up and no pair needs its own
    rule. The one exception is a heading: one extra gap above it and a
    third of one below, so it belongs to what follows. */
+.message.assistant { --reply-gap: 16px; }
 .message-content .md-rendered {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -443,9 +444,23 @@
 .message-content .md-rendered > :first-child { margin-top: 0; }
 .message-content .md-rendered > :last-child { margin-bottom: 0; }
 .message-content p { margin: 0; }
+/* A gap only reads as the same gap when every block's box ends where its
+   ink does. A card's border already does; a text block's line box carries
+   ~5px of leading above and below the glyphs. So in a reply, text blocks
+   trim their first and last lines to cap height and baseline, then give
+   back the ~1.6px Chinese glyphs reach past those lines. An inline-code
+   pill is taller still (more below the baseline than above), so a
+   paragraph holding one gives back what the pill reaches past. Measured
+   on screen pixels, every pair of blocks then sits ~16px apart. */
+.chat-stream-body > .chat-text > .md-rendered > :is(p, ul, ol, h1, h2, h3, h4, h5, h6) {
+  text-box: trim-both cap alphabetic;
+  padding-block: 1.6px;
+}
+.chat-stream-body > .chat-text > .md-rendered > p:has(> code) { padding-block: 3.8px 6.1px; }
 /* Inside a quote or a loose list item, blocks keep the same gap. */
 .message-content :is(blockquote, li) > * + :is(p, pre, .md-code, table, blockquote) { margin-top: var(--reply-gap); }
-.message-content ul, .message-content ol { padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.message-content ul, .message-content ol { padding-left: 20px; }
+.message-content li + li { margin-top: 4px; }
 /* Tailwind preflight strips list markers; chat markdown needs them back. */
 .message-content ul { list-style: disc; }
 .message-content ol { list-style: decimal; }
