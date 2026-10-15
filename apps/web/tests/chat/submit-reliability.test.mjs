@@ -620,3 +620,21 @@ test("an attached send clears the composer files when the socket accepts it, not
   pending.getPendingUserReject("A")?.();
   assert.deepEqual(calls, [["detach", "A", ["doc"]], "restore"], "a rejected turn gets its files back");
 });
+
+test("a clear before the previous send's ACK leaves the next queued message waiting", async () => {
+  const sid = "local_new";
+  useSendQueue.getState().enqueue(sid, { text: "first", thinking: "medium", toolsEnabled: true, webSearchEnabled: false });
+  useSendQueue.getState().enqueue(sid, { text: "second", thinking: "medium", toolsEnabled: true, webSearchEnabled: false });
+  useSendQueue.getState().drain(sid);
+  assert.deepEqual(host.frames.map(frame => frame.text), ["first"]);
+  // A session reload clears the placeholder task before chat_ack arrives.
+  delete host.sessions.runningTasks[sid];
+  useSendQueue.getState().drain(sid);
+  assert.deepEqual(host.frames.map(frame => frame.text), ["first"]);
+  assert.deepEqual(queueFor(sid).map(row => row.text), ["second"]);
+  // ACK, then the first turn ends: the second message goes out.
+  pending.acknowledgePendingUserText(sid); pending.clearPendingFirstAck(sid);
+  useSendQueue.getState().drain(sid);
+  assert.deepEqual(host.frames.map(frame => frame.text), ["first", "second"]);
+  assert.equal(queueFor(sid).length, 0);
+});
