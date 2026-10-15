@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { SolarIcon } from "@/components/solar-icons";
 import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import {
   Popover,
@@ -17,10 +18,11 @@ import { cn } from "@/lib/utils";
 import { channelBrand, useCurrentChannel } from "../../../top-bar/channel-choices";
 import { ChannelMenu } from "../../../top-bar/channel-menu";
 
-/** Channel chip — shown only while this conversation is bound to a chat
- *  channel account (its messages are mirrored there). Unbound chats bind
- *  from the "+" menu's Channel submenu. The letter glyph takes the
- *  channel poll's health colour (yellow degraded, red unreachable). */
+/** Channel chip — which chat channel account this conversation's
+ *  messages are mirrored to, beside the environment chip. Always shown:
+ *  unbound reads "Not connected", bound shows the platform letter and
+ *  account, tinted by the channel poll's health (yellow degraded, red
+ *  unreachable). The popover binds, switches or disconnects. */
 export function ChannelChip() {
   const { text } = useTranslation();
   const { channel, account_id } = useCurrentChannel();
@@ -33,8 +35,6 @@ export function ChannelChip() {
     return () => window.removeEventListener("topbar-close-menus", close);
   }, []);
 
-  if (!channel) return null;
-
   function onOpenChange(next: boolean) {
     if (next) {
       window.dispatchEvent(new Event("topbar-close-menus"));
@@ -43,12 +43,16 @@ export function ChannelChip() {
     setOpen(next);
   }
 
-  const brand = channelBrand(channel);
-  const label = account_id ? `${brand} · ${account_id}` : brand;
+  const brand = channel ? channelBrand(channel) : "";
+  const label = !channel
+    ? text("Not connected", "未连接")
+    : account_id ? `${brand} · ${account_id}` : brand;
   const color =
-    health === "err" ? "var(--accent-red)" : health === "warn" ? "var(--accent-yellow)" : undefined;
+    !channel ? undefined
+    : health === "err" ? "var(--accent-red)" : health === "warn" ? "var(--accent-yellow)" : undefined;
   const healthText =
-    health === "err"
+    !channel ? ""
+    : health === "err"
       ? text("The channel is unreachable.", "渠道连接不上。")
       : health === "warn"
         ? text("The channel is degraded.", "渠道状态异常。")
@@ -61,8 +65,11 @@ export function ChannelChip() {
           <TipBody
             title={text(`Channel: ${label}`, `渠道：${label}`)}
             detail={[
-              text("Messages are mirrored to this account. Click to change or disconnect.",
-                   "消息会同步到这个账号。点击切换或断开。"),
+              channel
+                ? text("Messages are mirrored to this account. Click to change or disconnect.",
+                       "消息会同步到这个账号。点击切换或断开。")
+                : text("Not mirrored to any chat app. Click to connect WeChat, Telegram, Discord or Slack.",
+                       "没有同步到聊天软件。点击绑定微信、Telegram、Discord 或 Slack。"),
               healthText,
             ].filter(Boolean).join(" ")}
           />
@@ -71,15 +78,19 @@ export function ChannelChip() {
         <PopoverTrigger asChild>
           <span
             role="button"
-            className={cn(buttonVariants({ variant: "elevated", size: "sm" }), "status-badge")}
+            className={cn(buttonVariants({ variant: "elevated", size: "sm" }), "status-badge cursor-pointer")}
             data-channel-chip=""
           >
-            <span
-              className="provider-icon"
-              style={{ width: 14, height: 14, color }}
-              aria-hidden="true"
-              dangerouslySetInnerHTML={{ __html: channelIcon(channel) }}
-            />
+            {channel ? (
+              <span
+                className="provider-icon"
+                style={{ width: 14, height: 14, color }}
+                aria-hidden="true"
+                dangerouslySetInnerHTML={{ __html: channelIcon(channel) }}
+              />
+            ) : (
+              <SolarIcon name="chat-round-dots" size={14} aria-hidden="true" />
+            )}
             <span className="badge-short">{label}</span>
           </span>
         </PopoverTrigger>

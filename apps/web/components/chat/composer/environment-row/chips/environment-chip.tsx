@@ -113,7 +113,7 @@ export function EnvironmentChip() {
       className={cn(
         buttonVariants({ variant: "elevated", size: "sm" }),
         "status-badge",
-        locked && "cursor-default active:translate-y-0",
+        locked ? "cursor-default active:translate-y-0" : "cursor-pointer",
       )}
       data-environment-chip=""
     >

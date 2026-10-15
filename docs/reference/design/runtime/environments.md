@@ -79,9 +79,9 @@ Remote files are outside the host's turn checkpoints, so revert / undo does not 
 The environment row above the message box starts with two chips:
 
 - **Environment chip** (always shown): the icon matches the kind (monitor / cpu / box) and the label is the environment name. The icon color is the worker connection tone that the old status chip showed. For a draft, it opens a list of environments plus a link to Settings → Environments, and the pick goes into the draft's composer settings. Once the conversation exists, the chip is read-only and its tooltip says why.
-- **Channel chip** (only while bound): the platform glyph tinted by the channel health poll (`channelHealth`), with a "WeChat · account" label. It opens the channel menu (switch account or "Not connected").
+- **Channel chip** (always shown): unbound, a chat glyph and "Not connected"; bound, the platform glyph tinted by the channel health poll (`channelHealth`) with a "WeChat · account" label. It opens the channel menu (bind, switch account, or "Not connected").
 
-An unbound conversation binds a channel from the **+** menu's Channel submenu. The channel menu, the channel chip and the submenu share `channel-choices.ts`. It follows the composer's own pane (`useBoundChat`), so in a split view each pane reads and changes its own conversation.
+The **+** menu's Channel submenu offers the same choice. The channel menu, the channel chip and the submenu share `channel-choices.ts`. It follows the composer's own pane (`useBoundChat`), so in a split view each pane reads and changes its own conversation.
 
 The worker connection tone (`statusBadge`) and the channel health (`channelHealth`) are separate store slices, so neither can repaint the other's chip.
 
