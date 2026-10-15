@@ -28,6 +28,7 @@
 @import "./styles/chat/context-badge.css";
 @import "./styles/chat/effort-pill.css";
 @import "./styles/chat/turn-files-card.css";
+@import "./styles/chat/sub-agents-card.css";
 @import "./styles/chat/file-diff.css";
 @import "./styles/chat/user-attachments.css";
 @import "./styles/chat/center-pane.css";

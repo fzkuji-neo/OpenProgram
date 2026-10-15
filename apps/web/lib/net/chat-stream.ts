@@ -58,6 +58,12 @@ import {
   pendingUserHasAttachments,
   rejectPendingUserText,
 } from "@/lib/chat/pending-user-text";
+import {
+  agentJobFor,
+  ensureSubAgentPrompt,
+  rememberJobPrompt,
+  subAgentChatKey,
+} from "@/lib/chat/sub-agent-transcripts";
 
 
 function requestExecutionStreamSnapshot(event: {
@@ -161,6 +167,9 @@ interface ChatResponseData {
   steering?: boolean;
   assistant_msg_id?: string;
   command_id?: string;
+  /** Set on every frame of a Job's turn: a sub-agent working in this
+   *  session. See lib/chat/sub-agent-transcripts.ts. */
+  job_id?: string;
 }
 
 /** Names of LLM-callable Agent method tools. When the LLM invokes
@@ -397,6 +406,12 @@ function handleResponse(d: ChatResponseData | undefined): void {
     d.session_id || sessionByMsgId.get(d.msg_id)
     || useSessionStore.getState().currentSessionId || undefined;
   if (!sid) return;
+  // A sub-agent's turn belongs to its own transcript (the turn's
+  // Sub-agents card), never to the conversation it shares a session with.
+  if (d.job_id) {
+    handleSubAgentResponse(sid, d.job_id, d);
+    return;
+  }
   const pendingId = getPendingUserMessageId(sid);
   if (d.type === "result" || d.type === "error" || d.type === "cancelled") {
     sessionByMsgId.delete(d.msg_id);
@@ -607,6 +622,23 @@ function handleResponse(d: ChatResponseData | undefined): void {
   if (d.type === "result" || d.type === "error" || d.type === "cancelled") {
     flushPendingDelta(rid);
     finalize(sid, rid, d);
+  }
+}
+
+function handleSubAgentResponse(sid: string, jobId: string, d: ChatResponseData): void {
+  if (!d.msg_id) return;
+  const key = subAgentChatKey(sid, agentJobFor(jobId));
+  const rid = replyId(d.msg_id);
+  if (d.type === "stream_event" && d.event) {
+    ensureSubAgentPrompt(key, jobId, d.msg_id);
+    applyStreamEvent(key, rid, d.event);
+    return;
+  }
+  if (d.type === "result" || d.type === "error" || d.type === "cancelled") {
+    sessionByMsgId.delete(d.msg_id);
+    ensureSubAgentPrompt(key, jobId, d.msg_id);
+    flushPendingDelta(rid);
+    finalize(key, rid, d);
   }
 }
 
@@ -975,6 +1007,7 @@ function applyStreamEvent(sid: string, rid: string, evt: StreamEvent): void {
       // only ever reads `.attach`, `.content` and `.id`.
       const cardId = evt.card_id;
       if (!cardId) break;
+      rememberJobPrompt(evt.attach?.job_id, evt.attach?.prompt);
       const running = evt.attach?.status === "running";
       const prev = cur.attachCards ?? [];
       const at = prev.findIndex((c) => c.id === cardId);

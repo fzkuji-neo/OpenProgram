@@ -267,6 +267,10 @@ interface ChatResponseData {
 }
 
 export function wsHandleChatResponse(data: ChatResponseData): void {
+  // A sub-agent's frames (a Job working in this session) end the Job's
+  // own turn, not the conversation's: no running-state, unread or reply
+  // bookkeeping here. chat-stream keeps them with the Sub-agents card.
+  if (data.job_id) return;
   if (data.type === "error" && typeof data.retry_request_id === "string") {
     settleFunctionRetry(data.session_id || "", data.retry_request_id, String(data.content || "Retry failed"));
     return;
