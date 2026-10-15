@@ -140,7 +140,7 @@ export function EnvironmentsSettings() {
                 return (
                   <div key={env.id} className={`${styles.row} ${styles.rowTop}`}>
                     <SolarIcon name={environmentIconName(env.kind)} size={18} aria-hidden="true" />
-                    <div className={styles.label}>
+                    <div className={`${styles.label} min-w-0 flex-1`}>
                       <div>
                         {env.name}
                         {isDefault ? (
@@ -151,10 +151,10 @@ export function EnvironmentsSettings() {
                         {env.id} · {kindLabel(env.kind, text)}{where ? ` · ${where}` : ""}
                       </div>
                       {st ? (
-                        <div className={st.ok ? styles.rowStatusOk : styles.rowStatusError}>{st.msg}</div>
+                        <div className={`${st.ok ? styles.rowStatusOk : styles.rowStatusError} [overflow-wrap:anywhere]`}>{st.msg}</div>
                       ) : null}
                     </div>
-                    <div className={`${styles.control} flex gap-2`}>
+                    <div className="ml-auto flex shrink-0 flex-wrap justify-end gap-2">
                       {!isDefault ? (
                         <Button variant="outline" size="sm" className={styles.settingsAction} onClick={() => makeDefault(env)}>
                           {text("Make default", "设为默认")}
