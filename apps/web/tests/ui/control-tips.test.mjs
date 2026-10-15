@@ -113,4 +113,6 @@ test("A reply ending on a card keeps the action row as far away as one ending on
   // A card has no half-leading under its border, so it takes it back as margin.
   assert.match(read("app/styles/chat/bubbles.css"),
     /\.md-rendered > :last-child:is\(\.md-code, pre, table, blockquote\) \{\s*margin-bottom: 6px;/);
+  assert.match(read("app/styles/chat/bubbles.css"),
+    /\.chat-stream-body > \.turn-error:last-child \{ margin-bottom: 6px; \}/);
 });

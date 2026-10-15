@@ -566,8 +566,10 @@
 }
 
 /* Terminal failures follow the reply trace and survive history reload.
-   The column gap (8px) already separates it from the trace; 4px more makes
-   the space above match the 14px action-row offset below. */
+   It sits on the turn's 16px rhythm on both sides: above, the column gap
+   (8px) plus 4px plus the half-leading of the text it follows; below, the
+   action row's 10px plus 6px, the half-leading a card's border lacks (the
+   same compensation a trailing code card or table gets). */
 .turn-error {
   display: flex;
   align-items: flex-start;
@@ -583,6 +585,7 @@
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
+.chat-stream-body > .turn-error:last-child { margin-bottom: 6px; }
 .turn-error-icon {
   display: flex;
   align-items: center;
