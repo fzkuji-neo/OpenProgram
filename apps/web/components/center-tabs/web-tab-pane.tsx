@@ -40,9 +40,9 @@ import {
 } from "@/lib/desktop/desktop-bridge";
 import { useTranslation } from "@/lib/i18n";
 import { showToast } from "@/lib/format-utils/toast";
-import { useSessionStore } from "@/lib/session-store";
+import { getLastChatKey, useSessionStore } from "@/lib/session-store";
 import { appendToComposer } from "@/components/chat/messages/quote-to-chat";
-import { pageCommentText, pickedElementName, type PickedElement } from "@/lib/browser/page-comment";
+import { commentChatKey, pageCommentText, pickedElementName, type PickedElement } from "@/lib/browser/page-comment";
 import { browserPageShortcut } from "@/lib/browser/browser-layout";
 import {
   isBookmarked,
@@ -588,13 +588,22 @@ function DesktopWebTabPane({
   function submitComment() {
     if (!comment || comment.picking || !commentDraft.trim()) return;
     const state = useSessionStore.getState();
-    const chatKey = state.activeChatKey ?? state.currentSessionId;
+    const tabs = useCenterTabs.getState().tabs;
+    const chatTab = (key: string) => tabs.find((tab) => tab.kind === "session" && tab.sessionId === key);
+    const chatKey = commentChatKey([
+      state.activeChatKey ?? state.currentSessionId,
+      tabs.find((tab) => tab.id === tabId)?.agentSessionId,
+      getLastChatKey(),
+    ], (key) => key === state.activeChatKey || Boolean(chatTab(key)));
     if (!chatKey) {
       showToast(text("Open a conversation to add the comment to", "先打开一个对话，再添加评论"));
       return;
     }
     appendToComposer(chatKey, pageCommentText(comment.element, commentDraft), false);
-    showToast(text("Comment added to your message", "评论已加入消息"));
+    const title = chatTab(chatKey)?.title;
+    showToast(title
+      ? text(`Comment added to the message in “${title}”`, `评论已加入“${title}”的消息`)
+      : text("Comment added to your message", "评论已加入消息"));
     closeComment();
   }
 
