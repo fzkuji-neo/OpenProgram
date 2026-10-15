@@ -53,6 +53,58 @@ def _one_line(value: str) -> str:
     return normalize_identity_header_part(value)
 
 
+class _TypingIndicator:
+    """一轮进行期间在聊天里显示"正在输入", 按平台的有效期定时刷新.
+
+    平台不支持 (Slack) 或第一次发送失败就安静退出 — 这只是提示, 不能
+    影响回复本身.
+    """
+
+    def __init__(self, platform: str, account_id: str, target: str) -> None:
+        self.platform = platform
+        self.account_id = account_id
+        self.target = target
+        self._stop = threading.Event()
+        self._thread: Optional[threading.Thread] = None
+        self._started = False
+
+    def start(self) -> None:
+        from openprogram.channels._transport import TYPING_REFRESH_SECONDS
+        interval = TYPING_REFRESH_SECONDS.get(self.platform)
+        if not interval:
+            return
+        self._thread = threading.Thread(
+            target=self._run, args=(interval,), daemon=True,
+        )
+        self._thread.start()
+
+    def _run(self, interval: float) -> None:
+        from openprogram.channels import _transport
+        while not self._stop.is_set():
+            try:
+                result = _transport.send_typing(
+                    self.platform, self.account_id, self.target,
+                )
+            except Exception:  # noqa: BLE001
+                return
+            if not result.ok:
+                return
+            self._started = True
+            if self._stop.wait(interval):
+                return
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=5)
+        if self._started:
+            from openprogram.channels import _transport
+            try:
+                _transport.stop_typing(self.platform, self.account_id, self.target)
+            except Exception:  # noqa: BLE001
+                pass
+
+
 @dataclass(frozen=True)
 class MessageHandle:
     """指向一条已发出去的消息 — 后续可以拿来 edit.
@@ -177,11 +229,21 @@ class Channel(abc.ABC):
         ).start()
 
     def _dispatch_and_reply(self, ch_msg) -> None:
+        from openprogram.channels import _room
+
         peer_id = self.peer_id_for(ch_msg)
         snippet = ch_msg.text[:60] + ("..." if len(ch_msg.text) > 60 else "")
         safe_display = _one_line(ch_msg.user_display)
         who = safe_display or ch_msg.user_id or peer_id
-        print(f"[{self.platform_id}:{self.account_id}] <{who}> {snippet}")
+        tag = f"[{self.platform_id}:{self.account_id}]"
+        # 别的机器人发的消息不进 agent — 两个机器人在一个群里会互相回复
+        # 到有人把它们停下为止.
+        if ch_msg.from_bot:
+            return
+        if not _room.first_delivery(self.platform_id, self.account_id,
+                                    ch_msg.chat_id, ch_msg.message_id):
+            return
+        print(f"{tag} <{who}> {snippet}")
 
         # ---- access 门禁: 未知发信人不进 agent --------------------------
         # 配对确认只能走本机 CLI/webui (_access 模块 docstring), 这里
@@ -225,6 +287,31 @@ class Channel(abc.ABC):
                 self.send_text_full(peer_id, access_decision.reply)
             return
 
+        # ---- 房间层: 命令 / @提及门槛 / 限流 -----------------------------
+        room_key = (self.platform_id, self.account_id, ch_msg.chat_id)
+        in_room = _room.is_room(ch_msg.chat_type)
+        verb = _room.command_verb(ch_msg.text)
+        if verb in ("/new", "/reset", "/activation"):
+            self.send_text_full(peer_id, self._room_command(
+                verb, ch_msg, peer_id, room_key, in_room,
+            ))
+            return
+        if in_room and not verb:
+            entry = _room.PendingEntry(
+                speaker_id=stable_sender_id, speaker_display=safe_display,
+                text=ch_msg.text or "(attachment)", ts=ch_msg.ts or time.time(),
+            )
+            mode = _room.activation(self.platform_id, self.account_id,
+                                    ch_msg.chat_id)
+            if mode == "mention" and not ch_msg.mentioned:
+                _room.record_pending(room_key, entry)
+                return
+            if not _room.allow_turn(room_key):
+                print(f"{tag} room {ch_msg.chat_id} over its turn limit; "
+                      "message kept as pending history")
+                _room.record_pending(room_key, entry)
+                return
+
         # ---- 附件下载 + quoted 块 → agent 可见的 user_text ---------------
         user_text = ch_msg.text
         turn_attachments: list[dict] = []
@@ -238,31 +325,89 @@ class Channel(abc.ABC):
             if notes:
                 joined = "\n".join(notes)
                 user_text = f"{user_text}\n\n{joined}" if user_text else joined
-        if ch_msg.quoted_text:
+        # 命令 (/answer · /decline) 原样交给 dispatch 解析, 不拼上下文块.
+        if ch_msg.quoted_text and not verb:
             user_text = _quoted_block(ch_msg.quoted_text) + "\n\n" + user_text
+        if in_room and not verb:
+            pending = _room.take_pending(room_key)
+            if pending:
+                user_text = _room.render_pending(pending) + "\n\n" + user_text
 
         # 正文保持发信人原文；发言人只走独立 speaker 字段, 模型从
         # 输入信封 (authority.render_model_input) 读, 网页从消息元数据读.
 
+        if not verb:
+            self._ack(ch_msg)
         from openprogram.channels._conversation import dispatch_inbound
-        reply_text = dispatch_inbound(
-            channel=self.platform_id,
-            account_id=self.account_id,
-            peer_kind=ch_msg.chat_type,
-            peer_id=peer_id,
-            user_text=user_text,
-            user_display=safe_display or peer_id,
-            speaker_id=stable_sender_id or None,
-            speaker_display=safe_display or None,
-            progress_stream=self.progress_stream,
-            attachments=turn_attachments or None,
-        )
-        # progress streaming 走通时 reply 已 edit 进占位消息, 返回 None.
+        typing = _TypingIndicator(self.platform_id, self.account_id, peer_id)
+        if not verb:
+            typing.start()
+        try:
+            reply_text = dispatch_inbound(
+                channel=self.platform_id,
+                account_id=self.account_id,
+                peer_kind=ch_msg.chat_type,
+                peer_id=peer_id,
+                user_text=user_text,
+                user_display=safe_display or peer_id,
+                speaker_id=stable_sender_id or None,
+                speaker_display=safe_display or None,
+                progress_stream=self.progress_stream,
+                block_stream=not self.progress_stream,
+                attachments=turn_attachments or None,
+            )
+        finally:
+            typing.stop()
+        # 占位消息 edit 或分段发送走通时 reply 已经送达, 返回 None.
         if reply_text is not None:
             result = self.send_text_full(peer_id, reply_text)
             if not result.ok:
-                print(f"[{self.platform_id}:{self.account_id}] send failed: "
+                print(f"{tag} send failed: "
                       f"{result.error_kind}: {result.error_detail}")
+
+    def _room_command(self, verb: str, ch_msg, peer_id: str,
+                      room_key: tuple[str, str, str], in_room: bool) -> str:
+        """/new · /reset · /activation — 回执文本."""
+        from openprogram.channels import _room
+        if verb in ("/new", "/reset"):
+            from openprogram.channels._conversation import start_new_conversation
+            _room.clear_pending(room_key)
+            return start_new_conversation(
+                channel=self.platform_id, account_id=self.account_id,
+                peer_kind=ch_msg.chat_type, peer_id=peer_id,
+            )
+        if not in_room:
+            return "私聊里我会回复每一条消息，不需要设置。"
+        arg = _room.command_arg(ch_msg.text).lower()
+        labels = {"mention": "只在 @我 或回复我时回应",
+                  "always": "回应每一条消息"}
+        if not arg:
+            mode = _room.activation(self.platform_id, self.account_id,
+                                    ch_msg.chat_id)
+            return (f"当前模式：{mode}（{labels[mode]}）。"
+                    "用 /activation mention 或 /activation always 切换。")
+        if arg not in _room.ACTIVATION_MODES:
+            return "用法：/activation mention 或 /activation always"
+        _room.set_activation(self.platform_id, self.account_id,
+                             ch_msg.chat_id, arg)
+        return f"✓ 已切换为 {arg}：{labels[arg]}。"
+
+    def _ack(self, ch_msg) -> None:
+        """账号开了 ``ack_reaction`` 时给接手的消息加一个 👀."""
+        if not ch_msg.message_id:
+            return
+        from openprogram.channels import _transport
+        from openprogram.channels.accounts import get_settings
+        if get_settings(self.platform_id, self.account_id).get(
+                "ack_reaction", "off") != "on":
+            return
+        result = _transport.add_reaction(
+            self.platform_id, self.account_id,
+            ch_msg.chat_id, ch_msg.message_id,
+        )
+        if not result.ok and result.error_kind != "not_supported":
+            print(f"[{self.platform_id}:{self.account_id}] ack reaction "
+                  f"failed: {result.error_kind}")
 
     # ------------------------------------------------------------------
     # 出站接口 — 默认走 _transport, 子类可 override 用 platform-native SDK

@@ -93,12 +93,19 @@ class SlackChannel(Channel):
             if etype not in ("message", "app_mention"):
                 return
             # subtype None = 普通消息, "file_share" = 带附件的消息;
-            # 其余 subtype (joined / edited / bot_message ...) 忽略.
-            if event.get("subtype") not in (None, "file_share"):
+            # "bot_message" 交给 base 当机器人消息丢弃; 其余 subtype
+            # (joined / edited ...) 忽略.
+            if event.get("subtype") not in (None, "file_share", "bot_message"):
                 return
             if event.get("user") == my_id:
                 return
             text = (event.get("text") or "").strip()
+            # 一次 @提及 Slack 会同时推 message 和 app_mention 两个事件 —
+            # 同一个 ts, base 按 message_id 去重.
+            mention = f"<@{my_id}>" if my_id else ""
+            mentioned = etype == "app_mention" or bool(mention and mention in text)
+            if mention:
+                text = text.replace(mention, "").strip()
             channel_id = event.get("channel")
             user = event.get("user")
 
@@ -147,6 +154,9 @@ class SlackChannel(Channel):
                 quoted_text=quoted_text,
                 thread_id=thread_ts,
                 attachments=attachments,
+                mentioned=mentioned,
+                from_bot=bool(event.get("bot_id"))
+                or event.get("subtype") == "bot_message",
             )
 
             # handle_inbound spawns its own daemon thread — the socket-mode

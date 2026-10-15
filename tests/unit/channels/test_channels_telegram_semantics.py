@@ -1,6 +1,7 @@
 """Telegram adapter semantics: explicit group-session config, mention
-gating, attachment/quote parsing, and the per-user target split in
-_transport.
+detection, attachment/quote parsing, and the per-user target split in
+_transport. Whether an unmentioned group message starts a turn is the
+room layer's call (test_channels_rooms.py).
 """
 from __future__ import annotations
 
@@ -72,13 +73,13 @@ def test_settings_validation() -> None:
         _accounts.set_setting("discord", "a1", "group_sessions", "shared")
 
 
-def test_defaults_shared_session_no_mention_gate() -> None:
+def test_defaults_shared_session_every_message_reaches_base() -> None:
     ch = _adapter()
     assert ch.group_sessions == "shared"
-    assert ch.require_mention is False
     got = _capture(ch, _update("plain group chatter"))
     assert len(got) == 1
     assert got[0].chat_type == "group"
+    assert got[0].mentioned is False
 
 
 def test_per_user_group_sessions_scope_peer_id() -> None:
@@ -116,38 +117,44 @@ def test_transport_splits_per_user_target() -> None:
 
 
 # ---------------------------------------------------------------------------
-# mention gating
+# mention detection
 # ---------------------------------------------------------------------------
 
-def test_require_mention_drops_unaddressed_group_messages() -> None:
+def test_unaddressed_group_message_is_not_mentioned() -> None:
     ch = _adapter(require_mention="on")
     ch.bot_username = "mybot"
     ch.bot_user_id = "999"
-    assert _capture(ch, _update("just chatting")) == []
+    got = _capture(ch, _update("just chatting"))
+    assert [m.mentioned for m in got] == [False]
 
 
-def test_require_mention_passes_mention_and_strips_it() -> None:
-    ch = _adapter(require_mention="on")
+def test_mention_is_detected_and_stripped() -> None:
+    ch = _adapter()
     ch.bot_username = "mybot"
-    got = _capture(ch, _update("@mybot run the report"))
-    assert len(got) == 1
-    assert got[0].text == "run the report"
+    got = _capture(ch, _update("@MyBot run the report"))
+    assert (got[0].text, got[0].mentioned) == ("run the report", True)
 
 
-def test_require_mention_passes_reply_to_bot() -> None:
-    ch = _adapter(require_mention="on")
+def test_group_command_suffix_counts_as_mention() -> None:
+    ch = _adapter()
+    ch.bot_username = "mybot"
+    got = _capture(ch, _update("/activation@mybot always"))
+    assert (got[0].text, got[0].mentioned) == ("/activation always", True)
+
+
+def test_reply_to_bot_counts_as_mention() -> None:
+    ch = _adapter()
     ch.bot_username = "mybot"
     ch.bot_user_id = "999"
     got = _capture(ch, _update("and this too", reply_from_id=999))
-    assert len(got) == 1
-    assert got[0].text == "and this too"
+    assert (got[0].text, got[0].mentioned) == ("and this too", True)
 
 
-def test_require_mention_does_not_gate_dms() -> None:
-    ch = _adapter(require_mention="on")
-    ch.bot_username = "mybot"
-    got = _capture(ch, _update("direct hello", chat_type="private"))
-    assert len(got) == 1
+def test_bot_sender_is_flagged() -> None:
+    ch = _adapter()
+    update = _update("beep")
+    update["message"]["from"] = {"id": 5, "username": "otherbot", "is_bot": True}
+    assert _capture(ch, update)[0].from_bot is True
 
 
 # ---------------------------------------------------------------------------

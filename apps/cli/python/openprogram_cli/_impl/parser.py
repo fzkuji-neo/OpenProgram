@@ -842,9 +842,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_chacct_login.add_argument("--id", default="default",
         help="Account id (default: 'default')")
     p_chacct_set = p_chacct_sub.add_parser("set",
-        help="Set an account behavior setting (e.g. telegram group "
-             "semantics: group_sessions=shared|per-user, "
-             "require_mention=on|off). Restart the worker to apply.")
+        help="Set an account behavior setting: require_mention=on|off "
+             "and ack_reaction=on|off (telegram, discord, slack; apply "
+             "to the next message), group_sessions=shared|per-user "
+             "(telegram; restart the worker to apply).")
     p_chacct_set.add_argument("channel", help="Channel id",
         choices=["wechat", "telegram", "discord", "slack"])
     p_chacct_set.add_argument("key", help="Setting key (see channel docs)")

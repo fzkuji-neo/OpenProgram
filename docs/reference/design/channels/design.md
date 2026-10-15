@@ -79,8 +79,8 @@ This document describes the structure and message flow. For the requirements and
 2. Inside _handle_update(update):
    a. extract text = "help me check what Python files are in the current directory"
       (plus attachments → Attachment entries, reply_to_message text →
-      quoted_text; in groups, the require_mention setting can gate and
-      strip an @bot mention here)
+      quoted_text; an @bot mention or a reply to the bot sets
+      mentioned=True and the mention is stripped)
    b. construct ChannelMessage {
         text=..., chat_id="123", user_id="456",
         user_display="zhangsan", chat_type="direct",
@@ -310,11 +310,13 @@ openprogram/channels/
 │                        import webui)
 ├── _question_bridge.py  push a pending runtime.ask question into the chat
 ├── _question_commands.py /answer · /decline text-command handling
+├── _room.py             group rooms: activation mode, pending history,
+│                        flood limit, duplicate delivery
 ├── _heartbeats.py       adapter heartbeat registry
 ├── __init__.py          CHANNEL_CLASSES proxy + register_channel + entry_points
 ├── implementations/
-│   ├── telegram.py      Telegram bot long-poll inbound (group_sessions /
-│   │                    require_mention account settings)
+│   ├── telegram.py      Telegram bot long-poll inbound (group_sessions
+│   │                    account setting, mention detection)
 │   ├── discord.py       Discord bot Gateway inbound
 │   ├── slack.py         Slack Socket Mode inbound
 │   └── wechat.py        WeChat iLink long-poll inbound (incl. QR login)
@@ -331,6 +333,7 @@ How to read it: each module deals only with the callers it declares; there are n
 | `_transport.py` | the only place that sends bytes outward: chunk → render → hard-cap split → rate-limit retry, 4 platforms' HTTP (text/edit/file) | outbound + base.send_text/send_file |
 | `_format.py` | markdown → per-platform wire format | _transport |
 | `_access.py` | allowlist + pairing gate (`access.json`) | base.handle_inbound (check), CLI / loopback Web UI (mutation) |
+| `_room.py` | group rooms: activation mode (`rooms.json`), pending history, flood limit, duplicate delivery | base.handle_inbound |
 | `_attachments.py` | inbound attachment download + turn-input conversion | base.handle_inbound |
 | `_message.py` | ChannelMessage + Attachment neutral structures | adapter entry |
 | `base.py` | Channel ABC + MessageHandle + handle_inbound + run_forever | adapter subclasses, worker, dispatch_inbound |
@@ -372,7 +375,8 @@ openprogram channels accounts
   │     - telegram/discord/slack: getpass paste token
   │     - wechat: start iLink QR login flow
   ├── set <channel> <key> <value> --id <name>      behavior settings
-  │     (telegram: group_sessions=shared|per-user, require_mention=on|off)
+  │     (telegram/discord/slack: require_mention=on|off, ack_reaction=on|off;
+  │      telegram: group_sessions=shared|per-user)
   └── rm <channel> <account_id>                    delete account + associated bindings
 
 openprogram channels access

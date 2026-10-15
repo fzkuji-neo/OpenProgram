@@ -134,7 +134,7 @@ Routing decides which **agent** handles a message (bindings), then a **session k
 - **Discord and Slack**: one session per *(channel, user)* pair. Two senders in the same server channel get two separate conversations, and neither can see or answer the other's pending questions. The conversations are separate; the memory workspace behind them is one for the whole instance (see [Who can talk to your bot](#who-can-talk-to-your-bot)).
 - **WeChat**: one session per peer (direct messages).
 
-By default sessions are also scoped per account (`session_scope: per-account-channel-peer`). Agents can loosen this (`per-channel-peer`, `per-peer`, or a single `main` session) and can rotate sessions daily (`session_daily_reset: "HH:MM"`) or after idle time (`session_idle_minutes`).
+By default sessions are also scoped per account (`session_scope: per-account-channel-peer`). Agents can loosen this (`per-channel-peer`, `per-peer`, or a single `main` session) and can rotate sessions daily (`session_daily_reset: "HH:MM"`) or after idle time (`session_idle_minutes`). Sending `/new` (or `/reset`) in a chat starts a fresh conversation for that chat right away; the previous one stays in the web sidebar.
 
 ### Who Said It
 
@@ -149,21 +149,40 @@ The display name is what the platform shows, the id is the sender's platform id,
 
 Every chat-channel message carries its sender, direct messages included, because `session_scope: main` puts direct peers in a shared conversation too. Web, CLI and TUI turns have none. In the web transcript a channel message shows its platform and sender on a small line above the bubble, such as `WeChat · Ada`; a WeChat sender has no nickname to show, so the line shortens the id to its first and last four characters.
 
-### Telegram Group Behavior
+### Group Behavior
 
-Two per-account settings make Telegram's group semantics explicit (restart the worker to apply):
+In a group (a Telegram group, a Discord server channel, a Slack channel) most messages are people talking to each other. Each group is in one of two modes:
+
+- `always`: every message starts a turn.
+- `mention`: only a message that @mentions the bot, or replies to one of its messages, starts a turn. The mention is stripped before the agent sees the text. Every other message is kept, and the next turn receives the most recent 50 of them above the triggering message, each with its sender, so the agent knows what led up to the question. In the web transcript they sit behind a small "earlier messages in the chat" toggle at the top of that turn's bubble.
+
+The account setting `require_mention` picks the default mode for its groups (`on` is `mention`, `off`, the default, is `always`); anyone in a group can switch that group with `/activation mention` or `/activation always`, and `/activation` alone shows the current mode. Direct messages are never gated.
 
 ```bash
-openprogram channels accounts set telegram group_sessions per-user   # or: shared
-openprogram channels accounts set telegram require_mention on       # or: off
+openprogram channels accounts set telegram require_mention on       # or: off (also discord, slack)
+openprogram channels accounts set telegram group_sessions per-user  # or: shared (telegram only)
 ```
 
-- `group_sessions` — `shared` (default): the whole group talks to one conversation. `per-user`: each member of a group gets their own session, like Discord/Slack.
-- `require_mention` — `on`: in groups the bot only responds when it is @mentioned or when someone replies to one of its messages (the mention is stripped before the agent sees the text). `off` (default): the bot responds to every group message. Direct messages are never gated.
+`group_sessions` (Telegram, restart the worker to apply) — `shared` (default): the whole group talks to one conversation. `per-user`: each member of a group gets their own session, like Discord/Slack.
+
+Messages from other bots are ignored, so two bots in one group cannot keep answering each other, and a platform delivering the same message twice starts one turn. A group starts at most 10 turns a minute; messages past that wait as earlier messages for the next turn.
+
+### Chat Commands
+
+| Command | What it does |
+|---|---|
+| `/new`, `/reset` | Start a fresh conversation for this chat |
+| `/activation [mention\|always]` | Show or switch this group's mode |
+| `/answer <question_id> <choice>` | Answer a question a function asked (below) |
+| `/decline <question_id>` | Decline that question |
+
+Commands work in a group without mentioning the bot. In a Telegram group, `/new@yourbot` is accepted too.
 
 ## Replies, Progress, and Long Messages
 
-While the agent works, the bot posts a `⏳ working...` placeholder and edits it live as tools run (`⚙ bash` → `✓ bash` → …), finally replacing it with the reply. On WeChat, which cannot edit messages, the full reply arrives as a normal message instead.
+While the agent works, the chat shows the bot as typing (Telegram, Discord and WeChat; Slack has no typing indicator for bots). On Telegram, Discord and Slack the bot also posts a `⏳ working...` placeholder and edits it live as tools run (`⚙ bash` → `✓ bash` → …), finally replacing it with the reply. WeChat cannot edit messages, so there the reply arrives paragraph by paragraph as it is written: a paragraph is sent once it has about 200 characters, and whatever the agent wrote before calling a tool ("let me check…") is sent before the tool runs.
+
+With the account setting `ack_reaction on` (Telegram, Discord, Slack), the bot adds 👀 to a message as soon as it picks it up. Slack needs the `reactions:write` scope for this.
 
 Agent output is markdown, rendered per platform at send time: Telegram receives HTML (`**bold**` → bold text, fenced code → `<pre>` blocks), Slack receives mrkdwn, Discord renders markdown natively, and WeChat gets plain text with the markers stripped. Long replies are split automatically at each platform's size cap: Telegram 4,000 characters, Discord 1,800, Slack 39,000, WeChat 1,800.
 

@@ -156,6 +156,11 @@ class WechatChannel(Channel):
         from_id = msg.get("from_user_id")
         if not from_id:
             return
+        # iLink 取"正在输入"的 ticket 要带这个用户最近的 context_token.
+        from openprogram.channels._transport import remember_wechat_context
+        remember_wechat_context(
+            self.account_id, str(from_id), str(msg.get("context_token") or ""),
+        )
 
         # Parse wechat iLink msg dict → ChannelMessage (audit 缺陷 4).
         from openprogram.channels._message import ChannelMessage

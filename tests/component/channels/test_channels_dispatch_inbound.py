@@ -385,3 +385,79 @@ def test_dispatch_inbound_uses_bound_session_run_config(
     assert seen["permission_mode"] == "bypass"
     msgs = tmp_db.get_messages("local_bound")
     assert [m["role"] for m in msgs] == ["user", "assistant"]
+
+
+def make_delta_stream(parts: list[str]):
+    text = "".join(parts)
+
+    async def _fn(model, ctx, opts) -> AsyncGenerator[AssistantMessageEvent, None]:
+        yield EventStart(partial=_build_partial(""))
+        yield EventTextStart(content_index=0, partial=_build_partial(""))
+        so_far = ""
+        for part in parts:
+            so_far += part
+            yield EventTextDelta(content_index=0, delta=part,
+                                 partial=_build_partial(so_far))
+        yield EventTextEnd(content_index=0, content=text, partial=_build_partial(text))
+        yield EventDone(reason="stop", message=_build_final(text))
+    return _fn
+
+
+def test_block_stream_sends_paragraphs_as_they_arrive(
+    tmp_db: SessionDB, stub_routing, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("openprogram.paths.get_state_dir", lambda: tmp_path)
+    first = "第一段" * 80
+    fake_stream = make_delta_stream([first, "\n\n第二段", "收尾。"])
+    orig_run = D._run_loop_blocking
+    posted: list[str] = []
+    from openprogram.channels._transport import SendResult
+    monkeypatch.setattr(
+        "openprogram.channels._transport.post_message",
+        lambda platform, account_id, target, text: posted.append(text)
+        or SendResult.success(""),
+    )
+
+    def _wrapped(*, req, history, on_event, cancel_event, **_):
+        return orig_run(req=req, history=history, on_event=on_event,
+                        cancel_event=cancel_event, stream_fn=fake_stream)
+
+    with patch.object(D, "_run_loop_blocking", _wrapped):
+        reply = C.dispatch_inbound(
+            channel="wechat", account_id="acct1", peer_kind="direct",
+            peer_id="u-1", user_text="hi", block_stream=True,
+            speaker_id="u-1",
+        )
+    assert reply is None
+    assert posted == [first, "第二段收尾。"]
+    [session] = tmp_db.list_sessions()
+    assert tmp_db.get_messages(session["id"])[1]["content"] == first + "\n\n第二段收尾。"
+
+
+def test_new_conversation_moves_the_peer_to_a_fresh_session(
+    tmp_db: SessionDB, stub_routing, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("openprogram.paths.get_state_dir", lambda: tmp_path)
+    orig_run = D._run_loop_blocking
+
+    def _wrapped(*, req, history, on_event, cancel_event, **_):
+        return orig_run(req=req, history=history, on_event=on_event,
+                        cancel_event=cancel_event,
+                        stream_fn=make_text_stream("ok"))
+
+    def turn():
+        return C.dispatch_inbound(channel="wechat", account_id="acct1",
+                                  peer_kind="direct", peer_id="u-1",
+                                  user_text="hi", speaker_id="u-1")
+
+    with patch.object(D, "_run_loop_blocking", _wrapped):
+        turn()
+        receipt = C.start_new_conversation(
+            channel="wechat", account_id="acct1",
+            peer_kind="direct", peer_id="u-1")
+        turn()
+    assert receipt.startswith("✓")
+    ids = sorted(s["id"] for s in tmp_db.list_sessions())
+    assert ids == ["acct1_direct_u-1", "acct1_direct_u-1_n1"]

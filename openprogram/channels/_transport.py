@@ -801,6 +801,177 @@ def _post_wechat(account_id: str, user_id: str, text: str) -> SendResult:
 
 
 # ---------------------------------------------------------------------------
+# "正在输入" 和确认表情 — 提示性操作, 不重试, 失败由调用方忽略
+# ---------------------------------------------------------------------------
+
+#: 各平台 typing 状态的刷新间隔 (秒): Telegram 约 5 秒失效, Discord 约
+#: 10 秒, iLink 插件按 5 秒保活. Slack bot 没有 typing API, 不在表里.
+TYPING_REFRESH_SECONDS: dict[str, float] = {
+    "telegram": 4.0,
+    "discord": 8.0,
+    "wechat": 5.0,
+}
+
+ACK_EMOJI = "👀"
+
+#: WeChat 每个用户最近一条入站消息的 context_token — iLink 取 typing
+#: ticket (getconfig) 要带它. adapter 收消息时登记.
+_WECHAT_CONTEXT: dict[tuple[str, str], str] = {}
+#: (account, user) → (typing_ticket, 取到的时间). iLink 插件缓存 24h.
+_WECHAT_TICKETS: dict[tuple[str, str], tuple[str, float]] = {}
+_WECHAT_TICKET_TTL = 6 * 3600.0
+
+
+def remember_wechat_context(account_id: str, user_id: str, token: str) -> None:
+    if token:
+        _WECHAT_CONTEXT[(account_id, user_id)] = token
+
+
+def send_typing(platform: str, account_id: str, target: str) -> SendResult:
+    """显示一次"正在输入"; 有效期见 :data:`TYPING_REFRESH_SECONDS`."""
+    if platform == "telegram":
+        token = _accounts.load_credentials("telegram", account_id).get("bot_token")
+        if not token:
+            return SendResult.fail("auth", "no bot_token")
+        return _tg_call(token, "sendChatAction", {
+            "chat_id": _tg_chat_id(target), "action": "typing",
+        }, success_id="")
+    if platform == "discord":
+        channel_id = target.partition("_")[0]
+        return _discord_call(account_id, "POST",
+                             f"/channels/{channel_id}/typing")
+    if platform == "wechat":
+        return _wechat_typing(account_id, target, status=1)
+    return SendResult.fail("not_supported", f"{platform} has no typing indicator")
+
+
+def stop_typing(platform: str, account_id: str, target: str) -> SendResult:
+    """收起"正在输入". 只有 iLink 有显式取消, 其他平台到期自动消失."""
+    if platform == "wechat":
+        return _wechat_typing(account_id, target, status=2)
+    return SendResult.success("")
+
+
+def add_reaction(platform: str, account_id: str, chat_id: str,
+                 message_id: str) -> SendResult:
+    """给一条入站消息加 :data:`ACK_EMOJI`, 表示机器人已接手."""
+    if platform == "telegram":
+        token = _accounts.load_credentials("telegram", account_id).get("bot_token")
+        if not token:
+            return SendResult.fail("auth", "no bot_token")
+        return _tg_call(token, "setMessageReaction", {
+            "chat_id": _tg_chat_id(chat_id),
+            "message_id": int(message_id) if message_id.isdigit() else message_id,
+            "reaction": [{"type": "emoji", "emoji": ACK_EMOJI}],
+        }, success_id=message_id)
+    if platform == "discord":
+        from urllib.parse import quote
+        return _discord_call(
+            account_id, "PUT",
+            f"/channels/{chat_id}/messages/{message_id}/reactions/"
+            f"{quote(ACK_EMOJI)}/@me",
+        )
+    if platform == "slack":
+        token = _accounts.load_credentials("slack", account_id).get("bot_token")
+        if not token:
+            return SendResult.fail("auth", "no bot_token")
+        try:
+            with safe_client("channel.slack.api") as client:
+                r = client.post(
+                    "https://slack.com/api/reactions.add",
+                    headers=_slack_headers(token),
+                    json={"channel": chat_id, "timestamp": message_id,
+                          "name": "eyes"},
+                    timeout=10,
+                )
+            data = r.json() if r.is_success else {}
+            if not data.get("ok"):
+                return SendResult.fail(
+                    _slack_kind_from_error(str(data.get("error") or "")),
+                    "slack_api_error",
+                )
+            return SendResult.success(message_id)
+        except Exception as e:  # noqa: BLE001
+            return _classify_network_error(e)
+    return SendResult.fail("not_supported", f"{platform} has no reactions")
+
+
+def _discord_call(account_id: str, method: str, path: str) -> SendResult:
+    token = _accounts.load_credentials("discord", account_id).get("bot_token")
+    if not token:
+        return SendResult.fail("auth", "no bot_token")
+    try:
+        with safe_client("channel.discord.api") as client:
+            r = client.request(
+                method, f"https://discord.com/api/v10{path}",
+                headers=_discord_headers(token), timeout=10,
+            )
+        if not r.is_success:
+            return _classify_http_status(
+                r.status_code, r.text, r.headers.get("Retry-After", ""),
+            )
+        return SendResult.success("")
+    except Exception as e:  # noqa: BLE001
+        return _classify_network_error(e)
+
+
+def _wechat_post(account_id: str, endpoint: str, body: dict) -> dict:
+    creds = _accounts.load_credentials("wechat", account_id)
+    bot_token = creds.get("bot_token") or ""
+    base = creds.get("baseurl") or "https://ilinkai.weixin.qq.com"
+    if not bot_token:
+        raise PermissionError("wechat account not logged in")
+    origin = normalize_origin(base)
+    with configured_safe_client(
+        "channel.wechat.api", origin,
+        owner_exception=OwnerURLException(
+            consumer="channel.wechat.api", origin=origin,
+        ),
+    ) as client:
+        r = client.post(
+            f"{base}/ilink/bot/{endpoint}",
+            headers={
+                "Content-Type": "application/json",
+                "AuthorizationType": "ilink_bot_token",
+                "Authorization": f"Bearer {bot_token}",
+                "X-WECHAT-UIN": _make_wechat_uin(),
+            },
+            json={**body, "base_info": {}},
+            timeout=10,
+        )
+    r.raise_for_status()
+    return r.json() if r.content else {}
+
+
+def _wechat_typing(account_id: str, user_id: str, *, status: int) -> SendResult:
+    key = (account_id, user_id)
+    try:
+        cached = _WECHAT_TICKETS.get(key)
+        if cached is None or time.time() - cached[1] > _WECHAT_TICKET_TTL:
+            data = _wechat_post(account_id, "getconfig", {
+                "ilink_user_id": user_id,
+                "context_token": _WECHAT_CONTEXT.get(key, ""),
+            })
+            ticket = str(data.get("typing_ticket") or "")
+            if data.get("ret", 0) != 0 or not ticket:
+                return SendResult.fail("not_supported", "no typing ticket")
+            cached = _WECHAT_TICKETS[key] = (ticket, time.time())
+        data = _wechat_post(account_id, "sendtyping", {
+            "ilink_user_id": user_id,
+            "typing_ticket": cached[0],
+            "status": status,
+        })
+        if data.get("ret", 0) != 0:
+            _WECHAT_TICKETS.pop(key, None)
+            return SendResult.fail("unknown", f"iLink ret={data.get('ret')}")
+        return SendResult.success("")
+    except PermissionError as e:
+        return SendResult.fail("auth", str(e))
+    except Exception as e:  # noqa: BLE001
+        return _classify_network_error(e)
+
+
+# ---------------------------------------------------------------------------
 # Dispatch tables
 # ---------------------------------------------------------------------------
 

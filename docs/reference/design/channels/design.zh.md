@@ -76,7 +76,7 @@
 2. _handle_update(update) 内部:
    a. 抽 text = "帮我看下当前目录有什么 Python 文件"
       (另抽附件 → Attachment 条目、reply_to_message 文本 → quoted_text;
-      群聊里 require_mention 设置可以在这里做 @提及 门槛并剥掉提及)
+      @机器人 或回复机器人时置 mentioned=True 并剥掉提及)
    b. 构造 ChannelMessage {
         text=..., chat_id="123", user_id="456",
         user_display="zhangsan", chat_type="direct",
@@ -294,11 +294,12 @@ openprogram/channels/
 │                        webui 订阅后原样广播 — channels 不 import webui)
 ├── _question_bridge.py  把待答的 runtime.ask 问题推进聊天
 ├── _question_commands.py /answer · /decline 文本命令处理
+├── _room.py             群聊房间: 回应模式、待处理历史、限流、重复投递去重
 ├── _heartbeats.py       adapter 心跳注册表
 ├── __init__.py          CHANNEL_CLASSES proxy + register_channel + entry_points
 ├── implementations/
-│   ├── telegram.py      Telegram bot 长轮询入站 (group_sessions /
-│   │                    require_mention 账号设置)
+│   ├── telegram.py      Telegram bot 长轮询入站 (group_sessions
+│   │                    账号设置、提及判定)
 │   ├── discord.py       Discord bot Gateway 入站
 │   ├── slack.py         Slack Socket Mode 入站
 │   └── wechat.py        WeChat iLink 长轮询入站 (含 QR 登录)
@@ -315,6 +316,7 @@ openprogram/channels/
 | `_transport.py` | 唯一往外发字节: chunk → render → 硬上限二次切分 → 限流重试, 4 个平台 HTTP (文本/编辑/文件) | outbound + base.send_text/send_file |
 | `_format.py` | markdown → 各平台线上格式 | _transport |
 | `_access.py` | allowlist + 配对门禁 (`access.json`) | base.handle_inbound (判定), CLI / loopback Web UI (写操作) |
+| `_room.py` | 群聊房间: 回应模式 (`rooms.json`)、待处理历史、限流、重复投递去重 | base.handle_inbound |
 | `_attachments.py` | 入站附件下载 + turn 输入转换 | base.handle_inbound |
 | `_message.py` | ChannelMessage + Attachment 中性结构 | adapter 入口 |
 | `base.py` | Channel ABC + MessageHandle + handle_inbound + run_forever | adapter 子类、worker、dispatch_inbound |
@@ -356,7 +358,8 @@ openprogram channels accounts
   │     - telegram/discord/slack: getpass 粘贴 token
   │     - wechat: 启动 iLink QR 扫码流程
   ├── set <channel> <key> <value> --id <name>      行为设置
-  │     (telegram: group_sessions=shared|per-user, require_mention=on|off)
+  │     (telegram/discord/slack: require_mention=on|off, ack_reaction=on|off;
+  │      telegram: group_sessions=shared|per-user)
   └── rm <channel> <account_id>                    删账号 + 关联 bindings
 
 openprogram channels access

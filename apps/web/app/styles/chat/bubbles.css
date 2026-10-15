@@ -96,6 +96,35 @@
   color: var(--text-secondary);
 }
 
+/* Group messages the bot was not addressed in, handed to this turn as
+   context: one quiet toggle at the top of the bubble, the list below it. */
+.message.user .user-room-history {
+  margin-bottom: 6px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-secondary);
+}
+.message.user .user-room-history-toggle {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.message.user .user-room-history-toggle:hover { color: var(--text-bright); }
+.message.user .user-room-history-list {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  white-space: pre-wrap;
+}
+.message.user .user-room-history-list li + li { margin-top: 2px; }
+.message.user .user-room-history-speaker {
+  margin-right: 6px;
+  color: var(--text-bright);
+}
+
 .message.assistant {
   background: transparent;          /* no bubble — assistant text flows on the left */
 }

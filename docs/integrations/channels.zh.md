@@ -134,7 +134,7 @@ openprogram --profile alice
 - **Discord 和 Slack**：每个 *(channel, user)* 组合一个会话。同一个频道里的两个发信人各有各的对话，也看不到、答不了对方的待答问题。对话是分开的，背后的记忆工作区是整个实例共用的一份（见[谁能和你的机器人说话](#谁能和你的机器人说话)）。
 - **微信**：每个 peer 一个会话（私聊）。
 
-默认还按账号隔离（`session_scope: per-account-channel-peer`）。agent 可以放宽（`per-channel-peer`、`per-peer` 或单一 `main` 会话），也可以按天轮换会话（`session_daily_reset: "HH:MM"`）或按空闲时间轮换（`session_idle_minutes`）。
+默认还按账号隔离（`session_scope: per-account-channel-peer`）。agent 可以放宽（`per-channel-peer`、`per-peer` 或单一 `main` 会话），也可以按天轮换会话（`session_daily_reset: "HH:MM"`）或按空闲时间轮换（`session_idle_minutes`）。在聊天里发 `/new`（或 `/reset`）会立刻为这个聊天开一通新对话；之前那通留在网页侧栏里。
 
 ### 谁说的
 
@@ -149,21 +149,40 @@ openprogram --profile alice
 
 聊天渠道的每条消息都带发信人，私聊也带，因为 `session_scope: main` 会把私聊 peer 也放进同一通会话。网页、命令行、TUI 的对话没有发信人字段。网页记录里，渠道消息在气泡上方用一行小字标出平台和发信人，例如 `微信 · Ada`；微信发信人没有昵称可显示，这一行把 id 缩成首尾各四个字符。
 
-### Telegram 群聊行为
+### 群聊行为
 
-两个账号级设置把 Telegram 的群聊语义变成显式配置（改完重启 worker 生效）：
+群里（Telegram 群、Discord 服务器频道、Slack 频道）大多数消息是人和人在聊。每个群处在两种模式之一：
+
+- `always`：每条消息都开启一轮。
+- `mention`：只有 @机器人 或回复机器人消息的那条才开启一轮，提及在进 agent 前被剥掉。其余消息会留着，下一轮把最近 50 条连同发信人放在触发消息上方一起交给 agent，让它知道问题之前聊了什么。网页记录里，它们收在这一轮气泡顶部一个"群里之前的消息"小开关后面。
+
+账号设置 `require_mention` 决定它下面各群的默认模式（`on` 即 `mention`，默认的 `off` 即 `always`）；群里任何人都可以用 `/activation mention` 或 `/activation always` 切换这个群，单发 `/activation` 查看当前模式。私聊永远不设门槛。
 
 ```bash
-openprogram channels accounts set telegram group_sessions per-user   # 或 shared
-openprogram channels accounts set telegram require_mention on       # 或 off
+openprogram channels accounts set telegram require_mention on       # 或 off（discord、slack 同样可用）
+openprogram channels accounts set telegram group_sessions per-user  # 或 shared（仅 telegram）
 ```
 
-- `group_sessions`——`shared`（默认）：全群对着同一通对话说话。`per-user`：群里每个成员各占一个会话，行为与 Discord/Slack 一致。
-- `require_mention`——`on`：群聊里只有 @机器人 或回复机器人消息时才响应（提及在进 agent 前被剥掉）。`off`（默认）：响应群里的每条消息。私聊永远不设门槛。
+`group_sessions`（Telegram，改完重启 worker 生效）——`shared`（默认）：全群对着同一通对话说话。`per-user`：群里每个成员各占一个会话，行为与 Discord/Slack 一致。
+
+其他机器人发的消息会被忽略，所以同一个群里的两个机器人不会没完没了地互相回复；平台把同一条消息投递两次，也只开启一轮。一个群每分钟最多开启 10 轮，超出的消息作为"之前的消息"等下一轮。
+
+### 聊天命令
+
+| 命令 | 作用 |
+|---|---|
+| `/new`、`/reset` | 为这个聊天开一通新对话 |
+| `/activation [mention\|always]` | 查看或切换这个群的模式 |
+| `/answer <question_id> <选项>` | 回答函数提出的问题（见下） |
+| `/decline <question_id>` | 拒绝这个问题 |
+
+在群里用命令不需要 @机器人。Telegram 群里写成 `/new@你的机器人` 也可以。
 
 ## 回复、进度与长消息
 
-agent 工作期间，机器人先发一条 `⏳ working...` 占位消息，随工具执行实时编辑（`⚙ bash` → `✓ bash` → …），最终替换成完整回复。微信不能编辑消息，完整回复以普通消息送达。
+agent 工作期间，聊天里会显示机器人"正在输入"（Telegram、Discord、微信；Slack 没有给机器人用的输入提示）。在 Telegram、Discord、Slack 上，机器人还会先发一条 `⏳ working...` 占位消息，随工具执行实时编辑（`⚙ bash` → `✓ bash` → …），最终替换成完整回复。微信不能编辑消息，所以回复边写边按段落发出：一段攒到约 200 字就发，agent 调用工具之前写的那句话（"我查一下……"）会在工具运行前先发出去。
+
+账号设置 `ack_reaction on`（Telegram、Discord、Slack）打开后，机器人一接手消息就给它加一个 👀。Slack 需要 `reactions:write` 权限。
 
 agent 输出是 markdown，发送时按平台渲染：Telegram 收到 HTML（`**bold**` → 粗体，代码围栏 → `<pre>` 块），Slack 收到 mrkdwn，Discord 原生渲染 markdown，微信拿到剥掉记号的纯文本。超长回复按各平台上限自动切分：Telegram 4,000 字符、Discord 1,800、Slack 39,000、微信 1,800。
 

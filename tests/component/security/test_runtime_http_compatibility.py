@@ -155,7 +155,7 @@ COMPATIBILITY_FIXTURES = {
         "https://discord.com",
         443,
         ("https",),
-        ("GET", "HEAD", "PATCH", "POST"),
+        ("GET", "HEAD", "PATCH", "POST", "PUT"),
         (80, 443),
         "same_origin",
         5,
@@ -1034,6 +1034,7 @@ class _CompatibilityHandler(http.server.BaseHTTPRequestHandler):
     do_HEAD = _reply
     do_POST = _reply
     do_PATCH = _reply
+    do_PUT = _reply
 
     def log_message(self, *_args) -> None:
         return

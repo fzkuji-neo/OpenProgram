@@ -46,9 +46,8 @@ class TelegramChannel(Channel):
         #: "shared" = 全群一个会话 (默认); "per-user" = 群内每人一个会话
         #: (peer_id 变成 "{chat_id}_{user_id}", _transport 出站取前半).
         self.group_sessions = settings.get("group_sessions", "shared")
-        #: "on" = 群聊里只响应 @bot 提及或对 bot 消息的回复.
-        self.require_mention = settings.get("require_mention", "off") == "on"
-        # run() 里 getMe 后填充, mention 判定用.
+        # 群聊 @提及 门槛在 base 的房间层 (_room), 这里只判定"是不是冲
+        # 机器人说的"并剥掉提及. run() 里 getMe 后填充.
         self.bot_username = ""
         self.bot_user_id = ""
 
@@ -121,20 +120,12 @@ class TelegramChannel(Channel):
 
         is_group = chat.get("type") in ("group", "supergroup")
         reply_to = msg.get("reply_to_message", {}) or {}
-
-        # 群聊 @提及 门槛 (require_mention=on): 只响应 @bot 或对 bot
-        # 消息的回复; 命中后把提及从文本里剥掉再进 dispatch.
-        if is_group and self.require_mention:
-            mention = f"@{self.bot_username}" if self.bot_username else ""
-            replied_to_bot = bool(
-                self.bot_user_id
-                and str((reply_to.get("from") or {}).get("id") or "")
-                == self.bot_user_id
-            )
-            if mention and mention in text:
-                text = text.replace(mention, "").strip()
-            elif not replied_to_bot:
-                return
+        text, mentioned = self._strip_mention(text)
+        mentioned = mentioned or bool(
+            self.bot_user_id
+            and str((reply_to.get("from") or {}).get("id") or "")
+            == self.bot_user_id
+        )
 
         # Parse platform-native msg → ChannelMessage.
         from openprogram.channels._message import ChannelMessage
@@ -160,9 +151,22 @@ class TelegramChannel(Channel):
                 reply_to.get("text") or reply_to.get("caption") or ""
             ),
             attachments=attachments,
+            mentioned=mentioned,
+            from_bot=bool(from_user.get("is_bot")),
         )
 
         self.handle_inbound(ch_msg)
+
+    def _strip_mention(self, text: str) -> tuple[str, bool]:
+        """剥掉 ``@bot`` 提及 (包括 ``/new@bot`` 这种群命令后缀), 返回
+        (剩下的文本, 是否提及了本机器人)."""
+        if not self.bot_username:
+            return text, False
+        import re
+        pattern = re.compile(rf"@{re.escape(self.bot_username)}\b", re.I)
+        if not pattern.search(text):
+            return text, False
+        return re.sub(r"[ \t]{2,}", " ", pattern.sub("", text)).strip(), True
 
     @staticmethod
     def _parse_attachments(msg: dict) -> tuple:
