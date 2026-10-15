@@ -275,10 +275,20 @@ test('browsing the overview: empty space is inert and there is no hint', async (
   assert.match(css, /\.overview\[data-opened-as="browse"\] \{\n  animation: none;/, 'switching modes never fades the overview in again');
 });
 
+test('a picked window zooms from its own place even as the cards reflow', async () => {
+  // Picking another window resizes the center area, so every card reflows
+  // as the zoom starts. A transform on the zooming card would make it the
+  // picture's containing block, and the picture would grow from the
+  // card's corner, off to the side.
+  const view = await read('components/center-tabs/canvas-overview.tsx');
+  assert.match(view, /layout=\{!landing && zoom\?\.key !== card\.key\}/);
+  assert.match(view, /style=\{zoomed \? \{ position: "absolute", zIndex: 3, \.\.\.\(area\.canvasWidth > 0 \? \{ left: 0, top: 0,/);
+});
+
 test('browsing, a card can be picked up and dropped like a dragged tab', async () => {
   const view = await read('components/center-tabs/canvas-overview.tsx');
   assert.match(view, /onPointerDown=\{e => pickUp\(e, card\)\}/);
-  assert.match(view, /<motion\.button key=\{card\.key\}[\s\S]*?layout=\{!landing\}/, 'cards move to new places on a spring when the grid changes');
+  assert.match(view, /<motion\.button key=\{card\.key\}[\s\S]*?layout=\{!landing && zoom\?\.key !== card\.key\}/, 'cards move to new places on a spring when the grid changes');
   assert.match(view, /const REFLOW: Transition = \{ type: "spring"/);
   // A dragged window keeps a gap among the cards: the others keep their
   // size, move aside wherever the gap goes, and a drop there puts the

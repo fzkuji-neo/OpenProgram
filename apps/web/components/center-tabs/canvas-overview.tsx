@@ -508,7 +508,12 @@ export function CanvasOverview() {
           return [...gap, (
             <motion.button key={card.key} type="button" {...shared} aria-label={card.title}
               tabIndex={mode === "browse" ? undefined : -1}
-              layout={!landing}
+              // The zooming card never moves itself: a transform on it would
+              // make it the zooming picture's containing block, and the
+              // picture would grow from the card's corner instead of the
+              // window's (picking another window resizes the center area,
+              // so every card reflows just as the zoom starts).
+              layout={!landing && zoom?.key !== card.key}
               // The current window arrives by zooming when browsing opens;
               // the rest fade in just after it, and a card that turns up
               // later grows in where it lands.
