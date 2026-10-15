@@ -323,8 +323,8 @@ export function ControlsCluster({
 
                 <DropdownMenuSeparator className={MENU_SEPARATOR} />
 
-                {/* Where this conversation's messages are mirrored. The
-                    chip above the input only shows a bound channel. */}
+                {/* Where this conversation's messages are mirrored; the
+                    same choice as the channel chip above the input. */}
                 <ChannelSubmenu />
               </DropdownMenuContent>
             </DropdownMenu>

@@ -2,9 +2,7 @@
 
 /**
  * "+" menu → Channel: bind this conversation to a chat channel account
- * (or unbind). The channel chip above the input only appears once a
- * channel is bound, so this submenu is where an unbound conversation
- * binds one.
+ * (or unbind) — the same choice as the channel chip above the input.
  */
 import { SolarIcon } from "@/components/solar-icons";
 import {
