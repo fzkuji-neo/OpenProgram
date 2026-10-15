@@ -446,7 +446,7 @@ export function TurnFilesChips({
             ) : file.op === "delete" && !(file.added || file.removed) ? (
               <span className="turn-files-op">{text("deleted", "已删除")}</span>
             ) : (
-              <span className="turn-files-diff">
+              <span className="turn-files-diff is-plain">
                 <span className="turn-files-stat is-add"><span>+</span>{file.added ?? "—"}</span>
                 <span className="turn-files-stat is-del"><span>−</span>{file.removed ?? "—"}</span>
               </span>
