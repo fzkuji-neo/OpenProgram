@@ -2,9 +2,9 @@
 
 ``get_state_dir()`` reads ``Path.home()``, so an unisolated test that builds a
 SessionStore writes into live data — and ``SessionStore._startup_cleanup``
-``shutil.rmtree``s any session it judges an empty shell on every index load.
-A missing redirect is therefore not a tidiness issue, it deletes real
-conversations.
+rewrites ``index.json`` and quarantines directories it judges shells on every
+index load. A missing redirect is therefore not a tidiness issue, it alters
+real conversations.
 
 ``tests/conftest.py`` redirects HOME at import time. This asserts the redirect
 actually reaches the path layer, so the guard can't rot into a no-op.

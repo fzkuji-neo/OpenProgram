@@ -22,6 +22,7 @@ RESERVED_ROOT_NAMES = frozenset({
     ".locks",
     ".migration",
     ".deleted",
+    ".quarantine",
     ".file-recovery",
     ".session-locks",
 })
@@ -42,6 +43,11 @@ def legacy_project_session_dir(project_path: str | Path, session_id: str) -> Pat
 def external_recovery_dir(session_dir: Path) -> Path:
     session_dir = Path(session_dir)
     return session_dir.parent / ".file-recovery" / session_dir.name
+
+
+def quarantine_dir(root: Path) -> Path:
+    """Where startup cleanup moves history-less shells instead of deleting them."""
+    return Path(root) / ".quarantine"
 
 
 def delete_intent_dir(root: Path) -> Path:

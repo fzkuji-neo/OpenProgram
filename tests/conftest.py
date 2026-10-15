@@ -66,8 +66,9 @@ if os.environ.get("OPENPROGRAM_TEST_LIVE") != "1":
 # ``get_state_dir()`` resolves off ``Path.home()``, so a test that builds a
 # SessionStore, writes config, or starts a worker lands in the live data
 # directory. That is not merely untidy: ``SessionStore._startup_cleanup``
-# runs on every index load and ``shutil.rmtree``s any session it judges an
-# empty shell, so an unisolated run can DELETE real conversations.
+# runs on every index load, rewrites ``index.json`` and moves directories it
+# judges shells into ``.quarantine``, so an unisolated run alters real
+# conversations.
 #
 # Redirecting HOME here — at import time, before any test module resolves a
 # path — puts every default-profile lookup under a per-run temp dir.

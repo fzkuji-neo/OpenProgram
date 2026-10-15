@@ -42,12 +42,18 @@ def hold_path(root: Path, session_id: str) -> Path:
     return Path(root) / ".migration" / "holds" / session_id
 
 
-def load_journal(root: Path) -> dict[str, Any]:
+def load_journal(root: Path, *, strict: bool = False) -> dict[str, Any]:
+    """The migration journal, or an empty one when there is none.
+
+    An unreadable journal reads as empty unless ``strict``, which raises
+    instead so callers that would destroy data can tell "no migration"
+    from "migration state unknown".
+    """
     with registry_file_lock(root, "migration-journal"):
-        return _load_journal_unlocked(root)
+        return _load_journal_unlocked(root, strict=strict)
 
 
-def _load_journal_unlocked(root: Path) -> dict[str, Any]:
+def _load_journal_unlocked(root: Path, *, strict: bool = False) -> dict[str, Any]:
     path = journal_path(root)
     if not path.is_file():
         return {"version": 1, "sessions": {}}
@@ -55,7 +61,11 @@ def _load_journal_unlocked(root: Path) -> dict[str, Any]:
         data = json.loads(read_text_with_retry(path))
         if isinstance(data, dict) and isinstance(data.get("sessions"), dict):
             return data
+        if strict:
+            raise ValueError(f"migration journal malformed at {path}")
     except (OSError, json.JSONDecodeError):
+        if strict:
+            raise
         _log.warning("migration journal unreadable at %s", path)
     return {"version": 1, "sessions": {}}
 

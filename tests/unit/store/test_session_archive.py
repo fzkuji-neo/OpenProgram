@@ -134,26 +134,8 @@ def test_reopen_does_not_enumerate_existing_history(tmp_path: Path, monkeypatch)
     assert reopened.get_session("existing-history") is not None
 
 
-def test_reopen_still_removes_old_session_without_history(tmp_path: Path) -> None:
-    root = tmp_path / "sessions"
-    store = SessionStore(root)
-    store.create_session(
-        "missing-history",
-        "main",
-        created_at=time.time() - 7200.0,
-        updated_at=time.time() - 7200.0,
-    )
-    store._flush_index()
-    shutil.rmtree(root / "missing-history" / "history")
-
-    reopened = SessionStore(root)
-
-    assert reopened.get_session("missing-history") is None
-    assert not (root / "missing-history").exists()
-
-
 def test_session_removal_handles_windows_readonly_git_objects(tmp_path, monkeypatch):
-    """Both public removal paths must delete read-only Windows Git objects."""
+    """Deleting a session removes read-only Windows Git objects."""
     import errno
     import os
     import stat
@@ -181,24 +163,17 @@ def test_session_removal_handles_windows_readonly_git_objects(tmp_path, monkeypa
 
     monkeypatch.setattr(os, 'unlink', windows_unlink)
     monkeypatch.setattr(os, 'lstat', windows_lstat)
-    for action in ('startup', 'delete'):
-        root = tmp_path / action
-        store = SessionStore(root)
-        store.create_session('old', 'main', created_at=time.time() - 7200.0,
-                             updated_at=time.time() - 7200.0)
-        store.close()
-        directory = root / 'old'
-        git_object = directory / '.git' / name
-        git_object.write_bytes(b'object')
-        git_object.chmod(0o444)
-        if action == 'startup':
-            shutil.rmtree(directory / 'history')
-            reopened = SessionStore(root)
-            reopened.close()
-            assert reopened.get_session('old') is None
-        else:
-            store.delete_session('old')
-        assert not directory.exists(), action
+    root = tmp_path / 'sessions'
+    store = SessionStore(root)
+    store.create_session('old', 'main', created_at=time.time() - 7200.0,
+                         updated_at=time.time() - 7200.0)
+    store.close()
+    directory = root / 'old'
+    git_object = directory / '.git' / name
+    git_object.write_bytes(b'object')
+    git_object.chmod(0o444)
+    store.delete_session('old')
+    assert not directory.exists()
 
 
 def test_old_archives_are_never_deleted_on_startup(tmp_path):

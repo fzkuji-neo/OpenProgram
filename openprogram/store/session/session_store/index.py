@@ -3,6 +3,13 @@ from __future__ import annotations
 from . import shared
 
 
+# A journal row in any other stage means the session may be mid-move.
+_MIGRATION_SETTLED = frozenset({"done", "deleted"})
+
+# Any of these in a session directory is user data worth keeping in place.
+_SESSION_DATA = ("meta.json", ".git", "events.jsonl")
+
+
 class IndexOperations:
     def _locations_path(self) -> shared.Path:
         return self.root_path / "locations.json"
@@ -166,59 +173,102 @@ class IndexOperations:
 
 
     def _startup_cleanup(self) -> None:
+        """Retire stale summary rows and history-less shells, losing nothing.
+
+        Every session ``create_session`` writes has ``history/`` from its
+        first meta write, so a directory without one is damaged or foreign,
+        not an abandoned draft. Such a directory is kept in place when it
+        holds any session data and otherwise moved to ``.quarantine``; this
+        pass never deletes files. Anything it cannot judge with certainty
+        (unknown age, unreadable migration journal, unresolved placement,
+        a busy session lock, a filesystem error) is retained.
+        """
         now = shared.time.time()
-        to_delete: list[str] = []
+        try:
+            from ..migration import load_journal
+            journal_rows = load_journal(self.root_path, strict=True).get("sessions") or {}
+        except Exception:
+            shared._log.warning("migration journal unreadable; startup cleanup skipped",
+                                exc_info=True)
+            return
+        present: set[str] | None = None
+        dropped: list[str] = []
         for sid, entry in list(self._index.items()):
-            created = entry.get("created_at") or 0
-            sdir = self._session_dir(sid)
-            if shared.is_deleted(self.root_path, sid):
+            if entry.get("archived") or shared.is_deleted(self.root_path, sid):
                 continue
-            # Unreachable or still-migrating sessions are not empty shells.
-            if sdir != self.root_path / sid and not sdir.exists():
+            created = entry.get("created_at")
+            if (not isinstance(created, (int, float)) or isinstance(created, bool)
+                    or now - created <= self._EMPTY_SHELL_AGE):
+                continue
+            row = journal_rows.get(sid)
+            if row and row.get("stage") not in _MIGRATION_SETTLED:
                 continue
             try:
-                from ..migration import load_journal
-                row = (load_journal(self.root_path).get("sessions") or {}).get(sid)
-                if row and row.get("stage") in {"pending", "deferred", "failed", "inventory", "copy", "verify", "publish"}:
+                sdir = self._session_dir(sid)
+                if (sdir / "history").is_dir():
                     continue
+                if not shared.os.path.lexists(sdir):
+                    # A non-default placement that is absent is unreachable
+                    # (moved project, offline volume), not gone.
+                    if sdir != shared.default_session_dir(self.root_path, sid):
+                        continue
+                    if present is None:
+                        present = {s for s, _ in shared.iter_session_dirs(self.root_path)}
+                    if sid not in present:
+                        dropped.append(sid)
+                    continue
+                if any(shared.os.path.lexists(sdir / name) for name in _SESSION_DATA):
+                    shared._log.warning("session %s has no history/ at %s; retained", sid, sdir)
+                    continue
+                if self._quarantine_shell(sid, sdir, now):
+                    dropped.append(sid)
             except Exception:
-                shared._log.debug("failed to inspect migration journal for %s", sid,
-                           exc_info=True)
-            # Explicit archives remain available until the owner deletes them.
-            if entry.get("archived"):
-                continue
-            # Empty shells: no history, older than 1 hour.
-            if (now - created) > self._EMPTY_SHELL_AGE:
-                # An existing history directory is sufficient evidence to
-                # retain the session. Listing it here makes worker startup
-                # depend on remote filesystem directory enumeration (for
-                # example project-bound CloudStorage sessions). Empty
-                # history directories are harmless; missing/non-directory
-                # history paths remain eligible for cleanup.
-                if not (sdir / "history").is_dir():
-                    to_delete.append(sid)
-                    continue
-        for sid in to_delete:
-            self._index.pop(sid, None)
-            shared.remove_tree(self._session_dir(sid), ignore_errors=True)
-            self._forget_stale_bindings(sid)
-        dirty = bool(to_delete)
-        if dirty:
-            self._save_index()
+                shared._log.warning("startup cleanup left %s untouched", sid, exc_info=True)
+        if not dropped:
+            return
+        # Only the summary row goes. Project bindings and the location map
+        # stay: they are harmless for a missing session and needed if a
+        # quarantined directory is restored.
+        with self._index_lock:
+            for sid in dropped:
+                if self._index.pop(sid, None) is not None:
+                    self._index_generation += 1
+        self._save_index()
 
 
-    def _forget_stale_bindings(self, session_id: str) -> None:
-        """Same location + project cleanup delete_session does — startup
-        cleanup removed the directory but left the locations map and the
-        project reverse index pointing at it, so both grew stale entries
-        forever."""
-        self._forget_location(session_id)
+    def _quarantine_shell(self, session_id: str, sdir: shared.Path, now: float) -> bool:
+        """Move a history-less shell under ``.quarantine``. True when moved.
+
+        Directories outside the store root (legacy working-folder copies)
+        are never moved.
+        """
         try:
-            from openprogram.store.project import project_store as _projects
-            _projects.unbind_session(session_id)
-        except Exception as e:  # noqa: BLE001 — reverse index is best-effort
-            shared._log.warning("session %s NOT unbound from its project: %s",
-                         session_id, e)
+            if not sdir.resolve().is_relative_to(self.root_path.resolve()):
+                return False
+        except OSError:
+            return False
+        dest = shared.quarantine_dir(self.root_path) / f"{session_id}-{int(now)}"
+        try:
+            with shared.session_interprocess_lock(
+                session_id, blocking=False,
+                root=self.root_path if self._explicit_root else None,
+            ):
+                if any(shared.os.path.lexists(sdir / name)
+                       for name in ("history", *_SESSION_DATA)):
+                    return False
+                dest.mkdir(parents=True)
+                shared.os.rename(sdir, dest / "session")
+                shared.atomic_write_text(dest / "reason.json", shared.json.dumps({
+                    "session_id": session_id,
+                    "source": str(sdir),
+                    "reason": "no history/ and no session data",
+                    "quarantined_at": now,
+                }, indent=2, ensure_ascii=False))
+        except (BlockingIOError, OSError) as e:
+            shared._log.warning("shell %s not quarantined: %s", sdir, e)
+            return False
+        shared._log.info("quarantined history-less shell %s -> %s", sdir, dest)
+        return True
 
 
     def _meta_to_entry(self, meta: dict) -> dict:
