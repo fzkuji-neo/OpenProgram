@@ -42,7 +42,7 @@ assert.doesNotMatch(layout, /styles\.topbar/);
 
 const tabsBlock = layout.match(/const tabs = \[([\s\S]*?)\n  \];/)?.[1] ?? "";
 const tabOrder = [...tabsBlock.matchAll(/id: "([^"]+)"/g)].map((match) => match[1]);
-assert.deepEqual(tabOrder, ["general", "providers", "memory", "search", "browser", "channels", "usage", "system"]);
+assert.deepEqual(tabOrder, ["general", "providers", "memory", "search", "browser", "environments", "channels", "usage", "system"]);
 
 // Settings home is General. Client entries must not land on /settings
 // (desktop often skips the server redirect, and the unmatched-path

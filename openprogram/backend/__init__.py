@@ -3,19 +3,20 @@
 The ``bash`` tool (and any future sibling that wants to) routes
 command execution through ``get_active_backend().run(...)`` instead
 of calling ``subprocess`` directly. That keeps the tool code
-backend-agnostic and lets ``openprogram setup backend`` actually
-reroute where commands execute.
+backend-agnostic.
 
 Three backends ship out of the box:
     local    — subprocess.run on the host (default, unchanged behavior)
-    docker   — ``docker run --rm -i <image> sh -c "..."`` per call
-    ssh      — ``ssh <target> "..."`` per call
+    docker   — a long-lived container per session (``docker exec``)
+    ssh      — ``ssh <target> "..."`` per call, one shared connection
 
-Selection is read lazily from ``~/.openprogram/config.json`` (via
-``setup._read_config``) so ``--profile`` and live config
-edits take effect without restarting anything.
+Which one runs is decided by the session's environment
+(``openprogram.environments``): every conversation picks one when it
+is created, and the backend follows it.
 """
 from __future__ import annotations
+
+import re
 
 from openprogram.backend.base import Backend, RunResult
 from openprogram.backend.local import LocalBackend
@@ -30,27 +31,89 @@ BACKEND_CLASSES: dict[str, type[Backend]] = {
 }
 
 
-def get_active_backend() -> Backend:
-    """Resolve the currently-configured backend. Falls back to local."""
+class UnavailableBackend(Backend):
+    """Stands in when the session's environment can't be used, so every
+    tool reports the same clear reason instead of running elsewhere."""
+
+    def __init__(self, backend_id: str, reason: str) -> None:
+        self.backend_id = backend_id
+        self.reason = reason
+
+    def run(self, command: str, timeout: float,
+            cwd: str | None = None) -> RunResult:
+        return RunResult(exit_code=1, stdout="", stderr=self.reason)
+
+    def spawn_spec(self, command: str, cwd: str | None = None) -> dict:
+        raise RuntimeError(self.reason)
+
+
+def session_container_name(env_id: str, session_id: str) -> str:
+    raw = f"openprogram-{env_id}-{session_id}"
+    return re.sub(r"[^a-zA-Z0-9_.-]", "-", raw)[:120]
+
+
+def _session_mounts(session_id: str | None) -> tuple[str, ...]:
+    """Host folders a session's container sees: its working directory
+    first (the container's starting folder), then extra working dirs."""
+    paths: list[str] = []
     try:
-        from openprogram.setup import _read_config
-        cfg = _read_config()
+        from openprogram.worktree.context import current_worktree_path
+        wt = current_worktree_path()
+        if wt:
+            paths.append(wt)
     except Exception:
-        return LocalBackend()
-    be = cfg.get("backend", {}) or {}
-    kind = (be.get("terminal") or "local").lower()
-    cls = BACKEND_CLASSES.get(kind, LocalBackend)
+        pass
+    if session_id:
+        try:
+            from openprogram.agent.internals._workdir import runtime_location_for
+            wd = runtime_location_for(session_id)["workdir"]
+            if isinstance(wd, str) and wd:
+                paths.append(wd)
+        except Exception:
+            pass
+        try:
+            from openprogram.agent.session_config import load_session_run_config
+            paths.extend(load_session_run_config(session_id).additional_working_dirs)
+        except Exception:
+            pass
+    out: list[str] = []
+    for path in paths:
+        if path and path.startswith("/") and path not in out:
+            out.append(path)
+    return tuple(out)
+
+
+def backend_for(env, session_id: str | None = None) -> Backend:
+    """Build the backend that runs ``env`` for ``session_id``."""
+    if env.kind == "ssh":
+        return SshBackend(target=env.ssh_target, workdir=env.workdir)
+    if env.kind == "docker":
+        if not session_id:
+            return DockerBackend(image=env.image)
+        return DockerBackend(
+            image=env.image,
+            container=session_container_name(env.id, session_id),
+            mounts=_session_mounts(session_id),
+        )
+    return LocalBackend()
+
+
+def get_active_backend() -> Backend:
+    """The backend for the running session's environment."""
+    from openprogram.environments import EnvironmentError, current_environment
     try:
-        if cls is DockerBackend:
-            return DockerBackend(image=be.get("docker_image") or "ubuntu:24.04")
-        if cls is SshBackend:
-            return SshBackend(target=be.get("ssh_target") or "")
-        return cls()
-    except Exception as e:
-        # Config references a backend that can't be built (e.g. ssh_target
-        # missing). Log once and fall back so tools don't explode.
-        print(f"[backend] {kind} init failed: {e}; falling back to local")
-        return LocalBackend()
+        env = current_environment()
+    except EnvironmentError as exc:
+        return UnavailableBackend("unavailable", str(exc))
+    try:
+        from openprogram.agent.run_control import get_current_session_id
+        session_id = get_current_session_id()
+    except Exception:
+        session_id = None
+    try:
+        return backend_for(env, session_id)
+    except Exception as exc:
+        return UnavailableBackend(env.kind, f"environment {env.id!r}: {exc}")
 
 
 __all__ = [
@@ -60,5 +123,8 @@ __all__ = [
     "LocalBackend",
     "DockerBackend",
     "SshBackend",
+    "UnavailableBackend",
+    "backend_for",
     "get_active_backend",
+    "session_container_name",
 ]

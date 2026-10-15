@@ -65,6 +65,7 @@ class TurnBindings:
         self._surface_token = None
         self._web_use_owner_id = None
         self._sandbox_token = None
+        self._environment_token = None
         self._req_session_id: Optional[str] = None
         self._execution_id_token = None
         self._deferred_token = None
@@ -151,12 +152,37 @@ class TurnBindings:
         # created mid-turn is picked up by the next turn entry — within
         # the same turn the tool that ran worktree_create also calls
         # set_worktree explicitly so the rest of that turn sees it.
+        # Bind the session's environment (local / ssh / docker) so every
+        # tool in this turn runs where the conversation was created to
+        # run. A removed environment binds nothing: the backend lookup
+        # then reports it instead of silently running locally.
+        _env = None
+        try:
+            from openprogram.environments import (
+                EnvironmentError as _EnvError,
+                bind_turn_environment,
+                resolve_for_session,
+            )
+            try:
+                _env = resolve_for_session(req.session_id)
+            except _EnvError:
+                _env = None
+            if _env is not None:
+                self._environment_token = bind_turn_environment(_env)
+        except Exception:
+            self._environment_token = None
         try:
             from openprogram.worktree.context import set_worktree as _set_wt
             from openprogram.worktree.manager import get_manager as _get_wt_mgr
             _wt_mgr = _get_wt_mgr()
             _active_wt = _wt_mgr.find_active_for_session(req.session_id)
-            if _active_wt is not None:
+            if _env is not None and _env.kind == "ssh":
+                # An SSH conversation's files live on the remote host:
+                # its tools start in the environment's remote folder,
+                # never in a local project path.
+                from openprogram.environments.remote import remote_workdir
+                self._worktree_token = _set_wt(remote_workdir(_env))
+            elif _active_wt is not None:
                 self._worktree_token = _set_wt(_active_wt.worktree_path)
             else:
                 # No explicit worktree → default this turn's tool cwd to the
@@ -271,8 +297,11 @@ class TurnBindings:
             )
             from openprogram.sandbox import bind_turn_policy
             _cfg = load_session_run_config(req.session_id)
+            # The host sandbox governs host paths only. An SSH or Docker
+            # environment is its own boundary, so it runs unsandboxed.
             self._sandbox_token = bind_turn_policy(
-                sandbox_override_from_config(_cfg, req.session_id),
+                False if _env is not None and not _env.is_local
+                else sandbox_override_from_config(_cfg, req.session_id),
             )
         except Exception:
             self._sandbox_token = None
@@ -353,6 +382,9 @@ class TurnBindings:
             if self._sandbox_token is not None:
                 from openprogram.sandbox import reset_turn_policy
                 reset_turn_policy(self._sandbox_token)
+            if self._environment_token is not None:
+                from openprogram.environments import reset_turn_environment
+                reset_turn_environment(self._environment_token)
         except ValueError:
             _log.debug(
                 "context var teardown ran in a foreign context for session %s",

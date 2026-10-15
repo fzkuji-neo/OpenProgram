@@ -148,6 +148,13 @@ def execute(file_path: str,
     offset = 1 if offset is None else offset
     limit = MAX_LINES_DEFAULT if limit is None else limit
 
+    # An SSH conversation reads the remote disk.
+    from ._remote import remote_target
+    _remote_fs = remote_target()
+    if _remote_fs is not None:
+        from . import _remote
+        return _remote.read(_remote_fs, file_path, offset, limit)
+
     # Worktree-aware resolution: relative paths bind to the active
     # worktree root when one is set; absolute paths outside the
     # worktree get a soft warning but still proceed (D6).

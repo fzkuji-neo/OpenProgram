@@ -52,6 +52,11 @@ def glob_tool(pattern: str, path: str | None = None) -> str:
         pattern: Glob pattern, e.g. "**/*.py" or "src/*.ts".
         path: Directory to search in. Absolute path. Defaults to cwd.
     """
+    from ._remote import remote_target
+    _remote_fs = remote_target()
+    if _remote_fs is not None:
+        from . import _remote
+        return _remote.glob(_remote_fs, pattern, path)
     if path:
         root = path
     else:

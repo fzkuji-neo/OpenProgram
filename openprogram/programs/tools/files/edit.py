@@ -44,6 +44,13 @@ def edit(file_path: str,
         new_string: Replacement text (must differ from old_string).
         replace_all: Replace every occurrence of old_string. Default false.
     """
+    # An SSH conversation edits the remote disk.
+    from ._remote import remote_target
+    _remote_fs = remote_target()
+    if _remote_fs is not None:
+        from . import _remote
+        return _remote.edit(_remote_fs, file_path, old_string, new_string, replace_all)
+
     # Worktree-aware resolution: if an agent worktree is bound to the
     # current context, treat a relative path as relative to the
     # worktree root; if the LLM passed an absolute path outside the

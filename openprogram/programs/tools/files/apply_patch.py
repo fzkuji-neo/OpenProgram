@@ -287,6 +287,13 @@ def execute(patch: str, **_: Any) -> str:
     if not sections:
         return "Error: patch contains no file operations"
 
+    # An SSH conversation patches the remote disk.
+    from ._remote import remote_target
+    _remote_fs = remote_target()
+    if _remote_fs is not None:
+        from . import _remote
+        return _remote.apply_patch(_remote_fs, sections)
+
     # Validate the complete patch before changing its first file; a later
     # denied path must not leave an earlier section partially applied.
     from openprogram.sandbox import validate_write_path

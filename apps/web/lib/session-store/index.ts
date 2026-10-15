@@ -87,9 +87,14 @@ interface ConvState {
   /** Branch chip display state for the current conversation. */
   branchInfo: BranchBadgeInfo;
   setBranchInfo: (b: BranchBadgeInfo) => void;
-  /** Status badge label + tone for the topbar. */
+  /** Worker connection / run state shown on the environment chip. */
   statusBadge: StatusBadgeInfo;
   setStatusBadge: (b: StatusBadgeInfo) => void;
+  /** Health of the focused conversation's bound channel account, from
+   *  the channel status poll. Kept apart from the worker connection so
+   *  a channel outage never paints the environment chip. */
+  channelHealth: "ok" | "warn" | "err" | "unknown";
+  setChannelHealth: (h: "ok" | "warn" | "err" | "unknown") => void;
   /** Summary for sidebar Recents list. */
   conversations: Record<string, ConvSummary>;
   /** Every message ever loaded, keyed by id. */
@@ -527,6 +532,8 @@ export const useSessionStore = createWithEqualityFn<ConvState>((set) => ({
     title: "Connecting…",
   },
   setStatusBadge: (b) => set({ statusBadge: b }),
+  channelHealth: "unknown",
+  setChannelHealth: (h) => set({ channelHealth: h }),
   conversations: {},
   messagesById: {},
   executionUpdateOrders: {},

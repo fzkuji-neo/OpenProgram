@@ -87,11 +87,8 @@ function renderStatusBadge(
   // label) but callers pass the fuller "connected · <source>" string.
   hoverTitle?: string,
 ): void {
-  // #statusBadge is owned by the React <TopBar> (StatusBadge → Laptop
-  // icon). Writing innerHTML here clobbered React's render and made the
-  // icon flicker back to the legacy dot. Push to the session store and
-  // let React render the chip instead — unconditionally, since the DOM
-  // element may not exist at all.
+  // The environment chip renders this from the session store; nothing
+  // here writes the DOM.
   const tone: StatusTone = dotKlass.includes("--ok")
     ? "ok"
     : dotKlass.includes("--warn")
@@ -107,15 +104,11 @@ function renderStatusBadge(
   });
 }
 
-export function setStatusDotHealth(state: string): void {
-  const mod = state === "ok" ? "--ok" : state === "warn" ? "--warn" : state === "err" ? "--err" : "--neutral";
-  const dot = document.getElementById("statusBadge")?.querySelector(".indicator-dot");
-  if (dot) dot.className = "indicator-dot sm " + mod;
-  const tone: StatusTone =
-    state === "ok" ? "ok" : state === "warn" ? "warn" : state === "err" ? "err" : "connecting";
+/** Record the bound channel account's health (channel status poll). */
+export function setChannelHealth(state: string): void {
+  const health = state === "ok" || state === "warn" || state === "err" ? state : "unknown";
   try {
-    const store = useSessionStore.getState();
-    store.setStatusBadge({ ...store.statusBadge, tone });
+    useSessionStore.getState().setChannelHealth(health);
   } catch {
     /* ignore */
   }

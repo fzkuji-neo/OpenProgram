@@ -23,7 +23,7 @@ import {
 } from "./helpers";
 import {
   refreshStatusSource,
-  setStatusDotHealth,
+  setChannelHealth,
   updateContextStats,
 } from "./ui";
 import { loadAgentSettings, loadProviders, updateProviderBadge } from "./providers";
@@ -209,6 +209,7 @@ export function stopChannelHealthPoll(): void {
     channelHealthTimer = null;
   }
   channelHealthKey = null;
+  setChannelHealth("unknown");
 }
 
 export function startChannelHealthPoll(channel: string, accountId?: string): void {
@@ -232,11 +233,11 @@ export function startChannelHealthPoll(channel: string, accountId?: string): voi
         let state = "err";
         if (data.alive) state = "ok";
         else if (data.state === "unknown") state = "warn";
-        setStatusDotHealth(state);
+        setChannelHealth(state);
       })
       .catch(() => {
         if (channelHealthKey !== key) return;
-        setStatusDotHealth("err");
+        setChannelHealth("err");
       });
   }
   probe();
@@ -284,15 +285,6 @@ export function onChannelAccountsMessage(rows: ChannelAccount[]): void {
     channelAccountsPending = null;
     fn(channelAccountsCache);
   }
-}
-
-export function currentChannelChoice(): { channel: string | null; account_id: string | null } {
-  const sid = runtimeState.currentSessionId;
-  const c = sid ? convs()[sid] : null;
-  if (c) {
-    return { channel: c.channel || null, account_id: c.account_id || null };
-  }
-  return choiceHost._pendingChannelChoice || { channel: null, account_id: null };
 }
 
 export function refreshChannelBadge(): void {

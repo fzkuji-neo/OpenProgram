@@ -130,6 +130,10 @@ export interface ComposerSettings {
   /** Session Sandbox override. true/false is explicit; omitted inherits
    *  the project/global default (system default is on). */
   sandbox?: boolean;
+  /** Environment a draft will run in (local / an SSH or Docker
+   *  environment id). Sent with the first message, which pins it; the
+   *  conversation's own environment_id decides afterwards. */
+  environment?: string;
 }
 
 /** One field in a runtime.form schema (MCP-elicitation flat object). */
@@ -345,6 +349,9 @@ export interface ConvSummary {
   peer_display?: string;
   channel?: string;
   account_id?: string;
+  /** Where the conversation runs; null/undefined = the default environment
+   *  (conversations created before environments existed). */
+  environment_id?: string | null;
   peer?: string;
   preview?: string | null;
   pinned?: boolean;

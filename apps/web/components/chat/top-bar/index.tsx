@@ -5,8 +5,9 @@
  *
  *   - ProjectBadge / AgentBadge ×2 / PermissionBadge → composer bottom
  *     row (see composer/index.tsx, `.sessionChips`)
- *   - connection status → composer status chip (composer/index.tsx,
- *     which hosts the ChannelMenu popover)
+ *   - connection status → the composer's environment chip; channel
+ *     binding → the composer's channel chip (ChannelMenu popover) and
+ *     the "+" menu's Channel submenu (environment-row/chips/)
  *
  * `LegacyTopbarBridge` (rendered unconditionally by AppShell) seeds the
  * zustand store from the current runtime state on mount; from then on

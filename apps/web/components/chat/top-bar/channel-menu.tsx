@@ -1,34 +1,21 @@
 "use client";
 
 /**
- * Channel menu — the content of the topbar `<StatusBadge />` popover.
+ * Channel menu — the content of the channel chip's popover.
  *
  * Lists the enabled channel accounts (WeChat / Discord / Telegram /
- * Slack) grouped by platform, plus a "Local" row for no binding.
- * Picking one binds the current conversation to that channel
- * (`set_conversation_channel` over WS) — or, for a brand-new chat with
- * no session yet, stashes the choice via `setDraftChannelChoice`.
+ * Slack) grouped by platform, plus a "Not connected" row that unbinds.
+ * Picking one mirrors the conversation's messages to that account; it
+ * never changes where the conversation runs (that is the environment
+ * chip beside it).
  *
  * Positioning / click-outside / portal are handled by the shadcn
- * <Popover> in `index.tsx`; this component just renders the rows.
+ * <Popover> that hosts it; this component just renders the rows.
  */
-import { useEffect, useState } from "react";
-
-import { useBoundChat } from "./bound-chat";
-import { mirrorUpsertConv } from "@/lib/runtime-bridge/conv-store-mirror";
-import {
-  draftChannelChoiceHost,
-  setDraftChannelChoice,
-} from "@/lib/runtime-bridge/draft-channel-choice";
-import {
-  channelIcon,
-  currentChannelChoice,
-  fetchChannelAccounts,
-  refreshChannelBadge,
-} from "@/lib/runtime-bridge/conversations";
-import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
+import { channelIcon } from "@/lib/runtime-bridge/conversations";
 import { useTranslation } from "@/lib/i18n";
 import { SolarIcon } from "@/components/solar-icons";
+import { channelBrand, useChannelChoices } from "./channel-choices";
 import {
   CHECK_SLOT,
   CHECK_SLOT_PAD,
@@ -39,93 +26,22 @@ import {
   itemCls,
 } from "./menu-styles";
 
-interface ChannelAccount {
-  channel: string;
-  account_id: string;
-  name?: string;
-  enabled?: boolean;
-}
-
-
-const BRAND: Record<string, string> = {
-  wechat: "WeChat",
-  discord: "Discord",
-  telegram: "Telegram",
-  slack: "Slack",
-};
-
-function brandFor(plat: string): string {
-  return BRAND[plat.toLowerCase()] || plat;
-}
-
 export function ChannelMenu({ onClose }: { onClose: () => void }) {
   const { text } = useTranslation();
-  const { sessionId, chatKey: activeChatKey } = useBoundChat();
-  const [rows, setRows] = useState<ChannelAccount[] | null>(null);
+  const { groups, current: cur, pick } = useChannelChoices();
 
-  useEffect(() => {
-    fetchChannelAccounts().then(
-      (r) => setRows(r || []),
-      () => setRows([]),
-    );
-  }, []);
-
-  const cur = currentChannelChoice();
-
-  function pick(ch: string, acct: string) {
+  function choose(ch: string, acct: string) {
     onClose();
-    if (sessionId) {
-      const sock = getSocket();
-      if (sock && sock.readyState === WebSocket.OPEN) {
-        sock.send(
-          JSON.stringify({
-            action: "set_conversation_channel",
-            session_id: sessionId,
-            channel: ch,
-            account_id: acct,
-          }),
-        );
-      }
-      const conv = runtimeState.conversations[sessionId] as
-        | { channel?: string | null; account_id?: string | null }
-        | undefined;
-      if (conv) {
-        conv.channel = ch || null;
-        conv.account_id = ch && acct ? acct : null;
-        // Mirror the optimistic channel binding into the store so the
-        // sidebar row's channel prefix updates instantly too.
-        mirrorUpsertConv({ ...conv, id: sessionId });
-      }
-    } else {
-      setDraftChannelChoice(draftChannelChoiceHost, activeChatKey, {
-        channel: ch || null,
-        account_id: ch ? acct || null : null,
-      });
-    }
-    refreshChannelBadge();
-  }
-
-  // Group accounts by platform, preserving first-seen order.
-  const enabled = (rows ?? []).filter((r) => r.enabled);
-  const groups: { plat: string; accounts: ChannelAccount[] }[] = [];
-  for (const r of enabled) {
-    let g = groups.find((x) => x.plat === r.channel);
-    if (!g) {
-      g = { plat: r.channel, accounts: [] };
-      groups.push(g);
-    }
-    g.accounts.push(r);
+    pick(ch, acct);
   }
 
   return (
     <div className={MENU_PANEL}>
-      {/* Grammar-A header naming the dimension. Platform names below
-          stay as sub-section labels. */}
       <div className={GROUP_LABEL}>{text("Channel", "渠道")}</div>
 
       {/* 选中不铺底色（hover 是唯一底色），选中态只靠右侧勾。 */}
-      <div className={itemCls(false)} onClick={() => pick("", "")}>
-        <span className="flex-1 truncate">{text("Local", "本地")}</span>
+      <div className={itemCls(false)} onClick={() => choose("", "")}>
+        <span className="flex-1 truncate">{text("Not connected", "不连接")}</span>
         {!cur.channel ? (
           <SolarIcon motionPreset="none" name="check-circle" size={14} className={CHECK_SLOT} />
         ) : (
@@ -139,26 +55,20 @@ export function ChannelMenu({ onClose }: { onClose: () => void }) {
             <span
               className="provider-icon"
               style={{ width: 14, height: 14 }}
-              dangerouslySetInnerHTML={{
-                __html: channelIcon(g.plat),
-              }}
+              dangerouslySetInnerHTML={{ __html: channelIcon(g.plat) }}
             />
-            <span>{brandFor(g.plat)}</span>
+            <span>{channelBrand(g.plat)}</span>
           </div>
           {g.accounts.map((r) => {
-            const active =
-              r.channel === cur.channel && r.account_id === cur.account_id;
+            const active = r.channel === cur.channel && r.account_id === cur.account_id;
             const meta = r.name && r.name !== r.account_id ? r.name : "";
             return (
               <div
                 key={r.channel + ":" + r.account_id}
                 className={itemCls(false)}
-                onClick={() => pick(r.channel, r.account_id)}
+                onClick={() => choose(r.channel, r.account_id)}
               >
-                {/* Claude 实测：别名 tag 紧贴账号名左侧成簇（"Fable 5
-                    [Included until July 19]" 的形制），右缘只留勾位。
-                    .menu-tag = 与 git 菜单 current / worktree 同一枚
-                    tag（top-bar-chips.css）。 */}
+                {/* Claude 实测：别名 tag 紧贴账号名左侧成簇，右缘只留勾位。 */}
                 <span className="flex min-w-0 flex-1 items-center gap-[6px]">
                   <span className="truncate">{r.account_id}</span>
                   {meta ? <span className={MENU_TAG}>{meta}</span> : null}
@@ -174,8 +84,7 @@ export function ChannelMenu({ onClose }: { onClose: () => void }) {
         </div>
       ))}
 
-      {/* Grammar-B action row：设置图标 + 文案 + 右箭头，常驻
-          菜单底部，hover 才上强调色。 */}
+      {/* Grammar-B action row：设置图标 + 文案 + 右箭头，常驻菜单底部。 */}
       <div className={MENU_SEPARATOR} />
       <a
         href="/settings/channels"
@@ -183,9 +92,7 @@ export function ChannelMenu({ onClose }: { onClose: () => void }) {
         className={`${itemCls(false)} no-underline`}
       >
         <SolarIcon name="settings-minimalistic" size={16} aria-hidden="true" />
-        <span className="flex-1 truncate">
-          {text("Add channels", "添加渠道")}
-        </span>
+        <span className="flex-1 truncate">{text("Add channels", "添加渠道")}</span>
         <SolarIcon name="alt-arrow-right" size={14} className="text-text-muted" />
       </a>
     </div>

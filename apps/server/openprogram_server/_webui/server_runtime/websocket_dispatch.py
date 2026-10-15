@@ -184,6 +184,7 @@ def _build_ws_action_registry() -> dict:
         branch as _ws_branch,
         dag_nodes as _ws_dag_nodes,
         channel as _ws_channel,
+        environment as _ws_environment,
         chat as _ws_chat,
         runtime as _ws_runtime,
         session as _ws_session,
@@ -209,6 +210,7 @@ def _build_ws_action_registry() -> dict:
     table.update(_ws_permissions.ACTIONS)
     table.update(_ws_agent.ACTIONS)
     table.update(_ws_channel.ACTIONS)
+    table.update(_ws_environment.ACTIONS)
     table.update(_ws_runtime.ACTIONS)
     table.update(_ws_chat.ACTIONS)
     table.update(_ws_commits.ACTIONS)

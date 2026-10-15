@@ -39,6 +39,11 @@ def list_dir(path: str, show_hidden: bool = False) -> str:
         path: Absolute path of the directory to list.
         show_hidden: Include dotfiles and dot-directories. Default false.
     """
+    from ._remote import remote_target
+    _remote_fs = remote_target()
+    if _remote_fs is not None:
+        from . import _remote
+        return _remote.list_dir(_remote_fs, path, show_hidden)
     if not os.path.isabs(path):
         return f"Error: path must be absolute, got {path!r}"
     from openprogram.sandbox import validate_read_path, read_denier

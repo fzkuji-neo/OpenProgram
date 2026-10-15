@@ -4,7 +4,8 @@ import { useRef, type ReactNode } from "react";
 
 import { GoalChip } from "../../goal-chip";
 import { ProjectBadge, WorkingDirChips } from "../../top-bar";
-import { ConnectionStatusChip } from "./chips/connection-status-chip";
+import { ChannelChip } from "./chips/channel-chip";
+import { EnvironmentChip } from "./chips/environment-chip";
 import { WebPreviewChip } from "./chips/web-preview-chip";
 import { WebSurfaceChip } from "./chips/web-surface-chip";
 import { useCompactEnvironmentRow } from "./use-compact-environment-row";
@@ -13,7 +14,6 @@ import styles from "./environment-row.module.css";
 interface EnvironmentRowProps {
   sessionId: string | null;
   toolsEnabled: boolean;
-  owningStatusId: boolean;
   onToggleAccess(): void;
   trailingControls?: ReactNode;
 }
@@ -21,7 +21,6 @@ interface EnvironmentRowProps {
 export function EnvironmentRow({
   sessionId,
   toolsEnabled,
-  owningStatusId,
   onToggleAccess,
   trailingControls,
 }: EnvironmentRowProps) {
@@ -30,7 +29,8 @@ export function EnvironmentRow({
 
   return (
     <div ref={rowRef} className={styles.envChips} data-environment-row>
-      <ConnectionStatusChip owningId={owningStatusId} />
+      <EnvironmentChip />
+      <ChannelChip />
       <ProjectBadge />
       <WorkingDirChips />
       <GoalChip />

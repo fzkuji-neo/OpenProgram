@@ -154,6 +154,11 @@ def grep(pattern: str,
         output_mode: Output format: "files_with_matches", "content", or "count".
         case_insensitive: Case-insensitive match. Default false.
     """
+    from ._remote import remote_target
+    _remote_fs = remote_target()
+    if _remote_fs is not None:
+        from . import _remote
+        return _remote.grep(_remote_fs, pattern, path, glob, output_mode, case_insensitive)
     if path:
         root = path
     else:

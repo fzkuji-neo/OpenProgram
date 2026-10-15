@@ -87,9 +87,9 @@ _ADVANCED_EXTRA_SECTIONS = [
      "Stored profile name. Per-profile state-dir isolation is done via "
      "`--profile <name>` at launch. QuickStart uses 'default'.",
      run_profile_section),
-    ("backend", "Terminal exec backend",
-     "Where the `bash` / `execute_code` / `process` tools actually "
-     "run: local / ssh / docker. QuickStart uses local.",
+    ("backend", "Default environment",
+     "Where new conversations run their commands and file tools: this "
+     "computer, an SSH host, or a Docker container. QuickStart uses local.",
      run_backend_section),
 ]
 

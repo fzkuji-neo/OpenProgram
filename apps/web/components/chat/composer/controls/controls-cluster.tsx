@@ -41,6 +41,7 @@ import {
   UnattendedIcon,
   WebSearchIcon,
 } from "../icons";
+import { ChannelSubmenu } from "./channel-submenu";
 import { PlusMenuRow, ToolChip } from "./menu-pieces";
 import { ThinkingEffortPill } from "./thinking-effort-pill";
 import type { ThinkingOption } from "./use-thinking-effort";
@@ -319,6 +320,12 @@ export function ControlsCluster({
                   label={text("Unattended", "无人值守")}
                   onSelect={() => toggleUnattended()}
                 />
+
+                <DropdownMenuSeparator className={MENU_SEPARATOR} />
+
+                {/* Where this conversation's messages are mirrored. The
+                    chip above the input only shows a bound channel. */}
+                <ChannelSubmenu />
               </DropdownMenuContent>
             </DropdownMenu>
 
