@@ -71,9 +71,17 @@ class DiscordChannel(Channel):
 
         @client.event
         async def on_message(msg) -> None:  # type: ignore[no-redef]
-            if msg.author.bot or msg.author == client.user:
+            if msg.author == client.user:
                 return
+            me = client.user
             text = (msg.content or "").strip()
+            mentioned = False
+            if me is not None:
+                mentioned = me in (msg.mentions or [])
+                for token in (f"<@{me.id}>", f"<@!{me.id}>"):
+                    if token in text:
+                        mentioned = True
+                        text = text.replace(token, "").strip()
 
             # Parse discord.Message → ChannelMessage.
             from openprogram.channels._message import Attachment, ChannelMessage
@@ -93,6 +101,8 @@ class DiscordChannel(Channel):
             ref = getattr(msg, "reference", None)
             resolved = getattr(ref, "resolved", None) if ref else None
             quoted_text = str(getattr(resolved, "content", "") or "")
+            if me is not None and getattr(resolved, "author", None) == me:
+                mentioned = True
             ch_msg = ChannelMessage(
                 text=text,
                 chat_id=str(msg.channel.id),
@@ -110,6 +120,8 @@ class DiscordChannel(Channel):
                     and "thread" in str(msg.channel.type).lower() else ""
                 ),
                 attachments=attachments,
+                mentioned=mentioned,
+                from_bot=bool(msg.author.bot),
             )
 
             # handle_inbound spawns its own daemon thread and returns

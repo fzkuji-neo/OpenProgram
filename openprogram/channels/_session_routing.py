@@ -21,10 +21,9 @@ from __future__ import annotations
 
 import json as _json
 import re
+import threading
 import time
 from typing import Any
-
-from openprogram.channels._session_store import meta_path
 
 
 def session_key_for_agent(
@@ -51,48 +50,93 @@ def session_key_for_agent(
 
 
 def apply_reset_policy(agent, base_key: str) -> str:
-    """应用 agent 的 daily / idle session 重置策略, 返回最终 session_key.
+    """应用 ``/new`` 代数和 agent 的 daily / idle 重置策略, 返回最终
+    session_key.
+
+    代数: ``/new`` (或 idle 超时) 把 (agent, base_key) 的代数加一, key
+    后挂 ``_n{代数}`` — 之后每条消息都落到这个新 session, 直到下次
+    重置. 代数持久化在 ``<state>/channels/session_generations.json``.
 
     Daily reset: ``agent.session_daily_reset`` 是 ``HH:MM`` 时, 在 key
     后面挂当前 reset-window 的日期 — 到点自动新 session.
 
-    Idle reset: ``agent.session_idle_minutes > 0`` 时, 检查现有 session
-    的 ``_last_touched``; 超过阈值就在 key 后面挂 epoch minute, 让下一
-    回合写到新文件.
+    Idle reset: ``agent.session_idle_minutes > 0`` 时, 看当前 session
+    在 SessionDB 里的 ``updated_at``; 超过阈值就把代数加一, 下一回合
+    起写到新 session.
 
-    重置后缀对 UI 透明 — 之前的 session 仍在磁盘 (sidebar 能读), 新的
+    重置后缀对 UI 透明 — 之前的 session 仍在库里 (sidebar 能读), 新的
     从零开始.
     """
-    import datetime as _dt
-
-    key = base_key
-    daily = (getattr(agent, "session_daily_reset", "") or "").strip()
-    if daily:
-        try:
-            h, m = daily.split(":", 1)
-            reset_h, reset_m = int(h), int(m)
-            now = _dt.datetime.now()
-            window_start = now.replace(
-                hour=reset_h, minute=reset_m, second=0, microsecond=0,
-            )
-            if now < window_start:
-                window_start -= _dt.timedelta(days=1)
-            key += f"_{window_start.strftime('%Y%m%d')}"
-        except (ValueError, AttributeError):
-            pass
-
+    key = _with_daily(agent, _with_generation(agent, base_key))
     idle_min = int(getattr(agent, "session_idle_minutes", 0) or 0)
     if idle_min > 0:
-        # 看上一次的 session (base + 可能的 daily 后缀). 过期就加 idle
-        # 后缀让它轮换.
-        prev_meta = meta_path(agent.id, key)
-        if prev_meta.exists():
-            try:
-                prev = _json.loads(prev_meta.read_text(encoding="utf-8"))
-                last = float(prev.get("_last_touched") or 0)
-                if last and (time.time() - last) > idle_min * 60:
-                    key += f"_cut{int(time.time() // 60)}"
-            except Exception:
-                pass
-
+        last = _last_activity(key)
+        if last and (time.time() - last) > idle_min * 60:
+            start_new_generation(agent, base_key)
+            key = _with_daily(agent, _with_generation(agent, base_key))
     return key
+
+
+def start_new_generation(agent, base_key: str) -> int:
+    """``/new``: 让 (agent, base_key) 之后的消息进一个新 session."""
+    ident = f"{agent.id}:{base_key}"
+    with _GEN_LOCK:
+        table = _read_generations()
+        table[ident] = int(table.get(ident) or 0) + 1
+        path = _generations_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(_json.dumps(table, indent=2, sort_keys=True),
+                       encoding="utf-8")
+        tmp.replace(path)
+        return table[ident]
+
+
+_GEN_LOCK = threading.Lock()
+
+
+def _generations_path():
+    from openprogram.paths import get_state_dir
+    return get_state_dir() / "channels" / "session_generations.json"
+
+
+def _read_generations() -> dict[str, Any]:
+    try:
+        raw = _json.loads(_generations_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return raw if isinstance(raw, dict) else {}
+
+
+def _with_generation(agent, base_key: str) -> str:
+    gen = int(_read_generations().get(f"{agent.id}:{base_key}") or 0)
+    return f"{base_key}_n{gen}" if gen > 0 else base_key
+
+
+def _with_daily(agent, key: str) -> str:
+    import datetime as _dt
+
+    daily = (getattr(agent, "session_daily_reset", "") or "").strip()
+    if not daily:
+        return key
+    try:
+        h, m = daily.split(":", 1)
+        reset_h, reset_m = int(h), int(m)
+        now = _dt.datetime.now()
+        window_start = now.replace(
+            hour=reset_h, minute=reset_m, second=0, microsecond=0,
+        )
+        if now < window_start:
+            window_start -= _dt.timedelta(days=1)
+        return f"{key}_{window_start.strftime('%Y%m%d')}"
+    except (ValueError, AttributeError):
+        return key
+
+
+def _last_activity(session_key: str) -> float:
+    try:
+        from openprogram.agent.session_db import default_db
+        row = default_db().get_session(session_key) or {}
+        return float(row.get("updated_at") or 0)
+    except Exception:  # noqa: BLE001
+        return 0.0

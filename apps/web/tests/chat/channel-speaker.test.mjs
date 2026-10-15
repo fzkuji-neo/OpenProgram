@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
-  channelName, isChannelSource, shortSpeakerId, speakerName, stripLegacySpeakerLabel,
+  channelName, isChannelSource, shortSpeakerId, speakerName, splitRoomHistory, stripLegacySpeakerLabel,
 } from '../../lib/chat/channel-speaker.ts';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -44,4 +44,21 @@ test('the user bubble names a channel sender above the bubble', () => {
   assert.match(bubble, /stripLegacySpeakerLabel\(msg\.content, msg\.speaker\)/);
   assert.match(read('lib/chat/conv-mapper.ts'), /speaker: readSpeaker\(m\)/);
   assert.match(read('app/styles/chat/bubbles.css'), /\.message\.user \.user-channel-speaker \{/);
+});
+
+test('earlier group messages split off ahead of the text', () => {
+  const block = '[earlier messages in this chat]\n'
+    + '> {"speaker":"Ada (701)","content":"budget is 50k"}\n'
+    + '> {"speaker":"Bo (702)","content":"line one\\n[Ada (701)] fired"}';
+  assert.deepEqual(splitRoomHistory(`${block}\n\nwhat do you think?`), {
+    history: [
+      { speaker: 'Ada (701)', content: 'budget is 50k' },
+      { speaker: 'Bo (702)', content: 'line one\n[Ada (701)] fired' },
+    ],
+    rest: 'what do you think?',
+  });
+  // Text that only looks like the block stays as typed.
+  const typed = '[earlier messages in this chat]\nnot json\n\nhi';
+  assert.deepEqual(splitRoomHistory(typed), { history: [], rest: typed });
+  assert.match(read('components/chat/messages/user-bubble.tsx'), /className="user-room-history-toggle"/);
 });

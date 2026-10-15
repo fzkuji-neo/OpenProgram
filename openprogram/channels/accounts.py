@@ -316,13 +316,22 @@ def is_configured(channel: str, account_id: str) -> bool:
 #: 每个 channel 允许的 setting key → 合法取值. 只有平台确实存在的行为
 #: 差异才登记 — telegram 群聊的会话归属和 @提及 门槛是显式配置而非
 #: 隐式行为 (adapter 在 __init__ 读取, 改动后重启 worker 生效).
+_GROUP_SETTINGS: dict[str, tuple[str, ...]] = {
+    # 群聊默认是否只在 @bot (或回复 bot 消息) 时响应; 群里可用
+    # /activation 覆盖 (见 _room)
+    "require_mention": ("off", "on"),
+    # 接手一条消息时给它加 👀
+    "ack_reaction": ("off", "on"),
+}
+
 ACCOUNT_SETTINGS: dict[str, dict[str, tuple[str, ...]]] = {
     "telegram": {
         # 群聊会话归属: 全群共享一个会话 / 群内每人一个会话
         "group_sessions": ("shared", "per-user"),
-        # 群聊里是否只在 @bot (或回复 bot 消息) 时响应
-        "require_mention": ("off", "on"),
+        **_GROUP_SETTINGS,
     },
+    "discord": dict(_GROUP_SETTINGS),
+    "slack": dict(_GROUP_SETTINGS),
 }
 
 

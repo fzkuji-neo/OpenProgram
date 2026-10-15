@@ -94,18 +94,18 @@ feel present.
 | DM pairing, allowlist | Yes | Yes |
 | Sender identity to the model | Text label plus metadata block | Structured `speaker_*` fields in the input envelope |
 | Sender shown in the web transcript | — | Platform and sender above the bubble |
-| Mention gating | All group channels, patterns, reply-to-bot | Telegram `require_mention`, reply-to-bot |
-| `/activation`, `/new`, `/reset` | Yes | No |
-| Pending group history | Yes | No |
+| Mention gating | All group channels, patterns, reply-to-bot | Telegram, Discord, Slack; reply-to-bot; no custom patterns |
+| `/activation`, `/new`, `/reset` | Yes | Yes |
+| Pending group history | Yes | Yes |
 | Ambient rooms, agent decides to speak | Yes | No |
 | Per-group, per-sender tool policy | Yes | Tier policy per paired sender; no per-group policy |
 | Session scope, reset policy | Yes | `session_scope`, daily or idle reset |
 | Cross-channel identity links | Yes | No |
 | Live progress | Preview edits | Placeholder edited with tool steps |
-| Paragraph chunking while running | Yes | Split at the platform cap after the reply is done |
-| Typing indicator | Yes | No |
-| Ack reaction | Yes | No |
-| Bot loop protection | Yes | No |
+| Paragraph chunking while running | Yes | WeChat; edit-capable platforms keep the live placeholder |
+| Typing indicator | Yes | Telegram, Discord, WeChat |
+| Ack reaction | Yes | Telegram, Discord, Slack (`ack_reaction`) |
+| Bot loop protection | Yes | Bot messages dropped, per-room turn limit |
 | Group introduction | Yes | No |
 | Media in and out | Yes | Yes, except WeChat (text only) |
 | Voice transcription | Yes | No |
@@ -122,8 +122,13 @@ runtime by `/activation`:
 
 - **mention** (default): only a mention, a mention pattern or a reply to
   the bot starts a turn. Everything else is recorded as pending history.
-- **always**: every message starts a turn, as Telegram's
-  `require_mention off` does today.
+- **always**: every message starts a turn.
+
+The account setting `require_mention` gives the default mode for its
+groups; `/activation` stores a per-group override in the account's
+`rooms.json`. Adapters only decide whether a message is addressed to the
+bot (`ChannelMessage.mentioned`) and strip the mention; the decision lives
+in `channels/_room.py`, so every platform gates the same way.
 - **ambient**: every message reaches the agent as a room event, and the
   room only hears from the agent through a `send_message` tool. The final
   text of an ambient turn stays in the transcript. No typing indicator
@@ -133,26 +138,31 @@ Direct messages are always on and never gated.
 
 ### 4.2 Pending History
 
-A gated message is stored on the session as a pending room entry with its
-speaker fields, not as a turn. The next turn that starts takes the
-newest entries up to `history_limit` (default 50) and passes them as
-one quoted block of `speaker: text` lines ahead of the triggering
-message, each line rendered through the same JSON envelope as live
-input, so a pending line cannot pose as a different speaker. Entries the
-turn consumed are cleared. Pending history never wakes the agent by
-itself.
+A gated message is kept in memory per room with its speaker fields, not
+as a turn. The next turn that starts takes the newest 50 entries and
+passes them ahead of the triggering message as one block: the header
+`[earlier messages in this chat]`, then one `> {"speaker": …,
+"content": …}` JSON line per message. JSON escapes newlines, so a pending
+message cannot open a line that reads as another speaker. Entries the
+turn consumed are cleared, `/new` clears them too, and a worker restart
+drops them. Pending history never wakes the agent by itself. The web
+transcript folds the block behind a toggle at the top of the bubble.
 
 ### 4.3 Delivery
 
 The delivery layer turns one reply into chat-shaped messages:
 
-- A typing indicator starts when a turn starts and refreshes every few
-  seconds until the first message leaves (Telegram `sendChatAction`,
-  Discord typing, WeChat's iLink typing status where available).
+- A typing indicator runs for the whole turn and is refreshed before it
+  expires (Telegram `sendChatAction` every 4 s, Discord's typing endpoint
+  every 8 s, WeChat every 5 s). WeChat needs a typing ticket from iLink's
+  `getconfig`, requested with the user's latest `context_token`; the
+  turn's end sends iLink's explicit cancel.
 - On platforms that cannot edit (WeChat), text is sent in paragraph
-  chunks as the reply grows: a chunk leaves at a paragraph break once it
-  has `min_chars`, and never exceeds `max_chars`. Platforms that can edit
-  keep the live placeholder.
+  chunks as the reply grows: a chunk leaves at a blank line once it has
+  200 characters, the whole buffer leaves when a tool call starts, an
+  open code fence is never split, and no chunk exceeds the platform cap.
+  The final reply (with `send_file` markers) supplies whatever was not
+  sent yet. Platforms that can edit keep the live placeholder.
 - An optional ack reaction marks a message the bot has picked up, for
   platforms with reactions.
 - Tool steps never reach the room in ambient mode and never on WeChat.
@@ -167,9 +177,10 @@ confirmation question raised in a group is only answerable by the owner.
 
 ### 4.5 Loops and Floods
 
-Messages from bot accounts are dropped unless the binding allows a named
-bot. A per-room limit caps how many turns the agent takes in a sliding
-window; past the cap, messages fall into pending history.
+Messages from bot accounts are dropped. A room starts at most 10 turns
+in a sliding minute; past the cap, messages fall into pending history. A
+platform delivering one message twice (Slack sends `message` and
+`app_mention` for one mention) starts one turn.
 
 ### 4.6 One Person Across Channels
 
@@ -196,14 +207,16 @@ and never the live placeholder.
 ## Appendix — Implementation Status
 
 Implemented: pairing and allowlist, structured speaker identity in the
-input envelope and the web transcript, Telegram mention gating with
-reply-to-bot, session scope and reset policy, live progress placeholder,
+input envelope and the web transcript, session scope and reset policy
+(daily, idle, `/new`), room modes and `/activation` (4.1), pending
+history (4.2), typing indicators, WeChat paragraph chunking and ack
+reactions (4.3), bot-message dropping, the per-room turn limit and
+duplicate-delivery suppression (4.5), live progress placeholder,
 per-platform markdown and size-cap splitting, attachments on Telegram,
 Discord and Slack, `/answer` and `/decline`, always-on delivery.
 
-Not implemented: room modes and `/activation` (4.1), `/new` and `/reset`,
-pending history (4.2), typing indicators, paragraph chunking and ack
-reactions (4.3), per-binding tool policy and the owner-only rule (4.4),
-bot loop and flood limits (4.5), identity links (4.6), channel persona and
-memory-scheduled follow-ups (4.7), WeChat media and voice (4.8), voice
-transcription on any platform, group introductions.
+Not implemented: ambient mode and the `send_message` tool (4.1), custom
+mention patterns, per-binding tool policy and the owner-only rule (4.4),
+identity links (4.6), channel persona and memory-scheduled follow-ups
+(4.7), WeChat media and voice (4.8), voice transcription on any
+platform, group introductions.

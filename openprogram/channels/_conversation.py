@@ -36,6 +36,7 @@ from openprogram.channels._broadcast import (
 from openprogram.channels._session_routing import (
     apply_reset_policy as _apply_reset_policy,
     session_key_for_agent as _session_key_for_agent,
+    start_new_generation,
 )
 from openprogram.channels._session_store import (
     load_or_init_session as _load_or_init_session,
@@ -84,6 +85,7 @@ def dispatch_inbound(
     speaker_display: str | None = None,
     progress_stream: bool = False,
     attachments: Optional[list[dict]] = None,
+    block_stream: bool = False,
 ) -> Optional[str]:
     """End-to-end inbound handling.
 
@@ -103,6 +105,10 @@ def dispatch_inbound(
     任何 streaming 步骤失败 (占位发不出 / 平台不支持 edit / WeChat) 都会
     无声降级回非 streaming 行为, 返回 reply 字符串.
 
+    ``block_stream=True`` (不能 edit 的平台, 即 WeChat): 没有占位消息时
+    回复边生成边按段落发出 (见 :class:`_BlockStreamer`), 工具调用前写
+    的那句话也会先发出去; 全部发完返回 None.
+
     Never raises into the channel's poll loop — any failure (no
     provider configured, runtime crash, etc.) is flattened into an
     error-shaped reply string that the bot can surface to the user
@@ -119,33 +125,10 @@ def dispatch_inbound(
     except Exception:
         pass
 
-    # ---- 路由: alias > binding -----------------------------------------
-    from openprogram.agent.management import session_aliases as _aliases
-    alias = _aliases.lookup(channel, account_id, peer)
-    if alias is not None:
-        agent_id, session_key = alias
-        agent = _agents.get(agent_id)
-        if agent is None:
-            return (f"[unknown agent {agent_id!r}] — alias points at a "
-                    f"deleted agent.")
-    else:
-        try:
-            agent_id = _bindings.route(channel, account_id, peer)
-        except Exception as e:  # noqa: BLE001
-            return f"[routing error] {type(e).__name__}: {e}"
-        if not agent_id:
-            return ("[no agent configured] Run `openprogram agents add "
-                    "main` and configure a provider.")
-
-        agent = _agents.get(agent_id)
-        if agent is None:
-            return (f"[unknown agent {agent_id!r}] — binding points at a "
-                    f"deleted agent.")
-
-        base_key = _session_key_for_agent(
-            agent, channel, account_id, peer,
-        )
-        session_key = _apply_reset_policy(agent, base_key)
+    route = _route(channel, account_id, peer)
+    if isinstance(route, str):
+        return route
+    agent_id, session_key, _base_key = route
 
     # ---- /answer · /decline 文本命令拦截 -------------------------------
     # 函数 runtime.ask 在本 channel 会话里挂了个待答问题，用户用一条
@@ -178,8 +161,52 @@ def dispatch_inbound(
             user_display=user_display, speaker_id=speaker_id,
             speaker_display=speaker_display, progress_stream=progress_stream,
             agent_id=agent_id, session_key=session_key,
-            attachments=attachments,
+            attachments=attachments, block_stream=block_stream,
         )
+
+
+def _route(channel: str, account_id: str, peer: dict):
+    """路由: alias > binding. 返回 ``(agent_id, session_key, base_key)``;
+    base_key 是重置前的 key (alias 会话固定, 为 None). 出错时返回一条
+    给用户看的错误文本."""
+    from openprogram.agent.management import session_aliases as _aliases
+    alias = _aliases.lookup(channel, account_id, peer)
+    if alias is not None:
+        agent_id, session_key = alias
+        if _agents.get(agent_id) is None:
+            return (f"[unknown agent {agent_id!r}] — alias points at a "
+                    f"deleted agent.")
+        return agent_id, session_key, None
+    try:
+        agent_id = _bindings.route(channel, account_id, peer)
+    except Exception as e:  # noqa: BLE001
+        return f"[routing error] {type(e).__name__}: {e}"
+    if not agent_id:
+        return ("[no agent configured] Run `openprogram agents add "
+                "main` and configure a provider.")
+    agent = _agents.get(agent_id)
+    if agent is None:
+        return (f"[unknown agent {agent_id!r}] — binding points at a "
+                f"deleted agent.")
+    base_key = _session_key_for_agent(agent, channel, account_id, peer)
+    return agent_id, _apply_reset_policy(agent, base_key), base_key
+
+
+def start_new_conversation(
+    *, channel: str, account_id: str, peer_kind: str, peer_id: str,
+) -> str:
+    """``/new`` · ``/reset``: 这个 peer 之后的消息进一个新会话. 旧会话
+    原样留在库里 (网页侧栏照常能看). 返回给用户的回执."""
+    peer = {"kind": peer_kind or "direct", "id": str(peer_id)}
+    route = _route(channel, account_id, peer)
+    if isinstance(route, str):
+        return route
+    agent_id, _session_key, base_key = route
+    if base_key is None:
+        return "这个对话固定绑定在一个会话上，不能重开。"
+    with _session_lock_for(_session_key):
+        start_new_generation(_agents.get(agent_id), base_key)
+    return "✓ 已开始新对话，之前的内容不会带进来。"
 
 
 def _run_session_turn(
@@ -196,6 +223,7 @@ def _run_session_turn(
     agent_id: str,
     session_key: str,
     attachments: Optional[list[dict]] = None,
+    block_stream: bool = False,
 ) -> Optional[str]:
     """路由已完成、session 锁已持有 — 跑一个完整 turn: load session →
     agent turn → 持久化 → broadcast. 返回值语义同 dispatch_inbound."""
@@ -262,6 +290,11 @@ def _run_session_turn(
         except Exception:
             pass
 
+    streamer = (
+        _BlockStreamer(channel, account_id, str(peer_id))
+        if block_stream and progress_handle is None else None
+    )
+
     # ---- canonical Agent admission + stream event 监听 ------------------
     from openprogram.agent.authority import paired_channel_authority
     from openprogram.agent.dispatcher import TurnRequest
@@ -269,6 +302,13 @@ def _run_session_turn(
 
     captured_user_id: list[str] = []
     captured_assistant_id: list[str] = []
+
+    def _own_turn(msg_id) -> bool:
+        # 本轮的事件带 chat_ack 里的用户消息 id (或它的 _reply); 同一
+        # session 里子 agent 的流不发到聊天里.
+        if msg_id is None or not captured_user_id:
+            return msg_id is None
+        return msg_id in (captured_user_id[0], f"{captured_user_id[0]}_reply")
 
     def _on_event(env: dict) -> None:
         # 转发给 webui WS — 走事件总线 (ws.frame 事件), webui 订阅后原样
@@ -280,12 +320,21 @@ def _run_session_turn(
             if data.get("msg_id"):
                 captured_user_id.append(str(data["msg_id"]))
 
-        # Progress streaming: 按 tool 边界 edit 占位消息.
-        if progress_handle is None:
-            return
         data = env.get("data") or {}
         ev = data.get("event") or {}
         ev_type = ev.get("type")
+        if (streamer is not None and env.get("type") == "chat_response"
+                and data.get("type") == "stream_event"
+                and data.get("session_id") in (None, session_key)
+                and _own_turn(data.get("msg_id"))):
+            if ev_type == "text":
+                streamer.feed(ev.get("text") or "")
+            elif ev_type == "tool_use":
+                streamer.flush()
+
+        # Progress streaming: 按 tool 边界 edit 占位消息.
+        if progress_handle is None:
+            return
         if ev_type == "tool_use":
             tool_name = ev.get("tool") or "?"
             progress_lines.append(f"⚙ {tool_name}")
@@ -335,6 +384,8 @@ def _run_session_turn(
         execution = execution_mapping(session_key, admission.execution_id)
     except Exception as e:  # noqa: BLE001
         err_text = f"[error] {type(e).__name__}: {e}"
+        if streamer is not None:
+            streamer.close()
         if progress_handle is not None:
             # 把占位改成错误消息, adapter 不必再发. 用户看到的是单条
             # 带错误的消息, 没 placeholder 残留.
@@ -343,6 +394,8 @@ def _run_session_turn(
         return err_text
 
     if result is None:
+        if streamer is not None:
+            streamer.close()
         return "[error] canonical Agent activation produced no result"
     reply_text = (result.final_text or "").strip() or "(empty reply)"
     user_msg_id = result.user_msg_id
@@ -352,9 +405,17 @@ def _run_session_turn(
     # reply_text 里的 [attachment: ... @ 路径] 是 send_file 工具登记的.
     # 先把文件真的传上去, 再把标记从"发给平台的那份文本"里拿掉 —— 存进
     # 会话 / 广播给网页的那份 (reply_text) 保留标记, 网页据此画 chip.
-    channel_text = _deliver_outbound_files(
-        channel, account_id, str(peer_id), reply_text,
-    )
+    if streamer is not None:
+        streamer.close()
+        unsent = streamer.unsent_part(reply_text)
+        channel_text = (
+            _deliver_outbound_files(channel, account_id, str(peer_id), unsent)
+            if unsent.strip() else ""
+        )
+    else:
+        channel_text = _deliver_outbound_files(
+            channel, account_id, str(peer_id), reply_text,
+        )
 
     # ---- 持久化 + webui WS push ----------------------------------------
     user_msg = {
@@ -402,7 +463,127 @@ def _run_session_turn(
                 pass
         return None
 
+    if streamer is not None and streamer.sent_any:
+        # 已经分段发出去一部分: 余下的也走这里发掉, adapter 不用再发.
+        if channel_text and channel_text != "(empty reply)":
+            streamer.send(channel_text)
+        return None
     return channel_text
+
+
+class _BlockStreamer:
+    """不能 edit 消息的平台 (WeChat): 回复边生成边按段落发.
+
+    文本增量攒在缓冲里; 缓冲里出现段落边界 (空行) 且前面已经有
+    :data:`MIN_CHARS` 字, 就把边界之前的部分发出去. 工具调用开始时整个
+    缓冲先发掉 — "我查一下" 这种话应该在机器人去干活之前到. 未闭合的
+    代码块里不切. 发送在单独线程里排队, 不阻塞模型的流.
+
+    发出去的始终是流文本的一个前缀; 结束时 :meth:`unsent_part` 用它从
+    最终回复 (流文本 + send_file 附件标记) 里算出还没发的部分.
+    """
+
+    MIN_CHARS = 200
+
+    def __init__(self, channel: str, account_id: str, target: str) -> None:
+        import queue
+        self.channel = channel
+        self.account_id = account_id
+        self.target = target
+        self.streamed = ""
+        self.sent_upto = 0
+        self.sent_any = False
+        self._closed = False
+        self._queue: "queue.Queue[Optional[str]]" = queue.Queue()
+        self._thread = threading.Thread(target=self._drain, daemon=True)
+        self._thread.start()
+
+    def feed(self, delta: str) -> None:
+        if not delta:
+            return
+        self.streamed += delta
+        pending = self.streamed[self.sent_upto:]
+        cut = self._paragraph_cut(pending)
+        if cut:
+            self._emit(cut)
+
+    def flush(self) -> None:
+        pending = self.streamed[self.sent_upto:]
+        if pending.strip() and pending.count("```") % 2 == 0:
+            self._emit(len(pending))
+
+    def _paragraph_cut(self, pending: str) -> int:
+        from openprogram.channels._transport import MAX_CHARS
+        cut = 0
+        start = 0
+        while True:
+            idx = pending.find("\n\n", start)
+            if idx < 0:
+                break
+            end = idx + 2
+            if pending[:end].count("```") % 2 == 0 and len(pending[:idx].strip()) >= self.MIN_CHARS:
+                cut = end
+            start = end
+        limit = MAX_CHARS.get(self.channel, 1800)
+        if not cut and len(pending) > limit and pending.count("```") % 2 == 0:
+            newline = pending.rfind("\n", 0, limit)
+            cut = newline + 1 if newline > 0 else limit
+        return cut
+
+    def _emit(self, length: int) -> None:
+        chunk = self.streamed[self.sent_upto:self.sent_upto + length]
+        self.sent_upto += length
+        if chunk.strip():
+            self.send(chunk.strip())
+
+    def send(self, text: str) -> None:
+        self.sent_any = True
+        if self._closed:
+            self._post(text)
+        else:
+            self._queue.put(text)
+
+    def _post(self, text: str) -> None:
+        from openprogram.channels import _transport
+        try:
+            result = _transport.post_message(
+                self.channel, self.account_id, self.target, text,
+            )
+            if not result.ok:
+                print(f"[{self.channel}:{self.account_id}] send failed: "
+                      f"{result.error_kind}")
+        except Exception as e:  # noqa: BLE001
+            print(f"[{self.channel}:{self.account_id}] send failed: "
+                  f"{type(e).__name__}")
+
+    def _drain(self) -> None:
+        while True:
+            text = self._queue.get()
+            if text is None:
+                return
+            self._post(text)
+
+    def close(self) -> None:
+        """等排队的段落按顺序发完; 之后 :meth:`send` 直接同步发."""
+        if self._closed:
+            return
+        self._queue.put(None)
+        self._thread.join(timeout=60)
+        self._closed = True
+
+    def unsent_part(self, reply_text: str) -> str:
+        """最终回复里还没发出去的部分."""
+        if not self.sent_any:
+            return reply_text
+        sent = self.streamed[:self.sent_upto].strip()
+        body = reply_text
+        if sent and body.startswith(sent):
+            return body[len(sent):].strip()
+        # 流文本和最终文本对不上 (不该发生): 只补流里没发的那段 +
+        # 最终文本里流之外的尾巴 (附件标记).
+        tail = body[len(self.streamed.strip()):] if body.startswith(
+            self.streamed.strip()) else ""
+        return (self.streamed[self.sent_upto:].strip() + tail).strip()
 
 
 def _deliver_outbound_files(

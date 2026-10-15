@@ -69,6 +69,12 @@ class ChannelMessage:
                           thread channel, 等).
     * ``attachments``   — tuple of :class:`Attachment`. base 在
                           dispatch 前统一下载落盘.
+    * ``mentioned``     — 这条消息是冲机器人说的: @了它、命中提及模式,
+                          或回复了它的消息. adapter 判定并把提及从
+                          ``text`` 里剥掉; 群聊 ``mention`` 模式只让这种
+                          消息开启一轮 (见 :mod:`._room`).
+    * ``from_bot``      — 发送者是机器人账号. base 直接丢弃, 防止两个
+                          机器人在群里互相回复.
     """
     text: str
     chat_id: str
@@ -81,6 +87,8 @@ class ChannelMessage:
     quoted_text: str = ""
     thread_id: str = ""
     attachments: tuple = field(default_factory=tuple)
+    mentioned: bool = False
+    from_bot: bool = False
 
     @property
     def is_dm(self) -> bool:

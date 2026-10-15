@@ -47,3 +47,33 @@ export function stripLegacySpeakerLabel(content: string, speaker: ChannelSpeaker
   const known = [display, id, display && id ? `${display} (${id})` : undefined];
   return known.includes(label) ? content.slice(match[0].length) : content;
 }
+
+export interface RoomHistoryLine {
+  speaker: string;
+  content: string;
+}
+
+const ROOM_HISTORY_HEADER = "[earlier messages in this chat]\n";
+
+/** Group messages the bot was not addressed in reach the next turn as a
+ *  block ahead of the text: a header line, then one "> {json}" line per
+ *  message. Returns those messages and the text after the block. */
+export function splitRoomHistory(content: string): { history: RoomHistoryLine[]; rest: string } {
+  if (!content.startsWith(ROOM_HISTORY_HEADER)) return { history: [], rest: content };
+  const end = content.indexOf("\n\n", ROOM_HISTORY_HEADER.length);
+  const block = content.slice(ROOM_HISTORY_HEADER.length, end < 0 ? undefined : end);
+  const history: RoomHistoryLine[] = [];
+  for (const line of block.split("\n")) {
+    if (!line.startsWith("> ")) return { history: [], rest: content };
+    try {
+      const parsed = JSON.parse(line.slice(2)) as { speaker?: unknown; content?: unknown };
+      history.push({
+        speaker: typeof parsed.speaker === "string" ? parsed.speaker : "",
+        content: typeof parsed.content === "string" ? parsed.content : "",
+      });
+    } catch {
+      return { history: [], rest: content };
+    }
+  }
+  return { history, rest: end < 0 ? "" : content.slice(end + 2) };
+}

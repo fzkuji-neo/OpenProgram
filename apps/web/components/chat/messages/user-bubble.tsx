@@ -22,7 +22,7 @@ import { MessageEditor } from "./message-editor";
 import { renderUserMarkdown } from "./markdown";
 import { collapsePastedSpans, pasteSentinel } from "@/lib/chat/paste-elements";
 import { collapseSecrets, maskSecrets, secretParts, secretSentinel } from "@/lib/chat/secret-mask";
-import { channelName, isChannelSource, speakerName, stripLegacySpeakerLabel } from "@/lib/chat/channel-speaker";
+import { channelName, isChannelSource, speakerName, splitRoomHistory, stripLegacySpeakerLabel } from "@/lib/chat/channel-speaker";
 
 function escapeAttr(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -84,7 +84,11 @@ export function UserBubble({ msg, sessionIdOverride }: { msg: ChatMsg; sessionId
   const [pastesExpanded, setPastesExpanded] = useState(false);
   // A channel message names its sender above the bubble, not in the text.
   const channel = isChannelSource(msg.source) ? msg.source : null;
-  const content = channel ? stripLegacySpeakerLabel(msg.content, msg.speaker) : msg.content;
+  const room = channel
+    ? splitRoomHistory(stripLegacySpeakerLabel(msg.content, msg.speaker))
+    : { history: [], rest: msg.content };
+  const content = room.rest;
+  const [historyOpen, setHistoryOpen] = useState(false);
   const sender = channel ? speakerName(msg.speaker) : "";
   const collapsed = !pastesExpanded && msg.pastedElements?.length
     ? collapsePastedSpans(content, msg.pastedElements)
@@ -143,6 +147,31 @@ export function UserBubble({ msg, sessionIdOverride }: { msg: ChatMsg; sessionId
           <MessageEditor msg={msg} sessionId={sessionId} onDone={() => setEditing(false)} />
         ) : (
           <>
+            {room.history.length ? (
+              <div className="user-room-history">
+                <button
+                  type="button"
+                  className="user-room-history-toggle"
+                  aria-expanded={historyOpen}
+                  onClick={() => setHistoryOpen((open) => !open)}
+                >
+                  {text(
+                    `${room.history.length} earlier ${room.history.length === 1 ? "message" : "messages"} in the chat`,
+                    `群里之前的 ${room.history.length} 条消息`,
+                  )}
+                </button>
+                {historyOpen ? (
+                  <ul className="user-room-history-list">
+                    {room.history.map((line, index) => (
+                      <li key={index}>
+                        <span className="user-room-history-speaker">{line.speaker}</span>
+                        {line.content}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ) : null}
             <AttachmentChips sessionId={sessionId} items={attachments} />
             {cleanText ? (
               <div

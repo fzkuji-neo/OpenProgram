@@ -298,7 +298,7 @@ _SPECS = (
             URLTrustClass.FIXED_PUBLIC_SERVICE,
             sdk_disposition=SDKDisposition.EXACT_ORIGIN,
         ),
-        allowed_methods=_API_METHODS | {"PATCH"},
+        allowed_methods=_API_METHODS | {"PATCH", "PUT"},
     ),
     _api(
         "channel.discord.gateway_sdk",
