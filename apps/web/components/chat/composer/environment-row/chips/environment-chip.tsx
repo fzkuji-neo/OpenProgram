@@ -38,7 +38,8 @@ import {
  *  the env-chip row's leading slot (Claude's "Local" position).
  *
  *  A draft picks freely; the pick rides the first message and the
- *  worker pins it, after which the chip only shows it. The icon's colour
+ *  worker pins it. After that the menu still opens, with the other
+ *  environments greyed out and a line saying why. The icon's colour
  *  carries the worker connection tone (yellow connecting / paused, red
  *  disconnected), as the old status chip did. */
 export function EnvironmentChip() {
@@ -108,12 +109,10 @@ export function EnvironmentChip() {
 
   const chip = (
     <span
-      role={locked ? undefined : "button"}
-      aria-disabled={locked || undefined}
+      role="button"
       className={cn(
         buttonVariants({ variant: "elevated", size: "sm" }),
-        "status-badge",
-        locked ? "cursor-default active:translate-y-0" : "cursor-pointer",
+        "status-badge cursor-pointer",
       )}
       data-environment-chip=""
     >
@@ -134,8 +133,6 @@ export function EnvironmentChip() {
     />
   );
 
-  if (locked) return <HoverTip label={tip}>{chip}</HoverTip>;
-
   function onOpenChange(next: boolean) {
     if (next) {
       window.dispatchEvent(new Event("topbar-close-menus"));
@@ -145,6 +142,7 @@ export function EnvironmentChip() {
   }
 
   function choose(id: string) {
+    if (locked) return;
     setOpen(false);
     patchSettings({ environment: id === defaultId ? undefined : id });
   }
@@ -164,8 +162,23 @@ export function EnvironmentChip() {
       >
         <div className={MENU_PANEL}>
           <div className={GROUP_LABEL}>{text("Environment", "运行环境")}</div>
+          {locked ? (
+            <div className="max-w-[260px] px-[10px] pb-[4px] text-[12px] leading-[17px] text-text-muted">
+              {text("Fixed for this conversation. Start a new chat to use another environment.",
+                    "这个会话的环境已固定。新建会话可以选别的环境。")}
+            </div>
+          ) : null}
           {items.map((item) => (
-            <div key={item.id} className={itemCls(false)} onClick={() => choose(item.id)}>
+            <div
+              key={item.id}
+              className={cn(
+                itemCls(false),
+                locked && item.id !== envId && "pointer-events-none opacity-50",
+                locked && item.id === envId && "cursor-default",
+              )}
+              aria-disabled={locked || undefined}
+              onClick={() => choose(item.id)}
+            >
               <SolarIcon name={environmentIconName(item.kind)} size={16} aria-hidden="true" />
               <span className="flex min-w-0 flex-1 items-center gap-[6px]">
                 <span className="truncate">{item.name}</span>
