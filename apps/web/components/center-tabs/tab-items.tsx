@@ -24,6 +24,7 @@ import type { CenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import { rowLayout, type LayoutNode } from "@/lib/tabs/canvas-layout";
 import type { TabDragSubject } from "@/lib/tabs/tab-drag-coordinator";
 import { useTranslation } from "@/lib/i18n";
+import { localPathFromUrl } from "@/lib/files/local-file-url";
 import { labelOf } from "./tab-label";
 export { labelOf } from "./tab-label";
 import { routePageIcon } from "./route-page-icon";
@@ -53,6 +54,20 @@ interface CompoundTabItemProps {
     subject: TabDragSubject,
     event: React.PointerEvent<HTMLElement>,
   ): void;
+}
+
+
+/** A web tab's address as a reader would type it: a local page by its
+ *  path, anything else with its escapes (%E4%BA%A4…) turned back into text. */
+function readableUrl(url: string | undefined): string | undefined {
+  if (!url) return url;
+  const local = localPathFromUrl(url);
+  if (local) return local;
+  try {
+    return decodeURI(url);
+  } catch {
+    return url;
+  }
 }
 
 export function CompoundMemberIcon({ tab, animate }: { tab: CenterTab; animate: boolean }) {
@@ -326,7 +341,7 @@ export function TabItem({
         if (closing) onExited(tab);
         else setEntering(false);
       }}
-      data-tip={tab.kind === "file" ? tab.path : tab.kind === "web" ? tab.url : label}
+      data-tip={tab.kind === "file" ? tab.path : tab.kind === "web" ? readableUrl(tab.url) : label}
       onClick={() => onActivate(tab)}
       onMouseEnter={() => iconRef.current?.startAnimation?.()}
       onMouseLeave={() => iconRef.current?.stopAnimation?.()}
