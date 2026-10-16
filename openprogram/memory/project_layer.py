@@ -95,9 +95,25 @@ def project_roots() -> list[Path]:
         if project.is_default:
             continue
         root = project_memory_root(project.id)
-        if (root / "topics").is_dir():
+        if has_notes(root):
             roots.append(root)
     return roots
+
+
+def has_notes(root: Path) -> bool:
+    """Whether a project workspace holds memory yet.
+
+    Opening a project's Memory page initialises an empty workspace; until
+    something is written there it adds no layer.
+    """
+    topics = Path(root) / "topics"
+    try:
+        if any(path.suffix == ".md" for path in topics.rglob("*.md")):
+            return True
+        core = Path(root) / "core.md"
+        return core.is_file() and bool(core.read_text(encoding="utf-8").strip())
+    except OSError:
+        return False
 
 
 def _authorized(*, write: bool) -> bool:
@@ -136,7 +152,7 @@ def read_layers(session_id: str | None = None, *, personal: Path | None = None):
     # read with the first of them only, so its hits are not repeated.
     if (
         project is None
-        or not (project / "topics").is_dir()
+        or not has_notes(project)
         or not primary_read_space()
         or not _authorized(write=False)
     ):

@@ -544,8 +544,10 @@ path the tools return names its layer (`project:topics/api.md`,
 (`project=… personal=…`), and `memory_update` takes the layer to write as
 `layer`. Core memory comes from both: the project's `core.md` first.
 
-A project with no memory yet adds no layer, and reading creates nothing.
-The workspace is created by the first write to it.
+A project with no memory yet adds no layer: a workspace counts as a layer
+once it holds a topic or a non-empty `core.md`. Opening a project's Memory
+page initialises an empty workspace, which still adds no layer until
+something is written to it.
 
 With `memory.layers.project_writes` also on (the default), the background writer puts a
 project conversation into the project's memory instead of the personal
