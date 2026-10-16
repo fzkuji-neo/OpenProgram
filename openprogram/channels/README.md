@@ -32,6 +32,7 @@ platforms via:
 ## Files in this directory
 
 - **`_access.py`** — 入站 access 门禁
+- **`_active_turns.py`** — 正在跑的渠道轮次
 - **`_attachments.py`** — 入站附件单点
 - **`_broadcast.py`** — Channel turn 完成后给 webui 推 WS event
 - **`_conversation.py`** — Inbound-message → agent-session dispatcher
@@ -40,9 +41,11 @@ platforms via:
 - **`_message.py`** — 中性入站消息结构
 - **`_question_bridge.py`** — Push a function's runtime.ask / form question into the chat it came
 - **`_question_commands.py`** — Channel /answer · /decline text commands
+- **`_room.py`** — 群聊房间层
 - **`_session_routing.py`** — Channel session 路由
 - **`_session_store.py`** — Channel session 存储
 - **`_transport.py`** — 共享底层
+- **`_wechat_media.py`** — WeChat (iLink) 媒体
 - **`accounts.py`** — Multi-account channel credential store
 - **`base.py`** — Channel 抽象
 - **`bindings.py`** — Channel → Agent routing

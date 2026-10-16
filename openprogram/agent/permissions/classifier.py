@@ -13,7 +13,7 @@ SAFE_AUTO_ALLOWLIST = frozenset({
     "read", "grep", "glob", "list",
     "web_search", "web_fetch", "tool_search",
     "todo_create", "todo_list", "todo_update",
-    "ask_user_question", "send_message",
+    "ask_user_question", "send_message", "chat_send",
     "enter_plan_mode", "exit_plan_mode",
     "memory_status", "memory_update",
     "memory_search", "memory_grep", "memory_get", "memory_browse",

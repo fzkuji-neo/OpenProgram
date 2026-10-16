@@ -291,11 +291,14 @@ class Channel(abc.ABC):
         room_key = (self.platform_id, self.account_id, ch_msg.chat_id)
         in_room = _room.is_room(ch_msg.chat_type)
         verb = _room.command_verb(ch_msg.text)
-        if verb in ("/new", "/reset", "/activation"):
+        if verb in ("/new", "/reset", "/activation", "/memory"):
             self.send_text_full(peer_id, self._room_command(
                 verb, ch_msg, peer_id, room_key, in_room,
             ))
             return
+        # ambient: 群里没点名机器人的消息照样开启一轮, 但只是房间事件 ——
+        # 最终回复不发进群, 不加确认表情, 不显示"正在输入".
+        ambient = False
         if in_room and not verb:
             entry = _room.PendingEntry(
                 speaker_id=stable_sender_id, speaker_display=safe_display,
@@ -306,6 +309,7 @@ class Channel(abc.ABC):
             if mode == "mention" and not ch_msg.mentioned:
                 _room.record_pending(room_key, entry)
                 return
+            ambient = mode == "ambient" and not ch_msg.mentioned
             if not _room.allow_turn(room_key):
                 print(f"{tag} room {ch_msg.chat_id} over its turn limit; "
                       "message kept as pending history")
@@ -335,15 +339,17 @@ class Channel(abc.ABC):
             pending = _room.take_pending(room_key)
             if pending:
                 user_text = _room.render_pending(pending) + "\n\n" + user_text
+        if ambient:
+            user_text = f"{_room.ROOM_EVENT_HEADER}\n{user_text}"
 
         # 正文保持发信人原文；发言人只走独立 speaker 字段, 模型从
         # 输入信封 (authority.render_model_input) 读, 网页从消息元数据读.
 
-        if not verb:
+        if not verb and not ambient:
             self._ack(ch_msg)
         from openprogram.channels._conversation import dispatch_inbound
         typing = _TypingIndicator(self.platform_id, self.account_id, peer_id)
-        if not verb:
+        if not verb and not ambient:
             typing.start()
         try:
             reply_text = dispatch_inbound(
@@ -358,6 +364,10 @@ class Channel(abc.ABC):
                 progress_stream=self.progress_stream,
                 block_stream=not self.progress_stream,
                 attachments=turn_attachments or None,
+                ambient=ambient,
+                memory_mode=(_room.memory_mode(self.platform_id,
+                                               self.account_id, ch_msg.chat_id)
+                             if in_room else "on"),
             )
         finally:
             typing.stop()
@@ -370,7 +380,7 @@ class Channel(abc.ABC):
 
     def _room_command(self, verb: str, ch_msg, peer_id: str,
                       room_key: tuple[str, str, str], in_room: bool) -> str:
-        """/new · /reset · /activation — 回执文本."""
+        """/new · /reset · /activation · /memory — 回执文本."""
         from openprogram.channels import _room
         if verb in ("/new", "/reset"):
             from openprogram.channels._conversation import start_new_conversation
@@ -379,21 +389,41 @@ class Channel(abc.ABC):
                 channel=self.platform_id, account_id=self.account_id,
                 peer_kind=ch_msg.chat_type, peer_id=peer_id,
             )
+        arg = _room.command_arg(ch_msg.text).lower()
+        if verb == "/memory":
+            if not in_room:
+                return "私聊沿用 agent 自己的记忆设置，不需要设置。"
+            return self._memory_command(ch_msg.chat_id, arg)
         if not in_room:
             return "私聊里我会回复每一条消息，不需要设置。"
-        arg = _room.command_arg(ch_msg.text).lower()
         labels = {"mention": "只在 @我 或回复我时回应",
-                  "always": "回应每一条消息"}
+                  "always": "回应每一条消息",
+                  "ambient": "每条消息都看，有话要说时才开口"}
+        usage = "/activation mention、/activation always 或 /activation ambient"
         if not arg:
             mode = _room.activation(self.platform_id, self.account_id,
                                     ch_msg.chat_id)
-            return (f"当前模式：{mode}（{labels[mode]}）。"
-                    "用 /activation mention 或 /activation always 切换。")
+            return f"当前模式：{mode}（{labels[mode]}）。用 {usage} 切换。"
         if arg not in _room.ACTIVATION_MODES:
-            return "用法：/activation mention 或 /activation always"
+            return f"用法：{usage}"
         _room.set_activation(self.platform_id, self.account_id,
                              ch_msg.chat_id, arg)
         return f"✓ 已切换为 {arg}：{labels[arg]}。"
+
+    def _memory_command(self, chat_id: str, arg: str) -> str:
+        """/memory on|read|off — 这个群的轮次能否读写主人的记忆."""
+        from openprogram.channels import _room
+        labels = {"on": "按 agent 的记忆设置读写",
+                  "read": "只读记忆，不写入",
+                  "off": "不读也不写记忆"}
+        usage = "/memory on、/memory read 或 /memory off"
+        if not arg:
+            mode = _room.memory_mode(self.platform_id, self.account_id, chat_id)
+            return f"这个群的记忆：{mode}（{labels[mode]}）。用 {usage} 切换。"
+        if arg not in _room.MEMORY_MODES:
+            return f"用法：{usage}"
+        _room.set_memory_mode(self.platform_id, self.account_id, chat_id, arg)
+        return f"✓ 记忆已设为 {arg}：{labels[arg]}。"
 
     def _ack(self, ch_msg) -> None:
         """账号开了 ``ack_reaction`` 时给接手的消息加一个 👀."""

@@ -89,6 +89,9 @@ DEFAULT_TOOLS: list[str] = [
     # user (chip in web chat, native upload on a chat platform).
     # Hidden by ``unsafe_in`` wherever there is no attachment channel.
     "send_file",
+    # Speaking in a chat channel on the agent's own initiative: the only
+    # voice of an ambient room event, hidden outside channel sources.
+    "chat_send",
     "todo_create",
     "todo_update",
     "todo_list",

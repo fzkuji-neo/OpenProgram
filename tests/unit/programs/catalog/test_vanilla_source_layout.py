@@ -19,7 +19,7 @@ EXPECTED_SOURCES = {
     "agents": {"agent", "mixture_of_agents", "send_message"},
     "jobs": {"cron"},
     "code": {"execute_code", "lsp", "semble"},
-    "interaction": {"always_on_report", "canvas", "clarify", "send_file"},
+    "interaction": {"always_on_report", "canvas", "chat_send", "clarify", "send_file"},
     "runtime": {"framework", "mcp_meta", "program", "resource", "skill"},
     "system": {"self_update"},
 }

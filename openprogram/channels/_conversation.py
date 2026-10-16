@@ -86,6 +86,8 @@ def dispatch_inbound(
     progress_stream: bool = False,
     attachments: Optional[list[dict]] = None,
     block_stream: bool = False,
+    ambient: bool = False,
+    memory_mode: str = "on",
 ) -> Optional[str]:
     """End-to-end inbound handling.
 
@@ -108,6 +110,12 @@ def dispatch_inbound(
     ``block_stream=True`` (不能 edit 的平台, 即 WeChat): 没有占位消息时
     回复边生成边按段落发出 (见 :class:`_BlockStreamer`), 工具调用前写
     的那句话也会先发出去; 全部发完返回 None.
+
+    ``ambient=True`` (群里没点名机器人的房间事件): 不发占位、不分段,
+    最终回复只留在记录里, 返回 None; agent 要开口得调 ``chat_send``.
+
+    ``memory_mode`` — 房间的 ``/memory`` 设置 (``on`` / ``read`` /
+    ``off``), 经 ``memory_policy_override`` 收窄这一轮的记忆.
 
     Never raises into the channel's poll loop — any failure (no
     provider configured, runtime crash, etc.) is flattened into an
@@ -145,6 +153,13 @@ def dispatch_inbound(
         "execution_actions": ["execution.wait.answer", "execution.wait.decline"],
     })
     from openprogram.channels._question_commands import try_handle_question_command
+    from openprogram.channels import _active_turns
+    _running = _active_turns.get(session_key)
+    if (_running is not None and _running.peer_kind != "direct"
+            and _running.speaker_id != (speaker_id or "")
+            and (user_text or "").lstrip().lower().startswith(("/answer", "/decline"))):
+        # 群里一轮停在提问上时, 只有发起这一轮的人能回答.
+        return "只有发起这个问题的人可以回答它。"
     _receipt = try_handle_question_command(
         user_text, session_key, actor=_question_actor,
     )
@@ -162,6 +177,7 @@ def dispatch_inbound(
             speaker_display=speaker_display, progress_stream=progress_stream,
             agent_id=agent_id, session_key=session_key,
             attachments=attachments, block_stream=block_stream,
+            ambient=ambient, memory_mode=memory_mode,
         )
 
 
@@ -224,9 +240,51 @@ def _run_session_turn(
     session_key: str,
     attachments: Optional[list[dict]] = None,
     block_stream: bool = False,
+    ambient: bool = False,
+    memory_mode: str = "on",
 ) -> Optional[str]:
     """路由已完成、session 锁已持有 — 跑一个完整 turn: load session →
     agent turn → 持久化 → broadcast. 返回值语义同 dispatch_inbound."""
+    from openprogram.channels import _active_turns
+    _active_turns.begin(session_key, _active_turns.ActiveTurn(
+        channel=channel, account_id=account_id, peer_id=str(peer_id),
+        peer_kind=peer.get("kind") or "direct",
+        speaker_id=speaker_id or "", ambient=ambient,
+    ))
+    try:
+        return _run_turn_body(
+            channel=channel, account_id=account_id, peer=peer,
+            peer_id=peer_id, user_text=user_text,
+            user_display=user_display, speaker_id=speaker_id,
+            speaker_display=speaker_display,
+            progress_stream=progress_stream and not ambient,
+            agent_id=agent_id, session_key=session_key,
+            attachments=attachments,
+            block_stream=block_stream and not ambient,
+            ambient=ambient, memory_mode=memory_mode,
+        )
+    finally:
+        _active_turns.end(session_key)
+
+
+def _run_turn_body(
+    *,
+    channel: str,
+    account_id: str,
+    peer: dict,
+    peer_id: str,
+    user_text: str,
+    user_display: str,
+    speaker_id: str | None,
+    speaker_display: str | None,
+    progress_stream: bool,
+    agent_id: str,
+    session_key: str,
+    attachments: Optional[list[dict]],
+    block_stream: bool,
+    ambient: bool,
+    memory_mode: str,
+) -> Optional[str]:
     # ---- session 创建 / 加载 -------------------------------------------
     meta, _ = _load_or_init_session(
         agent_id=agent_id,
@@ -370,6 +428,8 @@ def _run_session_turn(
         attachments=attachments or None,
         **_authority,
     )
+    from openprogram.channels._room import memory_override
+    req.memory_policy_override = memory_override(memory_mode)
     adapter = CanonicalAgentAdapter(event_sink=_on_event)
     try:
         admission = adapter.admit(
@@ -386,6 +446,10 @@ def _run_session_turn(
         err_text = f"[error] {type(e).__name__}: {e}"
         if streamer is not None:
             streamer.close()
+        if ambient:
+            # 没人点名机器人, 别把错误发进群.
+            print(f"[{channel}:{account_id}] room event turn failed: {err_text}")
+            return None
         if progress_handle is not None:
             # 把占位改成错误消息, adapter 不必再发. 用户看到的是单条
             # 带错误的消息, 没 placeholder 残留.
@@ -396,16 +460,21 @@ def _run_session_turn(
     if result is None:
         if streamer is not None:
             streamer.close()
+        if ambient:
+            return None
         return "[error] canonical Agent activation produced no result"
     reply_text = (result.final_text or "").strip() or "(empty reply)"
     user_msg_id = result.user_msg_id
     assistant_msg_id = result.assistant_msg_id
 
     # ---- agent 交出来的文件 → 平台原生附件 -------------------------------
+    # ambient 房间事件的回复不进群 (agent 用 chat_send 开口), 附件也不发.
     # reply_text 里的 [attachment: ... @ 路径] 是 send_file 工具登记的.
     # 先把文件真的传上去, 再把标记从"发给平台的那份文本"里拿掉 —— 存进
     # 会话 / 广播给网页的那份 (reply_text) 保留标记, 网页据此画 chip.
-    if streamer is not None:
+    if ambient:
+        channel_text = ""
+    elif streamer is not None:
         streamer.close()
         unsent = streamer.unsent_part(reply_text)
         channel_text = (
@@ -463,6 +532,8 @@ def _run_session_turn(
                 pass
         return None
 
+    if ambient:
+        return None
     if streamer is not None and streamer.sent_any:
         # 已经分段发出去一部分: 余下的也走这里发掉, adapter 不用再发.
         if channel_text and channel_text != "(empty reply)":

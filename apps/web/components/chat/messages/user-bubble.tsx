@@ -22,7 +22,7 @@ import { MessageEditor } from "./message-editor";
 import { renderUserMarkdown } from "./markdown";
 import { collapsePastedSpans, pasteSentinel } from "@/lib/chat/paste-elements";
 import { collapseSecrets, maskSecrets, secretParts, secretSentinel } from "@/lib/chat/secret-mask";
-import { channelName, isChannelSource, speakerName, splitRoomHistory, stripLegacySpeakerLabel } from "@/lib/chat/channel-speaker";
+import { channelName, isChannelSource, speakerName, splitRoomEvent, splitRoomHistory, stripLegacySpeakerLabel } from "@/lib/chat/channel-speaker";
 
 function escapeAttr(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -84,8 +84,9 @@ export function UserBubble({ msg, sessionIdOverride }: { msg: ChatMsg; sessionId
   const [pastesExpanded, setPastesExpanded] = useState(false);
   // A channel message names its sender above the bubble, not in the text.
   const channel = isChannelSource(msg.source) ? msg.source : null;
+  const roomEvent = channel ? splitRoomEvent(msg.content) : { roomEvent: false, rest: msg.content };
   const room = channel
-    ? splitRoomHistory(stripLegacySpeakerLabel(msg.content, msg.speaker))
+    ? splitRoomHistory(stripLegacySpeakerLabel(roomEvent.rest, msg.speaker))
     : { history: [], rest: msg.content };
   const content = room.rest;
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -139,7 +140,12 @@ export function UserBubble({ msg, sessionIdOverride }: { msg: ChatMsg; sessionId
       </div>
       {channel && !editing ? (
         <div className="user-channel-speaker">
-          {sender ? `${channelName(channel, text)} · ${sender}` : channelName(channel, text)}
+          {[
+            channelName(channel, text),
+            sender,
+            // Not addressed to the bot: its reply stays here, unposted.
+            roomEvent.roomEvent ? text("overheard", "旁听") : "",
+          ].filter(Boolean).join(" · ")}
         </div>
       ) : null}
       <div className="message-content">

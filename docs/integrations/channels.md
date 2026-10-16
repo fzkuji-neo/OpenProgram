@@ -151,17 +151,20 @@ Every chat-channel message carries its sender, direct messages included, because
 
 ### Group Behavior
 
-In a group (a Telegram group, a Discord server channel, a Slack channel) most messages are people talking to each other. Each group is in one of two modes:
+In a group (a Telegram group, a Discord server channel, a Slack channel) most messages are people talking to each other. Each group is in one of three modes:
 
 - `always`: every message starts a turn.
 - `mention`: only a message that @mentions the bot, or replies to one of its messages, starts a turn. The mention is stripped before the agent sees the text. Every other message is kept, and the next turn receives the most recent 50 of them above the triggering message, each with its sender, so the agent knows what led up to the question. In the web transcript they sit behind a small "earlier messages in the chat" toggle at the top of that turn's bubble.
+- `ambient`: the agent reads every message and decides for itself whether to speak. A message that does not address the bot still starts a turn, marked as a room event; the agent's reply to it stays in the web transcript (labelled "overheard") and is not posted. When the agent has something worth adding, it posts with its `chat_send` tool. No typing indicator or ack reaction appears for these turns. A message that does address the bot is answered as usual. Every message costs a model call in this mode.
 
-The account setting `require_mention` picks the default mode for its groups (`on` is `mention`, `off`, the default, is `always`); anyone in a group can switch that group with `/activation mention` or `/activation always`, and `/activation` alone shows the current mode. Direct messages are never gated.
+The account setting `require_mention` picks the default mode for its groups (`on` is `mention`, `off`, the default, is `always`); anyone in a group can switch that group with `/activation mention`, `/activation always` or `/activation ambient`, and `/activation` alone shows the current mode. Direct messages are never gated.
 
 ```bash
 openprogram channels accounts set telegram require_mention on       # or: off (also discord, slack)
 openprogram channels accounts set telegram group_sessions per-user  # or: shared (telegram only)
 ```
+
+Group members reach the agent's memory: the agent recalls what it remembers to answer them, and can save what they tell it. `/memory read` keeps a group from writing to memory, `/memory off` keeps memory out of the group entirely, and `/memory on` (the default) follows the agent's own memory setting. Direct messages always follow the agent's setting.
 
 `group_sessions` (Telegram, restart the worker to apply) — `shared` (default): the whole group talks to one conversation. `per-user`: each member of a group gets their own session, like Discord/Slack.
 
@@ -172,7 +175,8 @@ Messages from other bots are ignored, so two bots in one group cannot keep answe
 | Command | What it does |
 |---|---|
 | `/new`, `/reset` | Start a fresh conversation for this chat |
-| `/activation [mention\|always]` | Show or switch this group's mode |
+| `/activation [mention\|always\|ambient]` | Show or switch this group's mode |
+| `/memory [on\|read\|off]` | Show or narrow this group's access to the agent's memory |
 | `/answer <question_id> <choice>` | Answer a question a function asked (below) |
 | `/decline <question_id>` | Decline that question |
 
@@ -195,7 +199,7 @@ When a function pauses on a question (`runtime.ask`), the question is pushed int
 /decline <question_id>
 ```
 
-Only questions belonging to that chat's session can be answered from it.
+Only questions belonging to that chat's session can be answered from it. In a group, only the person whose message started the waiting turn can answer its question.
 
 ## Attachments
 

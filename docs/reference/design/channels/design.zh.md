@@ -295,7 +295,8 @@ openprogram/channels/
 │                        webui 订阅后原样广播 — channels 不 import webui)
 ├── _question_bridge.py  把待答的 runtime.ask 问题推进聊天
 ├── _question_commands.py /answer · /decline 文本命令处理
-├── _room.py             群聊房间: 回应模式、待处理历史、限流、重复投递去重
+├── _room.py             群聊房间: 回应模式、记忆模式、待处理历史、限流、重复投递去重
+├── _active_turns.py     每个会话正在跑的渠道轮次 (chat_send 目标、只许提问者 /answer)
 ├── _heartbeats.py       adapter 心跳注册表
 ├── __init__.py          CHANNEL_CLASSES proxy + register_channel + entry_points
 ├── implementations/
@@ -317,7 +318,8 @@ openprogram/channels/
 | `_transport.py` | 唯一往外发字节: chunk → render → 硬上限二次切分 → 限流重试, 4 个平台 HTTP (文本/编辑/文件) | outbound + base.send_text/send_file |
 | `_format.py` | markdown → 各平台线上格式 | _transport |
 | `_access.py` | allowlist + 配对门禁 (`access.json`) | base.handle_inbound (判定), CLI / loopback Web UI (写操作) |
-| `_room.py` | 群聊房间: 回应模式 (`rooms.json`)、待处理历史、限流、重复投递去重 | base.handle_inbound |
+| `_room.py` | 群聊房间: 回应模式和记忆模式 (`rooms.json`)、待处理历史、限流、重复投递去重 | base.handle_inbound |
+| `_active_turns.py` | 每个会话正在跑的轮次: 聊天、发言人、是否 ambient | _conversation (登记)、`chat_send` 工具、/answer 门禁 |
 | `_attachments.py` | 入站附件下载 + turn 输入转换 | base.handle_inbound |
 | `_message.py` | ChannelMessage + Attachment 中性结构 | adapter 入口 |
 | `_wechat_media.py` | iLink 媒体条目 → 附件、CDN 密钥解码、AES-128-ECB 加解密、出站媒体条目 | wechat adapter、_attachments、_transport |

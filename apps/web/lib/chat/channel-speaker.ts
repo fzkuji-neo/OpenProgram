@@ -77,3 +77,14 @@ export function splitRoomHistory(content: string): { history: RoomHistoryLine[];
   }
   return { history, rest: end < 0 ? "" : content.slice(end + 2) };
 }
+
+const ROOM_EVENT_HEADER = "[room event]\n";
+
+/** A group message that did not address the bot, in a room set to
+ *  ambient: the worker marks it with a first line the agent reads.
+ *  Returns whether the mark is there and the text after it. */
+export function splitRoomEvent(content: string): { roomEvent: boolean; rest: string } {
+  return content.startsWith(ROOM_EVENT_HEADER)
+    ? { roomEvent: true, rest: content.slice(ROOM_EVENT_HEADER.length) }
+    : { roomEvent: false, rest: content };
+}

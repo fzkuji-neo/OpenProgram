@@ -92,8 +92,8 @@ def markers_for(entries: list[dict]) -> str:
     # Surfaces with no attachment channel at all. Rather than telling the
     # model in the system prompt that it can't send files here (hermes'
     # approach), don't hand it the tool — it can't try and fail.
-    # WeChat's iLink has no file-upload API; the CLI/TUI is a terminal.
-    unsafe_in=["cli", "tui", "wechat", "plan"],
+    # The CLI/TUI is a terminal.
+    unsafe_in=["cli", "tui", "plan"],
 )
 def send_file(path: str) -> str | ToolReturn:
     """Attach a file to your reply so the user receives it.

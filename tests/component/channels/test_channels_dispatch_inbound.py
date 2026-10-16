@@ -461,3 +461,66 @@ def test_new_conversation_moves_the_peer_to_a_fresh_session(
     assert receipt.startswith("✓")
     ids = sorted(s["id"] for s in tmp_db.list_sessions())
     assert ids == ["acct1_direct_u-1", "acct1_direct_u-1_n1"]
+
+
+def test_ambient_room_event_speaks_only_through_chat_send(
+    tmp_db: SessionDB, stub_routing, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A room event's final reply stays in the transcript; the model's
+    chat_send call is what reaches the room, addressed to this turn's chat.
+    The room's /memory setting narrows the turn's memory."""
+    from openprogram.channels import _active_turns
+    from openprogram.channels._transport import SendResult
+    from openprogram.providers.types import ToolCall
+
+    monkeypatch.setattr("openprogram.paths.get_state_dir", lambda: tmp_path)
+    monkeypatch.setattr(D, "_load_agent_profile", lambda agent_id: {
+        "id": agent_id, "system_prompt": "", "tools": ["chat_send"]})
+    posted: list[tuple[str, str, str, str]] = []
+    monkeypatch.setattr(
+        "openprogram.channels._transport.post_message",
+        lambda platform, account_id, target, text: posted.append(
+            (platform, account_id, target, text)) or SendResult.success(""),
+    )
+    calls: list[list[str]] = []
+
+    async def _scripted(model, ctx, opts):
+        calls.append([t.name for t in (ctx.tools or [])])
+        yield EventStart(partial=_build_partial(""))
+        if len(calls) == 1:
+            message = AssistantMessage(
+                content=[ToolCall(id="c1", name="chat_send",
+                                  arguments={"text": "Lunch is at noon."})],
+                api="completion", provider="openai", model="stub",
+                usage=Usage(input=1, output=1), stop_reason="toolUse",
+                timestamp=int(time.time() * 1000),
+            )
+            yield EventDone(reason="toolUse", message=message)
+        else:
+            yield EventDone(reason="stop", message=_build_final("answered the lunch question"))
+
+    seen: dict[str, object] = {}
+    orig_run = D._run_loop_blocking
+
+    def _wrapped(*, req, history, on_event, cancel_event, **_):
+        seen["memory"] = req.memory_policy_override
+        return orig_run(req=req, history=history, on_event=on_event,
+                        cancel_event=cancel_event, stream_fn=_scripted)
+
+    with patch.object(D, "_run_loop_blocking", _wrapped):
+        reply = C.dispatch_inbound(
+            channel="telegram", account_id="acct1", peer_kind="group",
+            peer_id="-100", user_text="[room event]\nwhen is lunch?",
+            speaker_id="701", speaker_display="Ada",
+            progress_stream=True, ambient=True, memory_mode="off",
+        )
+
+    assert reply is None
+    assert calls[0] == ["chat_send"]
+    assert posted == [("telegram", "acct1", "-100", "Lunch is at noon.")]
+    assert seen["memory"] == {"mode": "off"}
+    [session] = tmp_db.list_sessions()
+    contents = [m.get("content") for m in tmp_db.get_messages(session["id"])]
+    assert "answered the lunch question" in contents
+    assert _active_turns.get(session["id"]) is None

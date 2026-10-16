@@ -4,8 +4,15 @@
 房间 (platform, account, chat_id) 持有:
 
 * **activation** — ``mention``: 只有 @机器人 / 回复机器人才开启一轮;
-  ``always``: 每条都开启. 默认取账号设置 ``require_mention``, 房间里用
-  ``/activation`` 覆盖, 覆盖值持久化在账号目录的 ``rooms.json``.
+  ``always``: 每条都开启; ``ambient``: 没点名的消息也开启一轮, 但作为
+  房间事件 (文本顶上标 :data:`ROOM_EVENT_HEADER`), 最终回复不发进群,
+  agent 只能用 ``chat_send`` 工具开口. 默认取账号设置
+  ``require_mention``, 房间里用 ``/activation`` 覆盖.
+* **memory** — ``on`` / ``read`` / ``off``: 这个房间的轮次能不能读、写
+  主人的记忆. 默认 ``on`` (沿用 agent 自己的记忆设置), ``/memory`` 收窄.
+  群成员都是 paired 发言人, 记忆读取会把主人的记忆带进群里.
+
+覆盖值持久化在账号目录的 ``rooms.json``.
 * **pending history** — 被门槛拦下 (或超出限流) 的消息带着发言人留在
   内存里, 下一轮开启时作为引用块交给 agent, 用掉即清. 最多
   :data:`HISTORY_LIMIT` 条.
@@ -30,12 +37,15 @@ TURN_LIMIT = 10
 TURN_WINDOW_SECONDS = 60.0
 SEEN_LIMIT = 512
 
-ACTIVATION_MODES = ("mention", "always")
+ACTIVATION_MODES = ("mention", "always", "ambient")
+MEMORY_MODES = ("on", "read", "off")
 
 #: 文本命令. 群里不 @机器人 也生效 (命令本身就是对机器人说的).
-COMMANDS = ("/new", "/reset", "/activation", "/answer", "/decline")
+COMMANDS = ("/new", "/reset", "/activation", "/memory", "/answer", "/decline")
 
 PENDING_HEADER = "[earlier messages in this chat]"
+#: ambient 房间里没点名机器人的消息, 文本第一行是这个.
+ROOM_EVENT_HEADER = "[room event]"
 
 _lock = threading.Lock()
 _pending: dict[tuple[str, str, str], deque] = {}
@@ -96,20 +106,45 @@ def default_activation(platform: str, account_id: str) -> str:
     return "mention" if on else "always"
 
 
-def activation(platform: str, account_id: str, chat_id: str) -> str:
+def _room_value(platform: str, account_id: str, chat_id: str, key: str):
     room = _read_rooms(platform, account_id).get(str(chat_id))
-    mode = room.get("activation") if isinstance(room, dict) else None
+    return room.get(key) if isinstance(room, dict) else None
+
+
+def activation(platform: str, account_id: str, chat_id: str) -> str:
+    mode = _room_value(platform, account_id, chat_id, "activation")
     return mode if mode in ACTIVATION_MODES else default_activation(platform, account_id)
 
 
 def set_activation(platform: str, account_id: str, chat_id: str, mode: str) -> None:
     if mode not in ACTIVATION_MODES:
         raise ValueError(f"activation must be one of {ACTIVATION_MODES}")
+    _set_room_value(platform, account_id, chat_id, "activation", mode)
+
+
+def memory_mode(platform: str, account_id: str, chat_id: str) -> str:
+    mode = _room_value(platform, account_id, chat_id, "memory")
+    return mode if mode in MEMORY_MODES else "on"
+
+
+def set_memory_mode(platform: str, account_id: str, chat_id: str, mode: str) -> None:
+    if mode not in MEMORY_MODES:
+        raise ValueError(f"memory must be one of {MEMORY_MODES}")
+    _set_room_value(platform, account_id, chat_id, "memory", mode)
+
+
+def memory_override(mode: str) -> dict | None:
+    """Room memory mode → ``TurnRequest.memory_policy_override`` (only narrows)."""
+    return {"off": {"mode": "off"}, "read": {"mode": "read_only"}}.get(mode)
+
+
+def _set_room_value(platform: str, account_id: str, chat_id: str,
+                    key: str, value: str) -> None:
     with _lock:
         rooms = _read_rooms(platform, account_id)
         room = rooms.get(str(chat_id))
         room = dict(room) if isinstance(room, dict) else {}
-        room["activation"] = mode
+        room[key] = value
         rooms[str(chat_id)] = room
         path = _rooms_path(platform, account_id)
         tmp = path.with_suffix(".tmp")

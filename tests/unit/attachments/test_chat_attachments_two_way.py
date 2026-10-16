@@ -508,11 +508,11 @@ def test_send_file_refuses_an_oversize_file(in_session, monkeypatch):
 
 def test_send_file_is_hidden_where_there_is_no_attachment_channel():
     from openprogram.programs import _runtime
-    for source in ("cli", "tui", "wechat"):
+    for source in ("cli", "tui"):
         names = [t.name for t in _runtime.filter_for(names=["send_file"],
                                                      source=source)]
         assert names == [], source
-    for source in ("web", "telegram", "discord", "slack"):
+    for source in ("web", "telegram", "discord", "slack", "wechat"):
         names = [t.name for t in _runtime.filter_for(names=["send_file"],
                                                      source=source)]
         assert names == ["send_file"], source

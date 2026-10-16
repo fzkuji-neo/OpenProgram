@@ -369,6 +369,9 @@ _NETWORK_TOOLS = {
     "send_message", "send_file", "web_search", "list_mcp_resources",
     "read_mcp_resource", "list_mcp_prompts", "get_mcp_prompt",
 }
+# Posting into the chat the turn came from is the same act as the reply
+# itself, so it needs only ``reply``.
+_CHAT_REPLY_TOOLS = {"chat_send"}
 _REPLY_LOCAL_TOOLS = {
     "todo_create", "todo_update", "todo_list", "enter_plan_mode",
     "exit_plan_mode", "clarify", "skill", "tool_search", "job_output",
@@ -389,6 +392,8 @@ def capability_for_tool(tool_name: str, args: Mapping[str, Any] | None = None) -
         return "memory.source.append"
     if name == "memory_promote":
         return "memory.trusted.promote"
+    if name in _CHAT_REPLY_TOOLS:
+        return "reply"
     if name in _MEMORY_READ_TOOLS:
         return "memory.read"
     if name in _READ_TOOLS:
