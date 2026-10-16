@@ -165,11 +165,20 @@ test("a call that never returned stays with its execution instead of a separate 
     assert.match(host.textContent, /Needs attention1/);
     assert.match(host.textContent, /agent result unconfirmed/);
     await click("result unconfirmed");
+    // The execution waiting on the call leads the branch page.
+    assert.match(host.textContent, /Needs attention1.*first.*Execution history 2.*last/s);
     await click("Fix page close");
     assert.match(host.textContent, /Inspect the close branch/);
     assert.match(host.textContent, /whether it finished is not known/);
     assert.match(host.textContent, /Started by/);
   }, branches, [], {}, { calls: [call] });
+});
+
+test("a call does not flash as unowned before its executions are read", async () => {
+  const call = { id: "c1", execution_id: "first", name: "agent", description: "Fix page close", command: "", started_at: 1, status: "unknown" };
+  await mounted([], async host => {
+    assert.doesNotMatch(host.textContent, /Function calls/);
+  }, [], [], { fetchedAt: null }, { calls: [call] });
 });
 
 test("Activity rows use a bare coloured glyph and a status dot, with no tile or frame", async () => {
