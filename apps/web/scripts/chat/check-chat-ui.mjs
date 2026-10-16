@@ -1498,6 +1498,7 @@ assert.match(
   /border-radius:\s*7px;[^}]*color:\s*var\(--tone\);[^}]*var\(--bg-primary\)/s,
   "timeline tiles must be tone-tinted rounded squares that mask the rail behind them",
 );
+assert.doesNotMatch(timelineBaseIconRule, /box-shadow/, "timeline tiles have no border ring");
 assert.match(
   chatCss,
   /\.tl-body::before\s*\{[^}]*left:\s*11\.5px;[^}]*width:\s*1px/s,

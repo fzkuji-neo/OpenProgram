@@ -10,9 +10,12 @@ const client = read("../../lib/net/execution-client.ts");
 const ws = read("../../lib/net/use-ws.ts");
 
 test("conversation activity inspects the selected Agent through the canonical debugger", () => {
-  assert.match(running, /state\.selectExecution\(executionId\)/);
-  assert.match(running, /view\?\.kind === "tech"/);
-  assert.match(running, /<DebuggerPanel/);
+  // A run's page selects its execution and embeds the inspector; the
+  // hook reads events and debugger data only while a run page is open.
+  assert.match(running, /if \(view\?\.kind === "run" && selectedExecutionId !== view\.id\) selectExecution\(view\.id\)/);
+  assert.match(running, /useExecutionDebugger\(active, sessionId, undefined, view\?\.kind === "run"\)/);
+  assert.match(running, /<DebuggerPanel key=\{item\.execution_id\} \{\.\.\.state\} detailOnly embedded/);
+  assert.doesNotMatch(running, /"tech"/);
   assert.match(running, /onCommand=\{state\.command\}/);
   assert.match(running, /onRespondWait=\{state\.respondWait\}/);
 });

@@ -75,7 +75,7 @@ dispatcher 和 channel handler 的创建与写入第一条消息是原子的—�
 
 ## 主项目绑定
 
-会话的**主工作目录**就是它所绑定项目的路径。草稿阶段可以自由选择，**第一条真实消息提交时定格**。此后不能把 session 绑定到另一个项目。会话仓库已经位于应用状态目录下，并按稳定 project id 分组；项目路径变化不会改变 session→project 绑定或仓库 id。
+会话的**主工作目录**就是它所绑定项目的路径。草稿阶段可以自由选择，**第一条真实消息提交时定格**。此后不能再从 composer 把 session 绑定到另一个项目；唯一能改变它的是下面的显式**移动**，它连同仓库一起搬走，并在图上留下记录。会话仓库已经位于应用状态目录下，并按稳定 project id 分组；项目路径变化不会改变 session→project 绑定或仓库 id。
 
 追加工作目录是相反的设计，也应该如此：会话生命周期内随时增删。见 [additional-working-directories.zh.md](../additional-working-directories.zh.md)。
 
@@ -93,6 +93,24 @@ dispatcher 和 channel handler 的创建与写入第一条消息是原子的—�
 草稿阶段选的设置（比如模型）会在会话创建前就落盘，所以会话仓库可能已经以无 `id` 的形式存在于默认位置。因此 `handle_chat` 判断的是 `is_created`（meta 有 `id`，或仓库已有历史），而不是仓库目录是否存在；`create_session` 会把这种只有设置的仓库挪到项目对应的位置，并保留这些设置。
 
 `set_session_project` 在任何时候都接受"绑到会话已有的那个项目"——上面那条 ack 后的幂等 bind 走的就是这条路，它到达时第一轮已经提交。而在已有轮次的会话上绑**另一个**项目会被拒，理由为 `project is frozen after the first turn`（`ws_actions/project.py:FROZEN_ERROR`）。composer chip 与之对齐：已有 session id 的会话只读展示已绑项目，不再给选择器。
+
+### 把会话移到另一个项目
+
+移动是用户在侧栏里的主动操作：把聊天行拖到另一个项目上，或在它的菜单里选**移动到项目**。对应 `move_session_to_project` ws action：
+
+```
+move_session_to_project {session_id, project_id}
+  → 会话上有轮次在跑时拒绝（RUNNING_ERROR）：那一轮正在旧文件夹里工作
+  → SessionStore.move_session：持会话锁，丢掉缓存的仓库，把
+    projects/<old>/chats/<id> 连同旁边的 .file-recovery/<id> 重命名到
+    projects/<new>/chats/<id>，记录新位置，改注册表绑定，写 meta.project_id；
+    离开的项目追加到 meta.project_history
+  → record_move：下面的 `project/move` 节点
+  → session_moved {ok, from_project_id, project_id, node_id} +
+    向所有客户端广播 projects_changed + 一份新的 projects_list
+```
+
+从下一轮起，主工作目录就是新项目的路径（`project_workdir_for` 每次都重新解析）；项目记忆层打开时，记忆写入落到新项目的工作区。`project_history` 维持"一轮只写一层"：`project_layer.left_workspace_ids` 把会话离开过的项目换算成它们的记忆工作区 id，`write_target` 把这些工作区标记过的轮次当作已写，所以新项目的记忆只收移动之后说的话，旧项目的记忆保留它已有的内容。移到主目录项目同理，目标换成个人工作区。会话自己的设置（模型、权限模式）随 meta 一起走；项目默认值（`settings.json`）从此读新项目的。
 
 ### 附件与恢复
 
@@ -140,6 +158,8 @@ relocate_project {session_id, project_id, path}
 | `predecessor` | `None` |
 | `output` | `<旧路径> → <新路径>` |
 | `metadata` | `{display: "runtime", project_id, old_path, new_path}` |
+
+移动用同样的方式记录（`record_move`）：`name` 为 `project/move`，`output` 为 `<旧项目名> → <新项目名>`，`metadata` 带 `old_project_id` 和 `new_project_id`。
 
 形状照搬 `context/system_prompt`（dag/overview.md §3、§7）：写入不变式只约束对话节点；`caller` 已设，store 便不推进 head——记录重定位不动分支尖端。名字刻意**不放在** `context/` 下：那是隐藏于对话流的管线机器，而重定位是值得看见的用户动作。
 

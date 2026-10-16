@@ -50,6 +50,10 @@ export type CheckpointInspector = {
 
 export type DebuggerPanelProps = {
   detailOnly?: boolean;
+  /** Rendered inside a run's Activity page, which already names the run
+   *  and its state: progress first, then the controls, then the raw
+   *  details fold, with no header and no scroller of its own. */
+  embedded?: boolean;
   executions: ExecutionSnapshot[];
   sessionId?: string | null;
   events?: PersistedExecutionEvent[];
@@ -255,6 +259,7 @@ export function DebuggerPanel({
   unresolvedEffects = [],
   fetchedAt,
   detailOnly = false,
+  embedded = false,
   selectedExecutionId,
   connection,
   checkpoints = [],
@@ -390,6 +395,11 @@ export function DebuggerPanel({
   }
 
   if (!snapshot) {
+    if (embedded) {
+      return <p className={styles.muted}>{connection.state === "stale"
+        ? text("Could not load this run's record. Retrying automatically.", "读不到这次运行的记录，正在自动重试。")
+        : text("Loading the run's record…", "正在读取这次运行的记录…")}</p>;
+    }
     return (
       <section className={styles.panel} aria-label="Execution details">
         <SidebarNotice>
@@ -417,28 +427,9 @@ export function DebuggerPanel({
     ? "healthy"
     : connection.state === "conflict" ? "stale" : connection.state;
 
-  return (
-    <section className={styles.panel} aria-label="Execution details">
-      {connection.state !== "connected" && <div className={styles.connectionLine} data-health={health}>
-        <span data-tip={connectionInfo.detail}>{connectionInfo.label}{fetchedAt ? ` · ${shortTime(fetchedAt)}` : ""}</span>
-      </div>}
-
-      <div className={`${styles.layout} ${(detailOnly || executions.length === 1) ? styles.singleExecution : ""}`}>
-        {!detailOnly && executions.length > 1 && <aside className={styles.executionRail} aria-label="Executions">
-          <SectionHeader name={`Executions · ${executions.length}`} collapsible={false} collapsed={false} onToggle={() => {}} className="px-3 py-2" />
-          {executions.length ? <ExecutionTree executions={executions} selectedId={snapshot.execution_id} onSelect={selectExecution} /> : <div className={styles.empty}>No executions available.</div>}
-        </aside>}
-
-        <div className={styles.content}>
-          <section className={styles.hero}>
-            <div className={styles.heroTop}>
-              <div>
-                <h3>{executionTitle(snapshot, executions.length - executions.indexOf(snapshot), text)}</h3>
-                <p className={styles.muted}>{text("Updated", "更新于")} {updatedTime(snapshot.updated_at)}</p>
-              </div>
-              <div className={`${styles.statusBadge} ${statusClass(snapshot.status)}`}><span className={styles.statusDot} />{executionStatusLabel(snapshot, text)}</div>
-            </div>
-            {snapshot.status === "reconciliation_required" && executionNeedsAttention(snapshot) ? <div className={styles.reason}>
+  // The pieces both layouts share: the standing's reason and controls, the
+  // open waits, the progress rows, the raw details fold and the editors.
+  const heroBody = <>{snapshot.status === "reconciliation_required" && executionNeedsAttention(snapshot) ? <div className={styles.reason}>
               {unresolvedEffects.some((effect) => effect.kind === "provider.before")
                 ? text("The model request has no confirmed response. This run is waiting for its result to be resolved.", "模型请求尚无已确认的响应，本次执行正在等待结果核对。")
                 : unresolvedEffects.some((effect) => effect.kind === "tool.before")
@@ -464,10 +455,8 @@ export function DebuggerPanel({
             </div>
             <div className={styles.commandStack}>
               {Object.values(commandResults).map((result) => <CommandNotice key={result.command_id} result={result} />)}
-            </div>
-          </section>
-
-          {selectedWaits.length > 0 && <section className={styles.card}>
+            </div></>;
+  const waitsCard = selectedWaits.length > 0 && <section className={styles.card}>
             <div className={styles.cardHeader}><h4>Question and approval waits</h4><span>{selectedWaits.length} open</span></div>
             {selectedWaits.length ? selectedWaits.map((wait) => (
               <div className={styles.waitRow} key={wait.wait_id}>
@@ -489,17 +478,9 @@ export function DebuggerPanel({
               </div>
             )) : <div className={styles.empty}>No unresolved execution-owned waits.</div>}
             {waitError && <div className={styles.formError} role="alert">{waitError}</div>}
-          </section>}
-
-
-          {executionRequest(snapshot) && executionRequest(snapshot) !== executionTitle(snapshot, executions.length - executions.indexOf(snapshot), text) && <ExecutionStrip label={text("Request excerpt", "请求摘要")}><p className={styles.requestText}>{executionRequest(snapshot)}</p></ExecutionStrip>}
-          {activityRows(events, text).length > 0 && <section className={styles.card}>
-            <div className={styles.cardHeader}><h4>{text("Progress", "执行进展")}</h4></div>
-            <ol className={styles.eventList}>{activityRows(events, text).slice(0, 8).map((event) => (
-              <li key={event.sequence}><span>{event.title}</span>{event.time && <time>{shortTime(event.time * 1000)}</time>}</li>
-            ))}</ol>
-          </section>}
-          <ExecutionStrip label={text("Technical details", "技术详情")}>
+          </section>;
+  const progressRows = activityRows(events, text);
+  const techStrip = <ExecutionStrip label={text("Technical details", "技术详情")}>
             {Object.values(commandResults).map((result) => <p key={result.command_id}>{result.command_id} · {result.status}{result.rejection_code ? ` · ${result.rejection_code}` : ""}</p>)}
             <dl className={styles.definitionList}>
               <div><dt>Execution ID</dt><dd>{snapshot.execution_id}</dd></div>
@@ -539,9 +520,8 @@ export function DebuggerPanel({
             </section>}
           </div>}
 
-          </ExecutionStrip>
-
-          <Dialog open={editor === "steer"} onOpenChange={open => openEditor(open ? "steer" : null)}>
+          </ExecutionStrip>;
+  const dialogs = <><Dialog open={editor === "steer"} onOpenChange={open => openEditor(open ? "steer" : null)}>
             <DialogContent>
               <DialogHeader><DialogTitle>{text("Add instruction", "补充指令")}</DialogTitle>
                 <DialogDescription>{text("Applied at the next safe execution boundary. Work already completed is retained.", "在下一个安全执行边界应用，已经完成的操作保持不变。")}</DialogDescription></DialogHeader>
@@ -595,7 +575,65 @@ export function DebuggerPanel({
             </DialogFooter>
             {draftError && <div className={styles.formError} role="alert">{draftError}</div>}
             </DialogContent>
-          </Dialog>
+          </Dialog></>;
+
+  if (embedded) {
+    return (
+      <div className={styles.embedded}>
+        {connection.state !== "connected" && <div className={styles.connectionLine} data-health={health}>
+        <span data-tip={connectionInfo.detail}>{connectionInfo.label}{fetchedAt ? ` · ${shortTime(fetchedAt)}` : ""}</span>
+      </div>}
+        {progressRows.length > 0
+          ? <ol className={styles.eventList}>{activityRows(events, text).slice(0, 8).map((event) => (
+              <li key={event.sequence}><span>{event.title}</span>{event.time && <time>{shortTime(event.time * 1000)}</time>}</li>
+            ))}</ol>
+          : <p className={styles.muted}>{text("No progress recorded yet.", "还没有进展记录。")}</p>}
+        <section className={styles.hero}>
+          {heroBody}
+        </section>
+        {waitsCard}
+        {techStrip}
+        {dialogs}
+      </div>
+    );
+  }
+
+  return (
+    <section className={styles.panel} aria-label="Execution details">
+      {connection.state !== "connected" && <div className={styles.connectionLine} data-health={health}>
+        <span data-tip={connectionInfo.detail}>{connectionInfo.label}{fetchedAt ? ` · ${shortTime(fetchedAt)}` : ""}</span>
+      </div>}
+
+      <div className={`${styles.layout} ${(detailOnly || executions.length === 1) ? styles.singleExecution : ""}`}>
+        {!detailOnly && executions.length > 1 && <aside className={styles.executionRail} aria-label="Executions">
+          <SectionHeader name={`Executions · ${executions.length}`} collapsible={false} collapsed={false} onToggle={() => {}} className="px-3 py-2" />
+          {executions.length ? <ExecutionTree executions={executions} selectedId={snapshot.execution_id} onSelect={selectExecution} /> : <div className={styles.empty}>No executions available.</div>}
+        </aside>}
+
+        <div className={styles.content}>
+          <section className={styles.hero}>
+            <div className={styles.heroTop}>
+              <div>
+                <h3>{executionTitle(snapshot, executions.length - executions.indexOf(snapshot), text)}</h3>
+                <p className={styles.muted}>{text("Updated", "更新于")} {updatedTime(snapshot.updated_at)}</p>
+              </div>
+              <div className={`${styles.statusBadge} ${statusClass(snapshot.status)}`}><span className={styles.statusDot} />{executionStatusLabel(snapshot, text)}</div>
+            </div>
+            {heroBody}
+          </section>
+
+          {waitsCard}
+
+          {executionRequest(snapshot) && executionRequest(snapshot) !== executionTitle(snapshot, executions.length - executions.indexOf(snapshot), text) && <ExecutionStrip label={text("Request excerpt", "请求摘要")}><p className={styles.requestText}>{executionRequest(snapshot)}</p></ExecutionStrip>}
+          {progressRows.length > 0 && <section className={styles.card}>
+            <div className={styles.cardHeader}><h4>{text("Progress", "执行进展")}</h4></div>
+            <ol className={styles.eventList}>{activityRows(events, text).slice(0, 8).map((event) => (
+              <li key={event.sequence}><span>{event.title}</span>{event.time && <time>{shortTime(event.time * 1000)}</time>}</li>
+            ))}</ol>
+          </section>}
+          {techStrip}
+
+          {dialogs}
         </div>
       </div>
     </section>

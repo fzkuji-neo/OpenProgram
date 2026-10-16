@@ -1,9 +1,10 @@
-"""Record a project relocation as a DAG node (dag/overview.md §7).
+"""Record a project relocation or a move as a DAG node (dag/overview.md §7).
 
-A session's main working directory freezes on its first turn, so the one
-thing that may still change it is a **repair**: the bound project's
+A session's main working directory freezes on its first turn, so the two
+things that may still change it are a **repair** (the bound project's
 folder was moved or renamed on disk and the user points OpenProgram at
-the new location. That is a change to where every later turn runs, so it
+the new location) and a **move** (the user puts the conversation into
+another project). Each is a change to where every later turn runs, so it
 goes into the graph rather than mutating the registry silently.
 
 Shape (§3), the same as ``context/system_prompt``: ``role=code``,
@@ -23,6 +24,7 @@ import uuid
 from typing import Any, Optional
 
 NODE_NAME = "project/relocate"
+MOVE_NODE_NAME = "project/move"
 
 
 def record_relocate(store: Any, session_id: str, *, project_id: str,
@@ -57,4 +59,35 @@ def record_relocate(store: Any, session_id: str, *, project_id: str,
         return None
 
 
-__all__ = ["NODE_NAME", "record_relocate"]
+def record_move(store: Any, session_id: str, *, old_project_id: str,
+                new_project_id: str, old_name: str, new_name: str) -> Optional[str]:
+    """Append a ``project/move`` node describing ``old → new`` project.
+
+    Same shape and the same contract as :func:`record_relocate`: ``None``
+    on any failure, never an error for the move the user just made.
+    """
+    if not session_id or not new_project_id:
+        return None
+    try:
+        from openprogram.context.nodes import Call, ROLE_CODE
+        from openprogram.store import SessionNodeWriter
+
+        node = Call(
+            id="move_" + uuid.uuid4().hex[:10],
+            created_at=time.time(),
+            role=ROLE_CODE,
+            name=MOVE_NODE_NAME,
+            output=f"{old_name or old_project_id or '(none)'} → {new_name or new_project_id}",
+            caller="ROOT",
+            predecessor=None,
+            metadata={"display": "runtime",
+                      "old_project_id": old_project_id,
+                      "new_project_id": new_project_id},
+        )
+        SessionNodeWriter(store, session_id).append(node)
+        return node.id
+    except Exception:
+        return None
+
+
+__all__ = ["NODE_NAME", "MOVE_NODE_NAME", "record_relocate", "record_move"]

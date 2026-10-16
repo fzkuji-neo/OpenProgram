@@ -542,7 +542,7 @@ def _capture_permission_mode(monkeypatch, stream_text="ok"):
     return seen
 
 
-def test_missing_permission_mode_defaults_to_ask(env, monkeypatch) -> None:
+def test_missing_permission_mode_defaults_to_auto(env, monkeypatch) -> None:
     srv, db, _captured = env
     conv = srv._get_or_create_session("c1", agent_id="main")
     srv._append_msg(conv, {
@@ -551,7 +551,7 @@ def test_missing_permission_mode_defaults_to_ask(env, monkeypatch) -> None:
     })
     seen = _capture_permission_mode(monkeypatch)
     srv._execute_in_context("c1", "u-perm", "query", query="hi")
-    assert seen["mode"] == "ask"
+    assert seen["mode"] == "auto"
 
 
 def test_invalid_permission_mode_fails_safe_to_ask(env, monkeypatch) -> None:

@@ -205,6 +205,61 @@ class SessionsOperations:
         self._record_location(session_id, target)
 
 
+    def move_session(self, session_id: str, project_id: str) -> dict[str, shared.Any]:
+        """Move a conversation, turns and all, into another project.
+
+        The repository and its file-recovery tree go to the project's
+        ``chats/`` folder, the meta and the registry name the new project,
+        and the project it leaves is appended to the meta's
+        ``project_history`` so that project's memory, which already holds
+        the earlier turns, is not written them again. Returns the old and
+        new project ids and whether anything moved; a conversation already
+        in the project is left alone.
+        """
+        from openprogram.store.project import project_store as _projects
+
+        project = _projects.get_project(project_id)
+        if project is None:
+            raise ValueError(f"unknown project: {project_id}")
+        current = _projects.project_for_session(session_id) or _projects.get_default_project()
+        if current is not None and current.id == project.id:
+            return {"from_project_id": current.id, "project_id": project.id, "moved": False}
+        target = shared.target_dir_for_project(
+            self.root_path, session_id,
+            project_id=project.id, is_default=bool(project.is_default),
+        )
+        with self._session_lock(session_id):
+            with shared.session_interprocess_lock(
+                session_id, timeout=15.0,
+                root=self.root_path if self._explicit_root else None,
+            ):
+                source = self._session_dir(session_id)
+                if not shared.session_looks_present(source):
+                    raise ValueError(f"no such session: {session_id}")
+                if target.exists():
+                    raise ValueError(f"destination already exists: {target}")
+                with self._lock:
+                    self._sessions.pop(session_id, None)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                source.rename(target)
+                recovery = source.parent / ".file-recovery" / session_id
+                if recovery.is_dir():
+                    (target.parent / ".file-recovery").mkdir(parents=True, exist_ok=True)
+                    recovery.rename(target.parent / ".file-recovery" / session_id)
+                if project.is_default:
+                    self._project_ids.pop(session_id, None)
+                else:
+                    self._project_ids[session_id] = project.id
+                self._record_location(session_id, target)
+        _projects.unbind_session(session_id)
+        _projects.bind_session(session_id, project.id)
+        history = list((self.get_session(session_id) or {}).get("project_history") or [])
+        if current is not None:
+            history.append(current.id)
+        self.update_session(session_id, project_id=project.id, project_history=history)
+        return {"from_project_id": current.id if current else None, "project_id": project.id, "moved": True}
+
+
     def is_created(self, session_id: str) -> bool:
         """True once ``create_session`` has written this conversation.
 
