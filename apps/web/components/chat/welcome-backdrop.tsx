@@ -64,8 +64,8 @@ function codeRain(): Scene {
       ctx.font = `600 ${CELL - 3}px ui-monospace, "SF Mono", Menlo, monospace`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      // 网格里的字偶尔自己变，像原片那样闪。
-      for (let n = 0; n < grid.length * dt * 3; n++) {
+      // 暗处的字也会偶尔自己变。
+      for (let n = 0; n < grid.length * dt * 6; n++) {
         const c = grid[Math.floor(Math.random() * grid.length)];
         c[Math.floor(Math.random() * rows)] = cell();
       }
@@ -77,6 +77,8 @@ function codeRain(): Scene {
         for (let k = 0; k < d.len; k++) {
           const row = top - k;
           if (row < 0 || row >= rows) continue;
+          // 被照亮的字不停地变：雨头几乎每帧换一个，拖尾每秒两三次。
+          if (Math.random() < dt * (k === 0 ? 18 : 2.5)) grid[d.col][row] = cell();
           const g = grid[d.col][row];
           const y = row * CELL + CELL / 2;
           if (k === 0) {
