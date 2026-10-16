@@ -10,8 +10,8 @@ const client = read("../../lib/net/execution-client.ts");
 const ws = read("../../lib/net/use-ws.ts");
 
 test("conversation activity inspects the selected Agent through the canonical debugger", () => {
-  assert.match(running, /state\.selectExecution\(item\.execution_id\)/);
-  assert.match(running, /selection === "agent"/);
+  assert.match(running, /state\.selectExecution\(executionId\)/);
+  assert.match(running, /view\?\.kind === "tech"/);
   assert.match(running, /<DebuggerPanel/);
   assert.match(running, /onCommand=\{state\.command\}/);
   assert.match(running, /onRespondWait=\{state\.respondWait\}/);

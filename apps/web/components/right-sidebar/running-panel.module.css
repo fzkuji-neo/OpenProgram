@@ -1,23 +1,26 @@
 .panel { display: flex; flex-direction: column; min-height: 0; height: 100%; color: var(--text); font: var(--right-panel-text-size, 13px)/var(--right-panel-line-height, 1.5) var(--font-sans); }
-.toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 0 8px 8px; }
-.notice { margin: 0; padding: 0 16px 12px; color: var(--text-dim); }
-.notice, .error { font-size: var(--right-panel-meta-size, 13px); }
-.error { color: var(--accent-red); }
+.toolbar { display: flex; align-items: center; padding: 0 8px 4px; }
+.back { max-width: 100%; justify-content: flex-start; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font-weight: 400; }
+.notice { margin: 0; padding: 0 16px 12px; color: var(--text-dim); font-size: var(--right-panel-meta-size, 13px); }
+.error { margin: 8px; color: var(--accent-red); font-size: var(--right-panel-meta-size, 13px); }
 .scroll { min-height: 0; overflow-y: auto; padding: 0 8px 16px; }
-/* A row: bare glyph, name over a status line, start time and a chevron at
-   the right. No tile and no frame at rest; on hover the row lifts into the
-   raised card the file cards use (input surface, the composer's deeper
-   shadow) instead of the ghost button's grey fill. */
-.row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; width: 100%; border: 0; border-radius: 12px; font: inherit; color: inherit; text-align: left; cursor: pointer; height: auto; transition: box-shadow .15s, background-color .15s; min-height: var(--ui-button-h); justify-content: flex-start; font-weight: 400; line-height: 1.4; }
-.row:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: -2px; }
+
+.panel .sectionHeader { padding-top: 8px; padding-bottom: 4px; }
+.count { padding: 0 4px; color: var(--text-dim); font-size: var(--right-panel-meta-size, 12px); font-variant-numeric: tabular-nums; }
+.day { margin: 10px 8px 2px; color: var(--text-muted); font-size: 11.5px; }
+
+/* A row: bare glyph, name over a status line, a chevron. No frame at rest;
+   hover lifts it into the raised card the file cards use. */
+.row { display: flex; align-items: center; gap: 10px; width: 100%; height: auto; min-height: var(--ui-button-h); padding: 7px 8px; border: 0; border-radius: 12px; justify-content: flex-start; font: inherit; font-weight: 400; line-height: 1.4; color: inherit; text-align: left; cursor: pointer; transition: box-shadow .15s, background-color .15s; }
 .row:hover { background: var(--bg-input); box-shadow: var(--composer-shadow-focus); color: inherit; }
+.row:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: -2px; }
 .rowText { display: grid; gap: 1px; min-width: 0; flex: 1; }
 .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--text-bright); }
-.meta { margin: 0; color: var(--text-dim); font-size: var(--right-panel-meta-size, 12px); white-space: normal; overflow-wrap: anywhere; }
-.symbol { flex-shrink: 0; margin-top: 2px; color: var(--text-dim); }
+.chevron { flex: none; color: var(--text-muted); }
 
 /* The kind's colour, as on the chat timeline's tool rows. */
 .glyph { flex: none; width: 18px; height: 18px; display: grid; place-items: center; color: light-dark(#d14a1f, #ff9a66); }
+.glyph[data-tone="run"] { color: var(--text-secondary); }
 .glyph[data-tone="shell"] { color: light-dark(#15803d, #4ade80); }
 .glyph[data-tone="agent"] { color: light-dark(#0b8a4b, #4bd58a); }
 .glyph[data-tone="edit"] { color: light-dark(#b45309, #fbbf24); }
@@ -35,27 +38,36 @@
 .status[data-tone="err"] { color: var(--accent-red); }
 .status :global(.indicator-dot.is-muted) { --dot-color: var(--text-muted); }
 
-.chevron { flex: none; color: var(--text-muted); transition: transform 0.2s ease; }
-.chevron[data-open="1"] { transform: rotate(90deg); }
-.children { margin-left: 16px; }
-.branch { margin-bottom: 4px; }
-.title { margin: 8px 8px 4px; font: inherit; font-weight: var(--right-panel-font-weight, 500); overflow-wrap: anywhere; }
-.facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 16px; margin: 16px 8px; }
-.facts dt { color: var(--text-dim); }
-.facts dd { margin: 0; overflow-wrap: anywhere; }
-.outputHeading { margin: 16px 8px 8px; font: inherit; font-weight: var(--right-panel-font-weight, 500); }
-.output { margin: 8px; white-space: pre-wrap; overflow-wrap: anywhere; font: var(--right-panel-meta-size, 12px)/var(--right-panel-line-height, 1.5) var(--font-mono); }
+.more { margin: 4px 8px; padding: 0; border: 0; background: none; font: 500 12.5px var(--font-sans); color: var(--text-secondary); cursor: pointer; }
+.more:hover { color: var(--text-bright); }
+.empty { margin: 4px 8px; color: var(--text-muted); font-size: var(--right-panel-meta-size, 12px); }
 
-.agentRow { display: flex; align-items: center; min-width: 0; }
-.agentRow .row { flex: 1; min-width: 0; }
-.expand { flex: 0 0 var(--ui-button-h); color: var(--text-dim); }
-.panel .sectionHeader { padding-top: 8px; padding-bottom: 4px; }
-.count { padding: 0 4px; color: var(--text-dim); font-size: var(--right-panel-meta-size, 12px); font-variant-numeric: tabular-nums; }
+/* A page: what it is and when, the title, its state. */
+.head { display: grid; gap: 4px; padding: 10px 8px 0; }
+.kind { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: var(--right-panel-meta-size, 12px); }
+.kind .glyph { width: 14px; height: 14px; }
+.title { margin: 0; color: var(--text-bright); font: 600 15px/1.4 var(--font-sans); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.head .status { margin-top: 2px; font-size: 12.5px; }
 
-.started { flex-shrink: 0; color: var(--text-muted); font-size: var(--right-panel-meta-size, 12px); font-variant-numeric: tabular-nums; }
+/* What needs the reader: a soft tint, no border, its actions as raised pills. */
+.issue { margin: 14px 8px 0; padding: 12px; border-radius: 12px; background: color-mix(in srgb, var(--accent-yellow) 9%, transparent); }
+.issueTitle { margin: 0; color: color-mix(in srgb, var(--accent-yellow) 85%, var(--text-primary)); font: 600 13px/1.45 var(--font-sans); overflow-wrap: anywhere; }
+.issueText { margin: 4px 0 0; color: var(--text-secondary); font-size: 12.5px; line-height: 1.55; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.actions[data-inline="1"] { margin: 14px 8px 0; }
 
-/* A function call's page: its glyph beside the name, the status line and
-   what it was asked to do, in the same plain text as a program's page. */
-.callTitle { display: flex; align-items: center; gap: 10px; margin: 8px 8px 2px; font: inherit; font-weight: var(--right-panel-font-weight, 500); overflow-wrap: anywhere; }
-.callTitle + .status { margin: 0 8px 0 36px; }
-.callText { margin: 12px 8px 4px; color: var(--text-secondary); overflow-wrap: anywhere; }
+.section { margin: 18px 8px 4px; color: var(--text-muted); font: 500 12px/1.4 var(--font-sans); }
+.facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px 14px; margin: 16px 8px 0; font-size: 12.5px; }
+.facts dt { color: var(--text-muted); }
+.facts dd { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+.link { max-width: 100%; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--text-primary) 25%, transparent); text-underline-offset: 3px; cursor: pointer; }
+
+/* A task reads as prose; only commands and output are monospace. */
+.prose, .code { margin: 0 8px; color: var(--text-primary); overflow-wrap: anywhere; }
+.prose { font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
+.code { font: 12px/1.6 var(--font-mono); white-space: pre-wrap; }
+.prose[data-open="0"] { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+.code[data-open="0"] { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.output { margin: 0 8px; max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-primary); font: 12px/1.5 var(--font-mono); }
+
+.techRow { display: inline-flex; align-items: center; gap: 4px; height: auto; margin: 16px 0 0; padding: 4px 8px; border-radius: 999px; color: var(--text-secondary); font: inherit; font-size: 12.5px; }
