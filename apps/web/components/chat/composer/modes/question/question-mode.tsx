@@ -407,7 +407,7 @@ function StepBody({
                   {f.description ? <span className={formStyles.hint}> · {f.description}</span> : null}
                 </span>
                 {f.enum && f.enum.length ? (
-                  <SimpleSelect
+                  <SimpleSelect label={label}
                     className="w-full"
                     value={String(fields[name] ?? "")}
                     onValueChange={(v) => setField(name, v)}

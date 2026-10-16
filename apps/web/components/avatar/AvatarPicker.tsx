@@ -11,7 +11,21 @@
 
 import { useRef, useState, type CSSProperties } from "react";
 
+import { RefreshCw } from "lucide-react";
+
 import { useTranslation } from "@/lib/i18n";
+import { Button } from "@/components/ui/button";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldTitle,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Toggle } from "@/components/ui/toggle";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 import { Avatar } from "./Avatar";
 import { AVATAR_STYLES } from "./style-options";
@@ -163,125 +177,57 @@ export function AvatarPicker({
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "flex-start",
-        gap: 16,
-        width: 440,
-        maxWidth: "100%",
-        minWidth: 0,
-      }}
-    >
-      <div
-        role="radiogroup"
+    <div className="flex w-[440px] max-w-full min-w-0 flex-col items-start gap-4">
+      <ToggleGroup
+        type="single"
+        variant="outline"
+        spacing={0}
+        value={source}
+        onValueChange={(next) => {
+          if (next) pickType(next as AvatarSource);
+        }}
         aria-label={text("Avatar type", "头像类型")}
-        style={_typeBar}
       >
-        {(
-          [
-            { id: "dicebear", label: text("Generated", "生成") },
-            { id: "letter", label: text("Letter", "字母") },
-            { id: "upload", label: text("Upload", "上传") },
-          ] as const
-        ).map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            role="radio"
-            aria-checked={source === option.id}
-            onClick={() => pickType(option.id)}
-            className={_typeBtn(source === option.id)}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+        <ToggleGroupItem value="dicebear">{text("Generated", "生成")}</ToggleGroupItem>
+        <ToggleGroupItem value="letter">{text("Letter", "字母")}</ToggleGroupItem>
+        <ToggleGroupItem value="upload">{text("Upload", "上传")}</ToggleGroupItem>
+      </ToggleGroup>
 
       {source === "dicebear" && (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-start",
-            gap: 14,
-            minWidth: 0,
-            width: "100%",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "flex-start",
-              gap: 8,
-              width: "100%",
-            }}
-          >
-            <span style={_sectionHint}>{text("Style", "风格")}</span>
-            <div
-              role="radiogroup"
-              aria-label={text("Avatar style", "头像风格")}
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 6,
-                justifyContent: "flex-start",
-                width: "100%",
+        <div className="flex w-full min-w-0 flex-col items-start gap-4">
+          <div className="flex w-full flex-col items-start gap-2">
+            <FieldDescription>{text("Style", "风格")}</FieldDescription>
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              size="sm"
+              spacing={1.5}
+              className="w-full flex-wrap"
+              value={style}
+              onValueChange={(next) => {
+                if (next) pickStyle(next as AvatarStyle);
               }}
+              aria-label={text("Avatar style", "头像风格")}
             >
               {AVATAR_STYLES.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={style === s.id}
-                  onClick={() => pickStyle(s.id)}
-                  title={s.hint}
-                  className={_styleChip(style === s.id)}
-                >
-                  <span style={_styleChipLabel}>{s.label}</span>
-                </button>
+                <ToggleGroupItem key={s.id} value={s.id}>
+                  {s.label}
+                </ToggleGroupItem>
               ))}
-            </div>
+            </ToggleGroup>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "flex-start",
-              flexWrap: "wrap",
-              gap: 8,
-              minWidth: 0,
-            }}
-          >
-            <span style={_sectionHint}>
-              {text(
-                "Pick a variant of this style.",
-                "选择这个风格的一个变体。",
-              )}
-            </span>
-            <button
-              type="button"
-              onClick={regenerate}
-              title={text(
-                "Generate a fresh batch of variants",
-                "换一批这个风格的变体",
-              )}
-              className={_smallBtnCls}
-            >
-              <span
-                style={{
-                  display: "inline-block",
-                  animation: spinning ? "avatarSpin 0.6s linear" : "none",
-                }}
-              >
-                ↻
-              </span>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <FieldDescription>
+              {text("Pick a variant of this style.", "选择这个风格的一个变体。")}
+            </FieldDescription>
+            <Button type="button" variant="outline" size="sm" onClick={regenerate}>
+              <RefreshCw
+                data-icon="inline-start"
+                style={{ animation: spinning ? "avatarSpin 0.6s linear" : "none" }}
+              />
               {text("Regenerate", "换一批")}
-            </button>
+            </Button>
           </div>
           <div style={VARIANT_GRID}>
             {visibleVariants.map((variant) => {
@@ -292,13 +238,13 @@ export function AvatarPicker({
                 AVATAR_STYLES.find((entry) => entry.id === variant.style)
                   ?.label ?? variant.style;
               return (
-                <button
+                <Toggle
                   key={`${style}:${variant.seed}`}
-                  type="button"
-                  onClick={() => pickVariant(variant)}
-                  title={`${styleLabel}: ${variant.seed}`}
+                  variant="outline"
+                  pressed={selected}
+                  onPressedChange={() => pickVariant(variant)}
                   aria-label={`Use ${styleLabel} avatar variant`}
-                  className={_variantTile(selected)}
+                  className="size-12 rounded-full p-0 data-[state=on]:border-ring data-[state=on]:ring-[3px] data-[state=on]:ring-ring/50"
                 >
                   <Avatar
                     size={40}
@@ -309,7 +255,7 @@ export function AvatarPicker({
                       seed: variant.seed,
                     }}
                   />
-                </button>
+                </Toggle>
               );
             })}
           </div>
@@ -317,185 +263,89 @@ export function AvatarPicker({
       )}
 
       {source === "letter" && (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-start",
-            gap: 12,
-            width: "100%",
-          }}
-        >
-          <div>
-            <label style={_fieldLabel} htmlFor="avatar-letter-initial">
+        <FieldGroup className="w-full gap-4">
+          <Field>
+            <FieldLabel htmlFor="avatar-letter-initial">
               {t("general.agent.initial")}
-            </label>
-            <input
+            </FieldLabel>
+            <Input
               id="avatar-letter-initial"
               type="text"
               value={letterText ?? ""}
               maxLength={2}
               onChange={(e) => onLetterTextChange?.(e.target.value)}
-              style={_initialInput}
+              className="w-16 text-center"
             />
-            <div style={_sectionHint}>{t("general.agent.initial.hint")}</div>
-          </div>
-          <div>
-            <div style={_fieldLabel}>{t("general.agent.color")}</div>
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 6,
-                justifyContent: "flex-start",
-                width: "100%",
+            <FieldDescription>{t("general.agent.initial.hint")}</FieldDescription>
+          </Field>
+          <Field>
+            <FieldTitle>{t("general.agent.color")}</FieldTitle>
+            <ToggleGroup
+              type="single"
+              spacing={1.5}
+              className="flex-wrap"
+              value={letterBg ?? ""}
+              onValueChange={(next) => {
+                if (next) onLetterBgChange?.(next);
               }}
+              aria-label={t("general.agent.color")}
             >
               {colors.map((c) => (
-                <button
+                <ToggleGroupItem
                   key={c}
-                  type="button"
-                  onClick={() => onLetterBgChange?.(c)}
+                  value={c}
                   aria-label={c}
-                  title={c}
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 6,
-                    background: c,
-                    border:
-                      letterBg === c
-                        ? "2px solid var(--text-primary)"
-                        : "1px solid var(--border)",
-                    cursor: "pointer",
-                    padding: 0,
-                  }}
+                  size="sm"
+                  className="size-7 min-w-0 rounded-md border border-input p-0 data-[state=on]:ring-[3px] data-[state=on]:ring-ring/50"
+                  style={{ background: c }}
                 />
               ))}
-            </div>
-          </div>
-        </div>
+            </ToggleGroup>
+          </Field>
+        </FieldGroup>
       )}
 
       {source === "upload" && (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-start",
-            gap: 6,
-            width: "100%",
-          }}
-        >
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <button
+        <div className="flex w-full flex-col items-start gap-2">
+          <div className="flex items-center gap-2">
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => fileInputRef.current?.click()}
-              className={_smallBtnCls}
             >
               {text("Choose file…", "选择文件…")}
-            </button>
+            </Button>
             {value?.kind === "upload" && value.file && (
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => onChange({ kind: "upload", file: undefined })}
-                className={_smallBtnCls}
               >
                 {text("Clear", "清除")}
-              </button>
+              </Button>
             )}
           </div>
           <input
             ref={fileInputRef}
             type="file"
             accept={UPLOAD_ACCEPT}
-            style={{ display: "none" }}
+            className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) void onFilePicked(f);
               e.target.value = "";
             }}
           />
-          <div style={_sectionHint}>
+          <FieldDescription>
             PNG · JPG · SVG · GIF · WebP · APNG · max{" "}
             {UPLOAD_MAX_BYTES / 1024 / 1024} MB. Animated GIF / WebP play in
             place.
-          </div>
-          {uploadError && (
-            <div style={{ fontSize: "var(--fs-sm)", color: "var(--accent-red)" }}>
-              {uploadError}
-            </div>
-          )}
+          </FieldDescription>
+          {uploadError && <FieldError>{uploadError}</FieldError>}
         </div>
       )}
     </div>
   );
 }
-
-const _typeBar: CSSProperties = {
-  display: "inline-flex",
-  background: "var(--bg-secondary)",
-  border: "1px solid var(--border)",
-  borderRadius: 8,
-  padding: 2,
-  gap: 2,
-};
-
-const _typeBtn = (selected: boolean): string =>
-  "inline-flex items-center justify-center h-7 rounded-md px-3 text-fs-sm font-medium border-0 cursor-pointer transition-colors " +
-  (selected
-    ? "bg-[var(--bg-hover)] text-[var(--text-bright)]"
-    : "bg-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]");
-
-const _styleChip = (selected: boolean): string =>
-  "inline-flex items-center justify-center h-7 rounded-md px-2.5 border cursor-pointer transition-colors " +
-  (selected
-    ? "bg-[var(--bg-hover)] border-[color-mix(in_srgb,var(--accent-orange)_50%,transparent)]"
-    : "border-[var(--border)] hover:bg-[var(--bg-hover)] hover:border-[color-mix(in_srgb,var(--accent-orange)_30%,transparent)]");
-
-const _styleChipLabel: CSSProperties = {
-  fontSize: "var(--fs-sm)",
-  fontFamily: "var(--font-sans)",
-  color: "var(--text-secondary)",
-  fontWeight: 500,
-  lineHeight: 1.2,
-  whiteSpace: "nowrap",
-  overflowWrap: "normal",
-  wordBreak: "normal",
-  hyphens: "none",
-};
-
-const _variantTile = (selected: boolean): string =>
-  "inline-flex items-center justify-center w-12 h-12 p-0 rounded-full border cursor-pointer transition-colors " +
-  (selected
-    ? "bg-[var(--bg-hover)] border-[color-mix(in_srgb,var(--accent-orange)_50%,transparent)]"
-    : "border-[var(--border)] hover:bg-[var(--bg-hover)] hover:border-[color-mix(in_srgb,var(--accent-orange)_30%,transparent)]");
-
-const _sectionHint: CSSProperties = {
-  fontSize: "var(--fs-sm)",
-  fontFamily: "var(--font-sans)",
-  color: "var(--text-muted)",
-  lineHeight: 1.4,
-};
-
-const _fieldLabel: CSSProperties = {
-  display: "block",
-  fontSize: 14,
-  fontFamily: "var(--font-sans)",
-  color: "var(--text-primary)",
-  marginBottom: 6,
-};
-
-const _initialInput: CSSProperties = {
-  padding: "6px 10px",
-  background: "var(--bg-secondary)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--ui-button-radius)",
-  color: "var(--text-primary)",
-  font: "inherit",
-  width: 64,
-  textAlign: "center",
-};
-
-const _smallBtnCls =
-  "inline-flex items-center justify-center h-7 rounded-md px-3 text-fs-sm font-medium border border-[var(--border)] bg-[var(--bg-hover)] text-[var(--text-secondary)] cursor-pointer transition-colors hover:bg-[color-mix(in_srgb,var(--accent-orange)_18%,transparent)] hover:text-[var(--accent-orange)] hover:border-[color-mix(in_srgb,var(--accent-orange)_30%,transparent)]";

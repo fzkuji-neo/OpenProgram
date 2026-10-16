@@ -52,7 +52,7 @@ export function useApplicationLauncher(onOpened?: () => void) {
   return { launch, error, dialog: <>
         {choice && <section aria-label={text("Choose application project", "选择应用项目")} className="grid gap-2">
           <label htmlFor="application-project">{text("Project for", "应用项目：")} {choice.application.display_title || choice.application.title}</label>
-          <SimpleSelect id="application-project" value={projectId} onValueChange={setProjectId} className="w-full" placeholder={text("Choose a project…", "选择项目…")} options={choice.projects.map(item => ({ value: item.id, label: `${item.name} — ${item.path}` }))} />
+          <SimpleSelect label={text("Project", "项目")} id="application-project" value={projectId} onValueChange={setProjectId} className="w-full" placeholder={text("Choose a project…", "选择项目…")} options={choice.projects.map(item => ({ value: item.id, label: `${item.name} — ${item.path}` }))} />
           <button type="button" disabled={!projectId} onClick={() => void launch(choice.application, projectId)}>{text("Open application", "打开应用")}</button>
           <button type="button" onClick={() => void chooseFolder()}>{text("Choose folder…", "选择文件夹…")}</button>
           <button type="button" onClick={() => setChoice(null)}>{text("Cancel", "取消")}</button>

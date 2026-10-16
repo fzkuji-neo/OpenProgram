@@ -70,7 +70,7 @@ export function ModelPicker({ draft, update, catalog, text, idPrefix = "agent", 
         <small>{inherited ? catalog.inherited ? `${catalog.inherited.provider} / ${catalog.inherited.id}` : text("No model used yet", "还没有使用过模型") : `${draft.model.provider}${!current && !catalog.loading ? text(" · Unavailable", " · 不可用") : ""}`}</small></span><ChevronDownIcon size={16} aria-hidden />
     </AgentButton></div>
     <label className={styles.dialogField} htmlFor={`${idPrefix}-effort`}>{text("Thinking effort", "思考强度")}
-      <SimpleSelect id={`${idPrefix}-effort`} className="w-full" value={draft.thinking_effort} onValueChange={(value) => update({ thinking_effort: value })} aria-describedby={!effortSupported ? `${idPrefix}-effort-warning` : undefined} options={[
+      <SimpleSelect label={text("Thinking effort", "思考强度")} id={`${idPrefix}-effort`} className="w-full" value={draft.thinking_effort} onValueChange={(value) => update({ thinking_effort: value })} aria-describedby={!effortSupported ? `${idPrefix}-effort-warning` : undefined} options={[
         { value: "", label: `${text("Inherit model default", "继承模型默认值")}${current?.default_thinking_level ? ` (${current.default_thinking_level})` : ""}` },
         ...(!effortSupported && draft.thinking_effort ? [{ value: draft.thinking_effort, label: `${draft.thinking_effort} — ${text("not supported by this model", "当前模型不支持")}` }] : []),
         ...(current?.thinking_levels || []).map((level) => ({ value: level, label: level })),

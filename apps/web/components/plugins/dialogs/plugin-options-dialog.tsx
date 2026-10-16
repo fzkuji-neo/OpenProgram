@@ -221,7 +221,7 @@ export function PluginOptionsDialog({ name, onClose }: Props) {
                       <span className="text-[var(--text-secondary)]">{text("enabled", "已启用")}</span>
                     </label>
                   ) : f.enum && f.enum.length > 0 ? (
-                    <SimpleSelect
+                    <SimpleSelect label={f.title || k}
                       value={String(values[k] ?? "")}
                       onValueChange={(v) => update(k, v)}
                       className="w-full"

@@ -39,7 +39,7 @@ export function MemoryPanel({ draft, update, text }: Props) {
     <p className={styles.note}>{text("Trial conversations use read-only memory at most. Turning memory off keeps existing records.", "试运行最多使用只读记忆。关闭记忆不会删除已有记录。")}</p>
     <fieldset className={styles.memoryFields} disabled={memory.mode === "off"}><legend>{text("Read from", "读取范围")}</legend>
       {spaces.map(([space, label, help]) => <label className={styles.memorySpace} key={space}><input type="checkbox" checked={memory.read_spaces.includes(space)} onChange={(event) => patch({ read_spaces: event.target.checked ? [...memory.read_spaces, space] : memory.read_spaces.filter((item) => item !== space) })} /><span><strong>{label}</strong><small>{help}</small></span></label>)}
-      <label className={styles.dialogField}>{text("Write to", "写入位置")}<SimpleSelect className="w-full" disabled={memory.mode !== "read_write"} value={memory.write_space} onValueChange={(value) => patch({ write_space: value })} options={spaces.map(([space, label]) => ({ value: space, label }))} /></label>
+      <label className={styles.dialogField}>{text("Write to", "写入位置")}<SimpleSelect label={text("Write to", "写入位置")} className="w-full" disabled={memory.mode !== "read_write"} value={memory.write_space} onValueChange={(value) => patch({ write_space: value })} options={spaces.map(([space, label]) => ({ value: space, label }))} /></label>
       <label className={styles.memorySpace}><input type="checkbox" checked={memory.required} onChange={(event) => patch({ required: event.target.checked })} /><span><strong>{text("Require memory to be available", "要求记忆可用")}</strong><small>{text("If memory is unavailable, stop before starting a conversation.", "记忆不可用时阻止启动对话。")}</small></span></label>
     </fieldset>
   </>;
@@ -47,7 +47,7 @@ export function MemoryPanel({ draft, update, text }: Props) {
 export function ContextPanel({ draft, update, text }: Props) {
   return <><Intro title={text("Context", "上下文")}>{text("Control how channel conversations are separated and when an inactive conversation resets.", "控制频道对话的隔离方式，以及空闲对话的重置规则。")}</Intro>
     <p className={styles.note}>{text("New conversations and trial conversations start with a new history. These routing rules apply to channel conversations.", "新对话与试运行都使用新历史。以下路由规则用于频道对话。")}</p>
-    <div className={styles.formGrid}><label className={styles.fullField}>{text("Session scope", "会话范围")}<SimpleSelect className="w-full" value={draft.session_scope} onValueChange={(value) => update({ session_scope: value })} options={[
+    <div className={styles.formGrid}><label className={styles.fullField}>{text("Session scope", "会话范围")}<SimpleSelect label={text("Session scope", "会话范围")} className="w-full" value={draft.session_scope} onValueChange={(value) => update({ session_scope: value })} options={[
       { value: "per-account-channel-peer", label: text("Per account, channel and peer", "按账号、频道与联系人隔离") },
       { value: "per-channel-peer", label: text("Per channel and peer", "按频道与联系人隔离") },
       { value: "per-peer", label: text("Per peer", "按联系人隔离") },

@@ -168,7 +168,7 @@ function Control({ row, onSave }: { row: Row; onSave: (k: string, v: unknown) =>
   if (row.widget === "enum") {
     return (
       <SimpleSelect
-        aria-label={row.key}
+        label={row.label}
         value={String(row.value)}
         onValueChange={(value) => onSave(row.key, value)}
         options={(row.choices || []).map((c) => ({ value: c, label: c }))}

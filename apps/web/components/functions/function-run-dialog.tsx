@@ -241,7 +241,7 @@ function ParamInput({
         </p>
       )}
       {p.type === "bool" ? (
-        <SimpleSelect
+        <SimpleSelect label={p.name}
           className="w-full"
           value={value || "false"}
           onValueChange={onChange}
@@ -251,7 +251,7 @@ function ParamInput({
           ]}
         />
       ) : p.choices && p.choices.length > 0 ? (
-        <SimpleSelect
+        <SimpleSelect label={p.name}
           className="w-full"
           value={value}
           onValueChange={onChange}
