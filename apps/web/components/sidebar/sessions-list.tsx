@@ -64,6 +64,7 @@ import styles from "./sidebar.module.css";
 import { ProjectMenu, ProjectSectionHeading } from "./project-menu";
 import type { EditableProject } from "./project-editor";
 import { useProjectDrag } from "./sessions-list/use-project-drag";
+import { useChatDrag } from "./sessions-list/use-chat-drag";
 import { ConfirmDialog } from "./sessions-list/confirm-dialog";
 import { pushPath } from "@/lib/shallow-nav";
 import { runtimeState } from "@/lib/runtime-bridge/state";
@@ -126,6 +127,7 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
   const projectMode = view.groupBy === "project";
   const [orderNotice, setOrderNotice] = useState("");
   const { draggingProject, projectOffset, headerProps } = useProjectDrag(projectMode, reorderProject);
+  const { draggingChat, dropProject, rowProps } = useChatDrag(projectMode, (sessionId, projectId) => void moveChat(sessionId, projectId));
   const reducedMotion = useReducedMotion();
 
   const [projects, setProjects] = useState<SidebarProject[]>([]);
@@ -428,8 +430,39 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
     }
   }
 
+  // A chat moved into another project: the server moves its repository and
+  // records the move; the groups update here at once so the row does not
+  // wait for the round trip, and the registry answer settles them.
+  async function moveChat(sessionId: string, projectId: string) {
+    const target = projects.find((p) => p.id === projectId);
+    if (!target || (target.session_ids || []).includes(sessionId)) return;
+    setProjects((items) => items.map((p) => ({
+      ...p,
+      session_ids: p.id === projectId
+        ? [...(p.session_ids || []), sessionId]
+        : (p.session_ids || []).filter((id) => id !== sessionId),
+    })));
+    const reply = await wsRequest<{ ok: boolean; error?: string | null }>(
+      "move_session_to_project", { session_id: sessionId, project_id: projectId }, "session_moved");
+    if (reply?.ok) {
+      setOrderNotice(text(`Moved to ${target.name}`, `已移到“${target.name}”`));
+      window.dispatchEvent(new Event("project-changed"));
+      return;
+    }
+    void refreshProjects();
+    showToast(/running/.test(reply?.error || "")
+      ? text("This chat is running; wait for it to finish before moving it.", "这个聊天正在运行，等它结束再移动。")
+      : text("Could not move the chat.", "没能移动这个聊天。"));
+  }
+  // The project a chat sits in, by the registry; unclaimed chats are the
+  // home project's.
+  const projectOf = (sessionId: string) =>
+    projects.find((p) => (p.session_ids || []).includes(sessionId))?.id
+      ?? projects.find((p) => p.is_default)?.id ?? "";
+
   const renderRow = (c: LegacyConv) => {
     const label = labelFor(c, t("sidebar.untitled"));
+    const home = projectOf(c.id);
     return (
       <ConvItem
         key={c.id}
@@ -438,6 +471,9 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
         active={c.id === currentId}
         running={!!runningTasks[c.id]}
         groups={allGroups}
+        projects={projects.length > 1 ? projects.filter((p) => p.id !== home && !p.hidden).map((p) => ({ id: p.id, name: p.name })) : undefined}
+        onMoveToProject={(projectId) => void moveChat(c.id, projectId)}
+        dragProps={projectMode ? rowProps(c.id, label, home) : undefined}
         onClick={() => switchTo(c.id, label)}
         onRename={(title) => renameSession(c.id, title)}
         onAutoRename={() => void autoRenameSession(c.id)}
@@ -520,6 +556,7 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
                     transition={reducedMotion || draggingProject?.id === g.key ? { duration: 0 } : { type: "spring", stiffness: 600, damping: 40 }}
                     style={{ zIndex: draggingProject?.id === g.key ? 5 : undefined }}
                     data-dragging={draggingProject?.id === g.key || undefined}
+                    data-drop-target={dropProject === g.key || undefined}
                   >
                     <ProjectMenu project={project}
                       onOpen={()=>{router.push(`/projects?project=${encodeURIComponent(g.key)}`);}}
@@ -629,6 +666,11 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
       {body}
 
       <span className="sr-only" role="status" aria-live="polite">{orderNotice}</span>
+      {draggingChat && (
+        <div className={styles.chatGhost} style={{ left: draggingChat.x + 12, top: draggingChat.y + 12 }} aria-hidden="true">
+          {draggingChat.label}
+        </div>
+      )}
       {/* Hide Clear all when every project list is folded. */}
       {!isEmpty && !(projectMode && projectLists.every(({ section }) => collapsedGroups.has(projectSectionKey(section)))) ? (
         <div className={styles.clearAll} onClick={clearAll}>
@@ -929,6 +971,9 @@ function ConvItem({
   onTogglePin,
   onToggleArchive,
   onMoveToGroup,
+  projects,
+  onMoveToProject,
+  dragProps,
   onCopyLink,
   onExport,
   onDelete,
@@ -944,6 +989,11 @@ function ConvItem({
   onTogglePin: () => void;
   onToggleArchive: () => void;
   onMoveToGroup: (group: string) => void;
+  /** The other projects the chat can move to, for its menu. */
+  projects?: { id: string; name: string }[];
+  onMoveToProject?: (projectId: string) => void;
+  /** Pointer handlers that let the row be dragged onto a project. */
+  dragProps?: React.HTMLAttributes<HTMLDivElement>;
   onCopyLink: () => void;
   onExport: (format: "md" | "html") => void;
   onDelete: () => void;
@@ -1068,7 +1118,12 @@ function ConvItem({
         tabIndex={renaming ? undefined : 0}
         aria-current={active ? "true" : undefined}
         onKeyDown={renaming ? undefined : event => { if (event.target === event.currentTarget) activateOnKey(onClick)(event); }}
-        onClick={renaming ? undefined : onClick}
+        {...(renaming ? {} : dragProps)}
+        onClick={renaming ? undefined : (event) => {
+          // A release that ended a drag is not a click on the chat.
+          dragProps?.onClick?.(event);
+          if (!event.defaultPrevented) onClick();
+        }}
         onMouseEnter={renaming ? undefined : measureMarquee}
         onMouseLeave={stopMarquee}
         onContextMenu={openMenu}
@@ -1193,6 +1248,8 @@ function ConvItem({
           onToggleArchive={onToggleArchive}
           onMoveToGroup={onMoveToGroup}
           onNewGroup={newGroup}
+          projects={projects}
+          onMoveToProject={onMoveToProject}
           onCopyLink={onCopyLink}
           onExport={onExport}
           onDelete={onDelete}

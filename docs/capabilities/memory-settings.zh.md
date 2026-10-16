@@ -47,7 +47,8 @@ Memory，位于 `~/.openprogram/projects/default/memory`。项目的 Memory 在�
 写入内容后才生效，不会往项目自己的文件夹里写任何东西。在 History 里，
 每个项目的 Memory 显示在它的 Memory 标签页下。两层同时生效时，Memory 工具
 给每个路径标出所在层，例如 `project:topics/api.md`。一轮对话只写进一层，
-所以打开或关闭项目写入都不会把对话复制到另一层。
+所以打开或关闭项目写入都不会把对话复制到另一层；把聊天移到另一个项目后，
+只有之后的轮次写进那个项目的 Memory，旧项目 Memory 里已有的内容留在原处。
 
 ## 上下文与历史
 
