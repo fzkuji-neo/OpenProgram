@@ -77,8 +77,8 @@ function codeRain(): Scene {
         for (let k = 0; k < d.len; k++) {
           const row = top - k;
           if (row < 0 || row >= rows) continue;
-          // 被照亮的字不停地变：雨头几乎每帧换一个，拖尾每秒两三次。
-          if (Math.random() < dt * (k === 0 ? 18 : 2.5)) grid[d.col][row] = cell();
+          // 拖尾里亮着的字不停地变，每个字每秒约八次。
+          if (Math.random() < dt * 8) grid[d.col][row] = cell();
           const g = grid[d.col][row];
           const y = row * CELL + CELL / 2;
           if (k === 0) {
