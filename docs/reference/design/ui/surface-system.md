@@ -187,15 +187,16 @@ Every choice from a fixed list is the shadcn **radix-rhea**
 `Select` (`apps/web/components/ui/select.tsx`); the app has no
 native `<select>` and no hand-rolled listbox. `SimpleSelect` is the
 one-line form (`value`, `onValueChange`, `options`, optional
-`placeholder`, `size`, `align`) and covers almost every call site;
+`placeholder`, `size`) and covers almost every call site;
 grouped options pass `{label, options}` entries.
 
 - Trigger: the registry's Rhea trigger (`rounded-2xl`,
   `bg-input/50`, transparent border, `h-8` default / `h-7` `sm`).
   Call sites only add width (`w-full`, `max-w-*`) or an error
   border, never their own chrome.
-- Popup: opens below the trigger (`position="popper"`), like the
-  app's other menus, and stacks above dialogs (`z-[130]`).
+- Popup: the registry's `item-aligned` position — it opens over
+  the trigger with the chosen row where the trigger was — and it
+  stacks above dialogs (`z-[130]`).
 - Radix reserves `""` for "nothing chosen": an option whose value
   is `""` travels under a sentinel inside `SimpleSelect`; without
   such an option, `""` shows the placeholder.

@@ -104,10 +104,10 @@ icon-lg                            圆角方形（31.5px，14px 圆角）
 
 ## 下拉选择与菜单
 
-所有"从固定列表里选一个"都是 shadcn **radix-rhea** 的 `Select`（`apps/web/components/ui/select.tsx`）；应用里没有原生 `<select>`，也没有手写的 listbox。`SimpleSelect` 是一行写法（`value`、`onValueChange`、`options`，可选 `placeholder`、`size`、`align`），覆盖几乎所有调用处；分组选项传 `{label, options}`。
+所有"从固定列表里选一个"都是 shadcn **radix-rhea** 的 `Select`（`apps/web/components/ui/select.tsx`）；应用里没有原生 `<select>`，也没有手写的 listbox。`SimpleSelect` 是一行写法（`value`、`onValueChange`、`options`，可选 `placeholder`、`size`），覆盖几乎所有调用处；分组选项传 `{label, options}`。
 
 - 触发器：registry 原样的 Rhea 触发器（`rounded-2xl`、`bg-input/50`、透明边，默认 `h-8` / `sm` 为 `h-7`）。调用处只加宽度（`w-full`、`max-w-*`）或错误边框，不另做外观。
-- 弹层：在触发器下方打开（`position="popper"`），和应用里其他菜单一致；叠在对话框之上（`z-[130]`）。
+- 弹层：registry 原样的 `item-aligned` 定位——直接盖住触发器展开，当前选中项落在原触发器的位置；叠在对话框之上（`z-[130]`）。
 - Radix 把 `""` 留给"未选择"：值为 `""` 的选项在 `SimpleSelect` 内部换成哨兵值传递；没有这种选项时，`""` 显示占位文字。
 
 所有菜单弹层——Radix `DropdownMenu`、Select 弹层，以及 CSS module 写的菜单（侧栏底部菜单、标签页右键菜单、函数右键菜单）——共用一个外框和一种行：
