@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from openprogram.agent.session_config import VALID_PERMISSION
+from openprogram.agent.session_config import DEFAULT_PERMISSION, VALID_PERMISSION
 
 
 class PermissionUpdateError(ValueError):
@@ -27,8 +27,8 @@ def permission_state(session_id: str, *, db=None) -> dict[str, Any]:
             raise PermissionUpdateError("invalid_permission_state")
         return dict(state)
     from openprogram.agent.session_config import project_defaults
-    mode = row.get("permission_mode") or project_defaults(session_id).get("permission_mode") or "ask"
-    return {"mode": mode if mode in VALID_PERMISSION else "ask", "version": 0}
+    mode = row.get("permission_mode") or project_defaults(session_id).get("permission_mode") or DEFAULT_PERMISSION
+    return {"mode": mode if mode in VALID_PERMISSION else DEFAULT_PERMISSION, "version": 0}
 
 
 def update_permission(session_id: str, mode: str, expected_version: int, actor: dict, *, db=None) -> dict:

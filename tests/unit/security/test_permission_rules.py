@@ -134,8 +134,8 @@ def test_permission_from_config_never_defaults_to_bypass():
         SessionRunConfig, permission_from_config,
     )
     empty = SessionRunConfig()
-    assert permission_from_config(empty) == "ask"
-    assert permission_from_config(empty, default="not-a-mode") == "ask"
+    assert permission_from_config(empty) == "auto"
+    assert permission_from_config(empty, default="not-a-mode") == "auto"
     assert permission_from_config(empty, default="bypass") == "bypass"
 
 
