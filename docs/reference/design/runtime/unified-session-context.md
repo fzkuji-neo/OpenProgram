@@ -37,7 +37,7 @@ The implementation pattern is uniformly "`store=_store.get(); if store is None: 
 
 ```
 SessionDB (default_db / SessionStore)           # persistence backend (per-session git repo)
-   └─ ~/.openprogram/sessions/<session_id>/      # history/ + context/ + meta.json
+   └─ ~/.openprogram/projects/<project-id>/chats/<session_id>/      # history/ + context/ + meta.json
 SessionNodeWriter(db, session_id)                   # thin wrapper: append/update/load DAG nodes
 ContextVars (per turn, must be set+reset in pairs):
    _store           = SessionNodeWriter(...)         # deep code reads it to write the DAG / render docs

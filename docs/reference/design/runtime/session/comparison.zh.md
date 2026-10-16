@@ -12,7 +12,7 @@ Claude Code、OpenCode、OpenClaw、OpenProgram（我们的设计）四个项目
 | 元数据位置 | 混在 JSONL 里（`ai-title`、`custom-title`、`mode` 等条目） | `sessions` 表（10 个字段） | `sessions.json` 里的 SessionEntry（约 70 个字段） | `meta.json`（每 session 目录内）+ `index.json`（注册表缓存） |
 | 消息位置 | 同一个 JSONL 文件（`user`、`assistant` 条目） | 独立的 `messages` 表 + `parts` 列（JSON 数组） | 独立的 `<id>.jsonl` transcript 文件 | Git history（每消息一个文件，DAG 结构） |
 | 文件快照 | JSONL 里的 `file-history-snapshot` 条目 | 独立的 `files` 表（path, content, version） | 无 | Git worktree（每 session 可有独立工作目录） |
-| 存储路径 | `~/.claude/projects/<slug>/<uuid>.jsonl` | `<data_dir>/opencode.db` | `<state>/agents/<id>/sessions/sessions.json` + `<id>.jsonl` | `<state>/sessions/<id>/`（meta.json + history/）+ `<state>/sessions/index.json` |
+| 存储路径 | `~/.claude/projects/<slug>/<uuid>.jsonl` | `<data_dir>/opencode.db` | `<state>/agents/<id>/sessions/sessions.json` + `<id>.jsonl` | `<state>/projects/<project_id>/chats/<id>/`（meta.json + history/）+ `<state>/projects/.chats-index.json` |
 | 元数据与消息分离 | 不分离，全在一个文件 | 分离（不同表） | 分离（不同文件） | 分离（meta.json vs history/） |
 
 ## 2. Session 元数据字段

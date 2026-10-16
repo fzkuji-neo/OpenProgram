@@ -205,7 +205,7 @@ are the whole of what a user or an agent needs to know about it:
   the sender's UI when it comes back. Neither side has to reload.
 - **Everything is on the record.** Deliveries, branch state changes and
   listings are written to the session's event log
-  (`~/.openprogram/sessions/<sid>/events.jsonl`, always on), so a
+  (`~/.openprogram/projects/<project-id>/chats/<sid>/events.jsonl`, always on), so a
   collaboration can be replayed and audited after the fact.
 - **A delivery can be held for confirmation.** Under an unattended policy
   that denies side effects, `send_message` is stopped before it delivers and

@@ -10,7 +10,7 @@ project, the home project (id `default`) included, owns one folder:
 ```
 <state>/projects/
 ├── projects.json                      # project registry
-├── <project_id>/                      # one folder per project; `default` is System
+├── <project_id>/                      # one folder per project; `default` is the home project
 │   ├── settings.json                  # project defaults
 │   ├── memory/                        # the project's memory workspace
 │   └── chats/
@@ -43,44 +43,6 @@ records where it is. `.chats-locations.json` is the durable authority while a
 session is being migrated or relocated. A working folder is never used as the
 primary conversation repository; the old `<project>/.openprogram/sessions/<id>/`
 location is read only as a legacy migration source.
-
-### Moving older installs
-
-Older installs kept conversations under `<state>/sessions/` (with bound
-projects under `sessions/projects/<project_id>/`), personal memory under
-`<state>/memory/`, and project memory inside each project folder at
-`<project>/.openprogram/memory/`. When an `openprogram` process starts (the
-command's entry, and `python -m openprogram.webui`),
-`openprogram.store.project.layout_migration.ensure_layout` copies those trees
-to `<state>/backups/layout-<time>/` and moves them in. The store's path
-helpers only name paths and never move anything, so importing the library,
-a test or a script cannot move a live store:
-
-- a conversation goes to the project that lists it in the registry, else the
-  project named in its `meta.json`, else the home project;
-- `index.json` and `locations.json` become `.chats-index.json` and
-  `.chats-locations.json`; the hidden bookkeeping folders merge in;
-- personal memory becomes `default/memory/`, each project's memory becomes
-  `<project_id>/memory/`, and `default-settings.json` becomes
-  `default/settings.json`;
-- absolute paths that moved conversations recorded in their own text files
-  (outside `workdir/`), in the location map and in the migration journal are
-  rewritten to the new places.
-
-A file lock keeps two processes from moving at once, and the `.layout` marker
-records the finished move. A process from an older install may still write
-the old trees after the move, so each process start checks for them again
-and merges what they gained: new conversations move in, empty shells of
-moved conversations and freshly initialised memory workspaces with no notes
-are dropped, and a second workspace that does hold notes is set aside as
-`<state>/memory.legacy`. Files the move does not recognise stay in
-`<state>/sessions.legacy`.
-
-The `history/` files are the conversation DAG. `meta.json` stores the active
-DAG `head_id`, while the repository's Git `HEAD` records the latest storage
-commit. Those are different pointers: changing the conversation branch does
-not mean checking out the Git branch, and `session_commits()` exposes Git's
-per-turn commits separately from DAG nodes.
 
 ## Persistent Fields (meta.json)
 

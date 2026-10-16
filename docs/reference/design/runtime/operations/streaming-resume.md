@@ -108,7 +108,7 @@ UI layer:
 ### 5. Death detection + abort sweep
 
 When the worker starts:
-1. Scan `~/.openprogram/sessions/*/history/*.json`
+1. Scan `~/.openprogram/projects/*/chats/*/history/*.json`
 2. Find msgs with `status=running` whose `last_update_at` exceeds the threshold (e.g. 5 minutes)
 3. Set status=`aborted`, and append a line `metadata.aborted_reason="worker restart"`
 

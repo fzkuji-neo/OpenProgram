@@ -157,7 +157,7 @@ asking the gate. Head movement stays with the normal TurnWriter path inside each
 
 The process-wide bus appends every completed typed dispatch as one JSON line, always on:
 
-- `~/.openprogram/sessions/<sid>/events.jsonl` when the event carries a session whose directory exists;
+- `~/.openprogram/projects/<project-id>/chats/<sid>/events.jsonl` when the event carries a session whose directory exists;
 - `~/.openprogram/logs/events.jsonl` otherwise.
 
 A file past 5 MB rotates to `.1` (replacing the previous `.1`). Gate verdicts are recorded on the same line as

@@ -178,7 +178,7 @@ HEAD 并推进它。**每个投递 session 使用独立的回送串行锁
 - **两边实时更新。** 投给另一个 session 的消息，落地那一刻就出现在那个
   session 的界面上；回复回来时出现在发送方的界面上。两边都不用刷新。
 - **全程留痕。** 投递、分支状态变化、列表查询都写进 session 的事件日志
-  （`~/.openprogram/sessions/<sid>/events.jsonl`，始终开启），一次协作事后可
+  （`~/.openprogram/projects/<project-id>/chats/<sid>/events.jsonl`，始终开启），一次协作事后可
   以回放、可以审计。
 - **投递可以被拦下确认。** 值守策略拒绝副作用时，`send_message` 在投递前被
   拦住等确认。子 agent 走同一个拦截点，`permission_mode=bypass` 关不掉它。

@@ -57,8 +57,8 @@ session 会一直保留，直到所有者删除。
 
 ```
 调用方调 create_session(session_id, agent_id, source=..., ...)
-  → 解析位置：默认项目使用 <state>/sessions/<session_id>，绑定项目使用
-    <state>/sessions/projects/<project_id>/<session_id>
+  → 解析位置：<state>/projects/<project_id>/chats/<session_id>；
+    没有绑定项目时 project_id 为 `default`（主目录项目）
   → 写 meta.json（id, agent_id, title, created_at, updated_at, source, status="idle", ...）
   → 写注册表：_index[session_id] = 摘要条目
   → 注册表原子写磁盘（临时文件 → os.rename）
@@ -103,7 +103,7 @@ composer 草稿；发布后会清理，因此不是持久的 session 附件存�
 位于 `<state>/channels/*/accounts/*/attachments` 的渠道根目录。
 
 旧项目迁移时，迁移日志会清点外部恢复目录，将会话和恢复数据一起复制到
-`<state>/sessions/.migration/staging/` 并校验，再把会话发布到
+`<state>/projects/.migration/staging/` 并校验，再把会话发布到
 `projects/<project_id>/<session_id>/`，把恢复数据发布到旁边的
 `.file-recovery/<session_id>/<turn>/`，随后才更新 location 权威记录。发布缺失或
 失败时，项目保持不可用状态，新的项目绑定任务会被阻止。
@@ -315,7 +315,7 @@ LLM 标题生成的细节（prompt、参数、后处理）见 [name.md](name.zh.
 
 ```
 调用方调 delete_session(session_id)
-  → 删除 <state>/sessions/<session_id>/ 整个目录
+  → 删除 <state>/projects/<project_id>/chats/<session_id>/ 整个目录
   → 删除 _index[session_id]
   → 注册表原子写磁盘
   → 广播 session_deleted：

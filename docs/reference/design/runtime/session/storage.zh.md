@@ -40,34 +40,6 @@
 是持久路径权威来源。工作目录不会作为主要会话仓库；旧的
 `<project>/.openprogram/sessions/<id>/` 只作为 legacy 迁移源读取。
 
-### 旧版安装的迁移
-
-旧版把会话放在 `<state>/sessions/`（绑定项目的在 `sessions/projects/<project_id>/`），
-个人记忆在 `<state>/memory/`，项目记忆在各项目文件夹的
-`<project>/.openprogram/memory/`。`openprogram` 进程启动时（命令入口，以及
-`python -m openprogram.webui`），`openprogram.store.project.layout_migration.ensure_layout`
-先把这些目录复制到 `<state>/backups/layout-<time>/`，再搬进来。存储的路径函数只给出
-路径、从不搬动任何东西，所以导入库、跑测试或脚本都不会搬动正在使用的存储：
-
-- 会话归入注册表里列出它的项目；没有则归 `meta.json` 写明的项目；再没有则归主目录项目；
-- `index.json` 和 `locations.json` 改名为 `.chats-index.json` 和
-  `.chats-locations.json`，隐藏的簿记目录合并进来；
-- 个人记忆变成 `default/memory/`，各项目记忆变成 `<project_id>/memory/`，
-  `default-settings.json` 变成 `default/settings.json`；
-- 被搬动的会话在自己的文本文件（`workdir/` 以外）、位置映射和迁移日志里记下的
-  绝对路径，改写为新位置。
-
-文件锁保证两个进程不会同时搬，`.layout` 标记记录搬迁已完成。旧版进程在搬迁后
-可能仍会写旧目录，所以每个进程启动时都会再检查一次，把新增的内容合并进来：
-新会话搬入；已搬会话的空壳、以及没有笔记的新初始化记忆工作区直接丢弃；另一个
-确实有笔记的工作区放到 `<state>/memory.legacy`。搬迁不认识的文件留在
-`<state>/sessions.legacy`。
-
-`history/` 文件构成对话 DAG。`meta.json` 保存 DAG 的活动 `head_id`，而仓库
-的 Git `HEAD` 表示最近一次存储提交。这两个指针含义不同：切换对话分支不会
-执行 Git 分支 checkout，`session_commits()` 也单独暴露每轮 Git 提交，而不是
-DAG 节点列表。
-
 ## 持久字段（meta.json）
 
 | 字段 | 类型 | 注册表 | 说明 |

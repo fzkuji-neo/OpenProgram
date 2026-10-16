@@ -346,7 +346,7 @@ head往回走会把整个会话都收进来。
 **会话存储那边没有任何东西对整棵树做哈希。**这套系统里唯一一个逐字节的整树
 哈希是记忆工作区的版本号：`memory/management/transaction.py`里的
 `workspace_revision`，根在`memory/store.py:root()`返回的那个目录，也就是
-`<state>/memory`。会话在`<state>/sessions`。两者不相交，所以一个被标记的
+`<state>/projects/<project_id>/memory`。会话在它旁边的`<state>/projects/<project_id>/chats`。两者不相交，所以一个被标记的
 节点不可能被读成一次并发的记忆写入。
 
 **会话索引缓存会重建一次。**过期判定是`GitSession.stat_fingerprint`，也就是
