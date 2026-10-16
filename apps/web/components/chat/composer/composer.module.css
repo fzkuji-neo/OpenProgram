@@ -468,9 +468,13 @@
      the first/last controls (and the popovers they anchor) flush with
      the input's visible border instead of 1px inside it. */
   max-width: min(calc(var(--chat-column-max) + 2px), calc(100% - 62px));
+  /* 10px to the box, the same as the env row above it (6px shadow
+     padding + 4px margin); the row is exactly one chip tall (the sm /
+     icon-sm Button, 1.75rem), so the chips' tops sit 10px under the box
+     just as the env chips' bottoms sit 10px over it. */
   margin: 10px auto 0;
   padding: 0;
-  min-height: 28px;
+  min-height: 1.75rem;
   position: relative;
 }
 /* Right cluster order is chat model · exec model · effort · ring
@@ -575,7 +579,7 @@
 /* The host is a zero-width anchor at the wrapper's right edge — the
    floating shell right-aligns to it. */
 .controlsRow :global(.effort-pill-host) {
-  height: 28px;
+  height: 1.75rem;
   width: 0;
 }
 .controlsRow :global(.effort-pill-shell) {
@@ -589,11 +593,11 @@
 .controlsRow :global(.effort-pill-shell:not([data-expanded])) {
   display: none;
 }
-/* Single-option variant (no slider): a quiet 28px icon chip, the same
-   footprint as the icon-sm Buttons beside it. */
+/* Single-option variant (no slider): a quiet icon chip, the same
+   footprint as the icon-sm Buttons beside it (1.75rem). */
 .controlsRow :global(.effort-pill-fixed) {
-  width: 28px;
-  height: 28px;
+  width: 1.75rem;
+  height: 1.75rem;
   border-radius: var(--radius);
 }
 .controlsRow :global(.effort-pill-fixed .effort-pill-compact-icon),
