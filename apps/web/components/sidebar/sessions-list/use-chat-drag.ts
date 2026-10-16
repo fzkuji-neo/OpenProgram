@@ -9,8 +9,12 @@ type Drag = {
   scroller: HTMLElement; scrollTop: number;
   items: Item[]; source: number; height: number;
 };
-/** Where the carried row would land: the project, and the item the gap opens before. */
-type Placement = { target: string | null; insertion: number };
+/**
+ * Where the carried row would land: the project (its own when it is
+ * only reordered there), the item the gap opens before, and the chats
+ * right before and after that place in the project.
+ */
+type Placement = { project: string | null; insertion: number; before: string | null; after: string | null };
 
 /** A chat row picked up and carried onto another project group. */
 export interface DraggingChat { id: string; dy: number }
@@ -20,14 +24,15 @@ export type ChatRowProps = HTMLAttributes<HTMLDivElement> & { "data-dragging"?: 
 
 const rowKey = (id: string) => `r:${id}`;
 const headerKey = (projectId: string) => `h:${projectId}`;
+const rowId = (key: string) => key.slice(2);
 
 /**
  * Pointer-capture drag of a chat row onto a project group. The same
  * pattern as `useProjectDrag`: a press becomes a drag after 6px, the
- * row itself slides with the pointer (no separate label), the project
- * under the pointer is the drop target (never the chat's own), release
- * there calls `onMove`, and Escape, blur or a release elsewhere
- * cancels. A click after a drag is swallowed so the chat does not open.
+ * row itself slides with the pointer (no separate label), release
+ * over a place calls `onDrop` with the project and the chats either
+ * side of the place, and Escape, blur or a release elsewhere cancels.
+ * A click after a drag is swallowed so the chat does not open.
  *
  * The lists make room for the carried row: headers and rows are one
  * sequence, the row's own centre picks the place in it nearest to
@@ -35,14 +40,15 @@ const headerKey = (projectId: string) => `h:${projectId}`;
  * it, as if the row had left its old place), and the items between
  * its old place and that one shift by one row, closing the gap it left
  * and opening one where it would land (`rowOffset` / `headerOffset`).
- * A place before a header is the end of the project above it. The
- * project of that place is the drop target, unless it is the row's
- * own, and the order inside a project is by time, so the gap only
- * shows the project it will join.
+ * A place before a header is the end of the project above it. Another
+ * project is lit as the drop target (`dropProject`); inside the row's
+ * own project the gap alone shows where it goes, and only while
+ * `reorder` is on (the lists sort by time, and a place is a time).
  */
 export function useChatDrag(
   enabled: boolean,
-  onMove: (sessionId: string, projectId: string) => void,
+  reorder: boolean,
+  onDrop: (sessionId: string, projectId: string, beforeId: string | null, afterId: string | null) => void,
 ) {
   const current = useRef<Drag | null>(null);
   const suppressClick = useRef<string | null>(null);
@@ -60,7 +66,7 @@ export function useChatDrag(
   const listY = (drag: Drag) => drag.y + drag.scroller.scrollTop - drag.scrollTop;
 
   function placementAt(drag: Drag): Placement {
-    const nowhere = { target: null, insertion: drag.source };
+    const nowhere = { project: null, insertion: drag.source, before: null, after: null };
     const rect = drag.scroller.getBoundingClientRect();
     if (drag.x < rect.left || drag.x > rect.right || drag.y < rect.top || drag.y > rect.bottom) return nowhere;
     const { items, source, height } = drag;
@@ -74,7 +80,15 @@ export function useChatDrag(
     if (insertion === 0) insertion = 1;
     const place = insertion >= items.length ? items[items.length - 1]
       : items[insertion].row ? items[insertion] : items[insertion - 1];
-    return place.group === drag.from ? nowhere : { target: place.group, insertion };
+    const project = place.group;
+    if (project === drag.from && (!reorder || insertion === source || insertion === source + 1)) return nowhere;
+    let before: string | null = null;
+    for (let index = insertion - 1; index >= 0 && items[index].group === project; index--) {
+      if (index !== source && items[index].row) { before = rowId(items[index].key); break; }
+    }
+    const next = items[insertion];
+    const after = next && next.row && next.group === project ? rowId(next.key) : null;
+    return { project, insertion, before, after };
   }
   function offsetsFor(drag: Drag, insertion: number): Record<string, number> {
     const next: Record<string, number> = {};
@@ -90,7 +104,8 @@ export function useChatDrag(
     // The row follows the pointer vertically, in its own scroller: the
     // scroll the drag itself caused moves it along with the list.
     setDraggingChat({ id: drag.id, dy: drag.y - drag.startY + drag.scroller.scrollTop - drag.scrollTop });
-    const { target: next, insertion } = placementAt(drag);
+    const { project, insertion } = placementAt(drag);
+    const next = project !== drag.from ? project : null;
     setDropProject(prev => (prev === next ? prev : next));
     const shifted = offsetsFor(drag, insertion);
     const grow = !next ? { top: 0, bottom: 0 } : insertion > drag.source ? { top: drag.height, bottom: 0 } : { top: 0, bottom: drag.height };
@@ -201,9 +216,9 @@ export function useChatDrag(
         const drag = current.current;
         if (!drag || drag.pointerId !== event.pointerId) return;
         drag.x = event.clientX; drag.y = event.clientY;
-        const target = drag.active ? placementAt(drag).target : null;
+        const place = drag.active ? placementAt(drag) : null;
         finish();
-        if (target) onMove(drag.id, target);
+        if (place?.project) onDrop(drag.id, place.project, place.before, place.after);
       },
       onPointerCancel: event => { if (current.current?.pointerId === event.pointerId) finish(); },
       onLostPointerCapture: event => { if (current.current?.pointerId === event.pointerId) finish(); },

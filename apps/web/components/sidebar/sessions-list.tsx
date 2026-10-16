@@ -128,7 +128,12 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
   const projectMode = view.groupBy === "project";
   const [orderNotice, setOrderNotice] = useState("");
   const { draggingProject, projectOffset, headerProps } = useProjectDrag(projectMode, reorderProject);
-  const { dropProject, dropGrow, rowProps, headerOffset: chatHeaderOffset } = useChatDrag(projectMode, (sessionId, projectId) => void moveChat(sessionId, projectId));
+  const { dropProject, dropGrow, rowProps, headerOffset: chatHeaderOffset } = useChatDrag(projectMode, view.sort === "recency",
+    (sessionId, projectId, prevId, nextId) => void dropChat(sessionId, projectId, prevId, nextId));
+  // In project lists a chat dragged to a place sorts by that place's time
+  // until it has activity of its own again (sort_at / sort_since).
+  const placedAt = (c: LegacyConv) => projectMode && c.sort_at && (c.updated_at || 0) <= (c.sort_since || 0)
+    ? c.sort_at : (c.updated_at || c.created_at || 0);
   const reducedMotion = useReducedMotion();
 
   const [projects, setProjects] = useState<SidebarProject[]>([]);
@@ -372,8 +377,7 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
       if (view.sort === "created") {
         return ((b.created_at || 0) - (a.created_at || 0)) * (view.sortDirection === "asc" ? -1 : 1);
       }
-      return ((b.updated_at || b.created_at || 0)
-        - (a.updated_at || a.created_at || 0)) * (view.sortDirection === "asc" ? -1 : 1);
+      return (placedAt(b) - placedAt(a)) * (view.sortDirection === "asc" ? -1 : 1);
     };
     return [...arr].sort(cmp);
   })();
@@ -436,7 +440,7 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
   // wait for the round trip, and the registry answer settles them.
   async function moveChat(sessionId: string, projectId: string) {
     const target = projects.find((p) => p.id === projectId);
-    if (!target || (target.session_ids || []).includes(sessionId)) return;
+    if (!target || (target.session_ids || []).includes(sessionId)) return false;
     setProjects((items) => items.map((p) => ({
       ...p,
       session_ids: p.id === projectId
@@ -448,12 +452,35 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
     if (reply?.ok) {
       setOrderNotice(text(`Moved to ${target.name}`, `已移到“${target.name}”`));
       window.dispatchEvent(new Event("project-changed"));
-      return;
+      return true;
     }
     void refreshProjects();
     showToast(/running/.test(reply?.error || "")
       ? text("This chat is running; wait for it to finish before moving it.", "这个聊天正在运行，等它结束再移动。")
       : text("Could not move the chat.", "没能移动这个聊天。"));
+    return false;
+  }
+  // A dropped chat: into the other project first, then at the place it
+  // was let go.
+  async function dropChat(sessionId: string, projectId: string, prevId: string | null, nextId: string | null) {
+    if (projectId !== projectOf(sessionId) && !(await moveChat(sessionId, projectId))) return;
+    placeChat(sessionId, prevId, nextId);
+  }
+  // The chat takes a time between its new neighbours' (now, at the top),
+  // so the list stays in time order: later activity elsewhere passes it,
+  // and its own next activity ends the placement. Pinned rows come first
+  // regardless, so a neighbour of the other kind is no neighbour.
+  function placeChat(id: string, prevId: string | null, nextId: string | null) {
+    const me = conversations[id] as LegacyConv | undefined;
+    if (!me) return;
+    const same = (other: LegacyConv | undefined) => other && !!other.pinned === !!me.pinned ? other : undefined;
+    const prev = same(prevId ? conversations[prevId] as LegacyConv : undefined);
+    const next = same(nextId ? conversations[nextId] as LegacyConv : undefined);
+    const now = Date.now() / 1000;
+    const sortAt = prev && next ? (placedAt(prev) + placedAt(next)) / 2
+      : prev ? placedAt(prev) - 1 : next ? Math.max(now, placedAt(next) + 1) : now;
+    patchConv(id, { sort_at: sortAt, sort_since: me.updated_at || 0 });
+    wsSend({ action: "update_session_flags", session_id: id, sort_at: sortAt });
   }
   /** A project header's drag props, moved aside for a carried chat. */
   const shiftedBy = (props: React.HTMLAttributes<HTMLDivElement>, y: number) =>

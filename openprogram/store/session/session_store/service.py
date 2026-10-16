@@ -22,6 +22,7 @@ class SessionStore(IndexOperations, StorageOperations, SessionsOperations, Messa
         "id", "agent_id", "title", "created_at", "updated_at",
         "source", "channel", "account_id", "peer_display", "peer_id",
         "pinned", "archived", "group", "status", "unread", "environment_id",
+        "sort_at", "sort_since",
     })
 
     _EMPTY_SHELL_AGE = 3600       # 1 hour

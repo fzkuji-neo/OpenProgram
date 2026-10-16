@@ -346,6 +346,9 @@ export interface ConvSummary {
   created_at?: number;
   /** Last-activity timestamp — the sidebar's recency-sort key. */
   updated_at?: number;
+  /** Sidebar placement (see sessions-list helpers' LegacyConv). */
+  sort_at?: number;
+  sort_since?: number;
   agent_id?: string;
   source?: string;
   peer_display?: string;

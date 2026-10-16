@@ -224,6 +224,10 @@ updated_at 只在追加消息路径推进；rename、pin、archive 和 read/unre
 
 `data` 只包含变更的字段，前端做增量 patch。
 
+### 项目列表里的位置
+
+侧栏按最后活跃时间列出项目里的对话。把对话拖到列表里的另一个位置，给它的是一个时间而不是序号：`update_session_flags` 带 `sort_at`（秒）把它写进 meta，同时写 `sort_since`——对话当时的 `updated_at`。客户端在 `updated_at` 没超过 `sort_since` 时按 `sort_at` 排序，所以别的对话有新活动仍会排到它前面，它自己的下一轮就结束这次摆放（服务端不清理；`sort_at` 为 0 清掉两者）。客户端把 `sort_at` 取在前后邻居的时间之间，放到顶部时取当前时间。两个字段都是索引字段，会话列表带着它们。
+
 ### status 的写入时机
 
 dispatcher 在 turn 生命周期中写 status：
@@ -327,7 +331,7 @@ LLM 标题生成的细节（prompt、参数、后处理）见 [name.md](name.zh.
 
 ### 每条 session 返回的字段
 
-注册表中的 15 个字段 + preview + project（列举时补充），共 17 个。完整列表见 [storage.md](storage.zh.md)。
+注册表中的 17 个字段 + preview + project（列举时补充），共 19 个。完整列表见 [storage.md](storage.zh.md)。
 
 ---
 

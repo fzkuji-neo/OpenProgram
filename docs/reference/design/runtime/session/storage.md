@@ -64,6 +64,8 @@ location is read only as a legacy migration source.
 | `group` | str? | Yes | group label |
 | `status` | str | Yes | lifecycle status (see below) |
 | `unread` | bool | Yes | unread marker |
+| `sort_at` | float | Yes | a place in the project list, as the time the session sorts by; 0 = none (see operations.md, "A place in the project list") |
+| `sort_since` | float | Yes | the `updated_at` the place was given at; activity past it ends the place |
 | `_auto_titled` | bool | No | auto-naming idempotency marker (internal control; not stored in the registry, not returned to the frontend) |
 
 The "Registry" column indicates whether the field is cached in `.chats-index.json`. `_auto_titled` and `project_id` are not stored in the registry: the former is an internal marker, and the latter is supplemented from the project directory mapping when listing.
