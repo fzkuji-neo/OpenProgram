@@ -108,52 +108,105 @@ function callGraph(): Scene {
   };
 }
 
-/** Code rain: columns of glyphs fall, a bright head and a fading tail. */
+/** Code rain after The Matrix: a fixed grid of glyphs (katakana, Latin
+ *  capitals, digits, symbols; some mirrored) that drops of light run down,
+ *  a glowing head with a green tail. Green regardless of the app theme. */
 function codeRain(): Scene {
-  const GLYPHS = "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789{}()<>=;:+*/";
-  const CELL = 18;
-  type Drop = { y: number; speed: number; len: number; glyphs: string[] };
+  const GLYPHS =
+    "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ" +
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:.=*+-<>|\"_";
+  const CELL = 20;
+  type Cell = { ch: string; flip: boolean };
+  type Drop = { col: number; y: number; speed: number; len: number };
+  let grid: Cell[][] = [];
   let drops: Drop[] = [];
+  let rows = 0;
   let last = 0;
-  const glyph = () => GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
-  const spawn = (h: number, scatter: boolean): Drop => {
-    const len = 8 + Math.floor(Math.random() * 18);
+  const cell = (): Cell => ({
+    ch: GLYPHS[Math.floor(Math.random() * GLYPHS.length)],
+    flip: Math.random() < 0.3,
+  });
+  const spawn = (col: number, scatter: boolean): Drop => {
+    const len = 10 + Math.floor(Math.random() * 22);
     return {
+      col,
       // 首帧把雨点散在整屏，之后从顶端上方落下。
-      y: scatter ? Math.random() * (h / CELL + len) : -Math.random() * 20,
-      speed: 5 + Math.random() * 9,
+      y: scatter ? Math.random() * (rows + len) : -Math.random() * rows * 0.6,
+      speed: 7 + Math.random() * 12,
       len,
-      glyphs: Array.from({ length: len }, glyph),
     };
   };
   return {
     init(w, h) {
       last = 0;
-      drops = Array.from({ length: Math.ceil(w / CELL) }, () => spawn(h, true));
+      const cols = Math.ceil(w / CELL);
+      rows = Math.ceil(h / CELL);
+      grid = Array.from({ length: cols }, () => Array.from({ length: rows }, cell));
+      // 约三分之一的列同时有两滴，疏密不一。
+      drops = Array.from({ length: Math.round(cols * 1.35) }, (_, i) => spawn(i % cols, true));
     },
-    draw(ctx, t, _w, h, pal) {
+    draw(ctx, t, _w, _h, pal) {
       const dt = last ? Math.min(0.05, t - last) : 0.016;
       last = t;
-      ctx.font = `500 ${CELL - 2}px ui-monospace, "SF Mono", Menlo, monospace`;
+      const dark = !isDark(pal.ink); // 深色主题：正文墨色是浅的。
+      const tail = dark ? "#22e35b" : "#118a3a";
+      const head = dark ? "#eafff0" : "#063d18";
+      ctx.font = `600 ${CELL - 3}px ui-monospace, "SF Mono", Menlo, monospace`;
       ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-      drops.forEach((d, col) => {
+      ctx.textBaseline = "middle";
+      // 网格里的字偶尔自己变，像原片那样闪。
+      for (let n = 0; n < grid.length * dt * 3; n++) {
+        const c = grid[Math.floor(Math.random() * grid.length)];
+        c[Math.floor(Math.random() * rows)] = cell();
+      }
+      for (const d of drops) {
         d.y += d.speed * dt;
-        if (d.y - d.len > h / CELL) Object.assign(d, spawn(h, false));
-        if (Math.random() < dt * 4) d.glyphs[Math.floor(Math.random() * d.len)] = glyph();
-        const head = Math.floor(d.y);
-        const x = col * CELL + CELL / 2;
+        if (d.y - d.len > rows) Object.assign(d, spawn(d.col, false));
+        const top = Math.floor(d.y);
+        const x = d.col * CELL + CELL / 2;
         for (let k = 0; k < d.len; k++) {
-          const row = head - k;
-          if (row < 0 || row * CELL > h) continue;
-          const isHead = k === 0;
-          ctx.fillStyle = isHead ? pal.accent : pal.ink;
-          ctx.globalAlpha = isHead ? 1 : 0.15 + 0.6 * (1 - k / d.len);
-          ctx.fillText(d.glyphs[(row % d.len + d.len) % d.len], x, row * CELL);
+          const row = top - k;
+          if (row < 0 || row >= rows) continue;
+          const g = grid[d.col][row];
+          const y = row * CELL + CELL / 2;
+          if (k === 0) {
+            ctx.fillStyle = head;
+            ctx.globalAlpha = 1;
+            ctx.shadowColor = dark ? tail : "transparent";
+            ctx.shadowBlur = dark ? 10 : 0;
+          } else {
+            ctx.fillStyle = tail;
+            ctx.globalAlpha = Math.max(0.08, 1 - k / d.len) * (dark ? 0.9 : 0.75);
+            ctx.shadowBlur = 0;
+          }
+          if (g.flip) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(-1, 1);
+            ctx.fillText(g.ch, 0, 0);
+            ctx.restore();
+          } else {
+            ctx.fillText(g.ch, x, y);
+          }
         }
-      });
+      }
+      ctx.shadowBlur = 0;
     },
   };
+}
+
+/** True when a CSS color (hex or rgb()) is dark, i.e. the theme is light. */
+function isDark(color: string): boolean {
+  let r = 0, g = 0, b = 0;
+  const hex = color.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hex) {
+    const v = hex[1].length === 3 ? hex[1].replace(/./g, "$&$&") : hex[1];
+    [r, g, b] = [0, 2, 4].map((o) => Number.parseInt(v.slice(o, o + 2), 16));
+  } else {
+    const m = color.match(/\d+(\.\d+)?/g);
+    if (m) [r, g, b] = m.map(Number);
+  }
+  return 0.299 * r + 0.587 * g + 0.114 * b < 128;
 }
 
 const SCENES = [callGraph, codeRain];
