@@ -1,7 +1,7 @@
 "use client"
 
-// shadcn/ui Sidebar shell, radix-luma style: the registry's `floating`
-// variant (npx shadcn add sidebar with style "radix-luma") — a 7px
+// shadcn/ui Sidebar shell, radix-rhea style: the registry's `floating`
+// variant (npx shadcn add sidebar with style "radix-rhea") — a 7px
 // gutter (p-2) around a rounded-2xl card on the sidebar surface. Only
 // the shell is taken from the registry: the open state, the resizable
 // rail, the narrow-viewport overlay and everything inside the card
