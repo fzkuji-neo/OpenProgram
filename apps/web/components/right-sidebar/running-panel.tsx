@@ -1,19 +1,21 @@
 "use client";
 
 /**
- * Activity: what in this conversation needs the reader, what is running and
- * what ran before. Every row is a run (one message and everything done for
- * it), a call or a program, and every row opens a page; the arrow at the top
- * goes back one level. Nothing expands in place and no group folds.
+ * Activity: the conversation's agent branches. The main conversation comes
+ * first, the sub-agents it started hang under it as a tree, and each row
+ * opens a page; what needs the reader is listed above them and background
+ * programs below. The arrow at the top goes back one level. Nothing expands
+ * in place and no group folds.
  */
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { ChevronRight, MessageSquareText } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
+import { useSessionStore } from "@/lib/session-store";
 import { useExecutionDebugger } from "@/lib/execution/use-execution-debugger";
 import { useManagedProcesses } from "@/lib/execution/use-managed-processes";
-import { processIsActive, stopProcess, type ActiveToolCall, type ManagedProcess } from "@/lib/net/process-client";
+import { processIsActive, stopProcess, type ActiveToolCall, type AgentCall, type ManagedProcess } from "@/lib/net/process-client";
 import { buildExecutionCommand, canExecuteAction, newCommandId, type ExecutionSnapshot } from "@/lib/execution/execution-debugger";
-import { activityModel, executionPending, spawnedBy, startedAt, type ActivityIssue } from "@/lib/execution/activity-model";
+import { activityModel, agentBranches, executionPending, spawnedBy, startedAt, type ActivityIssue } from "@/lib/execution/activity-model";
 import { loadSubAgentTranscript } from "@/lib/chat/sub-agent-transcripts";
 import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
 import { SolarIcon, type SolarIconName } from "@/components/solar-icons";
@@ -27,9 +29,10 @@ import styles from "./running-panel.module.css";
 
 type Text = (en: string, zh: string) => string;
 type Tone = "warn" | "run" | "ok" | "err" | "muted";
-type View = { kind: "run" | "call" | "program" | "tech"; id: string };
+type View = { kind: "main" | "run" | "call" | "spawn" | "program" | "tech"; id: string };
 
 const PAGE = 20;
+const LIVE = ["queued", "running", "pausing", "cancelling"];
 const DOT: Record<Tone, string> = {
   warn: "--warn", run: "--neutral pulse-opacity", ok: "--ok", err: "--err", muted: "is-muted",
 };
@@ -40,7 +43,7 @@ function Glyph({ name, tone }: { name: SolarIconName; tone: ToolTone | "run" }) 
   </span>;
 }
 
-/** A run: the message it answered, as a line glyph in the text colour. */
+/** A conversation or a run: a line glyph in the text colour. */
 function RunGlyph() {
   return <span className={styles.glyph} data-tone="run" aria-hidden="true"><MessageSquareText size={15} strokeWidth={1.8} /></span>;
 }
@@ -52,14 +55,18 @@ function Status({ tone, children }: { tone: Tone; children: ReactNode }) {
   </span>;
 }
 
-function Row({ glyph, title, status, tone, onOpen }: {
-  glyph: ReactNode; title: string; status: ReactNode; tone: Tone; onOpen: () => void;
+function Row({ glyph, title, status, tone, onOpen, depth = 0 }: {
+  glyph: ReactNode; title: string; status: ReactNode; tone: Tone; onOpen: () => void; depth?: number;
 }) {
-  return <Button variant="ghost" className={styles.row} onClick={onOpen}>
+  const row = <Button variant="ghost" className={styles.row} onClick={onOpen}>
     {glyph}
     <span className={styles.rowText}><span className={styles.name}>{title}</span><Status tone={tone}>{status}</Status></span>
     <ChevronRight size={14} className={styles.chevron} aria-hidden="true" />
   </Button>;
+  // A sub-agent sits under the branch that started it, joined by a line.
+  return depth > 0
+    ? <div className={styles.branch} style={{ "--depth": Math.min(depth, 4) } as CSSProperties}>{row}</div>
+    : row;
 }
 
 function duration(seconds: number, text: Text): string {
@@ -80,6 +87,12 @@ function dayLabel(seconds: number, text: Text): string {
   return day.toLocaleDateString([], { month: "short", day: "numeric", ...(day.getFullYear() !== today.getFullYear() ? { year: "numeric" } : {}) });
 }
 
+/** The time of day for today, the date and time before that. */
+function when(seconds: number): string {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return seconds * 1000 >= today.getTime() ? shortTime(seconds * 1000) : updatedTime(seconds);
+}
+
 /** What kind of thing a call is, in the reader's words. */
 function callKind(call: ActiveToolCall, text: Text): string {
   const tone = presentTool(call.name, undefined, text).tone;
@@ -90,7 +103,7 @@ function callKind(call: ActiveToolCall, text: Text): string {
 
 function executionTone(item: ExecutionSnapshot): Tone {
   if (executionPending(item)) return "warn";
-  if (["queued", "running", "pausing", "cancelling"].includes(item.status)) return "run";
+  if (LIVE.includes(item.status)) return "run";
   if (item.status === "completed") return "ok";
   if (["failed", "interrupted"].includes(item.status)) return "err";
   return "muted";
@@ -129,17 +142,24 @@ function programName(item: ManagedProcess, text: Text): string {
   return display?.name || item.command.trim().match(/^(?:[^\s=]+=[^\s]+\s+)*([^\s]+)/)?.[1]?.split("/").pop() || text("Program", "程序");
 }
 
+/** A call that started no sub-agent: why, in the reader's words. */
+function spawnState(item: AgentCall, text: Text): string {
+  return item.failed ? text("Failed to start", "没有启动成功") : text("Not started", "没有启动");
+}
+
 export function RunningPanel({ active, sessionId }: { active: boolean; sessionId: string | null }) {
   const { text } = useTranslation();
   const [stack, setStack] = useState<View[]>([]);
   const view = stack.at(-1) ?? null;
   const state = useExecutionDebugger(active, sessionId, undefined, view?.kind === "tech");
   const processes = useManagedProcesses(active, sessionId, view?.kind === "program" ? view.id : null);
+  const conversationTitle = useSessionStore(s => (sessionId ? s.conversations[sessionId]?.title : undefined) || "");
   const [shown, setShown] = useState(PAGE);
+  const [programsShown, setProgramsShown] = useState(PAGE);
   const [taskOpen, setTaskOpen] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  useEffect(() => { setStack([]); setShown(PAGE); }, [sessionId]);
+  useEffect(() => { setStack([]); setShown(PAGE); setProgramsShown(PAGE); }, [sessionId]);
   useEffect(() => { setTaskOpen(false); setActionError(null); }, [view?.kind, view?.id]);
 
   const readFailed = processes.stale || (
@@ -159,24 +179,39 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   if (!sessionId) return <SidebarNotice>{text("Select or start a conversation to view what it runs.", "选择或开始一个会话，查看它运行的内容。")}</SidebarNotice>;
 
   // Until the executions are read every call and program would look unowned.
-  const model = activityModel(state.fetchedAt ? state.executions : [], processes.items, state.fetchedAt ? processes.calls || [] : []);
+  const executions = state.fetchedAt ? state.executions : [];
+  const calls = state.fetchedAt ? processes.calls || [] : [];
+  const spawns = state.fetchedAt ? processes.spawns || [] : [];
+  const model = activityModel(executions, processes.items, calls);
+  const branches = agentBranches(executions);
   const now = Date.now() / 1000;
   const open = (next: View) => setStack(previous => [...previous, next]);
   const openTech = (executionId: string) => { state.selectExecution(executionId); open({ kind: "tech", id: executionId }); };
-  const execution = (id: string) => state.executions.find(item => item.execution_id === id) ?? null;
-  const call = (id: string) => (processes.calls || []).find(item => item.id === id) ?? null;
+  const execution = (id: string) => executions.find(item => item.execution_id === id) ?? null;
+  const call = (id: string) => calls.find(item => item.id === id) ?? null;
+  const spawn = (id: string) => spawns.find(item => item.id === id) ?? null;
   const program = (id: string) => processes.items.find(item => item.id === id) ?? null;
   const runTitle = (item: ExecutionSnapshot) => executionTitle(item, 1, text);
   const isAgent = (item: ExecutionSnapshot) => item.display?.kind === "job_agent";
   const agentName = (item: ExecutionSnapshot) => (item.display?.label || runTitle(item)).replace(/_/g, " ");
+  const mainName = text("Main conversation", "主对话");
+  /** Executions a branch runs itself: the agent (null: the main
+   *  conversation) and the executions under it that no deeper agent owns. */
+  const ownedBy = (owner: string | null) => new Set(executions.filter(item => branches.ownerOf(item) === owner).map(item => item.execution_id));
+  /** The sub-agent an `agent` call started, when it is listed: the one its
+   *  transcript row was paired with, else the job that began right after it. */
+  const agentOf = (entry: ActiveToolCall) => {
+    if (entry.name !== "agent") return null;
+    const paired = entry.tool_call_id ? spawns.find(item => item.job_id && item.id.endsWith(`_t_${entry.tool_call_id}`)) : undefined;
+    return (paired?.job_id ? execution(paired.job_id) : null) ?? spawnedBy(entry, model.childrenOf(entry.execution_id));
+  };
+  /** Everything an agent covers: itself and every execution under it. */
   const subtreeOf = (item: ExecutionSnapshot) => {
     const ids = new Set<string>();
     const walk = (entry: ExecutionSnapshot) => { if (ids.has(entry.execution_id)) return; ids.add(entry.execution_id); model.childrenOf(entry.execution_id).forEach(walk); };
     walk(item);
     return ids;
   };
-  /** The sub-agent an `agent` call started, when it is listed. */
-  const agentOf = (entry: ActiveToolCall) => entry.name === "agent" ? spawnedBy(entry, model.childrenOf(entry.execution_id)) : null;
   /** What waits on the reader inside an agent, including the stopped call that started it. */
   const issuesOf = (item: ExecutionSnapshot) => {
     const ids = subtreeOf(item);
@@ -185,13 +220,47 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       : issue.kind === "execution" ? ids.has(issue.execution.execution_id)
         : Boolean(issue.program.execution_id && ids.has(issue.program.execution_id)));
   };
-  const LIVE_STATES = ["queued", "running", "pausing", "cancelling"];
-  const activeIn = (ids: Set<string>) => state.executions.some(entry => ids.has(entry.execution_id) && LIVE_STATES.includes(entry.status))
-    || (processes.calls || []).some(entry => ids.has(entry.execution_id) && entry.status === "running")
+  const activeIn = (ids: Set<string>) => executions.some(entry => ids.has(entry.execution_id) && LIVE.includes(entry.status))
+    || calls.some(entry => ids.has(entry.execution_id) && entry.status === "running")
     || processes.items.some(entry => entry.execution_id && ids.has(entry.execution_id) && processIsActive(entry));
+  /** Calls that started no sub-agent, made by this branch (null: the main conversation). */
+  const failedSpawns = (owner: string | null) => spawns.filter(item => !item.job_id && (item.owner_job_id ?? null) === owner
+    && (owner === null || executions.some(entry => entry.execution_id === owner)));
+
+  // ---- the main conversation ---------------------------------------------------
+  const mainIds = ownedBy(null);
+  const mainRuns = executions.filter(item => mainIds.has(item.execution_id) && !branches.parentOf(item)).sort((a, b) => startedAt(b) - startedAt(a));
+  const latestRun = mainRuns[0] ?? null;
+  // Calls and programs whose execution is not listed belong to the conversation itself.
+  const mainCalls = calls.filter(entry => entry.status === "running" && (mainIds.has(entry.execution_id) || !execution(entry.execution_id)));
+  const mainPrograms = processes.items.filter(entry => processIsActive(entry) && entry.execution_id && mainIds.has(entry.execution_id));
+  const mainLive = executions.some(entry => mainIds.has(entry.execution_id) && LIVE.includes(entry.status)) || mainCalls.length > 0 || mainPrograms.length > 0;
+  const mainIssues = model.issues.filter(issue => issue.kind === "call"
+    ? !agentOf(issue.call) && (mainIds.has(issue.call.execution_id) || !execution(issue.call.execution_id))
+    : issue.kind === "execution" ? mainIds.has(issue.execution.execution_id)
+      : !issue.program.execution_id || mainIds.has(issue.program.execution_id));
+  function mainStatus(): { label: string; tone: Tone } {
+    if (mainLive) {
+      const step = mainCalls.at(-1);
+      const since = executions.filter(entry => mainIds.has(entry.execution_id) && LIVE.includes(entry.status)).map(startedAt).sort((a, b) => a - b)[0]
+        ?? step?.started_at ?? now;
+      const doing = !step ? text("Running", "正在运行")
+        : step.name === "agent" ? text("Waiting for a sub-agent", "等待子代理")
+          : `${text("Running", "正在运行")} ${step.description || step.name}`;
+      return { label: `${doing} · ${duration(now - since, text)}`, tone: "run" };
+    }
+    if (!latestRun) return { label: text("No runs yet", "还没有运行"), tone: "muted" };
+    const at = when(latestRun.terminal_at ?? latestRun.updated_at ?? startedAt(latestRun));
+    if (latestRun.status === "paused" || executionPending(latestRun)) return { label: `${executionState(latestRun, text)} · ${at}`, tone: "warn" };
+    if (latestRun.status === "completed" || latestRun.status === "reconciliation_required") return { label: `${text("Idle", "空闲")} · ${text("last", "上次")} ${at}`, tone: "muted" };
+    if (["failed", "interrupted"].includes(latestRun.status)) { const what = executionState(latestRun, text); return { label: `${text(`Last run ${what.toLowerCase()}`, `上次运行${what}`)} · ${at}`, tone: "err" }; }
+    return { label: `${executionState(latestRun, text)} · ${at}`, tone: "muted" };
+  }
 
   function viewTitle(entry: View): string {
+    if (entry.kind === "main") return mainName;
     if (entry.kind === "call") { const item = call(entry.id); return item ? item.description || item.name : text("Call", "调用"); }
+    if (entry.kind === "spawn") { const item = spawn(entry.id); return item?.description || text("Sub-agent", "子代理"); }
     if (entry.kind === "program") { const item = program(entry.id); return item ? programName(item, text) : text("Program", "程序"); }
     const item = execution(entry.id);
     return item ? isAgent(item) ? agentName(item) : runTitle(item) : text("Run", "运行");
@@ -215,19 +284,28 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   }
 
   // ---- rows ----------------------------------------------------------------
-  function agentRow(item: ExecutionSnapshot): ReactNode {
+  function mainRow(): ReactNode {
+    const { label, tone } = mainStatus();
+    return <Row key="main" glyph={<RunGlyph />} title={mainName} status={label} tone={tone} onOpen={() => open({ kind: "main", id: "main" })} />;
+  }
+  function agentRow(item: ExecutionSnapshot, depth = 0): ReactNode {
     const ids = subtreeOf(item);
     const issues = issuesOf(item);
     const live = activeIn(ids);
-    const runningCall = (processes.calls || []).filter(entry => ids.has(entry.execution_id) && entry.status === "running").at(-1);
+    const runningCall = calls.filter(entry => ids.has(entry.execution_id) && entry.status === "running").at(-1);
     const status = issues.length
-      ? issues.length === 1 && issues[0].kind === "call" ? text("Stopped", "已停止") : text(`${issues.length} to handle`, `有 ${issues.length} 项待处理`)
+      ? issues.length === 1 && issues[0].kind === "call" ? `${text("Stopped", "已停止")} · ${when(issues[0].at)}` : text(`${issues.length} to handle`, `有 ${issues.length} 项待处理`)
       : live
-        ? `${runningCall ? `${text("Running", "正在运行")} ${runningCall.name}` : text("Running", "正在运行")} · ${duration(now - startedAt(item), text)}`
-        : `${executionState(item, text)} · ${shortTime(startedAt(item) * 1000)}`;
-    return <Row key={`agent:${item.execution_id}`} glyph={<Glyph name="bot" tone="agent" />} title={agentName(item)}
+        ? `${runningCall ? `${text("Running", "正在运行")} ${runningCall.description || runningCall.name}` : text("Running", "正在运行")} · ${duration(now - startedAt(item), text)}`
+        : `${executionState(item, text)} · ${when(startedAt(item))}`;
+    return <Row key={`agent:${item.execution_id}`} depth={depth} glyph={<Glyph name="bot" tone="agent" />} title={agentName(item)}
       status={status} tone={issues.length ? "warn" : live ? "run" : executionTone(item)}
       onOpen={() => open({ kind: "run", id: item.execution_id })} />;
+  }
+  function spawnRow(item: AgentCall): ReactNode {
+    return <Row key={`spawn:${item.id}`} glyph={<Glyph name="bot" tone="agent" />} title={item.description || text("Sub-agent", "子代理")}
+      status={`${spawnState(item, text)} · ${when(item.at)}`} tone={item.failed ? "err" : "muted"}
+      onOpen={() => open({ kind: "spawn", id: item.id })} />;
   }
   function callRow(item: ActiveToolCall, withKind = true): ReactNode {
     const look = presentTool(item.name, undefined, text);
@@ -238,15 +316,19 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   }
   function programRow(item: ManagedProcess): ReactNode {
     return <Row key={`program:${item.id}`} glyph={<Glyph name="code-square" tone="shell" />} title={programName(item, text)}
-      status={`${text("Program", "后台程序")} · ${programState(item, text)}`} tone={programTone(item)}
+      status={`${programState(item, text)} · ${processIsActive(item) ? duration(now - item.started_at, text) : when(item.started_at)}`} tone={programTone(item)}
       onOpen={() => open({ kind: "program", id: item.id })} />;
+  }
+  function runRow(item: ExecutionSnapshot): ReactNode {
+    const end = item.terminal_at ?? (LIVE.includes(item.status) ? now : item.updated_at);
+    return <Row key={`execution:${item.execution_id}`} glyph={<RunGlyph />} title={runTitle(item)}
+      status={`${executionState(item, text)} · ${when(startedAt(item))} · ${text("took", "用时")} ${duration(end - startedAt(item), text)}`} tone={executionTone(item)}
+      onOpen={() => open({ kind: "run", id: item.execution_id })} />;
   }
   function childRow(item: ExecutionSnapshot): ReactNode {
     if (isAgent(item)) return agentRow(item);
-    const agent = false;
-    return <Row key={`execution:${item.execution_id}`} glyph={agent ? <Glyph name="bot" tone="agent" /> : <RunGlyph />}
-      title={agent ? (item.display?.label || runTitle(item)).replace(/_/g, " ") : runTitle(item)}
-      status={`${agent ? text("Sub-agent", "子代理") : text("Branch", "分支")} · ${executionState(item, text)}`} tone={executionTone(item)}
+    return <Row key={`execution:${item.execution_id}`} glyph={<RunGlyph />} title={runTitle(item)}
+      status={`${text("Branch", "分支")} · ${executionState(item, text)}`} tone={executionTone(item)}
       onOpen={() => open({ kind: "run", id: item.execution_id })} />;
   }
   function issueRow(issue: ActivityIssue): ReactNode {
@@ -281,7 +363,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       body = here === "agent"
         ? text("The run stopped before this sub-agent finished.", "运行停止了，这个子代理没有做完。")
         : text("The run stopped before this call returned.", "运行在这次调用返回前停止了。");
-      const job = issue.owner && issue.call.name === "agent" ? spawnedBy(issue.call, model.childrenOf(issue.owner.execution_id)) : null;
+      const job = agentOf(issue.call);
       if (job && here !== "agent") actions.push(<Button key="agent" variant="elevated" size="sm" onClick={() => void openAgentConversation(job)}>{text("Open its conversation", "打开它的对话")}</Button>);
     } else if (issue.kind === "execution") {
       const waiting = issue.execution.status === "paused";
@@ -312,6 +394,12 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     </Button>
   </div>;
   const toActivity = text("Activity", "运行记录");
+  /** Where a branch came from: the agent that started it, or the main conversation. */
+  const fromLink = (owner: string | null) => {
+    const agent = owner ? execution(owner) : null;
+    return <button type="button" className={styles.link} onClick={() => open(agent ? { kind: "run", id: agent.execution_id } : { kind: "main", id: "main" })}>
+      {agent ? agentName(agent) : mainName}</button>;
+  };
 
   // ---- pages -------------------------------------------------------------------
   if (view?.kind === "tech") return <div className={styles.panel}>
@@ -322,22 +410,50 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       onDraftAction={state.draftAction} />
   </div>;
 
+  if (view?.kind === "main") {
+    const { label, tone } = mainStatus();
+    const agents = branches.agentsUnder(null);
+    const failed = failedSpawns(null);
+    const runningHere = [...mainCalls.filter(entry => !agentOf(entry)).map(entry => callRow(entry)), ...mainPrograms.map(programRow)];
+    return <div className={styles.panel}>
+      {backBar(toActivity)}
+      <div className={styles.scroll}>
+        <div className={styles.head}>
+          <div className={styles.kind}>{mainName}{latestRun && <> · {text("last run", "上次运行")} {when(startedAt(latestRun))}</>}</div>
+          <h3 className={styles.title}>{conversationTitle || mainName}</h3>
+          <Status tone={tone}>{label}</Status>
+        </div>
+        {mainIssues.map(issue => issueBlock(issue, "run"))}
+        {actionError && <p role="alert" className={styles.error}>{actionError}</p>}
+        {runningHere.length > 0 && <><h4 className={styles.section}>{text("Running now", "正在做")}</h4>{runningHere}</>}
+        {latestRun && <><h4 className={styles.section}>{text("Latest run", "最近一次运行")}</h4>{runRow(latestRun)}</>}
+        <h4 className={styles.section}>{text("Sub-agents it started", "它启动的子代理")}</h4>
+        {agents.length + failed.length === 0
+          ? <p className={styles.empty}>{text("No sub-agents yet.", "还没有启动过子代理。")}</p>
+          : <>{agents.map(item => agentRow(item))}{failed.map(spawnRow)}</>}
+        {latestRun && <Button variant="ghost" className={styles.techRow} onClick={() => openTech(latestRun.execution_id)}>
+          {text("Technical details", "技术详情")}<ChevronRight size={13} aria-hidden="true" />
+        </Button>}
+      </div>
+    </div>;
+  }
+
   if (view?.kind === "run") {
     const item = execution(view.id);
     const run = item ? model.runOf(item.execution_id) : null;
     if (!item || !run) return <div className={styles.panel}>{backBar(toActivity)}<SidebarNotice>{text("This run is no longer listed.", "这次运行已不在列表中。")}</SidebarNotice></div>;
     const isRoot = run.root.execution_id === item.execution_id;
-    const subtree = new Set<string>();
-    const collect = (entry: ExecutionSnapshot) => { if (subtree.has(entry.execution_id)) return; subtree.add(entry.execution_id); model.childrenOf(entry.execution_id).forEach(collect); };
-    collect(item);
     const issues = issuesOf(item);
+    const agent = isAgent(item);
     // An agent call is reached through the sub-agent it started.
     const ownCalls = run.calls.filter(entry => entry.execution_id === item.execution_id && !agentOf(entry));
-    const children = model.childrenOf(item.execution_id);
+    const kids = model.childrenOf(item.execution_id);
+    const nested = agent ? branches.agentsUnder(item.execution_id).filter(entry => !kids.includes(entry)) : [];
     const ownPrograms = run.programs.filter(entry => entry.execution_id === item.execution_id);
-    const agent = isAgent(item);
-    const spawning = agent ? (processes.calls || []).find(entry => agentOf(entry)?.execution_id === item.execution_id) : undefined;
-    const end = item.terminal_at ?? (["queued", "running", "pausing", "cancelling"].includes(item.status) ? now : item.updated_at);
+    const failed = agent ? failedSpawns(item.execution_id) : [];
+    const spawning = agent ? calls.find(entry => agentOf(entry)?.execution_id === item.execution_id) : undefined;
+    const task = spawning?.prompt || (agent ? spawns.find(entry => entry.job_id === item.execution_id)?.prompt : "") || "";
+    const end = item.terminal_at ?? (LIVE.includes(item.status) ? now : item.updated_at);
     return <div className={styles.panel}>
       {backBar(toActivity)}
       <div className={styles.scroll}>
@@ -351,18 +467,45 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
           <Button variant="elevated" size="sm" onClick={() => void openAgentConversation(item)}>{text("Open its conversation", "打开它的对话")}</Button>
         </div>}
         {actionError && <p role="alert" className={styles.error}>{actionError}</p>}
-        {!isRoot && <dl className={styles.facts}>
-          <dt>{text("From", "来自")}</dt>
-          <dd><button type="button" className={styles.link} onClick={() => open({ kind: "run", id: run.root.execution_id })}>{runTitle(run.root)}</button></dd>
-        </dl>}
-        {spawning?.prompt && <Long label={text("Task given to it", "交给它的任务")} body={spawning.prompt} mono={false} open={taskOpen} onToggle={() => setTaskOpen(value => !value)} text={text} />}
+        {agent
+          ? <dl className={styles.facts}>
+            <dt>{text("Started by", "由谁启动")}</dt><dd>{fromLink(branches.agentParentOf(item))}</dd>
+            {!isRoot && <><dt>{text("From", "来自")}</dt>
+              <dd><button type="button" className={styles.link} onClick={() => open({ kind: "run", id: run.root.execution_id })}>{runTitle(run.root)}</button></dd></>}
+          </dl>
+          : !isRoot && <dl className={styles.facts}>
+            <dt>{text("From", "来自")}</dt>
+            <dd><button type="button" className={styles.link} onClick={() => open({ kind: "run", id: run.root.execution_id })}>{runTitle(run.root)}</button></dd>
+          </dl>}
+        {task && <Long label={text("Task given to it", "交给它的任务")} body={task} mono={false} open={taskOpen} onToggle={() => setTaskOpen(value => !value)} text={text} />}
         <h4 className={styles.section}>{agent ? text("What it did", "它做了什么") : text("What this run did", "这次运行做了什么")}</h4>
-        {children.length + ownCalls.length + ownPrograms.length === 0
+        {kids.length + nested.length + ownCalls.length + ownPrograms.length + failed.length === 0
           ? <p className={styles.empty}>{text("No sub-agents, open calls or background programs.", "没有子代理、未返回的调用或后台程序。")}</p>
-          : <>{ownCalls.map(entry => callRow(entry))}{children.map(childRow)}{ownPrograms.map(programRow)}</>}
+          : <>{ownCalls.map(entry => callRow(entry))}{kids.map(childRow)}{nested.map(entry => agentRow(entry))}{failed.map(spawnRow)}{ownPrograms.map(programRow)}</>}
         <Button variant="ghost" className={styles.techRow} onClick={() => openTech(item.execution_id)}>
           {text("Technical details", "技术详情")}<ChevronRight size={13} aria-hidden="true" />
         </Button>
+      </div>
+    </div>;
+  }
+
+  if (view?.kind === "spawn") {
+    const item = spawn(view.id);
+    if (!item) return <div className={styles.panel}>{backBar(toActivity)}<SidebarNotice>{text("This call is no longer listed.", "这次调用已不在列表中。")}</SidebarNotice></div>;
+    return <div className={styles.panel}>
+      {backBar(toActivity)}
+      <div className={styles.scroll}>
+        <div className={styles.head}>
+          <div className={styles.kind}><Glyph name="bot" tone="agent" />{text("Sub-agent", "子代理")} · {updatedTime(item.at)}</div>
+          <h3 className={styles.title}>{item.description || text("Sub-agent", "子代理")}</h3>
+          <Status tone={item.failed ? "err" : "muted"}>{spawnState(item, text)}</Status>
+        </div>
+        <p className={styles.note}>{text("This call did not start a sub-agent, so it has no conversation of its own.", "这次调用没有建出子代理，所以没有它自己的对话。")}</p>
+        <dl className={styles.facts}>
+          <dt>{text("Started by", "由谁启动")}</dt><dd>{fromLink(item.owner_job_id)}</dd>
+        </dl>
+        {item.error && <><h4 className={styles.section}>{text("Error", "报错")}</h4><p className={styles.code} data-open="1">{item.error}</p></>}
+        {item.prompt && <Long label={text("Task given to it", "交给它的任务")} body={item.prompt} mono={false} open={taskOpen} onToggle={() => setTaskOpen(value => !value)} text={text} />}
       </div>
     </div>;
   }
@@ -433,27 +576,13 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   }
 
   // ---- overview ----------------------------------------------------------------
-  // Messages live in the chat; Activity lists the agents they started, what
-  // is in flight, and what needs the reader.
-  const agents = state.executions.filter(isAgent).sort((a, b) => startedAt(b) - startedAt(a));
-  const inAgents = new Set(agents.flatMap(item => [...subtreeOf(item)]));
-  const liveAgents = agents.filter(item => activeIn(subtreeOf(item)));
-  const runningOther = [
-    ...(processes.calls || []).filter(entry => entry.status === "running" && !inAgents.has(entry.execution_id)
-      && !processes.items.some(program => processIsActive(program) && program.tool_call_id && program.tool_call_id === entry.tool_call_id)).map(entry => callRow(entry)),
-    ...processes.items.filter(entry => processIsActive(entry) && !(entry.execution_id && inAgents.has(entry.execution_id))).map(programRow),
-  ];
-  // An agent waiting on the reader is listed once, under Needs you.
-  const pastAgents = agents.filter(item => !liveAgents.includes(item) && !issuesOf(item).length);
-  type Past = { at: number; node: ReactNode };
-  const past: Past[] = [
-    ...pastAgents.map(item => ({ at: startedAt(item), node: agentRow(item) })),
-    ...model.loosePrograms.filter(entry => !processIsActive(entry)).map(entry => ({ at: entry.started_at, node: programRow(entry) })),
-  ].sort((a, b) => b.at - a.at);
-  const visible = past.slice(0, shown);
-  const runningCount = liveAgents.length + runningOther.length;
-  const empty = state.fetchedAt && processes.loaded && !model.issues.length && !runningCount && !past.length;
-  let lastDay = "";
+  // Messages live in the chat; Activity lists the conversation's agent
+  // branches, its background programs and what needs the reader.
+  const tree = branches.tree();
+  const visible = tree.slice(0, shown);
+  const showMain = Boolean(latestRun) || tree.length > 0 || mainLive;
+  const programs = [...processes.items].sort((a, b) => Number(processIsActive(b)) - Number(processIsActive(a)) || b.started_at - a.started_at);
+  const empty = state.fetchedAt && processes.loaded && !model.issues.length && !showMain && !programs.length;
   return <section className={styles.panel} aria-label={text("Conversation activity", "会话运行记录")}>
     {readFailed && readNotice?.sessionId === sessionId && <p role="status" className={`${styles.notice} ${readNotice.persistent && !hasRead ? styles.error : ""}`}>{hasRead
       ? text("Updating status… Showing saved records.", "正在更新状态，当前显示上次记录。")
@@ -466,23 +595,22 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
         <SectionHeader name={text("Needs you", "要你处理")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} actions={<span className={styles.count}>{model.issues.length}</span>} />
         {model.issues.map(issueRow)}
       </div>}
-      {runningCount > 0 && <div className="group/sec">
-        <SectionHeader name={text("Running", "正在运行")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} actions={<span className={styles.count}>{runningCount}</span>} />
-        {liveAgents.map(agentRow)}{runningOther}
-      </div>}
-      {past.length > 0 && <div className="group/sec">
-        <SectionHeader name={text("Sub-agents", "子代理")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} actions={<span className={styles.count}>{past.length}</span>} />
-        {visible.map(entry => {
-          const day = dayLabel(entry.at, text);
-          const heading = day !== lastDay ? <div className={styles.day} key={`day:${day}`}>{day}</div> : null;
-          lastDay = day;
-          return [heading, entry.node];
-        })}
-        {past.length > shown && <button type="button" className={styles.more} onClick={() => setShown(value => value + 50)}>
-          {text(`Show ${Math.min(50, past.length - shown)} earlier`, `显示更早的 ${Math.min(50, past.length - shown)} 条`)}
+      {showMain && <div className="group/sec">
+        <SectionHeader name={text("Agent branches", "Agent 分支")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} actions={<span className={styles.count}>{tree.length + 1}</span>} />
+        {mainRow()}
+        {visible.map(entry => agentRow(entry.item, entry.depth))}
+        {tree.length > shown && <button type="button" className={styles.more} data-depth="1" onClick={() => setShown(value => value + 50)}>
+          {text(`Show ${Math.min(50, tree.length - shown)} earlier`, `显示更早的 ${Math.min(50, tree.length - shown)} 个`)}
         </button>}
       </div>}
-      {empty && <SidebarNotice>{text("Sub-agents this conversation starts, background programs and anything that needs you appear here.", "这个会话启动的子代理、后台程序和需要你处理的事会显示在这里。")}</SidebarNotice>}
+      {programs.length > 0 && <div className="group/sec">
+        <SectionHeader name={text("Background programs", "后台程序")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} actions={<span className={styles.count}>{programs.length}</span>} />
+        {programs.slice(0, programsShown).map(programRow)}
+        {programs.length > programsShown && <button type="button" className={styles.more} onClick={() => setProgramsShown(value => value + 50)}>
+          {text(`Show ${Math.min(50, programs.length - programsShown)} earlier`, `显示更早的 ${Math.min(50, programs.length - programsShown)} 个`)}
+        </button>}
+      </div>}
+      {empty && <SidebarNotice>{text("This conversation's agent branches, its background programs and anything that needs you appear here.", "这个会话的 agent 分支、后台程序和需要你处理的事会显示在这里。")}</SidebarNotice>}
     </div>
   </section>;
 }

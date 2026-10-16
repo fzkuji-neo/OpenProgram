@@ -59,6 +59,8 @@ window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventL
 const { act, createElement } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { RunningPanel } = await import("../../components/right-sidebar/running-panel.tsx");
+const { useSessionStore } = await import("../../lib/session-store/index.ts");
+useSessionStore.setState({ conversations: { session: { id: "session", title: "NeurIPS trip" } } });
 const DAY = 86400;
 const now = Math.floor(Date.now() / 1000);
 const run = (id, status, started_at, extra = {}) => ({ execution_id: id, job_id: id, session_id: "session", status, started_at, updated_at: started_at, parent_execution_id: null, effect_summary: {}, task_label: id, capabilities: { pause: false, step: false, steer: false, retry: false, fork: false }, status_version: 1, active_child_ids: [], ...extra });
@@ -86,7 +88,7 @@ const agentCall = { id: "c1", execution_id: "turn", name: "agent", description: 
 const spawned = run("j_fix", "reconciliation_required", now - 3 * DAY + 2, { parent_execution_id: "turn",
   display: { kind: "job_agent", label: "Fix_page_close", assistant_message_id: "j_fix_user_reply" }, effect_summary: { provider_response_incomplete: true } });
 
-test("the overview lists agents, what is in flight and what needs you, never plain messages", async () => {
+test("the overview lists the agent branches and what needs you, never plain messages", async () => {
   await mounted([
     run("turn", "reconciliation_required", now - 3 * DAY, { task_label: "check and fix it" }), spawned,
     run("live", "running", now - 120, { task_label: "fill the form" }),
@@ -96,11 +98,11 @@ test("the overview lists agents, what is in flight and what needs you, never pla
   ], async host => {
     const text = host.textContent;
     assert.match(text, /Needs you1.*Fix page close.*Sub-agent stopped/s);
-    assert.match(text, /Running1.*Form filler.*Running/s);
-    assert.match(text, /Sub-agents1.*Today.*Research.*Completed/s);
+    // The main conversation first, then every sub-agent under it, newest first.
+    assert.match(text, /Agent branches4Main conversationRunning · 2 minResearchCompleted.*Form fillerRunning.*Fix page closeStopped/s);
+    assert.equal(host.querySelectorAll("[style*='--depth']").length, 3);
     // The messages themselves stay in the chat.
     assert.doesNotMatch(text, /check and fix it|fill the form|what happened/);
-    assert.equal(text.split("Fix page close").length - 1, 1);
     assert.equal(host.querySelectorAll("[aria-expanded]").length, 0);
   }, [], {}, { calls: [agentCall] });
 });
@@ -148,27 +150,68 @@ test("an agent page leads with its issue, then where it came from and what it di
   }, [], {}, { calls: [agentCall] });
 });
 
-test("finished agents are grouped by day and paged", async () => {
+test("sub-agents are paged under the main conversation", async () => {
   const runs = Array.from({ length: 25 }, (_, i) => run(`j${i}`, "completed", now - i * 60 - (i > 2 ? 2 * DAY : 0),
     { parent_execution_id: "turn", display: { kind: "job_agent", label: `agent_${i}` } }));
   await mounted([run("turn", "completed", now - 3 * DAY), ...runs], async (host, click) => {
-    assert.match(host.textContent, /Sub-agents25/);
-    assert.match(host.textContent, /Today.*agent 0/s);
-    assert.equal(host.querySelectorAll("button").length, 21, "20 agents and the paging button");
+    assert.match(host.textContent, /Agent branches26Main conversationIdle · last.*agent 0/s);
+    assert.equal(host.querySelectorAll("button").length, 22, "the main conversation, 20 agents and the paging button");
     await click("Show 5 earlier");
     assert.doesNotMatch(host.textContent, /Show \d+ earlier/);
+    assert.equal(host.querySelectorAll("button").length, 26);
   });
 });
 
-test("ongoing shell calls and background programs appear without opening a run", async () => {
+test("ongoing shell calls show on the main conversation and programs in their own group", async () => {
   await mounted([], async (host, click) => {
-    assert.match(host.textContent, /Running2/);
-    assert.match(host.textContent, /bash/);
-    assert.doesNotMatch(host.textContent, /Tasks and their programs will appear|will appear here/);
+    assert.match(host.textContent, /Agent branches1Main conversationRunning bash · \d+ s/);
+    assert.match(host.textContent, /Background programs1python.*Running/);
+    assert.doesNotMatch(host.textContent, /will appear here/);
+    await click("Main conversation");
+    assert.match(host.textContent, /Running now.*bash/s);
     await click("bash");
     assert.match(host.textContent, /Command.*sleep 30/s);
   }, [{ id: "proc", command: "python worker.py", status: "running", started_at: now, backend_id: "local" }], {},
   { calls: [{ id: "call", name: "bash", command: "sleep 30", started_at: now - 5, status: "running" }] });
+});
+
+const failedSpawn = { id: "turn_t_call_1", caller: "turn_reply", owner_job_id: null, job_id: null, description: "Upload fix",
+  prompt: "Fix the upload path", at: now - 5 * DAY, failed: true, error: "[agent error] JobAgentInputError: Job Agent input must be JSON serializable" };
+
+test("the main conversation page shows its latest run, the sub-agents it started and the ones that never started", async () => {
+  await mounted([run("turn", "reconciliation_required", now - 3 * DAY, { task_label: "check and fix it" }), spawned,
+    run("latest", "completed", now - 600, { task_label: "prepare the visa form", terminal_at: now - 480 })],
+  async (host, click, selected) => {
+    assert.match(host.textContent, /Main conversationIdle · last/);
+    await click("Main conversation");
+    let text = host.textContent;
+    assert.match(text, /Main conversation · last run.*NeurIPS trip.*Idle/s);
+    assert.match(text, /Latest run.*prepare the visa form.*Completed.*took 2 min/s);
+    assert.match(text, /Sub-agents it started.*Fix page close.*Stopped.*Upload fix.*Failed to start/s);
+    await click("Upload fix");
+    text = host.textContent;
+    assert.match(text, /← Main conversation/);
+    assert.match(text, /Upload fix.*Failed to start.*did not start a sub-agent.*Started by.*Main conversation.*Error.*JobAgentInputError.*Task given to it.*Fix the upload path/s);
+    await click("Main conversation");
+    await click("Technical details");
+    assert.deepEqual(selected, ["latest"]);
+  }, [], {}, { calls: [agentCall], spawns: [failedSpawn] });
+});
+
+test("a sub-agent another one started sits under it and names it", async () => {
+  await mounted([run("turn", "completed", now - 600), run("j_parent", "completed", now - 500, { parent_execution_id: "turn", display: { kind: "job_agent", label: "Research" } }),
+    run("j_child", "completed", now - 400, { parent_execution_id: "j_parent", display: { kind: "job_agent", label: "Read_pages" } })],
+  async (host, click) => {
+    assert.match(host.textContent, /Agent branches3Main conversation.*Research.*Read pages/s);
+    const depths = [...host.querySelectorAll("[style*='--depth']")].map(node => node.getAttribute("style"));
+    assert.deepEqual(depths.map(style => style.match(/--depth:\s*(\d)/)[1]), ["1", "2"]);
+    await click("Read pages");
+    assert.match(host.textContent, /Started by.*Research/s);
+    assert.match(host.textContent, /Task given to it.*Read the pages/s);
+    await click("Research");
+    assert.match(host.textContent, /Sub-agent ·.*Research.*What it did.*Read pages/s);
+  }, [], {}, { spawns: [{ id: "j_parent_user_reply_t_x", caller: "j_parent_user_reply", owner_job_id: "j_parent", job_id: "j_child",
+    description: "Read pages", prompt: "Read the pages", at: now - 400, failed: false, error: "" }] });
 });
 
 test("titles read as the words a person wrote, not attachment markup, sender ids or resume prompts", async () => {
