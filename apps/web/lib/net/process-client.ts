@@ -2,7 +2,7 @@ import { jsonFetch } from "./fetch-client";
 
 export type ActiveToolCall = {
   id: string; execution_id: string; session_id: string; tool_call_id?: string | null;
-  name: string; description: string; command: string; started_at: number;
+  name: string; description: string; command: string; prompt?: string; started_at: number;
   status: "running" | "unknown";
 };
 

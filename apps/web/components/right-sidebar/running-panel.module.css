@@ -10,12 +10,7 @@
    shadow) instead of the ghost button's grey fill. */
 .row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; width: 100%; border: 0; border-radius: 12px; font: inherit; color: inherit; text-align: left; cursor: pointer; height: auto; transition: box-shadow .15s, background-color .15s; min-height: var(--ui-button-h); justify-content: flex-start; font-weight: 400; line-height: 1.4; }
 .row:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: -2px; }
-.row:hover, .call:hover { background: var(--bg-input); box-shadow: var(--composer-shadow-focus); color: inherit; }
-/* An open call keeps no fill of its own; a call lifts as one card, its
-   header and details together. */
-.row[aria-expanded="true"]:not(:hover) { background: transparent; }
-.call { border-radius: 12px; transition: box-shadow .15s, background-color .15s; }
-.call .row:hover { background: transparent; box-shadow: none; }
+.row:hover { background: var(--bg-input); box-shadow: var(--composer-shadow-focus); color: inherit; }
 .rowText { display: grid; gap: 1px; min-width: 0; flex: 1; }
 .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--text-bright); }
 .meta { margin: 0; color: var(--text-dim); font-size: var(--right-panel-meta-size, 12px); white-space: normal; overflow-wrap: anywhere; }
@@ -59,9 +54,8 @@
 
 .started { flex-shrink: 0; color: var(--text-muted); font-size: var(--right-panel-meta-size, 12px); font-variant-numeric: tabular-nums; }
 
-/* An open function call: its description and command under the name
-   column, plain text with no surface of its own. */
-.callBody[hidden] { display: none; }
-.callBody { display: grid; gap: 4px; padding: 0 8px 8px 36px; }
-.callText { margin: 0; color: var(--text-secondary); font-size: var(--right-panel-meta-size, 12px); overflow-wrap: anywhere; }
-.callCommand { margin: 0; max-height: 180px; overflow: auto; color: var(--text-primary); white-space: pre-wrap; overflow-wrap: anywhere; font: var(--right-panel-meta-size, 12px)/1.5 var(--font-mono); }
+/* A function call's page: its glyph beside the name, the status line and
+   what it was asked to do, in the same plain text as a program's page. */
+.callTitle { display: flex; align-items: center; gap: 10px; margin: 8px 8px 2px; font: inherit; font-weight: var(--right-panel-font-weight, 500); overflow-wrap: anywhere; }
+.callTitle + .status { margin: 0 8px 0 36px; }
+.callText { margin: 12px 8px; color: var(--text-secondary); overflow-wrap: anywhere; }
