@@ -104,10 +104,11 @@ export function ProjectMenu({
       // 恒为 null，误收会把选中态画到默认项目上。
       (d) => (d.session_id ?? null) === (sessionId || null),
     );
-    if (data) {
-      setProjects(data.projects || []);
+    // An unreadable registry answers `projects: null`; keep what is shown.
+    if (data && Array.isArray(data.projects)) {
+      setProjects(data.projects);
       setCurrentId(data.current_project_id ?? null);
-    } else {
+    } else if (!data) {
       setProjects([]);
     }
   }, [sessionId]);
@@ -436,8 +437,8 @@ export function ProjectBadge() {
       // 徽标误置回默认项目，按回显的 session_id 只认自己那条。
       (d) => (d.session_id ?? null) === (sessionId || null),
     );
-    if (!data) return false;
-    const projects = data.projects || [];
+    if (!data || !Array.isArray(data.projects)) return false;
+    const projects = data.projects;
     const wantId =
       (!sessionId ? pendingProjectId : data.current_project_id) ??
       data.current_project_id ??

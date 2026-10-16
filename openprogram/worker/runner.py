@@ -156,8 +156,32 @@ def _safe_run_channel(label: str, channel, stop: threading.Event) -> None:
         print("".join(traceback.format_exception(type(e), e, e.__traceback__)))
 
 
+def _raise_open_file_limit() -> None:
+    """Lift the soft open-file limit toward the hard one.
+
+    launchd starts the worker with a soft limit of 256. Directory size
+    scans, the file tree, sockets and session stores share that budget,
+    and running out makes every later open fail (projects.json included).
+    macOS rejects a soft limit above OPEN_MAX (10240) even when the hard
+    limit is unlimited.
+    """
+    try:
+        import resource
+    except ImportError:  # Windows
+        return
+    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+    target = 10240 if hard == resource.RLIM_INFINITY else min(hard, 10240)
+    if soft == resource.RLIM_INFINITY or soft >= target:
+        return
+    try:
+        resource.setrlimit(resource.RLIMIT_NOFILE, (target, hard))
+    except (ValueError, OSError) as exc:
+        print(f"[worker] open-file limit stays at {soft}: {exc}")
+
+
 def run_foreground() -> int:
     """Run the worker in the current process. Blocks until SIGTERM / Ctrl-C."""
+    _raise_open_file_limit()
     lock = WorkerLock()
     if not lock.try_acquire():
         holder = lock.holder_pid
