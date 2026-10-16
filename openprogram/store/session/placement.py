@@ -2,7 +2,7 @@
 
 Every conversation lives in its project's folder:
 ``<state>/projects/<project-id>/chats/<session-id>/``; conversations that
-belong to no project are in the System project's (``default``). The store
+belong to no project are in the home project's (``default``). The store
 root is ``<state>/projects`` (see :mod:`openprogram.store.project.layout`);
 its bookkeeping sits in hidden entries there. Legacy workdir copies remain
 readable until journaled migration publishes them.

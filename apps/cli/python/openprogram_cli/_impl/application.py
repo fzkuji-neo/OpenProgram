@@ -387,6 +387,14 @@ def main():
     if _is_cli_process():
         _maybe_redirect_for_tui()
 
+    # An older install's conversations and memory move into the project
+    # folders once, here, before any command reads the store. The store's
+    # path helpers only name paths, so a library import, a test or a
+    # script never moves anyone's data.
+    if args.command not in ("rescue", "self-update", "logs", "completion"):
+        from openprogram.store.project.layout_migration import ensure_layout
+        ensure_layout()
+
     # -------- TUI launch (bare openprogram OR `openprogram tui/chat`) --
     # Chat is the default experience on every platform. Ink is attempted when
     # the invocation owns a TTY; its raw-mode startup check is the capability

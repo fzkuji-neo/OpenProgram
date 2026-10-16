@@ -1,6 +1,6 @@
 """Where a project's things live on disk.
 
-Every project, the System project included, owns one folder under the
+Every project, the home project included, owns one folder under the
 state directory::
 
     <state>/projects/
@@ -10,7 +10,7 @@ state directory::
         chats/<session-id>/      its conversations
         memory/                  its memory workspace
 
-The System project (id ``default``) holds the conversations that belong to
+The home project (id ``default``) holds the conversations that belong to
 no project, and its memory is the personal memory every project reads
 beside its own.
 

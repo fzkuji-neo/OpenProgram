@@ -527,8 +527,8 @@ own folder of the state directory, beside its chats:
 `~/.openprogram/projects/<project>/memory`. With `memory.layers.project` on
 (the default), a conversation bound to a project reads two workspaces as
 one: the project's and the personal one. The personal workspace is the
-System project's, `~/.openprogram/projects/default/memory`; conversations
-with no project belong to the System project and read it alone. Nothing is
+home project's, `~/.openprogram/projects/default/memory`; conversations
+with no project belong to the home project and read it alone. Nothing is
 written into the project's own folder, and the project workspace keeps its
 own history, index and runtime directory like any other. The memory API
 serves one project's workspace when asked with `?project=<id>`, which is how

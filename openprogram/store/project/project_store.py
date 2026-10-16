@@ -14,7 +14,7 @@ Every session belongs to exactly one project. Two cases:
   * **Bound project** — the user worked in a real directory (their
     code / docs repo). That directory IS the project git repo; we
     reuse its ``.git`` if it has one, else ``git init`` it.
-  * **System project** (id ``default``) — the catch-all for ad-hoc
+  * **home project** (id ``default``) — the catch-all for ad-hoc
     chats that never named a directory. It has no git repo; its folder
     ``<state>/projects/default/`` holds those chats and the personal
     memory, so there is never a session with no project home.
@@ -48,7 +48,9 @@ from typing import Optional
 
 
 DEFAULT_PROJECT_ID = "default"
-SYSTEM_PROJECT_NAME = "System"
+# Names the default project once carried before it was named after the
+# home folder; a record still showing one of them is renamed.
+_OLD_DEFAULT_NAMES = ("System", "Default")
 
 
 _log = logging.getLogger(__name__)
@@ -714,7 +716,7 @@ def update_project(project_id: str, patch: dict) -> Project:
 
 # ── project-level settings ──────────────────────────────────────────────
 # 项目级配置（权限规则、以后的项目级工具/模型偏好等）。
-# 每个项目 (含系统项目) 的配置落在 <state>/projects/<id>/settings.json;
+# 每个项目 (含主目录项目) 的配置落在 <state>/projects/<id>/settings.json;
 # 旧版写在 <project>/.openprogram/settings.json 的仍可读.
 
 def _settings_path_for(project: Project) -> Path:
@@ -762,9 +764,10 @@ def save_project_settings(project_id: str, settings: dict) -> None:
 
 
 def get_default_project() -> Project:
-    """The System project: the catch-all for chats with no bound directory.
+    """The home project: the catch-all for chats with no bound directory.
 
-    Named **System** (the UI translates it) and listed first. Its folder
+    Named after the home folder (``fzkuji`` for ``~``) unless
+    the user renamed it, and listed first. Its folder
     under ``<state>/projects/default/`` holds those chats and the personal
     memory every project reads. ``path`` stays the home folder, the
     working scope of such a chat.
@@ -780,16 +783,16 @@ def get_default_project() -> Project:
     home = Path.home()
     existing = get_project(DEFAULT_PROJECT_ID)
     if existing is not None:
-        # Older records were named "Default" or after the home folder.
-        if (not existing.custom_name and existing.name != SYSTEM_PROJECT_NAME) or not existing.path:
-            if not existing.custom_name:
-                existing.name = SYSTEM_PROJECT_NAME
+        renamed = not existing.custom_name and (existing.name in _OLD_DEFAULT_NAMES or not existing.name)
+        if renamed or not existing.path:
             existing.path = existing.path or str(home)
+            if renamed:
+                existing.name = Path(existing.path).name or home.name
             _upsert(existing)
         return existing
     proj = Project(
         id=DEFAULT_PROJECT_ID,
-        name=SYSTEM_PROJECT_NAME,
+        name=home.name,
         path=str(home),     # display/scope only — is_default guards git
         is_default=True,
     )

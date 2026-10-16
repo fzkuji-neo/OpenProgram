@@ -135,3 +135,31 @@ def test_a_workspace_with_its_own_notes_is_set_aside_not_lost(tmp_path):
 
     assert not (state / "memory").exists()
     assert (state / "memory.legacy" / "topics" / "later.md").read_text() == "written later"
+
+
+def test_path_helpers_only_name_paths(tmp_path, monkeypatch):
+    """Reading a path never moves a store; only a process start does."""
+    from openprogram import paths
+    from openprogram.memory import project_layer
+    from openprogram.store.session.session_store import shared
+
+    state = _legacy_state(tmp_path)
+    monkeypatch.setattr(paths, "get_state_dir", lambda: state)
+
+    assert paths.get_sessions_dir() == state / "projects"
+    assert paths.get_memory_dir() == state / "projects" / "default" / "memory"
+    assert shared._default_root() == state / "projects"
+    assert project_layer.project_memory_root("p1") == (state / "projects" / "p1" / "memory").resolve()
+
+    assert (state / "sessions" / "loose" / "meta.json").is_file()
+    assert (state / "memory" / "topics" / "me.md").is_file()
+    assert not (state / "projects" / lm.MARKER).exists()
+    assert not (state / "backups").exists()
+
+
+def test_process_entries_move_an_older_store_before_any_command():
+    root = Path(__file__).resolve().parents[3]
+    cli = (root / "apps/cli/python/openprogram_cli/_impl/application.py").read_text(encoding="utf-8")
+    webui = (root / "openprogram/webui/__main__.py").read_text(encoding="utf-8")
+    assert "ensure_layout()" in cli.split("def main():", 1)[1]
+    assert "ensure_layout()" in webui

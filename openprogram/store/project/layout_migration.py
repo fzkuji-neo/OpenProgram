@@ -10,16 +10,18 @@ Older installs kept three parallel trees:
   that project's memory.
 
 :func:`ensure_layout` moves all of it under ``<state>/projects/`` (see
-:mod:`.layout`) the first time any process asks for the store root, after
-copying the old trees to ``<state>/backups/layout-<time>/``. Absolute paths
+:mod:`.layout`) when an ``openprogram`` process starts (the command's entry
+and ``python -m openprogram.webui``), after copying the old trees to
+``<state>/backups/layout-<time>/``. The store's path helpers never call it,
+so importing the library, running a test or a script moves nothing. Absolute paths
 that conversations recorded into their own files (tool calls, attachments,
 meta) are rewritten to the new places, so a continued conversation finds
 what it wrote before. A file lock keeps two processes from running it
 together.
 
 A process started from an older install can still write the old trees
-after the move. Every first use per process therefore checks for them
-again and merges what they gained: new conversations move in, while empty
+after the move. Every process start therefore checks for them again and
+merges what they gained: new conversations move in, while empty
 conversation shells and freshly initialised memory workspaces that
 duplicate what already moved are dropped.
 """

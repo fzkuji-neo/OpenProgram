@@ -29,6 +29,11 @@ def main():
     )
     args = parser.parse_args()
 
+    # Like the ``openprogram`` command, move an older install's store once
+    # before serving it.
+    from openprogram.store.project.layout_migration import ensure_layout
+    ensure_layout()
+
     from openprogram.webui import start_web
 
     port = args.port

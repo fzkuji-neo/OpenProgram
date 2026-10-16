@@ -7,7 +7,7 @@
 - `openprogram` — 终端聊天界面（TUI）。
 - `openprogram web` — 浏览器界面，http://localhost:18100。
 
-会话数据存放在各项目的文件夹里，`~/.openprogram/projects/<project-id>/chats/<session-id>/`；不属于任何项目的会话归系统项目（`default`）。终端和 web 看到的是同一份历史：在终端开的会话可以在 web 侧栏找到，反过来也一样。工作文件夹保存项目文件，不是对话仓库。
+会话数据存放在各项目的文件夹里，`~/.openprogram/projects/<project-id>/chats/<session-id>/`；不属于任何项目的会话归主目录项目（id 为 `default`，以你的主目录文件夹命名）。终端和 web 看到的是同一份历史：在终端开的会话可以在 web 侧栏找到，反过来也一样。工作文件夹保存项目文件，不是对话仓库。
 
 一次性提问不必进入界面：
 

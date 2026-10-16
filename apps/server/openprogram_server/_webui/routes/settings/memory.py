@@ -15,7 +15,7 @@ Reads are plain filesystem. Writes go through the workspace so a hand
 edit that drops a block ID or strands a footnote is refused rather than
 silently breaking the views that reach through them.
 
-Every route serves the personal memory (the System project's) unless the
+Every route serves the personal memory (the home project's) unless the
 request names another project with ``?project=<id>``; then it serves that
 project's workspace, created on first use.
 """

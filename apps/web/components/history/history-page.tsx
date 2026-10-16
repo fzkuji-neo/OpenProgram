@@ -13,7 +13,7 @@ import { useTranslation } from "@/lib/i18n";
 let persistedQuery = "";
 
 /**
- * History is organised by project: every project (the System project
+ * History is organised by project: every project (the home project
  * included) lists its own chats and memory. The old /chats, /projects and
  * /memory routes land here and pick the matching tab.
  */

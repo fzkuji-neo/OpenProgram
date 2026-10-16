@@ -257,7 +257,7 @@ export function ProjectMenu({
         <div
           className="px-[8px] pb-[4px] pt-[1px] text-[12px] text-[var(--text-secondary)]"
         >
-          <div className="truncate">{activeProject ? projectName(activeProject, text) : "—"}</div>
+          <div className="truncate">{activeProject ? projectName(activeProject) : "—"}</div>
           {activeProject?.path ? (
             <div className="truncate text-[11px] opacity-60">
               {activeProject.path}
@@ -356,7 +356,7 @@ export function ProjectMenu({
               !busy && (p.path_missing ? locateFolder(p.id) : unavailable ? locateFolder(p.id) : switchTo(p.id))
             }
           >
-            <span className="min-w-0 flex-1 truncate">{projectName(p, text)}</span>
+            <span className="min-w-0 flex-1 truncate">{projectName(p)}</span>
             {unavailable ? (
               <SolarIcon
                 motionPreset="none"
@@ -456,7 +456,7 @@ export function ProjectBadge() {
       cur = projects.find((p) => p.is_default);
     }
     if (cur) {
-      setLabel(projectName(cur, text));
+      setLabel(projectName(cur));
       setMissing(cur.path_missing === true);
       setGitPath(!cur.is_default && !cur.path_missing && cur.path ? cur.path : null);
       setProjectPath(cur.path || null);
@@ -464,7 +464,7 @@ export function ProjectBadge() {
       return true;
     }
     return false;
-  }, [activeChatKey, pendingProjectId, sessionId, takePendingProject, text]);
+  }, [activeChatKey, pendingProjectId, sessionId, takePendingProject]);
 
   useEffect(() => {
     let cancelled = false;

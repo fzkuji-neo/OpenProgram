@@ -57,7 +57,7 @@ function cls(...xs: (string | false | undefined)[]) {
   return xs.filter(Boolean).join(" ");
 }
 
-/** The System project leads; the rest keep the registry's order. */
+/** The home project leads; the rest keep the registry's order. */
 function systemFirst(projects: Project[]): Project[] {
   return [...projects].sort((a, b) => Number(b.is_default) - Number(a.is_default));
 }
@@ -120,7 +120,7 @@ export function ProjectsPage({
   );
 
   // A chat belongs to the first bound project that lists it; a chat no
-  // project claims is the System project's, as on the server.
+  // project claims is the home project's, as on the server.
   const owner = useMemo(() => {
     const map = new Map<string, string>();
     for (const project of projects) {
@@ -148,7 +148,7 @@ export function ProjectsPage({
     return counts;
   }, [conversations, projectOf]);
 
-  const label = useCallback((project: Project) => projectName(project, text), [text]);
+  const label = useCallback((project: Project) => projectName(project), []);
 
   // 定位缺失项目的新目录：改项目 path、保留 id（relocate_project）。
   const locateProject = useCallback(async (projectId: string, startPath = "") => {

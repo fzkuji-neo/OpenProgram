@@ -539,7 +539,7 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
                       }
                       }}
                       reorderHint={text("Drag to reorder; Alt+Up/Down to move", "拖动排序；Alt+上下方向键移动")}
-                      name={projectName({ ...project, name: g.name }, text)}
+                      name={projectName({ ...project, name: g.name })}
                       path={g.path}
                       collapsed={!expanded}
                       onToggle={() => toggleProjectCollapse(g.key)}
