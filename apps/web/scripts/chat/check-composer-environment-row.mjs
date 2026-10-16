@@ -70,7 +70,7 @@ assert.match(environmentCss, /\.dag-hud-zoom/);
 assert.match(environmentCss, /transition:[\s\S]*max-width 170ms ease[\s\S]*opacity 130ms ease/);
 assert.match(environmentCss, /\.envChips\[data-compact="true"\][\s\S]*max-width:\s*0/);
 assert.match(environmentCss, /\.envChips\[data-compact="true"\][\s\S]*opacity:\s*0/);
-assert.match(environmentCss, /button\.dag-hud-chip[\s\S]*min-width:\s*24px/);
+assert.match(environmentCss, /button\.dag-hud-chip[\s\S]*min-width:\s*28px/);
 const compactCss = environmentCss.slice(
   environmentCss.indexOf('.envChips[data-compact="true"]'),
   environmentCss.indexOf(".trailingControls"),

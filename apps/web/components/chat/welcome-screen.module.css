@@ -1,71 +1,30 @@
-/* Quiet empty state: the shared app mark and one capability sentence. */
+/* Empty chat: an animated backdrop under the floating composer. */
 
 .welcome {
   flex: 1;
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  /* #welcome-mount 是 display:contents，本盒直接成为 .chat-messages
-     的 flex 子项——flex:1 撑满剩余高度后在其中垂直居中。 */
-  justify-content: center;
-  color: var(--text-secondary);
-  padding: 0 40px;
 }
 
-.top {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
+/* Fills the whole chat area (.chat-area is the positioned ancestor and
+   stops scrolling while the welcome is up), not just the message column.
+   The mask fades the scene out toward the edges and the composer. */
+.backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  -webkit-mask-image: radial-gradient(ellipse 70% 62% at 50% 40%, #000 35%, transparent 100%);
+  mask-image: radial-gradient(ellipse 70% 62% at 50% 40%, #000 35%, transparent 100%);
+  animation: backdropIn 0.8s ease-out both;
 }
 
-.mark {
-  display: block;
-  width: 34px;
-  height: 34px;
-  flex: 0 0 34px;
-  user-select: none;
+@keyframes backdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-.tagline {
-  font-size: 14px;
-  line-height: 20px;
-  color: var(--text-secondary);
-  text-align: center;
+@media (prefers-reduced-motion: reduce) {
+  .backdrop { animation: none; }
 }
-
-/* Starter prompts: quiet pills that fill the draft (never send). */
-.starters {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 22px;
-  max-width: 560px;
-}
-
-.starter {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 32px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid var(--border-light);
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 13px;
-  cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-}
-
-.starter:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-  border-color: var(--border);
-}
-
-.starter svg { color: var(--text-muted); flex: 0 0 auto; }
-.starter:hover svg { color: var(--text-secondary); }
