@@ -13,7 +13,9 @@
    hover lifts it into the raised card the file cards use. */
 .row { display: flex; align-items: center; gap: 10px; width: 100%; height: auto; min-height: var(--ui-button-h); padding: 7px 8px; border: 0; border-radius: 12px; justify-content: flex-start; font: inherit; font-weight: 400; line-height: 1.4; color: inherit; text-align: left; cursor: pointer; transition: box-shadow .15s, background-color .15s; }
 .panel .row { position: relative; z-index: 1; }
-.row:hover { background: var(--bg-input); box-shadow: var(--composer-shadow-focus); color: inherit; }
+/* The panel is the input surface itself, so the lifted card is tinted a
+   step toward the text colour to show its edge; solid, so the line stays under it. */
+.row:hover { background: color-mix(in srgb, var(--text-primary) 4%, var(--bg-input)); box-shadow: var(--composer-shadow-focus); color: inherit; }
 .row:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: -2px; }
 /* A sub-agent under the branch that started it. The line hangs from the
    centre of that branch's glyph (17px into its row), one indent (24px) to
