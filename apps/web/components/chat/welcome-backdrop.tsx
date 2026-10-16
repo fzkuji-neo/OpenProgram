@@ -60,9 +60,9 @@ function callGraph(): Scene {
         const children = nodes.map((n, i) => (n.parent >= 0 ? i : -1)).filter((i) => i >= 0);
         pulses.push({ to: children[Math.floor(Math.random() * children.length)], s: 0 });
       }
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 1.2;
       ctx.strokeStyle = pal.ink;
-      ctx.globalAlpha = 0.1;
+      ctx.globalAlpha = 0.2;
       nodes.forEach((n, i) => {
         if (n.parent < 0) return;
         const a = pos[n.parent], b = pos[i];
@@ -82,9 +82,9 @@ function callGraph(): Scene {
         const s = p.s, m = (a.y + b.y) / 2, u = 1 - s;
         const x = u * u * u * a.x + 3 * u * u * s * a.x + 3 * u * s * s * b.x + s * s * s * b.x;
         const y = u * u * u * a.y + 3 * u * u * s * m + 3 * u * s * s * m + s * s * s * b.y;
-        ctx.globalAlpha = 0.75;
+        ctx.globalAlpha = 0.9;
         ctx.beginPath();
-        ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
         ctx.fill();
         return true;
       });
@@ -93,15 +93,15 @@ function callGraph(): Scene {
         n.lit = Math.max(0, n.lit - dt * 0.8);
         if (n.lit > 0) {
           ctx.strokeStyle = pal.accent;
-          ctx.globalAlpha = n.lit * 0.5;
+          ctx.globalAlpha = n.lit * 0.7;
           ctx.beginPath();
           ctx.arc(p.x, p.y, 5 + (1 - n.lit) * 12, 0, Math.PI * 2);
           ctx.stroke();
         }
         ctx.fillStyle = n.lit > 0.05 ? pal.accent : pal.ink;
-        ctx.globalAlpha = 0.22 + n.lit * 0.6;
+        ctx.globalAlpha = 0.38 + n.lit * 0.55;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, n.parent < 0 ? 5 : 3.5, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, n.parent < 0 ? 6 : 4.5, 0, Math.PI * 2);
         ctx.fill();
       });
     },
@@ -121,9 +121,9 @@ function ripple(): Scene {
           const d = Math.hypot(x - cx, y - cy);
           const wave = Math.max(0, Math.sin(d * 0.035 - t * 1.2));
           const fade = Math.max(0, 1 - d / reach);
-          ctx.globalAlpha = 0.06 + wave * 0.3 * fade;
+          ctx.globalAlpha = 0.1 + wave * 0.55 * fade;
           ctx.beginPath();
-          ctx.arc(x, y, 0.8 + wave * 1.4 * fade, 0, Math.PI * 2);
+          ctx.arc(x, y, 1 + wave * 1.8 * fade, 0, Math.PI * 2);
           ctx.fill();
         }
       }
