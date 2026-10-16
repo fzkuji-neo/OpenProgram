@@ -73,6 +73,12 @@ test('a chat row slides with the pointer, the lists make room, and dropped on an
   assert.deepEqual(last.dropGrow, { top: 30, bottom: 0 }, 'the frame round b reaches up over the gap its rows left');
   assert.equal(last.rowOffset('s3'), 0); assert.equal(last.headerOffset('a'), 0);
   assert.equal(row('s2').style.transform, 'translateY(-30px)');
+  // Carried on past s3's middle (as it sits once s1 has left), the gap
+  // opens after s3 instead; back up, before it again.
+  await fire('s1', 'pointermove', 10, 140);
+  assert.equal(last.rowOffset('s3'), -30); assert.equal(last.dropProject, 'b');
+  await fire('s1', 'pointermove', 10, 120);
+  assert.equal(last.rowOffset('s3'), 0);
   assert.equal(frames.size, 1, 'edge auto-scroll is armed while dragging');
   await fire('s1', 'pointerup', 10, 120);
   assert.deepEqual(moves, [['s1', 'b']]);
@@ -91,6 +97,19 @@ test('a chat row slides with the pointer, the lists make room, and dropped on an
   assert.equal(last.dropProject, null);
   assert.equal(last.rowOffset('s1'), 0, 'rows do not move aside inside the chat\'s own project');
   await fire('s2', 'pointerup', 10, 20);
+  assert.equal(moves.length, 1);
+  // Carried up to just past project b's header (its own project's), it
+  // would join the end of project a: only b's header moves down, and
+  // a's frame reaches down over that gap. Released outside, nothing moves.
+  await fire('s3', 'pointerdown', 10, 130);
+  await fire('s3', 'pointermove', 10, 100);
+  assert.equal(last.dropProject, 'a');
+  assert.equal(last.headerOffset('b'), 31); assert.equal(last.rowOffset('s2'), 0); assert.equal(last.rowOffset('s1'), 0);
+  assert.deepEqual(last.dropGrow, { top: 0, bottom: 31 });
+  // A little lower its centre is still over b's own header: no target.
+  await fire('s3', 'pointermove', 10, 118);
+  assert.equal(last.dropProject, null); assert.equal(last.headerOffset('b'), 0);
+  await fire('s3', 'pointerup', 300, 118);
   assert.equal(moves.length, 1);
   for (const cancel of ['Escape', 'blur', 'pointercancel', 'lostpointercapture', 'outside', 'disabled']) {
     await fire('s3', 'pointerdown', 10, 130);
