@@ -79,7 +79,11 @@
   transition: background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out,
     transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.chatDragging {
+/* The carried row is under the pointer the whole time, so it must beat
+   .ui-list-item:hover's translucent tint, or the row it passes over
+   shows through. */
+.chatRow.chatDragging,
+.chatRow.chatDragging:hover {
   transition: none;
   background: var(--color-sidebar);
   box-shadow: var(--shadow);
