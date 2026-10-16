@@ -5,8 +5,10 @@
   gap: 8px;
   min-width: 0;
   min-height: 44px;
-  /* Left 43px = the voice mic (9px inset + 28px + 6px gap). */
-  padding: 12px 42px 12px 43px;
+  /* Side gutters keep the text clear of the mic (left) and the send
+     button (right): inset + button + a small gap. */
+  padding: 12px calc(var(--composer-action-inset) + var(--composer-action-size) + 5px) 12px
+    calc(var(--composer-action-inset) + var(--composer-action-size) + 6px);
   flex-shrink: 0;
 }
 
@@ -127,6 +129,7 @@
 }
 .chatInput :global(.cm-md-chip-missing .cm-md-chip-icon) { color: var(--accent-red); }
 
-/* While dictating, the level strip sits before the send button
-   (45px + 98px strip + 8px gap). */
-:global([data-voice]) .inputTopRow { padding-right: 151px; }
+/* While dictating, the level strip (98px) sits before the send button. */
+:global([data-voice]) .inputTopRow {
+  padding-right: calc(var(--composer-action-inset) + var(--composer-action-size) + 2 * var(--composer-action-gap) + 98px);
+}
