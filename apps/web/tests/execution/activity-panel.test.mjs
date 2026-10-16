@@ -141,7 +141,7 @@ test("an agent page leads with its issue, then where it came from and what it di
     await click("check and fix it");
     text = host.textContent;
     assert.match(text, /Run ·.*check and fix it.*1 to handle/s);
-    assert.match(text, /Sub-agent "Fix page close" stopped.*What this run did.*Fix page close.*Write docs/s);
+    assert.match(text, /Sub-agent "Fix page close" stopped.*What this run did.*Write docs.*Fix page close/s);
     assert.match(host.textContent, /← Fix page close/);
     await click("Write docs");
     await click("Technical details");
@@ -182,11 +182,12 @@ test("the main conversation page shows its latest run, the sub-agents it started
   await mounted([run("turn", "reconciliation_required", now - 3 * DAY, { task_label: "check and fix it" }), spawned,
     run("latest", "completed", now - 600, { task_label: "prepare the visa form", terminal_at: now - 480 })],
   async (host, click, selected) => {
-    assert.match(host.textContent, /Main conversationIdle · last/);
+    // A call that never started a sub-agent sits in the tree where it would have.
+    assert.match(host.textContent, /Agent branches3Main conversationIdle · last.*Fix page closeStopped.*Upload fixFailed to start/s);
     await click("Main conversation");
     let text = host.textContent;
-    assert.match(text, /Main conversation · last run.*NeurIPS trip.*Idle/s);
-    assert.match(text, /Latest run.*prepare the visa form.*Completed.*took 2 min/s);
+    assert.match(text, /Main conversationNeurIPS trip.*Idle · last/s);
+    assert.match(text, /Latest run.*prepare the visa form.*Completed · /s);
     assert.match(text, /Sub-agents it started.*Fix page close.*Stopped.*Upload fix.*Failed to start/s);
     await click("Upload fix");
     text = host.textContent;
@@ -196,6 +197,16 @@ test("the main conversation page shows its latest run, the sub-agents it started
     await click("Technical details");
     assert.deepEqual(selected, ["latest"]);
   }, [], {}, { calls: [agentCall], spawns: [failedSpawn] });
+});
+
+test("the main conversation reads as waiting on you while one of its own calls is stopped", async () => {
+  const bash = { id: "c2", execution_id: "old", name: "bash", description: "Install the browser", command: "npx playwright install", prompt: "", started_at: now - DAY, status: "unknown" };
+  await mounted([run("old", "reconciliation_required", now - DAY), run("latest", "completed", now - 600, { terminal_at: now - 500 })],
+  async (host, click) => {
+    assert.match(host.textContent, /Main conversation1 to handle · last/);
+    await click("Main conversation");
+    assert.match(host.textContent, /Command "Install the browser" stopped.*Mark as ended.*Latest run/s);
+  }, [], {}, { calls: [bash] });
 });
 
 test("a sub-agent another one started sits under it and names it", async () => {
