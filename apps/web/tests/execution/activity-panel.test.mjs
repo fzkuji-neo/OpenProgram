@@ -99,8 +99,8 @@ test("the overview lists the agent branches and what needs you, never plain mess
     const text = host.textContent;
     assert.match(text, /Needs you1.*Fix page close.*Sub-agent stopped/s);
     // The main conversation first, then every sub-agent under it, newest first.
-    assert.match(text, /Agent branches4Main conversationRunning · 2 minResearchCompleted.*Form fillerRunning.*Fix page closeStopped/s);
-    assert.equal(host.querySelectorAll("[style*='--depth']").length, 3);
+    assert.match(text, /Agent branches4Main agentRunning · 2 minResearchCompleted.*Form fillerRunning.*Fix page closeStopped/s);
+    assert.deepEqual([...host.querySelectorAll("[data-last]")].map(node => node.getAttribute("data-last")), ["0", "0", "1"]);
     // The messages themselves stay in the chat.
     assert.doesNotMatch(text, /check and fix it|fill the form|what happened/);
     assert.equal(host.querySelectorAll("[aria-expanded]").length, 0);
@@ -154,7 +154,7 @@ test("sub-agents are paged under the main conversation", async () => {
   const runs = Array.from({ length: 25 }, (_, i) => run(`j${i}`, "completed", now - i * 60 - (i > 2 ? 2 * DAY : 0),
     { parent_execution_id: "turn", display: { kind: "job_agent", label: `agent_${i}` } }));
   await mounted([run("turn", "completed", now - 3 * DAY), ...runs], async (host, click) => {
-    assert.match(host.textContent, /Agent branches26Main conversationIdle · last.*agent 0/s);
+    assert.match(host.textContent, /Agent branches26Main agentIdle · last.*agent 0/s);
     assert.equal(host.querySelectorAll("button").length, 22, "the main conversation, 20 agents and the paging button");
     await click("Show 5 earlier");
     assert.doesNotMatch(host.textContent, /Show \d+ earlier/);
@@ -164,10 +164,10 @@ test("sub-agents are paged under the main conversation", async () => {
 
 test("ongoing shell calls show on the main conversation and programs in their own group", async () => {
   await mounted([], async (host, click) => {
-    assert.match(host.textContent, /Agent branches1Main conversationRunning bash · \d+ s/);
+    assert.match(host.textContent, /Agent branches1Main agentRunning bash · \d+ s/);
     assert.match(host.textContent, /Background programs1python.*Running/);
     assert.doesNotMatch(host.textContent, /will appear here/);
-    await click("Main conversation");
+    await click("Main agent");
     assert.match(host.textContent, /Running now.*bash/s);
     await click("bash");
     assert.match(host.textContent, /Command.*sleep 30/s);
@@ -183,17 +183,17 @@ test("the main conversation page shows its latest run, the sub-agents it started
     run("latest", "completed", now - 600, { task_label: "prepare the visa form", terminal_at: now - 480 })],
   async (host, click, selected) => {
     // A call that never started a sub-agent sits in the tree where it would have.
-    assert.match(host.textContent, /Agent branches3Main conversationIdle · last.*Fix page closeStopped.*Upload fixFailed to start/s);
-    await click("Main conversation");
+    assert.match(host.textContent, /Agent branches3Main agentIdle · last.*Fix page closeStopped.*Upload fixFailed to start/s);
+    await click("Main agent");
     let text = host.textContent;
-    assert.match(text, /Main conversationNeurIPS trip.*Idle · last/s);
+    assert.match(text, /Main agentNeurIPS trip.*Idle · last/s);
     assert.match(text, /Latest run.*prepare the visa form.*Completed · /s);
     assert.match(text, /Sub-agents it started.*Fix page close.*Stopped.*Upload fix.*Failed to start/s);
     await click("Upload fix");
     text = host.textContent;
-    assert.match(text, /← Main conversation/);
-    assert.match(text, /Upload fix.*Failed to start.*did not start a sub-agent.*Started by.*Main conversation.*Error.*JobAgentInputError.*Task given to it.*Fix the upload path/s);
-    await click("Main conversation");
+    assert.match(text, /← Main agent/);
+    assert.match(text, /Upload fix.*Failed to start.*did not start a sub-agent.*Started by.*Main agent.*Error.*JobAgentInputError.*Task given to it.*Fix the upload path/s);
+    await click("Main agent");
     await click("Technical details");
     assert.deepEqual(selected, ["latest"]);
   }, [], {}, { calls: [agentCall], spawns: [failedSpawn] });
@@ -203,8 +203,8 @@ test("the main conversation reads as waiting on you while one of its own calls i
   const bash = { id: "c2", execution_id: "old", name: "bash", description: "Install the browser", command: "npx playwright install", prompt: "", started_at: now - DAY, status: "unknown" };
   await mounted([run("old", "reconciliation_required", now - DAY), run("latest", "completed", now - 600, { terminal_at: now - 500 })],
   async (host, click) => {
-    assert.match(host.textContent, /Main conversation1 to handle · last/);
-    await click("Main conversation");
+    assert.match(host.textContent, /Main agent1 to handle · last/);
+    await click("Main agent");
     assert.match(host.textContent, /Command "Install the browser" stopped.*Mark as ended.*Latest run/s);
   }, [], {}, { calls: [bash] });
 });
@@ -213,9 +213,11 @@ test("a sub-agent another one started sits under it and names it", async () => {
   await mounted([run("turn", "completed", now - 600), run("j_parent", "completed", now - 500, { parent_execution_id: "turn", display: { kind: "job_agent", label: "Research" } }),
     run("j_child", "completed", now - 400, { parent_execution_id: "j_parent", display: { kind: "job_agent", label: "Read_pages" } })],
   async (host, click) => {
-    assert.match(host.textContent, /Agent branches3Main conversation.*Research.*Read pages/s);
+    assert.match(host.textContent, /Agent branches3Main agent.*Research.*Read pages/s);
     const depths = [...host.querySelectorAll("[style*='--depth']")].map(node => node.getAttribute("style"));
     assert.deepEqual(depths.map(style => style.match(/--depth:\s*(\d)/)[1]), ["1", "2"]);
+    // Each is the last row under its parent, so no line runs on past it.
+    assert.deepEqual([...host.querySelectorAll("[data-last]")].map(node => node.getAttribute("data-last")), ["1", "1"]);
     await click("Read pages");
     assert.match(host.textContent, /Started by.*Research/s);
     assert.match(host.textContent, /Task given to it.*Read the pages/s);
@@ -273,4 +275,22 @@ test("Activity rows use a bare coloured glyph and a status dot, and lift on hove
   assert.match(panel, /<SolarIcon name=\{name\} size=\{16\} motionPreset="none" \/>/);
   assert.match(panel, /className=\{`indicator-dot sm \$\{DOT\[tone\]\}`\}/);
   assert.doesNotMatch(panel, /<details|collapsible=\{true\}|collapsible\b(?!=\{false\})/, "nothing expands in place or folds");
+});
+
+test("the branch tree carries the lines of the rows above that still have siblings below", async () => {
+  const { agentBranches } = await import("../../lib/execution/activity-model.ts");
+  const job = (id, parent, at) => run(id, "completed", at, { parent_execution_id: parent, display: { kind: "job_agent", label: id } });
+  const rows = agentBranches([run("turn", "completed", now - 900), job("j_a", "turn", now - 800), job("j_a1", "j_a", now - 700),
+    job("j_a1x", "j_a1", now - 650), job("j_a2", "j_a", now - 600), job("j_b", "turn", now - 500)]).tree();
+  assert.deepEqual(rows.map(row => [row.item.execution_id, row.depth, row.last, row.guides]), [
+    ["j_b", 1, false, []],
+    ["j_a", 1, true, []],
+    ["j_a2", 2, false, []],
+    ["j_a1", 2, true, []],
+    ["j_a1x", 3, true, []],
+  ]);
+  const deep = agentBranches([run("turn", "completed", now - 900), job("j_a", "turn", now - 800), job("j_a1", "j_a", now - 700),
+    job("j_b", "turn", now - 900 + 50)]).tree();
+  // j_a has a later sibling (j_b), so the line at depth 1 runs past j_a's children.
+  assert.deepEqual(deep.map(row => [row.item.execution_id, row.guides]), [["j_a", []], ["j_a1", [1]], ["j_b", []]]);
 });

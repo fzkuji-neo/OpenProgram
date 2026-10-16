@@ -130,27 +130,29 @@ export function spawnedBy(call: ActiveToolCall, children: ExecutionSnapshot[]): 
     ?? [...jobs].sort((a, b) => startedAt(a) - startedAt(b))[0];
 }
 
-export type BranchRow<T> =
-  | { kind: "agent"; item: ExecutionSnapshot; depth: number }
-  | { kind: "leaf"; leaf: T; depth: number };
+/** `last`: no later sibling follows it. `guides`: the depths of the rows
+ *  above it whose later siblings the tree line still has to reach. */
+export type BranchRow<T> = { depth: number; last: boolean; guides: number[] } & (
+  | { kind: "agent"; item: ExecutionSnapshot }
+  | { kind: "leaf"; leaf: T });
 
 export type AgentBranches = {
   /** The listed execution this one runs under, if any. */
   parentOf: (item: ExecutionSnapshot) => string | null;
-  /** The nearest sub-agent above an execution; null: the main conversation. */
+  /** The nearest sub-agent above an execution; null: the main agent. */
   agentParentOf: (item: ExecutionSnapshot) => string | null;
   /** The branch that runs an execution: the sub-agent itself, the nearest
-   *  sub-agent above it, or null for the main conversation. */
+   *  sub-agent above it, or null for the main agent. */
   ownerOf: (item: ExecutionSnapshot) => string | null;
-  /** The sub-agents a branch started (null: the main conversation), newest first. */
+  /** The sub-agents a branch started (null: the main agent), newest first. */
   agentsUnder: (owner: string | null) => ExecutionSnapshot[];
-  /** Every sub-agent under the main conversation, depth first, newest
+  /** Every sub-agent under the main agent, depth first, newest
    *  first, with each branch's `leaves` (things it started that are not
    *  sub-agents) placed among its sub-agents by time. */
   tree: <T>(leaves?: (owner: string | null) => { at: number; leaf: T }[]) => BranchRow<T>[];
 };
 
-/** The conversation's agent branches: the main conversation and the
+/** The conversation's agent branches: the main agent and the
  *  sub-agents (`job_agent` executions) under it, each under the branch
  *  that started it. */
 export function agentBranches(executions: ExecutionSnapshot[]): AgentBranches {
@@ -182,27 +184,27 @@ export function agentBranches(executions: ExecutionSnapshot[]): AgentBranches {
     tree: <T>(leaves?: (owner: string | null) => { at: number; leaf: T }[]) => {
       const rows: BranchRow<T>[] = [];
       const placed = new Set<string>();
-      const visit = (owner: string | null, depth: number) => {
+      const visit = (owner: string | null, depth: number, guides: number[]) => {
         const children: ({ at: number; item: ExecutionSnapshot } | { at: number; leaf: T })[] = [
           ...agentsUnder(owner).filter(item => !placed.has(item.execution_id)).map(item => ({ at: startedAt(item), item })),
           ...(leaves?.(owner) ?? []),
         ].sort((a, b) => b.at - a.at);
-        for (const child of children) {
-          if (!("item" in child)) { rows.push({ kind: "leaf", leaf: child.leaf, depth }); continue; }
-          if (placed.has(child.item.execution_id)) continue;
+        children.forEach((child, index) => {
+          const last = index === children.length - 1;
+          if (!("item" in child)) { rows.push({ kind: "leaf", leaf: child.leaf, depth, last, guides }); return; }
           placed.add(child.item.execution_id);
-          rows.push({ kind: "agent", item: child.item, depth });
-          visit(child.item.execution_id, depth + 1);
-        }
+          rows.push({ kind: "agent", item: child.item, depth, last, guides });
+          visit(child.item.execution_id, depth + 1, last ? guides : [...guides, depth]);
+        });
       };
-      visit(null, 1);
-      // A sub-agent whose parents loop never reaches the main conversation;
+      visit(null, 1, []);
+      // A sub-agent whose parents loop never reaches the main agent;
       // it is still listed.
       for (const item of agents) {
         if (placed.has(item.execution_id)) continue;
         placed.add(item.execution_id);
-        rows.push({ kind: "agent", item, depth: 1 });
-        visit(item.execution_id, 2);
+        rows.push({ kind: "agent", item, depth: 1, last: true, guides: [] });
+        visit(item.execution_id, 2, []);
       }
       return rows;
     },
