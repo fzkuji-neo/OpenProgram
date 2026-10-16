@@ -200,8 +200,6 @@ export function AvatarPicker({
             <ToggleGroup
               type="single"
               variant="outline"
-              size="sm"
-              spacing={1.5}
               className="w-full flex-wrap"
               value={style}
               onValueChange={(next) => {
@@ -221,7 +219,7 @@ export function AvatarPicker({
             <FieldDescription>
               {text("Pick a variant of this style.", "选择这个风格的一个变体。")}
             </FieldDescription>
-            <Button type="button" variant="outline" size="sm" onClick={regenerate}>
+            <Button type="button" variant="outline" onClick={regenerate}>
               <RefreshCw
                 data-icon="inline-start"
                 style={{ animation: spinning ? "avatarSpin 0.6s linear" : "none" }}
@@ -282,7 +280,6 @@ export function AvatarPicker({
             <FieldTitle>{t("general.agent.color")}</FieldTitle>
             <ToggleGroup
               type="single"
-              spacing={1.5}
               className="flex-wrap"
               value={letterBg ?? ""}
               onValueChange={(next) => {
@@ -295,8 +292,7 @@ export function AvatarPicker({
                   key={c}
                   value={c}
                   aria-label={c}
-                  size="sm"
-                  className="size-7 min-w-0 rounded-md border border-input p-0 data-[state=on]:ring-[3px] data-[state=on]:ring-ring/50"
+                  className="size-8 min-w-0 border border-input p-0 data-[state=on]:ring-[3px] data-[state=on]:ring-ring/50"
                   style={{ background: c }}
                 />
               ))}
@@ -311,7 +307,6 @@ export function AvatarPicker({
             <Button
               type="button"
               variant="outline"
-              size="sm"
               onClick={() => fileInputRef.current?.click()}
             >
               {text("Choose file…", "选择文件…")}
@@ -320,7 +315,6 @@ export function AvatarPicker({
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
                 onClick={() => onChange({ kind: "upload", file: undefined })}
               >
                 {text("Clear", "清除")}
