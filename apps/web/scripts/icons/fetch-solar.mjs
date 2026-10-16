@@ -92,6 +92,16 @@ const EXTRA = {
   "fa-eye": "fa6-solid:eye",
 };
 
+// Local tweaks to a fetched body, applied before it is written out.
+const ADJUST = {
+  // The microphone head (every path after the stand) is stretched 10 %
+  // upward from its bottom edge at y = 16.5, at the same width, so the
+  // capsule reads taller at 16 px; its top lands at y = 0.55.
+  "microphone-2": (body) =>
+    body.replace(/^(<g fill="currentColor"><path [^>]*\/>)(.*)(<\/g>)$/, (_, stand, head, end) =>
+      `${stand}<g transform="matrix(1 0 0 1.1 0 -1.65)">${head}</g>${end}`),
+};
+
 const ids = Object.entries(ICONS).map(([name, style]) => `${name}-${style}`);
 const url = `https://api.iconify.design/solar.json?icons=${ids.join(",")}`;
 const res = await fetch(url);
@@ -100,8 +110,10 @@ const data = await res.json();
 if (data.not_found?.length) throw new Error(`Not in Solar: ${data.not_found.join(", ")}`);
 
 const lines = Object.entries(ICONS).map(([name, style]) => {
-  const body = data.icons[`${name}-${style}`]?.body;
-  if (!body) throw new Error(`Missing body for ${name}-${style}`);
+  const fetched = data.icons[`${name}-${style}`]?.body;
+  if (!fetched) throw new Error(`Missing body for ${name}-${style}`);
+  const body = ADJUST[name] ? ADJUST[name](fetched) : fetched;
+  if (body === fetched && ADJUST[name]) throw new Error(`Adjustment for ${name} no longer matches`);
   return `  /** solar:${name}-${style} */\n  "${name}": ${JSON.stringify(body)},`;
 });
 
