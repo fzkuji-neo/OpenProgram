@@ -1,6 +1,6 @@
 """Where memory lives on disk.
 
-The personal memory is the System project's workspace,
+The personal memory is the home project's workspace,
 ``<state>/projects/default/memory``; a project's own memory is
 ``<state>/projects/<project-id>/memory`` (see :mod:`.project_layer`).
 Inside a workspace, ``sources/`` and ``topics/`` hold the memory and

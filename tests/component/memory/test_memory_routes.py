@@ -388,8 +388,12 @@ def test_ensure_initializes_git_and_snapshots_existing_memory(
     monkeypatch.setattr("openprogram.paths.get_state_dir", lambda: state)
 
     from openprogram.memory import store
+    from openprogram.store.project import layout_migration
 
-    # An older install's memory moves into the System project first.
+    # An older install's memory moves into the home project when the
+    # process starts, before the store is opened.
+    layout_migration._done.discard(str(state))
+    layout_migration.ensure_layout(state)
     root = state / "projects" / "default" / "memory"
     assert store.ensure() == root
     assert not legacy.exists()

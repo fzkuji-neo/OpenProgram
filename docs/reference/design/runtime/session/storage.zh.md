@@ -4,13 +4,13 @@
 
 ## 磁盘布局
 
-会话存放在所属项目的文件夹里。每个项目（包括 id 为 `default` 的系统项目）
+会话存放在所属项目的文件夹里。每个项目（包括 id 为 `default` 的主目录项目）
 各有一个文件夹：
 
 ```
 <state>/projects/
 ├── projects.json                      # 项目注册表
-├── <project_id>/                      # 每个项目一个文件夹；`default` 是系统项目
+├── <project_id>/                      # 每个项目一个文件夹；`default` 是主目录项目
 │   ├── settings.json                  # 项目默认设置
 │   ├── memory/                        # 项目的记忆工作区
 │   └── chats/
@@ -29,7 +29,7 @@
 ```
 
 存储根目录是 `<state>/projects`，其中 `<state>` 是 OpenProgram 状态目录。
-会话放在 `<project_id>/chats/<session_id>`；不属于任何项目的会话归系统项目，
+会话放在 `<project_id>/chats/<session_id>`；不属于任何项目的会话归主目录项目，
 落在 `default/chats/`。存储自己的簿记文件以隐藏条目放在同一个文件夹里，
 所以列目录只看到注册表和各项目文件夹。在其他根目录上打开的存储（应用运行
 记录、嵌入宿主）也用同样的 `<project_id>/chats/<session_id>` 放置方式。
@@ -44,11 +44,12 @@
 
 旧版把会话放在 `<state>/sessions/`（绑定项目的在 `sessions/projects/<project_id>/`），
 个人记忆在 `<state>/memory/`，项目记忆在各项目文件夹的
-`<project>/.openprogram/memory/`。第一个请求存储根目录的进程
-（`openprogram.store.project.layout_migration.ensure_layout`）先把这些目录复制到
-`<state>/backups/layout-<time>/`，再搬进来：
+`<project>/.openprogram/memory/`。`openprogram` 进程启动时（命令入口，以及
+`python -m openprogram.webui`），`openprogram.store.project.layout_migration.ensure_layout`
+先把这些目录复制到 `<state>/backups/layout-<time>/`，再搬进来。存储的路径函数只给出
+路径、从不搬动任何东西，所以导入库、跑测试或脚本都不会搬动正在使用的存储：
 
-- 会话归入注册表里列出它的项目；没有则归 `meta.json` 写明的项目；再没有则归系统项目；
+- 会话归入注册表里列出它的项目；没有则归 `meta.json` 写明的项目；再没有则归主目录项目；
 - `index.json` 和 `locations.json` 改名为 `.chats-index.json` 和
   `.chats-locations.json`，隐藏的簿记目录合并进来；
 - 个人记忆变成 `default/memory/`，各项目记忆变成 `<project_id>/memory/`，
@@ -57,7 +58,7 @@
   绝对路径，改写为新位置。
 
 文件锁保证两个进程不会同时搬，`.layout` 标记记录搬迁已完成。旧版进程在搬迁后
-可能仍会写旧目录，所以每个进程首次使用时都会再检查一次，把新增的内容合并进来：
+可能仍会写旧目录，所以每个进程启动时都会再检查一次，把新增的内容合并进来：
 新会话搬入；已搬会话的空壳、以及没有笔记的新初始化记忆工作区直接丢弃；另一个
 确实有笔记的工作区放到 `<state>/memory.legacy`。搬迁不认识的文件留在
 `<state>/sessions.legacy`。

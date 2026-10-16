@@ -182,7 +182,7 @@ The floating webpage preview fills the space below its compact header, with 10px
 | `/agents` | Agents: create, configure and start conversations with Agents (model, abilities, memory, context) |
 | `/applications` | Applications: install software from a local folder, then open, enable, hide from the new tab page, update or uninstall it |
 | `/scheduler` | Scheduler: one-time, recurring and monitor tasks, filtered by type; pause, resume or delete each task |
-| `/chats` | History (also `/history`): projects on the left, System first; each project's Chats, Memory, Settings and Info tabs on the right |
+| `/chats` | History (also `/history`): projects on the left, the home project (named after your home folder) first; each project's Chats, Memory, Settings and Info tabs on the right |
 | `/programs` | Abilities hub: Programs catalog (call tree / graph). Plugins, Skills, and MCP are sibling tabs |
 | `/skills` | Abilities → Skills: browse installed SKILL.md files, discover and create skills; each skill has a detail page |
 | `/plugins` | Abilities → Plugins: Installed / Discover (marketplace) / Issues |

@@ -113,11 +113,11 @@ def _default_root() -> Path:
     """Root of the conversation store: ``<state>/projects``.
 
     Each project's conversations are in ``<project-id>/chats/``; an older
-    install's ``sessions/`` tree is moved there on first use (see
-    :mod:`openprogram.store.project.layout_migration`).
+    install's ``sessions/`` tree is moved there when an ``openprogram``
+    process starts (see :mod:`openprogram.store.project.layout_migration`).
     """
-    from openprogram.store.project.layout_migration import ensure_layout
-    return ensure_layout()
+    from openprogram.store.project.layout import projects_root
+    return projects_root()
 
 
 def _projects_default_id_safe() -> str:

@@ -168,10 +168,11 @@ def get_sessions_dir() -> Path:
     """Root of the conversation store, ``<state>/projects``.
 
     Conversations sit in ``<project-id>/chats/`` below it; see
-    :mod:`openprogram.store.project.layout`.
+    :mod:`openprogram.store.project.layout`. Only a path: an older
+    install's tree is moved here when an ``openprogram`` process starts.
     """
-    from openprogram.store.project.layout_migration import ensure_layout
-    return ensure_layout(get_state_dir())
+    from openprogram.store.project.layout import projects_root
+    return projects_root(get_state_dir())
 
 
 def get_logs_dir() -> Path:
@@ -193,12 +194,9 @@ def get_recordings_dir() -> Path:
 
 
 def get_memory_dir() -> Path:
-    """The personal memory: the System project's memory workspace."""
+    """The personal memory: the home project's memory workspace."""
     from openprogram.store.project.layout import DEFAULT_PROJECT_ID, memory_dir
-    from openprogram.store.project.layout_migration import ensure_layout
-    state = get_state_dir()
-    ensure_layout(state)
-    return memory_dir(DEFAULT_PROJECT_ID, state)
+    return memory_dir(DEFAULT_PROJECT_ID, get_state_dir())
 
 
 def get_usage_db_path() -> Path:

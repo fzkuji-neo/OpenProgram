@@ -4,7 +4,7 @@ What a person prefers belongs everywhere they work; what one repository
 decided belongs to that repository. With ``memory.layers.project`` on, a
 conversation bound to a project reads two workspaces as one: the
 project's, at ``<state>/projects/<project-id>/memory``, and the personal
-one (the System project's). With ``memory.layers.project_writes`` also
+one (the home project's). With ``memory.layers.project_writes`` also
 on, what such a conversation records lands in the project's workspace
 instead of the personal one. Both settings are on by default.
 
@@ -54,7 +54,7 @@ def project_root(session_id: str | None = None) -> Path | None:
     """Where the session's project keeps its Memory.
 
     None when the setting is off or the conversation belongs to no project
-    (the System project's memory is the personal one).
+    (the home project's memory is the personal one).
     """
     if not load_memory_config().project_layer:
         return None
@@ -78,9 +78,7 @@ def project_root(session_id: str | None = None) -> Path | None:
 def project_memory_root(project_id: str) -> Path:
     """A project's memory workspace, whether or not it exists yet."""
     from openprogram.store.project.layout import memory_dir
-    from openprogram.store.project.layout_migration import ensure_layout
 
-    ensure_layout()
     return memory_dir(project_id).resolve()
 
 

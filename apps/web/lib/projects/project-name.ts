@@ -1,8 +1,11 @@
-/** The name a project shows: the System project (the default one) reads
- *  "System" in the UI language unless the user renamed it. */
+/** The name a project shows. The home project (the default one) is named
+ *  after the home folder; a record from before that, still called
+ *  "System" or "Default", shows the folder's name too. */
 export function projectName(
-  project: { name: string; is_default?: boolean; custom_name?: boolean },
-  text: (en: string, zh: string) => string,
+  project: { name: string; path?: string | null; is_default?: boolean; custom_name?: boolean },
 ): string {
-  return project.is_default && !project.custom_name ? text("System", "系统") : project.name;
+  if (project.is_default && !project.custom_name && (!project.name || ["System", "Default"].includes(project.name))) {
+    return project.path?.split(/[\\/]/).filter(Boolean).pop() || project.name;
+  }
+  return project.name;
 }

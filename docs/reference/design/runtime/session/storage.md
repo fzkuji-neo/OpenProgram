@@ -5,7 +5,7 @@
 ## On-Disk Layout
 
 Conversations live in the folder of the project they belong to. Every
-project, the System project (id `default`) included, owns one folder:
+project, the home project (id `default`) included, owns one folder:
 
 ```
 <state>/projects/
@@ -30,7 +30,7 @@ project, the System project (id `default`) included, owns one folder:
 
 The store root is `<state>/projects`, where `<state>` is OpenProgram's state
 directory. A session is placed at `<project_id>/chats/<session_id>`; a session
-bound to no project belongs to the System project and lands under
+bound to no project belongs to the home project and lands under
 `default/chats/`. The store's own bookkeeping sits in hidden entries of the
 same folder, so a listing shows only the registry and the project folders.
 A store opened on any other root (application runs, an embedding host) uses
@@ -49,12 +49,15 @@ location is read only as a legacy migration source.
 Older installs kept conversations under `<state>/sessions/` (with bound
 projects under `sessions/projects/<project_id>/`), personal memory under
 `<state>/memory/`, and project memory inside each project folder at
-`<project>/.openprogram/memory/`. The first process that asks for the store
-root (`openprogram.store.project.layout_migration.ensure_layout`) copies
-those trees to `<state>/backups/layout-<time>/` and moves them in:
+`<project>/.openprogram/memory/`. When an `openprogram` process starts (the
+command's entry, and `python -m openprogram.webui`),
+`openprogram.store.project.layout_migration.ensure_layout` copies those trees
+to `<state>/backups/layout-<time>/` and moves them in. The store's path
+helpers only name paths and never move anything, so importing the library,
+a test or a script cannot move a live store:
 
 - a conversation goes to the project that lists it in the registry, else the
-  project named in its `meta.json`, else the System project;
+  project named in its `meta.json`, else the home project;
 - `index.json` and `locations.json` become `.chats-index.json` and
   `.chats-locations.json`; the hidden bookkeeping folders merge in;
 - personal memory becomes `default/memory/`, each project's memory becomes
@@ -66,8 +69,8 @@ those trees to `<state>/backups/layout-<time>/` and moves them in:
 
 A file lock keeps two processes from moving at once, and the `.layout` marker
 records the finished move. A process from an older install may still write
-the old trees after the move, so each process checks for them again on first
-use and merges what they gained: new conversations move in, empty shells of
+the old trees after the move, so each process start checks for them again
+and merges what they gained: new conversations move in, empty shells of
 moved conversations and freshly initialised memory workspaces with no notes
 are dropped, and a second workspace that does hold notes is set aside as
 `<state>/memory.legacy`. Files the move does not recognise stay in

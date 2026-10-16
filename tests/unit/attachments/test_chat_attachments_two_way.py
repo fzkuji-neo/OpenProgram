@@ -37,7 +37,7 @@ def test_attachment_index_write_does_not_require_fchmod(tmp_path, monkeypatch):
 
 @pytest.fixture
 def state(tmp_path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """An isolated state dir, with the System project's chats folder materialised.
+    """An isolated state dir, with the home project's chats folder materialised.
 
     The SessionStore singleton is reset around the test: persisting an
     attachment resolves the session workdir, which builds that singleton

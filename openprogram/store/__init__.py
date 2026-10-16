@@ -29,7 +29,7 @@ Public surface (re-exported for legacy import paths):
 
 Storage layout: every session is its own git repo in its project's
 folder, ``~/.openprogram/projects/<project>/chats/<session_id>/`` (chats
-with no project belong to the System project, ``default``). Older chats
+with no project belong to the home project, ``default``). Older chats
 recorded inside a project folder are found through
 ``projects/.chats-locations.json``. Each repo has two top-level dirs:
 
