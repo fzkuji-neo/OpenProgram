@@ -19,6 +19,9 @@ def boundary(tmp_path, monkeypatch):
     state = tmp_path / "state"
     session_dir = state / "projects" / "default" / "chats" / "audit-session"
     session_dir.mkdir(parents=True)
+    # A real session has meta.json; the event log routes to a session
+    # directory only when it looks present, whichever store is cached.
+    (session_dir / "meta.json").write_text("{}", encoding="utf-8")
     monkeypatch.setattr(paths, "get_state_dir", lambda: state)
     authority._reset_owner_cache_for_tests()
     req = TurnRequest(
