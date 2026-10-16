@@ -489,6 +489,16 @@ way.
 | `embedding` | Cosine similarity with a local sentence-transformer |
 | `hybrid` | Both, merged |
 
+Product runtimes ship without PyTorch, so the `embedding` extra's packages
+(sentence-transformers and torch) are installed on demand, by the Settings
+Install action, into `<state>/extras/embedding/<interpreter tag>/` rather than
+into the signed App bundle. pip resolves them with every package the runtime
+already ships pinned to its shipped version, stages the result, and moves it
+into place only when it completed. The directory is appended to `sys.path`, so
+a shared dependency still resolves to the runtime's own copy. Semantic recall
+counts as available only when those packages import and the model files are
+cached.
+
 Hybrid recall asks each backend for five times the requested hits, turns
 each ranking into Reciprocal Rank Fusion scores (`1 / (60 + rank)`), and
 blends the two. Adding rank scores rather than raw scores is what makes the

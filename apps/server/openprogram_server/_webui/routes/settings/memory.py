@@ -108,18 +108,18 @@ def register(app):
         from openprogram.memory import store
 
         if settings:
+            from openprogram.memory.retrieval import inspect
             from openprogram.memory.retrieval.embedding_model import (
-                default_model_is_cached,
-                platform_unavailable_reason,
+                packages_available,
             )
 
             root = store.root()
             return JSONResponse(content={
                 "workspace_path": str(root.resolve()),
-                "embedding_available": (
-                    platform_unavailable_reason() is None
-                    and default_model_is_cached()
-                ),
+                "embedding_available": inspect.embedding_is_available(),
+                # Without the packages, installing also fetches torch,
+                # which is the size the Install button has to state.
+                "embedding_packages": packages_available(),
             })
 
         from openprogram.memory.retrieval import inspect
@@ -134,9 +134,10 @@ def register(app):
     @router.post("/api/memory/embedding/install")
     async def install_embedding_model():
         from openprogram.memory.retrieval.embedding_model import (
-            default_model_is_cached,
             install_default_model,
+            install_packages,
             platform_unavailable_reason,
+            semantic_available,
         )
 
         reason = platform_unavailable_reason()
@@ -147,8 +148,9 @@ def register(app):
             }, status_code=502)
 
         def install_and_verify() -> bool:
+            install_packages()
             install_default_model()
-            return default_model_is_cached()
+            return semantic_available()
 
         try:
             installed = await asyncio.to_thread(install_and_verify)

@@ -161,16 +161,17 @@ def status(
 
 
 def embedding_is_available() -> bool:
+    """Whether semantic recall can run, without loading the encoder."""
     try:
-        from .embedding_model import (
-            default_model_is_cached,
-            platform_unavailable_reason,
-        )
+        from . import embedding_model
     except Exception:
         return False
-    if platform_unavailable_reason() is not None:
+    if embedding_model.platform_unavailable_reason() is not None:
         return False
-    return default_model_is_cached()
+    return (
+        embedding_model.packages_available()
+        and embedding_model.default_model_is_cached()
+    )
 
 
 def list_files(

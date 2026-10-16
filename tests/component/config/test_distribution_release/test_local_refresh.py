@@ -450,6 +450,11 @@ def _prepare_local_refresh_fixture(tmp_path: Path) -> tuple[Path, Path, dict[str
     fake_uv.write_text(
         "#!/bin/sh\n"
         "set -eu\n"
+        # Runtime sync: `uv export` writes the locked requirements and
+        # `uv pip install` applies them; neither builds a wheel.
+        'case "${1:-}" in export) while [ "$#" -gt 0 ]; do '
+        'if [ "$1" = "--output-file" ]; then : > "$2"; fi; shift; done; exit 0 ;; '
+        'pip) exit 0 ;; esac\n'
         "out=\n"
         "while [ \"$#\" -gt 0 ]; do\n"
         '  if [ "$1" = "--out-dir" ]; then out="$2"; shift 2; else shift; fi\n'
@@ -725,6 +730,11 @@ def test_default_local_refresh_requires_committed_source_before_mutation(
     fake_uv = Path(env["OPENPROGRAM_UV_BIN"])
     fake_uv.write_text(
         "#!/bin/sh\nset -eu\n"
+        # Runtime sync: `uv export` writes the locked requirements and
+        # `uv pip install` applies them; neither builds a wheel.
+        'case "${1:-}" in export) while [ "$#" -gt 0 ]; do '
+        'if [ "$1" = "--output-file" ]; then : > "$2"; fi; shift; done; exit 0 ;; '
+        'pip) exit 0 ;; esac\n'
         'printf "build\n" >> "$BUILD_LOG"\n'
         'out=; while [ "$#" -gt 0 ]; do '
         'if [ "$1" = "--out-dir" ]; then out="$2"; shift 2; else shift; fi; done\n'

@@ -273,6 +273,13 @@ BM25持久缓存格式是v8；旧缓存缺少当前speaker或trust字段，因�
 | `embedding` | 用本地 sentence-transformer 算余弦相似度 |
 | `hybrid` | 两者都跑，再合并 |
 
+产品运行时不带 PyTorch，所以 `embedding` extra 里的包（sentence-transformers
+和 torch）由设置页的安装按钮按需装到 `<state>/extras/embedding/<解释器标记>/`，
+而不是已签名的 App 包里。pip 解析时把运行时已带的每个包固定在它自带的版本，
+先装到暂存目录，完整装好才移到位。这个目录追加到 `sys.path` 末尾，共享的依赖
+仍然解析到运行时自己的那份。只有这些包能导入、且模型文件已缓存时，语义检索
+才算可用。
+
 混合检索让两个后端各取请求条数的五倍，把各自的排名换成 Reciprocal Rank
 Fusion 分数（`1 / (60 + 名次)`），再按比例相加。相加的是名次分而不是原始
 分，这样合并才有意义：BM25 分数和余弦相似度没有共同的刻度。只被一个后端

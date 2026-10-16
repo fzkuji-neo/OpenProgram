@@ -31,6 +31,12 @@ an error, and the latest one.
 Hybrid weighting and Favour well-matched Topics apply only when the recall
 method is Hybrid.
 
+Semantic and Hybrid need the embedding model and the packages that run it,
+sentence-transformers and PyTorch. The App does not include those packages, so
+**Install** next to **Embedding model** downloads them, about 600 MB, together
+with the model, about 90 MB. They go into `~/.openprogram/extras/embedding/`,
+not into the App, so an App update keeps them.
+
 ## Project memory
 
 A conversation in a project can keep what belongs to that project apart from

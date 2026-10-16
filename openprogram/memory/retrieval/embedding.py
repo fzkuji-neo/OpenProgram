@@ -21,6 +21,7 @@ from .bm25 import (
 from .embedding_model import (
     MODEL_FILES,
     MODEL_ID,
+    activate_packages,
     default_model_is_cached,
     install_default_model,
     platform_unavailable_reason,
@@ -38,6 +39,7 @@ def load_default_encoder(*, local_files_only: bool = True) -> Any:
                 reason = platform_unavailable_reason()
                 if reason is not None:
                     raise ImportError(reason)
+                activate_packages()
                 try:
                     from sentence_transformers import SentenceTransformer
                 except ImportError as exc:
