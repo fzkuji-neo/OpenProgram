@@ -26,7 +26,7 @@ import { ManageCatalogCard, managePageStyles as shared } from "@/components/ui/m
 // they reach for a control. Applies equally to the per-card pills here
 // and the source-row pills in ``index.tsx``.
 export const pillBase =
-  "inline-flex items-center justify-center h-7 rounded-full px-3 text-[12px] font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none border border-transparent";
+  "inline-flex items-center justify-center h-7 rounded-[var(--radius)] px-3 text-[12px] font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none border border-transparent";
 const pillIdle =
   "bg-[var(--bg-tertiary)] text-[var(--text-secondary)]";
 export const pillPrimary =

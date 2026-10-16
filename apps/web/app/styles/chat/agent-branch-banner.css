@@ -21,7 +21,7 @@
   flex: none;
   padding: 4px 12px;
   border: 1px solid var(--border, #e4e2da);
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: var(--bg-primary, #fff);
   color: var(--text-bright, #1a1a17);
   font-size: 12px;
