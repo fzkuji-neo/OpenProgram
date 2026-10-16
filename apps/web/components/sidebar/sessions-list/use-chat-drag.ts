@@ -2,17 +2,23 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { HTMLAttributes } from "react";
 
 type Slot = { id: string; top: number; bottom: number };
+/** A header or chat row of the project lists, in document order. */
+type Item = { key: string; group: string; row: boolean; top: number; bottom: number };
 type Drag = {
   id: string; from: string; pointerId: number; element: HTMLElement;
   startX: number; startY: number; x: number; y: number; active: boolean;
   scroller: HTMLElement; scrollTop: number; slots: Slot[];
+  items: Item[]; source: number; height: number;
 };
 
 /** A chat row picked up and carried onto another project group. */
 export interface DraggingChat { id: string; dy: number }
 
 /** Props a chat row spreads: `data-dragging` marks the row being carried. */
-export type ChatRowProps = HTMLAttributes<HTMLDivElement> & { "data-dragging"?: true };
+export type ChatRowProps = HTMLAttributes<HTMLDivElement> & { "data-dragging"?: true; "data-chat-row": string };
+
+const rowKey = (id: string) => `r:${id}`;
+const headerKey = (projectId: string) => `h:${projectId}`;
 
 /**
  * Pointer-capture drag of a chat row onto a project group. The same
@@ -21,6 +27,12 @@ export type ChatRowProps = HTMLAttributes<HTMLDivElement> & { "data-dragging"?: 
  * under the pointer is the drop target (never the chat's own), release
  * there calls `onMove`, and Escape, blur or a release elsewhere
  * cancels. A click after a drag is swallowed so the chat does not open.
+ *
+ * While the row is over another project the lists make room for it:
+ * the rows and headers between its old place and the pointer shift by
+ * one row, closing the gap it left and opening one where it would
+ * land (`rowOffset` / `headerOffset`). The order inside a project is
+ * by time, so the gap only shows the project it will join.
  */
 export function useChatDrag(
   enabled: boolean,
@@ -31,14 +43,42 @@ export function useChatDrag(
   const frame = useRef<number | null>(null);
   const [draggingChat, setDraggingChat] = useState<DraggingChat | null>(null);
   const [dropProject, setDropProject] = useState<string | null>(null);
+  const [offsets, setOffsets] = useState<Record<string, number>>({});
+
+  // Pointer y in the lists' coordinates at the press (their own scroll
+  // since then is added back), where the item bounds were measured.
+  const listY = (drag: Drag) => drag.y + drag.scroller.scrollTop - drag.scrollTop;
 
   function targetAt(drag: Drag): string | null {
     const rect = drag.scroller.getBoundingClientRect();
     if (drag.x < rect.left || drag.x > rect.right || drag.y < rect.top || drag.y > rect.bottom) return null;
-    // The groups' original layout: nothing moves aside during this drag.
-    const y = drag.y + drag.scroller.scrollTop - drag.scrollTop;
+    const y = listY(drag);
     const slot = drag.slots.find(item => y >= item.top && y < item.bottom);
     return slot && slot.id !== drag.from ? slot.id : null;
+  }
+  /** Where the row would land in `target`: the index of the item the gap opens before. */
+  function insertionAt(drag: Drag, target: string): number {
+    const y = listY(drag);
+    let last = -1;
+    for (let index = 0; index < drag.items.length; index++) {
+      const item = drag.items[index];
+      if (item.group !== target) continue;
+      if (item.row && (item.top + item.bottom) / 2 > y) return index;
+      last = index;
+    }
+    return last + 1;
+  }
+  function offsetsFor(drag: Drag, target: string | null): Record<string, number> {
+    const next: Record<string, number> = {};
+    if (!target) return next;
+    const insertion = insertionAt(drag, target);
+    // Items between the row's old place and the gap move by one row.
+    if (insertion > drag.source) {
+      for (let index = drag.source + 1; index < insertion; index++) next[drag.items[index].key] = -drag.height;
+    } else {
+      for (let index = insertion; index < drag.source; index++) next[drag.items[index].key] = drag.height;
+    }
+    return next;
   }
   function update(drag: Drag) {
     // The row follows the pointer vertically, in its own scroller: the
@@ -46,6 +86,12 @@ export function useChatDrag(
     setDraggingChat({ id: drag.id, dy: drag.y - drag.startY + drag.scroller.scrollTop - drag.scrollTop });
     const next = targetAt(drag);
     setDropProject(prev => (prev === next ? prev : next));
+    const shifted = offsetsFor(drag, next);
+    setOffsets(prev => {
+      const keys = Object.keys(shifted);
+      if (keys.length === Object.keys(prev).length && keys.every(key => prev[key] === shifted[key])) return prev;
+      return shifted;
+    });
   }
   const finish = useCallback(() => {
     const drag = current.current;
@@ -58,6 +104,7 @@ export function useChatDrag(
     }
     setDraggingChat(null);
     setDropProject(null);
+    setOffsets({});
   }, []);
 
   useEffect(() => {
@@ -87,14 +134,21 @@ export function useChatDrag(
     frame.current = window.requestAnimationFrame(autoScroll);
   }
 
+  /** How far (px) a chat row has moved aside for the carried one. */
+  const rowOffset = (id: string) => offsets[rowKey(id)] || 0;
+  /** How far (px) a project header has moved aside for the carried chat. */
+  const headerOffset = (projectId: string) => offsets[headerKey(projectId)] || 0;
+
   /** Props for a chat row: `from` is the project group it sits in. */
   function rowProps(id: string, from: string): ChatRowProps {
     const carried = draggingChat?.id === id;
+    const shift = rowOffset(id);
     return {
       style: carried
         ? { touchAction: "none", transform: `translateY(${draggingChat.dy}px)`, zIndex: 5 }
-        : { touchAction: "none" },
+        : shift ? { touchAction: "none", transform: `translateY(${shift}px)` } : { touchAction: "none" },
       "data-dragging": carried || undefined,
+      "data-chat-row": id,
       onDragStart: event => event.preventDefault(),
       onPointerDown: event => {
         if (!enabled || current.current || !event.isPrimary || event.button !== 0
@@ -104,12 +158,25 @@ export function useChatDrag(
         const sidebar = element.closest<HTMLElement>("#sidebar");
         const scroller = element.closest<HTMLElement>(".overflow-y-auto");
         if (!sidebar || !scroller) return;
-        const slots = Array.from(sidebar.querySelectorAll<HTMLElement>("[data-project-id]")).map(group => {
+        const slots: Slot[] = [];
+        const items: Item[] = [];
+        for (const group of Array.from(sidebar.querySelectorAll<HTMLElement>("[data-project-id]"))) {
+          const projectId = group.dataset.projectId!;
           const bounds = group.getBoundingClientRect();
-          return { id: group.dataset.projectId!, top: bounds.top, bottom: bounds.top + bounds.height };
-        });
+          slots.push({ id: projectId, top: bounds.top, bottom: bounds.top + bounds.height });
+          for (const node of Array.from(group.querySelectorAll<HTMLElement>("[data-project-header], [data-chat-row]"))) {
+            const rect = node.getBoundingClientRect();
+            const row = node.dataset.chatRow !== undefined;
+            items.push({ key: row ? rowKey(node.dataset.chatRow!) : headerKey(projectId), group: projectId, row,
+              top: rect.top, bottom: rect.top + rect.height });
+          }
+        }
+        const source = items.findIndex(item => item.key === rowKey(id));
+        if (source < 0) return;
+        const after = items[source + 1];
+        const height = after && after.group === from ? after.top - items[source].top : items[source].bottom - items[source].top + 1;
         current.current = { id, from, element, pointerId: event.pointerId, scroller, scrollTop: scroller.scrollTop, slots,
-          startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, active: false };
+          items, source, height, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, active: false };
         element.setPointerCapture(event.pointerId);
       },
       onPointerMove: event => {
@@ -142,5 +209,5 @@ export function useChatDrag(
       },
     };
   }
-  return { draggingChat, dropProject, rowProps };
+  return { draggingChat, dropProject, rowProps, rowOffset, headerOffset };
 }

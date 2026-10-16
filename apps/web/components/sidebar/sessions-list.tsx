@@ -128,7 +128,7 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
   const projectMode = view.groupBy === "project";
   const [orderNotice, setOrderNotice] = useState("");
   const { draggingProject, projectOffset, headerProps } = useProjectDrag(projectMode, reorderProject);
-  const { dropProject, rowProps } = useChatDrag(projectMode, (sessionId, projectId) => void moveChat(sessionId, projectId));
+  const { dropProject, rowProps, headerOffset: chatHeaderOffset } = useChatDrag(projectMode, (sessionId, projectId) => void moveChat(sessionId, projectId));
   const reducedMotion = useReducedMotion();
 
   const [projects, setProjects] = useState<SidebarProject[]>([]);
@@ -455,6 +455,9 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
       ? text("This chat is running; wait for it to finish before moving it.", "这个聊天正在运行，等它结束再移动。")
       : text("Could not move the chat.", "没能移动这个聊天。"));
   }
+  /** A project header's drag props, moved aside for a carried chat. */
+  const shiftedBy = (props: React.HTMLAttributes<HTMLDivElement>, y: number) =>
+    y ? { ...props, style: { ...props.style, transform: `translateY(${y}px)` } } : props;
   // The project a chat sits in, by the registry; unclaimed chats are the
   // home project's.
   const projectOf = (sessionId: string) =>
@@ -566,7 +569,7 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
                     {menuTrigger=><ProjectGroupHeader
                       menuTrigger={menuTrigger}
                       icon={project.icon}
-                      dragProps={headerProps(g.key)}
+                      dragProps={shiftedBy(headerProps(g.key), chatHeaderOffset(g.key))}
                       onMove={(direction) => {
                         const target = visibleProjectGroups[visibleProjectGroups.findIndex(group => group.key === g.key) + direction];
                         if (target) {
@@ -820,7 +823,8 @@ function ProjectGroupHeader({
   return (
     <div
       {...dragProps}
-      className={sidebarNavItemClass + " " + styles.projectHeader + " select-none cursor-grab active:cursor-grabbing"}
+      className={sidebarNavItemClass + " " + styles.projectHeader + " " + styles.reflow + " select-none cursor-grab active:cursor-grabbing"}
+      data-project-header=""
       role="button"
       tabIndex={0}
       aria-expanded={!collapsed}
@@ -1007,11 +1011,12 @@ function ConvItem({
   // chat-row extras stay here.
   // select-none: a press that becomes a drag onto a project must not
   // start selecting the title.
-  // chatRow / chatDragging: the row itself slides with the pointer when
-  // carried onto another project, and eases back if the drag is dropped.
+  // reflow / chatDragging: the row itself slides with the pointer when
+  // carried onto another project, other rows ease aside to make room,
+  // and all of them ease back if the drag is dropped.
   const base =
     "ui-list-item group relative shrink-0 overflow-hidden select-none" +
-    " leading-[20px] whitespace-nowrap " + styles.chatRow +
+    " leading-[20px] whitespace-nowrap " + styles.reflow +
     (dragProps?.["data-dragging"] ? " " + styles.chatDragging : "");
   // Selected row: a background highlight marks it; the text steps down
   // from pure white to the warm off-white (--text-primary) so it isn't
