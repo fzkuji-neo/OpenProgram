@@ -622,7 +622,7 @@ SETTINGS: list[SettingSpec] = [
         group="Voice", label="Speech model", widget="text",
         apply=APPLY_LIVE, default="",
         help="Empty uses the engine's default: gpt-4o-mini-transcribe (OpenAI), "
-             "whisper-large-v3-turbo (Groq), base (local). Applies only when an engine is chosen.",
+             "whisper-large-v3-turbo (Groq), large-v3-turbo-q5_0 (local). Applies only when an engine is chosen.",
     ),
     SettingSpec(
         key="search.default_provider", path=("search", "default_provider"),

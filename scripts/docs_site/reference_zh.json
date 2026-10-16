@@ -527,7 +527,7 @@
   "Voice": "语音",
   "Turns the composer microphone's recording into text. `auto` uses local whisper.cpp when its model is downloaded, then OpenAI, then Groq. `local` keeps audio on this computer (needs `brew install whisper-cpp`).": "把输入框麦克风的录音转成文字。`auto` 在本机 whisper.cpp 模型已下载时用它，否则依次用 OpenAI、Groq。`local` 让音频留在这台电脑上（需要 `brew install whisper-cpp`）。",
   "`auto` lets the engine detect the language of each phrase.": "`auto` 让识别服务自动识别每句话的语言。",
-  "Empty uses the engine's default: gpt-4o-mini-transcribe (OpenAI), whisper-large-v3-turbo (Groq), base (local). Applies only when an engine is chosen.": "留空使用识别服务的默认模型：gpt-4o-mini-transcribe（OpenAI）、whisper-large-v3-turbo（Groq）、base（本机）。只在选定了识别服务时生效。",
+  "Empty uses the engine's default: gpt-4o-mini-transcribe (OpenAI), whisper-large-v3-turbo (Groq), large-v3-turbo-q5_0 (local). Applies only when an engine is chosen.": "留空使用识别服务的默认模型：gpt-4o-mini-transcribe（OpenAI）、whisper-large-v3-turbo（Groq）、large-v3-turbo-q5_0（本机）。只在选定了识别服务时生效。",
   "After a background write, ask a question about one fact it recorded, search Memory for the answer, and repair the Topics when the answer cannot be found. Costs several extra model calls per write.": "后台写入后，针对这次记下的一条事实提一个问题，在 Memory 中检索答案；找不到时修复 Topic。每次写入会多花几次模型调用。",
   "How hybrid recall weighs keywords against meaning. `auto` favours keywords for queries with a date, a quoted phrase or a name, and balances them otherwise.": "混合检索中关键词与语义的权重。`auto` 在查询含日期、引号短语或人名时偏向关键词，其余情况两者均衡。",
   "In hybrid recall, raise the best paragraph of a Topic that several matches come from.": "混合检索时，若多条匹配来自同一个 Topic，提升该 Topic 中最匹配的段落。",

@@ -13,14 +13,14 @@ Open **Settings → Voice**. The microphone has no options of its own; everythin
 | Setting | Values | Meaning |
 |---|---|---|
 | Engine (`voice.engine`) | `auto`, `openai`, `groq`, `local` | Which service transcribes audio. |
-| Spoken language (`voice.language`) | `auto`, `zh`, `en`, `ja`, `ko`, `fr`, `de`, `es` | A hint for the language you speak; `auto` detects it. |
+| Spoken language (`voice.language`) | `auto`, `zh`, `en`, `ja`, `ko`, `fr`, `de`, `es` | A hint for the language you speak; `auto` detects it. With `zh`, Chinese is written in simplified characters. |
 | Model (`voice.model`) | text | Model name for the chosen engine; empty uses the engine's default. Ignored when the engine is `auto`. |
 
 The engines:
 
 - **openai** sends each phrase to the OpenAI transcription API with `gpt-4o-mini-transcribe` by default. It uses the OpenAI API key from Settings → Providers.
 - **groq** sends each phrase to Groq with `whisper-large-v3-turbo` by default, using the Groq API key from Settings → Providers.
-- **local** runs [whisper.cpp](https://github.com/ggml-org/whisper.cpp) on this computer, so audio never leaves it. Install it with `brew install whisper-cpp`. The `ggml-base` model (about 150 MB) downloads into the state directory the first time you use it.
+- **local** runs [whisper.cpp](https://github.com/ggml-org/whisper.cpp) on this computer, so audio never leaves it. Install it with `brew install whisper-cpp`. The `large-v3-turbo-q5_0` model (about 570 MB) downloads into the state directory the first time you use it; on Apple silicon a phrase takes one to two seconds.
 
 With `auto`, OpenProgram uses local whisper.cpp when it is installed and its model is already downloaded, then OpenAI, then Groq, then local whisper.cpp (which downloads its model on first use). The page shows which engine is in use and which engines work on this computer.
 

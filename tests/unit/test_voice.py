@@ -39,7 +39,7 @@ def test_auto_prefers_openai_then_groq(monkeypatch, no_local):
 def test_auto_prefers_a_local_model_that_is_already_downloaded(monkeypatch, tmp_path):
     monkeypatch.setattr(voice, "_provider_key", lambda _: "sk")
     monkeypatch.setattr(voice, "local_cli", lambda: "/usr/bin/whisper-cli")
-    model = tmp_path / "ggml-base.bin"
+    model = tmp_path / "ggml-large-v3-turbo-q5_0.bin"
     monkeypatch.setattr(voice, "local_model_path", lambda name: model)
     with patch("openprogram.setup._read_config", return_value={}):
         assert voice.resolve_engine() == "openai"
@@ -74,7 +74,8 @@ def test_transcribe_posts_wav_to_the_openai_endpoint(monkeypatch, no_local):
     assert result == {"text": "你好", "engine": "openai", "model": "gpt-4o-mini-transcribe"}
     assert sent["url"] == "https://api.openai.com/v1/audio/transcriptions"
     assert sent["headers"]["Authorization"] == "Bearer sk-test"
-    assert sent["data"] == {"model": "gpt-4o-mini-transcribe", "response_format": "json", "language": "zh"}
+    assert sent["data"] == {"model": "gpt-4o-mini-transcribe", "response_format": "json", "language": "zh",
+                            "prompt": voice._LANGUAGE_PROMPTS["zh"]}
     assert sent["files"]["file"][2] == "audio/wav"
 
 
@@ -107,3 +108,27 @@ def test_routes_report_status_and_errors(monkeypatch, no_local):
     monkeypatch.setattr(voice, "transcribe", lambda audio: {"text": "hi", "engine": "openai", "model": "m"})
     ok = client.post("/api/voice/transcribe", content=b"RIFF", headers={"Content-Type": "audio/wav"})
     assert ok.json()["text"] == "hi"
+
+
+def test_local_engine_asks_for_simplified_chinese(monkeypatch, tmp_path):
+    model = tmp_path / "ggml-m.bin"
+    model.write_bytes(b"x")
+    monkeypatch.setattr(voice, "local_cli", lambda: "/usr/bin/whisper-cli")
+    monkeypatch.setattr(voice, "local_model_path", lambda name: model)
+    seen = {}
+
+    def fake_run(argv, **_):
+        seen["argv"] = argv
+
+        class Done:
+            returncode = 0
+            stdout = "帮我整理一下\n"
+            stderr = ""
+        return Done()
+
+    monkeypatch.setattr(voice.subprocess, "run", fake_run)
+    with patch("openprogram.setup._read_config", return_value=_cfg(engine="local", language="zh")):
+        assert voice.transcribe(b"RIFF")["text"] == "帮我整理一下"
+    argv = seen["argv"]
+    assert argv[argv.index("-l") + 1] == "zh"
+    assert argv[argv.index("--prompt") + 1] == voice._LANGUAGE_PROMPTS["zh"]
