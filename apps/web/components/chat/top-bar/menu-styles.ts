@@ -6,25 +6,28 @@ import { GLASS_MATERIAL } from "@/lib/glass";
  * app is visually identical: topbar pickers (channel / branch / project /
  * agent), the sidebar Recents context menu, ui/select, and any future one.
  *
- * ── Design spec (shadcn radix-rhea DropdownMenu geometry) ───────────
- *  Values are Rhea's own; this app's root is 14px, so rem sizes render
- *  at 7/8 (rounded-2xl = 14px, min-h-7 = 24.5px, text-sm = 12.25px).
- *  Panel (MENU_PANEL): rounded-2xl · p-1 · width hugs content,
+ * ── Design spec (shadcn radix-nova DropdownMenu geometry) ───────────
+ *  Values are Nova's own, the style ui.shadcn.com's docs use. The panel
+ *  carries .shadcn-scale (app/globals.css), so its rem sizes render at
+ *  the docs' scale on this app's 14px root (text-sm = 14px, a row 28px)
+ *  instead of 7/8 of it.
+ *  Panel (MENU_PANEL): rounded-lg · p-1 · width hugs content,
  *    min-w-32 up to 320px · scrolls past 60vh. Material is the app's
  *    own glass (lib/glass.ts GLASS_MATERIAL: translucent fill, blur,
- *    hairline ring, shadow) in place of Rhea's solid bg-popover + ring —
- *    Rhea's translucent-menu option, with the app's shadow.
- *  Row (itemCls): min-h-7 · rounded-xl · px-2 py-1.5 · text-sm · gap-2 ·
- *    icons size-4; a leading glyph is pulled 3px left (Solar glyphs
- *    carry their own margin) ·
+ *    hairline ring, shadow) in place of Nova's solid bg-popover + ring —
+ *    Nova's translucent-menu option, with the app's shadow.
+ *  Row (itemCls): min-h-7 · rounded-md · px-1.5 py-1 · text-sm ·
+ *    gap-1.5 · icons size-4; a leading glyph is pulled 3px left (Solar
+ *    glyphs carry their own margin) ·
  *    hover = `--bg-hover` fill, the ONLY row tint (a selected row shows
  *    a right-aligned accent check, never a fill). danger = red text +
  *    faint red hover. Radix items add MENU_ITEM_STATES so keyboard
  *    highlight and the disabled look follow the same rule.
  *  Two-line row (ITEM_TWO_LINE): title over a text-xs description.
- *  Section label (GROUP_LABEL): px-2 py-1 · text-xs · `--text-muted`.
+ *  Section label (GROUP_LABEL): px-1.5 py-1 · text-xs font-medium ·
+ *    `--text-muted`.
  *  Separator (MENU_SEPARATOR): full-bleed (-mx-1) · my-1 · 1px
- *    `--border` at 50%. Trailing column (MENU_TRAILING): after the
+ *    `--border`. Trailing column (MENU_TRAILING): after the
  *    content, check then key hint (SHORTCUT, text-xs tracking-widest) ·
  *    check (MenuCheck, accent) with CHECK_SLOT_PAD reserving the column
  *    on unselected rows.
@@ -38,10 +41,10 @@ import { GLASS_MATERIAL } from "@/lib/glass";
 
 export const MENU_PANEL =
   // 只有内容本身需要固定宽度的菜单（git 的分支列表 + 搜索框）才自带 w-[…]。
-  "flex max-h-[60vh] min-w-32 max-w-[320px] flex-col overflow-y-auto rounded-2xl p-1 " + GLASS_MATERIAL;
+  "shadcn-scale flex max-h-[60vh] min-w-32 max-w-[320px] flex-col overflow-y-auto rounded-lg p-1 " + GLASS_MATERIAL;
 
 export const GROUP_LABEL =
-  "flex items-center gap-2 px-2 py-1 text-xs text-text-muted";
+  "flex items-center gap-1.5 px-1.5 py-1 text-xs font-medium text-text-muted";
 
 export const CHECK = "shrink-0 text-[var(--accent-blue)]";
 
@@ -63,8 +66,8 @@ export const SHORTCUT = "shrink-0 text-xs tracking-widest text-text-muted";
  *  title line tall so on a two-line row it sits on the title. */
 export const MENU_TRAILING = "ms-3 flex h-5 shrink-0 items-center gap-1.5";
 
-/** Divider between menu groups, full-bleed like Rhea's. */
-export const MENU_SEPARATOR = "-mx-1 my-1 h-px shrink-0 bg-[var(--border)]/50";
+/** Divider between menu groups, full-bleed like Nova's. */
+export const MENU_SEPARATOR = "-mx-1 my-1 h-px shrink-0 bg-[var(--border)]";
 
 /** Two-line row — a title with a description under it — added to
  *  itemCls; the hover fill is still the row's own rounded rectangle and
@@ -96,13 +99,13 @@ export const MENU_ITEM_STATES =
  *  `danger` makes it a destructive (red) action. */
 export function itemCls(active: boolean, danger = false): string {
   const base =
-    // Rhea 的行：min-h-7、rounded-xl、px-2 py-1.5、text-sm、gap-2，图标
+    // Nova 的行：min-h-7、rounded-md、px-1.5 py-1、text-sm、gap-1.5，图标
     // size-4。行首图标左移 3px：Solar 图标字形四周自带留白，不收的话
     // 看起来比文字行缩进得多（用户反馈）。只认纯图标——svg 本身、只包
     // 一个 svg 的 SolarIcon、或只包一个 SolarIcon 的槽；含文字的首段
     // （模型名 + 能力图标）不动，否则正文会比分组标题更靠左。
-    "flex min-h-7 shrink-0 cursor-pointer items-center gap-2 rounded-xl " +
-    "px-2 py-1.5 text-sm transition-colors duration-75 " +
+    "flex min-h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-md " +
+    "px-1.5 py-1 text-sm transition-colors duration-75 " +
     "[&>:first-child:is(svg,:has(>svg:only-child),:has(>:only-child>svg:only-child))]:-ms-[3px] " +
     "[&>svg:first-child]:size-4 [&>:first-child:has(>svg:only-child)>svg]:size-4 " +
     "[&>:first-child:has(>:only-child>svg:only-child)>*>svg]:size-4 ";

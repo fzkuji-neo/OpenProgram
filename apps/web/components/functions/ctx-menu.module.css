@@ -1,36 +1,8 @@
+/* Frame, rows and separator are the shared menu classes (top-bar/
+   menu-styles.ts MENU_PANEL / itemCls / MENU_SEPARATOR); only the
+   placement lives here. */
 .ctxMenu {
   position: fixed;
-  padding: 0.25rem;
   z-index: 999;
   min-width: 160px;
-  /* Glass popover recipe (app/styles/base.css --glass-*) in the Rhea
-     menu frame (top-bar/menu-styles.ts MENU_PANEL: rounded-2xl p-1). */
-  background: var(--glass-surface);
-  -webkit-backdrop-filter: var(--glass-backdrop);
-  backdrop-filter: var(--glass-backdrop);
-  border: 0.5px solid var(--glass-ring);
-  border-radius: 1rem;
-  box-shadow: var(--glass-shadow);
-}
-/* Row = the shared menu row (top-bar/menu-styles.ts itemCls, Rhea). */
-.ctxItem {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 1.75rem;
-  padding: 0.375rem 0.5rem;
-  border-radius: 0.75rem;
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-  cursor: pointer;
-  color: var(--text-primary);
-  transition: background 0.15s;
-}
-.ctxItem:hover {
-  background: var(--bg-hover);
-}
-.ctxSep {
-  height: 1px;
-  background: color-mix(in srgb, var(--border) 50%, transparent);
-  margin: 0.25rem -0.25rem;
 }

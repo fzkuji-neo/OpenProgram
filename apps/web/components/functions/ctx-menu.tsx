@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
+import { MENU_PANEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
 import styles from "./ctx-menu.module.css";
 
 export interface CtxItem {
@@ -39,17 +41,17 @@ export function CtxMenu({
   return (
     <div
       ref={ref}
-      className={styles.ctxMenu}
+      className={cn(MENU_PANEL, styles.ctxMenu)}
       style={{ left: pos.left, top: pos.top }}
       onClick={(e) => e.stopPropagation()}
     >
       {state.items.map((it, i) =>
         it.type === "sep" ? (
-          <div key={i} className={styles.ctxSep} />
+          <div key={i} className={MENU_SEPARATOR} />
         ) : (
           <div
             key={i}
-            className={styles.ctxItem}
+            className={itemCls(false)}
             onClick={() => {
               onClose();
               it.action?.();

@@ -82,53 +82,55 @@ list        30 px     10 px     --ui-list-h · --ui-list-radius
 
 侧栏行、MCP tab 胶囊、MCP 服务器行都走这条 30px 节奏。列表行没有 sm / md / lg：一个位置能挑多种尺寸，每位作者都会跟设计讨价还价，尺寸跟着分叉。
 
-按钮是 shadcn/ui 的 `Button`，**radix-rhea** 风格（Rhea 是紧凑版的 Luma：形状相同，尺寸小一档）。`apps/web/components/ui/button.tsx` 从官方组件仓库原样复制（`npx shadcn add button`，style `radix-rhea`），本地只改了 import 和一层给 React 18 用的 `forwardRef`。圆角是 `rounded-2xl`（这里是 14px），所以 `sm` 和 `default` 是胶囊，`lg` 接近胶囊；调用处从官方尺寸里挑一个，不改样式类。
+按钮是 shadcn/ui 的 `Button`，**radix-nova** 风格，也就是 ui.shadcn.com 文档站自己用的风格。`apps/web/components/ui/button.tsx` 从官方组件仓库原样复制（`/r/styles/radix-nova/button.json`），本地只改了 import、一层给 React 18 用的 `forwardRef`，外加应用自有的 `elevated` 变体。圆角是 `rounded-lg`（`sm` 和小号图标按钮用 `rounded-[min(var(--radius-md),12px)]`）；调用处从官方尺寸里挑一个，不改样式类。
 
-这些尺寸按 rem 计算，而本 App 的根字号是 14px（`base.css` 里的 `html { font-size: 14px }`，现有约 560 处样式按它调过），所以 shadcn 每个尺寸实际显示为标称值的 7/8：
+这些尺寸按 rem 计算，而本 App 的根字号是 14px（`base.css` 里的 `html { font-size: 14px }`，现有约 560 处样式按它调过），所以在聊天区、两侧栏等紧凑区域，shadcn 每个尺寸实际显示为标称值的 7/8：
 
 ```
 size        App 内高度  App 内字号  用途
 ─────────────────────────────────────────────────────────────────
 xs          21 px       10.5 px    避免使用——字太小
-sm          24.5 px     12.25 px   标签、紧凑的控件行
-default     28 px       12.25 px   对话框和设置页的操作
+sm          24.5 px     11.2 px    标签、紧凑的控件行
+default     28 px       12.25 px   对话框和页面操作
 lg          31.5 px     12.25 px   首屏 / 空状态的大操作
-icon-sm/default                    方形，在这些高度上就是圆形
-icon-lg                            圆角方形（31.5px，14px 圆角）
+icon-sm     24.5 px                输入框周围的图标按钮
 ─────────────────────────────────────────────────────────────────
 ```
 
-不能做成 `<Button>` 的元素（自带 ✕ 的 span、渲染成 span 的 Radix 触发器）在 `className` 上用 `cn(buttonVariants({ variant, size }))` 拿同一套外观——`cn()` 合并不能省：原始类名里同时有 `border-transparent` 和变体自己的边框色。
+完全由官方组件搭起来的区域按文档站的尺寸显示：它们带 `.shadcn-scale`（`app/globals.css`），在内部重设 Tailwind 主题变量（`--spacing: 4px`、`--text-sm: 14px` 等，以及 shadcn 的圆角阶梯 `--radius-sm/md/lg/xl` = 6 / 8 / 10 / 14 px），所以里面的 `h-8` 是 32px、`text-sm` 是 14px。设置页内容列、所有菜单面板（`MENU_PANEL`）和 Select 弹层都带它。
 
-和按钮并排的控件——输入框、搜索框、页头 tab 胶囊——取 `--ui-button-h`，即 `2rem`（这里 28px），等于 Rhea 的 `default` / `icon` 高度。页头操作按钮（`ManageActionButton`）同理用 `default`。页头那一行（搜索 + tab 胶囊 + 图标按钮）必须同一垂直中线。控件之间差 1–2px 高度是 bug，不是变体。
+不能做成 `<Button>` 的元素（自带 ✕ 的 span、渲染成 span 的 Radix 触发器）在 `className` 上用 `cn(buttonVariants({ variant, size }))` 拿同一套外观——`cn()` 合并不能省：原始类名里同时有 `border-transparent` 和变体自己的边框色。几何不能随 Button 改样式而变的组件（输入框里的语音和发送按钮）尺寸取自己的变量，只从变体取颜色（见"输入框区域的控件"）。
+
+和按钮并排的控件——输入框、搜索框、页头 tab 胶囊——取 `--ui-button-h`，即 `2rem`（这里 28px），等于 `default` / `icon` 高度。页头操作按钮（`ManageActionButton`）同理用 `default`。页头那一行（搜索 + tab 胶囊 + 图标按钮）必须同一垂直中线。控件之间差 1–2px 高度是 bug，不是变体。
 
 ## 下拉选择与菜单
 
-所有"从固定列表里选一个"都是 shadcn **radix-rhea** 的 `Select`（`apps/web/components/ui/select.tsx`）；应用里没有原生 `<select>`，也没有手写的 listbox。`SimpleSelect` 是一行写法（`value`、`onValueChange`、`options`，可选 `placeholder`、`size`），覆盖几乎所有调用处；分组选项传 `{label, options}`。
+所有"从固定列表里选一个"都是 shadcn **radix-nova** 的 `Select`（`apps/web/components/ui/select.tsx`）；应用里没有原生 `<select>`，也没有手写的 listbox。`SimpleSelect` 是一行写法（`value`、`onValueChange`、`options`，可选 `label`、`placeholder`、`size`），覆盖几乎所有调用处；分组选项传 `{label, options}`。
 
-- 触发器：registry 原样的 Rhea 触发器（`rounded-2xl`、`bg-input/50`、透明边，默认 `h-8` / `sm` 为 `h-7`）。调用处只加宽度（`w-full`、`max-w-*`）或错误边框，不另做外观。
-- 弹层：registry 原样的 `item-aligned` 定位——直接盖住触发器展开，当前选中项落在原触发器的位置；叠在对话框之上（`z-[130]`）。
+- 触发器：registry 原样的 Nova 触发器——普通的带边框输入框（`rounded-lg`、`border-input`、`bg-transparent`、`dark:bg-input/30`，默认 `h-8` / `sm` 为 `h-7`）。`SimpleSelect` 默认 `w-full max-w-48`；调用处只加宽度或错误边框，不另做外观。
+- 弹层：实色 `bg-popover`、`ring-1 ring-foreground/10`、`shadow-md`，registry 原样的 `item-aligned` 定位——直接盖住触发器展开，当前选中项落在原触发器的位置；叠在对话框之上（`z-[130]`），按文档站尺寸显示（`.shadcn-scale`）。第一行是弱化色的分组标题，写明在选什么（取 `label`，没有就取 `aria-label`）；分组选项每组一个标题。选中项右侧是普通对勾。
 - Radix 把 `""` 留给"未选择"：值为 `""` 的选项在 `SimpleSelect` 内部换成哨兵值传递；没有这种选项时，`""` 显示占位文字。
 
-所有菜单弹层——Radix `DropdownMenu`、Select 弹层，以及 CSS module 写的菜单（侧栏底部菜单、标签页右键菜单、函数右键菜单）——共用一个外框和一种行：
+其余所有菜单弹层——Radix `DropdownMenu`、各种弹出选择器、侧栏底部菜单、标签页右键菜单、函数右键菜单——共用一个外框和一种行，都取自 `apps/web/components/chat/top-bar/menu-styles.ts` 里的 `MENU_PANEL`、`itemCls`、`GROUP_LABEL` 和 `MENU_SEPARATOR`。用 CSS module 写的菜单在 module 里只留位置（定位、层级、宽度），外框和行直接用这些类，不再自己抄一遍数值。
 
 ```
-部分        几何（Rhea）                           材质（我们自己的）
+部分        几何（Nova，文档站尺寸）               材质（我们自己的）
 ─────────────────────────────────────────────────────────────────
-面板        rounded-2xl · p-1 · min-w-32           --glass-surface、
-                                                   模糊、0.5px
+面板        rounded-lg · p-1 · min-w-32 ·          --glass-surface、
+            .shadcn-scale                          模糊、0.5px
                                                    --glass-ring、
                                                    --glass-shadow
-行          min-h-7 · rounded-xl · px-2 py-1.5 ·
-            text-sm · gap-2 · size-4 图标
-分组标题    px-2 py-1 · text-xs · 弱化色
-分隔线      -mx-1 my-1 · 1px · --border 50%
+行          min-h-7（28px）· rounded-md ·
+            px-1.5 py-1 · text-sm（14px）·
+            gap-1.5 · size-4 图标
+分组标题    px-1.5 py-1 · text-xs · font-medium · 弱化色
+分隔线      -mx-1 my-1 · 1px · --border
 快捷键      text-xs · tracking-widest · 弱化色
 选中        强调色对勾（MenuCheck），不铺底色
 ─────────────────────────────────────────────────────────────────
 ```
 
-几何来自 Rhea；玻璃材质和强调色对勾是应用自己的。`apps/web/components/chat/top-bar/menu-styles.ts` 里的 `MENU_PANEL` 和 `itemCls` 是源头；CSS module 菜单用 rem 写同样的数值。
+几何来自 Nova；玻璃材质和强调色对勾是应用自己的。
 
 ## 输入框与边框
 
@@ -144,12 +146,13 @@ icon-lg                            圆角方形（31.5px，14px 圆角）
 
 ## 设置行
 
-设置页（General、Memory、System 以及其余）统一两列：
+设置页由 `apps/web/components/settings/settings-ui.tsx` 里的三个积木搭成，只用官方组件（Card、Field），放在 `.shadcn-scale` 里：
 
-- **左**：名称左对齐。说明文字留在这一列，不要伸进右边控件
-- **右**：控件 / 取值右对齐
-- 左右隔开。不要把标签堆在输入框上面
-- 状态标签（`LIVE`、`NEXT START` 等）放在对应控件的**左边**，不要一行左一行右
+- `SettingsPage`——页面标题和说明，下面是可滚动的正文。
+- `SettingsSection`——带标题的一组设置，放在一张 `Card` 上，行之间用细线分开。
+- `SettingsRow`——一项设置，是横向的 `Field`：左边名称和说明，右边控件（单独一个 Select 宽 12rem）。`stacked` 把宽控件（编辑器、网格、列表）放到名称下面。
+
+里面的控件都是官方组件：`Switch`、`Input`、`Textarea`、`Slider`、`RadioGroup`（选择卡片）、`ToggleGroup`、`Checkbox`、`Button`、`SimpleSelect`。每个设置页不再带自己的行、标签或卡片 CSS。
 
 ## 按钮变体指南
 
@@ -159,8 +162,8 @@ icon-lg                            圆角方形（31.5px，14px 圆角）
 variant      闲置                                 悬停
 ─────────────────────────────────────────────────────────────────
 default      bg-primary + primary-foreground      bg-primary/80
-outline      1px border-border；深色透明底，       bg-muted（浅色），
-             浅色 bg-background                    bg-input/30（深色）
+outline      1px border-border、bg-background；      bg-muted（浅色），
+             深色 border-input、bg-input/30         bg-input/50（深色）
 secondary    bg-secondary                         secondary + 5% 墨色
 elevated     --bg-input 底，无边框，shadow-sm       shadow-md，+ 5% 墨色
 ghost        透明                                 bg-muted（深色 /50）
@@ -169,9 +172,9 @@ link         primary 字                           下划线
 ─────────────────────────────────────────────────────────────────
 ```
 
-所有变体按下时下沉 1px，键盘聚焦时有 3px 的 `ring/30` 光环，禁用时降到 50% 不透明度。
+所有变体按下时下沉 1px，键盘聚焦时有 3px 的 `ring/50` 光环，禁用时降到 50% 不透明度。
 
-`elevated` 是 Rhea 注册表里没有的那一个：Rhea 的 Button 没有带阴影的变体（只有 Card 用 `shadow-md`），而输入框周围的胶囊要和输入框一样"无边框、浮起来"。它复用每套主题的 composer 阴影对——`app/globals.css` 的 `@theme` 把它们声明成 `shadow-raised` / `shadow-raised-hover` 工具类——所以胶囊和输入框在每套主题里一起浮起。
+`elevated` 是注册表里没有的那一个：Nova 的 Button 没有带阴影的变体，而输入框周围的胶囊要和输入框一样"无边框、浮起来"。它复用每套主题的 composer 阴影对——`app/globals.css` 的 `@theme` 把它们声明成 `shadow-raised` / `shadow-raised-hover` 工具类——所以胶囊和输入框在每套主题里一起浮起。
 
 按场景选择：
 
@@ -214,5 +217,5 @@ link         primary 字                           下划线
 
 ## 实现状态
 
-- 已完成：`Button`（radix-rhea）、`Select`（radix-rhea，替换了所有原生 `<select>` 和自制下拉）、菜单面板和菜单行（Rhea 几何 + 玻璃材质）、输入框上方的环境标签、底部控制栏、发送按钮、输入框本体、网页预览小窗（外框、标题栏、图标按钮）、浏览器工具栏的图标按钮。
-- 尚未迁移：提示框、徽标。表单输入框在换成 shadcn input 之前继续遵守上面的 1px 边规则。侧栏列表行继续用上面的列表尺寸。
+- 已完成：`Button`、`Select`、`Input`、`Textarea`、`Switch`、`Slider`、`Card`、`Badge`、`Label`、`Separator`（radix-nova，包括替换所有原生 `<select>` 和自制下拉），以及 `Checkbox`、`RadioGroup`、`Field`、`Toggle`、`ToggleGroup`；菜单面板和菜单行（Nova 几何 + 玻璃材质）；设置的通用页和桌面提醒一节换成设置积木；输入框上方的环境标签、底部控制栏、发送和语音按钮、输入框本体、网页预览小窗（外框、标题栏、图标按钮）、浏览器工具栏的图标按钮。
+- 尚未迁移：其余设置页（仍用 `settings-page.module.css` 的行）和提示框。设置页以外的表单输入框在换成 shadcn input 之前继续遵守上面的 1px 边规则。侧栏列表行继续用上面的列表尺寸。

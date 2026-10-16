@@ -27,6 +27,8 @@ import {
   MonitorIcon,
   SettingsIcon,
 } from "@/components/animated-icons";
+import { cn } from "@/lib/utils";
+import { MENU_PANEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
 import styles from "./user-menu-footer.module.css";
 
 export function UserMenuFooter() {
@@ -171,7 +173,7 @@ export function UserMenuFooter() {
         const menuBody = (
           <div
             ref={menuRef}
-            className={styles.menu}
+            className={cn(MENU_PANEL, styles.menu)}
             role="menu"
             style={collapsed && menuPos ? {
               position: "fixed",
@@ -185,7 +187,7 @@ export function UserMenuFooter() {
           >
             <button
               type="button"
-              className={styles.item}
+              className={cn(itemCls(false), styles.item)}
               onClick={goSettings}
               onMouseEnter={() => settingsIconRef.current?.startAnimation?.()}
               onMouseLeave={() => settingsIconRef.current?.stopAnimation?.()}
@@ -194,7 +196,7 @@ export function UserMenuFooter() {
               {t("user.settings")}
             </button>
             <a
-              className={styles.item}
+              className={cn(itemCls(false), styles.item)}
               href="/docs"
               target="_blank"
               rel="noopener"
@@ -207,7 +209,7 @@ export function UserMenuFooter() {
             </a>
             <button
               type="button"
-              className={styles.item}
+              className={cn(itemCls(false), styles.item)}
               onClick={toggleFullscreen}
               onMouseEnter={() => fsIconRef.current?.startAnimation?.()}
               onMouseLeave={() => fsIconRef.current?.stopAnimation?.()}
@@ -215,9 +217,9 @@ export function UserMenuFooter() {
               <MonitorIcon ref={fsIconRef} size={16} />
               {isFullscreen ? text("Exit Full Screen", "退出全屏") : text("Full Screen", "全屏")}
             </button>
-            <div className={styles.sep} />
+            <div className={MENU_SEPARATOR} />
             <a
-              className={styles.item}
+              className={cn(itemCls(false), styles.item)}
               href="https://github.com/Fzkuji/Agentic-Programming"
               target="_blank"
               rel="noopener"

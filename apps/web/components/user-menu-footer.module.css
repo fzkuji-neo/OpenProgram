@@ -114,60 +114,30 @@
 }
 .trigger:hover .chevron { opacity: 1; }
 
-/* Popover anchored above the trigger. Gap below matches left/right
-   8px so the menu floats with even breathing room. */
+/* Popover anchored above the trigger. Frame, rows and separator are the
+   shared menu classes (top-bar/menu-styles.ts MENU_PANEL / itemCls /
+   MENU_SEPARATOR), so this menu cannot drift from the others; only the
+   placement lives here. Gap below matches left/right 8px. */
 .menu {
   position: absolute;
   left: 8px;
   right: 8px;
   bottom: calc(100% + 8px);
-  padding: 0.25rem;
+  max-width: none;
   z-index: 50;
-  display: flex;
-  flex-direction: column;
-  /* Glass popover recipe (app/styles/base.css --glass-*) in the Rhea
-     menu frame (top-bar/menu-styles.ts MENU_PANEL: rounded-2xl p-1). */
-  background: var(--glass-surface);
-  -webkit-backdrop-filter: var(--glass-backdrop);
-  backdrop-filter: var(--glass-backdrop);
-  border: 0.5px solid var(--glass-ring);
-  border-radius: 1rem;
-  box-shadow: var(--glass-shadow);
 }
 
-
-/* Row = the shared menu row (top-bar/menu-styles.ts itemCls, Rhea):
-   min-h-7 rounded-xl px-2 py-1.5 text-sm gap-2, size-4 icons; the
-   leading icon pulled 3px left like every menu. */
+/* Rows are links and buttons: full width, no underline. */
 .item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.375rem 0.5rem;
-  min-height: 1.75rem;
-  box-sizing: border-box;
-  line-height: 1.25rem;
-  border-radius: 0.75rem;
-  font-size: 0.875rem;
-  color: var(--text-primary);
-  text-decoration: none;
-  cursor: pointer;
-  background: transparent;
-  border: none;
   width: 100%;
+  border: none;
+  background: transparent;
   text-align: left;
+  text-decoration: none;
   font-family: inherit;
 }
-.item:hover { background: var(--bg-hover); color: var(--text-bright); }
-.item svg { width: 1rem; height: 1rem; color: var(--text-muted); flex-shrink: 0; }
-.item > :first-child { margin-inline-start: -3px; }
+.item svg { color: var(--text-muted); }
 .item:hover svg { color: var(--text-primary); }
-
-.sep {
-  height: 1px;
-  background: color-mix(in srgb, var(--border) 50%, transparent);
-  margin: 0.25rem -0.25rem;
-}
 
 /* Collapsed-sidebar rules live in app/styles/02-sidebar.css and
    target stable companion classes (`user-menu-footer-*`) so the

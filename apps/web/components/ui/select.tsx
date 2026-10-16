@@ -8,8 +8,8 @@
 //   and the parts forward their refs (React 18: refs are not props
 //   until 19).
 // - The popup stacks above dialogs (z-[130]; DialogContent is z-[120]).
-// - SimpleSelect gives its popup .shadcn-scale (app/globals.css) when its
-//   trigger sits inside one, so the portalled popup matches its trigger.
+// - The popup carries .shadcn-scale (app/globals.css), like every menu
+//   panel, so it renders at the docs' size on this app's 14px root.
 // `SimpleSelect` below is the one-line form for a value + option list,
 // which is how the app's former <select> elements read.
 
@@ -110,7 +110,7 @@ const SelectContent = React.forwardRef<
       data-slot="select-content"
       data-align-trigger={position === "item-aligned"}
       className={cn(
-        "relative z-[130] max-h-(--radix-select-content-available-height) min-w-36 origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[align-trigger=true]:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+        "shadcn-scale relative z-[130] max-h-(--radix-select-content-available-height) min-w-36 origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[align-trigger=true]:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
         position === "popper" &&
           "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
         className
@@ -243,22 +243,14 @@ function SimpleSelect<T extends string = string>({
     </SelectItem>
   )
   const grouped = options.some((entry) => "options" in entry)
-  // The popup portals to <body>; inside a .shadcn-scale page (Settings)
-  // it takes the same docs-scale variables as its trigger.
-  const triggerRef = React.useRef<HTMLButtonElement>(null)
-  const [scaled, setScaled] = React.useState(false)
   return (
     <Select
       value={toRadix(value)}
       onValueChange={(v) => onValueChange((v === EMPTY ? "" : v) as T)}
       disabled={disabled}
       name={name}
-      onOpenChange={(open) => {
-        if (open) setScaled(Boolean(triggerRef.current?.closest(".shadcn-scale")))
-      }}
     >
       <SelectTrigger
-        ref={triggerRef}
         id={id}
         size={size}
         className={cn(size === "default" && "w-full max-w-48", "min-w-0", className)}
@@ -267,7 +259,7 @@ function SimpleSelect<T extends string = string>({
       >
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectContent className={cn(scaled && "shadcn-scale", contentClassName)}>
+      <SelectContent className={contentClassName}>
         {grouped ? (
           options.map((entry, index) =>
             "options" in entry ? (

@@ -135,12 +135,6 @@
   justify-content: center;
 }
 
-/* Folder pills keep their shell; their segments tighten instead. */
-.envChips[data-squeeze="2"] :global(.folder-pill-seg),
-.envChips[data-compact="true"] :global(.folder-pill-seg) {
-  padding-left: 9px;
-  padding-right: 9px;
-}
 
 /* Measuring pass: lay out every level instantly. */
 .envChips[data-measuring] *,
