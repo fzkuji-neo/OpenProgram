@@ -487,6 +487,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/ui/chat-turn-visual-spec.html",
             "reference/design/ui/tool-group-summary.html",
             "reference/design/ui/sub-agents-card.md",
+            "reference/design/ui/activity-panel.md",
             "reference/design/ui/chat-transcript-follow.html",
             "reference/design/ui/composer-interaction-modes.md",
             "reference/design/ui/composer-local-attachment-paths.html",
