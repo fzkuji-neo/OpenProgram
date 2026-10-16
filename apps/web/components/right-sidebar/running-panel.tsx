@@ -271,7 +271,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
         {liveCalls.map(call => {
           const view = presentTool(call.name, undefined, text);
           const open = openCalls.has(call.id);
-          return <div key={call.id}>
+          return <div className={styles.call} key={call.id}>
             <Button variant="ghost" className={styles.row} aria-expanded={open} onClick={() => toggleCall(call.id)}>
               <Glyph name={view.icon} tone={view.tone} />
               <span className={styles.rowText}><span className={styles.name}>{call.name}</span>
