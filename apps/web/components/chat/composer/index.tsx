@@ -613,7 +613,8 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
           fileMention={fileMention}
         />
 
-        {/* Voice input: mic on the left edge, live level strip before send. */}
+        {/* Voice input: mic in the bottom-left corner, live level strip
+            before send in the bottom-right. */}
         {!fnFormActive ? <MicButton state={voice.state} onToggle={voice.toggle} /> : null}
         {!fnFormActive ? <VoiceStrip state={voice.state} levels={voice.levels} /> : null}
 

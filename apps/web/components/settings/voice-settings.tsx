@@ -110,8 +110,8 @@ export function VoiceSettings() {
         <h2 className={styles.pageTitle}>{text("Voice", "语音")}</h2>
         <p className={styles.pageMeta}>
           {text(
-            "Speak into the microphone at the left of the input box, or hold ⌥Space while typing. Each phrase is transcribed when you pause and lands in the box for you to edit and send.",
-            "点输入框左边的麦克风说话，或在输入时按住 ⌥空格。每说完一句停顿一下就会转写，文字落进输入框，改完再发。",
+            "Speak into the microphone in the bottom-left corner of the input box, or hold ⌥Space while typing. Each phrase is transcribed when you pause and lands in the box for you to edit and send.",
+            "点输入框左下角的麦克风说话，或在输入时按住 ⌥空格。每说完一句停顿一下就会转写，文字落进输入框，改完再发。",
           )}
         </p>
       </div>

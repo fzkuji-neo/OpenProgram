@@ -1,8 +1,9 @@
 "use client";
 
 /**
- * The composer's voice input pieces: a round microphone button at the
- * left edge of the input box (mirroring the send button on the right),
+ * The composer's voice input pieces: a round microphone button in the
+ * bottom-left corner of the input box (mirroring the send button in the
+ * bottom-right),
  * and, while recording, a live strip before the send button — a dot for
  * every quiet moment, a bar sized by loudness while you speak, newest on
  * the right. Engine, model and language live in Settings → Voice only.

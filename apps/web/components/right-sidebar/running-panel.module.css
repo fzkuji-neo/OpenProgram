@@ -93,4 +93,3 @@
 .code[data-open="0"] { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .output { margin: 0 8px; max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-primary); font: 12px/1.5 var(--font-mono); }
 
-.techRow { display: inline-flex; align-items: center; gap: 4px; height: auto; margin: 16px 0 0; padding: 4px 8px; border-radius: 999px; color: var(--text-secondary); font: inherit; font-size: 12.5px; }

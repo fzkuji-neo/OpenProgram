@@ -183,20 +183,50 @@ def _existing_workspace_id(root: Path | None) -> str | None:
     return value if _WORKSPACE_ID.fullmatch(value) else None
 
 
+def left_workspace_ids(session_id: str) -> frozenset[str]:
+    """The memory workspaces of the projects a conversation was moved out of.
+
+    A conversation moved to another project keeps ``project_history`` on
+    its meta. The turns those projects' memory already holds stay written
+    there; the new project's memory takes only what comes after the move.
+    """
+    if not session_id:
+        return frozenset()
+    try:
+        from openprogram.agent.session_db import default_db
+        from openprogram.store.project.layout import DEFAULT_PROJECT_ID
+
+        history = (default_db().get_session(session_id) or {}).get("project_history") or []
+    except Exception:  # noqa: BLE001 - an unreadable meta leaves nothing to skip
+        return frozenset()
+    found = set()
+    for project_id in history:
+        # The home project's memory is the personal workspace, which every
+        # write target already accounts for.
+        if not isinstance(project_id, str) or project_id == DEFAULT_PROJECT_ID:
+            continue
+        workspace = _existing_workspace_id(project_memory_root(project_id))
+        if workspace:
+            found.add(workspace)
+    return frozenset(found)
+
+
 @contextmanager
 def write_target(session_id: str) -> Iterator[Path | None]:
     """Route this session's background writing to its layer.
 
     Yields the project workspace when project writes apply, else None and
     the personal workspace stays selected. Either way a turn already
-    written to the other layer counts as written.
+    written to the other layer, or to the layer of a project the
+    conversation was moved out of, counts as written.
     """
     from . import store
 
     target = write_root(session_id)
+    left = left_workspace_ids(session_id)
     if target is None:
         other = _existing_workspace_id(project_root(session_id))
-        token = _written_elsewhere.set(frozenset({other} if other else ()))
+        token = _written_elsewhere.set(left | frozenset({other} if other else ()))
         try:
             yield None
         finally:
@@ -205,7 +235,7 @@ def write_target(session_id: str) -> Iterator[Path | None]:
     personal_id = store.workspace_id()
     with use(target, write=True):
         store.ensure()
-        token = _written_elsewhere.set(frozenset({personal_id}))
+        token = _written_elsewhere.set(left | frozenset({personal_id}))
         try:
             yield target
         finally:

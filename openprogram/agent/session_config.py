@@ -25,6 +25,9 @@ VALID_THINKING = {"off", "minimal", "low", "medium", "high", "xhigh", "max"}
 # 对齐 Claude Code 网页端 Mode 菜单：Ask permissions / Accept edits / Plan mode /
 # Auto mode / Bypass permissions。内部值 ask=default档、auto=LLM分类器档。
 VALID_PERMISSION = {"ask", "acceptEdits", "plan", "auto", "bypass"}
+# The mode a session runs in when neither it nor its project picks one.
+# The Web composer shows the same default (use-permission-mode.ts).
+DEFAULT_PERMISSION = "auto"
 _PERMISSION_BY_LOWER = {m.lower(): m for m in VALID_PERMISSION}
 
 # 工具意图的统一类型：dict（意图）/ list[str]（用户显式精选）/ None
@@ -197,8 +200,8 @@ def reasoning_from_config(cfg: SessionRunConfig) -> Optional[str]:
     return effort
 
 
-def permission_from_config(cfg: SessionRunConfig, *, default: str | None = "ask") -> str:
-    """session override → caller default (usually project) → system ``ask``.
+def permission_from_config(cfg: SessionRunConfig, *, default: str | None = None) -> str:
+    """session override → caller default (usually project) → ``DEFAULT_PERMISSION``.
 
     Invalid values are dropped, so a missing or illegal mode cannot become
     ``bypass``.
@@ -206,7 +209,7 @@ def permission_from_config(cfg: SessionRunConfig, *, default: str | None = "ask"
     return (
         _normalize_permission(cfg.permission_mode)
         or _normalize_permission(default)
-        or "ask"
+        or DEFAULT_PERMISSION
     )
 
 

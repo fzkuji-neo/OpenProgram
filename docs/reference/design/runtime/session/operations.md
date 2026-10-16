@@ -85,7 +85,7 @@ For the dispatcher and the channel handler, creation and writing the first messa
 
 ## Main project binding
 
-A session's **main working directory** is the path of the project it is bound to. The binding is chosen freely while the chat is still a draft, and **freezes when the first real message commits**. After that turn, a different project cannot be bound to the session. The session repository is already under the application state root, grouped by the stable project id; changing the project's path does not change the session-to-project binding or the repository id.
+A session's **main working directory** is the path of the project it is bound to. The binding is chosen freely while the chat is still a draft, and **freezes when the first real message commits**. After that turn, a different project cannot be bound to the session through the composer; the one way to change it is the explicit **move** below, which moves the repository with it and leaves a record in the graph. The session repository is already under the application state root, grouped by the stable project id; changing the project's path does not change the session-to-project binding or the repository id.
 
 Additional working directories are the opposite and are meant to be: they are added and removed at any point in the session's life. See [additional-working-directories.md](../additional-working-directories.md).
 
@@ -103,6 +103,26 @@ draft chat, project picked in the composer chip
 Settings picked while the chat is a draft (a model, for example) are stored before the session is created, so its repository can already exist at the default location without an `id`. `handle_chat` therefore asks `is_created` (meta has an `id`, or the repo has history) rather than whether the repository exists, and `create_session` moves such a settings-only repository to the project's placement, keeping those settings.
 
 `set_session_project` accepts a bind naming the project the session already has, at any age — that is what the post-ack idempotent bind above sends, and it arrives after the first turn is committed. A bind naming a **different** project on a session that already has turns is rejected with `project is frozen after the first turn` (`ws_actions/project.py:FROZEN_ERROR`). The composer chip matches: for a session with an id it renders the bound project read-only instead of the picker.
+
+### Moving a conversation to another project
+
+A move is the user's own act, from the sidebar: a chat row dragged onto another project, or **Move to project** in its menu. It is the `move_session_to_project` ws action:
+
+```
+move_session_to_project {session_id, project_id}
+  → refused while a turn runs on the session (RUNNING_ERROR): the turn is
+    working in the old folder
+  → SessionStore.move_session: under the session's locks, drop the cached
+    repository, rename projects/<old>/chats/<id> to projects/<new>/chats/<id>
+    together with its sibling .file-recovery/<id>, record the new location,
+    rebind the registry, and set meta.project_id; the project it left is
+    appended to meta.project_history
+  → record_move: the `project/move` node below
+  → session_moved {ok, from_project_id, project_id, node_id} +
+    projects_changed to every client + a fresh projects_list
+```
+
+From the next turn the main working directory is the new project's path (`project_workdir_for` resolves fresh every call) and, with the project layers on, memory writes land in the new project's workspace. `project_history` is what keeps a turn in one layer: `project_layer.left_workspace_ids` turns the projects a conversation left into their memory workspace ids, and `write_target` counts the turns those workspaces marked as written, so the new project's memory takes only what is said after the move and the old project's memory keeps what it had. Moving into the home project works the same way, with the personal workspace as the target. Settings on the conversation (model, permission mode) travel with its meta; project defaults (`settings.json`) are read from the new project from then on.
 
 ### Repairing a missing directory
 
@@ -177,6 +197,8 @@ The move changes where every later turn runs, so it is recorded in the session g
 | `predecessor` | `None` |
 | `output` | `<old path> → <new path>` |
 | `metadata` | `{display: "runtime", project_id, old_path, new_path}` |
+
+A move is recorded the same way (`record_move`): `name` is `project/move`, `output` is `<old project name> → <new project name>`, and `metadata` carries `old_project_id` and `new_project_id`.
 
 The shape follows `context/system_prompt` (dag/overview.md §3, §7): the write invariant constrains only conversational nodes, and because `caller` is set the store leaves head where it is — recording a relocation never moves the branch tip. The name is deliberately **not** under `context/`: those are pipeline machinery hidden from the transcript, while a relocation is a user action worth seeing.
 

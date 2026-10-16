@@ -651,7 +651,7 @@ def test_chat_ack_exposes_only_a_durable_cancellable_execution(
     assert command["command"]["status"] == "applied"
 
 
-def test_chat_ack_echoes_ask_when_permission_mode_missing_or_invalid(
+def test_chat_ack_echoes_auto_when_missing_and_ask_when_invalid(
     monkeypatch, tmp_path,
 ):
     from openprogram.store.session.session_store import SessionStore
@@ -705,10 +705,11 @@ def test_chat_ack_echoes_ask_when_permission_mode_missing_or_invalid(
                 )
         return observed.get("permission_mode")
 
-    assert _ack_mode({"text": "hi", "session_id": session_id}) == "ask"
+    assert _ack_mode({"text": "hi", "session_id": session_id}) == "auto"
     assert _ack_mode({
         "text": "hi", "session_id": session_id, "permission_mode": "nope",
     }) == "ask"
+    # The invalid mode above saved Ask on this session; inherit keeps it.
     assert _ack_mode({
         "text": "hi", "session_id": session_id, "permission_mode": "inherit",
     }) == "ask"

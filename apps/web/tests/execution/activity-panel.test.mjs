@@ -144,15 +144,18 @@ test("an agent page leads with its issue, then where it came from and what it di
     await click("Fix page close");
     let text = host.textContent;
     assert.match(text, /Sub-agent ·.*Fix page close.*Stopped/s);
-    assert.match(text, /before this sub-agent finished.*Mark as ended.*Open its conversation.*From.*check and fix it.*Task given to it.*What it did.*Technical details/s);
+    // The page carries the run's own record (progress, controls, raw
+    // details) after what it did; opening it selects the run.
+    assert.match(text, /before this sub-agent finished.*Mark as ended.*Open its conversation.*From.*check and fix it.*Task given to it.*What it did.*Progress.*DEBUGGER/s);
+    assert.doesNotMatch(text, /Technical details/);
+    assert.deepEqual(selected, ["j_fix"]);
     await click("check and fix it");
     text = host.textContent;
     assert.match(text, /Run ·.*check and fix it.*1 to handle/s);
-    assert.match(text, /Sub-agent "Fix page close" stopped.*What this run did.*Write docs.*Fix page close/s);
+    assert.match(text, /Sub-agent "Fix page close" stopped.*What this run did.*Write docs.*Fix page close.*DEBUGGER/s);
     assert.match(host.textContent, /← Fix page close/);
     await click("Write docs");
-    await click("Technical details");
-    assert.deepEqual(selected, ["j_other"]);
+    assert.deepEqual(selected, ["j_fix", "turn", "j_other"]);
     assert.match(host.textContent, /DEBUGGER/);
   }, [], {}, { calls: [agentCall] });
 });
@@ -201,8 +204,12 @@ test("the main conversation page shows its latest run, the sub-agents it started
     assert.match(text, /← Main agent/);
     assert.match(text, /Upload fix.*Failed to start.*did not start a sub-agent.*Started by.*Main agent.*Error.*JobAgentInputError.*Task given to it.*Fix the upload path/s);
     await click("Main agent");
-    await click("Technical details");
+    // The main page has no inspector of its own: the latest run's row
+    // opens the run, whose page holds the record.
+    assert.doesNotMatch(host.textContent, /Technical details/);
+    await click("prepare the visa form");
     assert.deepEqual(selected, ["latest"]);
+    assert.match(host.textContent, /Run ·.*prepare the visa form.*Completed.*Progress.*DEBUGGER/s);
   }, [], {}, { calls: [agentCall], spawns: [failedSpawn] });
 });
 
@@ -389,4 +396,36 @@ test("a sub-agent waiting on a question shows it and goes to the chat's card to 
       assert.equal(card.dataset.focused, "Hotel A");
     });
   } finally { card.remove(); useSessionStore.setState({ pendingDecisions: [] }); }
+});
+
+test("a run page selects its run once, not again each time the list polls", async () => {
+  // Every refresh rebuilds `selectExecution`; re-selecting would reset
+  // the inspector to "reconnecting" and drop its progress events.
+  const selected = [];
+  const controller = (selectedExecutionId) => ({ executions: [run("latest", "completed", now - DAY, { task_label: "prepare the visa form" })], branches: [],
+    connection: { state: "connected" }, fetchedAt: 1, selectedExecutionId, selectExecution(id) { selected.push(id); } });
+  globalThis.activityController = controller(null);
+  globalThis.activityProcesses = { items: [], calls: [], stale: false, loaded: true, refresh() {} };
+  const host = document.createElement("div"); document.body.append(host);
+  const root = createRoot(host);
+  try {
+    const render = () => act(async () => root.render(createElement(RunningPanel, { active: true, sessionId: "session" })));
+    await render();
+    const click = async text => {
+      const button = [...host.querySelectorAll("button, [role=button]")].find(b => b.textContent.includes(text));
+      assert.ok(button, text);
+      await act(async () => button.click());
+    };
+    await click("Main agent");
+    await click("prepare the visa form");
+    assert.deepEqual(selected, ["latest"]);
+    // Two polls: the hook now reports the run as selected and hands out
+    // a fresh `selectExecution` each time.
+    globalThis.activityController = controller("latest"); await render();
+    globalThis.activityController = controller("latest"); await render();
+    assert.deepEqual(selected, ["latest"]);
+    // Only a run page whose run is not yet selected asks again.
+    globalThis.activityController = controller("other"); await render();
+    assert.deepEqual(selected, ["latest", "latest"]);
+  } finally { await act(async () => root.unmount()); host.remove(); }
 });

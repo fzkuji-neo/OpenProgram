@@ -236,6 +236,28 @@ def test_background_writes_route_to_the_project_and_never_twice(setup):
         assert writing._marked_ids(rows, personal_id) == {"n1"}
 
 
+def test_a_moved_conversation_leaves_its_written_turns_in_the_old_project(setup, monkeypatch, tmp_path):
+    """The project it was moved out of keeps the turns it wrote; the new
+    project's memory takes only the turns after the move."""
+    from openprogram.memory import project_layer, store, writing
+
+    old_root = (tmp_path / "state" / "projects" / "p0" / "memory").resolve()
+    with project_layer.use(old_root, write=True):
+        store.ensure()
+        old_id = store.workspace_id()
+    from openprogram.agent import session_db
+    monkeypatch.setattr(session_db, "default_db", lambda: SimpleNamespace(
+        get_session=lambda sid: {"id": sid, "project_history": ["p0", "default"]}))
+    _turn_on(setup, writes=True)
+    with project_layer.write_target("s-project") as target:
+        assert target == setup.project
+        rows = [{"id": "n1", writing.WRITTEN_NODE_MARKER: old_id}, {"id": "n2"}]
+        assert writing._marked_ids(rows, store.workspace_id()) == {"n1"}
+    # Moved home, the personal memory does not take them either.
+    with project_layer.write_target("s-adhoc"):
+        assert writing._marked_ids(rows, store.workspace_id()) == {"n1"}
+
+
 def test_nightly_reorganize_covers_project_memory(setup, monkeypatch):
     from openprogram.memory import scheduler, store
 
