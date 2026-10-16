@@ -60,6 +60,7 @@ const { act, createElement } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { RunningPanel } = await import("../../components/right-sidebar/running-panel.tsx");
 const { useSessionStore } = await import("../../lib/session-store/index.ts");
+const { setActivityView, DEFAULT_ACTIVITY_VIEW } = await import("../../lib/prefs/activity-view.ts");
 useSessionStore.setState({ conversations: { session: { id: "session", title: "NeurIPS trip" } } });
 const DAY = 86400;
 const now = Math.floor(Date.now() / 1000);
@@ -88,7 +89,7 @@ const agentCall = { id: "c1", execution_id: "turn", name: "agent", description: 
 const spawned = run("j_fix", "reconciliation_required", now - 3 * DAY + 2, { parent_execution_id: "turn",
   display: { kind: "job_agent", label: "Fix_page_close", assistant_message_id: "j_fix_user_reply" }, effect_summary: { provider_response_incomplete: true } });
 
-test("the overview lists the agent branches and what needs you, never plain messages", async () => {
+test("the overview lists every agent once, the one that needs you in place, never plain messages", async () => {
   await mounted([
     run("turn", "reconciliation_required", now - 3 * DAY, { task_label: "check and fix it" }), spawned,
     run("live", "running", now - 120, { task_label: "fill the form" }),
@@ -97,13 +98,16 @@ test("the overview lists the agent branches and what needs you, never plain mess
     run("j_done", "completed", now - 50, { parent_execution_id: "done", display: { kind: "job_agent", label: "Research" } }),
   ], async host => {
     const text = host.textContent;
-    assert.match(text, /Needs you1.*Fix page close.*Sub-agent stopped/s);
-    // The main conversation first, then every sub-agent under it, newest first.
-    assert.match(text, /Agent branches4Main agentRunning · 2 minResearchCompleted.*Form fillerRunning.*Fix page closeStopped/s);
+    // The main agent first, then every sub-agent under it, newest first; the
+    // stopped one is listed once, where it sits, with a warning status.
+    assert.match(text, /AgentsMain agentRunning · 2 minResearchCompleted.*Form fillerRunning.*Fix page closeStopped/s);
+    assert.doesNotMatch(text, /Needs you|Sub-agent stopped|Agents\d/);
+    assert.equal(text.match(/Fix page close/g).length, 1);
     assert.deepEqual([...host.querySelectorAll("[data-last]")].map(node => node.getAttribute("data-last")), ["0", "0", "1"]);
     // The messages themselves stay in the chat.
     assert.doesNotMatch(text, /check and fix it|fill the form|what happened/);
-    assert.equal(host.querySelectorAll("[aria-expanded]").length, 0);
+    // Only the view menu opens; no row expands in place.
+    assert.equal(host.querySelectorAll("[aria-expanded]:not([aria-haspopup])").length, 0);
   }, [], {}, { calls: [agentCall] });
 });
 
@@ -125,7 +129,7 @@ test("a stopped agent call opens a page with its task and what can be done", asy
     assert.equal(globalThis.commands[0].execution_id, "turn");
     // Back goes up one level, to the overview.
     await click("Activity");
-    assert.match(host.textContent, /Needs you1/);
+    assert.match(host.textContent, /AgentsMain agent/);
   }, [], {}, { calls: [agentCall] });
   delete globalThis.agentTip;
 });
@@ -154,18 +158,18 @@ test("sub-agents are paged under the main conversation", async () => {
   const runs = Array.from({ length: 25 }, (_, i) => run(`j${i}`, "completed", now - i * 60 - (i > 2 ? 2 * DAY : 0),
     { parent_execution_id: "turn", display: { kind: "job_agent", label: `agent_${i}` } }));
   await mounted([run("turn", "completed", now - 3 * DAY), ...runs], async (host, click) => {
-    assert.match(host.textContent, /Agent branches26Main agentIdle · last.*agent 0/s);
-    assert.equal(host.querySelectorAll("button").length, 22, "the main conversation, 20 agents and the paging button");
+    assert.match(host.textContent, /AgentsMain agentIdle · last.*agent 0/s);
+    assert.equal(host.querySelectorAll("button").length, 23, "the view menu, the main agent, 20 agents and the paging button");
     await click("Show 5 earlier");
     assert.doesNotMatch(host.textContent, /Show \d+ earlier/);
-    assert.equal(host.querySelectorAll("button").length, 26);
+    assert.equal(host.querySelectorAll("button").length, 27);
   });
 });
 
-test("ongoing shell calls show on the main conversation and programs in their own group", async () => {
+test("ongoing shell calls show on the main agent and, with programs, in their own group", async () => {
   await mounted([], async (host, click) => {
-    assert.match(host.textContent, /Agent branches1Main agentRunning bash · \d+ s/);
-    assert.match(host.textContent, /Background programs1python.*Running/);
+    assert.match(host.textContent, /AgentsMain agentRunning bash · \d+ s/);
+    assert.match(host.textContent, /Programs and commandspythonBackground program · Running · \d+ sbashCommand · Running · \d+ s/);
     assert.doesNotMatch(host.textContent, /will appear here/);
     await click("Main agent");
     assert.match(host.textContent, /Running now.*bash/s);
@@ -183,7 +187,7 @@ test("the main conversation page shows its latest run, the sub-agents it started
     run("latest", "completed", now - 600, { task_label: "prepare the visa form", terminal_at: now - 480 })],
   async (host, click, selected) => {
     // A call that never started a sub-agent sits in the tree where it would have.
-    assert.match(host.textContent, /Agent branches3Main agentIdle · last.*Fix page closeStopped.*Upload fixFailed to start/s);
+    assert.match(host.textContent, /AgentsMain agentIdle · last.*Fix page closeStopped.*Upload fixFailed to start/s);
     await click("Main agent");
     let text = host.textContent;
     assert.match(text, /Main agentNeurIPS trip.*Idle · last/s);
@@ -204,6 +208,8 @@ test("the main conversation reads as waiting on you while one of its own calls i
   await mounted([run("old", "reconciliation_required", now - DAY), run("latest", "completed", now - 600, { terminal_at: now - 500 })],
   async (host, click) => {
     assert.match(host.textContent, /Main agent1 to handle · last/);
+    // The stopped command is also listed with the shell work, waiting on you.
+    assert.match(host.textContent, /Programs and commandsInstall the browserCommand · Stopped · /);
     await click("Main agent");
     assert.match(host.textContent, /Command "Install the browser" stopped.*Mark as ended.*Latest run/s);
   }, [], {}, { calls: [bash] });
@@ -213,7 +219,7 @@ test("a sub-agent another one started sits under it and names it", async () => {
   await mounted([run("turn", "completed", now - 600), run("j_parent", "completed", now - 500, { parent_execution_id: "turn", display: { kind: "job_agent", label: "Research" } }),
     run("j_child", "completed", now - 400, { parent_execution_id: "j_parent", display: { kind: "job_agent", label: "Read_pages" } })],
   async (host, click) => {
-    assert.match(host.textContent, /Agent branches3Main agent.*Research.*Read pages/s);
+    assert.match(host.textContent, /AgentsMain agent.*Research.*Read pages/s);
     const depths = [...host.querySelectorAll("[style*='--depth']")].map(node => node.getAttribute("style"));
     assert.deepEqual(depths.map(style => style.match(/--depth:\s*(\d)/)[1]), ["1", "2"]);
     // Each is the last row under its parent, so no line runs on past it.
@@ -233,9 +239,12 @@ test("titles read as the words a person wrote, not attachment markup, sender ids
     run("b", "paused", now - 20, { task_label: '[attachment: Inv.pdf (pdf, 112 KB) @json "/Users/x/Inv.pdf"] what about this?' }),
     run("c", "paused", now - 30, { task_label: "Continue the interrupted task using saved conversation history. Inspect actual state" }),
     run("d", "paused", now - 40, { task_label: "[oTestUser000@im.wechat] hello there" }),
-  ], async host => {
+  ], async (host, click) => {
+    // Paused runs are the main agent's; its page names each one.
+    assert.match(host.textContent, /Main agentPaused · /);
+    await click("Main agent");
     const text = host.textContent;
-    assert.match(text, /Attachment IMG_0177\.JPG/);
+    assert.match(text, /"Attachment IMG_0177\.JPG" is waiting for you/);
     assert.match(text, /what about this\?/);
     assert.match(text, /Continue the interrupted task(?! using)/);
     assert.match(text, /hello there/);
@@ -293,4 +302,59 @@ test("the branch tree carries the lines of the rows above that still have siblin
     job("j_b", "turn", now - 900 + 50)]).tree();
   // j_a has a later sibling (j_b), so the line at depth 1 runs past j_a's children.
   assert.deepEqual(deep.map(row => [row.item.execution_id, row.guides]), [["j_a", []], ["j_a1", [1]], ["j_b", []]]);
+});
+
+const viewSessions = [run("turn", "reconciliation_required", now - 3 * DAY, { task_label: "check and fix it" }), spawned,
+  run("done", "completed", now - 600, { task_label: "what happened", terminal_at: now - 500 }),
+  run("j_done", "completed", now - 550, { parent_execution_id: "done", display: { kind: "job_agent", label: "Research" } }),
+  run("j_read", "completed", now - 520, { parent_execution_id: "j_done", display: { kind: "job_agent", label: "Read_pages" } })];
+
+async function withView(view, body) {
+  setActivityView(view);
+  try { await body(); } finally { setActivityView(DEFAULT_ACTIVITY_VIEW); }
+}
+
+test("showing what needs you keeps the branches above it and lights the menu button", async () => {
+  await withView({ show: "attention" }, () => mounted(viewSessions, async host => {
+    const text = host.textContent;
+    assert.match(text, /AgentsMain agent.*Fix page closeStopped/s);
+    assert.doesNotMatch(text, /Research|Read pages/);
+    assert.deepEqual([...host.querySelectorAll("[data-last]")].map(node => node.getAttribute("data-last")), ["1"]);
+    assert.equal(host.querySelector("[data-view-changed]").getAttribute("data-view-changed"), "1");
+  }, [], {}, { calls: [agentCall] }));
+});
+
+test("arranged by time the agents are one list, latest first, each naming who started it", async () => {
+  await withView({ arrange: "time" }, () => mounted(viewSessions, async host => {
+    const text = host.textContent;
+    assert.match(text, /AgentsMain agent.*Read pagesCompleted · .* · by Research.*ResearchCompleted · .* · by Main agent.*Fix page closeStopped · .* · by Main agent/s);
+    assert.equal(host.querySelectorAll("[data-last]").length, 0, "no tree lines");
+  }, [], {}, { calls: [agentCall] }));
+});
+
+test("a filter with nothing to show says so and keeps the menu reachable", async () => {
+  await withView({ show: "running" }, () => mounted(viewSessions, async host => {
+    assert.match(host.textContent, /AgentsNo agent is running\./);
+    assert.ok(host.querySelector("[aria-label='Show and arrange agents']"));
+  }, [], {}, { calls: [agentCall] }));
+});
+
+test("the view menu is built from the composer menu's pieces", () => {
+  const menu = readFileSync(new URL("../../components/right-sidebar/agents-view-menu.tsx", import.meta.url), "utf8");
+  for (const piece of ["DropdownMenuSubTrigger", "MENU_PANEL", "MENU_SEPARATOR", "PlusMenuRow", "HoverTip"]) assert.match(menu, new RegExp(piece));
+  assert.doesNotMatch(menu, /\btitle=/, "tooltips come from HoverTip, never a native title");
+});
+
+test("a pruned tree redraws its lines for the rows that are left", async () => {
+  const { agentBranches, pruneBranches } = await import("../../lib/execution/activity-model.ts");
+  const job = (id, parent, at) => run(id, "completed", at, { parent_execution_id: parent, display: { kind: "job_agent", label: id } });
+  const rows = agentBranches([run("turn", "completed", now - 900), job("j_a", "turn", now - 800), job("j_a1", "j_a", now - 700),
+    job("j_a2", "j_a", now - 600), job("j_b", "turn", now - 500)]).tree();
+  const kept = pruneBranches(rows, row => row.item.execution_id === "j_a1");
+  assert.deepEqual(kept.map(row => [row.item.execution_id, row.depth, row.last, row.guides]), [
+    ["j_a", 1, true, []],
+    ["j_a1", 2, true, []],
+  ]);
+  const two = pruneBranches(rows, row => ["j_a1", "j_b"].includes(row.item.execution_id));
+  assert.deepEqual(two.map(row => [row.item.execution_id, row.last, row.guides]), [["j_b", false, []], ["j_a", true, []], ["j_a1", true, []]]);
 });

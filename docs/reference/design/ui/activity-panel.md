@@ -1,14 +1,16 @@
 # Activity panel
 
-The right sidebar's **Activity** lists one conversation's agent branches:
-the main agent first, then the sub-agents it started as a tree.
-What needs the reader is listed above them and background programs below.
+The right sidebar's **Activity** lists one conversation's agents (the
+main agent and the sub-agents under it) and, separately, the programs and
+commands they run in a shell. What needs the reader is never a group of
+its own: it is the row it concerns, with a warning status.
 Messages are never rows; they stay in the chat.
 
 Related: [`indicator-dots.md`](indicator-dots.md) (status dots),
 [`sub-agents-card.md`](sub-agents-card.md) (a sub-agent's own conversation).
 Code: `apps/web/components/right-sidebar/running-panel.tsx`,
-`apps/web/lib/execution/activity-model.ts`,
+`apps/web/components/right-sidebar/agents-view-menu.tsx`,
+`apps/web/lib/execution/activity-model.ts`, `apps/web/lib/prefs/activity-view.ts`,
 `openprogram/execution/activity_calls.py`.
 
 ## Branches, runs and issues
@@ -50,29 +52,46 @@ An execution whose only missing records are model responses
 
 ## Overview
 
-Three groups in a fixed order; an empty group is not shown, and no group
-folds.
+Two groups in a fixed order; an empty group is not shown, no group folds
+and neither header carries a count.
 
-1. **Needs you**: issues, newest first. The row is the issue itself
-   ("Fix page close · Sub-agent stopped"), not the conversation. A stopped
-   `agent` call whose sub-agent is listed shows as that sub-agent.
-2. **Agent branches**: the main agent (the conversation's own agent,
-   named like the sub-agents and drawn with the same glyph), then every
-   sub-agent under it, depth first and newest first. Each is indented under
-   the branch that started it; a hairline elbow runs from under that
-   branch's glyph into its own, the line carries on to its later siblings,
-   and the lines of rows above with siblings still to come run past it.
+1. **Agents**: the main agent (the conversation's own agent, named like
+   the sub-agents and drawn with the same glyph), then every sub-agent
+   under it, depth first and newest first. Each is indented under the
+   agent that started it; a hairline elbow runs from under that agent's
+   glyph into its own, the line carries on to its later siblings, and the
+   lines of rows above with siblings still to come run past it.
    The main agent reads as running (with the call it is on, or "Waiting for
    a sub-agent", and the time so far), waiting on the reader (paused, or
    holding issues of its own), idle since its last run, or that its last
-   run failed. A sub-agent reads as running
-   with its call, stopped, or its final state with the time. An `agent`
-   call that started no sub-agent sits in the tree where that sub-agent
-   would, as **Failed to start** or **Not started**. The tree shows 20
-   rows at a time with **Show earlier**. Calls and programs whose
-   execution is not listed count as the main agent's.
-3. **Background programs**: every program, live ones first, then newest,
-   20 at a time.
+   run failed. A sub-agent reads as running with its call, stopped (a
+   stopped `agent` call shows as the sub-agent it started), or its final
+   state with the time. An agent that needs the reader is listed once, in
+   place, with the warning tone. An `agent` call that started no sub-agent
+   sits in the tree where that sub-agent would, as **Failed to start** or
+   **Not started**. The list shows 20 rows at a time with **Show
+   earlier**. Calls and programs whose execution is not listed count as
+   the main agent's.
+
+   The header's button opens the view menu, built from the composer
+   options menu's pieces: the same radix wrapper and `MENU_PANEL` frame, a
+   value row per setting that opens a submenu, and check rows in it.
+   **Show** is All, Needs you (rows in the warning tone) or Running (rows
+   in the running tone). By structure, a filter keeps each match and the
+   agents above it (`pruneBranches`), redraws the lines for what is left,
+   and the main agent stays as the root while anything under it shows.
+   **Arrange** is By structure (the tree) or By time: one flat list, live
+   rows first, then by the time each row shows, every sub-agent's status
+   ending with who started it ("· by Research"). A filter that leaves
+   nothing says so under the header, so the menu stays reachable. The
+   button stays lit while the view differs from the default; the view is
+   a per-browser preference in local storage.
+2. **Programs and commands**: shell calls still running, shell calls still
+   out when their run stopped (warning tone), and every background
+   program. Running rows first, then rows that need the reader, then the
+   rest, newest first within each, 20 at a time. Each status names its
+   kind ("Command · Running · 12 s", "Background program · Exited · …").
+   `agent` calls never appear here; they are reached through the agents.
 
 Calls and programs are placed only after the executions are read, so they
 never flash as unowned.
@@ -83,7 +102,7 @@ Every row opens a page; a stack of pages backs the panel, and the back
 arrow names the page it returns to. Nothing expands in place.
 
 - **Main agent**: the conversation title and its state. Its own issues
-  come first, then what it is running now, its **Latest run**, and **Sub-agents it started**, including the calls that
+  come first, each naming its run, then what it is running now, its **Latest run**, and **Sub-agents it started**, including the calls that
   failed to start one. **Technical details** opens the latest run.
 - **Sub-agent / run**: kind, start and duration, the name or message, its
   state. Its issues come first, each with its actions as raised pills:
