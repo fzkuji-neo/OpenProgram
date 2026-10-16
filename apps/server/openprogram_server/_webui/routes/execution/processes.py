@@ -197,9 +197,11 @@ def register(app):
                 elif record["session_id"] != session_id:
                     raise ExecutionAuthorizationError("not_found")
                 items.append(public_record(record))
-            from openprogram.execution.activity_calls import active_tool_calls
+            from openprogram.agent.session_db import default_db
+            from openprogram.execution.activity_calls import active_tool_calls, agent_calls
             calls = active_tool_calls(default_store(), scope.values())
-            return JSONResponse({"items": items, "calls": calls, "now": time.time()},
+            spawns = agent_calls(default_store(), session_id, list(scope.values()), default_db().get_messages)
+            return JSONResponse({"items": items, "calls": calls, "spawns": spawns, "now": time.time()},
                                 headers={"Cache-Control": "no-store"})
         except Exception as exc:
             return _error(exc)

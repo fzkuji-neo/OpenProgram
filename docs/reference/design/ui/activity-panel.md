@@ -1,9 +1,9 @@
 # Activity panel
 
-The right sidebar's **Activity** answers three questions about one
-conversation: what needs you, what is running, and which sub-agents ran
-before. It lists the agent branches a conversation starts, never its
-messages; those stay in the chat.
+The right sidebar's **Activity** lists one conversation's agent branches:
+the main conversation first, then the sub-agents it started as a tree.
+What needs the reader is listed above them and background programs below.
+Messages are never rows; they stay in the chat.
 
 Related: [`indicator-dots.md`](indicator-dots.md) (status dots),
 [`sub-agents-card.md`](sub-agents-card.md) (a sub-agent's own conversation).
@@ -11,15 +11,32 @@ Code: `apps/web/components/right-sidebar/running-panel.tsx`,
 `apps/web/lib/execution/activity-model.ts`,
 `openprogram/execution/activity_calls.py`.
 
-## Agents, runs and issues
+## Branches, runs and issues
 
-A listed row is a **sub-agent**: an execution whose display kind is
-`job_agent`. Underneath, executions form **runs**: one top-level execution,
-normally one message and everything done for it. Child executions,
-function calls that have not returned, and managed programs belong to the
-run whose execution tree holds them. A run has a page (reached from a
-sub-agent's **From**, or from a message waiting on a question) but no row
-of its own.
+A **sub-agent** is an execution whose display kind is `job_agent`. Every
+execution belongs to one **branch**: a sub-agent runs its own branch and
+every execution under it that no deeper sub-agent owns; everything else is
+the **main conversation**. A sub-agent hangs under the nearest sub-agent
+above it, or under the main conversation.
+
+Underneath, executions form **runs**: one top-level execution, normally one
+message and everything done for it. Child executions, function calls that
+have not returned, and managed programs belong to the run whose execution
+tree holds them. A run has a page (reached from the main conversation's
+latest run, a sub-agent's **From**, or a message waiting on a question) but
+no row of its own.
+
+An `agent` call that has returned is paired with the sub-agent it started.
+The server reads these calls from the transcripts: a Job records the reply
+that spawned it (`spawn_caller`) and its prompt, and the call with the same
+caller and prompt started it; calls that did not fail pair first, since a
+failed call may share its prompt with the retry. When the prompts do not
+line up, a caller left with one Job and one call that did not fail pairs
+those. A call paired with no Job **failed to start** (its result is
+`[agent error] …` or its outcome is `failed`) or did not start. The
+transcript row's caller names the branch that made the call: a `j_…` reply
+is a sub-agent's, anything else the main conversation's. Effects are not
+read for this: their metadata carries whole provider payloads.
 
 An **issue** is a concrete thing waiting on the reader:
 
@@ -37,13 +54,19 @@ Three groups in a fixed order; an empty group is not shown, and no group
 folds.
 
 1. **Needs you**: issues, newest first. The row is the issue itself
-   ("Fix page close · Sub-agent stopped"), not the conversation.
-   A stopped `agent` call whose sub-agent is listed shows as that
-   sub-agent, and the sub-agent is not listed again below.
-2. **Running**: live sub-agents, with the call they are on and the time so
-   far, plus calls and programs in flight outside a sub-agent.
-3. **Sub-agents**: finished sub-agents newest first, under day headings,
-   20 at a time with **Show earlier**.
+   ("Fix page close · Sub-agent stopped"), not the conversation. A stopped
+   `agent` call whose sub-agent is listed shows as that sub-agent.
+2. **Agent branches**: the main conversation, then every sub-agent under
+   it, depth first and newest first, each indented under the branch that
+   started it and joined to the row above by a hairline elbow. The main
+   conversation reads as running (with the call it is on, or "Waiting for
+   a sub-agent", and the time so far), waiting on the reader, idle since
+   its last run, or that its last run failed. A sub-agent reads as running
+   with its call, stopped, or its final state with the time. The tree shows
+   20 sub-agents at a time with **Show earlier**. Calls and programs whose
+   execution is not listed count as the main conversation's.
+3. **Background programs**: every program, live ones first, then newest,
+   20 at a time.
 
 Calls and programs are placed only after the executions are read, so they
 never flash as unowned.
@@ -53,15 +76,24 @@ never flash as unowned.
 Every row opens a page; a stack of pages backs the panel, and the back
 arrow names the page it returns to. Nothing expands in place.
 
+- **Main conversation**: the last run time, the conversation title and the
+  state. Its own issues come first, then what it is running now, its
+  **Latest run**, and **Sub-agents it started**, including the calls that
+  failed to start one. **Technical details** opens the latest run.
 - **Sub-agent / run**: kind, start and duration, the name or message, its
   state. Its issues come first, each with its actions as raised pills:
   **Mark as ended** (cancel) when the execution allows it, **Answer** /
   **See details** for a pause. A sub-agent adds **Open its conversation**,
-  **From** (the run that started it) and, while its `agent` call is open,
-  **Task given to it**. Then what it did: open calls (an `agent` call is
-  reached through the sub-agent it started), child executions, programs.
+  **Started by** (the main conversation or the sub-agent above it),
+  **From** (the run of the message that started it) and **Task given to
+  it**, from its `agent` call. Then what it did: open calls (an `agent`
+  call is reached through the sub-agent it started), child executions,
+  the sub-agents it started and the ones that failed to start, programs.
   **Technical details** opens the execution inspector, which alone loads
   events and debugger data.
+- **Failed start**: the call's description, when it was made and that it
+  failed to start, a note that it has no conversation, **Started by**, the
+  error line and the task.
 - **Call**: titled by its description, with its kind, start and state, the
   run it came from, and the task (`prompt`) or the command. Tasks read as
   prose, commands as monospace; both show a few lines until **Show all**.

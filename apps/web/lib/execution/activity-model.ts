@@ -50,7 +50,7 @@ export function startedAt(item: ExecutionSnapshot): number {
   return item.started_at ?? item.updated_at ?? 0;
 }
 
-function parentOf(item: ExecutionSnapshot): string | null {
+export function parentOf(item: ExecutionSnapshot): string | null {
   return item.view_parent_execution_id ?? item.parent_execution_id ?? null;
 }
 
@@ -128,4 +128,67 @@ export function spawnedBy(call: ActiveToolCall, children: ExecutionSnapshot[]): 
   const words = (value: string) => value.toLowerCase().replace(/[_\s]+/g, " ").trim();
   return jobs.find(job => call.description && words(job.display?.label || "") === words(call.description))
     ?? [...jobs].sort((a, b) => startedAt(a) - startedAt(b))[0];
+}
+
+export type AgentBranches = {
+  /** The listed execution this one runs under, if any. */
+  parentOf: (item: ExecutionSnapshot) => string | null;
+  /** The nearest sub-agent above an execution; null: the main conversation. */
+  agentParentOf: (item: ExecutionSnapshot) => string | null;
+  /** The branch that runs an execution: the sub-agent itself, the nearest
+   *  sub-agent above it, or null for the main conversation. */
+  ownerOf: (item: ExecutionSnapshot) => string | null;
+  /** The sub-agents a branch started (null: the main conversation), newest first. */
+  agentsUnder: (owner: string | null) => ExecutionSnapshot[];
+  /** Every sub-agent under the main conversation, depth first, newest first. */
+  tree: () => { item: ExecutionSnapshot; depth: number }[];
+};
+
+/** The conversation's agent branches: the main conversation and the
+ *  sub-agents (`job_agent` executions) under it, each under the branch
+ *  that started it. */
+export function agentBranches(executions: ExecutionSnapshot[]): AgentBranches {
+  const byId = new Map(executions.map(item => [item.execution_id, item]));
+  const isAgent = (item: ExecutionSnapshot) => item.display?.kind === "job_agent";
+  const listedParent = (item: ExecutionSnapshot) => {
+    const parent = parentOf(item);
+    return parent && parent !== item.execution_id && byId.has(parent) ? parent : null;
+  };
+  const agentParent = new Map<string, string | null>();
+  const agentParentOf = (item: ExecutionSnapshot): string | null => {
+    if (agentParent.has(item.execution_id)) return agentParent.get(item.execution_id)!;
+    const seen = new Set([item.execution_id]);
+    let found: string | null = null;
+    for (let id = listedParent(item); id && !seen.has(id); id = listedParent(byId.get(id)!)) {
+      seen.add(id);
+      if (isAgent(byId.get(id)!)) { found = id; break; }
+    }
+    agentParent.set(item.execution_id, found);
+    return found;
+  };
+  const agents = executions.filter(isAgent).sort((a, b) => startedAt(b) - startedAt(a));
+  const agentsUnder = (owner: string | null) => agents.filter(item => agentParentOf(item) === owner);
+  return {
+    parentOf: listedParent,
+    agentParentOf,
+    ownerOf: item => isAgent(item) ? item.execution_id : agentParentOf(item),
+    agentsUnder,
+    tree: () => {
+      const rows: { item: ExecutionSnapshot; depth: number }[] = [];
+      const placed = new Set<string>();
+      const visit = (owner: string | null, depth: number) => {
+        for (const item of agentsUnder(owner)) {
+          if (placed.has(item.execution_id)) continue;
+          placed.add(item.execution_id);
+          rows.push({ item, depth });
+          visit(item.execution_id, depth + 1);
+        }
+      };
+      visit(null, 1);
+      // A sub-agent whose parents loop never reaches the main conversation;
+      // it is still listed.
+      for (const item of agents) if (!placed.has(item.execution_id)) { placed.add(item.execution_id); rows.push({ item, depth: 1 }); visit(item.execution_id, 2); }
+      return rows;
+    },
+  };
 }
