@@ -239,7 +239,7 @@ assert.doesNotMatch(markdownRenderer, /return "<pre>" \+ escHtml\(str\) \+ "<\/p
 // The empty chat is a rotating animated backdrop only: no mark, tagline or starter buttons.
 assert.match(welcome, /<WelcomeBackdrop \/>/);
 assert.doesNotMatch(welcome, /icon\.svg|styles\.(?:mark|tagline|starter)/);
-assert.match(welcomeBackdrop, /const SCENES = \[callGraph, ripple\];/);
+assert.match(welcomeBackdrop, /const SCENES = \[callGraph, codeRain\];/);
 assert.match(welcomeBackdrop, /prefers-reduced-motion: reduce/);
 assert.match(welcomeCss, /\.backdrop\s*\{[^}]*position:\s*absolute;[^}]*pointer-events:\s*none;/s);
 
