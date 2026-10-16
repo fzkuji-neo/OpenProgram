@@ -20,18 +20,21 @@ type Scene = {
 
 /** Code rain after The Matrix: a fixed grid of mirrored glyphs (katakana,
  *  Latin capitals, digits, symbols) that drops of light run down, a
- *  glowing head with a long green tail. Every visible glyph has the same
- *  chance to change, CHANGE_RATE times a second on average, rolled once
- *  per frame however many drops light it. Green regardless of the theme. */
+ *  glowing head with a long green tail. A visible glyph changes at random,
+ *  but never again within MIN_GAP seconds of its last change; after that it
+ *  rolls once per frame (however many drops light it) so that, gap
+ *  included, it changes about every MEAN_GAP seconds. Always green. */
 function codeRain(): Scene {
   const GLYPHS =
     "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ" +
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:.=*+-<>|\"_";
   const CELL = 20;
-  const CHANGE_RATE = 0.1;
-  // rolled: the last frame this glyph's change was rolled, so two drops
-  // over one cell don't roll it twice.
-  type Cell = { ch: string; rolled: number };
+  const MEAN_GAP = 10;
+  const MIN_GAP = 4;
+  const RATE_AFTER_GAP = 1 / (MEAN_GAP - MIN_GAP);
+  // rolled: the last frame this glyph was rolled, so two drops over one
+  // cell don't roll it twice. changed: when it last changed.
+  type Cell = { ch: string; rolled: number; changed: number };
   type Drop = { col: number; y: number; speed: number; len: number };
   let grid: Cell[][] = [];
   let drops: Drop[] = [];
@@ -39,7 +42,7 @@ function codeRain(): Scene {
   let last = 0;
   let frame = 0;
   const glyph = () => GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
-  const cell = (): Cell => ({ ch: glyph(), rolled: -1 });
+  const cell = (): Cell => ({ ch: glyph(), rolled: -1, changed: -Infinity });
   const spawn = (col: number, scatter: boolean): Drop => {
     const len = 18 + Math.floor(Math.random() * 30);
     return {
@@ -78,10 +81,13 @@ function codeRain(): Scene {
           const row = top - k;
           if (row < 0 || row >= rows) continue;
           const g = grid[d.col][row];
-          // 看得见的字每帧掷一次，所有字概率相同。
+          // 看得见的字每帧掷一次；刚变过的字歇满 MIN_GAP 秒才参与。
           if (g.rolled !== frame) {
             g.rolled = frame;
-            if (Math.random() < dt * CHANGE_RATE) g.ch = glyph();
+            if (t - g.changed >= MIN_GAP && Math.random() < dt * RATE_AFTER_GAP) {
+              g.ch = glyph();
+              g.changed = t;
+            }
           }
           const y = row * CELL + CELL / 2;
           if (k === 0) {
