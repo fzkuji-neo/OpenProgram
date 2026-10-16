@@ -65,6 +65,7 @@ import { ProjectMenu, ProjectSectionHeading } from "./project-menu";
 import type { EditableProject } from "./project-editor";
 import { useProjectDrag } from "./sessions-list/use-project-drag";
 import { useChatDrag } from "./sessions-list/use-chat-drag";
+import type { ChatRowProps } from "./sessions-list/use-chat-drag";
 import { ConfirmDialog } from "./sessions-list/confirm-dialog";
 import { pushPath } from "@/lib/shallow-nav";
 import { runtimeState } from "@/lib/runtime-bridge/state";
@@ -127,7 +128,7 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
   const projectMode = view.groupBy === "project";
   const [orderNotice, setOrderNotice] = useState("");
   const { draggingProject, projectOffset, headerProps } = useProjectDrag(projectMode, reorderProject);
-  const { draggingChat, dropProject, rowProps } = useChatDrag(projectMode, (sessionId, projectId) => void moveChat(sessionId, projectId));
+  const { dropProject, rowProps } = useChatDrag(projectMode, (sessionId, projectId) => void moveChat(sessionId, projectId));
   const reducedMotion = useReducedMotion();
 
   const [projects, setProjects] = useState<SidebarProject[]>([]);
@@ -473,7 +474,7 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
         groups={allGroups}
         projects={projects.length > 1 ? projects.filter((p) => p.id !== home && !p.hidden).map((p) => ({ id: p.id, name: p.name })) : undefined}
         onMoveToProject={(projectId) => void moveChat(c.id, projectId)}
-        dragProps={projectMode ? rowProps(c.id, label, home) : undefined}
+        dragProps={projectMode ? rowProps(c.id, home) : undefined}
         onClick={() => switchTo(c.id, label)}
         onRename={(title) => renameSession(c.id, title)}
         onAutoRename={() => void autoRenameSession(c.id)}
@@ -666,11 +667,6 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
       {body}
 
       <span className="sr-only" role="status" aria-live="polite">{orderNotice}</span>
-      {draggingChat && (
-        <div className={styles.chatGhost} style={{ left: draggingChat.x + 12, top: draggingChat.y + 12 }} aria-hidden="true">
-          {draggingChat.label}
-        </div>
-      )}
       {/* Hide Clear all when every project list is folded. */}
       {!isEmpty && !(projectMode && projectLists.every(({ section }) => collapsedGroups.has(projectSectionKey(section)))) ? (
         <div className={styles.clearAll} onClick={clearAll}>
@@ -993,7 +989,7 @@ function ConvItem({
   projects?: { id: string; name: string }[];
   onMoveToProject?: (projectId: string) => void;
   /** Pointer handlers that let the row be dragged onto a project. */
-  dragProps?: React.HTMLAttributes<HTMLDivElement>;
+  dragProps?: ChatRowProps;
   onCopyLink: () => void;
   onExport: (format: "md" | "html") => void;
   onDelete: () => void;
@@ -1011,9 +1007,12 @@ function ConvItem({
   // chat-row extras stay here.
   // select-none: a press that becomes a drag onto a project must not
   // start selecting the title.
+  // chatRow / chatDragging: the row itself slides with the pointer when
+  // carried onto another project, and eases back if the drag is dropped.
   const base =
     "ui-list-item group relative shrink-0 overflow-hidden select-none" +
-    " leading-[20px] whitespace-nowrap";
+    " leading-[20px] whitespace-nowrap " + styles.chatRow +
+    (dragProps?.["data-dragging"] ? " " + styles.chatDragging : "");
   // Selected row: a background highlight marks it; the text steps down
   // from pure white to the warm off-white (--text-primary) so it isn't
   // glaringly bright.

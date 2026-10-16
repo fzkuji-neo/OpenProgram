@@ -3,19 +3,23 @@ import type { HTMLAttributes } from "react";
 
 type Slot = { id: string; top: number; bottom: number };
 type Drag = {
-  id: string; label: string; from: string; pointerId: number; element: HTMLElement;
+  id: string; from: string; pointerId: number; element: HTMLElement;
   startX: number; startY: number; x: number; y: number; active: boolean;
   scroller: HTMLElement; scrollTop: number; slots: Slot[];
 };
 
 /** A chat row picked up and carried onto another project group. */
-export interface DraggingChat { id: string; label: string; x: number; y: number }
+export interface DraggingChat { id: string; dy: number }
+
+/** Props a chat row spreads: `data-dragging` marks the row being carried. */
+export type ChatRowProps = HTMLAttributes<HTMLDivElement> & { "data-dragging"?: true };
 
 /**
  * Pointer-capture drag of a chat row onto a project group. The same
  * pattern as `useProjectDrag`: a press becomes a drag after 6px, the
- * project under the pointer is the drop target (never the chat's own),
- * release there calls `onMove`, and Escape, blur or a release elsewhere
+ * row itself slides with the pointer (no separate label), the project
+ * under the pointer is the drop target (never the chat's own), release
+ * there calls `onMove`, and Escape, blur or a release elsewhere
  * cancels. A click after a drag is swallowed so the chat does not open.
  */
 export function useChatDrag(
@@ -37,7 +41,9 @@ export function useChatDrag(
     return slot && slot.id !== drag.from ? slot.id : null;
   }
   function update(drag: Drag) {
-    setDraggingChat({ id: drag.id, label: drag.label, x: drag.x, y: drag.y });
+    // The row follows the pointer vertically, in its own scroller: the
+    // scroll the drag itself caused moves it along with the list.
+    setDraggingChat({ id: drag.id, dy: drag.y - drag.startY + drag.scroller.scrollTop - drag.scrollTop });
     const next = targetAt(drag);
     setDropProject(prev => (prev === next ? prev : next));
   }
@@ -82,9 +88,13 @@ export function useChatDrag(
   }
 
   /** Props for a chat row: `from` is the project group it sits in. */
-  function rowProps(id: string, label: string, from: string): HTMLAttributes<HTMLDivElement> {
+  function rowProps(id: string, from: string): ChatRowProps {
+    const carried = draggingChat?.id === id;
     return {
-      style: { touchAction: "none" },
+      style: carried
+        ? { touchAction: "none", transform: `translateY(${draggingChat.dy}px)`, zIndex: 5 }
+        : { touchAction: "none" },
+      "data-dragging": carried || undefined,
       onDragStart: event => event.preventDefault(),
       onPointerDown: event => {
         if (!enabled || current.current || !event.isPrimary || event.button !== 0
@@ -98,7 +108,7 @@ export function useChatDrag(
           const bounds = group.getBoundingClientRect();
           return { id: group.dataset.projectId!, top: bounds.top, bottom: bounds.top + bounds.height };
         });
-        current.current = { id, label, from, element, pointerId: event.pointerId, scroller, scrollTop: scroller.scrollTop, slots,
+        current.current = { id, from, element, pointerId: event.pointerId, scroller, scrollTop: scroller.scrollTop, slots,
           startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, active: false };
         element.setPointerCapture(event.pointerId);
       },
