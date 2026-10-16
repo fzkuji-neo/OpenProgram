@@ -31,7 +31,8 @@ export function executionRequest(snapshot: ExecutionSnapshot): string {
 export function readableRequest(request: string, text: Text): string {
   if (/^Continue the interrupted task using saved conversation history\b/.test(request)) return text("Continue the interrupted task", "继续被中断的任务");
   const files: string[] = [];
-  const rest = request.replace(/\[attachment: (.+?) \([^)]*\)[^\]]*(?:\]|$)/g, (_, name: string) => { files.push(name.trim()); return " "; })
+  // A channel message starts with its sender's address: "[id@im.wechat] text".
+  const rest = request.replace(/^\[[^\]\s]+@[^\]\s]+\]\s*/, "").replace(/\[attachment: (.+?) \([^)]*\)[^\]]*(?:\]|$)/g, (_, name: string) => { files.push(name.trim()); return " "; })
     .replace(/\s+/g, " ").trim();
   if (rest) return rest;
   return files.length ? `${text("Attachment", "附件")} ${files.join(", ")}` : request;

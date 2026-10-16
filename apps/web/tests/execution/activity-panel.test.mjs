@@ -86,20 +86,21 @@ const agentCall = { id: "c1", execution_id: "turn", name: "agent", description: 
 const spawned = run("j_fix", "reconciliation_required", now - 3 * DAY + 2, { parent_execution_id: "turn",
   display: { kind: "job_agent", label: "Fix_page_close", assistant_message_id: "j_fix_user_reply" }, effect_summary: { provider_response_incomplete: true } });
 
-test("the overview reads: what needs you, what is running, what ran before", async () => {
+test("the overview lists agents, what is in flight and what needs you, never plain messages", async () => {
   await mounted([
     run("turn", "reconciliation_required", now - 3 * DAY, { task_label: "check and fix it" }), spawned,
     run("live", "running", now - 120, { task_label: "fill the form" }),
+    run("j_live", "running", now - 100, { parent_execution_id: "live", display: { kind: "job_agent", label: "Form_filler" } }),
     run("done", "completed", now - 60, { task_label: "what happened" }),
+    run("j_done", "completed", now - 50, { parent_execution_id: "done", display: { kind: "job_agent", label: "Research" } }),
   ], async host => {
     const text = host.textContent;
     assert.match(text, /Needs you1.*Fix page close.*Sub-agent result unconfirmed/s);
-    assert.match(text, /Running1.*fill the form.*Running/s);
-    assert.match(text, /Earlier2.*Today.*what happened.*Completed/s);
-    // One concrete issue, not the conversation, and no branch layer.
+    assert.match(text, /Running1.*Form filler.*Running/s);
+    assert.match(text, /Sub-agents1.*Today.*Research.*Completed/s);
+    // The messages themselves stay in the chat.
+    assert.doesNotMatch(text, /check and fix it|fill the form|what happened/);
     assert.equal(text.split("Fix page close").length - 1, 1);
-    assert.doesNotMatch(text, /Execution history|Branch 1/);
-    // No group folds.
     assert.equal(host.querySelectorAll("[aria-expanded]").length, 0);
   }, [], {}, { calls: [agentCall] });
 });
@@ -127,30 +128,33 @@ test("an unconfirmed agent call opens a page with its task and what can be done"
   delete globalThis.agentTip;
 });
 
-test("a run page shows its issue first, then what it did, then technical details", async () => {
+test("an agent page leads with its issue, then where it came from and what it did", async () => {
   await mounted([run("turn", "reconciliation_required", now - 3 * DAY, { task_label: "check and fix it" }), spawned,
     run("j_other", "completed", now - 3 * DAY + 50, { parent_execution_id: "turn", display: { kind: "job_agent", label: "Write_docs" } })],
   async (host, click, selected) => {
+    await click("Fix page close");
+    let text = host.textContent;
+    assert.match(text, /Sub-agent ·.*Fix page close.*Result unconfirmed/s);
+    assert.match(text, /while this sub-agent was working.*End this run.*Open its conversation.*From.*check and fix it.*Task given to it.*What it did.*Technical details/s);
     await click("check and fix it");
-    const text = host.textContent;
+    text = host.textContent;
     assert.match(text, /Run ·.*check and fix it.*1 to handle/s);
-    assert.match(text, /Sub-agent "Fix page close": result unconfirmed.*What this run did.*Fix page close.*Write docs.*Technical details/s);
-    // The sub-agent the agent call started is reached through the call, not listed twice.
-    assert.doesNotMatch(text, /Fix_page_close/);
+    assert.match(text, /Sub-agent "Fix page close": result unconfirmed.*What this run did.*Fix page close.*Write docs/s);
+    assert.match(host.textContent, /← Fix page close/);
     await click("Write docs");
-    assert.match(host.textContent, /← check and fix it/);
     await click("Technical details");
     assert.deepEqual(selected, ["j_other"]);
     assert.match(host.textContent, /DEBUGGER/);
   }, [], {}, { calls: [agentCall] });
 });
 
-test("earlier runs are grouped by day and paged", async () => {
-  const runs = Array.from({ length: 25 }, (_, i) => run(`r${i}`, "completed", now - i * 60 - (i > 2 ? 2 * DAY : 0)));
-  await mounted(runs, async (host, click) => {
-    assert.match(host.textContent, /Earlier25/);
-    assert.match(host.textContent, /Today.*r0/s);
-    assert.equal(host.querySelectorAll("button").length, 21, "20 runs and the paging button");
+test("finished agents are grouped by day and paged", async () => {
+  const runs = Array.from({ length: 25 }, (_, i) => run(`j${i}`, "completed", now - i * 60 - (i > 2 ? 2 * DAY : 0),
+    { parent_execution_id: "turn", display: { kind: "job_agent", label: `agent_${i}` } }));
+  await mounted([run("turn", "completed", now - 3 * DAY), ...runs], async (host, click) => {
+    assert.match(host.textContent, /Sub-agents25/);
+    assert.match(host.textContent, /Today.*agent 0/s);
+    assert.equal(host.querySelectorAll("button").length, 21, "20 agents and the paging button");
     await click("Show 5 earlier");
     assert.doesNotMatch(host.textContent, /Show \d+ earlier/);
   });
@@ -167,17 +171,19 @@ test("ongoing shell calls and background programs appear without opening a run",
   { calls: [{ id: "call", name: "bash", command: "sleep 30", started_at: now - 5, status: "running" }] });
 });
 
-test("run titles read as the words a person wrote, not attachment markup or resume prompts", async () => {
+test("titles read as the words a person wrote, not attachment markup, sender ids or resume prompts", async () => {
   await mounted([
-    run("a", "completed", now - 10, { task_label: '[attachment: IMG_0177.JPG (jpg, 987 KB) @json "/Users/x/attachments/IMG_0177.JPG" ' }),
-    run("b", "completed", now - 20, { task_label: '[attachment: Inv.pdf (pdf, 112 KB) @json "/Users/x/Inv.pdf"] what about this?' }),
-    run("c", "completed", now - 30, { task_label: "Continue the interrupted task using saved conversation history. Inspect actual state" }),
+    run("a", "paused", now - 10, { task_label: '[attachment: IMG_0177.JPG (jpg, 987 KB) @json "/Users/x/attachments/IMG_0177.JPG" ' }),
+    run("b", "paused", now - 20, { task_label: '[attachment: Inv.pdf (pdf, 112 KB) @json "/Users/x/Inv.pdf"] what about this?' }),
+    run("c", "paused", now - 30, { task_label: "Continue the interrupted task using saved conversation history. Inspect actual state" }),
+    run("d", "paused", now - 40, { task_label: "[o9cq80y8K9j5@im.wechat] hello there" }),
   ], async host => {
     const text = host.textContent;
     assert.match(text, /Attachment IMG_0177\.JPG/);
     assert.match(text, /what about this\?/);
     assert.match(text, /Continue the interrupted task(?! using)/);
-    assert.doesNotMatch(text, /\[attachment:|@json/);
+    assert.match(text, /hello there/);
+    assert.doesNotMatch(text, /\[attachment:|@json|@im\.wechat/);
   });
 });
 
