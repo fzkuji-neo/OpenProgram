@@ -181,7 +181,14 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   useEffect(() => { setShown(PAGE); }, [listView.show, listView.arrange]);
   useEffect(() => { setTaskOpen(false); setActionError(null); }, [view?.kind, view?.id]);
   const selectExecution = state.selectExecution;
-  useEffect(() => { if (view?.kind === "run") selectExecution(view.id); }, [view?.kind, view?.id, selectExecution]);
+  const selectedExecutionId = state.selectedExecutionId;
+  // Select once per run page. `selectExecution` is rebuilt on every
+  // refresh, and re-selecting resets the inspector to "reconnecting"
+  // and drops its events, so an unconditional call would clear the
+  // progress list each time the list polled.
+  useEffect(() => {
+    if (view?.kind === "run" && selectedExecutionId !== view.id) selectExecution(view.id);
+  }, [view?.kind, view?.id, selectedExecutionId, selectExecution]);
 
   const readFailed = processes.stale || (
     state.connection.errorSessionId === sessionId && Boolean(state.connection.message)

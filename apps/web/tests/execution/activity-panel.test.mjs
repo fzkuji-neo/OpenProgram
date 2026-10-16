@@ -397,3 +397,35 @@ test("a sub-agent waiting on a question shows it and goes to the chat's card to 
     });
   } finally { card.remove(); useSessionStore.setState({ pendingDecisions: [] }); }
 });
+
+test("a run page selects its run once, not again each time the list polls", async () => {
+  // Every refresh rebuilds `selectExecution`; re-selecting would reset
+  // the inspector to "reconnecting" and drop its progress events.
+  const selected = [];
+  const controller = (selectedExecutionId) => ({ executions: [run("latest", "completed", now - DAY, { task_label: "prepare the visa form" })], branches: [],
+    connection: { state: "connected" }, fetchedAt: 1, selectedExecutionId, selectExecution(id) { selected.push(id); } });
+  globalThis.activityController = controller(null);
+  globalThis.activityProcesses = { items: [], calls: [], stale: false, loaded: true, refresh() {} };
+  const host = document.createElement("div"); document.body.append(host);
+  const root = createRoot(host);
+  try {
+    const render = () => act(async () => root.render(createElement(RunningPanel, { active: true, sessionId: "session" })));
+    await render();
+    const click = async text => {
+      const button = [...host.querySelectorAll("button, [role=button]")].find(b => b.textContent.includes(text));
+      assert.ok(button, text);
+      await act(async () => button.click());
+    };
+    await click("Main agent");
+    await click("prepare the visa form");
+    assert.deepEqual(selected, ["latest"]);
+    // Two polls: the hook now reports the run as selected and hands out
+    // a fresh `selectExecution` each time.
+    globalThis.activityController = controller("latest"); await render();
+    globalThis.activityController = controller("latest"); await render();
+    assert.deepEqual(selected, ["latest"]);
+    // Only a run page whose run is not yet selected asks again.
+    globalThis.activityController = controller("other"); await render();
+    assert.deepEqual(selected, ["latest", "latest"]);
+  } finally { await act(async () => root.unmount()); host.remove(); }
+});
