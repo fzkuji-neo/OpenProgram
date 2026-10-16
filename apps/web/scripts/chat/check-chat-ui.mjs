@@ -12,6 +12,7 @@ const source = (path) => readFileSync(new URL(path, root), "utf8");
 
 const welcome = source("components/chat/welcome-screen.tsx");
 const welcomeCss = source("components/chat/welcome-screen.module.css");
+const welcomeBackdrop = source("components/chat/welcome-backdrop.tsx");
 const messageList = source("components/chat/messages/use-chat-area-stick.ts") + source("components/chat/messages/message-list.tsx");
 const messageActions = source("components/chat/messages/message-actions.tsx");
 // The strip is split across center-tab-strip.tsx and its submodules;
@@ -234,11 +235,12 @@ assert.match(markdownRenderer, /import renderMathInElement from "katex\/contrib\
 assert.doesNotMatch(markdownRenderer, /window\.(?:marked|renderMathInElement)/);
 assert.doesNotMatch(markdownRenderer, /return "<pre>" \+ escHtml\(str\) \+ "<\/pre>";/);
 
-assert.match(welcome, /src=["{]?["']\/icon\.svg["']/);
-assert.doesNotMatch(welcome, /styles\.(?:l1|l2|m|caret)\b/);
-assert.doesNotMatch(welcomeCss, /@keyframes\s+logo(Type|Caret)/);
-assert.match(welcomeCss, /\.mark\s*\{[^}]*width:\s*34px;[^}]*height:\s*34px;/s);
-assert.match(welcomeCss, /\.tagline\s*\{[^}]*font-size:\s*14px;/s);
+// The empty chat is a rotating animated backdrop only: no mark, tagline or starter buttons.
+assert.match(welcome, /<WelcomeBackdrop \/>/);
+assert.doesNotMatch(welcome, /icon\.svg|styles\.(?:mark|tagline|starter)/);
+assert.match(welcomeBackdrop, /const SCENES = \[callGraph, ripple\];/);
+assert.match(welcomeBackdrop, /prefers-reduced-motion: reduce/);
+assert.match(welcomeCss, /\.backdrop\s*\{[^}]*position:\s*absolute;[^}]*pointer-events:\s*none;/s);
 
 const scroll = await import("../../lib/chat/chat-scroll.ts");
 class MemoryStorage {
