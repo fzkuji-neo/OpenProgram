@@ -104,6 +104,9 @@ test("the overview lists every agent once, the one that needs you in place, neve
     assert.doesNotMatch(text, /Needs you|Sub-agent stopped|Agents\d/);
     assert.equal(text.match(/Fix page close/g).length, 1);
     assert.deepEqual([...host.querySelectorAll("[data-last]")].map(node => node.getAttribute("data-last")), ["0", "0", "1"]);
+    // Only the first sibling reaches up into the main agent's row; the rest
+    // continue the run from the row above, so no two pieces of line overlap.
+    assert.deepEqual([...host.querySelectorAll("[data-first]")].map(node => node.getAttribute("data-first")), ["1", "0", "0"]);
     // The messages themselves stay in the chat.
     assert.doesNotMatch(text, /check and fix it|fill the form|what happened/);
     // Only the view menu opens; no row expands in place.
@@ -222,8 +225,10 @@ test("a sub-agent another one started sits under it and names it", async () => {
     assert.match(host.textContent, /AgentsMain agent.*Research.*Read pages/s);
     const depths = [...host.querySelectorAll("[style*='--depth']")].map(node => node.getAttribute("style"));
     assert.deepEqual(depths.map(style => style.match(/--depth:\s*(\d)/)[1]), ["1", "2"]);
-    // Each is the last row under its parent, so no line runs on past it.
+    // Each is the last row under its parent, so no line runs on past it,
+    // and the first under its parent, so its elbow reaches up to the parent.
     assert.deepEqual([...host.querySelectorAll("[data-last]")].map(node => node.getAttribute("data-last")), ["1", "1"]);
+    assert.deepEqual([...host.querySelectorAll("[data-first]")].map(node => node.getAttribute("data-first")), ["1", "1"]);
     await click("Read pages");
     assert.match(host.textContent, /Started by.*Research/s);
     assert.match(host.textContent, /Task given to it.*Read the pages/s);
