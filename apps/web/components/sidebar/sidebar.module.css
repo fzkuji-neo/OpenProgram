@@ -74,21 +74,19 @@
   box-shadow: inset 0 0 0 1.5px var(--accent-orange);
 }
 /* The carried chat's title, riding beside the pointer. */
-.chatGhost {
-  position: fixed;
-  z-index: 60;
-  max-width: 220px;
-  padding: 5px 10px;
-  border-radius: var(--ui-list-radius);
-  background: var(--bg-input);
+.chatRow {
+  /* Keeps .ui-list-item's colour transitions and adds the slide back. */
+  transition: background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out,
+    transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.chatDragging {
+  transition: none;
+  background: var(--color-sidebar);
   box-shadow: var(--shadow);
-  color: var(--text-primary);
-  font-size: 13px;
-  line-height: 18px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  pointer-events: none;
+  scale: 1.02;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chatRow { transition: background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out; }
 }
 .projectGroup[data-dragging] {
   background: var(--color-sidebar);

@@ -10,7 +10,7 @@ const { createElement: h, act } = await import('react');
 const { createRoot } = await import('react-dom/client');
 const { useChatDrag } = await import('../../components/sidebar/sessions-list/use-chat-drag.ts');
 
-test('a chat row dropped on another project moves there; its own project, a cancel and a plain click do nothing', async () => {
+test('a chat row slides with the pointer and dropped on another project moves there; its own project, a cancel and a plain click do nothing', async () => {
   const groups = { a: ['s1', 's2'], b: ['s3'] };
   const moves = [];
   let clicks = 0;
@@ -23,8 +23,8 @@ test('a chat row dropped on another project moves there; its own project, a canc
     return h('div', { id: 'sidebar', className: 'overflow-y-auto' }, Object.entries(groups).map(([project, chats]) =>
       h('div', { key: project, 'data-project-id': project, 'data-drop-target': last.dropProject === project || undefined },
         h('div', { className: 'header' }, project),
-        ...chats.map(id => h('div', { key: id, id, ...last.rowProps(id, `Chat ${id}`, project), role: 'button',
-          onClick: event => { last.rowProps(id, `Chat ${id}`, project).onClick(event); if (!event.defaultPrevented) clicks++; } },
+        ...chats.map(id => h('div', { key: id, id, ...last.rowProps(id, project), role: 'button',
+          onClick: event => { last.rowProps(id, project).onClick(event); if (!event.defaultPrevented) clicks++; } },
           `Chat ${id}`, h('button', {}, '⋮'))))));
   }
   const host = document.createElement('div'); document.body.append(host);
@@ -56,7 +56,10 @@ test('a chat row dropped on another project moves there; its own project, a canc
   await fire('s1', 'pointermove', 10, 42);
   assert.equal(last.draggingChat, null, 'a 2px wiggle is not a drag');
   await fire('s1', 'pointermove', 10, 120);
-  assert.deepEqual(last.draggingChat, { id: 's1', label: 'Chat s1', x: 10, y: 120 });
+  assert.deepEqual(last.draggingChat, { id: 's1', dy: 80 });
+  assert.equal(row('s1').style.transform, 'translateY(80px)', 'the row itself slides with the pointer');
+  assert.ok(row('s1').hasAttribute('data-dragging'));
+  assert.equal(document.querySelector('[class*=Ghost]'), null, 'no separate label follows the pointer');
   assert.equal(last.dropProject, 'b');
   assert.ok(host.querySelector('[data-project-id="b"]').hasAttribute('data-drop-target'));
   assert.equal(frames.size, 1, 'edge auto-scroll is armed while dragging');
