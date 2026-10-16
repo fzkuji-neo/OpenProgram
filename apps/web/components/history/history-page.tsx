@@ -9,6 +9,8 @@ import { SearchInput } from "@/components/ui/search-input";
 import { ManagePage, ManagePageHeader, managePageStyles as shared } from "@/components/ui/manage-page";
 import { useTranslation } from "@/lib/i18n";
 
+import styles from "./history-page.module.css";
+
 /** Survives remounts when tab routes swap page.tsx. */
 let persistedQuery = "";
 
@@ -44,7 +46,7 @@ export function HistoryPage() {
   ], [text, router]);
 
   return (
-    <ManagePage>
+    <ManagePage className={styles.page}>
       <ManagePageHeader
         title={t("nav.history")}
         toolbar={(
