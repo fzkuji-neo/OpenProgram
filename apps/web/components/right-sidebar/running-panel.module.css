@@ -58,4 +58,4 @@
    what it was asked to do, in the same plain text as a program's page. */
 .callTitle { display: flex; align-items: center; gap: 10px; margin: 8px 8px 2px; font: inherit; font-weight: var(--right-panel-font-weight, 500); overflow-wrap: anywhere; }
 .callTitle + .status { margin: 0 8px 0 36px; }
-.callText { margin: 12px 8px; color: var(--text-secondary); overflow-wrap: anywhere; }
+.callText { margin: 12px 8px 4px; color: var(--text-secondary); overflow-wrap: anywhere; }

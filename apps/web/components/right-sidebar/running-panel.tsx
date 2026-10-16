@@ -114,7 +114,8 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   for (const call of liveCalls) {
     if (ids.has(call.execution_id)) callsByExecution.set(call.execution_id, [...(callsByExecution.get(call.execution_id) || []), call]);
   }
-  const orphanCalls = liveCalls.filter(call => !ids.has(call.execution_id));
+  // Until the executions are read, every call would look unowned.
+  const orphanCalls = state.fetchedAt ? liveCalls.filter(call => !ids.has(call.execution_id)) : [];
   const callStatus = (call: ActiveToolCall) => call.status === "running"
     ? text("Running", "正在运行") : text("Result unconfirmed", "结果待确认");
   const callNote = (calls: ActiveToolCall[]) => calls.length
@@ -222,12 +223,21 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       || groups.find(item => item.execution_ids.includes(state.selectedExecutionId || ""));
     return <div className={styles.panel}><div className={styles.toolbar}>{back}</div>
       <div className={styles.scroll}>
-        {branch ? <><h3 className={styles.title}>{branch.name || text("Execution history", "执行记录")} <span className={styles.count}>{branch.executions.length}</span></h3>
-          {branch.executions.filter(item => {
+        {branch ? (() => {
+          const allowed = new Set(branch.executions.map(run => run.execution_id));
+          const roots = branch.executions.filter(item => {
             const parent = item.view_parent_execution_id ?? item.parent_execution_id;
             return !parent || !branch.executions.some(other => other.execution_id === parent);
-          }).map(item => agentRow(item, new Set(), new Set(branch.executions.map(run => run.execution_id))))}
-        </> : <SidebarNotice>{text("Branch details are unavailable.", "暂时无法读取分支详情。")}</SidebarNotice>}
+          });
+          // What needs a decision comes first; the rest keeps its newest-first order.
+          const pending = roots.filter(item => needsAttention(item));
+          return <>
+            {pending.length > 0 && <SectionHeader name={text("Needs attention", "需要处理")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} actions={<span className={styles.count}>{pending.length}</span>} />}
+            {pending.map(item => agentRow(item, new Set(), allowed))}
+            <h3 className={styles.title}>{branch.name || text("Execution history", "执行记录")} <span className={styles.count}>{branch.executions.length}</span></h3>
+            {roots.filter(item => !pending.includes(item)).map(item => agentRow(item, new Set(), allowed))}
+          </>;
+        })() : <SidebarNotice>{text("Branch details are unavailable.", "暂时无法读取分支详情。")}</SidebarNotice>}
       </div></div>;
   }
   if (selection?.startsWith("call:")) {
@@ -236,12 +246,11 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     const view = call ? presentTool(call.name, undefined, text) : null;
     return <div className={styles.panel}><div className={styles.toolbar}>{back}</div>
       {!call || !view ? <SidebarNotice>{text("This call has returned.", "这次调用已经返回。")}</SidebarNotice> : <div className={styles.scroll}>
-        <h3 className={styles.callTitle}><Glyph name={view.icon} tone={view.tone} />{call.name}</h3>
-        <Status tone={call.status === "running" ? "run" : "warn"}>{callStatus(call)}</Status>
-        {call.status !== "running" && <p className={styles.notice}>{text(
+        <h3 className={styles.callTitle}><Glyph name={view.icon} tone={view.tone} />{call.description || call.name}</h3>
+        <Status tone={call.status === "running" ? "run" : "warn"}>{call.description ? `${call.name} · ` : ""}{callStatus(call)}</Status>
+        {call.status !== "running" && <p className={styles.callText}>{text(
           "The run stopped while this call was out, so whether it finished is not known. Check its Agent before retrying.",
           "这次调用发出后运行中断，无法确认它是否完成。重试前请在所属 Agent 中检查。")}</p>}
-        {call.description && <p className={styles.callText}>{call.description}</p>}
         {owner && <Button variant="ghost" className={styles.row} onClick={() => { state.selectExecution(owner.execution_id); setSelection("agent"); }}>
           <Glyph name="bot" tone="agent" /><span className={styles.rowText}><span className={styles.meta}>{text("Started by", "所属 Agent")}</span><span className={styles.name}>{executionTitle(owner, 1, text)}</span></span>
           <ChevronRight size={14} className={styles.chevron} aria-hidden="true" />
