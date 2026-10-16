@@ -1,6 +1,6 @@
 # Voice input
 
-The round microphone button at the left of the chat input box turns speech into text. Click it and speak; click it again to stop. While you type, you can also hold ⌥Space (Alt+Space) to talk and release it to stop.
+The round microphone button in the bottom-left corner of the chat input box turns speech into text. Click it and speak; click it again to stop. While you type, you can also hold ⌥Space (Alt+Space) to talk and release it to stop.
 
 While recording, a strip before the send button shows a dot for every quiet moment and a bar sized by loudness while you speak. Each phrase is transcribed when you pause and is inserted at the cursor, so text arrives phrase by phrase rather than word by word. Nothing is sent: the text stays in the box for you to edit and send. Press Esc to discard the recording and remove the text it inserted. When you stop, the last phrase is transcribed before the button becomes available again.
 

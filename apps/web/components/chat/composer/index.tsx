@@ -611,11 +611,11 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
           onPaste={onPaste}
           slash={slash}
           fileMention={fileMention}
-          leading={<MicButton state={voice.state} onToggle={voice.toggle} />}
         />
 
-        {/* Voice input: the mic sits in the text row (ComposerBody's
-            `leading`); the live level strip sits before send. */}
+        {/* Voice input: mic in the bottom-left corner, live level strip
+            before send in the bottom-right. */}
+        {!fnFormActive ? <MicButton state={voice.state} onToggle={voice.toggle} /> : null}
         {!fnFormActive ? <VoiceStrip state={voice.state} levels={voice.levels} /> : null}
 
         {/* Chat and function-form actions stay independent of decision cards. */}

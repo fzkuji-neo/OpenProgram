@@ -40,8 +40,6 @@ export interface ComposerBodyProps {
   onPaste: ReturnType<typeof usePasteTokens>["onPaste"];
   slash: ReturnType<typeof useSlashMenu>;
   fileMention: ReturnType<typeof useFileMention>;
-  /** Chat mode only: shown at the left of the text row (the voice mic). */
-  leading?: React.ReactNode;
 }
 
 export function ComposerBody({
@@ -61,7 +59,6 @@ export function ComposerBody({
   onPaste,
   slash,
   fileMention,
-  leading,
 }: ComposerBodyProps) {
   return (
     <>
@@ -99,7 +96,6 @@ export function ComposerBody({
             fileMenuLoading={fileMention.fileMenuLoading}
             fileMenuPos={fileMention.fileMenuPos}
             pickFile={fileMention.pickFile}
-            leading={leading}
           />
         )}
         {/* Outgoing fn-form overlay — only present during a fn → fn
