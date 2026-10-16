@@ -32,6 +32,7 @@ const executionStrip = source("components/chat/messages/execution-strip.tsx");
 const executionCss = source("app/styles/chat/execution-strip.css");
 const runtimeHelpers = source("lib/runtime-bridge/helpers.ts");
 const markdownRenderer = source("lib/runtime-bridge/markdown-render.ts");
+const chatMarkdown = source("components/chat/messages/markdown.ts");
 const chatVisualSpec = source("../../docs/reference/design/ui/chat-turn-visual-spec.zh.html");
 const controlsCluster = source("components/chat/composer/controls/controls-cluster.tsx");
 const contextBreakdownPanel = source("components/chat/context-breakdown-panel.tsx");
@@ -230,7 +231,7 @@ for (const themeCss of [lightTheme, beigeLightTheme]) {
 assert.match(auroraTheme, /--focus-ring:\s*color-mix\(in srgb, var\(--accent-cyan\) 60%, transparent\);/);
 
 // Markdown and math rendering are production-bundled dependencies.
-assert.match(markdownRenderer, /import \{ marked as npmMarked \} from "marked";/);
+assert.match(markdownRenderer, /import \{ marked as npmMarked(?:, type MarkedExtension)? \} from "marked";/);
 assert.match(markdownRenderer, /import renderMathInElement from "katex\/contrib\/auto-render";/);
 assert.doesNotMatch(markdownRenderer, /window\.(?:marked|renderMathInElement)/);
 assert.doesNotMatch(markdownRenderer, /return "<pre>" \+ escHtml\(str\) \+ "<\/pre>";/);
@@ -388,22 +389,20 @@ assert.match(messageList, /showPending = runningTask !== null && lastRole === "u
 
 // ── Markdown must not widen the chat column ─────────────────────────
 // A wide table or one long unbroken token used to push #chatArea into
-// horizontal scroll. marked emits a bare <table> with no wrapper, so
-// the table itself has to be the scroll box — which needs
-// `display:block`, since a display:table box ignores overflow-x.
-const mdTable = chatCss.slice(
-  chatCss.indexOf(".message-content table {"),
-  chatCss.indexOf(".message-content th,"),
+// horizontal scroll. The renderer wraps each bare <table> from marked in
+// a .md-table div, and that wrapper is the scroll box, so the table can
+// still span the column (a display:block table would shrink to content).
+assert.match(
+  chatMarkdown,
+  /replace\(\/<table>\/g, '<div class="md-table"><table>'\)/,
+  "tables must be wrapped in their .md-table scroll container",
 );
-assert.ok(mdTable, ".message-content table rule not found");
-for (const decl of ["display: block", "overflow-x: auto", "max-width: 100%"]) {
-  assert.match(
-    mdTable,
-    new RegExp(decl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
-    `.message-content table needs \`${decl}\` or a wide table overflows `
-      + "the bubble and scrolls the whole chat area sideways",
-  );
-}
+assert.match(
+  chatCss,
+  /\.message-content \.md-table \{[^}]*overflow-x:\s*auto;/,
+  ".md-table needs `overflow-x: auto` or a wide table overflows "
+    + "the bubble and scrolls the whole chat area sideways",
+);
 const mdContent = chatCss.slice(
   chatCss.indexOf(".message-content {"),
   chatCss.indexOf(".message-content pre {"),
@@ -1037,8 +1036,8 @@ assert.ok(
 );
 assert.match(
   chatCss,
-  /\.message\.assistant \.message-actions-footer\s*\{[^}]*margin-top:\s*14px/s,
-  "assistant messages define the optically balanced 14px body-to-footer gap",
+  /\.message\.assistant \.message-actions-footer\s*\{[^}]*margin-top:\s*calc\(var\(--reply-gap, 12px\) - 3px\)/s,
+  "the assistant footer sits one reply gap below the body, less the timestamp's own top space",
 );
 assert.match(
   chatCss,
@@ -1671,7 +1670,7 @@ assert.match(
   chatCss,
   /\.tl-toggle\s*\{[^}]*display:\s*inline-flex[^}]*align-items:\s*center[^}]*height:\s*28px[^}]*margin:\s*0 0 1\.5px[^}]*padding:\s*0/s,
 );
-assert.match(runtimeBlock, /<TreeStep node=\{tree\} defaultKidsOpen\s*\/>/);
+assert.match(runtimeBlock, /<TreeStep node=\{tree\} defaultKidsOpen(?:\s+sessionId=\{[^}]*\})?\s*\/>/);
 assert.doesNotMatch(
   executionStrip,
   /<TreeStep key=\{c\.path \|\| i\} node=\{c\} defaultKidsOpen=\{defaultKidsOpen\}/,
