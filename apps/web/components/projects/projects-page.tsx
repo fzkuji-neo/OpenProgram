@@ -88,11 +88,13 @@ export function ProjectsPage({
 
   const refresh = useCallback(async () => {
     for (let i = 0; i < 10; i++) {
-      const data = await wsRequest<{ projects: Project[] }>(
+      const data = await wsRequest<{ projects: Project[] | null }>(
         "list_projects", {}, "projects_list",
       );
-      if (data) {
-        const list = systemFirst(data.projects || []);
+      // `projects: null` means the registry could not be read, not that
+      // there are no projects; retry instead of showing the empty state.
+      if (data && Array.isArray(data.projects)) {
+        const list = systemFirst(data.projects);
         setProjects(list);
         setSelectedId((cur) => cur ?? (list[0]?.id ?? null));
         setLoaded(true);

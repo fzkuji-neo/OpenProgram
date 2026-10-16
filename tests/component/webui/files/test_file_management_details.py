@@ -1,6 +1,7 @@
 """Public file management query regression tests."""
 from .test_project_files import project_root, _run
 from openprogram.webui.ws_actions import files as ws_files
+import os
 import pytest
 
 
@@ -49,6 +50,32 @@ def test_size_cancel_and_resume_are_bound_to_directory(project_root, monkeypatch
         with metadata._LOCK:
             for token in list(metadata._SCANS):
                 metadata._drop(token)
+
+
+@pytest.mark.skipif(not os.path.isdir('/dev/fd'), reason='needs /dev/fd to count open handles')
+def test_paused_size_scan_holds_one_handle_per_level(project_root, monkeypatch):
+    from openprogram.webui.ws_actions.files import metadata as metadata
+    monkeypatch.setattr(metadata, '_BATCH', 1)
+    deep = project_root / 'src'
+    for level in range(6):
+        deep = deep / f'd{level}'
+        deep.mkdir()
+    (deep / 'leaf.txt').write_bytes(b'x')
+    cmd = {'project_id': 'p1', 'path': 'src'}
+    before = len(os.listdir('/dev/fd'))
+    held = 0
+    page = _run(ws_files.handle_project_folder_size, {**cmd, 'operation': 'start'})['data']
+    try:
+        while page.get('token'):
+            held = max(held, len(os.listdir('/dev/fd')) - before)
+            page = _run(ws_files.handle_project_folder_size, {**cmd, 'operation': 'continue', 'token': page['token']})['data']
+    finally:
+        with metadata._LOCK:
+            for token in list(metadata._SCANS):
+                metadata._drop(token)
+    assert page['state'] == 'complete'
+    # src plus six nested levels; a scandir handle per level would double it.
+    assert held <= 7
 
 
 def test_size_skips_links_and_counts_dependency_directories(project_root):

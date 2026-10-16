@@ -87,34 +87,39 @@ def file_info(project_id, path):
 
 
 def _walk(project_id, path):
-    """Yield leaf sizes without following links; cap open directory handles."""
+    """Yield leaf sizes without following links; cap open directory handles.
+
+    Each level keeps one handle: its names are read up front so the
+    scandir handle (a dup of the directory's) closes right away, and a
+    paused scan parked under a token holds one handle per depth.
+    """
     stack = []
     try:
         fd = _open_query_dir(project_id, path)
-        stack.append((fd, os.scandir(fd), _stat(fd, "")))
+        stack.append((fd, iter(_names(fd)), _stat(fd, "")))
         while stack:
-            fd, iterator, initial = stack[-1]
-            try:
-                entry = next(iterator)
-            except StopIteration:
+            fd, names, initial = stack[-1]
+            name = next(names, None)
+            if name is None:
                 changed = _stat(fd, "").st_mtime_ns != initial.st_mtime_ns
-                iterator.close(); directory_close(fd); stack.pop()
+                directory_close(fd); stack.pop()
                 if changed:
                     yield 0, 1
                 continue
             try:
-                value = entry.stat(follow_symlinks=False)
+                value = _stat(fd, name)
                 if stat.S_ISDIR(value.st_mode):
                     if len(stack) >= 64:
                         yield 0, 1
                     else:
-                        child = _open_child_dir(fd, entry.name)
+                        child = _open_child_dir(fd, name)
                         try:
-                            children = os.scandir(child)
+                            children = _names(child)
+                            initial_child = _stat(child, "")
                         except OSError:
                             directory_close(child)
                             raise
-                        stack.append((child, children, _stat(child, "")))
+                        stack.append((child, iter(children), initial_child))
                         yield 0, 0
                 elif stat.S_ISREG(value.st_mode):
                     yield value.st_size, 0
@@ -123,8 +128,13 @@ def _walk(project_id, path):
             except OSError:
                 yield 0, 1
     finally:
-        for fd, iterator, _initial in reversed(stack):
-            iterator.close(); directory_close(fd)
+        for fd, _names_left, _initial in reversed(stack):
+            directory_close(fd)
+
+
+def _names(fd):
+    with os.scandir(fd) as entries:
+        return [entry.name for entry in entries]
 
 
 def _drop(token):
