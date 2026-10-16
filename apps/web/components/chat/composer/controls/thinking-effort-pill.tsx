@@ -138,7 +138,7 @@ const ThinkingEffortSliderPill = React.forwardRef<
           "effort-pill-shell absolute select-none",
           expanded
             ? "" // floating-card geometry comes from chat.css
-            : "left-0 top-0 h-[32px] overflow-hidden rounded-full text-[14px] text-text-primary transition-[width,background-color] duration-[220ms] ease-out",
+            : "left-0 top-0 h-[32px] overflow-hidden rounded-[var(--radius)] text-[14px] text-text-primary transition-[width,background-color] duration-[220ms] ease-out",
         ].join(" ")}
         style={{
           // Tint the collapsed pill by current effort level (neutral

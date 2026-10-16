@@ -26,7 +26,6 @@ import { canvasDragging, onCanvasDragChange } from "@/lib/tabs/canvas-drag";
 import type { KeyboardEvent, ReactNode } from "react";
 import { ArrowLeft, ArrowRight, ChevronDown, ChevronUp, ExternalLink, House, MessageSquarePlus, PictureInPicture2, RotateCw, Search, Star, X } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 import {
   desktopBridge,
@@ -131,7 +130,7 @@ function BookmarkButton({ tabId, url, title }: { tabId: string; url: string; tit
 }
 
 function findButton() {
-  return cn(buttonVariants({ variant: "ghost", size: "icon-xs" }), "rounded-full");
+  return buttonVariants({ variant: "ghost", size: "icon-xs" });
 }
 
 function resourceForLiveTab(tabId: string) {
@@ -837,7 +836,7 @@ function DesktopWebTabPane({
                   aria-label={text("Comment on this element", "评论这个元素")}
                 />
                 <span className={styles.webFindSep} aria-hidden="true" />
-                <button type="submit" className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "rounded-full")} disabled={!commentDraft.trim()}>
+                <button type="submit" className={buttonVariants({ variant: "ghost", size: "xs" })} disabled={!commentDraft.trim()}>
                   {text("Add to message", "加入消息")}
                 </button>
               </>

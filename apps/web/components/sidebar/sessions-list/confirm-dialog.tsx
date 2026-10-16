@@ -44,14 +44,14 @@ export function ConfirmDialog({
           <Button
             variant="secondary"
             onClick={onCancel}
-            className="rounded-full bg-[var(--bg-selected)] text-[var(--text-bright)] transition-[filter] hover:bg-[var(--bg-selected)] hover:brightness-125"
+            className="bg-[var(--bg-selected)] text-[var(--text-bright)] transition-[filter] hover:bg-[var(--bg-selected)] hover:brightness-125"
           >
             {t("sidebar.cancel")}
           </Button>
           <Button
             variant="destructive"
             onClick={onConfirm}
-            className="rounded-full hover:bg-[#c9413a]"
+            className="hover:bg-[#c9413a]"
           >
             {t("sidebar.delete")}
           </Button>

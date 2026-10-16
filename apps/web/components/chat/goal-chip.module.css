@@ -111,7 +111,7 @@
 
 .answerOptions button {
   border: 1px solid hsl(var(--border));
-  border-radius: 999px;
+  border-radius: var(--radius);
   padding: 5px 9px;
   color: hsl(var(--foreground));
   background: hsl(var(--background));

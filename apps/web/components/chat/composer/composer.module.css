@@ -98,9 +98,9 @@
   backdrop-filter: var(--composer-backdrop-filter);
   -webkit-backdrop-filter: var(--composer-backdrop-filter);
   border: none;
-  /* Luma pill while it is one line (half the 46px row); taller
-     multi-line boxes keep the same 23px corners. */
-  border-radius: 23px;
+  /* shadcn Nova input corner (rounded-lg), the same family as the
+     chips and buttons around it. */
+  border-radius: var(--radius-lg);
   /* Chat mode: the controls row lives OUTSIDE the wrapper now, so no
      bottom band is reserved. fn-form mode restores it (below). */
   padding: 0;
@@ -129,7 +129,7 @@
   pointer-events: none;
   z-index: 1;
   background: var(--surface-solid);
-  border-radius: 23px;
+  border-radius: var(--radius-lg);
   animation: outgoingLayerFade var(--composer-fade-duration) ease forwards;
 }
 /* Suppress the cloned header/body's own fadeIn animation — we want
@@ -267,7 +267,7 @@
   right: 12px;
   width: 24px;
   height: 24px;
-  border-radius: 50%;
+  border-radius: var(--radius);
   border: none;
   background: color-mix(in srgb, var(--text-secondary) 14%, transparent);
   color: var(--text-secondary);
@@ -307,7 +307,7 @@
 .plusBtn {
   width: var(--composer-button-size);
   height: var(--composer-button-size);
-  border-radius: 50%;
+  border-radius: var(--radius);
   background: transparent;
   border: none;
   color: var(--text-secondary);
@@ -352,7 +352,7 @@
      with the × slot on hover. */
   padding-left: 8px;
   padding-right: 8px;
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--accent-blue) 14%, transparent);
   color: var(--accent-blue);
   cursor: pointer;
@@ -545,7 +545,7 @@
   height: 20px;
   padding: 0 8px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--ink-80);
   font-family: var(--font-sans);
@@ -594,7 +594,7 @@
 .controlsRow :global(.effort-pill-fixed) {
   width: 28px;
   height: 28px;
-  border-radius: 50%;
+  border-radius: var(--radius);
 }
 .controlsRow :global(.effort-pill-fixed .effort-pill-compact-icon),
 .controlsRow :global(.effort-pill-fixed) svg {

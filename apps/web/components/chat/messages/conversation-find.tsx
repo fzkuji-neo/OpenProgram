@@ -9,7 +9,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, ChevronUp, Search, X } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
 import { wsRequest } from "@/lib/net/ws-request";
 import { useSessionStore } from "@/lib/session-store";
@@ -28,7 +27,7 @@ type SearchReply = { id?: string; query?: string; matches?: unknown; error_code?
 const QUERY_DELAY_MS = 150;
 
 function findButton() {
-  return cn(buttonVariants({ variant: "ghost", size: "icon-xs" }), "rounded-full");
+  return buttonVariants({ variant: "ghost", size: "icon-xs" });
 }
 
 async function searchSession(sessionId: string, query: string): Promise<FindMatch[] | null> {

@@ -77,11 +77,11 @@ export function RenameDialog({
             variant="secondary"
             data-rename-action="cancel"
             onClick={onCancel}
-            className="rounded-full bg-[var(--bg-selected)] text-[var(--text-bright)] transition-[filter] hover:bg-[var(--bg-selected)] hover:brightness-125"
+            className="bg-[var(--bg-selected)] text-[var(--text-bright)] transition-[filter] hover:bg-[var(--bg-selected)] hover:brightness-125"
           >
             {t("sidebar.cancel")}
           </Button>
-          <Button onClick={submit} data-rename-action="save" className="rounded-full">
+          <Button onClick={submit} data-rename-action="save">
             {text("Save", "保存")}
           </Button>
         </DialogFooter>

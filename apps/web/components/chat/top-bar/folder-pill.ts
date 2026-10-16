@@ -7,6 +7,6 @@
  * `elevated` Button variant, so it sits flush with the other chips.
  */
 export const FOLDER_PILL =
-  "folder-pill inline-flex h-8 shrink-0 items-stretch overflow-hidden rounded-4xl " +
-  "bg-bg-input text-sm font-medium whitespace-nowrap text-foreground shadow-raised " +
+  "folder-pill inline-flex h-7 shrink-0 items-stretch overflow-hidden rounded-[min(var(--radius-md),12px)] " +
+  "bg-bg-input text-[0.8rem] font-medium whitespace-nowrap text-foreground shadow-raised " +
   "transition-shadow hover:shadow-raised-hover has-[[aria-expanded=true]]:shadow-raised-hover";
