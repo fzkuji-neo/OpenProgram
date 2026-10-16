@@ -13,14 +13,14 @@
 | 设置 | 取值 | 含义 |
 |---|---|---|
 | 识别服务（`voice.engine`） | `auto`、`openai`、`groq`、`local` | 用哪个服务转写音频。 |
-| 说话语言（`voice.language`） | `auto`、`zh`、`en`、`ja`、`ko`、`fr`、`de`、`es` | 提示你说的语言；`auto` 自动识别。 |
+| 说话语言（`voice.language`） | `auto`、`zh`、`en`、`ja`、`ko`、`fr`、`de`、`es` | 提示你说的语言；`auto` 自动识别。选 `zh` 时输出简体中文。 |
 | 模型（`voice.model`） | 文本 | 所选服务的模型名；留空用该服务的默认模型。识别服务为 `auto` 时不生效。 |
 
 各识别服务：
 
 - **openai**：把每句话发给 OpenAI 转写 API，默认模型 `gpt-4o-mini-transcribe`，使用 设置 → 模型服务 里的 OpenAI API key。
 - **groq**：把每句话发给 Groq，默认模型 `whisper-large-v3-turbo`，使用 设置 → 模型服务 里的 Groq API key。
-- **local**：在本机运行 [whisper.cpp](https://github.com/ggml-org/whisper.cpp)，音频不离开这台电脑。用 `brew install whisper-cpp` 安装。第一次使用时把 `ggml-base` 模型（约 150 MB）下载到状态目录。
+- **local**：在本机运行 [whisper.cpp](https://github.com/ggml-org/whisper.cpp)，音频不离开这台电脑。用 `brew install whisper-cpp` 安装。第一次使用时把 `large-v3-turbo-q5_0` 模型（约 570 MB）下载到状态目录；在 Apple 芯片上每句话需要一到两秒。
 
 选 `auto` 时，OpenProgram 依次选择：已安装且模型已下载的本机 whisper.cpp、OpenAI、Groq、本机 whisper.cpp（第一次使用时下载模型）。设置页会显示当前使用的服务，以及这台电脑上哪些服务可用。
 

@@ -31,7 +31,7 @@ LANGUAGES = ("auto", "zh", "en", "ja", "ko", "fr", "de", "es")
 DEFAULT_MODELS = {
     "openai": "gpt-4o-mini-transcribe",
     "groq": "whisper-large-v3-turbo",
-    "local": "base",
+    "local": "large-v3-turbo-q5_0",
 }
 
 _API_BASES = {
@@ -42,6 +42,10 @@ _API_BASES = {
 # One phrase is a few seconds; a 10-minute cap keeps a stuck recording
 # from posting hundreds of megabytes.
 MAX_AUDIO_BYTES = 20 * 1024 * 1024
+
+# Whisper writes Chinese in traditional characters unless the context
+# leans simplified; a short prompt in the target script fixes that.
+_LANGUAGE_PROMPTS = {"zh": "以下是普通话的句子，使用简体中文。"}
 
 _LOCAL_CLI_NAMES = ("whisper-cli", "whisper-cpp")
 _LOCAL_CLI_DIRS = ("/opt/homebrew/bin", "/usr/local/bin")
@@ -142,7 +146,9 @@ def _transcribe_local(audio: bytes, *, model: str, language: str) -> str:
         wav = Path(tmp) / "phrase.wav"
         wav.write_bytes(audio)
         argv = [cli, "-m", str(model_file), "-f", str(wav), "-nt", "-np",
-                "-l", language if language != "auto" else "auto"]
+                "-l", language]
+        if language in _LANGUAGE_PROMPTS:
+            argv += ["--prompt", _LANGUAGE_PROMPTS[language]]
         try:
             done = subprocess.run(argv, capture_output=True, text=True, timeout=300)
         except subprocess.TimeoutExpired as exc:
@@ -164,6 +170,8 @@ def _transcribe_http(engine: str, audio: bytes, *, model: str, language: str) ->
     data: dict[str, Any] = {"model": model, "response_format": "json"}
     if language != "auto":
         data["language"] = language
+    if language in _LANGUAGE_PROMPTS:
+        data["prompt"] = _LANGUAGE_PROMPTS[language]
     try:
         response = httpx.post(
             f"{_API_BASES[engine]}/audio/transcriptions",
