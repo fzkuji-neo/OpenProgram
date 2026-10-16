@@ -1009,8 +1009,10 @@ function ConvItem({
   // gap-[12px] (which + the 16px marker slot aligns titles to the nav rows'
   // icon-slot), colour-transition, and the hover --bg-hover tint. Only the
   // chat-row extras stay here.
+  // select-none: a press that becomes a drag onto a project must not
+  // start selecting the title.
   const base =
-    "ui-list-item group relative shrink-0 overflow-hidden" +
+    "ui-list-item group relative shrink-0 overflow-hidden select-none" +
     " leading-[20px] whitespace-nowrap";
   // Selected row: a background highlight marks it; the text steps down
   // from pure white to the warm off-white (--text-primary) so it isn't

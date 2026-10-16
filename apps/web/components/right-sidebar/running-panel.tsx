@@ -32,7 +32,7 @@ import styles from "./running-panel.module.css";
 
 type Text = (en: string, zh: string) => string;
 type Tone = "warn" | "run" | "ok" | "err" | "muted";
-type View = { kind: "main" | "run" | "call" | "spawn" | "program" | "tech"; id: string };
+type View = { kind: "main" | "run" | "call" | "spawn" | "program"; id: string };
 
 const PAGE = 20;
 const LIVE = ["queued", "running", "pausing", "cancelling"];
@@ -163,7 +163,9 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   const { text } = useTranslation();
   const [stack, setStack] = useState<View[]>([]);
   const view = stack.at(-1) ?? null;
-  const state = useExecutionDebugger(active, sessionId, undefined, view?.kind === "tech");
+  // A run's page carries its record (events, waits, drafts), so the
+  // inspector reads them only while one is open.
+  const state = useExecutionDebugger(active, sessionId, undefined, view?.kind === "run");
   const processes = useManagedProcesses(active, sessionId, view?.kind === "program" ? view.id : null);
   const conversationTitle = useSessionStore(s => (sessionId ? s.conversations[sessionId]?.title : undefined) || "");
   // Questions and approvals are answered in the chat's input box, which
@@ -178,6 +180,8 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   useEffect(() => { setStack([]); setShown(PAGE); setProgramsShown(PAGE); }, [sessionId]);
   useEffect(() => { setShown(PAGE); }, [listView.show, listView.arrange]);
   useEffect(() => { setTaskOpen(false); setActionError(null); }, [view?.kind, view?.id]);
+  const selectExecution = state.selectExecution;
+  useEffect(() => { if (view?.kind === "run") selectExecution(view.id); }, [view?.kind, view?.id, selectExecution]);
 
   const readFailed = processes.stale || (
     state.connection.errorSessionId === sessionId && Boolean(state.connection.message)
@@ -203,7 +207,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   const branches = agentBranches(executions);
   const now = Date.now() / 1000;
   const open = (next: View) => setStack(previous => [...previous, next]);
-  const openTech = (executionId: string) => { state.selectExecution(executionId); open({ kind: "tech", id: executionId }); };
+  const openRun = (executionId: string) => open({ kind: "run", id: executionId });
   const execution = (id: string) => executions.find(item => item.execution_id === id) ?? null;
   const call = (id: string) => calls.find(item => item.id === id) ?? null;
   const spawn = (id: string) => spawns.find(item => item.id === id) ?? null;
@@ -428,9 +432,10 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
         : decision ? decision.prompt || decision.questions?.[0]?.prompt || ""
           : text("This run paused on a question or an approval.", "这次运行停在一个问题或审批上。");
       choices = decision?.options?.length ? decision.options : decision?.questions?.[0]?.options ?? [];
-      actions.push(decision
-        ? <Button key="answer" variant="elevated" size="sm" onClick={() => answerInChat(decision.id)}>{approval ? text("Review in chat", "去聊天里授权") : text("Answer in chat", "去聊天里回答")}</Button>
-        : <Button key="tech" variant="elevated" size="sm" onClick={() => openTech(issue.execution.execution_id)}>{waiting ? text("Answer", "去处理") : text("See details", "查看详情")}</Button>);
+      // Without a queued decision the run's own page holds the wait and
+      // the controls; from the main page that page is one step away.
+      if (decision) actions.push(<Button key="answer" variant="elevated" size="sm" onClick={() => answerInChat(decision.id)}>{approval ? text("Review in chat", "去聊天里授权") : text("Answer in chat", "去聊天里回答")}</Button>);
+      else if (here === "main") actions.push(<Button key="run" variant="elevated" size="sm" onClick={() => openRun(issue.execution.execution_id)}>{waiting ? text("Answer", "去处理") : text("See the run", "查看这次运行")}</Button>);
     } else {
       heading = here === "program" ? "" : text(`Program "${programName(issue.program, text)}": state unconfirmed`, `后台程序“${programName(issue.program, text)}”状态待确认`);
       body = text("Its supervisor is unavailable, so whether it exited is not known. The record is kept.", "程序监督进程不可用，不确定它是否已退出，记录仍保留。");
@@ -462,14 +467,6 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   };
 
   // ---- pages -------------------------------------------------------------------
-  if (view?.kind === "tech") return <div className={styles.panel}>
-    {backBar(toActivity)}
-    <DebuggerPanel key={state.selectedExecutionId || "empty"} {...state} detailOnly
-      onSelectExecution={state.selectExecution} onCommand={state.command} onRespondWait={state.respondWait}
-      onCreateDraft={async input => { await state.createDraft(input); }} onUpdateDraft={state.updateDraft}
-      onDraftAction={state.draftAction} />
-  </div>;
-
   if (view?.kind === "main") {
     const { label, tone } = mainStatus();
     const agents = branches.agentsUnder(null);
@@ -491,9 +488,6 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
         {agents.length + failed.length === 0
           ? <p className={styles.empty}>{text("No sub-agents yet.", "还没有启动过子代理。")}</p>
           : startedNewestFirst(agents, failed)}
-        {latestRun && <Button variant="ghost" className={styles.techRow} onClick={() => openTech(latestRun.execution_id)}>
-          {text("Technical details", "技术详情")}<ChevronRight size={13} aria-hidden="true" />
-        </Button>}
       </div>
     </div>;
   }
@@ -544,9 +538,13 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
           ? <p className={styles.empty}>{text("No sub-agents, open calls or background programs.", "没有子代理、未返回的调用或后台程序。")}</p>
           : <>{ownCalls.map(entry => callRow(entry))}{kids.filter(entry => !isAgent(entry)).map(childRow)}
             {startedNewestFirst([...kids.filter(isAgent), ...nested], failed)}{ownPrograms.map(entry => programRow(entry))}</>}
-        <Button variant="ghost" className={styles.techRow} onClick={() => openTech(item.execution_id)}>
-          {text("Technical details", "技术详情")}<ChevronRight size={13} aria-hidden="true" />
-        </Button>
+        <h4 className={styles.section}>{text("Progress", "进展")}</h4>
+        {/* The run's own record: its progress, the controls it allows, its
+            open waits and, folded at the end, the raw ids and events. */}
+        <DebuggerPanel key={item.execution_id} {...state} detailOnly embedded selectedExecutionId={item.execution_id}
+          onSelectExecution={state.selectExecution} onCommand={state.command} onRespondWait={state.respondWait}
+          onCreateDraft={async input => { await state.createDraft(input); }} onUpdateDraft={state.updateDraft}
+          onDraftAction={state.draftAction} />
       </div>
     </div>;
   }
