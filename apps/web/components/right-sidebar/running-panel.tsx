@@ -58,7 +58,9 @@ function Status({ tone, children }: { tone: Tone; children: ReactNode }) {
   </span>;
 }
 
-type Line = { depth: number; last: boolean; guides: number[] };
+/** `first`: the first row under its parent, whose elbow reaches up into
+ *  the parent's row; later siblings continue the run from the row above. */
+type Line = { depth: number; last: boolean; first: boolean; guides: number[] };
 
 function Row({ glyph, title, status, tone, onOpen, line }: {
   glyph: ReactNode; title: string; status: ReactNode; tone: Tone; onOpen: () => void; line?: Line;
@@ -73,7 +75,7 @@ function Row({ glyph, title, status, tone, onOpen, line }: {
   // lines of the rows above that still have siblings to reach.
   if (!line) return row;
   const depth = Math.min(line.depth, 4);
-  return <div className={styles.branch} data-last={line.last ? "1" : "0"} style={{ "--depth": depth } as CSSProperties}>
+  return <div className={styles.branch} data-last={line.last ? "1" : "0"} data-first={line.first ? "1" : "0"} style={{ "--depth": depth } as CSSProperties}>
     {line.guides.filter(level => level < depth).map(level => <span key={level} className={styles.guide} aria-hidden="true" style={{ "--up": depth - level } as CSSProperties} />)}
     {row}
   </div>;
@@ -652,7 +654,8 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
         {listView.arrange === "structure"
           ? <>{mainFirst && mainRow()}{visible.map((entry, index) => {
             // A cut-off page keeps the line running to the paging button.
-            const line = { depth: entry.depth, guides: entry.guides, last: entry.last && !(index === visible.length - 1 && rows.length > shown) };
+            const line = { depth: entry.depth, guides: entry.guides, first: index === 0 || visible[index - 1].depth < entry.depth,
+              last: entry.last && !(index === visible.length - 1 && rows.length > shown) };
             return entry.kind === "agent" ? agentRow(entry.item, line) : spawnRow(entry.leaf, line);
           })}</>
           : <>{mainFirst && mainRow()}{flatRows}</>}

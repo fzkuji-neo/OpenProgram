@@ -20,8 +20,13 @@
    straight run on to the next sibling, and the runs of the rows above that still have siblings below. */
 .panel { --branch-line: color-mix(in srgb, var(--text-muted) 38%, transparent); --branch-indent: 24px; --branch-x: calc(17px - var(--branch-indent)); }
 .branch { position: relative; margin-left: calc(var(--depth, 1) * var(--branch-indent)); }
-.branch::before { content: ""; position: absolute; left: var(--branch-x); top: -15px; height: calc(50% + 15px); width: calc(6px - var(--branch-x)); border-left: 1.5px solid var(--branch-line); border-bottom: 1.5px solid var(--branch-line); border-bottom-left-radius: 8px; pointer-events: none; }
-.branch[data-last="0"]::after { content: ""; position: absolute; left: var(--branch-x); top: 50%; bottom: 0; border-left: 1.5px solid var(--branch-line); pointer-events: none; }
+/* The pieces meet end to end and never overlap, so the translucent line
+   keeps one shade: the first child's elbow starts just under its parent's
+   glyph, a later sibling's at its own top, and the run on to the next
+   sibling starts where the elbow's corner begins to curve. */
+.branch::before { content: ""; position: absolute; left: var(--branch-x); top: 0; height: 50%; width: calc(6px - var(--branch-x)); border-left: 1.5px solid var(--branch-line); border-bottom: 1.5px solid var(--branch-line); border-bottom-left-radius: 8px; pointer-events: none; }
+.branch[data-first="1"]::before { top: -15px; height: calc(50% + 15px); }
+.branch[data-last="0"]::after { content: ""; position: absolute; left: var(--branch-x); top: calc(50% - 8px); bottom: 0; border-left: 1.5px solid var(--branch-line); pointer-events: none; }
 .guide { position: absolute; top: 0; bottom: 0; left: calc(var(--branch-x) - var(--up) * var(--branch-indent)); border-left: 1.5px solid var(--branch-line); pointer-events: none; }
 .rowText { display: grid; gap: 1px; min-width: 0; flex: 1; }
 .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--text-bright); }
