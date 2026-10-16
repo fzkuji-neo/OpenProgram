@@ -5,8 +5,8 @@
 // - React 18: the parts forward their refs (refs are not props until 19).
 // - The popup is the app's menu frame (MENU_PANEL: Rhea geometry on the
 //   glass material every menu shares) instead of the registry's solid
-//   bg-popover + ring, and it opens below the trigger (`popper`) like the
-//   app's other menus rather than over it.
+//   bg-popover + ring. It keeps the registry's `item-aligned` position:
+//   the popup covers the trigger with the chosen row over it.
 // - The chosen row shows the app's accent check (MenuCheck), and the
 //   trigger text takes --text-bright rather than inheriting a muted parent.
 // - It stacks above dialogs (z-[130]; DialogContent is z-[120]).
@@ -65,7 +65,7 @@ SelectTrigger.displayName = SelectPrimitive.Trigger.displayName
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className, children, position = "popper", align = "start", ...props }, ref) => (
+>(({ className, children, position = "item-aligned", ...props }, ref) => (
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content
       ref={ref}
@@ -79,7 +79,6 @@ const SelectContent = React.forwardRef<
         className
       )}
       position={position}
-      align={align}
       {...props}
     >
       <SelectScrollUpButton />
@@ -203,7 +202,6 @@ function SimpleSelect<T extends string = string>({
   disabled,
   className,
   contentClassName,
-  align,
   id,
   name,
   "aria-label": ariaLabel,
@@ -217,7 +215,6 @@ function SimpleSelect<T extends string = string>({
   disabled?: boolean
   className?: string
   contentClassName?: string
-  align?: "start" | "center" | "end"
   id?: string
   name?: string
   "aria-label"?: string
@@ -241,7 +238,7 @@ function SimpleSelect<T extends string = string>({
       <SelectTrigger id={id} size={size} className={className} aria-label={ariaLabel} aria-describedby={ariaDescribedBy}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectContent className={contentClassName} align={align}>
+      <SelectContent className={contentClassName}>
         {options.map((entry, index) =>
           "options" in entry ? (
             <SelectGroup key={`group-${index}`}>

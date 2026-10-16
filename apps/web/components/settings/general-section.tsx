@@ -67,7 +67,6 @@ export function SettingsDropdown<T extends string>({
       value={value}
       onValueChange={onChange}
       aria-label={label}
-      align="end"
       options={options.map((option) => ({
         value: option.value,
         label: option.style ? <span style={option.style}>{option.label}</span> : option.label,
