@@ -12,13 +12,17 @@
 /* A row: bare glyph, name over a status line, a chevron. No frame at rest;
    hover lifts it into the raised card the file cards use. */
 .row { display: flex; align-items: center; gap: 10px; width: 100%; height: auto; min-height: var(--ui-button-h); padding: 7px 8px; border: 0; border-radius: 12px; justify-content: flex-start; font: inherit; font-weight: 400; line-height: 1.4; color: inherit; text-align: left; cursor: pointer; transition: box-shadow .15s, background-color .15s; }
+.panel .row { position: relative; z-index: 1; }
 .row:hover { background: var(--bg-input); box-shadow: var(--composer-shadow-focus); color: inherit; }
 .row:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: -2px; }
 /* A sub-agent under the branch that started it. The line hangs from the
    centre of that branch's glyph (17px into its row), one indent (24px) to
    the left: an elbow from just under that glyph into this row's glyph, a
    straight run on to the next sibling, and the runs of the rows above that still have siblings below. */
-.panel { --branch-line: color-mix(in srgb, var(--text-muted) 38%, transparent); --branch-indent: 24px; --branch-x: calc(17px - var(--branch-indent)); }
+/* The line is solid (mixed into the panel's own colour, not translucent),
+   so where two pieces meet the shade never doubles. Rows sit above it: a
+   hovered row lifts into a card the line passes under, never over. */
+.panel { --branch-line: color-mix(in srgb, var(--text-muted) 38%, var(--color-sidebar)); --branch-indent: 24px; --branch-x: calc(17px - var(--branch-indent)); }
 .branch { position: relative; margin-left: calc(var(--depth, 1) * var(--branch-indent)); }
 /* The pieces meet end to end and never overlap, so the translucent line
    keeps one shade: the first child's elbow starts just under its parent's
@@ -69,6 +73,7 @@
 .issue { margin: 14px 8px 0; padding: 12px; border-radius: 12px; background: color-mix(in srgb, var(--accent-yellow) 9%, transparent); }
 .issueTitle { margin: 0; color: color-mix(in srgb, var(--accent-yellow) 85%, var(--text-primary)); font: 600 13px/1.45 var(--font-sans); overflow-wrap: anywhere; }
 .issueText { margin: 4px 0 0; color: var(--text-secondary); font-size: 12.5px; line-height: 1.55; }
+.choices { margin: 6px 0 0; color: var(--text-primary); font-size: 12.5px; line-height: 1.55; overflow-wrap: anywhere; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .actions[data-inline="1"] { margin: 14px 8px 0; }
 
