@@ -2,6 +2,12 @@
    Programs 页的 module.css（import fx），保证高度/间距完全一致。这里只放
    Projects 特有的类。 */
 
+/* The rail sits on the main surface; a background of its own matched the
+   window behind the card and swallowed the card's left edge. */
+.body > .rail {
+  background: transparent;
+}
+
 /* Rail rows are <button>s; reset the native button chrome so they keep the
    shared profilesNav row geometry. */
 .railItem {
@@ -17,7 +23,7 @@
   color: var(--nav-color-hover);
 }
 .railItem.railItemActive {
-  background: var(--bg-tertiary);
+  background: var(--bg-selected);
   color: var(--text-bright);
 }
 .addRow {
