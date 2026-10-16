@@ -486,6 +486,9 @@ interface SessionRow {
   created_at?: number;
   /** 最后活跃时间（服务端每次列表都带上，权威值总是覆盖）。 */
   updated_at?: number;
+  /** Sidebar placement in the project list (see sessions-list helpers). */
+  sort_at?: number;
+  sort_since?: number;
   channel?: string | null;
   account_id?: string | null;
   /** Where the conversation runs (local / an SSH or Docker environment);
@@ -540,6 +543,8 @@ export function handleSessionsList(data: SessionRow[]): void {
           group: c.group || "",
           status: c.status || undefined,
           unread: !!c.unread,
+          sort_at: c.sort_at || 0,
+          sort_since: c.sort_since || 0,
           project: c.project || "",
         };
       } else {
@@ -561,6 +566,8 @@ export function handleSessionsList(data: SessionRow[]): void {
         if ("group" in c) convs[c.id].group = c.group || "";
         if ("status" in c) convs[c.id].status = c.status || undefined;
         if ("unread" in c) convs[c.id].unread = !!c.unread;
+        if ("sort_at" in c) convs[c.id].sort_at = c.sort_at || 0;
+        if ("sort_since" in c) convs[c.id].sort_since = c.sort_since || 0;
         if ("project" in c) convs[c.id].project = c.project || "";
         // session_loaded 早到时 conv 没 created_at, 这里 sessions_list
         // 后到要补上, 不然 sidebar 排序拿不到时间戳, 新会话沉底.
@@ -609,6 +616,8 @@ export function handleSessionUpdated(
     group?: string | null;
     status?: "needs_input" | "done" | "idle" | null;
     unread?: boolean;
+    sort_at?: number;
+    sort_since?: number;
   } | null,
 ): void {
   if (!data || !data.id) return;
@@ -620,6 +629,8 @@ export function handleSessionUpdated(
   if ("group" in data) conv.group = data.group || "";
   if ("status" in data) conv.status = data.status || undefined;
   if ("unread" in data) conv.unread = !!data.unread;
+  if ("sort_at" in data) conv.sort_at = data.sort_at || 0;
+  if ("sort_since" in data) conv.sort_since = data.sort_since || 0;
   mirrorUpsertConv(conv);
 }
 
