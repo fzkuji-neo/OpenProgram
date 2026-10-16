@@ -70,11 +70,11 @@ def test_tools_enabled_yields_live_intent_not_snapshot(
     assert permission_from_config(cfg, default="bypass") == "acceptEdits"
 
 
-def test_permission_from_config_fails_safe_to_ask() -> None:
+def test_permission_from_config_defaults_to_auto_never_bypass() -> None:
     empty = SessionRunConfig()
-    assert permission_from_config(empty) == "ask"
-    assert permission_from_config(empty, default=None) == "ask"
-    assert permission_from_config(empty, default="bogus") == "ask"
+    assert permission_from_config(empty) == "auto"
+    assert permission_from_config(empty, default=None) == "auto"
+    assert permission_from_config(empty, default="bogus") == "auto"
     assert permission_from_config(empty, default="bypass") == "bypass"
     assert permission_from_config(
         SessionRunConfig(permission_mode="acceptEdits"), default="ask",
