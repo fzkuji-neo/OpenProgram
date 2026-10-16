@@ -237,6 +237,15 @@
   top: 10px;
   right: 44px;
 }
+/* In the chat composer the attachments share the text's column (the
+   chat-input-row's 43px row inset + 2px text inset on the left, 42px on
+   the right), so cards line up with what you type and the mic keeps the
+   left gutter to itself. The message editor and queued rows reuse the
+   strip at its own padding. */
+.inputWrapper:not(.morphed) > :global([data-attachment-strip]) {
+  padding-left: 45px;
+  padding-right: 42px;
+}
 .actionBtn svg {
   fill: currentColor;
 }
