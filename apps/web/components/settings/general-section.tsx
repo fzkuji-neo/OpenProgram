@@ -33,6 +33,7 @@ import {
   type ThemeStyle,
 } from "@/lib/prefs/theme-pref";
 import { useVisualEffectsPref } from "@/lib/prefs/visual-effects-pref";
+import { useWelcomeBackdropPref } from "@/lib/prefs/welcome-backdrop-pref";
 import { DRAG_SURFACE_STYLE, VISUAL_EFFECTS_LIMITS, type VisualEffectKey } from "@/lib/prefs/visual-effects-config";
 import styles from "./settings-page.module.css";
 import { DesktopAttentionSection } from "./desktop-attention-section";
@@ -505,6 +506,7 @@ export function GeneralSection() {
 
   const accentValue = accent ?? packageAccent;
   const { effects, setEffect, resetEffects } = useVisualEffectsPref();
+  const welcomeBackdrop = useWelcomeBackdropPref();
   const effectControls: { key: VisualEffectKey; label: string; unit: string }[] = [
     { key: "transparency", label: text("Transparency", "透明度"), unit: "%" },
     { key: "blur", label: text("Background blur", "背景模糊"), unit: "px" },
@@ -656,6 +658,25 @@ export function GeneralSection() {
                   {text(
                     "Overrides the current theme package accent. Empty / reset uses that package's default.",
                     "覆盖当前主题包的强调色。留空或重置则使用该主题包的默认强调色。",
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.row + " " + styles.rowTop}>
+              <label className={styles.label} htmlFor="welcome-code-rain">
+                {text("Welcome animation", "欢迎页动画")}
+              </label>
+              <div className={styles.control}>
+                <Switch
+                  id="welcome-code-rain"
+                  checked={welcomeBackdrop.enabled}
+                  onCheckedChange={welcomeBackdrop.setEnabled}
+                />
+                <div className={styles.customCssHint}>
+                  {text(
+                    "Code rain behind an empty chat. Saved on this device.",
+                    "空白对话背后的代码雨。保存在此设备。",
                   )}
                 </div>
               </div>

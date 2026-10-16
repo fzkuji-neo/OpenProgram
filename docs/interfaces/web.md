@@ -197,6 +197,10 @@ Opening `/settings` directly lands on `/settings/general`. Model credentials sta
 
 In narrow windows (900px wide or less) the left sidebar starts collapsed to its icon rail until you open it, and an opened sidebar closes again after you navigate. Below 760px the Settings navigation starts as an icon rail too, and collapses when the window is resized to that width. A sidebar you open or close yourself keeps that choice.
 
+### Welcome animation
+
+A new, empty chat shows only the input box. Turn on **Welcome animation** in Settings → General to play a code rain behind it: green columns of letters, digits, symbols and katakana falling down the chat area. It is off by default and saved in this browser. When the system asks for reduced motion, the rain is drawn as a still frame.
+
 ### Tab drag appearance
 
 In Settings → General, **Tab drag appearance** controls tab dragging inside and outside the tab strip, together with the split-pane title preview. Adjust Transparency from 0–100%, Background blur from 0–40px, and Shadow strength from 0–100%. Changes apply immediately; the preview shows the same settings as the actual dragged label. The defaults are 20% transparency, 16px blur, and 25% shadow strength. Restore defaults resets these three controls without changing the theme or other preferences.
