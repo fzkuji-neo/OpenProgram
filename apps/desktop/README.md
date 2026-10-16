@@ -8,7 +8,12 @@ Electron shell around the OpenProgram web UI, with native browser tabs
     npm install && npm run dev --workspace apps/desktop
 
 Loads `http://127.0.0.1:$OPENPROGRAM_WEB_PORT/chat` (default port 18100). If the
-worker is not reachable it spawns `openprogram worker start` and waits up to 30s.
+worker is not reachable it spawns `openprogram worker start`, shows a waiting page
+and probes `/healthz` every second until the worker answers. While an installer
+(`install-app.sh`, `scripts/refresh-local-app.sh`) holds the lock next to the
+bundle, `/Applications/.openprogram-app-install.lock`, the backend is down because
+it is being replaced: the page says the App is updating and no worker is started
+from the half-installed runtime.
 Override the startup URL entirely with `OPENPROGRAM_DESKTOP_URL=http://... npm run dev`.
 
 ## Build

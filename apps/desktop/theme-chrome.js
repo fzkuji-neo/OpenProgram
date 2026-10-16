@@ -386,32 +386,57 @@ function recordThemeEvent(userDataPath, payload = {}) {
   } catch { /* Best-effort diagnostics. */ }
 }
 
-function buildErrorPageHtml(chrome, workerCommand) {
+/** The two reasons the App shows its waiting page instead of the UI. */
+const WAIT_PHASES = ["waiting", "updating"];
+
+/**
+ * The page shown while the backend is unreachable. `waiting` is the plain
+ * case (the worker is starting or has to be started by hand); `updating`
+ * is shown while an installer holds the App install lock and is replacing
+ * the App and its runtime, which the App must sit out.
+ */
+function buildErrorPageHtml(chrome, workerCommand, phase = "waiting") {
   const c = chrome || chromeForTheme("beige-dark");
-  return `<body style="background:${c.bg};color:${c.text};font-family:-apple-system,sans-serif;
-        display:flex;align-items:center;justify-content:center;height:100vh;margin:0;color-scheme:${c.colorScheme}">
-      <div style="max-width:32rem;text-align:center">
-        <h2>Waiting for backend to start...</h2>
+  const updating = phase === "updating";
+  const body = updating
+    ? `<h2>Updating OpenProgram...</h2>
+        <p>An installer is replacing the App and its backend.</p>
+        <p>OpenProgram will reconnect automatically when it finishes.</p>`
+    : `<h2>Waiting for backend to start...</h2>
         <p>OpenProgram will reconnect automatically when the backend is ready.</p>
         <p>If it does not start, run:</p>
-        <pre style="background:${c.surface};padding:0.8em;border-radius:6px">${workerCommand}</pre>
+        <pre style="background:${c.surface};padding:0.8em;border-radius:6px">${workerCommand}</pre>`;
+  return `<body data-openprogram-wait="${updating ? "updating" : "waiting"}" style="background:${c.bg};color:${c.text};font-family:-apple-system,sans-serif;
+        display:flex;align-items:center;justify-content:center;height:100vh;margin:0;color-scheme:${c.colorScheme}">
+      <div style="max-width:32rem;text-align:center">
+        ${body}
       </div>
     </body>`;
 }
 
-function buildErrorPageUrl(chrome, workerCommand) {
+function buildErrorPageUrl(chrome, workerCommand, phase = "waiting") {
   return "data:text/html;charset=utf-8," + encodeURIComponent(
-    buildErrorPageHtml(chrome, workerCommand),
+    buildErrorPageHtml(chrome, workerCommand, phase),
   );
 }
 
-function isErrorPageUrl(url) {
-  if (typeof url !== "string" || !url.startsWith("data:text/html")) return false;
+/** Which waiting page a URL shows, or null when it is not one. */
+function waitPagePhase(url) {
+  if (typeof url !== "string" || !url.startsWith("data:text/html")) return null;
+  let html = url;
   try {
-    return decodeURIComponent(url).includes("Waiting for backend to start...");
+    html = decodeURIComponent(url);
   } catch {
-    return url.includes("Waiting%20for%20backend");
+    /* fall through: match the encoded form */
   }
+  const match = /data-openprogram-wait=(?:"|%22)(\w+)/.exec(html);
+  if (match && WAIT_PHASES.includes(match[1])) return match[1];
+  // Pages built before the marker existed.
+  return html.includes("Waiting for backend to start...") ? "waiting" : null;
+}
+
+function isErrorPageUrl(url) {
+  return waitPagePhase(url) !== null;
 }
 
 function directoryListingCss(chrome) {
@@ -459,6 +484,7 @@ module.exports = {
   loadResolvedChrome,
   buildErrorPageHtml,
   buildErrorPageUrl,
+  waitPagePhase,
   isErrorPageUrl,
   directoryListingCss,
 };

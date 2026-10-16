@@ -179,7 +179,21 @@ function checkErrorPageAndListingUseThemeSurface() {
   assert.doesNotMatch(html, /#141416/);
   const url = themeChrome.buildErrorPageUrl(chrome, "openprogram worker start");
   assert.equal(themeChrome.isErrorPageUrl(url), true);
+  assert.equal(themeChrome.waitPagePhase(url), "waiting");
   assert.equal(themeChrome.isErrorPageUrl("http://127.0.0.1:18100/chat"), false);
+  assert.equal(themeChrome.waitPagePhase("http://127.0.0.1:18100/chat"), null);
+  // While an installer replaces the App the page says so and shows no
+  // command: the user cannot start the backend by hand meanwhile.
+  const updating = themeChrome.buildErrorPageHtml(chrome, "openprogram worker start", "updating");
+  assert.match(updating, /Updating OpenProgram/);
+  assert.doesNotMatch(updating, /openprogram worker start/);
+  assert.match(updating, new RegExp(`background:${chrome.bg}`));
+  const updatingUrl = themeChrome.buildErrorPageUrl(chrome, "openprogram worker start", "updating");
+  assert.equal(themeChrome.waitPagePhase(updatingUrl), "updating");
+  assert.equal(themeChrome.isErrorPageUrl(updatingUrl), true);
+  // A page built before the marker existed is still the waiting page.
+  const legacy = "data:text/html;charset=utf-8," + encodeURIComponent("<h2>Waiting for backend to start...</h2>");
+  assert.equal(themeChrome.waitPagePhase(legacy), "waiting");
   const css = themeChrome.directoryListingCss(chrome);
   assert.match(css, /background: #fbfaf8/);
   assert.doesNotMatch(css, /prefers-color-scheme/);
