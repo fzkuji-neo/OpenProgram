@@ -1056,7 +1056,9 @@ function ConvItem({
     marqueeTimer.current = setTimeout(() => {
       const outer = labelOuterRef.current;
       const inner = labelInnerRef.current;
-      if (!outer || !inner) return;
+      // A row being carried to another project keeps the pointer over
+      // it the whole way; its title stays put.
+      if (!outer || !inner || outer.closest("[data-dragging]")) return;
       const w = outer.clientWidth;
       const sw = inner.scrollWidth;
       // 右缘要给 ⋮ 按钮 + 渐隐留 36px：尾巴会撞进这个保留区的标题
@@ -1073,6 +1075,8 @@ function ConvItem({
     setMarqueeShift(0);
   }
   useEffect(() => stopMarquee, []);
+  const carried = dragProps?.["data-dragging"] === true;
+  useEffect(() => { if (carried) stopMarquee(); }, [carried]);
 
   function startRename() {
     setDraft(conv.title || label);
