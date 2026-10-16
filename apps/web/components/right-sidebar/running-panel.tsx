@@ -87,10 +87,10 @@ function dayLabel(seconds: number, text: Text): string {
   return day.toLocaleDateString([], { month: "short", day: "numeric", ...(day.getFullYear() !== today.getFullYear() ? { year: "numeric" } : {}) });
 }
 
-/** The time of day for today, the date and time before that. */
-function when(seconds: number): string {
+/** On a row: the time of day for today, the day before that. */
+function when(seconds: number, text: Text): string {
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  return seconds * 1000 >= today.getTime() ? shortTime(seconds * 1000) : updatedTime(seconds);
+  return seconds * 1000 >= today.getTime() ? shortTime(seconds * 1000) : dayLabel(seconds, text);
 }
 
 /** What kind of thing a call is, in the reader's words. */
@@ -252,7 +252,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     if (!latestRun) return mainIssues.length
       ? { label: text(`${mainIssues.length} to handle`, `有 ${mainIssues.length} 项待处理`), tone: "warn" }
       : { label: text("No runs yet", "还没有运行"), tone: "muted" };
-    const at = when(latestRun.terminal_at ?? latestRun.updated_at ?? startedAt(latestRun));
+    const at = when(latestRun.terminal_at ?? latestRun.updated_at ?? startedAt(latestRun), text);
     if (mainIssues.length && latestRun.status !== "paused") return { label: `${text(`${mainIssues.length} to handle`, `有 ${mainIssues.length} 项待处理`)} · ${text("last", "上次")} ${at}`, tone: "warn" };
     if (latestRun.status === "paused" || executionPending(latestRun)) return { label: `${executionState(latestRun, text)} · ${at}`, tone: "warn" };
     if (latestRun.status === "completed" || latestRun.status === "reconciliation_required") return { label: `${text("Idle", "空闲")} · ${text("last", "上次")} ${at}`, tone: "muted" };
@@ -303,17 +303,17 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     const live = activeIn(ids);
     const runningCall = calls.filter(entry => ids.has(entry.execution_id) && entry.status === "running").at(-1);
     const status = issues.length
-      ? issues.length === 1 && issues[0].kind === "call" ? `${text("Stopped", "已停止")} · ${when(issues[0].at)}` : text(`${issues.length} to handle`, `有 ${issues.length} 项待处理`)
+      ? issues.length === 1 && issues[0].kind === "call" ? `${text("Stopped", "已停止")} · ${when(issues[0].at, text)}` : text(`${issues.length} to handle`, `有 ${issues.length} 项待处理`)
       : live
         ? `${runningCall ? `${text("Running", "正在运行")} ${runningCall.description || runningCall.name}` : text("Running", "正在运行")} · ${duration(now - startedAt(item), text)}`
-        : `${executionState(item, text)} · ${when(startedAt(item))}`;
+        : `${executionState(item, text)} · ${when(startedAt(item), text)}`;
     return <Row key={`agent:${item.execution_id}`} depth={depth} glyph={<Glyph name="bot" tone="agent" />} title={agentName(item)}
       status={status} tone={issues.length ? "warn" : live ? "run" : executionTone(item)}
       onOpen={() => open({ kind: "run", id: item.execution_id })} />;
   }
   function spawnRow(item: AgentCall, depth = 0): ReactNode {
     return <Row key={`spawn:${item.id}`} depth={depth} glyph={<Glyph name="bot" tone="agent" />} title={item.description || text("Sub-agent", "子代理")}
-      status={`${spawnState(item, text)} · ${when(item.at)}`} tone={item.failed ? "err" : "muted"}
+      status={`${spawnState(item, text)} · ${when(item.at, text)}`} tone={item.failed ? "err" : "muted"}
       onOpen={() => open({ kind: "spawn", id: item.id })} />;
   }
   function callRow(item: ActiveToolCall, withKind = true): ReactNode {
@@ -325,12 +325,12 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   }
   function programRow(item: ManagedProcess): ReactNode {
     return <Row key={`program:${item.id}`} glyph={<Glyph name="code-square" tone="shell" />} title={programName(item, text)}
-      status={`${programState(item, text)} · ${processIsActive(item) ? duration(now - item.started_at, text) : when(item.started_at)}`} tone={programTone(item)}
+      status={`${programState(item, text)} · ${processIsActive(item) ? duration(now - item.started_at, text) : when(item.started_at, text)}`} tone={programTone(item)}
       onOpen={() => open({ kind: "program", id: item.id })} />;
   }
   function runRow(item: ExecutionSnapshot): ReactNode {
     return <Row key={`execution:${item.execution_id}`} glyph={<RunGlyph />} title={runTitle(item)}
-      status={`${executionState(item, text)} · ${when(startedAt(item))}`} tone={executionTone(item)}
+      status={`${executionState(item, text)} · ${when(startedAt(item), text)}`} tone={executionTone(item)}
       onOpen={() => open({ kind: "run", id: item.execution_id })} />;
   }
   function childRow(item: ExecutionSnapshot): ReactNode {
