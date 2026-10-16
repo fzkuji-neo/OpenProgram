@@ -163,6 +163,22 @@ def test_a_sub_agent_branch_names_the_way_back_to_the_conversation():
     assert _spawned_branch("a2", rows) is None
 
 
+def test_a_branch_stopped_before_its_card_is_named_by_its_agent_call():
+    import json
+
+    from openprogram_server._webui.ws_actions.session import _spawned_branch
+
+    rows = [row for row in _spawn_rows() if row["id"] != "card"]
+    rows[-2]["content"] = "Check the close path"
+    for prompt, description in (("Other work", "Write docs"), ("Check the close path", "Fix page close")):
+        rows.append({
+            "id": f"call-{description}", "role": "tool", "function": "agent", "caller": "a1",
+            "extra": json.dumps({"tool_use": {"name": "agent", "arguments": json.dumps(
+                {"prompt": prompt, "description": description})}}),
+        })
+    assert _spawned_branch("j_a_user_reply", rows)["label"] == "Fix page close"
+
+
 def test_a_job_branch_root_without_a_pointer_head_gets_its_spawn_origin():
     from openprogram_server._webui.ws_actions.session import _annotate_spawn_origin
 

@@ -90,11 +90,12 @@ agent reaches a terminal status.
 
 ## The way back
 
-On an agent's branch the transcript shows the sub-agent branch banner
-("Back to main conversation") and, above the branch's first prompt, the
-Spawned-from card with its Switch. Both return to the newest turn below
-the spawning reply, not to the spawning reply itself, which would hide
-later turns.
+On an agent's branch the transcript shows the sub-agent branch banner:
+the agent's name and **Back to main conversation**. It is the only way
+back there; the Spawned-from card above the branch's first prompt stays
+out while that branch is the one on screen, since it would repeat the
+banner. The banner returns to the newest turn below the spawning reply,
+not to the spawning reply itself, which would hide later turns.
 
 A bounded session load ships no graph, so `session_loaded` carries
 `spawned_branch {root_id, caller_id, back_target, first_reply, label}`
@@ -103,5 +104,7 @@ branch root is the user row with `source=agent_spawn` and no
 predecessor; its `caller` is the spawning reply. The root's
 `spawned_from` annotation needs no pointer head either: a Job spawn's
 root is found the same way, and its label comes from the spawn card with
-the matching `job_id`.
+the matching `job_id`. A run stopped mid-call writes no spawn card, so
+the label then falls back to the `description` of the spawning reply's
+`agent` call whose prompt opened the branch.
 

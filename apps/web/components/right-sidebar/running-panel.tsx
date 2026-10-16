@@ -102,7 +102,7 @@ function executionState(item: ExecutionSnapshot, text: Text): string {
   return text(...({
     queued: ["Waiting to start", "等待开始"], running: ["Running", "正在运行"], pausing: ["Pausing", "正在暂停"],
     paused: ["Paused", "已暂停"], cancelling: ["Stopping", "正在停止"],
-    reconciliation_required: executionPending(item) ? ["Result unconfirmed", "结果待确认"] : ["Ended", "已结束"],
+    reconciliation_required: executionPending(item) ? ["Stopped", "已停止"] : ["Ended", "已结束"],
     completed: ["Completed", "已完成"], failed: ["Failed", "失败"], cancelled: ["Stopped", "已停止"], interrupted: ["Interrupted", "中断"],
   }[item.status] as [string, string] | undefined || ["Status unavailable", "状态不可用"]));
 }
@@ -177,7 +177,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   };
   /** The sub-agent an `agent` call started, when it is listed. */
   const agentOf = (entry: ActiveToolCall) => entry.name === "agent" ? spawnedBy(entry, model.childrenOf(entry.execution_id)) : null;
-  /** What waits on the reader inside an agent, including the unconfirmed call that started it. */
+  /** What waits on the reader inside an agent, including the stopped call that started it. */
   const issuesOf = (item: ExecutionSnapshot) => {
     const ids = subtreeOf(item);
     return model.issues.filter(issue => issue.kind === "call"
@@ -201,8 +201,8 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     setPending(item.execution_id); setActionError(null);
     try {
       const result = await state.command(buildExecutionCommand(item, "cancel", newCommandId()));
-      if (result && result.status === "rejected") setActionError(text("The run could not be ended. Its status updates automatically.", "没能结束这次运行，状态会自动更新。"));
-    } catch { setActionError(text("The run could not be ended. Its status updates automatically.", "没能结束这次运行，状态会自动更新。")); }
+      if (result && result.status === "rejected") setActionError(text("The run could not be marked as ended. Its status updates automatically.", "没能标为已结束，状态会自动更新。"));
+    } catch { setActionError(text("The run could not be marked as ended. Its status updates automatically.", "没能标为已结束，状态会自动更新。")); }
     finally { setPending(null); }
   }
 
@@ -221,7 +221,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     const live = activeIn(ids);
     const runningCall = (processes.calls || []).filter(entry => ids.has(entry.execution_id) && entry.status === "running").at(-1);
     const status = issues.length
-      ? issues.length === 1 && issues[0].kind === "call" ? text("Result unconfirmed", "结果待确认") : text(`${issues.length} to handle`, `有 ${issues.length} 项待处理`)
+      ? issues.length === 1 && issues[0].kind === "call" ? text("Stopped", "已停止") : text(`${issues.length} to handle`, `有 ${issues.length} 项待处理`)
       : live
         ? `${runningCall ? `${text("Running", "正在运行")} ${runningCall.name}` : text("Running", "正在运行")} · ${duration(now - startedAt(item), text)}`
         : `${executionState(item, text)} · ${shortTime(startedAt(item) * 1000)}`;
@@ -231,7 +231,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   }
   function callRow(item: ActiveToolCall, withKind = true): ReactNode {
     const look = presentTool(item.name, undefined, text);
-    const phase = item.status === "running" ? `${text("Running", "正在运行")} · ${duration(now - item.started_at, text)}` : text("Result unconfirmed", "结果待确认");
+    const phase = item.status === "running" ? `${text("Running", "正在运行")} · ${duration(now - item.started_at, text)}` : text("Stopped", "已停止");
     return <Row key={`call:${item.id}`} glyph={<Glyph name={look.icon} tone={look.tone} />} title={item.description || item.name}
       status={withKind ? `${callKind(item, text)} · ${phase}` : phase} tone={item.status === "running" ? "run" : "warn"}
       onOpen={() => open({ kind: "call", id: item.id })} />;
@@ -253,11 +253,11 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     if (issue.kind === "call") {
       const job = agentOf(issue.call);
       if (job) return <Row key={issue.key} glyph={<Glyph name="bot" tone="agent" />} title={agentName(job)}
-        status={`${text("Sub-agent result unconfirmed", "子代理结果待确认")} · ${dayLabel(issue.at, text)}`} tone="warn"
+        status={`${text("Sub-agent stopped", "子代理已停止")} · ${dayLabel(issue.at, text)}`} tone="warn"
         onOpen={() => open({ kind: "run", id: job.execution_id })} />;
       const look = presentTool(issue.call.name, undefined, text);
       return <Row key={issue.key} glyph={<Glyph name={look.icon} tone={look.tone} />} title={issue.call.description || issue.call.name}
-        status={`${callKind(issue.call, text)}${text(" result unconfirmed", "结果待确认")} · ${dayLabel(issue.at, text)}`} tone="warn"
+        status={`${callKind(issue.call, text)}${text(" stopped", "已停止")} · ${dayLabel(issue.at, text)}`} tone="warn"
         onOpen={() => open({ kind: "call", id: issue.call.id })} />;
     }
     if (issue.kind === "program") {
@@ -277,18 +277,18 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     const owner = issue.kind === "call" ? issue.owner : issue.kind === "execution" ? issue.execution : null;
     if (issue.kind === "call") {
       const name = issue.call.description || issue.call.name;
-      heading = here === "call" || here === "agent" ? "" : text(`${callKind(issue.call, text)} "${name}": result unconfirmed`, `${callKind(issue.call, text)}“${name}”结果待确认`);
+      heading = here === "call" || here === "agent" ? "" : text(`${callKind(issue.call, text)} "${name}" stopped`, `${callKind(issue.call, text)}“${name}”已停止`);
       body = here === "agent"
-        ? text("The run stopped while this sub-agent was working, so whether it finished is not known.", "运行在这个子代理工作途中中断，不确定它有没有做完。")
-        : text("The run stopped while this call was out, so whether it finished is not known.", "运行在这次调用途中中断，不确定它有没有做完。");
+        ? text("The run stopped before this sub-agent finished.", "运行停止了，这个子代理没有做完。")
+        : text("The run stopped before this call returned.", "运行在这次调用返回前停止了。");
       const job = issue.owner && issue.call.name === "agent" ? spawnedBy(issue.call, model.childrenOf(issue.owner.execution_id)) : null;
       if (job && here !== "agent") actions.push(<Button key="agent" variant="elevated" size="sm" onClick={() => void openAgentConversation(job)}>{text("Open its conversation", "打开它的对话")}</Button>);
     } else if (issue.kind === "execution") {
       const waiting = issue.execution.status === "paused";
-      heading = waiting ? text("Waiting for you", "在等你处理") : text("An action's result is unconfirmed", "有一个操作结果待确认");
+      heading = waiting ? text("Waiting for you", "在等你处理") : text("Stopped during an action", "在一个操作途中停止了");
       body = waiting
         ? text("This run paused on a question or an approval.", "这次运行停在一个问题或审批上。")
-        : text("The run stopped while an action was out, so whether it took effect is not known.", "运行在一个操作途中中断，不确定它有没有生效。");
+        : text("The run stopped before an action returned.", "运行在一个操作返回前停止了。");
       actions.push(<Button key="tech" variant="elevated" size="sm" onClick={() => openTech(issue.execution.execution_id)}>{waiting ? text("Answer", "去处理") : text("See details", "查看详情")}</Button>);
     } else {
       heading = here === "program" ? "" : text(`Program "${programName(issue.program, text)}": state unconfirmed`, `后台程序“${programName(issue.program, text)}”状态待确认`);
@@ -297,7 +297,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     }
     if (owner && executionPending(owner) && canExecuteAction(owner, "cancel")) {
       actions.push(<Button key="end" variant="elevated" size="sm" disabled={pending === owner.execution_id} onClick={() => void endRun(owner)}>
-        {pending === owner.execution_id ? text("Ending…", "正在结束…") : text("End this run", "结束这次运行")}</Button>);
+        {pending === owner.execution_id ? text("Marking…", "正在标记…") : text("Mark as ended", "标为已结束")}</Button>);
     }
     return <div className={styles.issue} key={issue.key}>
       {heading && <h4 className={styles.issueTitle}>{heading}</h4>}
@@ -344,7 +344,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
         <div className={styles.head}>
           <div className={styles.kind}>{agent ? text("Sub-agent", "子代理") : isRoot ? text("Run", "一次运行") : text("Branch", "分支")} · {updatedTime(startedAt(item))} · {text("took", "用时")} {duration(end - startedAt(item), text)}</div>
           <h3 className={styles.title}>{agent ? agentName(item) : runTitle(item)}</h3>
-          <Status tone={issues.length ? "warn" : executionTone(item)}>{issues.length ? agent && issues.length === 1 && issues[0].kind === "call" ? text("Result unconfirmed", "结果待确认") : text(`${issues.length} to handle`, `有 ${issues.length} 项待处理`) : executionState(item, text)}</Status>
+          <Status tone={issues.length ? "warn" : executionTone(item)}>{issues.length ? agent && issues.length === 1 && issues[0].kind === "call" ? text("Stopped", "已停止") : text(`${issues.length} to handle`, `有 ${issues.length} 项待处理`) : executionState(item, text)}</Status>
         </div>
         {issues.map(issue => issueBlock(issue, agent ? "agent" : "run"))}
         {agent && <div className={styles.actions} data-inline="1">
@@ -380,7 +380,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
         <div className={styles.head}>
           <div className={styles.kind}><Glyph name={look.icon} tone={look.tone} />{callKind(item, text)} · {updatedTime(item.started_at)}</div>
           <h3 className={styles.title}>{item.description || item.name}</h3>
-          <Status tone={item.status === "running" ? "run" : "warn"}>{item.status === "running" ? `${text("Running", "正在运行")} · ${duration(now - item.started_at, text)}` : text("Result unconfirmed", "结果待确认")}</Status>
+          <Status tone={item.status === "running" ? "run" : "warn"}>{item.status === "running" ? `${text("Running", "正在运行")} · ${duration(now - item.started_at, text)}` : text("Stopped", "已停止")}</Status>
         </div>
         {issue && issueBlock(issue, "call")}
         {actionError && <p role="alert" className={styles.error}>{actionError}</p>}

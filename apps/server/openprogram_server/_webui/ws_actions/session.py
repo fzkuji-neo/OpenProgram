@@ -217,6 +217,35 @@ def _annotate_spawn_origin(graph: list[dict], messages: list[dict] | None = None
             }
 
 
+def _spawning_call_description(root: dict, caller: str, messages: list[dict]) -> str | None:
+    """The ``description`` of the ``agent`` call that started a branch.
+
+    The attach row naming the branch is written when the call returns; a
+    run stopped mid-call never writes one, so the call itself names it.
+    The call is the caller's ``agent`` row whose prompt opened the branch,
+    or its only one.
+    """
+    calls = []
+    for m in messages:
+        if m.get("caller") != caller or m.get("function") != "agent":
+            continue
+        extra = m.get("extra")
+        try:
+            extra = json.loads(extra) if isinstance(extra, str) else extra
+            arguments = (extra or {}).get("tool_use", {}).get("arguments")
+            arguments = json.loads(arguments) if isinstance(arguments, str) else arguments
+        except (json.JSONDecodeError, TypeError, AttributeError):
+            continue
+        if isinstance(arguments, dict):
+            calls.append(arguments)
+    prompt = str(root.get("content") or "").strip()
+    match = next((a for a in calls if str(a.get("prompt") or "").strip() == prompt), None)
+    if match is None and len(calls) == 1:
+        match = calls[0]
+    description = (match or {}).get("description")
+    return description.strip() if isinstance(description, str) and description.strip() else None
+
+
 def _spawned_branch(head: str | None, messages: list[dict]) -> dict | None:
     """Where a sub-agent branch came from, when the head is on one.
 
@@ -274,6 +303,8 @@ def _spawned_branch(head: str | None, messages: list[dict]) -> dict | None:
         if job_id and f"{job_id}_user" == root["id"]:
             label = _extract_attach_label(m)
             break
+    if label is None:
+        label = _spawning_call_description(root, caller, messages)
     return {
         "root_id": root["id"],
         "caller_id": caller,
