@@ -1,11 +1,12 @@
 "use client";
 
 /**
- * Activity: the conversation's agent branches. The main agent comes
- * first, the sub-agents it started hang under it as a tree, and each row
- * opens a page; what needs the reader is listed above them and background
- * programs below. The arrow at the top goes back one level. Nothing expands
- * in place and no group folds.
+ * Activity: two lists. Agents holds the main agent and every sub-agent,
+ * as a tree under the agent that started each or newest first, with a menu
+ * that filters and arranges it; an agent that needs the reader stays in
+ * place with a warning status. Programs and commands holds the shell calls
+ * and background programs. Each row opens a page and the arrow at the top
+ * goes back one level. Nothing expands in place and no group folds.
  */
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { ChevronRight, MessageSquareText } from "lucide-react";
@@ -15,13 +16,15 @@ import { useExecutionDebugger } from "@/lib/execution/use-execution-debugger";
 import { useManagedProcesses } from "@/lib/execution/use-managed-processes";
 import { processIsActive, stopProcess, type ActiveToolCall, type AgentCall, type ManagedProcess } from "@/lib/net/process-client";
 import { buildExecutionCommand, canExecuteAction, newCommandId, type ExecutionSnapshot } from "@/lib/execution/execution-debugger";
-import { activityModel, agentBranches, executionPending, spawnedBy, startedAt, type ActivityIssue } from "@/lib/execution/activity-model";
+import { activityModel, agentBranches, executionPending, pruneBranches, spawnedBy, startedAt, type ActivityIssue, type BranchRow } from "@/lib/execution/activity-model";
+import { useActivityView } from "@/lib/prefs/activity-view";
 import { loadSubAgentTranscript } from "@/lib/chat/sub-agent-transcripts";
 import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
 import { SolarIcon, type SolarIconName } from "@/components/solar-icons";
 import { presentTool, type ToolTone } from "@/components/chat/messages/tool-presentation";
 import { SectionHeader } from "@/components/sidebar/section-header";
 import { Button } from "@/components/ui/button";
+import { AgentsViewMenu } from "./agents-view-menu";
 import { DebuggerPanel } from "./debugger-panel";
 import { SidebarNotice } from "./sidebar-notice";
 import { executionTitle, shortTime, updatedTime } from "./debugger-presentation";
@@ -161,12 +164,14 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   const state = useExecutionDebugger(active, sessionId, undefined, view?.kind === "tech");
   const processes = useManagedProcesses(active, sessionId, view?.kind === "program" ? view.id : null);
   const conversationTitle = useSessionStore(s => (sessionId ? s.conversations[sessionId]?.title : undefined) || "");
+  const listView = useActivityView();
   const [shown, setShown] = useState(PAGE);
   const [programsShown, setProgramsShown] = useState(PAGE);
   const [taskOpen, setTaskOpen] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   useEffect(() => { setStack([]); setShown(PAGE); setProgramsShown(PAGE); }, [sessionId]);
+  useEffect(() => { setShown(PAGE); }, [listView.show, listView.arrange]);
   useEffect(() => { setTaskOpen(false); setActionError(null); }, [view?.kind, view?.id]);
 
   const readFailed = processes.stale || (
@@ -304,35 +309,53 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     const { label, tone } = mainStatus();
     return <Row key="main" glyph={<Glyph name="bot" tone="agent" />} title={mainName} status={label} tone={tone} onOpen={() => open({ kind: "main", id: "main" })} />;
   }
-  function agentRow(item: ExecutionSnapshot, line?: Line): ReactNode {
+  /** An agent's status line: what waits on the reader first, then what runs. */
+  function agentLook(item: ExecutionSnapshot): { label: string; tone: Tone; at: number } {
     const ids = subtreeOf(item);
     const issues = issuesOf(item);
     const live = activeIn(ids);
     const runningCall = calls.filter(entry => ids.has(entry.execution_id) && entry.status === "running").at(-1);
-    const status = issues.length
-      ? issues.length === 1 && issues[0].kind === "call" ? `${text("Stopped", "已停止")} · ${when(issues[0].at, text)}` : text(`${issues.length} to handle`, `有 ${issues.length} 项待处理`)
-      : live
-        ? `${runningCall ? `${text("Running", "正在运行")} ${runningCall.description || runningCall.name}` : text("Running", "正在运行")} · ${duration(now - startedAt(item), text)}`
-        : `${executionState(item, text)} · ${when(startedAt(item), text)}`;
+    if (issues.length) return {
+      label: issues.length === 1 && issues[0].kind === "call" ? `${text("Stopped", "已停止")} · ${when(issues[0].at, text)}` : text(`${issues.length} to handle`, `有 ${issues.length} 项待处理`),
+      tone: "warn", at: live ? now : startedAt(item),
+    };
+    if (live) return {
+      label: `${runningCall ? `${text("Running", "正在运行")} ${runningCall.description || runningCall.name}` : text("Running", "正在运行")} · ${duration(now - startedAt(item), text)}`,
+      tone: "run", at: now,
+    };
+    return { label: `${executionState(item, text)} · ${when(startedAt(item), text)}`, tone: executionTone(item), at: startedAt(item) };
+  }
+  /** Who started a branch, appended when the list is not a tree. */
+  const startedBy = (owner: string | null) => {
+    const agent = owner ? execution(owner) : null;
+    const name = agent ? agentName(agent) : mainName;
+    return text(` · by ${name}`, ` · ${name}启动`);
+  };
+  function agentRow(item: ExecutionSnapshot, line?: Line, by = false): ReactNode {
+    const { label, tone } = agentLook(item);
     return <Row key={`agent:${item.execution_id}`} line={line} glyph={<Glyph name="bot" tone="agent" />} title={agentName(item)}
-      status={status} tone={issues.length ? "warn" : live ? "run" : executionTone(item)}
+      status={by ? label + startedBy(branches.agentParentOf(item)) : label} tone={tone}
       onOpen={() => open({ kind: "run", id: item.execution_id })} />;
   }
-  function spawnRow(item: AgentCall, line?: Line): ReactNode {
+  function spawnRow(item: AgentCall, line?: Line, by = false): ReactNode {
+    const label = `${spawnState(item, text)} · ${when(item.at, text)}`;
     return <Row key={`spawn:${item.id}`} line={line} glyph={<Glyph name="bot" tone="agent" />} title={item.description || text("Sub-agent", "子代理")}
-      status={`${spawnState(item, text)} · ${when(item.at, text)}`} tone={item.failed ? "err" : "muted"}
+      status={by ? label + startedBy(item.owner_job_id) : label} tone={item.failed ? "err" : "muted"}
       onOpen={() => open({ kind: "spawn", id: item.id })} />;
   }
   function callRow(item: ActiveToolCall, withKind = true): ReactNode {
     const look = presentTool(item.name, undefined, text);
-    const phase = item.status === "running" ? `${text("Running", "正在运行")} · ${duration(now - item.started_at, text)}` : text("Stopped", "已停止");
+    const phase = item.status === "running"
+      ? `${text("Running", "正在运行")} · ${duration(now - item.started_at, text)}`
+      : `${text("Stopped", "已停止")} · ${when(item.started_at, text)}`;
     return <Row key={`call:${item.id}`} glyph={<Glyph name={look.icon} tone={look.tone} />} title={item.description || item.name}
       status={withKind ? `${callKind(item, text)} · ${phase}` : phase} tone={item.status === "running" ? "run" : "warn"}
       onOpen={() => open({ kind: "call", id: item.id })} />;
   }
-  function programRow(item: ManagedProcess): ReactNode {
+  function programRow(item: ManagedProcess, withKind = false): ReactNode {
+    const phase = `${programState(item, text)} · ${processIsActive(item) ? duration(now - item.started_at, text) : when(item.started_at, text)}`;
     return <Row key={`program:${item.id}`} glyph={<Glyph name="code-square" tone="shell" />} title={programName(item, text)}
-      status={`${programState(item, text)} · ${processIsActive(item) ? duration(now - item.started_at, text) : when(item.started_at, text)}`} tone={programTone(item)}
+      status={withKind ? `${text("Background program", "后台程序")} · ${phase}` : phase} tone={programTone(item)}
       onOpen={() => open({ kind: "program", id: item.id })} />;
   }
   function runRow(item: ExecutionSnapshot): ReactNode {
@@ -346,29 +369,9 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       status={`${text("Branch", "分支")} · ${executionState(item, text)}`} tone={executionTone(item)}
       onOpen={() => open({ kind: "run", id: item.execution_id })} />;
   }
-  function issueRow(issue: ActivityIssue): ReactNode {
-    if (issue.kind === "call") {
-      const job = agentOf(issue.call);
-      if (job) return <Row key={issue.key} glyph={<Glyph name="bot" tone="agent" />} title={agentName(job)}
-        status={`${text("Sub-agent stopped", "子代理已停止")} · ${dayLabel(issue.at, text)}`} tone="warn"
-        onOpen={() => open({ kind: "run", id: job.execution_id })} />;
-      const look = presentTool(issue.call.name, undefined, text);
-      return <Row key={issue.key} glyph={<Glyph name={look.icon} tone={look.tone} />} title={issue.call.description || issue.call.name}
-        status={`${callKind(issue.call, text)}${text(" stopped", "已停止")} · ${dayLabel(issue.at, text)}`} tone="warn"
-        onOpen={() => open({ kind: "call", id: issue.call.id })} />;
-    }
-    if (issue.kind === "program") {
-      return <Row key={issue.key} glyph={<Glyph name="code-square" tone="shell" />} title={programName(issue.program, text)}
-        status={`${text("Program state unconfirmed", "后台程序状态待确认")} · ${dayLabel(issue.at, text)}`} tone="warn"
-        onOpen={() => open({ kind: "program", id: issue.program.id })} />;
-    }
-    return <Row key={issue.key} glyph={issue.execution.status === "paused" ? <Glyph name="chat-round-question-mark" tone="run" /> : <RunGlyph />}
-      title={runTitle(issue.execution)} status={`${executionState(issue.execution, text)} · ${dayLabel(issue.at, text)}`} tone="warn"
-      onOpen={() => open({ kind: "run", id: issue.execution.execution_id })} />;
-  }
 
   // ---- issue block on a page --------------------------------------------------
-  function issueBlock(issue: ActivityIssue, here: "run" | "agent" | "call" | "program"): ReactNode {
+  function issueBlock(issue: ActivityIssue, here: "main" | "run" | "agent" | "call" | "program"): ReactNode {
     let heading = "", body = "";
     const actions: ReactNode[] = [];
     const owner = issue.kind === "call" ? issue.owner : issue.kind === "execution" ? issue.execution : null;
@@ -382,7 +385,11 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       if (job && here !== "agent") actions.push(<Button key="agent" variant="elevated" size="sm" onClick={() => void openAgentConversation(job)}>{text("Open its conversation", "打开它的对话")}</Button>);
     } else if (issue.kind === "execution") {
       const waiting = issue.execution.status === "paused";
-      heading = waiting ? text("Waiting for you", "在等你处理") : text("Stopped during an action", "在一个操作途中停止了");
+      // The main agent's page gathers several runs, so each block names its run.
+      const title = runTitle(issue.execution);
+      heading = here === "main"
+        ? waiting ? text(`"${title}" is waiting for you`, `“${title}”在等你处理`) : text(`"${title}" stopped during an action`, `“${title}”在一个操作途中停止了`)
+        : waiting ? text("Waiting for you", "在等你处理") : text("Stopped during an action", "在一个操作途中停止了");
       body = waiting
         ? text("This run paused on a question or an approval.", "这次运行停在一个问题或审批上。")
         : text("The run stopped before an action returned.", "运行在一个操作返回前停止了。");
@@ -429,7 +436,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     const { label, tone } = mainStatus();
     const agents = branches.agentsUnder(null);
     const failed = failedSpawns(null);
-    const runningHere = [...mainCalls.filter(entry => !agentOf(entry)).map(entry => callRow(entry)), ...mainPrograms.map(programRow)];
+    const runningHere = [...mainCalls.filter(entry => !agentOf(entry)).map(entry => callRow(entry)), ...mainPrograms.map(entry => programRow(entry))];
     return <div className={styles.panel}>
       {backBar(toActivity)}
       <div className={styles.scroll}>
@@ -438,7 +445,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
           <h3 className={styles.title}>{conversationTitle || mainName}</h3>
           <Status tone={tone}>{label}</Status>
         </div>
-        {mainIssues.map(issue => issueBlock(issue, "run"))}
+        {mainIssues.map(issue => issueBlock(issue, "main"))}
         {actionError && <p role="alert" className={styles.error}>{actionError}</p>}
         {runningHere.length > 0 && <><h4 className={styles.section}>{text("Running now", "正在做")}</h4>{runningHere}</>}
         {latestRun && <><h4 className={styles.section}>{text("Latest run", "最近一次运行")}</h4>{runRow(latestRun)}</>}
@@ -497,7 +504,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
         {kids.length + nested.length + ownCalls.length + ownPrograms.length + failed.length === 0
           ? <p className={styles.empty}>{text("No sub-agents, open calls or background programs.", "没有子代理、未返回的调用或后台程序。")}</p>
           : <>{ownCalls.map(entry => callRow(entry))}{kids.filter(entry => !isAgent(entry)).map(childRow)}
-            {startedNewestFirst([...kids.filter(isAgent), ...nested], failed)}{ownPrograms.map(programRow)}</>}
+            {startedNewestFirst([...kids.filter(isAgent), ...nested], failed)}{ownPrograms.map(entry => programRow(entry))}</>}
         <Button variant="ghost" className={styles.techRow} onClick={() => openTech(item.execution_id)}>
           {text("Technical details", "技术详情")}<ChevronRight size={13} aria-hidden="true" />
         </Button>
@@ -592,14 +599,45 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   }
 
   // ---- overview ----------------------------------------------------------------
-  // Messages live in the chat; Activity lists the conversation's agent
-  // branches, its background programs and what needs the reader.
-  // A call that never started a sub-agent sits where that sub-agent would.
+  // Messages live in the chat. Agents lists the main agent and its
+  // sub-agents; a call that never started a sub-agent sits where that
+  // sub-agent would. Programs and commands lists what they run in a shell.
   const tree = branches.tree<AgentCall>(owner => failedSpawns(owner).map(leaf => ({ at: leaf.at, leaf })));
-  const visible = tree.slice(0, shown);
   const showMain = Boolean(latestRun) || tree.length > 0 || mainLive;
-  const programs = [...processes.items].sort((a, b) => Number(processIsActive(b)) - Number(processIsActive(a)) || b.started_at - a.started_at);
-  const empty = state.fetchedAt && processes.loaded && !model.issues.length && !showMain && !programs.length;
+  const main = mainStatus();
+  const mainAt = mainLive ? now : latestRun ? latestRun.terminal_at ?? latestRun.updated_at ?? startedAt(latestRun) : 0;
+  const rowKey = (row: BranchRow<AgentCall>) => row.kind === "agent" ? row.item.execution_id : `spawn:${row.leaf.id}`;
+  const looks = new Map(tree.map(row => [rowKey(row), row.kind === "agent" ? agentLook(row.item) : { tone: (row.leaf.failed ? "err" : "muted") as Tone, at: row.leaf.at }]));
+  const lookOf = (row: BranchRow<AgentCall>) => looks.get(rowKey(row)) ?? { tone: "muted" as Tone, at: 0 };
+  const shows = (tone: Tone) => listView.show === "all" || (listView.show === "attention" ? tone === "warn" : tone === "run");
+  const mainShown = shows(main.tone);
+  // By structure the tree keeps the branches above a match, and the main
+  // agent stays as its root; by time it is one list, latest first.
+  const rows = listView.arrange === "structure"
+    ? listView.show === "all" ? tree : pruneBranches(tree, row => shows(lookOf(row).tone))
+    : tree.filter(row => shows(lookOf(row).tone)).sort((a, b) => lookOf(b).at - lookOf(a).at);
+  const mainFirst = listView.arrange === "structure" ? mainShown || rows.length > 0 : mainShown && (rows.length === 0 || mainAt >= lookOf(rows[0]).at);
+  const visible = rows.slice(0, shown);
+  const flatRows: ReactNode[] = visible.map(row => row.kind === "agent" ? agentRow(row.item, undefined, true) : spawnRow(row.leaf, undefined, true));
+  if (listView.arrange === "time" && mainShown && !mainFirst) {
+    const at = visible.findIndex(row => lookOf(row).at < mainAt);
+    flatRows.splice(at < 0 ? flatRows.length : at, 0, mainRow());
+  }
+  // Shell work: running and stopped calls that are not sub-agents, and
+  // background programs, live first, then what needs the reader, then the rest.
+  const shellCalls = calls.filter(entry => presentTool(entry.name, undefined, text).tone !== "agent" && !agentOf(entry)
+    && (entry.status === "running" || model.issues.some(issue => issue.kind === "call" && issue.call.id === entry.id)));
+  const rank = (tone: Tone) => tone === "run" ? 0 : tone === "warn" ? 1 : 2;
+  const work = [
+    ...shellCalls.map(entry => ({ tone: (entry.status === "running" ? "run" : "warn") as Tone, at: entry.started_at, node: callRow(entry) })),
+    ...processes.items.map(entry => ({ tone: programTone(entry), at: entry.started_at, node: programRow(entry, true) })),
+  ].sort((a, b) => rank(a.tone) - rank(b.tone) || b.at - a.at);
+  const empty = state.fetchedAt && processes.loaded && !model.issues.length && !showMain && !work.length;
+  const filteredOut = text(...({
+    attention: ["No agent needs you.", "没有需要处理的 agent。"],
+    running: ["No agent is running.", "没有正在运行的 agent。"],
+    all: ["", ""],
+  }[listView.show] as [string, string]));
   return <section className={styles.panel} aria-label={text("Conversation activity", "会话运行记录")}>
     {readFailed && readNotice?.sessionId === sessionId && <p role="status" className={`${styles.notice} ${readNotice.persistent && !hasRead ? styles.error : ""}`}>{hasRead
       ? text("Updating status… Showing saved records.", "正在更新状态，当前显示上次记录。")
@@ -608,30 +646,28 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
         : text("Loading activity… Retrying automatically.", "正在加载运行记录，自动重试中。")}</p>}
     <div className={styles.scroll}>
       {!hasRead && !processes.stale && state.connection.state === "reconnecting" ? <SidebarNotice>{text("Loading…", "加载中…")}</SidebarNotice> : null}
-      {model.issues.length > 0 && <div className="group/sec">
-        <SectionHeader name={text("Needs you", "要你处理")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} actions={<span className={styles.count}>{model.issues.length}</span>} />
-        {model.issues.map(issueRow)}
-      </div>}
       {showMain && <div className="group/sec">
-        <SectionHeader name={text("Agent branches", "Agent 分支")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} actions={<span className={styles.count}>{tree.length + 1}</span>} />
-        {mainRow()}
-        {visible.map((entry, index) => {
-          // A cut-off page keeps the line running to the paging button.
-          const line = { depth: entry.depth, guides: entry.guides, last: entry.last && !(index === visible.length - 1 && tree.length > shown) };
-          return entry.kind === "agent" ? agentRow(entry.item, line) : spawnRow(entry.leaf, line);
-        })}
-        {tree.length > shown && <button type="button" className={styles.more} data-depth="1" onClick={() => setShown(value => value + 50)}>
-          {text(`Show ${Math.min(50, tree.length - shown)} earlier`, `显示更早的 ${Math.min(50, tree.length - shown)} 个`)}
+        <SectionHeader name={text("Agents", "Agents")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} actions={<AgentsViewMenu />} />
+        {!mainShown && rows.length === 0 && <p className={styles.empty}>{filteredOut}</p>}
+        {listView.arrange === "structure"
+          ? <>{mainFirst && mainRow()}{visible.map((entry, index) => {
+            // A cut-off page keeps the line running to the paging button.
+            const line = { depth: entry.depth, guides: entry.guides, last: entry.last && !(index === visible.length - 1 && rows.length > shown) };
+            return entry.kind === "agent" ? agentRow(entry.item, line) : spawnRow(entry.leaf, line);
+          })}</>
+          : <>{mainFirst && mainRow()}{flatRows}</>}
+        {rows.length > shown && <button type="button" className={styles.more} data-depth={listView.arrange === "structure" ? "1" : undefined} onClick={() => setShown(value => value + 50)}>
+          {text(`Show ${Math.min(50, rows.length - shown)} earlier`, `显示更早的 ${Math.min(50, rows.length - shown)} 个`)}
         </button>}
       </div>}
-      {programs.length > 0 && <div className="group/sec">
-        <SectionHeader name={text("Background programs", "后台程序")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} actions={<span className={styles.count}>{programs.length}</span>} />
-        {programs.slice(0, programsShown).map(programRow)}
-        {programs.length > programsShown && <button type="button" className={styles.more} onClick={() => setProgramsShown(value => value + 50)}>
-          {text(`Show ${Math.min(50, programs.length - programsShown)} earlier`, `显示更早的 ${Math.min(50, programs.length - programsShown)} 个`)}
+      {work.length > 0 && <div className="group/sec">
+        <SectionHeader name={text("Programs and commands", "程序和命令")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} />
+        {work.slice(0, programsShown).map(entry => entry.node)}
+        {work.length > programsShown && <button type="button" className={styles.more} onClick={() => setProgramsShown(value => value + 50)}>
+          {text(`Show ${Math.min(50, work.length - programsShown)} earlier`, `显示更早的 ${Math.min(50, work.length - programsShown)} 个`)}
         </button>}
       </div>}
-      {empty && <SidebarNotice>{text("This conversation's agent branches, its background programs and anything that needs you appear here.", "这个会话的 agent 分支、后台程序和需要你处理的事会显示在这里。")}</SidebarNotice>}
+      {empty && <SidebarNotice>{text("This conversation's agents, and the programs and commands they run, appear here.", "这个会话的 agent，以及它们运行的程序和命令，会显示在这里。")}</SidebarNotice>}
     </div>
   </section>;
 }

@@ -210,3 +210,30 @@ export function agentBranches(executions: ExecutionSnapshot[]): AgentBranches {
     },
   };
 }
+
+/** The rows `keep` picks plus the branches above them, so a filtered
+ *  tree still hangs from the main agent; `last` and `guides` are redrawn
+ *  for what is left. */
+export function pruneBranches<T>(rows: BranchRow<T>[], keep: (row: BranchRow<T>) => boolean): BranchRow<T>[] {
+  const kept = rows.map(() => false);
+  rows.forEach((row, index) => {
+    if (!keep(row)) return;
+    kept[index] = true;
+    // Its ancestors: the nearest earlier row at each shallower depth.
+    for (let i = index - 1, depth = row.depth; i >= 0 && depth > 1; i--) {
+      if (rows[i].depth < depth) { kept[i] = true; depth = rows[i].depth; }
+    }
+  });
+  const left = rows.filter((_, index) => kept[index]);
+  const open: boolean[] = [];
+  return left.map((row, index) => {
+    let last = true;
+    for (let j = index + 1; j < left.length && left[j].depth >= row.depth; j++) {
+      if (left[j].depth === row.depth) { last = false; break; }
+    }
+    const guides: number[] = [];
+    for (let depth = 1; depth < row.depth; depth++) if (open[depth]) guides.push(depth);
+    open[row.depth] = !last;
+    return { ...row, last, guides };
+  });
+}
