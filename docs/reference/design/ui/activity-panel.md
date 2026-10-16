@@ -103,7 +103,7 @@ arrow names the page it returns to. Nothing expands in place.
 
 - **Main agent**: the conversation title and its state. Its own issues
   come first, each naming its run, then what it is running now, its **Latest run**, and **Sub-agents it started**, including the calls that
-  failed to start one. **Technical details** opens the latest run.
+  failed to start one; the **Latest run** row opens that run's page.
 - **Sub-agent / run**: kind, start and duration, the name or message, its
   state. Its issues come first, each with its actions as raised pills:
   **Mark as ended** (cancel) when the execution allows it. A pause with a
@@ -111,7 +111,8 @@ arrow names the page it returns to. Nothing expands in place.
   prompt and choices, and **Answer in chat** / **Review in chat** scrolls
   to the composer's decision card (`data-decision-output`) and focuses its
   first control; the choice is made there, not in Activity. A pause with
-  no queued decision offers **Answer**, which opens Technical details. A
+  no queued decision is answered in the run page's own record (below);
+  from the main page, **Answer** / **See the run** opens that page. A
   single such pause reads as "Waiting for your answer" or "Needs your
   approval" in the list and on the page. A sub-agent adds **Open its conversation**,
   **Started by** (the main agent or the sub-agent above it),
@@ -119,8 +120,16 @@ arrow names the page it returns to. Nothing expands in place.
   it**, from its `agent` call. Then what it did: open calls (an `agent`
   call is reached through the sub-agent it started), child executions,
   the sub-agents it started and the ones that failed to start, programs.
-  **Technical details** opens the execution inspector, which alone loads
-  events and debugger data.
+  Last, under **Progress**, the run's own record: the `DebuggerPanel` in
+  its `embedded` layout (no header or scroller of its own), which lists
+  the progress rows first, then the reason and controls the execution
+  allows (pause, continue, step, retry, add instruction, create branch),
+  its open waits, and the raw ids, revisions, checkpoints and events
+  folded under **Technical details**. Opening a run page selects that
+  execution in the inspector hook, which reads events and debugger data
+  only while a run page is open. There is no separate inspector page:
+  a run is one page, and the main agent's page has no inspector of its
+  own.
 - **Failed start**: the call's description, when it was made and that it
   failed to start, a note that it has no conversation, **Started by**, the
   error line and the task.

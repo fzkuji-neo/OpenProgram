@@ -21,6 +21,11 @@
 .executionName, .executionMeta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .executionMeta, .version { font-size: var(--right-panel-meta-size, 12px); color: var(--text-dim); }
 .content { min-width: 0; overflow-y: auto; padding: 8px 16px 16px; }
+/* Inside a run's Activity page: the page scrolls and names the run, so
+   this is a plain column at the page's 8px margins. */
+.embedded { min-width: 0; padding: 0 8px; }
+.embedded .hero { padding: 8px 0 0; }
+.embedded .eventList { max-height: none; }
 .hero { padding: 0 0 16px; }
 .heroTop { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; align-items: start; }
 .heroTop > div { min-width: 0; overflow-wrap: anywhere; }

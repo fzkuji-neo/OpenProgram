@@ -144,15 +144,18 @@ test("an agent page leads with its issue, then where it came from and what it di
     await click("Fix page close");
     let text = host.textContent;
     assert.match(text, /Sub-agent ·.*Fix page close.*Stopped/s);
-    assert.match(text, /before this sub-agent finished.*Mark as ended.*Open its conversation.*From.*check and fix it.*Task given to it.*What it did.*Technical details/s);
+    // The page carries the run's own record (progress, controls, raw
+    // details) after what it did; opening it selects the run.
+    assert.match(text, /before this sub-agent finished.*Mark as ended.*Open its conversation.*From.*check and fix it.*Task given to it.*What it did.*Progress.*DEBUGGER/s);
+    assert.doesNotMatch(text, /Technical details/);
+    assert.deepEqual(selected, ["j_fix"]);
     await click("check and fix it");
     text = host.textContent;
     assert.match(text, /Run ·.*check and fix it.*1 to handle/s);
-    assert.match(text, /Sub-agent "Fix page close" stopped.*What this run did.*Write docs.*Fix page close/s);
+    assert.match(text, /Sub-agent "Fix page close" stopped.*What this run did.*Write docs.*Fix page close.*DEBUGGER/s);
     assert.match(host.textContent, /← Fix page close/);
     await click("Write docs");
-    await click("Technical details");
-    assert.deepEqual(selected, ["j_other"]);
+    assert.deepEqual(selected, ["j_fix", "turn", "j_other"]);
     assert.match(host.textContent, /DEBUGGER/);
   }, [], {}, { calls: [agentCall] });
 });
@@ -201,8 +204,12 @@ test("the main conversation page shows its latest run, the sub-agents it started
     assert.match(text, /← Main agent/);
     assert.match(text, /Upload fix.*Failed to start.*did not start a sub-agent.*Started by.*Main agent.*Error.*JobAgentInputError.*Task given to it.*Fix the upload path/s);
     await click("Main agent");
-    await click("Technical details");
+    // The main page has no inspector of its own: the latest run's row
+    // opens the run, whose page holds the record.
+    assert.doesNotMatch(host.textContent, /Technical details/);
+    await click("prepare the visa form");
     assert.deepEqual(selected, ["latest"]);
+    assert.match(host.textContent, /Run ·.*prepare the visa form.*Completed.*Progress.*DEBUGGER/s);
   }, [], {}, { calls: [agentCall], spawns: [failedSpawn] });
 });
 
