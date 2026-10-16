@@ -546,45 +546,28 @@
   }
 }
 
+/* Frame and rows are the shared menu classes (top-bar/menu-styles.ts
+   MENU_PANEL / itemCls); only placement and the button reset live here. */
 .tabMenu {
   position: fixed;
   z-index: 1000;
   width: 200px;
   box-sizing: border-box;
-  padding: 0.25rem;
   -webkit-app-region: no-drag;
-  /* Glass popover recipe (app/styles/base.css --glass-*) in the Rhea
-     menu frame (top-bar/menu-styles.ts MENU_PANEL: rounded-2xl p-1). */
-  background: var(--glass-surface);
-  -webkit-backdrop-filter: var(--glass-backdrop);
-  backdrop-filter: var(--glass-backdrop);
-  border: 0.5px solid var(--glass-ring);
-  border-radius: 1rem;
-  box-shadow: var(--glass-shadow);
 }
-
-/* Row = the shared menu row (top-bar/menu-styles.ts itemCls, Rhea). */
 .tabMenuItem {
-  display: block;
   width: 100%;
-  min-height: 1.75rem;
-  padding: 0.375rem 0.5rem;
   border: 0;
-  border-radius: 0.75rem;
   background: transparent;
-  color: var(--text-primary);
   font: inherit;
-  font-size: 0.875rem;
-  line-height: 1.25rem;
   text-align: left;
-  cursor: pointer;
 }
-.tabMenuItem:hover:not(:disabled),
 .tabMenuItem:focus-visible {
   background: var(--bg-hover);
   outline: none;
 }
 .tabMenuItem:disabled {
+  background: transparent;
   color: var(--text-muted);
   cursor: default;
   opacity: 0.55;

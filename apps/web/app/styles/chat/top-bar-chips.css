@@ -184,12 +184,15 @@
   background: color-mix(in oklch, var(--foreground) 14%, transparent);
   transition: opacity 120ms ease;
 }
+/* Each segment has the spacing of the sm Button the other chips are
+   (px-2.5, gap-1), so a folder or project pill is no wider per label than
+   Local or a model chip. */
 .folder-pill-seg {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.25rem;
   min-width: 0;
-  padding: 0 12px;
+  padding: 0 0.625rem;
   border: 0;
   background: transparent;
   color: inherit;
@@ -206,9 +209,11 @@
   color: var(--text-bright);
 }
 .folder-pill-seg:focus-visible { box-shadow: inset 0 0 0 2px var(--ring); }
-.folder-pill-divider + .folder-pill-seg { padding-left: 11px; }
+.folder-pill-divider + .folder-pill-seg { padding-left: calc(0.625rem - 1px); }
+/* Icons at the sm Button's size-3.5, like Local's and the model chips'. */
+.folder-pill-seg svg { width: 0.875rem; height: 0.875rem; flex-shrink: 0; }
 /* Working-folder ✕: no width until the pill is hovered or focused. */
-.folder-pill-name { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.folder-pill-name { display: inline-flex; align-items: center; gap: 0.25rem; min-width: 0; }
 .workdir-badge.folder-pill .workdir-remove {
   display: inline-flex;
   max-width: 0;

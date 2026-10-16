@@ -8,6 +8,8 @@ import { findCenterTabGroup, type CenterTabGroup } from "@/lib/tabs/center-tab-g
 import type { CenterTab } from "@/lib/tabs/center-tabs-store";
 import { useTranslation } from "@/lib/i18n";
 import type { TabMenuState } from "./use-tab-menu";
+import { cn } from "@/lib/utils";
+import { MENU_PANEL, itemCls } from "@/components/chat/top-bar/menu-styles";
 import styles from "./center-tabs.module.css";
 
 export interface TabContextMenuProps {
@@ -42,7 +44,7 @@ export function TabContextMenu({
   const { text } = useTranslation();
   return (
     <div
-      className={styles.tabMenu}
+      className={cn(MENU_PANEL, styles.tabMenu)}
       role="menu"
       aria-label={text("Tab actions", "标签操作")}
       style={{ left: tabMenu.left, top: tabMenu.top }}
@@ -51,7 +53,7 @@ export function TabContextMenu({
       <button
         type="button"
         role="menuitem"
-        className={styles.tabMenuItem}
+        className={cn(itemCls(false), styles.tabMenuItem)}
         disabled={!canMoveMenuTab(tabMenu.tabId, -1)}
         onClick={() => moveMenuTab(tabMenu.tabId, -1)}
       >
@@ -60,7 +62,7 @@ export function TabContextMenu({
       <button
         type="button"
         role="menuitem"
-        className={styles.tabMenuItem}
+        className={cn(itemCls(false), styles.tabMenuItem)}
         disabled={!canMoveMenuTab(tabMenu.tabId, 1)}
         onClick={() => moveMenuTab(tabMenu.tabId, 1)}
       >
@@ -69,7 +71,7 @@ export function TabContextMenu({
       <button
         type="button"
         role="menuitem"
-        className={styles.tabMenuItem}
+        className={cn(itemCls(false), styles.tabMenuItem)}
         onClick={() => closeMenuTab(tabMenu.tabId)}
       >
         {text("Close tab", "关闭标签页")}
@@ -77,7 +79,7 @@ export function TabContextMenu({
       <button
         type="button"
         role="menuitem"
-        className={styles.tabMenuItem}
+        className={cn(itemCls(false), styles.tabMenuItem)}
         disabled={closableTabsAround(tabMenu.tabId, false).length === 0}
         onClick={() => closeMenuTabs(tabMenu.tabId, false)}
       >
@@ -86,7 +88,7 @@ export function TabContextMenu({
       <button
         type="button"
         role="menuitem"
-        className={styles.tabMenuItem}
+        className={cn(itemCls(false), styles.tabMenuItem)}
         disabled={closableTabsAround(tabMenu.tabId, true).length === 0}
         onClick={() => closeMenuTabs(tabMenu.tabId, true)}
       >
@@ -95,7 +97,7 @@ export function TabContextMenu({
       <button
         type="button"
         role="menuitem"
-        className={styles.tabMenuItem}
+        className={cn(itemCls(false), styles.tabMenuItem)}
         disabled={!canOpenSplitPicker(tabMenu.tabId)}
         onClick={() => openSplitPicker(tabMenu.tabId)}
       >
@@ -104,7 +106,7 @@ export function TabContextMenu({
       <button
         type="button"
         role="menuitem"
-        className={styles.tabMenuItem}
+        className={cn(itemCls(false), styles.tabMenuItem)}
         disabled={!findCenterTabGroup(groups, tabMenu.tabId)}
         onClick={() => removeMenuTabFromGroup(tabMenu.tabId)}
       >
@@ -113,7 +115,7 @@ export function TabContextMenu({
       <button
         type="button"
         role="menuitem"
-        className={styles.tabMenuItem}
+        className={cn(itemCls(false), styles.tabMenuItem)}
         disabled={!canMoveToNewWindow}
         onClick={() => moveMenuTabToNewWindow(tabMenu.tabId)}
       >
