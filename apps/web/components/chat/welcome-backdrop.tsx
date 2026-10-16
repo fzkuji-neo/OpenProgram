@@ -108,30 +108,55 @@ function callGraph(): Scene {
   };
 }
 
-/** A dot grid with slow concentric ripples spreading from above centre. */
-function ripple(): Scene {
+/** Code rain: columns of glyphs fall, a bright head and a fading tail. */
+function codeRain(): Scene {
+  const GLYPHS = "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789{}()<>=;:+*/";
+  const CELL = 16;
+  type Drop = { y: number; speed: number; len: number; glyphs: string[] };
+  let drops: Drop[] = [];
+  let last = 0;
+  const glyph = () => GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
+  const spawn = (h: number, scatter: boolean): Drop => {
+    const len = 8 + Math.floor(Math.random() * 18);
+    return {
+      // 首帧把雨点散在整屏，之后从顶端上方落下。
+      y: scatter ? Math.random() * (h / CELL + len) : -Math.random() * 20,
+      speed: 5 + Math.random() * 9,
+      len,
+      glyphs: Array.from({ length: len }, glyph),
+    };
+  };
   return {
-    init() {},
-    draw(ctx, t, w, h, pal) {
-      const cx = w / 2, cy = h * 0.4, reach = Math.max(w, h) * 0.65;
-      const gap = 18;
-      ctx.fillStyle = pal.accent;
-      for (let y = gap / 2; y < h; y += gap) {
-        for (let x = gap / 2; x < w; x += gap) {
-          const d = Math.hypot(x - cx, y - cy);
-          const wave = Math.max(0, Math.sin(d * 0.035 - t * 1.2));
-          const fade = Math.max(0, 1 - d / reach);
-          ctx.globalAlpha = 0.1 + wave * 0.55 * fade;
-          ctx.beginPath();
-          ctx.arc(x, y, 1 + wave * 1.8 * fade, 0, Math.PI * 2);
-          ctx.fill();
+    init(w, h) {
+      last = 0;
+      drops = Array.from({ length: Math.ceil(w / CELL) }, () => spawn(h, true));
+    },
+    draw(ctx, t, _w, h, pal) {
+      const dt = last ? Math.min(0.05, t - last) : 0.016;
+      last = t;
+      ctx.font = `${CELL - 3}px ui-monospace, "SF Mono", Menlo, monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      drops.forEach((d, col) => {
+        d.y += d.speed * dt;
+        if (d.y - d.len > h / CELL) Object.assign(d, spawn(h, false));
+        if (Math.random() < dt * 4) d.glyphs[Math.floor(Math.random() * d.len)] = glyph();
+        const head = Math.floor(d.y);
+        const x = col * CELL + CELL / 2;
+        for (let k = 0; k < d.len; k++) {
+          const row = head - k;
+          if (row < 0 || row * CELL > h) continue;
+          const isHead = k === 0;
+          ctx.fillStyle = isHead ? pal.accent : pal.ink;
+          ctx.globalAlpha = isHead ? 0.85 : 0.42 * (1 - k / d.len);
+          ctx.fillText(d.glyphs[(row % d.len + d.len) % d.len], x, row * CELL);
         }
-      }
+      });
     },
   };
 }
 
-const SCENES = [callGraph, ripple];
+const SCENES = [callGraph, codeRain];
 
 let chosen: number | null = null;
 function pickScene(): number {
