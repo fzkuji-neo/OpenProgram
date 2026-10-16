@@ -148,7 +148,7 @@ worker 启动时 `openprogram.events.install_config_hooks()`（`shell_hooks.py`�
 
 进程级总线把每个完成派发的类型化事件追加为一行 JSON，常开：
 
-- 事件带 session 且该会话目录存在时：`~/.openprogram/sessions/<sid>/events.jsonl`；
+- 事件带 session 且该会话目录存在时：`~/.openprogram/projects/<project-id>/chats/<sid>/events.jsonl`；
 - 否则：`~/.openprogram/logs/events.jsonl`。
 
 单文件超 5 MB 轮转为 `.1`（覆盖旧 `.1`）。gate 结论作为同一日志行的 `gate` 字段记录——

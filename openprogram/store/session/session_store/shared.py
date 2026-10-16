@@ -112,9 +112,8 @@ from ..session_lock import registry_file_lock, session_interprocess_lock
 def _default_root() -> Path:
     """Root of the conversation store: ``<state>/projects``.
 
-    Each project's conversations are in ``<project-id>/chats/``; an older
-    install's ``sessions/`` tree is moved there when an ``openprogram``
-    process starts (see :mod:`openprogram.store.project.layout_migration`).
+    Each project's conversations are in ``<project-id>/chats/`` (see
+    :mod:`openprogram.store.project.layout`).
     """
     from openprogram.store.project.layout import projects_root
     return projects_root()

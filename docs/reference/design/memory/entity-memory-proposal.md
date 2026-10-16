@@ -31,7 +31,7 @@ There are two kinds of entities:
 
 | Type | Granularity | Storage location |
 |------|------|----------|
-| **Session-Git** | Per conversation, one commit per turn | `<state>/sessions/<id>/` or `<project>/.openprogram/sessions/<id>/` |
+| **Session-Git** | Per conversation, one commit per turn | `<state>/projects/<project_id>/chats/<id>/` or `<project>/.openprogram/sessions/<id>/` |
 | **Project-Git** | The bound user working directory | `<user-workdir>/.git/` (reuses the existing one) |
 
 Session-Git records the conversation process (the user → LLM → tool call chain). Project-Git records the agent's actual modifications to the user's code/documents. The two are complementary: session stores "what was said", project stores "what was changed".
@@ -146,7 +146,7 @@ User sends the first message
 
 When listing all sessions, there are two sources:
 
-1. **Global directory scan**: traverse every subdirectory under `<state>/sessions/` and run validity checks one by one
+1. **Global directory scan**: traverse every `<state>/projects/<project_id>/chats/` folder and run validity checks one by one
 2. **locations.json index**: records the paths of sessions that land inside project directories, validated one by one
 
 The two sources are merged, deduplicated, and sorted by `updated_at` in descending order.

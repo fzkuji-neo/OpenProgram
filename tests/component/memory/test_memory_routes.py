@@ -381,22 +381,15 @@ def test_ensure_initializes_git_and_snapshots_existing_memory(
     tmp_path, monkeypatch,
 ):
     state = tmp_path / "state"
-    legacy = state / "memory"
-    topic = legacy / "topics/note.md"
+    root = state / "projects" / "default" / "memory"
+    topic = root / "topics/note.md"
     topic.parent.mkdir(parents=True)
     topic.write_text("# Existing\n", encoding="utf-8")
     monkeypatch.setattr("openprogram.paths.get_state_dir", lambda: state)
 
     from openprogram.memory import store
-    from openprogram.store.project import layout_migration
 
-    # An older install's memory moves into the home project when the
-    # process starts, before the store is opened.
-    layout_migration._done.discard(str(state))
-    layout_migration.ensure_layout(state)
-    root = state / "projects" / "default" / "memory"
     assert store.ensure() == root
-    assert not legacy.exists()
     assert (root / ".git").is_dir()
     assert subprocess.check_output(
         ["git", "status", "--short"], cwd=root, text=True

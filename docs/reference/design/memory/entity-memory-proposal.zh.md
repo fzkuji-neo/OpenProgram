@@ -30,7 +30,7 @@
 
 | 类型 | 粒度 | 存储位置 |
 |------|------|----------|
-| **Session-Git** | 每次对话，每 turn 一 commit | `<state>/sessions/<id>/` 或 `<project>/.openprogram/sessions/<id>/` |
+| **Session-Git** | 每次对话，每 turn 一 commit | `<state>/projects/<project_id>/chats/<id>/` 或 `<project>/.openprogram/sessions/<id>/` |
 | **Project-Git** | 绑定的用户工作目录 | `<user-workdir>/.git/`（复用已有） |
 
 Session-Git 记录对话过程（user → LLM → tool 调用链）。Project-Git 记录 agent 对用户代码/文档的实际修改。两者互补：session 存"说了什么"，project 存"改了什么"。
@@ -145,7 +145,7 @@ Session title 是用户在列表中识别对话的主要标识。
 
 列举所有 session 时，来源有两个：
 
-1. **全局目录扫描**：遍历 `<state>/sessions/` 下所有子目录，逐一做合法性校验
+1. **全局目录扫描**：遍历每个 `<state>/projects/<project_id>/chats/` 文件夹，逐一做合法性校验
 2. **locations.json 索引**：记录了落在项目目录内的 session 路径，逐一做合法性校验
 
 两个来源合并去重后，按 `updated_at` 降序排列。

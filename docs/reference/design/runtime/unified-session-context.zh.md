@@ -37,7 +37,7 @@ OpenProgram 的几个核心能力——**函数 docstring 自动进 prompt**、*
 
 ```
 SessionDB (default_db / SessionStore)           持久化后端(per-session git 仓库)
-   └─ ~/.openprogram/sessions/<session_id>/      history/ + context/ + meta.json
+   └─ ~/.openprogram/projects/<project-id>/chats/<session_id>/      history/ + context/ + meta.json
 SessionNodeWriter(db, session_id)                   瘦包装:append/update/load DAG 节点
 ContextVars(per turn,必须 set+reset 配对):
    _store           = SessionNodeWriter(...)         深层代码读它写 DAG / 渲染 doc

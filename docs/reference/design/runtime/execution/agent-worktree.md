@@ -84,11 +84,11 @@ There is no explicit cwd argument. The worktree is session-level context; tools 
 
 ### D4. Isolation from OpenProgram session-git
 
-OpenProgram has its own `~/.openprogram/sessions/<sid>/` (one git repo per session),
+OpenProgram has its own `~/.openprogram/projects/<project-id>/chats/<sid>/` (one git repo per session),
 storing the conversation memory's history / context / workdir. **The agent worktree is never
 created inside this directory tree**:
 
-- worktree_path must not be under any `~/.openprogram/sessions/*` (D14 check).
+- worktree_path must not be under any `~/.openprogram/projects/*/chats/*` (D14 check).
 - source_repo must not equal a session-git repository path.
 - session-git commits and worktree commits are managed independently; in the UI the ContextCommit
   timeline only looks at session-git, while the worktree timeline is shown in a separate panel.
@@ -385,7 +385,7 @@ The agent is halfway through (5 patches committed in the worktree), the user dec
 
 ## Part 3. Key Invariants
 
-1. **worktree_path is never inside the `~/.openprogram/sessions/` subtree**
+1. **worktree_path is never inside the `~/.openprogram/projects/` subtree**
    (isolating OpenProgram's own git; if violated, worktree_create rejects).
 
 2. **Zero changes to the main repo after discard**

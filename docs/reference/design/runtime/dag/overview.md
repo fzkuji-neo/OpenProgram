@@ -466,7 +466,7 @@ failure is the feature.
 
 Sessions persist in a git-backed store (`openprogram/store/session/`):
 
-- one `GitSession` per session on disk under `<state>/sessions/<id>/`;
+- one `GitSession` per session on disk under `<state>/projects/<project_id>/chats/<id>/`;
 - one in-memory `SessionMemoryIndex` per session, lazy-loaded, holding the
   node-by-id / children-by-predecessor indexes the walks use;
 - `head_id` and branch names live in the session's `meta.json`;

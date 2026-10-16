@@ -430,8 +430,8 @@ counts, and the time of the last global pass.
 **Nothing there hashes a whole tree.** The one full-byte tree hash in
 this system is the memory workspace's revision — `workspace_revision`
 in `memory/management/transaction.py`, rooted at the directory
-`memory/store.py:root()` returns, `<state>/memory`. Sessions live under
-`<state>/sessions`. The two are disjoint, so a marked node cannot read
+`memory/store.py:root()` returns, `<state>/projects/<project_id>/memory`.
+Sessions live beside it under `<state>/projects/<project_id>/chats`. The two are disjoint, so a marked node cannot read
 as a concurrent memory write.
 
 **The session index cache does rebuild once.** Staleness is

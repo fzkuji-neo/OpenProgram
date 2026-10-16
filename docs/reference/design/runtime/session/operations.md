@@ -67,8 +67,8 @@ No other place creates a session.
 
 ```
 Caller calls create_session(session_id, agent_id, source=..., ...)
-  → Resolve placement: <state>/sessions/<session_id>/ for the default project,
-    or <state>/sessions/projects/<project_id>/<session_id>/ for a bound project
+  → Resolve placement: <state>/projects/<project_id>/chats/<session_id>/,
+    with project_id `default` (the home project) when no project is bound
   → Write meta.json (id, agent_id, title, created_at, updated_at, source, status="idle", ...)
   → Write the registry: _index[session_id] = summary entry
   → Atomically write the registry to disk (temp file → os.rename)
@@ -126,8 +126,8 @@ It changes the **project's path**, never the session→project binding, which is
 The project's identity is its stable id; the path is a mutable attribute. Codex matches recorded cwd against recent turn context; DeepSeek validates workspace paths against an immutable session header cwd. Those mechanisms do not track arbitrary folder moves, and they do not mean that moving a folder deletes history. OpenProgram stores conversations under the application state directory and treats the working folder as a location. Three mechanisms reconnect a moved folder:
 
 1. **Native identity, not a HOME scan.** On startup, access, volume reconnect, or a directory/ancestor event, OpenProgram resolves a stored bookmark or inode. A match updates the project path. There is no minute-by-minute walk of HOME.
-2. **Application-owned session placement.** Bound conversations live at
-   `sessions/projects/<project-id>/<session-id>/`. Relocating a project does
+2. **Application-owned session placement.** Conversations live at
+   `projects/<project-id>/chats/<session-id>/`. Relocating a project does
    not move already-centralized chat files. Legacy workdir copies migrate
    through a journaled operation. Per-turn file undo recovery remains in the
    destination's sibling `.file-recovery/<session_id>/<turn>/` tree, outside
@@ -153,7 +153,7 @@ attachment store. Channel attachments remain in their channel roots under
 
 During legacy project migration, the migration journal inventories any
 external recovery tree, copies both the session and recovery data under
-`<state>/sessions/.migration/staging/`, verifies them, then publishes the
+`<state>/projects/.migration/staging/`, verifies them, then publishes the
 session under `projects/<project_id>/<session_id>/` and recovery data under its
 sibling `.file-recovery/<session_id>/<turn>/` tree before the location
 authority is updated. A missing or failed publication keeps the project in a
@@ -356,7 +356,7 @@ The 15 fields in the registry + preview + project (filled in during listing), 17
 
 ```
 Caller calls delete_session(session_id)
-  → Delete the entire <state>/sessions/<session_id>/ directory
+  → Delete the entire <state>/projects/<project_id>/chats/<session_id>/ directory
   → Delete _index[session_id]
   → Atomically write the registry to disk
   → Broadcast session_deleted:

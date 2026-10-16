@@ -40,7 +40,6 @@ import { useRecentsView, setRecentsView } from "@/lib/prefs/recents-view";
 import { autoRenameSession } from "@/lib/session-auto-rename";
 import { wsRequest } from "@/lib/net/ws-request";
 import { projectGroups, moveProject, filterProjectItems } from "@/lib/projects/project-groups";
-import { projectName } from "@/lib/projects/project-name";
 import {
   Popover,
   PopoverAnchor,
@@ -539,7 +538,7 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
                       }
                       }}
                       reorderHint={text("Drag to reorder; Alt+Up/Down to move", "拖动排序；Alt+上下方向键移动")}
-                      name={projectName({ ...project, name: g.name })}
+                      name={g.name}
                       path={g.path}
                       collapsed={!expanded}
                       onToggle={() => toggleProjectCollapse(g.key)}

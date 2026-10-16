@@ -12,7 +12,7 @@ A comprehensive comparison of the session management mechanisms across four proj
 | Metadata location | Mixed into the JSONL (`ai-title`, `custom-title`, `mode`, and other entries) | `sessions` table (10 fields) | The SessionEntry in `sessions.json` (around 70 fields) | `meta.json` (inside each session directory) + `index.json` (registry cache) |
 | Message location | Same JSONL file (`user`, `assistant` entries) | Dedicated `messages` table + `parts` column (JSON array) | Dedicated `<id>.jsonl` transcript file | Git history (one file per message, DAG structure) |
 | File snapshots | `file-history-snapshot` entries in the JSONL | Dedicated `files` table (path, content, version) | None | Git worktree (each session can have its own working directory) |
-| Storage path | `~/.claude/projects/<slug>/<uuid>.jsonl` | `<data_dir>/opencode.db` | `<state>/agents/<id>/sessions/sessions.json` + `<id>.jsonl` | `<state>/sessions/<id>/` (meta.json + history/) + `<state>/sessions/index.json` |
+| Storage path | `~/.claude/projects/<slug>/<uuid>.jsonl` | `<data_dir>/opencode.db` | `<state>/agents/<id>/sessions/sessions.json` + `<id>.jsonl` | `<state>/projects/<project_id>/chats/<id>/` (meta.json + history/) + `<state>/projects/.chats-index.json` |
 | Metadata/message separation | Not separated, all in one file | Separated (different tables) | Separated (different files) | Separated (meta.json vs history/) |
 
 ## 2. Session Metadata Fields

@@ -392,7 +392,7 @@ replay 一次调用 = 用 manifest 记录的策略渲染，而不是今天的策
 
 会话持久化在 git 后端的 store（`openprogram/store/session/`）：
 
-- 每会话一个磁盘上的 `GitSession`，位于 `<state>/sessions/<id>/`；
+- 每会话一个磁盘上的 `GitSession`，位于 `<state>/projects/<project_id>/chats/<id>/`；
 - 每会话一个内存中的 `SessionMemoryIndex`，懒加载，持有行走所用的 node-by-id /
   children-by-predecessor 索引；
 - `head_id` 与分支名存在会话的 `meta.json`；

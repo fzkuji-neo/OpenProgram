@@ -16,7 +16,6 @@ import { SearchInput } from "@/components/ui/search-input";
 import { useFolderPicker } from "@/components/ui/folder-picker";
 import styles from "./projects-page.module.css";
 import { ManageEmptyState, managePageStyles as shared } from "@/components/ui/manage-page";
-import { projectName } from "@/lib/projects/project-name";
 import { useTranslation } from "@/lib/i18n";
 import { EarthIcon, FoldersIcon, FolderPlusIcon } from "@/components/animated-icons";
 import { wsRequest } from "@/lib/net/ws-request";
@@ -148,7 +147,7 @@ export function ProjectsPage({
     return counts;
   }, [conversations, projectOf]);
 
-  const label = useCallback((project: Project) => projectName(project), []);
+  const label = useCallback((project: Project) => project.name, []);
 
   // 定位缺失项目的新目录：改项目 path、保留 id（relocate_project）。
   const locateProject = useCallback(async (projectId: string, startPath = "") => {

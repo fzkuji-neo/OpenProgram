@@ -85,11 +85,11 @@ OpenProgram 的工具分两类：
 
 ### D4. 跟 OpenProgram session-git 的隔离
 
-OpenProgram 自己有 `~/.openprogram/sessions/<sid>/`（每个 session 一个 git repo），
+OpenProgram 自己有 `~/.openprogram/projects/<project-id>/chats/<sid>/`（每个 session 一个 git repo），
 存对话内存的 history / context / workdir。**agent worktree 绝不落地
 在这个目录树里**：
 
-- worktree_path 必须不在任何 `~/.openprogram/sessions/*` 之下（D14 校验）。
+- worktree_path 必须不在任何 `~/.openprogram/projects/*/chats/*` 之下（D14 校验）。
 - source_repo 不能等于 session-git 仓库路径。
 - session-git 的 commit 跟 worktree 的 commit 各管各的；UI 上 ContextCommit
   时间线只看 session-git，worktree 时间线另一个 panel 显示。
@@ -384,7 +384,7 @@ agent 跑到一半（worktree 里 commit 了 5 个 patch），用户决定自己
 
 ## Part 3. 关键不变式
 
-1. **worktree_path 永远不在 `~/.openprogram/sessions/` 子树里**
+1. **worktree_path 永远不在 `~/.openprogram/projects/` 子树里**
    （隔离 OpenProgram 自己的 git，违反则 worktree_create 拒绝）。
 
 2. **discard 后主仓库零改动**

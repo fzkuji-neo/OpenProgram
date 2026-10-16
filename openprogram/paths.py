@@ -168,8 +168,7 @@ def get_sessions_dir() -> Path:
     """Root of the conversation store, ``<state>/projects``.
 
     Conversations sit in ``<project-id>/chats/`` below it; see
-    :mod:`openprogram.store.project.layout`. Only a path: an older
-    install's tree is moved here when an ``openprogram`` process starts.
+    :mod:`openprogram.store.project.layout`.
     """
     from openprogram.store.project.layout import projects_root
     return projects_root(get_state_dir())

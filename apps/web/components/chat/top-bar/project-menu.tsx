@@ -35,7 +35,6 @@ import { useFolderPicker } from "@/components/ui/folder-picker";
 import { useSessionStore } from "@/lib/session-store";
 import { closeAllPopovers } from "@/lib/runtime-bridge/ui";
 import { useTranslation } from "@/lib/i18n";
-import { projectName } from "@/lib/projects/project-name";
 import { wsRequest } from "@/lib/net/ws-request";
 import { useBoundChat } from "./bound-chat";
 import { CHECK_SLOT, CHECK_SLOT_PAD, GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR, itemCls } from "./menu-styles";
@@ -257,7 +256,7 @@ export function ProjectMenu({
         <div
           className="px-[8px] pb-[4px] pt-[1px] text-[12px] text-[var(--text-secondary)]"
         >
-          <div className="truncate">{activeProject ? projectName(activeProject) : "—"}</div>
+          <div className="truncate">{activeProject ? activeProject.name : "—"}</div>
           {activeProject?.path ? (
             <div className="truncate text-[11px] opacity-60">
               {activeProject.path}
@@ -356,7 +355,7 @@ export function ProjectMenu({
               !busy && (p.path_missing ? locateFolder(p.id) : unavailable ? locateFolder(p.id) : switchTo(p.id))
             }
           >
-            <span className="min-w-0 flex-1 truncate">{projectName(p)}</span>
+            <span className="min-w-0 flex-1 truncate">{p.name}</span>
             {unavailable ? (
               <SolarIcon
                 motionPreset="none"
@@ -456,7 +455,7 @@ export function ProjectBadge() {
       cur = projects.find((p) => p.is_default);
     }
     if (cur) {
-      setLabel(projectName(cur));
+      setLabel(cur.name);
       setMissing(cur.path_missing === true);
       setGitPath(!cur.is_default && !cur.path_missing && cur.path ? cur.path : null);
       setProjectPath(cur.path || null);

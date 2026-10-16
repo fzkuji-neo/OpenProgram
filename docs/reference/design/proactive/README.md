@@ -48,5 +48,5 @@ The event foundation is in place: the bus is enabled, both classes of source emi
 `tool.before` carries the synchronous interception point, and webui consumes the bus as an
 ordinary subscriber. The proactive rule layer described in `execution-model.md` and
 `policies-mvp.md` is the part not yet built. The event log is always on: send a message, then read
-`~/.openprogram/sessions/<sid>/events.jsonl` (or `~/.openprogram/logs/events.jsonl`
+`~/.openprogram/projects/<project-id>/chats/<sid>/events.jsonl` (or `~/.openprogram/logs/events.jsonl`
 for events outside a session).

@@ -48,9 +48,6 @@ from typing import Optional
 
 
 DEFAULT_PROJECT_ID = "default"
-# Names the default project once carried before it was named after the
-# home folder; a record still showing one of them is renamed.
-_OLD_DEFAULT_NAMES = ("System", "Default")
 
 
 _log = logging.getLogger(__name__)
@@ -783,11 +780,8 @@ def get_default_project() -> Project:
     home = Path.home()
     existing = get_project(DEFAULT_PROJECT_ID)
     if existing is not None:
-        renamed = not existing.custom_name and (existing.name in _OLD_DEFAULT_NAMES or not existing.name)
-        if renamed or not existing.path:
-            existing.path = existing.path or str(home)
-            if renamed:
-                existing.name = Path(existing.path).name or home.name
+        if not existing.path:
+            existing.path = str(home)
             _upsert(existing)
         return existing
     proj = Project(
