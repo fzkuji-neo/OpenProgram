@@ -60,10 +60,13 @@ folds.
    it, depth first and newest first, each indented under the branch that
    started it and joined to the row above by a hairline elbow. The main
    conversation reads as running (with the call it is on, or "Waiting for
-   a sub-agent", and the time so far), waiting on the reader, idle since
-   its last run, or that its last run failed. A sub-agent reads as running
-   with its call, stopped, or its final state with the time. The tree shows
-   20 sub-agents at a time with **Show earlier**. Calls and programs whose
+   a sub-agent", and the time so far), waiting on the reader (paused, or
+   holding issues of its own), idle since its last run, or that its last
+   run failed. A sub-agent reads as running
+   with its call, stopped, or its final state with the time. An `agent`
+   call that started no sub-agent sits in the tree where that sub-agent
+   would, as **Failed to start** or **Not started**. The tree shows 20
+   rows at a time with **Show earlier**. Calls and programs whose
    execution is not listed count as the main conversation's.
 3. **Background programs**: every program, live ones first, then newest,
    20 at a time.
@@ -76,8 +79,7 @@ never flash as unowned.
 Every row opens a page; a stack of pages backs the panel, and the back
 arrow names the page it returns to. Nothing expands in place.
 
-- **Main conversation**: the last run time, the conversation title and the
-  state. Its own issues come first, then what it is running now, its
+- **Main conversation**: the conversation title and its state. Its own issues come first, then what it is running now, its
   **Latest run**, and **Sub-agents it started**, including the calls that
   failed to start one. **Technical details** opens the latest run.
 - **Sub-agent / run**: kind, start and duration, the name or message, its

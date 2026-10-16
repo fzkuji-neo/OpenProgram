@@ -249,8 +249,11 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
           : `${text("Running", "正在运行")} ${step.description || step.name}`;
       return { label: `${doing} · ${duration(now - since, text)}`, tone: "run" };
     }
-    if (!latestRun) return { label: text("No runs yet", "还没有运行"), tone: "muted" };
+    if (!latestRun) return mainIssues.length
+      ? { label: text(`${mainIssues.length} to handle`, `有 ${mainIssues.length} 项待处理`), tone: "warn" }
+      : { label: text("No runs yet", "还没有运行"), tone: "muted" };
     const at = when(latestRun.terminal_at ?? latestRun.updated_at ?? startedAt(latestRun));
+    if (mainIssues.length && latestRun.status !== "paused") return { label: `${text(`${mainIssues.length} to handle`, `有 ${mainIssues.length} 项待处理`)} · ${text("last", "上次")} ${at}`, tone: "warn" };
     if (latestRun.status === "paused" || executionPending(latestRun)) return { label: `${executionState(latestRun, text)} · ${at}`, tone: "warn" };
     if (latestRun.status === "completed" || latestRun.status === "reconciliation_required") return { label: `${text("Idle", "空闲")} · ${text("last", "上次")} ${at}`, tone: "muted" };
     if (["failed", "interrupted"].includes(latestRun.status)) { const what = executionState(latestRun, text); return { label: `${text(`Last run ${what.toLowerCase()}`, `上次运行${what}`)} · ${at}`, tone: "err" }; }
@@ -283,6 +286,12 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     sendRuntimeCommand({ action: "load_session", session_id: sessionId });
   }
 
+  /** The sub-agents a branch started and its calls that started none, newest first. */
+  function startedNewestFirst(agents: ExecutionSnapshot[], failed: AgentCall[]): ReactNode[] {
+    return [...agents.map(item => ({ at: startedAt(item), node: agentRow(item) })), ...failed.map(item => ({ at: item.at, node: spawnRow(item) }))]
+      .sort((a, b) => b.at - a.at).map(entry => entry.node);
+  }
+
   // ---- rows ----------------------------------------------------------------
   function mainRow(): ReactNode {
     const { label, tone } = mainStatus();
@@ -302,8 +311,8 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       status={status} tone={issues.length ? "warn" : live ? "run" : executionTone(item)}
       onOpen={() => open({ kind: "run", id: item.execution_id })} />;
   }
-  function spawnRow(item: AgentCall): ReactNode {
-    return <Row key={`spawn:${item.id}`} glyph={<Glyph name="bot" tone="agent" />} title={item.description || text("Sub-agent", "子代理")}
+  function spawnRow(item: AgentCall, depth = 0): ReactNode {
+    return <Row key={`spawn:${item.id}`} depth={depth} glyph={<Glyph name="bot" tone="agent" />} title={item.description || text("Sub-agent", "子代理")}
       status={`${spawnState(item, text)} · ${when(item.at)}`} tone={item.failed ? "err" : "muted"}
       onOpen={() => open({ kind: "spawn", id: item.id })} />;
   }
@@ -320,9 +329,8 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       onOpen={() => open({ kind: "program", id: item.id })} />;
   }
   function runRow(item: ExecutionSnapshot): ReactNode {
-    const end = item.terminal_at ?? (LIVE.includes(item.status) ? now : item.updated_at);
     return <Row key={`execution:${item.execution_id}`} glyph={<RunGlyph />} title={runTitle(item)}
-      status={`${executionState(item, text)} · ${when(startedAt(item))} · ${text("took", "用时")} ${duration(end - startedAt(item), text)}`} tone={executionTone(item)}
+      status={`${executionState(item, text)} · ${when(startedAt(item))}`} tone={executionTone(item)}
       onOpen={() => open({ kind: "run", id: item.execution_id })} />;
   }
   function childRow(item: ExecutionSnapshot): ReactNode {
@@ -419,7 +427,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       {backBar(toActivity)}
       <div className={styles.scroll}>
         <div className={styles.head}>
-          <div className={styles.kind}>{mainName}{latestRun && <> · {text("last run", "上次运行")} {when(startedAt(latestRun))}</>}</div>
+          <div className={styles.kind}>{mainName}</div>
           <h3 className={styles.title}>{conversationTitle || mainName}</h3>
           <Status tone={tone}>{label}</Status>
         </div>
@@ -430,7 +438,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
         <h4 className={styles.section}>{text("Sub-agents it started", "它启动的子代理")}</h4>
         {agents.length + failed.length === 0
           ? <p className={styles.empty}>{text("No sub-agents yet.", "还没有启动过子代理。")}</p>
-          : <>{agents.map(item => agentRow(item))}{failed.map(spawnRow)}</>}
+          : startedNewestFirst(agents, failed)}
         {latestRun && <Button variant="ghost" className={styles.techRow} onClick={() => openTech(latestRun.execution_id)}>
           {text("Technical details", "技术详情")}<ChevronRight size={13} aria-hidden="true" />
         </Button>}
@@ -481,7 +489,8 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
         <h4 className={styles.section}>{agent ? text("What it did", "它做了什么") : text("What this run did", "这次运行做了什么")}</h4>
         {kids.length + nested.length + ownCalls.length + ownPrograms.length + failed.length === 0
           ? <p className={styles.empty}>{text("No sub-agents, open calls or background programs.", "没有子代理、未返回的调用或后台程序。")}</p>
-          : <>{ownCalls.map(entry => callRow(entry))}{kids.map(childRow)}{nested.map(entry => agentRow(entry))}{failed.map(spawnRow)}{ownPrograms.map(programRow)}</>}
+          : <>{ownCalls.map(entry => callRow(entry))}{kids.filter(entry => !isAgent(entry)).map(childRow)}
+            {startedNewestFirst([...kids.filter(isAgent), ...nested], failed)}{ownPrograms.map(programRow)}</>}
         <Button variant="ghost" className={styles.techRow} onClick={() => openTech(item.execution_id)}>
           {text("Technical details", "技术详情")}<ChevronRight size={13} aria-hidden="true" />
         </Button>
@@ -578,7 +587,8 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   // ---- overview ----------------------------------------------------------------
   // Messages live in the chat; Activity lists the conversation's agent
   // branches, its background programs and what needs the reader.
-  const tree = branches.tree();
+  // A call that never started a sub-agent sits where that sub-agent would.
+  const tree = branches.tree<AgentCall>(owner => failedSpawns(owner).map(leaf => ({ at: leaf.at, leaf })));
   const visible = tree.slice(0, shown);
   const showMain = Boolean(latestRun) || tree.length > 0 || mainLive;
   const programs = [...processes.items].sort((a, b) => Number(processIsActive(b)) - Number(processIsActive(a)) || b.started_at - a.started_at);
@@ -598,7 +608,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       {showMain && <div className="group/sec">
         <SectionHeader name={text("Agent branches", "Agent 分支")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} actions={<span className={styles.count}>{tree.length + 1}</span>} />
         {mainRow()}
-        {visible.map(entry => agentRow(entry.item, entry.depth))}
+        {visible.map(entry => entry.kind === "agent" ? agentRow(entry.item, entry.depth) : spawnRow(entry.leaf, entry.depth))}
         {tree.length > shown && <button type="button" className={styles.more} data-depth="1" onClick={() => setShown(value => value + 50)}>
           {text(`Show ${Math.min(50, tree.length - shown)} earlier`, `显示更早的 ${Math.min(50, tree.length - shown)} 个`)}
         </button>}

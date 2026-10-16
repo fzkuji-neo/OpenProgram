@@ -130,6 +130,10 @@ export function spawnedBy(call: ActiveToolCall, children: ExecutionSnapshot[]): 
     ?? [...jobs].sort((a, b) => startedAt(a) - startedAt(b))[0];
 }
 
+export type BranchRow<T> =
+  | { kind: "agent"; item: ExecutionSnapshot; depth: number }
+  | { kind: "leaf"; leaf: T; depth: number };
+
 export type AgentBranches = {
   /** The listed execution this one runs under, if any. */
   parentOf: (item: ExecutionSnapshot) => string | null;
@@ -140,8 +144,10 @@ export type AgentBranches = {
   ownerOf: (item: ExecutionSnapshot) => string | null;
   /** The sub-agents a branch started (null: the main conversation), newest first. */
   agentsUnder: (owner: string | null) => ExecutionSnapshot[];
-  /** Every sub-agent under the main conversation, depth first, newest first. */
-  tree: () => { item: ExecutionSnapshot; depth: number }[];
+  /** Every sub-agent under the main conversation, depth first, newest
+   *  first, with each branch's `leaves` (things it started that are not
+   *  sub-agents) placed among its sub-agents by time. */
+  tree: <T>(leaves?: (owner: string | null) => { at: number; leaf: T }[]) => BranchRow<T>[];
 };
 
 /** The conversation's agent branches: the main conversation and the
@@ -173,21 +179,31 @@ export function agentBranches(executions: ExecutionSnapshot[]): AgentBranches {
     agentParentOf,
     ownerOf: item => isAgent(item) ? item.execution_id : agentParentOf(item),
     agentsUnder,
-    tree: () => {
-      const rows: { item: ExecutionSnapshot; depth: number }[] = [];
+    tree: <T>(leaves?: (owner: string | null) => { at: number; leaf: T }[]) => {
+      const rows: BranchRow<T>[] = [];
       const placed = new Set<string>();
       const visit = (owner: string | null, depth: number) => {
-        for (const item of agentsUnder(owner)) {
-          if (placed.has(item.execution_id)) continue;
-          placed.add(item.execution_id);
-          rows.push({ item, depth });
-          visit(item.execution_id, depth + 1);
+        const children: ({ at: number; item: ExecutionSnapshot } | { at: number; leaf: T })[] = [
+          ...agentsUnder(owner).filter(item => !placed.has(item.execution_id)).map(item => ({ at: startedAt(item), item })),
+          ...(leaves?.(owner) ?? []),
+        ].sort((a, b) => b.at - a.at);
+        for (const child of children) {
+          if (!("item" in child)) { rows.push({ kind: "leaf", leaf: child.leaf, depth }); continue; }
+          if (placed.has(child.item.execution_id)) continue;
+          placed.add(child.item.execution_id);
+          rows.push({ kind: "agent", item: child.item, depth });
+          visit(child.item.execution_id, depth + 1);
         }
       };
       visit(null, 1);
       // A sub-agent whose parents loop never reaches the main conversation;
       // it is still listed.
-      for (const item of agents) if (!placed.has(item.execution_id)) { placed.add(item.execution_id); rows.push({ item, depth: 1 }); visit(item.execution_id, 2); }
+      for (const item of agents) {
+        if (placed.has(item.execution_id)) continue;
+        placed.add(item.execution_id);
+        rows.push({ kind: "agent", item, depth: 1 });
+        visit(item.execution_id, 2);
+      }
       return rows;
     },
   };
