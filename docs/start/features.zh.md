@@ -77,8 +77,9 @@ docstring 与 `content` 的拆分、一份基于规则的校验清单，
 
 ## 自己写自己的记忆
 
-记忆只在一个地方，`~/.openprogram/memory/`，而且全部是可以用任何
-编辑器打开的Markdown。
+个人记忆只在一个地方，`~/.openprogram/projects/default/memory/`，而且全部是
+可以用任何编辑器打开的 Markdown。每个项目在自己的会话旁边另有一份记忆，
+位于 `~/.openprogram/projects/<项目>/memory/`，结构相同。
 
 | 路径 | 放什么 |
 |---|---|

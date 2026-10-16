@@ -45,12 +45,14 @@ what holds everywhere.
 
 | Setting | What it does |
 |---|---|
-| **Project memory** | A conversation in a project also reads that project's own Memory, kept in `<project>/.openprogram/memory`. Recall, the Memory tools and Core Memory then cover both, the project first. |
-| **Write to project memory** | Writes what a project's conversations record into that project's Memory instead of your personal one. Needs Project memory on. |
+| **Project memory** | A conversation in a project also reads that project's own Memory, kept in `~/.openprogram/projects/<project>/memory`. Recall, the Memory tools and Core Memory then cover both, the project first. On by default. |
+| **Write to project memory** | Writes what a project's conversations record into that project's Memory instead of your personal one. Needs Project memory on. On by default. |
 
-Conversations outside a project read your personal Memory only. A project gets
-its Memory folder the first time something is written to it, and `.openprogram/`
-stays out of the project's own Git. With both layers in play, the Memory tools
+Conversations outside a project belong to the System project and read your
+personal Memory only; that personal Memory is the System project's, at
+`~/.openprogram/projects/default/memory`. A project gets its Memory folder the
+first time something is written to it. Nothing is written into the project's
+own folder. History shows each project's Memory under its Memory tab. With both layers in play, the Memory tools
 name the layer in every path, such as `project:topics/api.md`. A turn is
 written to one layer only, so switching project writes on or off never copies
 a conversation into the other.

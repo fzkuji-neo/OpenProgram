@@ -36,7 +36,7 @@
 ### 2.2 存储
 
 ```
-~/.openprogram/memory/timeline/
+~/.openprogram/projects/default/memory/timeline/
 ├── 2026-05.jsonl
 ├── 2026-06.jsonl
 └── ...
@@ -92,7 +92,7 @@ Append-only。同一事实被重新提炼时，旧记录标 `superseded_by` 指�
 ### 3.2 存储
 
 ```
-~/.openprogram/memory/graph/
+~/.openprogram/projects/default/memory/graph/
 ├── entities.jsonl           点
 ├── edges.jsonl              边（带 bi-temporal + provenance）
 └── views/

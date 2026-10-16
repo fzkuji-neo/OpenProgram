@@ -184,13 +184,13 @@ Review 面板列出某一轮、当前分支或工作目录改动过的文件，�
 | `/agents` | Agents：创建、配置 Agent（模型、能力、记忆、上下文），并用它开始对话 |
 | `/applications` | 应用：从本地文件夹安装软件，然后打开、启用、在新标签页隐藏、更新或卸载 |
 | `/scheduler` | 定时任务：一次性、周期和监控任务，按类型筛选；可暂停、恢复或删除每个任务 |
-| `/chats` | History 枢纽：会话列表（`/history` 同页）；Projects 和 Memory 是同一页上的 tab |
+| `/chats` | History（`/history` 同页）：左侧是项目列表，系统项目在最前；右侧是所选项目的 Chats、Memory、Settings、Info 标签页 |
 | `/programs` | Abilities 枢纽：Programs 目录（调用树 / 图）。Plugins、Skills、MCP 是旁边的 tab |
 | `/skills` | Abilities → Skills：浏览已装 SKILL.md、发现和新建；每个 skill 有详情页 |
 | `/plugins` | Abilities → Plugins：已安装 / 发现（市场）/ 问题 |
 | `/mcp` | Abilities → MCP：从目录添加、编辑配置、查看状态 |
-| `/memory` | History → Memory：wiki、journal 和核心记忆 |
-| `/projects` | History → Projects：权限规则、默认设置、关联会话 |
+| `/memory` | 打开 Memory 标签页的 History：所选项目的 wiki、journal 和核心记忆 |
+| `/projects` | 打开 Chats 标签页的 History；Settings 里是项目的权限规则和默认设置 |
 | `/settings` | 设置：providers（模型与凭据）、search、general（含主题、运行版本，以及存在 Electron bridge 时的 Desktop 更新状态）、system、usage、auth、channels |
 
 消息导航预览和技能详情将原始 HTML 按文本显示，同时保留 Markdown 格式。技能链接不授予本地文件访问权限。

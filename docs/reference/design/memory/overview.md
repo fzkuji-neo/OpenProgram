@@ -522,13 +522,17 @@ single lucky sentence elsewhere outranks it.
 ## Project memory
 
 What a person prefers belongs everywhere they work; what one repository
-decided belongs to that repository. With `memory.layers.project` on, a
-conversation bound to a project reads two workspaces as one: the
-project's, at `<project>/.openprogram/memory`, and the personal one. The
-catch-all default project is the home folder rather than a project, so its
-conversations read personal memory only. `<project>/.openprogram/` is
-ignored by the project's own Git, and the project workspace keeps its own
-history, index and runtime directory like any other.
+decided belongs to that repository. Every project keeps its memory in its
+own folder of the state directory, beside its chats:
+`~/.openprogram/projects/<project>/memory`. With `memory.layers.project` on
+(the default), a conversation bound to a project reads two workspaces as
+one: the project's and the personal one. The personal workspace is the
+System project's, `~/.openprogram/projects/default/memory`; conversations
+with no project belong to the System project and read it alone. Nothing is
+written into the project's own folder, and the project workspace keeps its
+own history, index and runtime directory like any other. The memory API
+serves one project's workspace when asked with `?project=<id>`, which is how
+History shows each project's Memory tab.
 
 Reads span both layers. Each layer ranks its own blocks with its own
 statistics, so scores are not comparable between them; recall interleaves
@@ -540,10 +544,10 @@ path the tools return names its layer (`project:topics/api.md`,
 (`project=… personal=…`), and `memory_update` takes the layer to write as
 `layer`. Core memory comes from both: the project's `core.md` first.
 
-A project with no memory yet adds no layer, and reading creates nothing in
-the project folder. The workspace is created by the first write to it.
+A project with no memory yet adds no layer, and reading creates nothing.
+The workspace is created by the first write to it.
 
-With `memory.layers.project_writes` also on, the background writer puts a
+With `memory.layers.project_writes` also on (the default), the background writer puts a
 project conversation into the project's memory instead of the personal
 one, and `memory_update` writes there unless told otherwise. A turn is
 written to one layer only. The written mark on a session node names the
@@ -880,4 +884,4 @@ each behind its own setting: `memory.retrieval.hybrid.weighting` and
 lift, layered reads and writes with their routing and written marks, core
 injection order, the nightly pass over project memory, structured-output
 parsing, and the probe–retrieve–judge–repair sequence. Project memory and
-verification are off by default.
+project writes are on by default; verification is off by default.
