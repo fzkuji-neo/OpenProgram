@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Activity: the conversation's agent branches. The main conversation comes
+ * Activity: the conversation's agent branches. The main agent comes
  * first, the sub-agents it started hang under it as a tree, and each row
  * opens a page; what needs the reader is listed above them and background
  * programs below. The arrow at the top goes back one level. Nothing expands
@@ -55,18 +55,25 @@ function Status({ tone, children }: { tone: Tone; children: ReactNode }) {
   </span>;
 }
 
-function Row({ glyph, title, status, tone, onOpen, depth = 0 }: {
-  glyph: ReactNode; title: string; status: ReactNode; tone: Tone; onOpen: () => void; depth?: number;
+type Line = { depth: number; last: boolean; guides: number[] };
+
+function Row({ glyph, title, status, tone, onOpen, line }: {
+  glyph: ReactNode; title: string; status: ReactNode; tone: Tone; onOpen: () => void; line?: Line;
 }) {
   const row = <Button variant="ghost" className={styles.row} onClick={onOpen}>
     {glyph}
     <span className={styles.rowText}><span className={styles.name}>{title}</span><Status tone={tone}>{status}</Status></span>
     <ChevronRight size={14} className={styles.chevron} aria-hidden="true" />
   </Button>;
-  // A sub-agent sits under the branch that started it, joined by a line.
-  return depth > 0
-    ? <div className={styles.branch} style={{ "--depth": Math.min(depth, 4) } as CSSProperties}>{row}</div>
-    : row;
+  // A sub-agent sits under the branch that started it: an elbow from that
+  // branch's glyph, the line running on to its later siblings, and the
+  // lines of the rows above that still have siblings to reach.
+  if (!line) return row;
+  const depth = Math.min(line.depth, 4);
+  return <div className={styles.branch} data-last={line.last ? "1" : "0"} style={{ "--depth": depth } as CSSProperties}>
+    {line.guides.filter(level => level < depth).map(level => <span key={level} className={styles.guide} aria-hidden="true" style={{ "--up": depth - level } as CSSProperties} />)}
+    {row}
+  </div>;
 }
 
 function duration(seconds: number, text: Text): string {
@@ -194,7 +201,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   const runTitle = (item: ExecutionSnapshot) => executionTitle(item, 1, text);
   const isAgent = (item: ExecutionSnapshot) => item.display?.kind === "job_agent";
   const agentName = (item: ExecutionSnapshot) => (item.display?.label || runTitle(item)).replace(/_/g, " ");
-  const mainName = text("Main conversation", "主对话");
+  const mainName = text("Main agent", "主代理");
   /** Executions a branch runs itself: the agent (null: the main
    *  conversation) and the executions under it that no deeper agent owns. */
   const ownedBy = (owner: string | null) => new Set(executions.filter(item => branches.ownerOf(item) === owner).map(item => item.execution_id));
@@ -223,15 +230,15 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   const activeIn = (ids: Set<string>) => executions.some(entry => ids.has(entry.execution_id) && LIVE.includes(entry.status))
     || calls.some(entry => ids.has(entry.execution_id) && entry.status === "running")
     || processes.items.some(entry => entry.execution_id && ids.has(entry.execution_id) && processIsActive(entry));
-  /** Calls that started no sub-agent, made by this branch (null: the main conversation). */
+  /** Calls that started no sub-agent, made by this branch (null: the main agent). */
   const failedSpawns = (owner: string | null) => spawns.filter(item => !item.job_id && (item.owner_job_id ?? null) === owner
     && (owner === null || executions.some(entry => entry.execution_id === owner)));
 
-  // ---- the main conversation ---------------------------------------------------
+  // ---- the main agent -----------------------------------------------------
   const mainIds = ownedBy(null);
   const mainRuns = executions.filter(item => mainIds.has(item.execution_id) && !branches.parentOf(item)).sort((a, b) => startedAt(b) - startedAt(a));
   const latestRun = mainRuns[0] ?? null;
-  // Calls and programs whose execution is not listed belong to the conversation itself.
+  // Calls and programs whose execution is not listed belong to the main agent.
   const mainCalls = calls.filter(entry => entry.status === "running" && (mainIds.has(entry.execution_id) || !execution(entry.execution_id)));
   const mainPrograms = processes.items.filter(entry => processIsActive(entry) && entry.execution_id && mainIds.has(entry.execution_id));
   const mainLive = executions.some(entry => mainIds.has(entry.execution_id) && LIVE.includes(entry.status)) || mainCalls.length > 0 || mainPrograms.length > 0;
@@ -295,9 +302,9 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   // ---- rows ----------------------------------------------------------------
   function mainRow(): ReactNode {
     const { label, tone } = mainStatus();
-    return <Row key="main" glyph={<RunGlyph />} title={mainName} status={label} tone={tone} onOpen={() => open({ kind: "main", id: "main" })} />;
+    return <Row key="main" glyph={<Glyph name="bot" tone="agent" />} title={mainName} status={label} tone={tone} onOpen={() => open({ kind: "main", id: "main" })} />;
   }
-  function agentRow(item: ExecutionSnapshot, depth = 0): ReactNode {
+  function agentRow(item: ExecutionSnapshot, line?: Line): ReactNode {
     const ids = subtreeOf(item);
     const issues = issuesOf(item);
     const live = activeIn(ids);
@@ -307,12 +314,12 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       : live
         ? `${runningCall ? `${text("Running", "正在运行")} ${runningCall.description || runningCall.name}` : text("Running", "正在运行")} · ${duration(now - startedAt(item), text)}`
         : `${executionState(item, text)} · ${when(startedAt(item), text)}`;
-    return <Row key={`agent:${item.execution_id}`} depth={depth} glyph={<Glyph name="bot" tone="agent" />} title={agentName(item)}
+    return <Row key={`agent:${item.execution_id}`} line={line} glyph={<Glyph name="bot" tone="agent" />} title={agentName(item)}
       status={status} tone={issues.length ? "warn" : live ? "run" : executionTone(item)}
       onOpen={() => open({ kind: "run", id: item.execution_id })} />;
   }
-  function spawnRow(item: AgentCall, depth = 0): ReactNode {
-    return <Row key={`spawn:${item.id}`} depth={depth} glyph={<Glyph name="bot" tone="agent" />} title={item.description || text("Sub-agent", "子代理")}
+  function spawnRow(item: AgentCall, line?: Line): ReactNode {
+    return <Row key={`spawn:${item.id}`} line={line} glyph={<Glyph name="bot" tone="agent" />} title={item.description || text("Sub-agent", "子代理")}
       status={`${spawnState(item, text)} · ${when(item.at, text)}`} tone={item.failed ? "err" : "muted"}
       onOpen={() => open({ kind: "spawn", id: item.id })} />;
   }
@@ -402,7 +409,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     </Button>
   </div>;
   const toActivity = text("Activity", "运行记录");
-  /** Where a branch came from: the agent that started it, or the main conversation. */
+  /** Where a branch came from: the agent that started it, or the main agent. */
   const fromLink = (owner: string | null) => {
     const agent = owner ? execution(owner) : null;
     return <button type="button" className={styles.link} onClick={() => open(agent ? { kind: "run", id: agent.execution_id } : { kind: "main", id: "main" })}>
@@ -608,7 +615,11 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       {showMain && <div className="group/sec">
         <SectionHeader name={text("Agent branches", "Agent 分支")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} actions={<span className={styles.count}>{tree.length + 1}</span>} />
         {mainRow()}
-        {visible.map(entry => entry.kind === "agent" ? agentRow(entry.item, entry.depth) : spawnRow(entry.leaf, entry.depth))}
+        {visible.map((entry, index) => {
+          // A cut-off page keeps the line running to the paging button.
+          const line = { depth: entry.depth, guides: entry.guides, last: entry.last && !(index === visible.length - 1 && tree.length > shown) };
+          return entry.kind === "agent" ? agentRow(entry.item, line) : spawnRow(entry.leaf, line);
+        })}
         {tree.length > shown && <button type="button" className={styles.more} data-depth="1" onClick={() => setShown(value => value + 50)}>
           {text(`Show ${Math.min(50, tree.length - shown)} earlier`, `显示更早的 ${Math.min(50, tree.length - shown)} 个`)}
         </button>}
