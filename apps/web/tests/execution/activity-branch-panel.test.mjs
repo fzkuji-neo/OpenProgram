@@ -167,4 +167,6 @@ test("Activity rows use a bare coloured glyph and a status dot, with no tile or 
   assert.doesNotMatch(panel, /<details/, "no native disclosure triangle");
   // The ghost button fills itself while expanded; an open call row stays bare.
   assert.match(css, /\.row\[aria-expanded="true"\]:not\(:hover\) \{ background: transparent; \}/);
+  // Hover lifts the row into the raised card, not the ghost button's grey fill.
+  assert.match(css, /\.row:hover, \.call:hover \{ background: var\(--bg-input\); box-shadow: var\(--composer-shadow-focus\);/);
 });
