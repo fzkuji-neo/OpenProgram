@@ -43,8 +43,8 @@ PyTorch。App 不自带这两个包，所以 **Embedding 模型** 旁边的 **�
 | **写入项目记忆** | 把项目对话要记下的内容写入该项目的 Memory，而不是个人 Memory。需要先打开项目记忆。默认打开。 |
 
 项目之外的对话属于系统项目，只读个人 Memory；个人 Memory 就是系统项目的
-Memory，位于 `~/.openprogram/projects/default/memory`。项目第一次有内容写入时
-才创建它的 Memory 目录，不会往项目自己的文件夹里写任何东西。在 History 里，
+Memory，位于 `~/.openprogram/projects/default/memory`。项目的 Memory 在第一次
+写入内容后才生效，不会往项目自己的文件夹里写任何东西。在 History 里，
 每个项目的 Memory 显示在它的 Memory 标签页下。两层同时生效时，Memory 工具
 给每个路径标出所在层，例如 `project:topics/api.md`。一轮对话只写进一层，
 所以打开或关闭项目写入都不会把对话复制到另一层。

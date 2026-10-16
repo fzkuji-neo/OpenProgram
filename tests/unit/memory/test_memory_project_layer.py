@@ -98,6 +98,21 @@ def test_switched_off_reads_personal_and_reading_creates_nothing(setup):
     assert not setup.project.exists()
 
 
+def test_an_opened_but_empty_project_workspace_adds_no_layer(setup):
+    from openprogram.memory import project_layer, store
+
+    _turn_on(setup)
+    # Opening the project's Memory page initialises its workspace.
+    with project_layer.use(setup.project, write=True):
+        store.ensure()
+    assert (setup.project / "topics").is_dir()
+    assert project_layer.read_layers().single
+    assert project_layer.project_roots() == []
+    _seed_project(setup)
+    assert not project_layer.read_layers().single
+    assert project_layer.project_roots() == [setup.project]
+
+
 def test_both_layers_are_on_by_default(setup):
     from openprogram.memory.management.config import load_memory_config
 

@@ -50,8 +50,8 @@ what holds everywhere.
 
 Conversations outside a project belong to the System project and read your
 personal Memory only; that personal Memory is the System project's, at
-`~/.openprogram/projects/default/memory`. A project gets its Memory folder the
-first time something is written to it. Nothing is written into the project's
+`~/.openprogram/projects/default/memory`. A project's Memory counts once
+something is written to it. Nothing is written into the project's
 own folder. History shows each project's Memory under its Memory tab. With both layers in play, the Memory tools
 name the layer in every path, such as `project:topics/api.md`. A turn is
 written to one layer only, so switching project writes on or off never copies
