@@ -127,6 +127,11 @@
   overflow: hidden;
 }
 
+/* Inside a project page the recency rail is off; the list fills the body. */
+.bodyNoRail {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 /* Left rail — date/channel filters. Mirrors .foldersNav in programs. */
 .nav {
   display: flex;

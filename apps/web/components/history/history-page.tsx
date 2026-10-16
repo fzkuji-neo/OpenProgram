@@ -2,47 +2,34 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  BrainIcon,
-  FolderCodeIcon,
-  MessageCircleIcon,
-  SettingsIcon,
-} from "@/components/animated-icons";
+import { SettingsIcon } from "@/components/animated-icons";
 
-import { ChatsPage } from "@/components/chats/chats-page";
-import { MemoryPage } from "@/components/memory";
-import { ProjectsPage } from "@/components/projects/projects-page";
+import { ProjectsPage, type ProjectTab } from "@/components/projects/projects-page";
 import { SearchInput } from "@/components/ui/search-input";
 import { ManagePage, ManagePageHeader, managePageStyles as shared } from "@/components/ui/manage-page";
 import { useTranslation } from "@/lib/i18n";
-import { pushPath } from "@/lib/shallow-nav";
-
-export type HistoryKind = "chats" | "projects" | "memory";
 
 /** Survives remounts when tab routes swap page.tsx. */
 let persistedQuery = "";
 
-function kindFromPath(pathname: string): HistoryKind {
-  if (pathname.startsWith("/projects")) return "projects";
-  if (pathname.startsWith("/memory")) return "memory";
-  return "chats";
-}
-
-function kindHref(id: string): string {
-  if (id === "projects") return "/projects";
-  if (id === "memory") return "/memory";
-  return "/chats";
+/**
+ * History is organised by project: every project (the System project
+ * included) lists its own chats and memory. The old /chats, /projects and
+ * /memory routes land here and pick the matching tab.
+ */
+function tabFromPath(pathname: string): ProjectTab {
+  return pathname.startsWith("/memory") ? "memory" : "chats";
 }
 
 export function HistoryPage() {
   const pathname = usePathname() || "";
   const router = useRouter();
   const { t, text } = useTranslation();
-  const [kind, setKind] = useState(() => kindFromPath(pathname));
+  const [initialTab, setInitialTab] = useState(() => tabFromPath(pathname));
   const [query, setQueryState] = useState(persistedQuery);
 
   useEffect(() => {
-    const onPop = () => setKind(kindFromPath(window.location.pathname));
+    const onPop = () => setInitialTab(tabFromPath(window.location.pathname));
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
@@ -52,69 +39,27 @@ export function HistoryPage() {
     setQueryState(value);
   };
 
-  const goKind = (id: string) => {
-    const href = kindHref(id);
-    setKind(kindFromPath(href));
-    pushPath(href);
-  };
-
-  const actions = useMemo(() => {
-    if (kind === "memory") {
-      return [
-        { label: text("Memory settings", "记忆设置"), onClick: () => router.push("/settings/memory"), icon: SettingsIcon },
-      ];
-    }
-    return [];
-  }, [kind, text, router]);
+  const actions = useMemo(() => [
+    { label: text("Memory settings", "记忆设置"), onClick: () => router.push("/settings/memory"), icon: SettingsIcon },
+  ], [text, router]);
 
   return (
     <ManagePage>
-        <ManagePageHeader
-          title={t("nav.history")}
-          tabs={[
-            { id: "chats", label: t("nav.chats"), icon: MessageCircleIcon },
-            { id: "projects", label: t("nav.projects"), icon: FolderCodeIcon },
-            { id: "memory", label: t("nav.memory"), icon: BrainIcon },
-          ]}
-          activeTab={kind}
-          onTabChange={goKind}
-          tabLabel={text("History sections", "历史分区")}
-          panelId="history-panel"
-          toolbar={(
-            <SearchInput
-              className="min-w-[96px] flex-1 min-[761px]:flex-none min-[761px]:min-w-[140px] min-[761px]:w-[clamp(150px,24vw,280px)]"
-              value={query}
-              onChange={setQuery}
-              placeholder={text("Search chats, projects, memory...", "搜索会话、项目、记忆...")}
-            />
-          )}
-          actions={actions}
-        />
-        <div
-          id="history-panel"
-          role="tabpanel"
-          aria-labelledby={`history-panel-tab-${kind}`}
-          className={shared.panel}
-        >
-        {kind === "chats" && (
-          <ChatsPage
-            embedded
-            query={query}
+      <ManagePageHeader
+        title={t("nav.history")}
+        toolbar={(
+          <SearchInput
+            className="min-w-[96px] flex-1 min-[761px]:flex-none min-[761px]:min-w-[140px] min-[761px]:w-[clamp(150px,24vw,280px)]"
+            value={query}
+            onChange={setQuery}
+            placeholder={text("Search this project...", "搜索这个项目...")}
           />
         )}
-        {kind === "projects" && (
-          <ProjectsPage
-            embedded
-            query={query}
-          />
-        )}
-        {kind === "memory" && (
-          <MemoryPage
-            embedded
-            query={query}
-          />
-        )}
-        </div>
+        actions={actions}
+      />
+      <div className={shared.panel}>
+        <ProjectsPage embedded query={query} initialTab={initialTab} />
+      </div>
     </ManagePage>
   );
 }

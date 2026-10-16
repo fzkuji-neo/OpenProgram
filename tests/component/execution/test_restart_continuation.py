@@ -59,13 +59,13 @@ def test_legacy_migration_waits_for_running_execution_with_string_state_hook(
 
     store, _attempts, running, _active = _running(tmp_path)
     state = tmp_path / "state"
-    (state / "sessions").mkdir(parents=True)
+    (state / "projects").mkdir(parents=True)
     monkeypatch.setattr("openprogram.paths.get_state_dir", lambda: str(state))
     monkeypatch.setattr("openprogram.execution.store.default_store", lambda: store)
 
     assert migration._live_jobs("session") is True
-    assert migration.quiesce_session(state / "sessions", "session", timeout=0.05) is False
-    assert migration.hold_path(state / "sessions", "session").is_file()
+    assert migration.quiesce_session(state / "projects", "session", timeout=0.05) is False
+    assert migration.hold_path(state / "projects", "session").is_file()
 
 
 def test_execution_admission_is_rejected_while_migration_hold_is_active(
@@ -77,9 +77,9 @@ def test_execution_admission_is_rejected_while_migration_hold_is_active(
     store = ExecutionStore(tmp_path / "execution.sqlite3")
     revision = store.create_revision(manifest={"entrypoint": "chat"})
     state = tmp_path / "state"
-    (state / "sessions").mkdir(parents=True)
+    (state / "projects").mkdir(parents=True)
     monkeypatch.setattr("openprogram.paths.get_state_dir", lambda: state)
-    migration._set_hold(state / "sessions", "session")
+    migration._set_hold(state / "projects", "session")
 
     try:
         with pytest.raises(ExecutionConflict, match="session migration"):
@@ -90,7 +90,7 @@ def test_execution_admission_is_rejected_while_migration_hold_is_active(
                 trusted_actor={"subject": "test"}, config_snapshot_ref="config:test",
             )
     finally:
-        migration._clear_hold(state / "sessions", "session")
+        migration._clear_hold(state / "projects", "session")
 
 
 def test_attempt_lease_and_activation_honor_migration_hold(tmp_path, monkeypatch):
@@ -106,13 +106,13 @@ def test_attempt_lease_and_activation_honor_migration_hold(tmp_path, monkeypatch
     )
     attempts = AttemptStore(store)
     state = tmp_path / "state"
-    (state / "sessions").mkdir(parents=True)
+    (state / "projects").mkdir(parents=True)
     monkeypatch.setattr("openprogram.paths.get_state_dir", lambda: state)
     leased, reserved = attempts.lease(
         execution.execution_id, expected_version=execution.status_version,
         owner_id="worker", ttl_seconds=30,
     )
-    migration._set_hold(state / "sessions", "session")
+    migration._set_hold(state / "projects", "session")
 
     with pytest.raises(AttemptConflict, match="session migration"):
         attempts.activate(
@@ -120,7 +120,7 @@ def test_attempt_lease_and_activation_honor_migration_hold(tmp_path, monkeypatch
             expected_execution_version=reserved.status_version,
         )
 
-    migration._clear_hold(state / "sessions", "session")
+    migration._clear_hold(state / "projects", "session")
     active, running = attempts.activate(
         leased.attempt_id, generation=leased.generation,
         expected_execution_version=reserved.status_version,

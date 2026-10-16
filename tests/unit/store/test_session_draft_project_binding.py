@@ -49,7 +49,7 @@ def test_a_draft_with_stored_settings_lands_in_the_picked_project(env, tmp_path:
     db.create_session("local_draft", "main", project_id=proj.id)
 
     assert P.project_for_session("local_draft").id == proj.id
-    assert db._session_dir("local_draft").parent.name == proj.id
+    assert db._session_dir("local_draft").parent.parent.name == proj.id
     meta = db.read_disk_meta("local_draft")
     assert meta["id"] == "local_draft"
     assert meta["provider_override"] == "deepseek"

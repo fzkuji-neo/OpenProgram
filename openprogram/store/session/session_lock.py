@@ -21,7 +21,7 @@ _held_session_locks = threading.local()
 
 def _lock_dir(root: str | Path | None = None) -> Path:
     from openprogram.paths import get_state_dir
-    base = Path(root) if root is not None else Path(get_state_dir()) / "sessions"
+    base = Path(root) if root is not None else Path(get_state_dir()) / "projects"
     path = base / ".locks"
     path.mkdir(parents=True, exist_ok=True)
     return path

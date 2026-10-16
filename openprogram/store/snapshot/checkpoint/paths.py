@@ -7,7 +7,7 @@ its directory and copying each backup back to its original location.
 
 Layout::
 
-    ~/.openprogram/sessions/.file-recovery/<session_id>/
+    ~/.openprogram/projects/<project>/chats/.file-recovery/<session_id>/
     └── <turn_id>/
         ├── manifest.json     # { backup_basename → original_abs_path }
         ├── <hash>.<version>   # immutable before image

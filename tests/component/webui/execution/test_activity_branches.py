@@ -105,7 +105,7 @@ def test_branch_projection_observes_placement_from_another_store(tmp_path):
     writer = SessionNodeWriter(project, 'placed')
     writer.append(Call(id='user', role='user', predecessor='ROOT'))
     writer.append(Call(id='assistant', role='llm', predecessor='user'))
-    registrar._record_location('placed', project.root_path / 'placed')
+    registrar._record_location('placed', project.root_path / 'default' / 'chats' / 'placed')
     items = [{'execution_id': 'run', 'session_id': 'placed', 'snapshot': {'display': {
         'user_message_id': 'user', 'assistant_message_id': 'assistant'}}}]
     branches = conversation_activity_branches(items, session_store=reader)
@@ -122,7 +122,7 @@ def test_branch_projection_observes_relocation_after_open(tmp_path):
         writer = SessionNodeWriter(project, 'placed')
         writer.append(Call(id='user', role='user', predecessor='ROOT'))
         writer.append(Call(id=tip, role='llm', predecessor='user'))
-        registrar._record_location('placed', project.root_path / 'placed')
+        registrar._record_location('placed', project.root_path / 'default' / 'chats' / 'placed')
         items = [{'execution_id': tip, 'session_id': 'placed', 'snapshot': {'display': {
             'user_message_id': 'user', 'assistant_message_id': tip}}}]
         branches = conversation_activity_branches(items, session_store=reader)

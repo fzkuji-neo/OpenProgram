@@ -91,10 +91,10 @@ def from_snapshot(raw: dict) -> MemoryPolicy:
 
 
 def space_path(policy: MemoryPolicy, space: str) -> Path:
-    from openprogram.paths import get_state_dir
+    from openprogram.paths import get_memory_dir, get_state_dir
     state = get_state_dir()
     if space == 'legacy_global':
-        return state / 'memory'
+        return get_memory_dir()
     if space == 'self' and re.fullmatch(r'[a-z][a-z0-9_-]{0,39}', policy.agent_id):
         return state / 'memory-spaces' / 'agents' / policy.agent_id
     raise MemoryPolicyError('Unsupported memory space')

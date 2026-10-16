@@ -196,7 +196,7 @@ def _try_reserve_run_locked(session_id: str, msg_id: str) -> bool:
     try:
         from openprogram.store.session.migration import session_hold_active
         from openprogram.paths import get_state_dir
-        if session_hold_active(state.Path(get_state_dir()) / "sessions", session_id):
+        if session_hold_active(state.Path(get_state_dir()) / "projects", session_id):
             return False
     except Exception:
         return False

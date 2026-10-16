@@ -40,6 +40,7 @@ import { useRecentsView, setRecentsView } from "@/lib/prefs/recents-view";
 import { autoRenameSession } from "@/lib/session-auto-rename";
 import { wsRequest } from "@/lib/net/ws-request";
 import { projectGroups, moveProject, filterProjectItems } from "@/lib/projects/project-groups";
+import { projectName } from "@/lib/projects/project-name";
 import {
   Popover,
   PopoverAnchor,
@@ -91,6 +92,7 @@ interface SidebarProject extends EditableProject {
   is_default: boolean;
   session_count: number;
   session_ids?: string[];
+  custom_name?: boolean;
   status?: string;
 }
 
@@ -537,7 +539,7 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
                       }
                       }}
                       reorderHint={text("Drag to reorder; Alt+Up/Down to move", "拖动排序；Alt+上下方向键移动")}
-                      name={g.name}
+                      name={projectName({ ...project, name: g.name }, text)}
                       path={g.path}
                       collapsed={!expanded}
                       onToggle={() => toggleProjectCollapse(g.key)}

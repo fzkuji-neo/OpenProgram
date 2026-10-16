@@ -5,6 +5,7 @@ import { memoryDraft } from "./autosave";
 import { UnifiedDiff } from "@/components/chat/messages/unified-diff";
 import { useTranslation } from "@/lib/i18n";
 import styles from "./memory-page.module.css";
+import { useMemoryUrl } from "./api";
 
 interface Revision { revision: string; timestamp: string; message: string }
 export function MemoryDocument({ path, url, title, badge, meta, onDelete, onPreviewClick, onSaved }: {
@@ -13,6 +14,7 @@ export function MemoryDocument({ path, url, title, badge, meta, onDelete, onPrev
   onSaved?: () => void;
 }) {
   const { text, locale } = useTranslation();
+  const api = useMemoryUrl();
   const [draft] = useState(() => memoryDraft(url));
   const [state, setState] = useState(draft.state);
   const [mode, setMode] = useState<"preview" | "edit" | "history">("preview");
@@ -49,30 +51,30 @@ export function MemoryDocument({ path, url, title, badge, meta, onDelete, onPrev
     if (mode !== "history") return;
     let active = true;
     setBusy(true); setError(""); setEntries([]); setRevision(""); setDiff("");
-    fetch("/api/memory/history?" + new URLSearchParams({ path }))
+    fetch(api("/api/memory/history?" + new URLSearchParams({ path })))
       .then(async response => { const data = await response.json(); if (!response.ok) throw new Error(data.error); return data; })
       .then(data => { if (active) { setEntries(data.entries); setMore(data.has_more); setRevision(data.entries[0]?.revision || ""); } })
       .catch(error => { if (active) setError(String(error)); })
       .finally(() => { if (active) setBusy(false); });
     return () => { active = false; };
-  }, [mode, path, state.base]);
+  }, [api, mode, path, state.base]);
   useEffect(() => {
     if (mode !== "history" || (!revision && latest === null)) return;
     let active = true;
     setDiff(""); setBusy(true); setError("");
     const request = latest !== null
-      ? fetch("/api/memory/diff", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ before: latest, after: state.content }) })
-      : fetch("/api/memory/history?" + new URLSearchParams({ path, revision }));
+      ? fetch(api("/api/memory/diff"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ before: latest, after: state.content }) })
+      : fetch(api("/api/memory/history?" + new URLSearchParams({ path, revision })));
     request.then(async response => { const data = await response.json(); if (!response.ok) throw new Error(data.error); return data; })
       .then(data => { if (active) setDiff(data.diff); })
       .catch(error => { if (active) setError(String(error)); })
       .finally(() => { if (active) setBusy(false); });
     return () => { active = false; };
-  }, [mode, path, revision, state.content, latest]);
+  }, [api, mode, path, revision, state.content, latest]);
   async function older() {
     setBusy(true); setError("");
     try {
-      const response = await fetch("/api/memory/history?" + new URLSearchParams({ path, offset: String(entries.length) }));
+      const response = await fetch(api("/api/memory/history?" + new URLSearchParams({ path, offset: String(entries.length) })));
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
       setEntries(previous => [...previous, ...data.entries]); setMore(data.has_more);
@@ -90,7 +92,7 @@ export function MemoryDocument({ path, url, title, badge, meta, onDelete, onPrev
     if (draft.state.saving || draft.state.content !== draft.state.base) return;
     setRestoring(true); draft.publish({ restoring: true }); setError("");
     try {
-      const response = await fetch("/api/memory/restore", {
+      const response = await fetch(api("/api/memory/restore"), {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ path, revision, base_content: draft.state.base }),
       });

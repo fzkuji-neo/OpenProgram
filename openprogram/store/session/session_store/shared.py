@@ -92,6 +92,8 @@ from ..memory_index import SessionMemoryIndex
 
 
 from ..placement import (
+    INDEX_FILE,
+    LOCATIONS_FILE,
     is_deleted,
     iter_session_dirs,
     default_session_dir,
@@ -108,26 +110,14 @@ from ..session_lock import registry_file_lock, session_interprocess_lock
 
 
 def _default_root() -> Path:
-    """Root holding every session repo: ``<state>/sessions/<id>/``.
+    """Root of the conversation store: ``<state>/projects``.
 
-    Renamed from ``sessions-git`` → ``sessions`` (the ``-git`` suffix
-    was an implementation detail leaking into the path). A one-time,
-    self-contained rename runs here so existing installs migrate
-    transparently — independent of the ``.agentic`` → ``.openprogram``
-    migration marker, since a machine may already be past that.
+    Each project's conversations are in ``<project-id>/chats/``; an older
+    install's ``sessions/`` tree is moved there on first use (see
+    :mod:`openprogram.store.project.layout_migration`).
     """
-    from openprogram.paths import get_state_dir
-    state = Path(get_state_dir())
-    new = state / "sessions"
-    old = state / "sessions-git"
-    if old.exists() and not new.exists():
-        try:
-            old.rename(new)
-        except OSError:
-            # Cross-device or perms — fall back to the old location so
-            # we never lose the user's sessions.
-            return old
-    return new
+    from openprogram.store.project.layout_migration import ensure_layout
+    return ensure_layout()
 
 
 def _projects_default_id_safe() -> str:

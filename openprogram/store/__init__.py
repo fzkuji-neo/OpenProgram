@@ -27,11 +27,11 @@ Public surface (re-exported for legacy import paths):
     SessionMemoryIndex  ─ per-session in-memory DAG index, rebuilt
                           from git on startup / cache miss
 
-Storage layout: every session is its own git repo at
-``~/.openprogram/sessions/<session_id>/`` (ad-hoc chats) — or inside a
-bound project at ``<project>/.openprogram/sessions/<session_id>/``
-(indexed by ``sessions/locations.json``). Each repo has two top-level
-dirs:
+Storage layout: every session is its own git repo in its project's
+folder, ``~/.openprogram/projects/<project>/chats/<session_id>/`` (chats
+with no project belong to the System project, ``default``). Older chats
+recorded inside a project folder are found through
+``projects/.chats-locations.json``. Each repo has two top-level dirs:
 
     history/   append-only JSON files, one per DAG node, named
                ``NNNN-{u|a|t|s|...}-<id>.json`` where NNNN is the

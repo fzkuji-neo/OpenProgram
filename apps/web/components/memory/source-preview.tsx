@@ -4,10 +4,12 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { renderMarkdown } from "./markdown";
 import { useTranslation } from "@/lib/i18n";
 import styles from "./memory-page.module.css";
+import { useMemoryUrl } from "./api";
 
 /** All Memory views use the same availability check before showing source text. */
 export function MemorySourcePreview({ children }: { children: React.ReactNode }) {
   const { text } = useTranslation();
+  const api = useMemoryUrl();
   const [source, setSource] = useState<{ content?: string; error?: string; session_id?: string } | null>(null);
   const generation = useRef(0);
   useEffect(() => () => { generation.current++; }, []);
@@ -20,7 +22,7 @@ export function MemorySourcePreview({ children }: { children: React.ReactNode })
     const request = ++generation.current;
     setSource({});
     try {
-      const response = await fetch("/api/memory/source?" + new URLSearchParams({ path: decodeURIComponent(target.pathname.slice(9)) }));
+      const response = await fetch(api("/api/memory/source?" + new URLSearchParams({ path: decodeURIComponent(target.pathname.slice(9)) })));
       const data = await response.json();
       if (request !== generation.current) return;
       if (data.deleted) {

@@ -341,8 +341,7 @@ def run_agent_method_call(
                 "code": "unknown_project",
                 "status_code": 400,
             }
-        default_db().update_session(session_id, project_id=project_id)
-        _projects.bind_session(session_id, project_id)
+        default_db().assign_project(session_id, project_id)
     # Reject a missing or replaced bound folder before reserving a run or
     # appending any function nodes. Independent worktrees/default sessions
     # continue through the normal resolver.

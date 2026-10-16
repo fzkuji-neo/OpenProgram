@@ -78,7 +78,7 @@ class AttemptStore:
         from openprogram.store.session.session_lock import session_interprocess_lock
 
         with session_interprocess_lock(session_id, timeout=5.0):
-            if session_hold_active(Path(get_state_dir()) / "sessions", session_id):
+            if session_hold_active(Path(get_state_dir()) / "projects", session_id):
                 raise AttemptConflict(
                     "session_migration",
                     "attempt admission is paused while session migration runs",

@@ -14,6 +14,10 @@ browser for it would invite editing what must not be edited.
 Reads are plain filesystem. Writes go through the workspace so a hand
 edit that drops a block ID or strands a footnote is refused rather than
 silently breaking the views that reach through them.
+
+Every route serves the personal memory (the System project's) unless the
+request names another project with ``?project=<id>``; then it serves that
+project's workspace, created on first use.
 """
 from __future__ import annotations
 
@@ -29,6 +33,24 @@ from fastapi.responses import JSONResponse
 # before giving up. Long enough to cover one write, short enough that a
 # click does not look hung.
 WRITE_LOCK_TIMEOUT_S = 5.0
+
+
+async def _project_scope(request: Request):
+    """Serve ``?project=<id>``'s memory workspace for this request."""
+    project_id = (request.query_params.get("project") or "").strip()
+    from openprogram.store.project.layout import DEFAULT_PROJECT_ID
+
+    if not project_id or project_id == DEFAULT_PROJECT_ID:
+        yield
+        return
+    from openprogram.memory import project_layer
+    from openprogram.store.project.project_store import get_project
+
+    project = get_project(project_id)
+    if project is None or project.is_default:
+        raise HTTPException(status_code=404, detail="unknown project")
+    with project_layer.use(project_layer.project_memory_root(project.id)):
+        yield
 
 
 def _require_memory_enabled(request: Request) -> None:
@@ -101,7 +123,9 @@ def _staged_edit(
 
 
 def register(app):
-    router = APIRouter(dependencies=[Depends(_require_memory_enabled)])
+    router = APIRouter(dependencies=[
+        Depends(_project_scope), Depends(_require_memory_enabled),
+    ])
 
     @router.get("/api/memory/status")
     def get_status(settings: bool = False):

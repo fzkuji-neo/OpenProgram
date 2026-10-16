@@ -97,7 +97,7 @@ def test_unknown_age_is_left_alone(tmp_path: Path):
     store = _store(tmp_path)
     sdir = _old_session(store, "s1")
     _strip_to_shell(sdir)
-    index = tmp_path / "sessions" / "index.json"
+    index = tmp_path / "sessions" / ".chats-index.json"
     rows = json.loads(index.read_text())
     rows["s1"].pop("created_at")
     index.write_text(json.dumps(rows))
@@ -139,7 +139,7 @@ def test_quarantine_is_not_a_session(tmp_path: Path):
     sdir = _old_session(store, "s1")
     _strip_to_shell(sdir)
     _reopen(tmp_path)
-    (tmp_path / "sessions" / "index.json").unlink()
+    (tmp_path / "sessions" / ".chats-index.json").unlink()
 
     rebuilt = _reopen(tmp_path)
 

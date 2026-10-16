@@ -129,7 +129,7 @@ def test_create_rejects_non_git_repo(isolated_state, tmp_path):
 
 
 def test_create_rejects_path_inside_sessions_git(isolated_state, tmp_path):
-    sessions_root = isolated_state / "sessions-git" / "sess1"
+    sessions_root = isolated_state / "projects" / "default" / "chats" / "sess1"
     sessions_root.mkdir(parents=True)
     subprocess.run(["git", "init", "-q"], cwd=sessions_root, check=True)
     mgr = WorktreeManager()

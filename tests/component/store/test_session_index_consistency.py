@@ -20,7 +20,7 @@ def test_metadata_updates_preserve_activity_time_and_order(tmp_path: Path) -> No
 
     assert store.get_session("older")["updated_at"] == 10.0
     assert [row["id"] for row in store.list_sessions()] == ["newer", "older"]
-    on_disk = json.loads((tmp_path / "sessions" / "older" / "meta.json").read_text())
+    on_disk = json.loads((tmp_path / "sessions" / "default" / "chats" / "older" / "meta.json").read_text())
     assert on_disk["updated_at"] == 10.0
 
 
@@ -54,7 +54,7 @@ def test_append_advances_meta_and_registry_with_one_timestamp(
 
     assert store.get_session("s1")["updated_at"] == 30.0
     assert store.list_sessions()[0]["updated_at"] == 30.0
-    on_disk = json.loads((tmp_path / "sessions" / "s1" / "meta.json").read_text())
+    on_disk = json.loads((tmp_path / "sessions" / "default" / "chats" / "s1" / "meta.json").read_text())
     assert on_disk["updated_at"] == 30.0
 
 
@@ -81,7 +81,7 @@ def test_side_branch_append_syncs_meta_and_registry(
 
     assert store.get_session("s1")["updated_at"] == 40.0
     assert store.list_sessions()[0]["updated_at"] == 40.0
-    on_disk = json.loads((tmp_path / "sessions" / "s1" / "meta.json").read_text())
+    on_disk = json.loads((tmp_path / "sessions" / "default" / "chats" / "s1" / "meta.json").read_text())
     assert on_disk["updated_at"] == 40.0
 
 
@@ -93,7 +93,7 @@ def test_set_head_preserves_activity_time(tmp_path: Path) -> None:
 
     assert store.get_session("s1")["updated_at"] == 10.0
     assert store.list_sessions()[0]["updated_at"] == 10.0
-    on_disk = json.loads((tmp_path / "sessions" / "s1" / "meta.json").read_text())
+    on_disk = json.loads((tmp_path / "sessions" / "default" / "chats" / "s1" / "meta.json").read_text())
     assert on_disk["updated_at"] == 10.0
 
 
@@ -119,7 +119,7 @@ def test_node_append_syncs_activity_time_without_advancing_head(
     activity_at = store.get_session("s1")["updated_at"]
     assert activity_at > 10.0
     assert store.list_sessions()[0]["updated_at"] == activity_at
-    on_disk = json.loads((tmp_path / "sessions" / "s1" / "meta.json").read_text())
+    on_disk = json.loads((tmp_path / "sessions" / "default" / "chats" / "s1" / "meta.json").read_text())
     assert on_disk["updated_at"] == activity_at
 
 

@@ -381,15 +381,18 @@ def test_ensure_initializes_git_and_snapshots_existing_memory(
     tmp_path, monkeypatch,
 ):
     state = tmp_path / "state"
-    root = state / "memory"
-    topic = root / "topics/note.md"
+    legacy = state / "memory"
+    topic = legacy / "topics/note.md"
     topic.parent.mkdir(parents=True)
     topic.write_text("# Existing\n", encoding="utf-8")
     monkeypatch.setattr("openprogram.paths.get_state_dir", lambda: state)
 
     from openprogram.memory import store
 
+    # An older install's memory moves into the System project first.
+    root = state / "projects" / "default" / "memory"
     assert store.ensure() == root
+    assert not legacy.exists()
     assert (root / ".git").is_dir()
     assert subprocess.check_output(
         ["git", "status", "--short"], cwd=root, text=True
@@ -404,7 +407,7 @@ def test_ensure_migrates_marker_workspace_missing_the_current_layout(
     tmp_path, monkeypatch,
 ):
     state = tmp_path / "state"
-    root = state / "memory"
+    root = state / "projects" / "default" / "memory"
     legacy = root / "wiki/Old.md"
     legacy.parent.mkdir(parents=True)
     legacy.write_text("old memory\n", encoding="utf-8")
@@ -419,7 +422,7 @@ def test_ensure_migrates_marker_workspace_missing_the_current_layout(
     assert (root / "topics").is_dir()
     assert (root / "sources").is_dir()
     assert not (root / "wiki").exists()
-    assert (state / "memory-superseded/wiki/Old.md").read_text(
+    assert (root.parent / "memory-superseded/wiki/Old.md").read_text(
         encoding="utf-8",
     ) == "old memory\n"
 
@@ -1074,3 +1077,26 @@ def test_invalid_restore_does_not_commit_pre_restore_dirty_state(client, memory)
     assert {p.relative_to(memory): p.read_bytes() for p in memory.rglob("*") if p.is_file() and ".git" not in p.relative_to(memory).parts} == before
     assert workspace_revision(memory) == revision
     assert subprocess.check_output(["git", "-C", str(memory), "rev-parse", "HEAD"]) == head
+
+
+def test_project_query_serves_that_projects_workspace(memory, client, tmp_path, monkeypatch):
+    """``?project=<id>`` reads the project's memory, not the personal one."""
+    from types import SimpleNamespace
+
+    from openprogram.store.project import project_store
+
+    monkeypatch.setattr(project_store, "get_project", lambda pid: (
+        SimpleNamespace(id=pid, is_default=False) if pid == "p1" else None))
+    project = tmp_path / "projects" / "p1" / "memory"
+    (project / "sources").mkdir(parents=True)
+    (project / "topics").mkdir()
+    (project / "sources" / "D1.md").write_text(SOURCE, encoding="utf-8")
+    (project / "topics" / "other.md").write_text(LINKING.replace("note.md#^abc12345", "other.md#^def45678"), encoding="utf-8")
+
+    personal = client.get("/api/memory/topics")
+    assert [page["path"] for page in personal.json()] == ["note.md"]
+    scoped = client.get("/api/memory/topics?project=p1")
+    assert scoped.status_code == 200
+    assert [page["path"] for page in scoped.json()] == ["other.md"]
+    assert client.get("/api/memory/topics?project=default").json() == personal.json()
+    assert client.get("/api/memory/topics?project=nope").status_code == 404

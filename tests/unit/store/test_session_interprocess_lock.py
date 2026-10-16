@@ -38,7 +38,7 @@ def test_reentrant_key_includes_active_profile(tmp_path, monkeypatch):
     with session_interprocess_lock("sid-profile", reentrant=True):
         active["root"] = tmp_path / "profile-b"
         with session_interprocess_lock("sid-profile", reentrant=True):
-            assert (active["root"] / "sessions" / ".locks" /
+            assert (active["root"] / "projects" / ".locks" /
                     "sid-profile.lock").exists()
 
 

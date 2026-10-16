@@ -1,4 +1,8 @@
-"""A project's own Memory is read beside the personal one, behind switches."""
+"""A project's own Memory is read beside the personal one, behind switches.
+
+Both switches are on by default; the fixture starts with them off so each
+test turns on what it exercises.
+"""
 from __future__ import annotations
 
 import json
@@ -40,7 +44,7 @@ OWNER = {
 
 @pytest.fixture
 def setup(tmp_path, monkeypatch):
-    """Personal memory, a project folder, and switchable layer settings."""
+    """Personal memory, a registered project, and switchable layer settings."""
     import openprogram.paths as paths
     from openprogram import setup as setup_module
     from openprogram.agent import run_control
@@ -48,13 +52,13 @@ def setup(tmp_path, monkeypatch):
     from openprogram.store.project import project_store
 
     monkeypatch.setattr(paths, "get_state_dir", lambda: tmp_path / "state")
-    settings: dict = {"memory": {"layers": {}}}
+    settings: dict = {"memory": {"layers": {"project": False, "project_writes": False}}}
     monkeypatch.setattr(setup_module, "_read_config", lambda: settings)
     folder = tmp_path / "repo"
     folder.mkdir()
     projects = {
-        "s-project": SimpleNamespace(path=str(folder), is_default=False),
-        "s-adhoc": SimpleNamespace(path=str(tmp_path), is_default=True),
+        "s-project": SimpleNamespace(id="p1", path=str(folder), is_default=False),
+        "s-adhoc": SimpleNamespace(id="default", path=str(tmp_path), is_default=True),
     }
     monkeypatch.setattr(project_store, "project_for_session", projects.get)
     monkeypatch.setattr(project_store, "list_projects", lambda: list(projects.values()))
@@ -65,7 +69,7 @@ def setup(tmp_path, monkeypatch):
         yield SimpleNamespace(
             settings=settings,
             personal=personal,
-            project=(folder / ".openprogram" / "memory").resolve(),
+            project=(tmp_path / "state" / "projects" / "p1" / "memory").resolve(),
         )
     finally:
         run_control.reset_current_session_id(token)
@@ -83,15 +87,28 @@ def _seed_project(env):
     _seed(env.project, "Project: the API uses gRPC for transport.", "def22222")
 
 
-def test_off_by_default_and_reading_creates_nothing(setup):
+def test_switched_off_reads_personal_and_reading_creates_nothing(setup):
     from openprogram.memory import project_layer
 
     assert project_layer.read_layers().single
     _turn_on(setup)
     # Switched on, but the project has no memory yet: reads stay personal
-    # and do not create a workspace in the user's project folder.
+    # and do not create the project's workspace.
     assert project_layer.read_layers().single
     assert not setup.project.exists()
+
+
+def test_both_layers_are_on_by_default(setup):
+    from openprogram.memory.management.config import load_memory_config
+
+    setup.settings["memory"]["layers"] = {}
+    config = load_memory_config()
+    assert config.project_layer and config.project_writes
+
+
+def test_personal_memory_is_the_system_projects(setup, tmp_path):
+    assert setup.personal == (
+        tmp_path / "state" / "projects" / "default" / "memory").resolve()
 
 
 def test_reads_span_both_layers_with_qualified_paths(setup):

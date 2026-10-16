@@ -1,10 +1,10 @@
 """Where memory lives on disk.
 
-The workspace keeps the location the previous memory layer used, so an
-existing installation finds its memory in the same place. What is inside
-it changed: ``sources/`` and ``topics/`` in place of ``journal/`` and
-``wiki/``. ``core.md`` kept its place at the root, and is now
-rendered from ``topics/core.md`` rather than written.
+The personal memory is the System project's workspace,
+``<state>/projects/default/memory``; a project's own memory is
+``<state>/projects/<project-id>/memory`` (see :mod:`.project_layer`).
+Inside a workspace, ``sources/`` and ``topics/`` hold the memory and
+``core.md`` at the root is rendered from ``topics/core.md``.
 """
 
 from __future__ import annotations
@@ -21,12 +21,12 @@ logger = logging.getLogger(__name__)
 
 def root() -> Path:
     """The memory workspace, created on first use."""
-    from openprogram.paths import _restrict_to_owner, get_state_dir
+    from openprogram.paths import _restrict_to_owner, get_memory_dir, get_state_dir
 
     state = get_state_dir()
     from .policy import selected_root
     from .project_layer import active_root
-    path = active_root() or selected_root() or state / "memory"
+    path = active_root() or selected_root() or get_memory_dir()
     path.mkdir(parents=True, exist_ok=True)
     # ``get_state_dir`` protects the profile root when it creates it, but
     # this is the call that brings it into being on a fresh install — the

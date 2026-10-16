@@ -51,15 +51,21 @@ import { ManageEmptyState } from "@/components/ui/manage-page";
 import { sidebarToggleClass } from "@/components/sidebar/nav-classes";
 import { MemorySourcePreview } from "./source-preview";
 import { MemoryDocument } from "./document";
+import { MemoryProjectContext, memoryUrl } from "./api";
 
 export function MemoryPage({
   embedded,
   query,
+  projectId = null,
 }: {
   embedded?: boolean;
   query?: string;
+  /** Show this project's memory instead of the personal one. Give the page
+   *  a `key` per project so its state starts over on a switch. */
+  projectId?: string | null;
 } = {}) {
   const { t, text, locale } = useTranslation();
+  const api = useCallback((path: string) => memoryUrl(path, projectId), [projectId]);
   const refreshIconRef = useRef<AnimatedNavIconHandle>(null);
   const [tab, setTab] = useState<Tab>("topics");
 
@@ -99,7 +105,7 @@ export function MemoryPage({
 
   const fetchTopics = useCallback(() => {
     setTopicsLoading(true);
-    fetch("/api/memory/topics")
+    fetch(api("/api/memory/topics"))
       .then((r) => r.json())
       .then((pages) => {
         const content = Array.isArray(pages) ? pages : [];
@@ -113,19 +119,19 @@ export function MemoryPage({
         setTopicsLoading(false);
       })
       .catch(() => setTopicsLoading(false));
-  }, []);
+  }, [api]);
 
   useEffect(() => { fetchTopics(); }, [fetchTopics]);
 
   useEffect(() => {
-    fetch("/api/memory/timeline")
+    fetch(api("/api/memory/timeline"))
       .then((r) => r.json())
       .then((data) => { setTimelineDays(Array.isArray(data) ? data : []); setTimelineLoading(false); })
       .catch(() => setTimelineLoading(false));
-  }, []);
+  }, [api]);
 
   useEffect(() => {
-    fetch("/api/memory/recent")
+    fetch(api("/api/memory/recent"))
       .then((r) => {
         const limit = Number(r.headers.get("X-Memory-Recent-Limit"));
         if (Number.isInteger(limit) && limit > 0) setRecentLimit(limit);
@@ -133,10 +139,10 @@ export function MemoryPage({
       })
       .then((data) => { setRecentEvents(Array.isArray(data) ? data : []); setRecentLoading(false); })
       .catch(() => setRecentLoading(false));
-  }, []);
+  }, [api]);
 
   const fetchCore = useCallback(() => {
-    return fetch("/api/memory/core")
+    return fetch(api("/api/memory/core"))
       .then((r) => {
         if (!r.ok) throw new Error(`Core request failed: ${r.status}`);
         return r.json();
@@ -156,7 +162,7 @@ export function MemoryPage({
         setCoreLoading(false);
       })
       .catch(() => setCoreLoading(false));
-  }, []);
+  }, [api]);
 
   useEffect(() => { void fetchCore(); }, [fetchCore]);
 
@@ -181,7 +187,7 @@ export function MemoryPage({
       `Delete "${selectedTopic.title || selectedTopic.path}"? This cannot be undone.`,
       `删除“${selectedTopic.title || selectedTopic.path}”？此操作无法撤销。`,
     ))) return;
-    const r = await fetch(`/api/memory/topics/${selectedTopic.path}`, { method: "DELETE" });
+    const r = await fetch(api(`/api/memory/topics/${selectedTopic.path}`), { method: "DELETE" });
     if (r.ok) {
       setSelectedTopic(null);
       fetchTopics();
@@ -197,7 +203,7 @@ export function MemoryPage({
   function openTimelineDay(date: string) {
     setSelectedDate(date);
     setTimelineContent("");
-    fetch(`/api/memory/timeline/${date}`)
+    fetch(api(`/api/memory/timeline/${date}`))
       .then((r) => r.json())
       .then((data) => setTimelineContent(data.content ?? ""));
   }
@@ -329,7 +335,7 @@ export function MemoryPage({
                     ]}
                     key={selectedTopic.path}
                     path={selectedTopic.path}
-                    url={`/api/memory/topics/${selectedTopic.path.split("/").map(encodeURIComponent).join("/")}`}
+                    url={api(`/api/memory/topics/${selectedTopic.path.split("/").map(encodeURIComponent).join("/")}`)}
                     onDelete={deleteTopic}
                     onPreviewClick={handlePreviewClick}
                   />
@@ -542,7 +548,7 @@ export function MemoryPage({
                     meta={["topics/core.md"]}
                     key="core.md"
                     path="core.md"
-                    url="/api/memory/core"
+                    url={api("/api/memory/core")}
                     onSaved={fetchCore}
                   />
                 ) : (
@@ -578,10 +584,18 @@ export function MemoryPage({
     </div>
   );
 
-  if (embedded) return <MemorySourcePreview>{view}</MemorySourcePreview>;
+  if (embedded) {
+    return (
+      <MemoryProjectContext.Provider value={projectId}>
+        <MemorySourcePreview>{view}</MemorySourcePreview>
+      </MemoryProjectContext.Provider>
+    );
+  }
   return (
     <div className="main" style={{ minWidth: 0, overflow: "hidden" }}>
-      <MemorySourcePreview>{view}</MemorySourcePreview>
+      <MemoryProjectContext.Provider value={projectId}>
+        <MemorySourcePreview>{view}</MemorySourcePreview>
+      </MemoryProjectContext.Provider>
     </div>
   );
 }

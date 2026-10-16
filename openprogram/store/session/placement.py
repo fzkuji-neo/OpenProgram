@@ -1,10 +1,11 @@
 """Authoritative session placement under the application state root.
 
-New bound conversations live at
-``<state>/sessions/projects/<project-id>/<session-id>/``.
-Default and pre-existing home-root sessions stay at
-``<state>/sessions/<session-id>/``. Legacy workdir copies remain readable
-until journaled migration publishes them.
+Every conversation lives in its project's folder:
+``<state>/projects/<project-id>/chats/<session-id>/``; conversations that
+belong to no project are in the System project's (``default``). The store
+root is ``<state>/projects`` (see :mod:`openprogram.store.project.layout`);
+its bookkeeping sits in hidden entries there. Legacy workdir copies remain
+readable until journaled migration publishes them.
 """
 from __future__ import annotations
 
@@ -12,13 +13,16 @@ import json
 from pathlib import Path
 from typing import Iterable, Iterator
 
+from openprogram.store.project.layout import CHATS, DEFAULT_PROJECT_ID
 from openprogram.store.session.git_session import atomic_write_text, read_text_with_retry
 
+#: The store's summary index and durable location map, at the store root.
+INDEX_FILE = ".chats-index.json"
+LOCATIONS_FILE = ".chats-locations.json"
 
 RESERVED_ROOT_NAMES = frozenset({
-    "projects",
-    "index.json",
-    "locations.json",
+    INDEX_FILE,
+    LOCATIONS_FILE,
     ".locks",
     ".migration",
     ".deleted",
@@ -29,11 +33,11 @@ RESERVED_ROOT_NAMES = frozenset({
 
 
 def nested_session_dir(root: Path, project_id: str, session_id: str) -> Path:
-    return Path(root) / "projects" / project_id / session_id
+    return Path(root) / project_id / CHATS / session_id
 
 
 def default_session_dir(root: Path, session_id: str) -> Path:
-    return Path(root) / session_id
+    return nested_session_dir(root, DEFAULT_PROJECT_ID, session_id)
 
 
 def legacy_project_session_dir(project_path: str | Path, session_id: str) -> Path:
@@ -93,26 +97,18 @@ def load_delete_intent(root: Path, session_id: str) -> dict | None:
 
 
 def iter_session_dirs(root: Path) -> Iterator[tuple[str, Path]]:
-    """Discover session repositories in both default and nested layouts."""
+    """Discover session repositories in every project's ``chats/``."""
     root = Path(root)
     if not root.is_dir():
         return
     seen: set[str] = set()
-    for child in root.iterdir():
-        if not child.is_dir() or child.name in RESERVED_ROOT_NAMES:
-            continue
-        if child.name.startswith("."):
-            continue
-        if session_looks_present(child) and child.name not in seen:
-            seen.add(child.name)
-            yield child.name, child
-    projects_root = root / "projects"
-    if not projects_root.is_dir():
-        return
-    for project_dir in projects_root.iterdir():
+    for project_dir in sorted(root.iterdir()):
         if not project_dir.is_dir() or project_dir.name.startswith("."):
             continue
-        for child in project_dir.iterdir():
+        chats = project_dir / CHATS
+        if not chats.is_dir():
+            continue
+        for child in sorted(chats.iterdir()):
             if not child.is_dir() or child.name.startswith("."):
                 continue
             if session_looks_present(child) and child.name not in seen:
@@ -126,6 +122,18 @@ def target_dir_for_project(
     if project_id and not is_default:
         return nested_session_dir(root, project_id, session_id)
     return default_session_dir(root, session_id)
+
+
+def project_of_dir(root: Path, session_dir: Path) -> str | None:
+    """The project folder a session repository sits in, if it is in one."""
+    try:
+        rel = Path(session_dir).relative_to(Path(root))
+    except ValueError:
+        return None
+    parts = rel.parts
+    if len(parts) == 3 and parts[1] == CHATS:
+        return parts[0]
+    return None
 
 
 def resolve_existing_dir(

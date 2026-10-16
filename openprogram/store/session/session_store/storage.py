@@ -74,10 +74,12 @@ class StorageOperations:
                 return shared.nested_session_dir(self.root_path, project_id, session_id)
             # A fresh store can rebuild placement from the nested directory
             # even if locations.json and the summary index are unavailable.
-            projects_root = self.root_path / "projects"
-            if projects_root.is_dir():
-                for project_dir in projects_root.iterdir():
-                    candidate = project_dir / session_id
+            if self.root_path.is_dir():
+                for project_dir in self.root_path.iterdir():
+                    if project_dir.name.startswith(".") or not project_dir.is_dir():
+                        continue
+                    candidate = shared.nested_session_dir(
+                        self.root_path, project_dir.name, session_id)
                     if candidate.is_dir() and shared.session_looks_present(candidate):
                         self._project_ids[session_id] = project_dir.name
                         return candidate

@@ -239,11 +239,10 @@ def discard_tracked_job(job_id: str) -> bool:
     removed = False
     if not store.root_path.exists():
         return False
-    for sdir in store.root_path.iterdir():
-        if not sdir.is_dir():
-            continue
+    from openprogram.store.session.placement import iter_session_dirs
+    for sid, sdir in iter_session_dirs(store.root_path):
         if (sdir / "inbox.json").exists():
-            if discard_job(sdir.name, job_id):
+            if discard_job(sid, job_id):
                 removed = True
     return removed
 

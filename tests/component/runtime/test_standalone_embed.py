@@ -168,7 +168,7 @@ def test_execution_persists_to_explicit_directory(tmp_path, no_implicit_state_di
 
     # Written where the host asked, and nowhere else.
     assert (tmp_path / "host_sessions").exists()
-    assert (tmp_path / "host_sessions" / "embedded").is_dir()
+    assert (tmp_path / "host_sessions" / "default" / "chats" / "embedded").is_dir()
 
 
 def test_runs_without_any_store(no_implicit_state_dir):

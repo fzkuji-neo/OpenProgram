@@ -56,7 +56,7 @@ def test_rendering_writes_nothing(store, tmp_path):
     store.create_session("s", "main", title="t")
     store.append_message("s", {"id": "u1", "role": "user", "content": BIG})
 
-    large = tmp_path / "sessions" / "s" / "large_nodes"
+    large = tmp_path / "sessions" / "default" / "chats" / "s" / "large_nodes"
     before = sorted(p.name for p in large.iterdir())
 
     from openprogram.store.session.session_node_writer import SessionNodeWriter
@@ -101,7 +101,7 @@ def test_spill_switch_off_writes_no_file(store, tmp_path, monkeypatch):
 
     node = {m["id"]: m for m in store.get_messages("s")}["u1"]
     assert not node.get("spilled")
-    assert not (tmp_path / "sessions" / "s" / "large_nodes").exists()
+    assert not (tmp_path / "sessions" / "default" / "chats" / "s" / "large_nodes").exists()
 
     # …and the render falls back to char truncation, not full text.
     from openprogram.store.session.session_node_writer import SessionNodeWriter

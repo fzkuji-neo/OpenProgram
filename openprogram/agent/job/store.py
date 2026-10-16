@@ -379,10 +379,8 @@ def reconcile_orphans(
         return 0
     count = 0
     linked_updates: list[Job] = []
-    for sdir in sorted(store.root_path.iterdir()):
-        if not sdir.is_dir():
-            continue
-        sid = sdir.name
+    from openprogram.store.session.placement import iter_session_dirs
+    for sid, sdir in iter_session_dirs(store.root_path):
         path = sdir / "jobs.json"
         _migrate_legacy_file(path)
         if not path.exists():

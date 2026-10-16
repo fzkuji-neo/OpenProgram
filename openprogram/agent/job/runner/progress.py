@@ -107,13 +107,12 @@ class ProgressOperations:
         if not store.root_path.exists():
             return None
         hits: list[tuple[str, shared.Job]] = []
-        for sdir in sorted(store.root_path.iterdir()):
-            if not sdir.is_dir():
-                continue
+        from openprogram.store.session.placement import iter_session_dirs
+        for sid, sdir in iter_session_dirs(store.root_path):
             if (sdir / "jobs.json").exists():
-                found = shared._store_load(sdir.name, job_id)
+                found = shared._store_load(sid, job_id)
                 if found is not None:
-                    hits.append((sdir.name, found))
+                    hits.append((sid, found))
         if not hits:
             return None
         # Prefer the execution home. A linked job is mirrored into the

@@ -176,7 +176,7 @@ def test_raw_rebases_legacy_session_attachment_after_real_migration(
     monkeypatch.setattr(
         "openprogram.store.session.migration._live_jobs", lambda _sid: False,
     )
-    store = SessionStore(state / "sessions")
+    store = SessionStore(state / "projects")
     result = migrate_session(store, {
         "session_id": "s1",
         "project_id": "p1",
@@ -185,7 +185,7 @@ def test_raw_rebases_legacy_session_attachment_after_real_migration(
     })
     assert result == "done"
     assert not source.exists()
-    dest = state / "sessions" / "projects" / "p1" / "s1"
+    dest = state / "projects" / "p1" / "chats" / "s1"
     current_attachment = dest / "workdir" / "attachments" / "report.pdf"
     assert current_attachment.read_bytes() == b"legacy"
     assert str(old_attachment) in (dest / "history" / "0001-u-u1.json").read_text()
