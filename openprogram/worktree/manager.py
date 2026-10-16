@@ -8,7 +8,7 @@ Implements ``docs/design/runtime/agent-worktree.md`` Part 4 step 2:
   * :meth:`get_worktree` / :meth:`list_worktrees`
 
 Safety: every create call validates that the prospective
-``worktree_path`` is NOT under ``~/.openprogram/sessions/`` (D4) and
+``worktree_path`` is NOT under ``~/.openprogram/projects/`` (D4) and
 the ``source_repo`` IS a real git repo (D14). Merge failures keep
 the worktree alive (Part 5 #3); the entity transitions ``committing``
 → ``active`` with an ``error`` stamp.
@@ -120,20 +120,10 @@ def _slugify(name: str, default: str) -> str:
 
 
 def _sessions_git_root() -> Path:
-    """Directory that OpenProgram uses for its own session-as-git
-    storage. Worktrees MUST NOT be created inside this tree.
-
-    Mirrors ``session_store._default_root`` — the ``sessions-git`` →
-    ``sessions`` rename applies here too. We don't trigger the rename
-    (session_store owns that); we just point at the new canonical name,
-    falling back to the legacy dir if only it exists.
+    """Directory that OpenProgram uses for its own conversation storage,
+    ``<state>/projects``. Worktrees MUST NOT be created inside this tree.
     """
-    state = get_state_dir()
-    new = state / "sessions"
-    old = state / "sessions-git"
-    if new.exists() or not old.exists():
-        return new
-    return old
+    return get_state_dir() / "projects"
 
 
 def _is_inside_sessions_dir(path: Path) -> bool:
@@ -276,7 +266,7 @@ class WorktreeManager:
             base_ref = fetch_ref
         _validate_ref(base_ref, "base_ref")
         # Final worktree path lives outside both source_repo and
-        # sessions-git so neither can accidentally pick up its files.
+        # the chat store so neither can accidentally pick up its files.
         path = _worktrees_root() / f"{wt_id}-{slug}"
         if _is_inside_sessions_dir(path):
             raise WorktreeError(

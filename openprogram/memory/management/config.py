@@ -22,8 +22,8 @@ class MemoryConfig:
     hybrid_file_boost: bool = True
     # A conversation in a project also reads that project's own memory,
     # and, when project_writes is on, its memories are written there.
-    project_layer: bool = False
-    project_writes: bool = False
+    project_layer: bool = True
+    project_writes: bool = True
     # After a write, check that one fact from it can be recalled, and
     # repair the Topics when it cannot.
     writer_verify: bool = False
@@ -142,8 +142,8 @@ def load_memory_config(config: dict[str, Any] | None = None) -> MemoryConfig:
         ),
         hybrid_weighting=weighting,
         hybrid_file_boost=_flag(hybrid, "file_boost", True),
-        project_layer=_flag(layers, "project", False),
-        project_writes=_flag(layers, "project_writes", False),
+        project_layer=_flag(layers, "project", True),
+        project_writes=_flag(layers, "project_writes", True),
         writer_verify=_flag(writer, "verify", False),
         core_inject=(
             core.get("inject")

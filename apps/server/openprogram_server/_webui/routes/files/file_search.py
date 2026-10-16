@@ -224,9 +224,8 @@ def _allowed_roots() -> list[Path]:
     roots = [_default_root()]
     try:
         from openprogram.paths import get_state_dir
-        sessions = Path(get_state_dir()).resolve() / "sessions"
-        if sessions.is_dir():
-            roots.append(sessions)
+        projects = Path(get_state_dir()).resolve() / "projects"
+        roots.extend(sorted(d for d in projects.glob("*/chats") if d.is_dir()))
     except Exception:  # noqa: BLE001
         pass
     return roots

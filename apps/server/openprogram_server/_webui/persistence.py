@@ -2,7 +2,7 @@
 Per-session persistence — a thin facade over SessionStore.
 
 The single source of truth is SessionStore (``openprogram/store``): one
-git repo per session under ``~/.openprogram/sessions/<session_id>/``,
+git repo per session under ``~/.openprogram/projects/<project>/chats/<session_id>/``,
 addressed by ``session_id`` alone. Everything here just forwards to
 ``default_db()``.
 

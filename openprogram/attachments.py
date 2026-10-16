@@ -210,12 +210,22 @@ def _channel_attachment_dirs() -> list[Path]:
         return []
 
 
+def _chats_roots(state: Path | None) -> list[Path]:
+    """Every project's ``chats/`` folder: where conversations keep files."""
+    if state is None:
+        return []
+    root = state / "projects"
+    try:
+        return [(entry / "chats").resolve() for entry in sorted(root.iterdir())
+                if not entry.name.startswith(".") and (entry / "chats").is_dir()]
+    except OSError:
+        return []
+
+
 def readable_roots(session_id: str | None = None) -> list[Path]:
     """Directories whose bytes the local web UI may fetch for display."""
     roots = [project_root()]
-    state = _state_dir()
-    if state is not None and (state / "sessions").is_dir():
-        roots.append((state / "sessions").resolve())
+    roots.extend(_chats_roots(_state_dir()))
     roots.extend(_channel_attachment_dirs())
     roots.extend(_bound_project_dir(session_id))
     return roots
@@ -227,35 +237,27 @@ def _session_repo_candidates(session_id: str) -> list[Path]:
     This is deliberately filesystem-only. Resolving an attachment for a
     read-only HTTP request must not instantiate ``SessionStore`` (whose
     startup maintenance can rewrite its registry). The durable location map
-    is preferred, then the two application-owned layouts are considered.
+    is preferred, then every project's ``chats/`` folder is considered.
     """
     if not session_id or "/" in session_id or "\\" in session_id:
         return []
     state = _state_dir()
     if state is None:
         return []
-    root = state / "sessions"
+    from openprogram.store.session.placement import LOCATIONS_FILE
+
+    root = state / "projects"
     if (root / ".deleted" / session_id).is_file():
         return []
     candidates: list[Path] = []
     try:
-        locations = json.loads((root / "locations.json").read_text(encoding="utf-8"))
+        locations = json.loads((root / LOCATIONS_FILE).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         locations = {}
     recorded = locations.get(session_id) if isinstance(locations, dict) else None
     if isinstance(recorded, str):
         candidates.append(Path(recorded).expanduser())
-    candidates.append(root / session_id)
-    projects = root / "projects"
-    if projects.is_dir():
-        try:
-            candidates.extend(
-                project / session_id
-                for project in projects.iterdir()
-                if project.is_dir()
-            )
-        except OSError:
-            return []
+    candidates.extend(chats / session_id for chats in _chats_roots(state))
     valid: list[Path] = []
     seen: set[Path] = set()
     for candidate in candidates:
@@ -365,10 +367,7 @@ def sendable_roots(session_id: str | None = None) -> list[Path]:
     the session is bound to. Not the OpenProgram checkout, not the
     inbound channel directories, not the rest of the state directory.
     """
-    roots: list[Path] = []
-    state = _state_dir()
-    if state is not None and (state / "sessions").is_dir():
-        roots.append((state / "sessions").resolve())
+    roots: list[Path] = list(_chats_roots(_state_dir()))
     roots.extend(_bound_project_dir(session_id))
     return roots
 

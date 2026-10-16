@@ -36,7 +36,7 @@ def test_bound_session_is_not_written_into_workdir(tmp_path, monkeypatch):
     store.create_session("s1", "main", project_path=str(workdir), title="notes")
     proj = projects.project_for_session("s1")
     assert proj is not None and not proj.is_default
-    nested = store.root_path / "projects" / proj.id / "s1"
+    nested = store.root_path / proj.id / "chats" / "s1"
     assert (nested / "meta.json").is_file()
     assert (nested / "history").is_dir()
     assert not (workdir / ".openprogram" / "sessions" / "s1").exists()
@@ -116,8 +116,8 @@ def test_apply_default_workdir_does_not_fallback_when_bound_folder_missing(
             self.workdir = path
 
     rt = Runtime()
-    assert (store.root_path / "s1" / "history").is_dir() or (
-        store.root_path / "projects" / proj.id / "s1" / "history").is_dir()
+    assert (store.root_path / "default" / "chats" / "s1" / "history").is_dir() or (
+        store.root_path / proj.id / "chats" / "s1" / "history").is_dir()
     assert _workdir.project_workdir_for("s1") is None
     assert _workdir.apply_default_workdir(rt, "s1") is None
     assert rt.workdir is None

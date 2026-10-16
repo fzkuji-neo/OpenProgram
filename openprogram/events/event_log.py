@@ -1,6 +1,6 @@
 """Event log — one JSON line per completed typed dispatch on the singleton.
 
-Routing: ``~/.openprogram/sessions/<sid>/events.jsonl`` when the event
+Routing: ``~/.openprogram/projects/<project>/chats/<sid>/events.jsonl`` when the event
 carries a session whose directory already exists (session directories are
 created by the session store, never by the logger — a stray session id in
 metadata must not mint a phantom session directory); the shared
@@ -26,7 +26,7 @@ def _event_log_path(ev) -> Path:
     sid = ev.metadata.get("session") if isinstance(ev.metadata, dict) else None
     if sid:
         sid = str(sid)
-        sessions_root = base / "sessions"
+        sessions_root = base / "projects"
         try:
             from openprogram.store.session.placement import is_deleted
             if is_deleted(sessions_root, sid):
@@ -39,33 +39,28 @@ def _event_log_path(ev) -> Path:
             # A test or an embedding process can change the active home/profile
             # after the process-wide store was constructed.  Do not consult a
             # store rooted in another profile for the current event.
-            if Path(store.root_path) == base / "sessions":
+            if Path(store.root_path) == sessions_root:
                 sess_dir = store._session_dir(sid)
                 if sess_dir.is_dir():
                     return sess_dir / "events.jsonl"
         except Exception:
             pass
         # Resolve the durable location record even when the process singleton
-        # was created under another profile. This covers nested project
-        # sessions without constructing another SessionStore.
+        # was created under another profile, without constructing another
+        # SessionStore; then look in every project's chats folder.
         try:
-            locations_path = sessions_root / "locations.json"
-            locations = json.loads(locations_path.read_text(encoding="utf-8"))
+            from openprogram.store.session.placement import LOCATIONS_FILE, iter_session_dirs
+            locations_path = sessions_root / LOCATIONS_FILE
+            try:
+                locations = json.loads(locations_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                locations = {}
             recorded = locations.get(sid) if isinstance(locations, dict) else None
             if recorded and Path(recorded).is_dir():
                 return Path(recorded) / "events.jsonl"
-        except (OSError, json.JSONDecodeError):
-            pass
-        sess_dir = sessions_root / sid
-        if sess_dir.is_dir():
-            return sess_dir / "events.jsonl"
-        try:
-            from openprogram.store.project import project_store
-            project = project_store.project_for_session(sid)
-            if project is not None and not getattr(project, "is_default", False):
-                nested = sessions_root / "projects" / project.id / sid
-                if nested.is_dir():
-                    return nested / "events.jsonl"
+            for found, sess_dir in iter_session_dirs(sessions_root):
+                if found == sid:
+                    return sess_dir / "events.jsonl"
         except Exception:
             pass
     return base / "logs" / "events.jsonl"

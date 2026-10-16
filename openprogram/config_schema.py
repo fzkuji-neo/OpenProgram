@@ -710,15 +710,15 @@ SETTINGS: list[SettingSpec] = [
     SettingSpec(
         key="memory.layers.project", path=("memory", "layers", "project"),
         group="Memory", label="Project memory", widget="toggle",
-        apply=APPLY_LIVE, default=False,
+        apply=APPLY_LIVE, default=True,
         help="A conversation in a project also reads that project's own "
-             "Memory, kept in <project>/.openprogram/memory.",
+             "Memory, kept in ~/.openprogram/projects/<project>/memory.",
     ),
     SettingSpec(
         key="memory.layers.project_writes",
         path=("memory", "layers", "project_writes"),
         group="Memory", label="Write to project memory", widget="toggle",
-        apply=APPLY_LIVE, default=False,
+        apply=APPLY_LIVE, default=True,
         help="With Project memory on, write what a project's conversations "
              "record into that project's Memory instead of the personal one.",
     ),

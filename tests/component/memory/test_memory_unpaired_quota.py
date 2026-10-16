@@ -34,9 +34,9 @@ def test_unpaired_archive_refuses_messages_after_global_rate_limit(
     assert _archive(writing, "m2", "two")
     assert _archive(writing, "m3", "three") == ""
 
-    files = list((tmp_path / "state/memory/sources").rglob("*.md"))
+    files = list((tmp_path / "state/projects/default/memory/sources").rglob("*.md"))
     assert len(files) == 1
-    relative = files[0].relative_to(tmp_path / "state/memory")
+    relative = files[0].relative_to(tmp_path / "state/projects/default/memory")
     scan = scan_source_archive(files[0].read_text(encoding="utf-8"), relative)
     assert scan.complete and len(scan.frames) == 2
 
@@ -57,7 +57,7 @@ def test_unpaired_archive_refuses_a_message_that_exceeds_storage_quota(
     assert _archive(writing, "m2", "56789") == ""
 
     archived = next(
-        (tmp_path / "state/memory/sources").rglob("*.md")
+        (tmp_path / "state/projects/default/memory/sources").rglob("*.md")
     ).read_text(encoding="utf-8")
     assert "1234" in archived
     assert "56789" not in archived
@@ -79,7 +79,7 @@ def test_unpaired_archive_refuses_an_oversized_identity(tmp_path, monkeypatch):
         text="hello",
         timestamp=1.0,
     ) == ""
-    assert not (tmp_path / "state/memory/sources").exists()
+    assert not (tmp_path / "state/projects/default/memory/sources").exists()
 
 
 def test_unpaired_archive_refuses_empty_text(tmp_path, monkeypatch):
@@ -89,7 +89,7 @@ def test_unpaired_archive_refuses_empty_text(tmp_path, monkeypatch):
         "openprogram.paths.get_state_dir", lambda: tmp_path / "state",
     )
     assert _archive(writing, "m1", "") == ""
-    assert not (tmp_path / "state/memory/sources").exists()
+    assert not (tmp_path / "state/projects/default/memory/sources").exists()
 
 
 def test_unpaired_archive_is_off_with_the_backend_disabled(
@@ -102,7 +102,7 @@ def test_unpaired_archive_is_off_with_the_backend_disabled(
     )
     monkeypatch.setattr("openprogram.memory.is_enabled", lambda: False)
     assert _archive(writing, "m1", "one") == ""
-    assert not (tmp_path / "state/memory").exists()
+    assert not (tmp_path / "state/projects/default/memory").exists()
 
 
 def test_a_rejected_message_leaves_no_partial_state(tmp_path, monkeypatch):
@@ -117,7 +117,7 @@ def test_a_rejected_message_leaves_no_partial_state(tmp_path, monkeypatch):
     monkeypatch.setattr(writing.time, "time", lambda: 1000.0)
 
     assert _archive(writing, "m1", "accepted")
-    root = tmp_path / "state/memory"
+    root = tmp_path / "state/projects/default/memory"
     quota = runtime_dir(root) / writing._UNPAIRED_ARCHIVE_QUOTA_FILE
     accepted_before = quota.read_text(encoding="utf-8")
     archived_before = sorted(
@@ -183,9 +183,9 @@ print(writing.archive_unpaired_group_message(
     assert len(accepted) == quota
     assert len(set(accepted)) == quota
 
-    files = list((tmp_path / "state/memory/sources").rglob("*.md"))
+    files = list((tmp_path / "state/projects/default/memory/sources").rglob("*.md"))
     assert len(files) == 1
-    relative = files[0].relative_to(tmp_path / "state/memory")
+    relative = files[0].relative_to(tmp_path / "state/projects/default/memory")
     scan = scan_source_archive(files[0].read_text(encoding="utf-8"), relative)
     assert scan.complete
     assert {frame.source_id for frame in scan.frames} == set(accepted)

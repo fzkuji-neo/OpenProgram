@@ -51,9 +51,16 @@ type FilterId = "all" | "today" | "past7" | "older";
 export function ChatsPage({
   embedded,
   query: queryProp,
+  include,
+  rail = true,
 }: {
   embedded?: boolean;
   query?: string;
+  /** Keep only these chats, e.g. one project's. */
+  include?: (conv: ConvSummary) => boolean;
+  /** The left rail of recency filters; off inside a project, where the
+   *  list stays grouped by recency instead. */
+  rail?: boolean;
 } = {}) {
   const { t, text, locale } = useTranslation();
   // Same store the sidebar Recents list reads — one pipeline, no second
@@ -84,6 +91,7 @@ export function ChatsPage({
   const searched = useMemo(() => {
     const q = query.trim().toLowerCase();
     let arr = Object.values(conversations) as ConvSummary[];
+    if (include) arr = arr.filter(include);
     if (q) {
       // Match the label the row actually renders (channel brand +
       // preview fallback), not just the raw title — otherwise searching
@@ -104,7 +112,7 @@ export function ChatsPage({
       return labelFor(a, untitled).localeCompare(labelFor(b, untitled));
     });
     return arr;
-  }, [conversations, query, statusFilter, sort, untitled]);
+  }, [conversations, include, query, statusFilter, sort, untitled]);
 
   const counts = useMemo(() => {
     const c: Record<FilterId, number> = { all: searched.length, today: 0, past7: 0, older: 0 };
@@ -218,7 +226,8 @@ export function ChatsPage({
           </div>
         )}
 
-        <div className={styles.body}>
+        <div className={rail ? styles.body : `${styles.body} ${styles.bodyNoRail}`}>
+          {rail && (
           <div className={styles.nav}>
             {navGroups.map((group) => (
               <div key={group.label}>
@@ -236,6 +245,7 @@ export function ChatsPage({
               </div>
             ))}
           </div>
+          )}
 
           <div className={styles.content}>
             {embedded && (
@@ -254,12 +264,16 @@ export function ChatsPage({
                 title={query
                   ? text("No chats match your search", "没有匹配的会话")
                   : filter === "all"
-                    ? text("No conversations yet", "还没有会话")
+                    ? include
+                      ? text("No chats in this project yet", "这个项目还没有会话")
+                      : text("No conversations yet", "还没有会话")
                     : text("Nothing in this range", "这个时间范围内没有内容")}
                 description={query
                   ? text("Try a different search term or status filter.", "换个关键词或状态筛选试试。")
                   : filter === "all"
-                    ? text(`Use ${t("nav.new_chat")} in the sidebar; conversations appear here grouped by recency.`, `使用侧栏的“${t("nav.new_chat")}”开始；会话会按时间分组显示在这里。`)
+                    ? include
+                      ? text("Chats started in this project appear here, grouped by recency.", "在这个项目里开始的会话会按时间分组显示在这里。")
+                      : text(`Use ${t("nav.new_chat")} in the sidebar; conversations appear here grouped by recency.`, `使用侧栏的“${t("nav.new_chat")}”开始；会话会按时间分组显示在这里。`)
                     : text("Pick another range on the left.", "在左侧选择其他时间范围。")}
               />
             ) : grouped ? (

@@ -10,11 +10,10 @@ just block on stdin if the caller is an external agent. Instead:
   4. The resume command writes the answer to a file.
   5. The original process picks it up, the function thread resumes.
 
-Session directory layout (under ``<state>/sessions/`` via
-get_sessions_dir(); NOTE: this tree is currently shared with the
-conversation-memory SessionStore — see docs/design/memory/overview.md §0.5
-"已知待修". These ask_user IPC dirs are keyed by a transient uuid):
-    ~/.openprogram/sessions/<id>/
+Session directory layout (under ``<state>/cli-questions/``, apart from
+the conversation store; these ask_user IPC dirs are keyed by a transient
+uuid):
+    ~/.openprogram/cli-questions/<id>/
         meta.json       — {"question": "...", "pid": 12345, "status": "waiting"}
         answer          — written by `resume` command (trigger file)
 
@@ -38,15 +37,15 @@ import uuid
 # live accessor that respects --profile / OPENPROGRAM_PROFILE and the
 # canonical ~/.openprogram state dir. This constant is only a default
 # hint — nothing live reads it — but keep it on the canonical name.
-SESSIONS_DIR = os.path.join(os.path.expanduser("~"), ".openprogram", "sessions")
+SESSIONS_DIR = os.path.join(os.path.expanduser("~"), ".openprogram", "cli-questions")
 _SESSION_ID_RE = re.compile(r"[A-Za-z0-9_-]+")
 # Fields this module always writes; used to refuse clobbering SessionStore meta.json.
 _META_MARKERS = ("status", "created")
 
 
 def _sessions_dir() -> str:
-    from openprogram.paths import get_sessions_dir
-    return str(get_sessions_dir())
+    from openprogram.paths import get_state_dir
+    return str(get_state_dir() / "cli-questions")
 
 
 def _require_session_id(session_id: str) -> str:

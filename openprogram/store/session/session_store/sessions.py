@@ -161,6 +161,50 @@ class SessionsOperations:
             current.rename(target)
 
 
+    def assign_project(self, session_id: str, project_id: str) -> None:
+        """Make ``project_id`` the conversation's one project.
+
+        Records it on the meta and in the registry (dropping the binding to
+        any other project). A conversation with no turns yet also moves
+        into the new project's ``chats/`` folder; one with turns stays
+        where it is, found through the location map.
+        """
+        from openprogram.store.project import project_store as _projects
+
+        project = _projects.get_project(project_id)
+        if project is None:
+            raise ValueError(f"unknown project: {project_id}")
+        self.update_session(session_id, project_id=project_id)
+        _projects.unbind_session(session_id)
+        _projects.bind_session(session_id, project_id)
+        target = shared.target_dir_for_project(
+            self.root_path, session_id,
+            project_id=project.id, is_default=bool(project.is_default),
+        )
+        with self._session_lock(session_id):
+            with shared.session_interprocess_lock(
+                session_id, timeout=15.0,
+                root=self.root_path if self._explicit_root else None,
+            ):
+                current = self._session_dir(session_id)
+                if (current == target or target.exists() or not current.is_dir()
+                        or _has_history(current)):
+                    if project.is_default:
+                        self._project_ids.pop(session_id, None)
+                    else:
+                        self._project_ids[session_id] = project.id
+                    return
+                with self._lock:
+                    self._sessions.pop(session_id, None)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                current.rename(target)
+                if project.is_default:
+                    self._project_ids.pop(session_id, None)
+                else:
+                    self._project_ids[session_id] = project.id
+        self._record_location(session_id, target)
+
+
     def is_created(self, session_id: str) -> bool:
         """True once ``create_session`` has written this conversation.
 

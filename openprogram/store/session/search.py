@@ -1,7 +1,7 @@
 """Cross-session message search backed by ``ripgrep``.
 
 Replaces SQLite FTS5. ``ripgrep`` is invoked as a subprocess against
-the ``~/.openprogram/sessions/*/history/*.json`` tree. Matches are
+the ``~/.openprogram/projects/*/chats/*/history/*.json`` tree. Matches are
 parsed, mapped back to ``{session_id, node_id}`` tuples, and rendered
 into the same message-dict shape the old ``DagSessionDB.search_messages``
 returned.
@@ -29,7 +29,7 @@ def _have_rg() -> bool:
 def _parse_history_path(p: Path) -> Optional[tuple[str, str]]:
     """Path → (session_id, node_id) or None.
 
-    Expected shape: ``<root>/<session_id>/history/<NNNN>-<role>-<id>.json``.
+    Expected shape: ``<chats>/<session_id>/history/<NNNN>-<role>-<id>.json``.
     """
     try:
         if p.parent.name != "history":
@@ -60,14 +60,20 @@ def search_messages(
     root = store.root_path
     if not root.exists() or not query.strip():
         return []
-    # Where to search: one session subdir or the whole tree.
-    target_dir = root / session_id / "history" if session_id else root
+    # Where to search: one session's history or every project's chats.
+    if session_id:
+        targets = [store._session_dir(session_id) / "history"]
+    else:
+        targets = sorted(d for d in root.glob("*/chats") if d.is_dir())
+    targets = [t for t in targets if t.is_dir()]
+    if not targets:
+        return []
 
     hits: list[tuple[str, str]] = []
     if _have_rg():
-        hits = _rg_search(target_dir, query, limit * 5)
+        hits = _rg_search(targets, query, limit * 5)
     else:
-        hits = _python_search(target_dir, query, limit * 5)
+        hits = _python_search(targets, query, limit * 5)
 
     # Filter by agent_id if requested; enrich each result like the
     # old DagSessionDB.search_messages did.
@@ -101,13 +107,13 @@ def search_messages(
     return out
 
 
-def _rg_search(target_dir: Path, query: str, max_hits: int) -> list[tuple[str, str]]:
+def _rg_search(targets: list[Path], query: str, max_hits: int) -> list[tuple[str, str]]:
     """Run ``rg --files-with-matches`` and parse paths into (sid, nid)."""
     try:
         cp = subprocess.run(
             ["rg", "--files-with-matches", "--no-messages",
              "--glob", "*.json", "--max-count", "1",
-             "-i", query, str(target_dir)],
+             "-i", "--", query, *map(str, targets)],
             capture_output=True, text=True, timeout=10,
         )
     except (OSError, subprocess.TimeoutExpired):
@@ -126,18 +132,16 @@ def _rg_search(target_dir: Path, query: str, max_hits: int) -> list[tuple[str, s
     return out
 
 
-def _python_search(target_dir: Path, query: str, max_hits: int) -> list[tuple[str, str]]:
+def _python_search(targets: list[Path], query: str, max_hits: int) -> list[tuple[str, str]]:
     """Slow fallback when ripgrep isn't installed. Linear scan."""
     needle = query.lower()
     out: list[tuple[str, str]] = []
-    # If target is a session's history dir, look only there; otherwise
-    # iterate <sid>/history/*.json across all sessions.
-    if target_dir.name == "history":
-        paths = list(target_dir.glob("*.json"))
-    else:
-        paths = list(target_dir.glob("*/history/*.json"))
-        paths.extend(target_dir.glob("projects/*/history/*.json"))
-        paths.extend(target_dir.glob("projects/*/*/history/*.json"))
+    # A session's history dir is searched directly; a project's chats dir
+    # through each of its sessions.
+    paths: list[Path] = []
+    for target in targets:
+        pattern = "*.json" if target.name == "history" else "*/history/*.json"
+        paths.extend(target.glob(pattern))
     for p in paths:
         try:
             content = p.read_text(errors="ignore", encoding="utf-8")

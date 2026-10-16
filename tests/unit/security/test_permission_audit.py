@@ -17,7 +17,7 @@ def boundary(tmp_path, monkeypatch):
     from openprogram.worktree.context import reset_worktree, set_worktree
 
     state = tmp_path / "state"
-    session_dir = state / "sessions" / "audit-session"
+    session_dir = state / "projects" / "default" / "chats" / "audit-session"
     session_dir.mkdir(parents=True)
     monkeypatch.setattr(paths, "get_state_dir", lambda: state)
     authority._reset_owner_cache_for_tests()
@@ -88,7 +88,7 @@ def test_delegated_audit_never_records_argument_text(boundary, mode, tool_name, 
         assert ev.metadata["session"] == req.session_id
         assert ev.payload["tool"] == tool_name
         assert ev.payload["source"] == "agent_spawn"
-    log = state / "sessions" / req.session_id / "events.jsonl"
+    log = state / "projects" / "default" / "chats" / req.session_id / "events.jsonl"
     assert log.exists()
     assert "SYNTHETIC_AUDIT_CREDENTIAL_7c02" not in log.read_text()
     assert '"security.risky_tool_delegated"' in log.read_text()
@@ -154,7 +154,7 @@ def test_unsafe_target_is_audited_without_path_or_content(boundary):
     audit = [ev for ev in events if ev.type == "security.path_violation"]
     assert audit and audit[-1].payload["reason"] == "unsafe write target"
     assert secret not in json.dumps([asdict(ev) for ev in audit])
-    log = state / "sessions" / req.session_id / "events.jsonl"
+    log = state / "projects" / "default" / "chats" / req.session_id / "events.jsonl"
     assert log.exists() and secret not in log.read_text()
 
 

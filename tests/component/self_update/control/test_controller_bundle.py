@@ -83,7 +83,7 @@ def _start_redirected_state_writers(root: Path, monkeypatch: pytest.MonkeyPatch)
     db.create_session("late-writer", "main")
     get_runner()
     assert db.root_path.resolve().is_relative_to(root.resolve())
-    assert (state / "sessions").is_dir()
+    assert (state / "projects").is_dir()
     assert (state / "usage.db").is_file() or (state / "executions.db").is_file()
 
 

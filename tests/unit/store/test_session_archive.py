@@ -60,7 +60,7 @@ def test_archiving_preserves_activity_time_and_order(tmp_path: Path) -> None:
 
     assert store.get_session("gone")["updated_at"] == NEWER
     assert [r["id"] for r in store.list_sessions()] == ["gone", "keep"]
-    on_disk = json.loads((tmp_path / "sessions" / "gone" / "meta.json").read_text())
+    on_disk = json.loads((tmp_path / "sessions" / "default" / "chats" / "gone" / "meta.json").read_text())
     assert on_disk["updated_at"] == NEWER
 
 
@@ -120,7 +120,7 @@ def test_reopen_does_not_enumerate_existing_history(tmp_path: Path, monkeypatch)
         updated_at=time.time() - 7200.0,
     )
     store._flush_index()
-    history = root / "existing-history" / "history"
+    history = root / "default" / "chats" / "existing-history" / "history"
     original_iterdir = Path.iterdir
 
     def fail_history_enumeration(path):
@@ -168,7 +168,7 @@ def test_session_removal_handles_windows_readonly_git_objects(tmp_path, monkeypa
     store.create_session('old', 'main', created_at=time.time() - 7200.0,
                          updated_at=time.time() - 7200.0)
     store.close()
-    directory = root / 'old'
+    directory = root / 'default' / 'chats' / 'old'
     git_object = directory / '.git' / name
     git_object.write_bytes(b'object')
     git_object.chmod(0o444)

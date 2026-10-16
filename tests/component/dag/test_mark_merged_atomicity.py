@@ -42,7 +42,7 @@ def test_concurrent_mark_merged_preserves_both_heads(
     assert not second.is_alive()
 
     assert store.merged_heads("s1") == {"head-a", "head-b"}
-    on_disk = json.loads((root / "s1" / "meta.json").read_text(encoding="utf-8"))
+    on_disk = json.loads((root / "default" / "chats" / "s1" / "meta.json").read_text(encoding="utf-8"))
     assert set(on_disk["merged_heads"]) == {"head-a", "head-b"}
 
 

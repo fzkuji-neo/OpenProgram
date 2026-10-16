@@ -797,7 +797,7 @@ def test_merge_marker_preserves_updated_at_and_refreshes_one_stale_index(
         return original(*args, **kwargs)
 
     monkeypatch.setattr(reader_index, "rebuild_from_paths", count_rebuild)
-    meta_path = writer.root_path / "visible" / "meta.json"
+    meta_path = writer.root_path / "default" / "chats" / "visible" / "meta.json"
     before = json.loads(meta_path.read_text(encoding="utf-8"))["updated_at"]
     registry_before = writer.list_sessions(limit=10)[0]["updated_at"]
 
@@ -869,7 +869,7 @@ def test_batch_metadata_merge_rebuilds_each_store_once_after_the_batch(
     monkeypatch.setattr(writer_index, "rebuild_from_paths", count_writer_rebuild)
     monkeypatch.setattr(reader_index, "rebuild_from_paths", count_reader_rebuild)
     monkeypatch.setattr(writer_git, "mark_synced", count_mark_synced)
-    meta_path = writer.root_path / "batch-api" / "meta.json"
+    meta_path = writer.root_path / "default" / "chats" / "batch-api" / "meta.json"
     updated_at_before = json.loads(
         meta_path.read_text(encoding="utf-8")
     )["updated_at"]

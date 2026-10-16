@@ -22,7 +22,7 @@
  * choice is stored in the session store until chat_ack creates the session.
  * Positioning / click-outside come from the shadcn <Popover> in index.tsx.
  */
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { SolarIcon } from "@/components/solar-icons";
 
 import {
@@ -35,6 +35,7 @@ import { useFolderPicker } from "@/components/ui/folder-picker";
 import { useSessionStore } from "@/lib/session-store";
 import { closeAllPopovers } from "@/lib/runtime-bridge/ui";
 import { useTranslation } from "@/lib/i18n";
+import { projectName } from "@/lib/projects/project-name";
 import { wsRequest } from "@/lib/net/ws-request";
 import { useBoundChat } from "./bound-chat";
 import { CHECK_SLOT, CHECK_SLOT_PAD, GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR, itemCls } from "./menu-styles";
@@ -53,6 +54,7 @@ interface Project {
   name: string;
   path: string;
   is_default: boolean;
+  custom_name?: boolean;
   hidden?: boolean;
   /** Backend-computed: the folder no longer exists on disk. */
   path_missing?: boolean;
@@ -255,7 +257,7 @@ export function ProjectMenu({
         <div
           className="px-[8px] pb-[4px] pt-[1px] text-[12px] text-[var(--text-secondary)]"
         >
-          <div className="truncate">{activeProject?.name ?? "—"}</div>
+          <div className="truncate">{activeProject ? projectName(activeProject, text) : "—"}</div>
           {activeProject?.path ? (
             <div className="truncate text-[11px] opacity-60">
               {activeProject.path}
@@ -354,7 +356,7 @@ export function ProjectMenu({
               !busy && (p.path_missing ? locateFolder(p.id) : unavailable ? locateFolder(p.id) : switchTo(p.id))
             }
           >
-            <span className="min-w-0 flex-1 truncate">{p.name}</span>
+            <span className="min-w-0 flex-1 truncate">{projectName(p, text)}</span>
             {unavailable ? (
               <SolarIcon
                 motionPreset="none"
@@ -454,7 +456,7 @@ export function ProjectBadge() {
       cur = projects.find((p) => p.is_default);
     }
     if (cur) {
-      setLabel(cur.name);
+      setLabel(projectName(cur, text));
       setMissing(cur.path_missing === true);
       setGitPath(!cur.is_default && !cur.path_missing && cur.path ? cur.path : null);
       setProjectPath(cur.path || null);
@@ -462,7 +464,7 @@ export function ProjectBadge() {
       return true;
     }
     return false;
-  }, [activeChatKey, pendingProjectId, sessionId, takePendingProject]);
+  }, [activeChatKey, pendingProjectId, sessionId, takePendingProject, text]);
 
   useEffect(() => {
     let cancelled = false;

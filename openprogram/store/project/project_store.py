@@ -14,13 +14,15 @@ Every session belongs to exactly one project. Two cases:
   * **Bound project** — the user worked in a real directory (their
     code / docs repo). That directory IS the project git repo; we
     reuse its ``.git`` if it has one, else ``git init`` it.
-  * **Default project** — the catch-all for ad-hoc chats that never
-    named a directory. Lives in the home hidden dir at
-    ``<state>/projects/default/`` as its own git repo, so there is
-    never a session with no project home.
+  * **System project** (id ``default``) — the catch-all for ad-hoc
+    chats that never named a directory. It has no git repo; its folder
+    ``<state>/projects/default/`` holds those chats and the personal
+    memory, so there is never a session with no project home.
 
-Both auto-create their git repo on first use, mirroring how
-``GitSession`` lazily ``git init``s a session repo on first write.
+A bound project's git repo is created on first use, mirroring how
+``GitSession`` lazily ``git init``s a session repo on first write. Every
+project's chats, memory and settings live in ``<state>/projects/<id>/``
+(see :mod:`.layout`).
 
 Registry: ``<state>/projects/projects.json`` maps ``project_id`` →
 metadata (name, path, sessions, status). The registry is the index;
@@ -46,6 +48,7 @@ from typing import Optional
 
 
 DEFAULT_PROJECT_ID = "default"
+SYSTEM_PROJECT_NAME = "System"
 
 
 _log = logging.getLogger(__name__)
@@ -711,13 +714,12 @@ def update_project(project_id: str, patch: dict) -> Project:
 
 # ── project-level settings ──────────────────────────────────────────────
 # 项目级配置（权限规则、以后的项目级工具/模型偏好等）。
-# 非默认项目落在 <project>/.openprogram/settings.json（跟项目走，可进版本库
-# 由 .openprogram/.gitignore 决定）。默认项目（家目录）落全局
-# <state>/projects/default-settings.json，绝不往家目录塞配置。
+# 每个项目 (含系统项目) 的配置落在 <state>/projects/<id>/settings.json;
+# 旧版写在 <project>/.openprogram/settings.json 的仍可读.
 
 def _settings_path_for(project: Project) -> Path:
     if project.is_default:
-        return projects_dir() / "default-settings.json"
+        return projects_dir() / project.id / "settings.json"
     owned = projects_dir() / project.id / "settings.json"
     if owned.exists():
         return owned
@@ -748,7 +750,7 @@ def save_project_settings(project_id: str, settings: dict) -> None:
     proj = get_project(project_id)
     if proj is None:
         return
-    p = projects_dir() / "default-settings.json" if proj.is_default else projects_dir() / proj.id / "settings.json"
+    p = projects_dir() / proj.id / "settings.json"
     try:
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(
@@ -760,12 +762,12 @@ def save_project_settings(project_id: str, settings: dict) -> None:
 
 
 def get_default_project() -> Project:
-    """The catch-all project for ad-hoc chats with no bound directory.
+    """The System project: the catch-all for chats with no bound directory.
 
-    Presented as the user's **home folder, by name** (e.g. ``fzkuji``):
-    ad-hoc chats "live" under home, so grouping the sidebar by project
-    shows them under the home-folder name instead of a separate
-    "Ungrouped" / "Default" bucket.
+    Named **System** (the UI translates it) and listed first. Its folder
+    under ``<state>/projects/default/`` holds those chats and the personal
+    memory every project reads. ``path`` stays the home folder, the
+    working scope of such a chat.
 
     It still gets **no git repo of its own** — the ``is_default`` flag
     short-circuits every project-git path (``project_commit`` no-ops on
@@ -776,20 +778,18 @@ def get_default_project() -> Project:
     :func:`resolve_project`).
     """
     home = Path.home()
-    home_name = home.name or "Home"
     existing = get_project(DEFAULT_PROJECT_ID)
     if existing is not None:
-        # Backfill older records that used the placeholder "Default"
-        # label / empty path so the catch-all reads as the home folder.
-        if (not existing.custom_name and (existing.name or "") in ("", "Default")) or not existing.path:
+        # Older records were named "Default" or after the home folder.
+        if (not existing.custom_name and existing.name != SYSTEM_PROJECT_NAME) or not existing.path:
             if not existing.custom_name:
-                existing.name = home_name
-            existing.path = str(home)
+                existing.name = SYSTEM_PROJECT_NAME
+            existing.path = existing.path or str(home)
             _upsert(existing)
         return existing
     proj = Project(
         id=DEFAULT_PROJECT_ID,
-        name=home_name,
+        name=SYSTEM_PROJECT_NAME,
         path=str(home),     # display/scope only — is_default guards git
         is_default=True,
     )

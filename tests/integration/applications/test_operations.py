@@ -155,7 +155,7 @@ operations = {'summarize': summarize}
             assert current['status'] == expected, current
             if expected == 'completed':
                 assert current['result'] == 'fixture summary'
-                history = tmp_path / '.openprogram' / 'applications' / 'runs' / run_id / 'history'
+                history = tmp_path / '.openprogram' / 'applications' / 'runs' / 'default' / 'chats' / run_id / 'history'
                 assert list(history.glob('*.json')), 'model calls must retain their framework trace'
             else:
                 assert 'fixture model failure' in current['error']

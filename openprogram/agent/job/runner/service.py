@@ -488,10 +488,9 @@ class JobRunner(AdmissionOperations, ProjectionOperations, BorrowedOperations, C
         if not store.root_path.exists():
             return []
         out: list[shared.Job] = []
-        for sdir in sorted(store.root_path.iterdir()):
-            if not sdir.is_dir():
-                continue
-            out.extend(shared._store_list(sdir.name, status_filter=status_filter))
+        from openprogram.store.session.placement import iter_session_dirs
+        for sid, _sdir in iter_session_dirs(store.root_path):
+            out.extend(shared._store_list(sid, status_filter=status_filter))
         out.sort(key=lambda t: t.created_at or 0, reverse=True)
         if limit is not None:
             out = out[:limit]

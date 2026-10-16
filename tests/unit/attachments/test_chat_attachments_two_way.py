@@ -37,7 +37,7 @@ def test_attachment_index_write_does_not_require_fchmod(tmp_path, monkeypatch):
 
 @pytest.fixture
 def state(tmp_path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """An isolated state dir, with the sessions root materialised.
+    """An isolated state dir, with the System project's chats folder materialised.
 
     The SessionStore singleton is reset around the test: persisting an
     attachment resolves the session workdir, which builds that singleton
@@ -46,7 +46,7 @@ def state(tmp_path, monkeypatch: pytest.MonkeyPatch) -> Path:
     next (``test_state_isolation`` catches exactly that).
     """
     root = tmp_path / "state"
-    (root / "sessions").mkdir(parents=True)
+    (root / "projects" / "default" / "chats").mkdir(parents=True)
     monkeypatch.setattr("openprogram.paths.get_state_dir", lambda: root)
     monkeypatch.setattr(
         'openprogram.store.session.session_store.shared._default_store', None)
@@ -131,7 +131,7 @@ def test_readable_roots_cover_sessions_and_channel_attachments(state):
     adir = state / "channels" / "telegram" / "accounts" / "default" / "attachments"
     adir.mkdir(parents=True)
     roots = att.readable_roots()
-    assert (state / "sessions").resolve() in roots
+    assert (state / "projects" / "default" / "chats").resolve() in roots
     assert adir.resolve() in roots
 
 
@@ -149,11 +149,11 @@ def test_sendable_roots_exclude_channel_dirs_and_the_checkout(state):
     (state / "channels" / "telegram" / "accounts" / "d" / "attachments").mkdir(
         parents=True)
     roots = att.sendable_roots()
-    assert roots == [(state / "sessions").resolve()]
+    assert roots == [(state / "projects" / "default" / "chats").resolve()]
 
 
 def test_resolve_within_accepts_a_path_inside_a_root(state):
-    f = state / "sessions" / "s1" / "workdir" / "out.txt"
+    f = state / "projects" / "default" / "chats" / "s1" / "workdir" / "out.txt"
     f.parent.mkdir(parents=True)
     f.write_text("x")
     assert att.resolve_within(f, att.sendable_roots()) == f.resolve()
@@ -166,7 +166,7 @@ def test_resolve_within_rejects_a_symlink_escaping_the_root(state, tmp_path):
     secret = tmp_path / "outside" / "id_rsa"
     secret.parent.mkdir(parents=True)
     secret.write_text("PRIVATE KEY")
-    wd = state / "sessions" / "s1" / "workdir"
+    wd = state / "projects" / "default" / "chats" / "s1" / "workdir"
     wd.mkdir(parents=True)
     link = wd / "innocent.txt"
     try:
@@ -179,7 +179,7 @@ def test_resolve_within_rejects_a_symlink_escaping_the_root(state, tmp_path):
 
 def test_resolve_within_rejects_dotdot(state):
     assert att.resolve_within(
-        state / "sessions" / ".." / "config.json",
+        state / "projects" / "default" / "chats" / ".." / "settings.json",
         att.sendable_roots()) is None
 
 
@@ -204,7 +204,7 @@ def test_image_attachment_is_written_and_gets_a_marker(state):
     assert name.endswith(".png")
     saved = Path(path)
     assert saved.read_bytes() == _PNG
-    assert saved.parent == state / "sessions" / "sess1" / "workdir" / "attachments"
+    assert saved.parent == state / "projects" / "default" / "chats" / "sess1" / "workdir" / "attachments"
     assert out.startswith("what is this")
 
 
@@ -254,7 +254,7 @@ def test_original_local_path_marker_is_not_duplicated(state):
     preview = Path(json.loads(match.group(6)))
     assert preview.read_bytes() == b"hello\nworld\n"
     assert preview.parent == (
-        state / "sessions" / "sess-local-path" / "workdir" / "attachments"
+        state / "projects" / "default" / "chats" / "sess-local-path" / "workdir" / "attachments"
     )
     assert Path.home().resolve() not in att.readable_roots("sess-local-path")
 
@@ -426,7 +426,7 @@ def in_session(state, monkeypatch: pytest.MonkeyPatch):
     from openprogram.programs.tools.interaction import send_file as sf
     monkeypatch.setattr(
         "openprogram.agent.run_control.get_current_session_id", lambda: "s1")
-    wd = state / "sessions" / "s1" / "workdir"
+    wd = state / "projects" / "default" / "chats" / "s1" / "workdir"
     wd.mkdir(parents=True)
     sf.begin_turn()
     return wd
@@ -457,7 +457,7 @@ def test_send_file_refuses_a_path_outside_the_roots(in_session, tmp_path):
     msg = _send(outside)
     assert msg.startswith("Error:")
     assert "outside the directories" in msg
-    assert str(in_session.parent) in msg or "sessions" in msg   # names the roots
+    assert str(in_session.parent) in msg or "chats" in msg   # names the roots
     assert sf.drain() == []
 
 
@@ -577,7 +577,7 @@ def test_dispatcher_appends_the_marker_to_the_reply(state, tmp_path,
                         lambda: db)
     monkeypatch.setattr("openprogram.store.default_store", lambda: db)
 
-    chart = state / "sessions" / "s1" / "workdir" / "chart.png"
+    chart = state / "projects" / "default" / "chats" / "s1" / "workdir" / "chart.png"
     chart.parent.mkdir(parents=True)
     chart.write_bytes(_PNG)
 
@@ -611,7 +611,7 @@ def test_the_default_project_is_not_a_root(state, monkeypatch):
     monkeypatch.setattr(
         "openprogram.store.project.project_store.project_for_session",
         lambda sid: _Proj())
-    assert att.sendable_roots("s1") == [(state / "sessions").resolve()]
+    assert att.sendable_roots("s1") == [(state / "projects" / "default" / "chats").resolve()]
     assert Path.home().resolve() not in att.readable_roots("s1")
 
 

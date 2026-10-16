@@ -217,8 +217,7 @@ async def handle_set_session_project(ws, cmd: dict):
             if _projects.get_project(project_id) is None:
                 error = "unknown project"
             else:
-                default_db().update_session(session_id, project_id=project_id)
-                _projects.bind_session(session_id, project_id)
+                default_db().assign_project(session_id, project_id)
                 ok = True
         except Exception as e:  # noqa: BLE001
             error = f"{type(e).__name__}: {e}"

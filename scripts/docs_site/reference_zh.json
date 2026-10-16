@@ -531,6 +531,6 @@
   "After a background write, ask a question about one fact it recorded, search Memory for the answer, and repair the Topics when the answer cannot be found. Costs several extra model calls per write.": "后台写入后，针对这次记下的一条事实提一个问题，在 Memory 中检索答案；找不到时修复 Topic。每次写入会多花几次模型调用。",
   "How hybrid recall weighs keywords against meaning. `auto` favours keywords for queries with a date, a quoted phrase or a name, and balances them otherwise.": "混合检索中关键词与语义的权重。`auto` 在查询含日期、引号短语或人名时偏向关键词，其余情况两者均衡。",
   "In hybrid recall, raise the best paragraph of a Topic that several matches come from.": "混合检索时，若多条匹配来自同一个 Topic，提升该 Topic 中最匹配的段落。",
-  "A conversation in a project also reads that project's own Memory, kept in <project>/.openprogram/memory.": "项目中的对话还会读取该项目自己的 Memory，存放在 <project>/.openprogram/memory。",
+  "A conversation in a project also reads that project's own Memory, kept in ~/.openprogram/projects/<project>/memory.": "项目中的对话还会读取该项目自己的 Memory，存放在 ~/.openprogram/projects/<project>/memory。",
   "With Project memory on, write what a project's conversations record into that project's Memory instead of the personal one.": "开启项目记忆时，把项目对话记下的内容写入该项目的 Memory，而不是个人 Memory。"
 }

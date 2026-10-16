@@ -270,7 +270,7 @@ def test_relocate_rewrites_session_locations(env, tmp_path: Path, monkeypatch):
     old.mkdir()
     store.create_session("s1", "main", project_path=str(old))
     proj = P.project_for_session("s1")
-    nested = store.root_path / "projects" / proj.id / "s1"
+    nested = store.root_path / proj.id / "chats" / "s1"
     assert Path(store._locations["s1"]) == nested
 
     new = tmp_path / "new"
@@ -295,7 +295,7 @@ def test_stale_location_heals_from_project_registry(env, tmp_path: Path,
     new = tmp_path / "new"
     shutil.move(str(old), str(new))
     P.relocate_project(proj.id, new)
-    nested = store.root_path / "projects" / proj.id / "s1"
+    nested = store.root_path / proj.id / "chats" / "s1"
     store._record_location("s1", old / ".openprogram" / "sessions" / "s1")
 
     healed = store._session_dir("s1")
@@ -318,7 +318,7 @@ def test_resolve_project_claims_moved_folder(env, tmp_path: Path, monkeypatch):
 
     assert claimed.id == proj.id
     assert Path(claimed.path) == new.resolve()
-    nested = store.root_path / "projects" / proj.id / "s1"
+    nested = store.root_path / proj.id / "chats" / "s1"
     assert Path(store._locations["s1"]) == nested
     assert (nested / "history").is_dir()
 

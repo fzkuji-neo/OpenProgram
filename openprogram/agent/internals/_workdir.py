@@ -135,7 +135,7 @@ def bound_project_execution_blocked(session_id: str) -> Optional[str]:
         from openprogram.paths import get_state_dir
         proj = _main_project(session_id)
         if proj is not None and not getattr(proj, "is_default", False):
-            if session_hold_active(Path(get_state_dir()) / "sessions", session_id):
+            if session_hold_active(Path(get_state_dir()) / "projects", session_id):
                 return "migrating"
             refresh_project_location(proj.id)
             proj = get_project(proj.id) or proj

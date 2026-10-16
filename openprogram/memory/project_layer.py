@@ -3,9 +3,10 @@
 What a person prefers belongs everywhere they work; what one repository
 decided belongs to that repository. With ``memory.layers.project`` on, a
 conversation bound to a project reads two workspaces as one: the
-project's, at ``<project>/.openprogram/memory``, and the personal one.
-With ``memory.layers.project_writes`` also on, what such a conversation
-records lands in the project's workspace instead of the personal one.
+project's, at ``<state>/projects/<project-id>/memory``, and the personal
+one (the System project's). With ``memory.layers.project_writes`` also
+on, what such a conversation records lands in the project's workspace
+instead of the personal one. Both settings are on by default.
 
 The project workspace is an ordinary memory workspace with its own git
 history, index and runtime directory. ``store.root()`` hands it out for the
@@ -52,9 +53,8 @@ def written_elsewhere() -> frozenset[str]:
 def project_root(session_id: str | None = None) -> Path | None:
     """Where the session's project keeps its Memory.
 
-    None when the setting is off, the conversation has no project of its
-    own (the catch-all default project is the home folder, not a project),
-    or the project's folder is not on this machine.
+    None when the setting is off or the conversation belongs to no project
+    (the System project's memory is the personal one).
     """
     if not load_memory_config().project_layer:
         return None
@@ -70,12 +70,18 @@ def project_root(session_id: str | None = None) -> Path | None:
         project = project_for_session(session_id)
     except Exception:  # noqa: BLE001 - an unreadable registry means no project
         return None
-    if project is None or project.is_default or not project.path:
+    if project is None or project.is_default:
         return None
-    folder = Path(project.path).expanduser()
-    if not folder.is_dir():
-        return None
-    return (folder / ".openprogram" / "memory").resolve()
+    return project_memory_root(project.id)
+
+
+def project_memory_root(project_id: str) -> Path:
+    """A project's memory workspace, whether or not it exists yet."""
+    from openprogram.store.project.layout import memory_dir
+    from openprogram.store.project.layout_migration import ensure_layout
+
+    ensure_layout()
+    return memory_dir(project_id).resolve()
 
 
 def project_roots() -> list[Path]:
@@ -86,11 +92,11 @@ def project_roots() -> list[Path]:
 
     roots = []
     for project in list_projects():
-        if project.is_default or not project.path:
+        if project.is_default:
             continue
-        root = Path(project.path).expanduser() / ".openprogram" / "memory"
+        root = project_memory_root(project.id)
         if (root / "topics").is_dir():
-            roots.append(root.resolve())
+            roots.append(root)
     return roots
 
 

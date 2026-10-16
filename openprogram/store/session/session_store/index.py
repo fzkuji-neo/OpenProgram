@@ -12,11 +12,11 @@ _SESSION_DATA = ("meta.json", ".git", "events.jsonl")
 
 class IndexOperations:
     def _locations_path(self) -> shared.Path:
-        return self.root_path / "locations.json"
+        return self.root_path / shared.LOCATIONS_FILE
 
 
     def _load_locations(self) -> dict[str, str]:
-        p = self.root_path / "locations.json"
+        p = self._locations_path()
         if not p.exists():
             return {}
         try:
@@ -106,7 +106,7 @@ class IndexOperations:
 
 
     def _index_path(self) -> shared.Path:
-        return self.root_path / "index.json"
+        return self.root_path / shared.INDEX_FILE
 
 
     def _load_index(self) -> None:
