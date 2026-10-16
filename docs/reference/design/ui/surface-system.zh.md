@@ -188,8 +188,9 @@ link         primary 字                           下划线
 
 - 输入框上方的**环境标签**（渠道、网页、项目、工作目录、DAG 浮层按钮）→ `elevated` `sm`；添加目录按钮是 `elevated` `icon-sm`。
 - **底部控制栏**（权限、聊天 / 执行模型、思考档位、加号、工具开关、上下文圆环）→ `elevated`，`sm` / `icon-sm`。输入框的 CSS 用 `revert-layer` 把旧的基础规则让回给 Button，不再自己画一套标签。
-- **发送** → `icon-sm`：有内容可发时 `default`，空输入时 `ghost`，停止运行时 `destructive`。
-- **输入框本体** → 通过每套主题的 `--composer-*` 变量用 shadcn Luma Card 的外观：`--bg-input` 底色、无边框，平时 `shadow-sm`，鼠标悬停或聚焦时 `shadow-md`（阴影透明度浅色主题 0.1、深色 0.25），不加聚焦光环；圆角 23px（一行时是胶囊）。
+  底部控制栏没有固定高度，跟按钮一样高；它离输入框 10px，和上方环境标签离输入框的距离相同。
+- **发送和语音按钮** → 颜色取 Button 的变体（发送：有内容可发时 `default`，空输入时 `ghost`，停止运行时 `destructive`；语音：`ghost`）。尺寸和位置不取 Button 的尺寸类，而取 `app/styles/base.css` 里输入框自己的变量：`--composer-action-size`（28px），在最后一行 `--composer-line-h`（46px）里居中，离边 `--composer-action-inset`。文字两侧留白、附件列、录音电平条都由同一组变量算出，所以改 Button 样式不会把它们挤歪。语音按钮的悬停底色是 `--composer-action-hover`，因为 ghost 的底色（`--muted`）和输入框本身同色。
+- **输入框本体** → 每套主题的 `--composer-*` 变量：`--bg-input` 底色、无边框，平时 `shadow-sm`，鼠标悬停或聚焦时 `shadow-md`（阴影透明度浅色主题 0.1、深色 0.25），不加聚焦光环；圆角 `--radius-lg`，和周围按钮同一种圆角矩形。
 
 ## 网页预览与浏览器工具栏
 

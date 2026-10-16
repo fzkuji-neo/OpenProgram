@@ -212,14 +212,15 @@
    fn-form header slot below. */
 .actionBtn {
   position: absolute;
-  /* A shadcn icon-sm Button (buttonVariants in index.tsx: default when
-     there is something to send, ghost when empty, destructive to stop) —
-     28px at this app's 14px root — 9px inset from the box's right and
-     bottom edges, which centres it in the last 46px text line →
-     (46−28)/2 = 9px. ONE geometry for every mode — inside fn-forms only
-     `top` and `right` glide (.morphed below). */
-  right: 9px;
-  top: calc(100% - 37px);
+  /* Colours come from buttonVariants in index.tsx (default when there is
+     something to send, ghost when empty, destructive to stop); size and
+     place come from the composer tokens in base.css, centred in the last
+     text line. ONE geometry for every mode — inside fn-forms only `top`
+     and `right` glide (.morphed below). */
+  width: var(--composer-action-size);
+  height: var(--composer-action-size);
+  right: var(--composer-action-inset);
+  top: var(--composer-action-top);
   transition: top var(--composer-height-transition),
     right var(--composer-height-transition),
     background-color 0.15s,
@@ -234,17 +235,17 @@
    curve as the wrapper height, so opening a form slides the button
    from the input row's corner into the header slot. */
 .morphed .actionBtn {
-  top: 10px;
+  top: calc((48px - var(--composer-action-size)) / 2);
   right: 44px;
 }
 /* In the chat composer the attachments share the text's column (the
-   chat-input-row's 43px row inset + 2px text inset on the left, 42px on
-   the right), so cards line up with what you type and the mic keeps the
-   left gutter to itself. The message editor and queued rows reuse the
-   strip at its own padding. */
+   chat-input-row's mic gutter + 2px text inset on the left, the send
+   gutter on the right), so cards line up with what you type and the mic
+   keeps the left gutter to itself. The message editor and queued rows
+   reuse the strip at its own padding. */
 .inputWrapper:not(.morphed) > :global([data-attachment-strip]) {
-  padding-left: 45px;
-  padding-right: 42px;
+  padding-left: calc(var(--composer-action-inset) + var(--composer-action-size) + var(--composer-action-gap));
+  padding-right: calc(var(--composer-action-inset) + var(--composer-action-size) + 5px);
 }
 .actionBtn svg {
   fill: currentColor;
@@ -469,12 +470,12 @@
      the input's visible border instead of 1px inside it. */
   max-width: min(calc(var(--chat-column-max) + 2px), calc(100% - 62px));
   /* 10px to the box, the same as the env row above it (6px shadow
-     padding + 4px margin); the row is exactly one chip tall (the sm /
-     icon-sm Button, 1.75rem), so the chips' tops sit 10px under the box
-     just as the env chips' bottoms sit 10px over it. */
+     padding + 4px margin). No fixed height: the row is as tall as its
+     chips (the sm / icon-sm Button), so the chips' tops sit 10px under
+     the box just as the env chips' bottoms sit 10px over it, whatever
+     size the Button has. */
   margin: 10px auto 0;
   padding: 0;
-  min-height: 1.75rem;
   position: relative;
 }
 /* Right cluster order is chat model · exec model · effort · ring
@@ -486,8 +487,7 @@
 
 /* Every control in this row is a shadcn Button (buttonVariants — the
    app's `elevated` variant, the same borderless raised look as the box;
-   size sm / icon-sm — 28px at this app's 14px root, the text size of
-   Luma's xs): height, radius, padding, font and hover all come
+   size sm / icon-sm): height, radius, padding, font and hover all come
    from those classes. The legacy base rules above (.plusBtn, .toolChip,
    .effortText — still used by the fn-form band) are unlayered and would
    beat Tailwind's layered utilities, so this row reverts them to the
@@ -579,7 +579,9 @@
 /* The host is a zero-width anchor at the wrapper's right edge — the
    floating shell right-aligns to it. */
 .controlsRow :global(.effort-pill-host) {
-  height: 1.75rem;
+  /* As tall as the row (its own h-[32px] is for the standalone pill). */
+  height: auto;
+  align-self: stretch;
   width: 0;
 }
 .controlsRow :global(.effort-pill-shell) {
@@ -593,19 +595,6 @@
 .controlsRow :global(.effort-pill-shell:not([data-expanded])) {
   display: none;
 }
-/* Single-option variant (no slider): a quiet icon chip, the same
-   footprint as the icon-sm Buttons beside it (1.75rem). */
-.controlsRow :global(.effort-pill-fixed) {
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: var(--radius);
-}
-.controlsRow :global(.effort-pill-fixed .effort-pill-compact-icon),
-.controlsRow :global(.effort-pill-fixed) svg {
-  width: 14px;
-  height: 14px;
-}
-
 /* Narrow composer control labels collapse to their existing role icons
    when the controls do not fit: controls/use-compact-controls-row.ts
    measures the row's real need (it depends on the tool toggles and the
@@ -633,8 +622,10 @@
 .controlsRow[data-compact="true"] :global(.permission-badge),
 .controlsRow[data-compact="true"] :global(.agent-badge),
 .controlsRow[data-compact="true"] .effortText {
-  width: 28px;
-  min-width: 28px;
+  /* Square icon chips at whatever height the Button size gives. */
+  width: auto;
+  min-width: 0;
+  aspect-ratio: 1;
   padding: 0 !important;
   justify-content: center;
 }

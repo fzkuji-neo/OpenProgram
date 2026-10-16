@@ -125,6 +125,19 @@
   --composer-wrapper-pad-x: 16px;     /* wrapper left/right padding         */
   --composer-wrapper-pad-top: 16px;   /* wrapper top padding (chat mode)    */
 
+  /* The input box's own corner buttons (voice mic, send / stop). They
+     take their size from these tokens, not from the shadcn Button size
+     classes, so a Button restyle can never move them off the text line.
+     Each is centred in the last text line: inset = (line − size) / 2. */
+  --composer-line-h: 46px;            /* one text line of the input box     */
+  --composer-action-size: 28px;       /* mic and send / stop buttons        */
+  --composer-action-inset: calc((var(--composer-line-h) - var(--composer-action-size)) / 2);
+  --composer-action-top: calc(100% - var(--composer-line-h) + var(--composer-action-inset));
+  --composer-action-gap: 8px;         /* button → text / level strip        */
+  /* Hover fill for those buttons: the shadcn ghost fill (--muted) is the
+     box's own colour, so it would not show on the box. */
+  --composer-action-hover: color-mix(in srgb, var(--text-primary) 12%, transparent);
+
   /* Composer animation timings */
   --composer-height-transition: 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
   --composer-fade-duration: 0.25s;

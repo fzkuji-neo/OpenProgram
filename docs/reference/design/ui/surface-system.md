@@ -316,13 +316,25 @@ The chat composer is built from the same parts:
   tool toggles, context ring) → `elevated`, `sm` / `icon-sm`. The
   composer CSS hands its older base rules back to the Button with
   `revert-layer` rather than drawing its own chip.
-- **Send** → `icon-sm`: `default` when there is something to
-  send, `ghost` when empty, `destructive` while it stops a run.
-- **Input box** → the shadcn Luma Card look through the per-theme
-  `--composer-*` tokens: `--bg-input` surface with no border,
-  `shadow-sm` at rest and `shadow-md` on hover or focus (shadow
-  alpha 0.1 on light themes, 0.25 on dark), no focus ring; 23px
-  corners (a pill at one line).
+  The control row has no fixed height: it is as tall as its chips,
+  10px under the box, the same distance the environment chips keep
+  above it.
+- **Send and voice mic** → colours from the Button variants (send:
+  `default` when there is something to send, `ghost` when empty,
+  `destructive` while it stops a run; mic: `ghost`). Their size and
+  place do not come from the Button size classes but from the
+  composer tokens in `app/styles/base.css`: `--composer-action-size`
+  (28px) centred in the last `--composer-line-h` (46px) text line,
+  `--composer-action-inset` from the box edge. The text gutters, the
+  attachment column and the voice level strip are computed from the
+  same tokens, so a Button restyle cannot move them. The mic's hover
+  fill is `--composer-action-hover`, because the ghost fill
+  (`--muted`) is the box's own colour.
+- **Input box** → the per-theme `--composer-*` tokens: `--bg-input`
+  surface with no border, `shadow-sm` at rest and `shadow-md` on
+  hover or focus (shadow alpha 0.1 on light themes, 0.25 on dark),
+  no focus ring; `--radius-lg` corners, the same rounded-rectangle
+  family as the chips around it.
 
 ## Web page preview and browser toolbar
 
