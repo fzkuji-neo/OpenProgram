@@ -60,6 +60,8 @@
 | `group` | str? | 是 | 分组标签 |
 | `status` | str | 是 | 生命周期状态（见下方） |
 | `unread` | bool | 是 | 未读标记 |
+| `sort_at` | float | 是 | 在项目列表里的位置，表示为排序用的时间；0 = 没有（见 operations.zh.md“项目列表里的位置”） |
+| `sort_since` | float | 是 | 摆放时的 `updated_at`；活动超过它，位置失效 |
 | `_auto_titled` | bool | 否 | 自动命名幂等标记（内部控制，不进注册表、不返回前端） |
 
 "注册表"列标记该字段是否缓存到 `.chats-index.json`。`_auto_titled` 和 `project_id` 不进注册表：前者是内部标记，后者在列举时由项目目录映射补充。

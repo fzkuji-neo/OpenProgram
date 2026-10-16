@@ -10,7 +10,7 @@ const { createElement: h, act } = await import('react');
 const { createRoot } = await import('react-dom/client');
 const { useChatDrag } = await import('../../components/sidebar/sessions-list/use-chat-drag.ts');
 
-test('a chat row slides with the pointer, the lists make room, and dropped on another project it moves there; its own project, a cancel and a plain click do nothing', async () => {
+test('a chat row slides with the pointer, the lists make room, and a drop names the project and the neighbours of the place; a cancel and a plain click do nothing', async () => {
   const groups = { a: ['s1', 's2'], b: ['s3'] };
   const moves = [];
   let clicks = 0;
@@ -18,8 +18,8 @@ test('a chat row slides with the pointer, the lists make room, and dropped on an
   const frames = new Map(); let frameId = 0;
   window.requestAnimationFrame = callback => { frames.set(++frameId, callback); return frameId; };
   window.cancelAnimationFrame = id => frames.delete(id);
-  function Harness({ enabled = true }) {
-    last = useChatDrag(enabled, (sessionId, projectId) => moves.push([sessionId, projectId]));
+  function Harness({ enabled = true, reorder = true }) {
+    last = useChatDrag(enabled, reorder, (sessionId, projectId, before, after) => moves.push([sessionId, projectId, before, after]));
     return h('div', { id: 'sidebar', className: 'overflow-y-auto' }, Object.entries(groups).map(([project, chats]) =>
       h('div', { key: project, 'data-project-id': project, 'data-drop-target': last.dropProject === project || undefined },
         h('div', { className: 'header', 'data-project-header': '' }, project),
@@ -81,7 +81,7 @@ test('a chat row slides with the pointer, the lists make room, and dropped on an
   assert.equal(last.rowOffset('s3'), 0);
   assert.equal(frames.size, 1, 'edge auto-scroll is armed while dragging');
   await fire('s1', 'pointerup', 10, 120);
-  assert.deepEqual(moves, [['s1', 'b']]);
+  assert.deepEqual(moves, [['s1', 'b', null, 's3']], 'moved to b, before s3');
   assert.equal(last.draggingChat, null); assert.equal(last.dropProject, null);
   assert.equal(last.rowOffset('s2'), 0); assert.equal(last.headerOffset('b'), 0);
   assert.deepEqual(last.dropGrow, { top: 0, bottom: 0 });
@@ -91,13 +91,29 @@ test('a chat row slides with the pointer, the lists make room, and dropped on an
   await fire('s1', 'pointerdown', 10, 40);
   await fire('s1', 'pointerup', 10, 41);
   await fire('s1', 'click', 10, 41); assert.equal(clicks, 1);
-  // Over its own project nothing is a target, and a release there moves nothing.
+  // Inside its own project a drag reorders: carried above s1, s1 moves
+  // down (nothing lights up) and the release places s2 before it.
   await fire('s2', 'pointerdown', 10, 60);
   await fire('s2', 'pointermove', 10, 20);
   assert.equal(last.dropProject, null);
-  assert.equal(last.rowOffset('s1'), 0, 'rows do not move aside inside the chat\'s own project');
+  assert.equal(last.rowOffset('s1'), 31); assert.equal(last.headerOffset('b'), 0);
+  assert.deepEqual(last.dropGrow, { top: 0, bottom: 0 });
   await fire('s2', 'pointerup', 10, 20);
-  assert.equal(moves.length, 1);
+  assert.deepEqual(moves[1], ['s2', 'a', null, 's1']);
+  // Let go where it already was, nothing happens.
+  await fire('s2', 'pointerdown', 10, 60);
+  await fire('s2', 'pointermove', 10, 66);
+  assert.equal(last.rowOffset('s1'), 0);
+  await fire('s2', 'pointerup', 10, 66);
+  assert.equal(moves.length, 2);
+  // With reordering off (the lists not sorted by time), its own project is no place at all.
+  await act(async () => root.render(h(Harness, { reorder: false })));
+  await fire('s2', 'pointerdown', 10, 60);
+  await fire('s2', 'pointermove', 10, 20);
+  assert.equal(last.rowOffset('s1'), 0);
+  await fire('s2', 'pointerup', 10, 20);
+  assert.equal(moves.length, 2);
+  await act(async () => root.render(h(Harness)));
   // Carried up to just past project b's header (its own project's), it
   // would join the end of project a: only b's header moves down, and
   // a's frame reaches down over that gap. Released outside, nothing moves.
@@ -110,7 +126,7 @@ test('a chat row slides with the pointer, the lists make room, and dropped on an
   await fire('s3', 'pointermove', 10, 118);
   assert.equal(last.dropProject, null); assert.equal(last.headerOffset('b'), 0);
   await fire('s3', 'pointerup', 300, 118);
-  assert.equal(moves.length, 1);
+  assert.equal(moves.length, 2);
   for (const cancel of ['Escape', 'blur', 'pointercancel', 'lostpointercapture', 'outside', 'disabled']) {
     await fire('s3', 'pointerdown', 10, 130);
     await fire('s3', 'pointermove', 10, 40);
@@ -127,7 +143,7 @@ test('a chat row slides with the pointer, the lists make room, and dropped on an
       event.key = 'Escape'; window.dispatchEvent(event);
     });
     else await fire('s3', cancel, 10, 40);
-    assert.equal(moves.length, 1, cancel); assert.equal(last.draggingChat, null, cancel);
+    assert.equal(moves.length, 2, cancel); assert.equal(last.draggingChat, null, cancel);
     assert.equal(last.rowOffset('s1'), 0, cancel); assert.equal(last.headerOffset('b'), 0, cancel);
     assert.equal(capture.size, 0, cancel); assert.equal(frames.size, 0, cancel);
     if (cancel === 'disabled') await act(async () => root.render(h(Harness)));

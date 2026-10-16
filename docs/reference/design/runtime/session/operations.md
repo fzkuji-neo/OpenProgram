@@ -265,6 +265,10 @@ The broadcast is initiated by the WebSocket handler layer via `_broadcast` after
 
 `data` contains only the changed fields, and the frontend does an incremental patch.
 
+### A place in the project list
+
+The sidebar lists a project's conversations by last activity. A conversation dragged to another place in that list is given that place as a time, not an order: `update_session_flags` with `sort_at` (seconds) stores it on the meta together with `sort_since`, the conversation's `updated_at` at the time. The client sorts by `sort_at` while `updated_at` has not passed `sort_since`, so newer activity in other conversations still passes the placed one, and its own next turn ends the placement (nothing is cleared on the server; `sort_at` 0 clears both). The client picks `sort_at` between the neighbours' times, or now at the top. Both are index fields, so the session list carries them.
+
 ### When status is written
 
 The dispatcher writes status during the turn lifecycle:
@@ -370,7 +374,7 @@ archived, and all views without a round trip.
 
 ### Fields returned per session
 
-The 15 fields in the registry + preview + project (filled in during listing), 17 in total. See [storage.md](storage.md) for the complete list.
+The 17 fields in the registry + preview + project (filled in during listing), 19 in total. See [storage.md](storage.md) for the complete list.
 
 ---
 

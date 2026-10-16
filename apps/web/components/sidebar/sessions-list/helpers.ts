@@ -18,6 +18,10 @@ export interface LegacyConv {
   created_at?: number;
   /** 最后活跃时间（追加消息即更新）；recency 排序 / 日期分桶用它。 */
   updated_at?: number;
+  /** A place in its project's list: the time it sorts by instead of
+   *  `updated_at`, until its activity passes `sort_since`. 0 = none. */
+  sort_at?: number;
+  sort_since?: number;
   channel?: string | null;
   account_id?: string | null;
   preview?: string | null;

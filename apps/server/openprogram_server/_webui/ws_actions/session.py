@@ -805,10 +805,14 @@ def _llm_rename(session_id: str) -> str | None:
 
 
 async def handle_update_session_flags(ws, cmd: dict):
-    """Set conversation management flags: pinned / archived / group.
+    """Set conversation management flags: pinned / archived / group /
+    sort_at.
 
-    Only the keys present in ``cmd`` are written, so a pin toggle
-    doesn't clobber the group and vice-versa. ``group`` may be an
+    ``sort_at`` is a place in the project list: the time the chat sorts
+    by instead of its last activity, held until it has activity of its
+    own again (``sort_since`` records the activity it was placed at;
+    ``sort_at`` 0 clears both). Only the keys present in ``cmd`` are
+    written, so a pin toggle doesn't clobber the group and vice-versa. ``group`` may be an
     empty string to ungroup (``update_session`` drops ``None`` but
     keeps ``""`` / ``False``, so booleans + the ungroup sentinel
     persist correctly). Dual-writes meta.json + the in-memory conv
@@ -828,6 +832,14 @@ async def handle_update_session_flags(ws, cmd: dict):
     if "group" in cmd:
         g = cmd.get("group")
         fields["group"] = "" if g is None else str(g)
+    if "sort_at" in cmd:
+        try:
+            sort_at = float(cmd.get("sort_at") or 0)
+        except (TypeError, ValueError):
+            sort_at = 0.0
+        row = default_db().get_session(session_id) or {}
+        fields["sort_at"] = sort_at
+        fields["sort_since"] = float(row.get("updated_at") or 0) if sort_at else 0.0
     if not fields:
         return
     with _s._sessions_lock:
@@ -1846,6 +1858,8 @@ def build_sessions_list() -> list[dict]:
             "group": row.get("group") or "",
             "status": row.get("status") or "",
             "unread": bool(row.get("unread")),
+            "sort_at": row.get("sort_at") or 0,
+            "sort_since": row.get("sort_since") or 0,
             "project": _proj_map.get(sid, _default_proj),
         })
     conv_list.sort(key=lambda c: c.get("updated_at") or 0, reverse=True)

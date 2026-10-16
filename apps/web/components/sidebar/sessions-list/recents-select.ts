@@ -7,6 +7,8 @@ const RECENTS_FIELDS = [
   "archived",
   "group",
   "updated_at",
+  "sort_at",
+  "sort_since",
   "created_at",
   "project",
   "unread",
