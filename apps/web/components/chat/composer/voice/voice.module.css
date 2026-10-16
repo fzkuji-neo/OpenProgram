@@ -1,6 +1,8 @@
 /* Voice input geometry mirrors the send button (.actionBtn in
    composer.module.css): a 28px circle 9px in from the box edge, centred
-   in the 46px single-line row. */
+   in the 46px single-line row. It is placed inside the text row
+   (.inputTopRow), not the box, so attachments above push it down with
+   the text instead of sitting under it. */
 .micBtn {
   position: absolute;
   top: 9px;

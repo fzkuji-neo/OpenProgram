@@ -36,6 +36,9 @@ interface ChatInputRowProps {
    *  two mounted composers don't collide on one id. */
   inputId?: string;
   autoFocus?: boolean;
+  /** Rendered at the row's left edge (the voice mic), so it lines up with
+   *  the first line of text whatever sits above the row. */
+  leading?: React.ReactNode;
 
   /* ---- @-mention file popover -------------------------------------- */
   atToken: ReturnType<typeof useFileMention>["atToken"];
@@ -59,6 +62,7 @@ export function ChatInputRow({
   placeholder,
   inputId = "composer-chat-input",
   autoFocus,
+  leading,
   atToken,
   fileMatches,
   fileMenuIndex,
@@ -70,6 +74,7 @@ export function ChatInputRow({
   return (
     <>
       <div key="top-half" className={styles.inputTopRow}>
+        {leading}
         <div className={styles.inputField}>
           {input.length === 0 && (
             <span className={styles.chatPlaceholder} aria-hidden="true">
