@@ -144,14 +144,32 @@ test("branch details show a request once, below a short aligned heading", async 
 });
 
 test("ongoing shell calls and background programs appear without opening an Agent", async () => {
-  await mounted([], async host => {
-    assert.match(host.textContent, /Functions/);
+  await mounted([], async (host, click) => {
+    assert.match(host.textContent, /Function calls/);
     assert.match(host.textContent, /bash/);
-    assert.match(host.textContent, /sleep 30/);
     assert.match(host.textContent, /Running programs/);
     assert.doesNotMatch(host.textContent, /Tasks and their programs will appear/);
+    // A call opens its own page, like a program or a branch.
+    await click("bash");
+    assert.match(host.textContent, /sleep 30/);
+    assert.match(host.textContent, /All activity/);
   }, [], [], {}, { calls: [{ id: "call", name: "bash", command: "sleep 30", started_at: 1, status: "running" }],
     items: [{id:"proc", command:"python worker.py", status:"running", started_at:1, backend_id:"local"}] });
+});
+
+test("a call that never returned stays with its execution instead of a separate list", async () => {
+  const call = { id: "c1", execution_id: "first", name: "agent", description: "Fix page close",
+    prompt: "Inspect the close branch", command: "", started_at: 1, status: "unknown" };
+  await mounted([{...run("first", "reconciliation_required", 1), reason_code: "effect_reconciliation"}, run("last", "completed", 2)], async (host, click) => {
+    assert.doesNotMatch(host.textContent, /Function calls/);
+    assert.match(host.textContent, /Needs attention1/);
+    assert.match(host.textContent, /agent result unconfirmed/);
+    await click("result unconfirmed");
+    await click("Fix page close");
+    assert.match(host.textContent, /Inspect the close branch/);
+    assert.match(host.textContent, /whether it finished is not known/);
+    assert.match(host.textContent, /Started by/);
+  }, branches, [], {}, { calls: [call] });
 });
 
 test("Activity rows use a bare coloured glyph and a status dot, with no tile or frame", async () => {
@@ -159,14 +177,12 @@ test("Activity rows use a bare coloured glyph and a status dot, with no tile or 
   const css = readFileSync(new URL("../../components/right-sidebar/running-panel.module.css", import.meta.url), "utf8");
   const panel = readFileSync(new URL("../../components/right-sidebar/running-panel.tsx", import.meta.url), "utf8");
   const rule = (name) => (new RegExp(`\\.${name} \\{([^}]*)\\}`).exec(css) || [])[1] || "";
-  for (const name of ["glyph", "callBody", "callCommand"]) {
+  for (const name of ["glyph", "callText"]) {
     assert.doesNotMatch(rule(name), /background|border:|box-shadow/, `${name} draws no surface`);
   }
   assert.match(panel, /<SolarIcon name=\{name\} size=\{16\} motionPreset="none" \/>/);
   assert.match(panel, /className=\{`indicator-dot sm \$\{DOT\[tone\]\}`\}/);
   assert.doesNotMatch(panel, /<details/, "no native disclosure triangle");
-  // The ghost button fills itself while expanded; an open call row stays bare.
-  assert.match(css, /\.row\[aria-expanded="true"\]:not\(:hover\) \{ background: transparent; \}/);
   // Hover lifts the row into the raised card, not the ghost button's grey fill.
-  assert.match(css, /\.row:hover, \.call:hover \{ background: var\(--bg-input\); box-shadow: var\(--composer-shadow-focus\);/);
+  assert.match(css, /\.row:hover \{ background: var\(--bg-input\); box-shadow: var\(--composer-shadow-focus\);/);
 });

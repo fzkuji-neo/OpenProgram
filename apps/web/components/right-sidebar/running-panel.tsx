@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "@/lib/i18n";
 import { useExecutionDebugger } from "@/lib/execution/use-execution-debugger";
 import { useManagedProcesses } from "@/lib/execution/use-managed-processes";
-import { processIsActive, stopProcess, type ManagedProcess } from "@/lib/net/process-client";
+import { processIsActive, stopProcess, type ActiveToolCall, type ManagedProcess } from "@/lib/net/process-client";
 import type { ExecutionSnapshot } from "@/lib/execution/execution-debugger";
 import { ChevronRight } from "lucide-react";
 import { SolarIcon, type SolarIconName } from "@/components/solar-icons";
@@ -65,12 +65,6 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   useEffect(() => { setSelection(null); }, [sessionId]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [openCalls, setOpenCalls] = useState<Set<string>>(new Set());
-  const toggleCall = (id: string) => setOpenCalls(previous => {
-    const next = new Set(previous);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    return next;
-  });
   const toggle = (id: string) => setExpanded(previous => {
     const next = new Set(previous);
     if (next.has(id)) next.delete(id); else next.add(id);
@@ -78,7 +72,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   });
   const [stopPending, setStopPending] = useState(false);
   const [stopError, setStopError] = useState<string | null>(null);
-  const processes = useManagedProcesses(active, sessionId, selection && selection !== "agent" && !selection.startsWith("branch:") ? selection : null);
+  const processes = useManagedProcesses(active, sessionId, selection && selection !== "agent" && !selection.startsWith("branch:") && !selection.startsWith("call:") ? selection : null);
   const processStatus = (item: ManagedProcess) => text(...({
     starting: ["Starting", "正在启动"], running: ["Running", "正在运行"], stopping: ["Stopping", "正在停止"],
     completed: ["Completed", "已完成"], exited: ["Exited", "已退出"], failed: ["Failed", "运行失败"],
@@ -111,6 +105,31 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     const parent = parentId && ids.has(parentId) ? parentId : null;
     children.set(parent, [...(children.get(parent) || []), item]);
   }
+  // A function call that has not returned belongs to the execution that made
+  // it: its row names the call, and the call opens like every other row.
+  const liveProcesses = processes.items.filter(processIsActive);
+  const liveCalls = (processes.calls || []).filter(call => !liveProcesses.some(process =>
+    process.execution_id === call.execution_id && process.tool_call_id && process.tool_call_id === call.tool_call_id));
+  const callsByExecution = new Map<string, ActiveToolCall[]>();
+  for (const call of liveCalls) {
+    if (ids.has(call.execution_id)) callsByExecution.set(call.execution_id, [...(callsByExecution.get(call.execution_id) || []), call]);
+  }
+  const orphanCalls = liveCalls.filter(call => !ids.has(call.execution_id));
+  const callStatus = (call: ActiveToolCall) => call.status === "running"
+    ? text("Running", "正在运行") : text("Result unconfirmed", "结果待确认");
+  const callNote = (calls: ActiveToolCall[]) => calls.length
+    ? ` · ${calls.map(call => `${call.name}${call.status === "running" ? "" : ` ${text("result unconfirmed", "结果待确认")}`}`).join(", ")}`
+    : "";
+  function callRow(call: ActiveToolCall): ReactNode {
+    const view = presentTool(call.name, undefined, text);
+    return <Button variant="ghost" className={styles.row} key={`call:${call.id}`} onClick={() => setSelection(`call:${call.id}`)}>
+      <Glyph name={view.icon} tone={view.tone} />
+      <span className={styles.rowText}><span className={styles.name}>{call.description || call.name}</span>
+        <Status tone={call.status === "running" ? "run" : "warn"}>{call.description ? `${call.name} · ` : ""}{callStatus(call)}</Status>
+      </span>
+      <ChevronRight size={14} className={styles.chevron} aria-hidden="true" />
+    </Button>;
+  }
   function needsAttention(item: ExecutionSnapshot, seen = new Set<string>()): boolean {
     if (seen.has(item.execution_id)) return false;
     seen.add(item.execution_id);
@@ -140,6 +159,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     if (ancestors.has(item.execution_id)) return null;
     const path = new Set(ancestors).add(item.execution_id);
     const owned = byExecution.get(item.execution_id) || [];
+    const calls = callsByExecution.get(item.execution_id) || [];
     const descendants = (children.get(item.execution_id) || []).filter(child => !allowed || allowed.has(child.execution_id));
     const expandable = owned.length > 0 || descendants.length > 0;
     const open = expanded.has(item.execution_id);
@@ -159,6 +179,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
           <ChevronRight size={14} className={styles.chevron} data-open={open ? "1" : "0"} />
         </Button>}
       </div>
+      {calls.length > 0 && <div className={styles.children}>{calls.map(callRow)}</div>}
       {expandable && open && <div className={ancestors.size < 4 ? styles.children : undefined}>
         {descendants.map(child => agentRow(child, path, allowed))}{owned.map(programRow)}
       </div>}
@@ -182,13 +203,14 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     const item = branchRepresentative(branch);
     const attention = branchAttention(branch), live = branchActive(branch);
     const tone: Tone = attention ? "warn" : live ? "run" : executionTone(item, false);
+    const calls = branch.executions.flatMap(run => callsByExecution.get(run.execution_id) || []);
     return <Button variant="ghost" className={styles.row} key={branch.branch_id} onClick={() => {
       state.selectExecution(item.execution_id); setSelection(`branch:${branch.branch_id}`);
     }}>
       <Glyph name="bot" tone="agent" />
       <span className={styles.rowText}><span className={styles.name}>{branchTitle(branch)}</span>
         <Status tone={tone}>{attention ? text("Needs attention", "需要处理")
-          : live ? text("Running", "正在运行") : executionStatusLabel(item, text)}</Status>
+          : live ? text("Running", "正在运行") : executionStatusLabel(item, text)}{callNote(calls)}</Status>
       </span>
       <ChevronRight size={14} className={styles.chevron} aria-hidden="true" />
     </Button>;
@@ -207,6 +229,30 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
           }).map(item => agentRow(item, new Set(), new Set(branch.executions.map(run => run.execution_id))))}
         </> : <SidebarNotice>{text("Branch details are unavailable.", "暂时无法读取分支详情。")}</SidebarNotice>}
       </div></div>;
+  }
+  if (selection?.startsWith("call:")) {
+    const call = liveCalls.find(item => `call:${item.id}` === selection);
+    const owner = call ? state.executions.find(item => item.execution_id === call.execution_id) : undefined;
+    const view = call ? presentTool(call.name, undefined, text) : null;
+    return <div className={styles.panel}><div className={styles.toolbar}>{back}</div>
+      {!call || !view ? <SidebarNotice>{text("This call has returned.", "这次调用已经返回。")}</SidebarNotice> : <div className={styles.scroll}>
+        <h3 className={styles.callTitle}><Glyph name={view.icon} tone={view.tone} />{call.name}</h3>
+        <Status tone={call.status === "running" ? "run" : "warn"}>{callStatus(call)}</Status>
+        {call.status !== "running" && <p className={styles.notice}>{text(
+          "The run stopped while this call was out, so whether it finished is not known. Check its Agent before retrying.",
+          "这次调用发出后运行中断，无法确认它是否完成。重试前请在所属 Agent 中检查。")}</p>}
+        {call.description && <p className={styles.callText}>{call.description}</p>}
+        {owner && <Button variant="ghost" className={styles.row} onClick={() => { state.selectExecution(owner.execution_id); setSelection("agent"); }}>
+          <Glyph name="bot" tone="agent" /><span className={styles.rowText}><span className={styles.meta}>{text("Started by", "所属 Agent")}</span><span className={styles.name}>{executionTitle(owner, 1, text)}</span></span>
+          <ChevronRight size={14} className={styles.chevron} aria-hidden="true" />
+        </Button>}
+        {call.prompt && <><h4 className={styles.outputHeading}>{text("Task", "任务")}</h4><pre className={styles.output}>{call.prompt}</pre></>}
+        {call.command && <><h4 className={styles.outputHeading}>{text("Command", "命令")}</h4><pre className={styles.output}>{call.command}</pre></>}
+        <dl className={styles.facts}>
+          <dt>{text("Started", "开始时间")}</dt><dd>{updatedTime(call.started_at)}</dd>
+        </dl>
+      </div>}
+    </div>;
   }
   if (selection === "agent") return <div className={styles.panel}>
     <div className={styles.toolbar}>{back}</div>
@@ -247,9 +293,6 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       </div>}
     </div>;
   }
-  const liveProcesses = processes.items.filter(processIsActive);
-  const liveCalls = (processes.calls || []).filter(call => !liveProcesses.some(process =>
-    process.execution_id === call.execution_id && process.tool_call_id && process.tool_call_id === call.tool_call_id));
   const roots = groups;
   const attention = groups.filter(branchAttention);
   const working = groups.filter(item => !branchAttention(item) && branchActive(item));
@@ -266,26 +309,9 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
         : text("Loading activity… Retrying automatically.", "正在加载运行记录，自动重试中。")}</p>}
     <div className={styles.scroll}>
       {!hasRead && !processes.stale && state.connection.state === "reconnecting" ? <SidebarNotice>{text("Loading…", "加载中…")}</SidebarNotice> : null}
-      {liveCalls.length > 0 && <div className="group/sec">
-        <SectionHeader name={text("Functions", "函数调用")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} />
-        {liveCalls.map(call => {
-          const view = presentTool(call.name, undefined, text);
-          const open = openCalls.has(call.id);
-          return <div className={styles.call} key={call.id}>
-            <Button variant="ghost" className={styles.row} aria-expanded={open} onClick={() => toggleCall(call.id)}>
-              <Glyph name={view.icon} tone={view.tone} />
-              <span className={styles.rowText}><span className={styles.name}>{call.name}</span>
-                <Status tone={call.status === "running" ? "run" : "warn"}>{call.status === "running" ? text("Running", "正在运行") : text("Status needs confirmation", "状态待确认")}</Status>
-              </span>
-              <ChevronRight size={14} className={styles.chevron} data-open={open ? "1" : "0"} aria-hidden="true" />
-            </Button>
-            <div className={styles.callBody} hidden={!open}>
-              {call.description && <p className={styles.callText}>{call.description}</p>}
-              {call.command && <pre className={styles.callCommand}>{call.command}</pre>}
-              <time className={styles.meta} dateTime={new Date(call.started_at * 1000).toISOString()}>{text("Started", "开始时间")} {updatedTime(call.started_at)}</time>
-            </div>
-          </div>;
-        })}
+      {orphanCalls.length > 0 && <div className="group/sec">
+        <SectionHeader name={text("Function calls", "函数调用")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} />
+        {orphanCalls.map(callRow)}
       </div>}
       {liveProcesses.length > 0 && <div className="group/sec">
         <SectionHeader name={text("Running programs", "运行中的程序")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} />
@@ -293,7 +319,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       </div>}
       {section(text("Needs attention", "需要处理"), attention)}
       {section(text("In progress", "正在进行"), working)}
-      {state.fetchedAt && processes.loaded && unassigned.length === 0 && ungrouped.length === 0 && attention.length === 0 && working.length === 0 && liveCalls.length === 0 && liveProcesses.length === 0 && <SidebarNotice>{roots.length ? text("No tasks are running. Previous tasks are in History.", "当前没有正在进行的任务，已结束任务保留在历史记录中。") : text("Tasks and their programs will appear here when this conversation runs.", "此会话开始执行后，任务及其程序会显示在这里。")}</SidebarNotice>}
+      {state.fetchedAt && processes.loaded && unassigned.length === 0 && ungrouped.length === 0 && attention.length === 0 && working.length === 0 && orphanCalls.length === 0 && liveProcesses.length === 0 && <SidebarNotice>{roots.length ? text("No tasks are running. Previous tasks are in History.", "当前没有正在进行的任务，已结束任务保留在历史记录中。") : text("Tasks and their programs will appear here when this conversation runs.", "此会话开始执行后，任务及其程序会显示在这里。")}</SidebarNotice>}
       {section(text("History", "历史记录"), history, true)}
       {ungrouped.length > 0 && <div className="group/sec"><SectionHeader className={styles.sectionHeader} name={text("Records awaiting branch association", "尚未关联分支的记录")} collapsible={false} collapsed={false} onToggle={() => {}} />{ungrouped.filter(item => {
         const parent = item.view_parent_execution_id ?? item.parent_execution_id;

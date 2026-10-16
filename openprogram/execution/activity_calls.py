@@ -30,6 +30,7 @@ def active_tool_calls(store, executions):
                 'name': str(payload.get('tool_name') or 'function'),
                 'description': str(arguments.get('description') or '')[:300],
                 'command': str(arguments.get('command') or '')[:4000],
+                'prompt': str(arguments.get('prompt') or '')[:4000],
                 'started_at': effect.dispatched_at or effect.created_at,
                 'status': 'running' if running else 'unknown',
             })
