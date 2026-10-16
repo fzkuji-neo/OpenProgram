@@ -19,6 +19,7 @@ type SettingRow = {
 type MemoryStatus = {
   workspace_path?: string;
   embedding_available?: boolean;
+  embedding_packages?: boolean;
   failed?: boolean;
 };
 
@@ -108,7 +109,7 @@ export function MemorySettings() {
       if (!response.ok || !result.embedding_available) {
         throw new Error(result.error || `embedding install: ${response.status}`);
       }
-      setMemoryStatus((current) => ({ ...current, embedding_available: true, failed: false }));
+      setMemoryStatus((current) => ({ ...current, embedding_available: true, embedding_packages: true, failed: false }));
     } catch (error) {
       setMessage(text(`Embedding install failed: ${error}`, `Embedding 安装失败：${error}`));
     } finally {
@@ -193,9 +194,9 @@ export function MemorySettings() {
               <option value="hybrid" disabled={!embeddingAvailable}>{text("Hybrid · BM25 + Embeddings", "混合 · BM25 + Embedding")}{!embeddingAvailable ? text(" (unavailable)", "（不可用）") : ""}</option>
             </select>
           </SettingsRow>
-          <SettingsRow label={text("Embedding model", "Embedding 模型")} description={text("Required only for semantic and hybrid retrieval.", "仅语义检索和混合检索需要该模型。") }>
+          <SettingsRow label={text("Embedding model", "Embedding 模型")} description={text("Required only for semantic and hybrid retrieval. Installing also adds sentence-transformers and PyTorch when OpenProgram does not include them.", "仅语义检索和混合检索需要该模型。OpenProgram 未自带 sentence-transformers 和 PyTorch 时，安装会一并装上。") }>
             <Status missing={memoryStatus !== null && !memoryStatus.failed && !embeddingAvailable}>{memoryStatus === null ? text("Checking…", "检查中…") : memoryStatus.failed ? text("Unavailable", "无法检查") : embeddingAvailable ? text("Available", "可用") : text("Not installed", "未安装")}</Status>
-            {memoryStatus !== null && !memoryStatus.failed && !embeddingAvailable && <button className={styles.installButton} type="button" onClick={installEmbedding} disabled={saving || installing}>{installing ? text("Installing…", "安装中…") : text("Install · about 90 MB", "安装 · 约 90 MB")}</button>}
+            {memoryStatus !== null && !memoryStatus.failed && !embeddingAvailable && <button className={styles.installButton} type="button" onClick={installEmbedding} disabled={saving || installing}>{installing ? text("Installing…", "安装中…") : memoryStatus.embedding_packages === false ? text("Install · about 600 MB", "安装 · 约 600 MB") : text("Install · about 90 MB", "安装 · 约 90 MB")}</button>}
           </SettingsRow>
           <SettingsRow label={text("Hybrid weighting", "混合权重")} description={text("How hybrid recall balances keyword and semantic matches. Automatic leans on keywords for dates, quoted phrases and names.", "混合检索中关键词与语义匹配的比重。自动：查询含日期、引号短语或人名时偏向关键词。") }>
             <select aria-label={text("Hybrid weighting", "混合权重")} disabled={controlsDisabled || retrieval !== "hybrid"} className={styles.select} value={String(draft["memory.retrieval.hybrid.weighting"] ?? "auto")} onChange={(event) => update("memory.retrieval.hybrid.weighting", event.target.value)}>

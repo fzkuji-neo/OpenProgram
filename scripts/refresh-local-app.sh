@@ -167,6 +167,20 @@ validate_stale_package_tree() {
     "$python_executable" --check
 }
 
+# A runtime built from an older lock keeps its old dependency versions: the
+# wheel installs below only add what is missing, never move a pinned package
+# forward. Sync it to the locked set a release build installs, and record
+# that set as the runtime's requirements.
+sync_runtime_to_lock() {
+  local requirements="$wheel_dir/product-requirements.txt"
+  "$uv_bin" export --project "$repo_root" --frozen --no-dev \
+    --extra all --extra search --no-emit-project \
+    --output-file "$requirements" >/dev/null
+  "$uv_bin" pip install --python "$app_python" --break-system-packages \
+    --require-hashes --requirements "$requirements"
+  cp "$requirements" "$runtime_root/product-requirements.txt"
+}
+
 hydrate_wheel_dependencies() {
   local python_executable="$1"
   "$python_executable" -I -m pip install --disable-pip-version-check \
@@ -448,6 +462,7 @@ fi
 # validated package directories before reinstalling.
 validate_stale_package_tree "$local_python"
 validate_stale_package_tree "$app_python"
+sync_runtime_to_lock
 # The embedded runtime may predate a newly declared production dependency.
 # Ask pip to resolve the wheel once before replacing the same-version package;
 # the second no-deps install below still performs the exact source refresh.

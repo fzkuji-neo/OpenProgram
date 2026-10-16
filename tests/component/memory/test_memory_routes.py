@@ -186,6 +186,7 @@ def test_settings_status_skips_complete_workspace_inspection(
     monkeypatch.setattr(
         embedding_model, "default_model_is_cached", lambda: True,
     )
+    monkeypatch.setattr(embedding_model, "packages_available", lambda: True)
 
     response = client.get("/api/memory/status?settings=true")
 
@@ -193,7 +194,25 @@ def test_settings_status_skips_complete_workspace_inspection(
     assert response.json() == {
         "workspace_path": str(memory.resolve()),
         "embedding_available": True,
+        "embedding_packages": True,
     }
+
+
+def test_settings_status_needs_the_packages_not_only_the_model(
+    client, monkeypatch, memory,
+):
+    """A product runtime has no torch: cached model files alone are not enough."""
+    from openprogram.memory import store
+    from openprogram.memory.retrieval import embedding_model
+
+    monkeypatch.setattr(store, "root", lambda: memory)
+    monkeypatch.setattr(embedding_model, "default_model_is_cached", lambda: True)
+    monkeypatch.setattr(embedding_model, "packages_available", lambda: False)
+
+    payload = client.get("/api/memory/status?settings=true").json()
+
+    assert payload["embedding_available"] is False
+    assert payload["embedding_packages"] is False
 
 
 @pytest.mark.parametrize("cached", [True, False])
@@ -240,6 +259,12 @@ def test_embedding_install_downloads_snapshot_without_loading_encoder(
     monkeypatch.setattr(asyncio, "to_thread", fake_to_thread)
     monkeypatch.setattr(
         embedding_model,
+        "install_packages",
+        lambda: calls.append(("packages", inside_worker)),
+    )
+    monkeypatch.setattr(embedding_model, "packages_available", lambda: True)
+    monkeypatch.setattr(
+        embedding_model,
         "install_default_model",
         lambda: calls.append(("install", inside_worker)),
         raising=False,
@@ -261,7 +286,7 @@ def test_embedding_install_downloads_snapshot_without_loading_encoder(
 
     assert response.status_code == 200
     assert response.json() == {"embedding_available": True}
-    assert calls == [("install", True), ("verify", True)]
+    assert calls == [("packages", True), ("install", True), ("verify", True)]
 
 
 def test_embedding_install_rejects_intel_macos_before_download(
@@ -294,6 +319,9 @@ def test_embedding_install_rejects_intel_macos_before_download(
 def test_embedding_install_returns_a_retryable_error(client, monkeypatch):
     from openprogram.memory.retrieval import embedding_model
 
+    monkeypatch.setattr(embedding_model, "install_packages", lambda: None)
+    monkeypatch.setattr(embedding_model, "packages_available", lambda: True)
+
     monkeypatch.setattr(
         embedding_model,
         "install_default_model",
@@ -312,6 +340,9 @@ def test_embedding_install_returns_a_retryable_error(client, monkeypatch):
 
 def test_embedding_install_rejects_an_unverified_download(client, monkeypatch):
     from openprogram.memory.retrieval import embedding_model
+
+    monkeypatch.setattr(embedding_model, "install_packages", lambda: None)
+    monkeypatch.setattr(embedding_model, "packages_available", lambda: True)
 
     monkeypatch.setattr(embedding_model, "install_default_model", lambda: None)
     monkeypatch.setattr(

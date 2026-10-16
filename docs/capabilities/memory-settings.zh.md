@@ -28,6 +28,11 @@
 
 混合权重和同主题加权只在检索方法为混合时生效。
 
+语义和混合检索需要 Embedding 模型，以及运行它的 sentence-transformers 和
+PyTorch。App 不自带这两个包，所以 **Embedding 模型** 旁边的 **安装** 会连同
+模型（约 90 MB）一起下载它们（约 600 MB）。它们装在
+`~/.openprogram/extras/embedding/`，不在 App 里，App 更新后仍然保留。
+
 ## 项目记忆
 
 项目里的对话可以把只属于这个项目的内容，和到哪儿都适用的内容分开存放。
