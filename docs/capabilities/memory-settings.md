@@ -33,9 +33,10 @@ method is Hybrid.
 
 Semantic and Hybrid need the embedding model and the packages that run it,
 sentence-transformers and PyTorch. The App does not include those packages, so
-**Install** next to **Embedding model** downloads them, about 600 MB, together
-with the model, about 90 MB. They go into `~/.openprogram/extras/embedding/`,
-not into the App, so an App update keeps them.
+**Install** next to **Embedding model** downloads them together with the model.
+The packages take about 1 GB of disk and the model about 90 MB. The packages go
+into `~/.openprogram/extras/embedding/`, not into the App, so an App update
+keeps them.
 
 ## Project memory
 
