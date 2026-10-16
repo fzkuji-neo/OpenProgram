@@ -20,13 +20,17 @@ type Scene = {
 
 /** Code rain after The Matrix: a fixed grid of glyphs (katakana, Latin
  *  capitals, digits, symbols; some mirrored) that drops of light run down,
- *  a glowing head with a green tail. Green regardless of the app theme. */
+ *  a glowing head with a long green tail. A lit glyph changes now and then,
+ *  then rests: after each change it waits GLYPH_REST seconds on average
+ *  before it may change again. Green regardless of the app theme. */
 function codeRain(): Scene {
   const GLYPHS =
     "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ" +
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:.=*+-<>|\"_";
   const CELL = 20;
-  type Cell = { ch: string; flip: boolean };
+  const GLYPH_REST = 10;
+  // next: the earliest time this glyph may change again; -1 until first lit.
+  type Cell = { ch: string; flip: boolean; next: number };
   type Drop = { col: number; y: number; speed: number; len: number };
   let grid: Cell[][] = [];
   let drops: Drop[] = [];
@@ -35,9 +39,11 @@ function codeRain(): Scene {
   const cell = (): Cell => ({
     ch: GLYPHS[Math.floor(Math.random() * GLYPHS.length)],
     flip: Math.random() < 0.3,
+    next: -1,
   });
+  const rest = (t: number) => t + GLYPH_REST * (0.5 + Math.random());
   const spawn = (col: number, scatter: boolean): Drop => {
-    const len = 10 + Math.floor(Math.random() * 22);
+    const len = 18 + Math.floor(Math.random() * 30);
     return {
       col,
       // 首帧把雨点散在整屏，之后从顶端上方落下。
@@ -64,11 +70,6 @@ function codeRain(): Scene {
       ctx.font = `600 ${CELL - 3}px ui-monospace, "SF Mono", Menlo, monospace`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      // 暗处的字也会偶尔自己变。
-      for (let n = 0; n < grid.length * dt * 0.17; n++) {
-        const c = grid[Math.floor(Math.random() * grid.length)];
-        c[Math.floor(Math.random() * rows)] = cell();
-      }
       for (const d of drops) {
         d.y += d.speed * dt;
         if (d.y - d.len > rows) Object.assign(d, spawn(d.col, false));
@@ -77,9 +78,10 @@ function codeRain(): Scene {
         for (let k = 0; k < d.len; k++) {
           const row = top - k;
           if (row < 0 || row >= rows) continue;
-          // 拖尾里亮着的字偶尔换一个，每个字每秒约 0.1 次。
-          if (Math.random() < dt * 0.1) grid[d.col][row] = cell();
           const g = grid[d.col][row];
+          // 冷却到期才换字，换完重新冷却；不会连着变。
+          if (g.next < 0) g.next = rest(t);
+          else if (t >= g.next) Object.assign(g, cell(), { next: rest(t) });
           const y = row * CELL + CELL / 2;
           if (k === 0) {
             ctx.fillStyle = head;
@@ -88,7 +90,9 @@ function codeRain(): Scene {
             ctx.shadowBlur = dark ? 10 : 0;
           } else {
             ctx.fillStyle = tail;
-            ctx.globalAlpha = Math.max(0.08, 1 - k / d.len) * (dark ? 0.9 : 0.75);
+            // 拖尾前六成保持明亮，最后四成才淡出。
+            const fade = Math.min(1, (1 - k / d.len) / 0.4);
+            ctx.globalAlpha = Math.max(0.06, fade) * (dark ? 0.92 : 0.78);
             ctx.shadowBlur = 0;
           }
           if (g.flip) {
