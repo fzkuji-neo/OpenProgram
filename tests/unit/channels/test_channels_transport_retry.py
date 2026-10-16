@@ -139,10 +139,10 @@ def test_patch_message_renders(monkeypatch: pytest.MonkeyPatch) -> None:
 # post_file capability table
 # ---------------------------------------------------------------------------
 
-def test_post_file_wechat_not_supported(tmp_path) -> None:
+def test_post_file_unknown_platform_not_supported(tmp_path) -> None:
     f = tmp_path / "report.txt"
     f.write_text("x")
-    result = _transport.post_file("wechat", "a", "peer", str(f))
+    result = _transport.post_file("matrix", "a", "peer", str(f))
     assert not result.ok
     assert result.error_kind == "not_supported"
 

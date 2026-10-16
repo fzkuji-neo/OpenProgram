@@ -29,6 +29,7 @@ EXPECTED_CONSUMERS = {
     "channel.slack.generated_asset.upload",
     "channel.telegram.attachment",
     "channel.wechat.api",
+    "channel.wechat.cdn",
     "channel.feishu.api",
     "channel.matrix.configured",
     "channel.generated_asset.download",
@@ -97,6 +98,7 @@ EXPECTED_FIXED_ORIGINS = {
     ),
     "channel.slack.generated_asset.upload": frozenset({"https://files.slack.com"}),
     "channel.telegram.attachment": frozenset({"https://api.telegram.org"}),
+    "channel.wechat.cdn": frozenset({"https://novac2c.cdn.weixin.qq.com"}),
     "channel.feishu.api": frozenset(
         {"https://open.feishu.cn", "https://open.larksuite.com"}
     ),

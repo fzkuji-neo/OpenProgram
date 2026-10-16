@@ -9,7 +9,7 @@ Channels 把聊天平台——**Telegram、Discord、Slack、微信**——接�
 | Telegram | Bot API 长轮询 | bot token（BotFather 发放） | 支持 | 图片 + 文档 | 支持（photo/document） |
 | Discord | discord.py Gateway | bot token | 支持 | 支持 | 支持 |
 | Slack | Socket Mode（`slack_sdk`） | bot token（`xoxb-`）**加** app-level token（`xapp-`） | 支持 | 支持（需 `files:read` scope） | 支持（需 `files:write` scope） |
-| 微信 | iLink 长轮询 | 用个人微信扫码 | 不支持（微信消息发出后不能编辑） | 不支持（iLink 只暴露文本） | 不支持 |
+| 微信 | iLink 长轮询 | 用个人微信扫码 | 不支持（微信消息发出后不能编辑） | 图片、语音、文件、视频 | 支持（图片/视频/文件） |
 
 受支持的 release 已包含 Discord 与 Slack 依赖。开发者从源码安装时，也会通过完整开发安装获得相同的 channel 依赖。
 
@@ -199,7 +199,11 @@ agent 输出是 markdown，发送时按平台渲染：Telegram 收到 HTML（`**
 
 ## 附件
 
-入站的图片和文件下载到 `<state>/channels/<channel>/accounts/<account>/attachments/`（单文件上限 20 MB）。4 MB 以内的图片还会作为图像输入直达模型；每个落盘文件都以 `[attachment: <路径> (<类型>, <大小>)]` 的形式列在消息里，agent 用文件工具打开。有人回复早先的消息时（Telegram/Discord 回复、Slack thread），被引用的文本会以 `> 引用` 块的形式附在新消息上方。
+入站的图片和文件下载到 `<state>/channels/<channel>/accounts/<account>/attachments/`（单文件上限 20 MB）。4 MB 以内的图片还会作为图像输入直达模型；每个落盘文件都以 `[attachment: <路径> (<类型>, <大小>)]` 的形式列在消息里，agent 用文件工具打开。
+
+微信的媒体从腾讯 CDN 加密下发，下载时解密。语音消息带有微信自己的转写时，agent 收到的就是这段文字；没有转写的语音存成 `.silk` 文件，这种音频格式模型没法直接听。
+
+有人回复早先的消息时（Telegram/Discord 回复、Slack thread），被引用的文本会以 `> 引用` 块的形式附在新消息上方。
 
 从代码或 agent 里发文件走 outbound API：
 
@@ -208,7 +212,7 @@ from openprogram.channels.outbound import send_file
 send_file("telegram", "default", "123456", "/path/to/report.pdf", caption="周报")
 ```
 
-Telegram 图片走 photo、其余走 document；Discord 把文件连同 caption 一起上传；Slack 走 external-upload 流程（需 `files:write`）。微信 iLink 机器人收不了文件——`send_file` 返回 `not_supported`，请改发带文件路径的文本。
+Telegram 图片走 photo、其余走 document；Discord 把文件连同 caption 一起上传；Slack 走 external-upload 流程（需 `files:write`）。微信把文件加密后上传到腾讯 CDN，按类型发成图片、视频或文件消息（上限 100 MB）；caption 随后作为一条单独的文字消息发出。
 
 ## 常见错误
 

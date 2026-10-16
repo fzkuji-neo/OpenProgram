@@ -107,8 +107,8 @@ feel present.
 | Ack reaction | Yes | Telegram, Discord, Slack (`ack_reaction`) |
 | Bot loop protection | Yes | Bot messages dropped, per-room turn limit |
 | Group introduction | Yes | No |
-| Media in and out | Yes | Yes, except WeChat (text only) |
-| Voice transcription | Yes | No |
+| Media in and out | Yes | Yes |
+| Voice transcription | Yes | WeChat's own transcript; untranscribed voice is kept as SILK |
 | Questions back to the user | — | `/answer`, `/decline` |
 | Proactive delivery | Heartbeats, cron | Always-on agents deliver to a channel |
 | Self-curated memory, skills | Hermes | Shared memory workspace, per-person topics |
@@ -198,11 +198,27 @@ active channel. Heartbeats skip group sessions.
 
 ### 4.8 WeChat
 
-iLink carries image, voice, file and video items besides text. The
-adapter reads them through the shared attachment path, voice notes
-included, and sends files back the way the other adapters do. iLink has
-no groups and no message edits, so WeChat always uses paragraph chunking
-and never the live placeholder.
+iLink carries image, voice, file and video items besides text. Each
+media item points at an AES-128-ECB encrypted object on Tencent's C2C
+CDN and carries its key. The adapter turns the items into ordinary
+attachments with the key attached, and the shared attachment path
+decrypts while it downloads, so images reach the model as image input
+and files land beside the other platforms' files. The CDN answers with
+`application/octet-stream`, so an image's type comes from the decrypted
+header.
+
+A voice item usually carries WeChat's own transcript, which becomes the
+message text; the audio is not downloaded then. A voice item without a
+transcript is SILK audio and is saved as `voice.silk`.
+
+Sending a file asks iLink's `getuploadurl` for an upload slot, encrypts
+the file with a fresh key, posts it to the CDN, and sends an image,
+video or file item that names the CDN's download parameter and the key.
+A caption follows as its own text message. Media traffic uses the
+`channel.wechat.cdn` HTTP consumer, fixed to the CDN origin.
+
+iLink has no groups and no message edits, so WeChat always uses
+paragraph chunking and never the live placeholder.
 
 ## Appendix — Implementation Status
 
@@ -212,11 +228,12 @@ input envelope and the web transcript, session scope and reset policy
 history (4.2), typing indicators, WeChat paragraph chunking and ack
 reactions (4.3), bot-message dropping, the per-room turn limit and
 duplicate-delivery suppression (4.5), live progress placeholder,
-per-platform markdown and size-cap splitting, attachments on Telegram,
-Discord and Slack, `/answer` and `/decline`, always-on delivery.
+per-platform markdown and size-cap splitting, attachments on all four
+platforms including WeChat media and its voice transcripts (4.8),
+`/answer` and `/decline`, always-on delivery.
 
 Not implemented: ambient mode and the `send_message` tool (4.1), custom
 mention patterns, per-binding tool policy and the owner-only rule (4.4),
 identity links (4.6), channel persona and memory-scheduled follow-ups
-(4.7), WeChat media and voice (4.8), voice transcription on any
-platform, group introductions.
+(4.7), transcribing voice that arrives without a platform transcript
+(WeChat SILK, Telegram and Discord voice notes), group introductions.

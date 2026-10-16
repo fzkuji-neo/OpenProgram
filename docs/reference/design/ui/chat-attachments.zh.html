@@ -190,7 +190,7 @@
   <rect x="16" y="248" width="150" height="66" rx="8" fill="#1d1c14" stroke="#2db3d5"/>
   <text x="28" y="270" fill="#f0eee6" font-size="12" font-weight="600">渠道</text>
   <text x="28" y="288" fill="#8a8675" font-size="10.5">Telegram / Discord</text>
-  <text x="28" y="304" fill="#8a8675" font-size="10.5">Slack（WeChat 无附件）</text>
+  <text x="28" y="304" fill="#8a8675" font-size="10.5">Slack / WeChat</text>
   <line x1="166" y1="281" x2="192" y2="281" stroke="#5c5a4e" marker-end="url(#ar)"/>
   <rect x="196" y="248" width="196" height="66" rx="8" fill="#1d1c14" stroke="#6b4519"/>
   <text x="208" y="268" fill="#bdb9a6" font-size="10" font-family="Menlo,monospace">状态目录/channels/&lt;渠道&gt;/</text>
@@ -705,7 +705,7 @@
   <td class="name">双向完全对称</td>
   <td>用户给的和 agent 给的在数据模型和界面上没有区别，只差一个来源字段</td>
   <td>词法、解析器、chip、查看器四样已经完全共用，剩下的不对称只在降级路径</td>
-  <td>已经做了一半：WeChat 收不到文件时那行标记被改写成一句带路径的中文说明，而不是漏原始标记也不是静默吞掉。改成一条可点链接要等 web UI 有对外地址</td>
+  <td>已经做了一半：平台收不了文件或上传失败时，那行标记被改写成一句带路径的中文说明，而不是漏原始标记也不是静默吞掉。四个平台（含 WeChat）都能上传文件。改成一条可点链接要等 web UI 有对外地址</td>
 </tr>
 <tr>
   <td class="name">产出可以是一张页面<br>不只是一个文件</td>

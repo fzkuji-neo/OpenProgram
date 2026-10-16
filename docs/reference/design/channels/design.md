@@ -222,7 +222,7 @@ def dispatch_inbound(*, channel, account_id, peer_kind, peer_id,
 
 ### 4.3 Platform Differences Sealed in the Low Level
 
-`_transport.py` is the **only** place that calls HTTP to send outward. Telegram's `editMessageText`, Discord's `PATCH /messages/{id}`, Slack's `chat.update`, WeChat's iLink protocol, and the per-platform file uploads (`post_file`: Telegram sendPhoto/sendDocument, Discord multipart, Slack external-upload; WeChat absent → `not_supported`) — they all live here. The per-platform message-size caps (`MAX_CHARS`), chunking, markdown rendering (via `_format`), rendered hard-cap re-split (`HARD_CAPS`), and rate-limit retry are single-sourced in the same pipeline.
+`_transport.py` is the **only** place that calls HTTP to send outward. Telegram's `editMessageText`, Discord's `PATCH /messages/{id}`, Slack's `chat.update`, WeChat's iLink protocol, and the per-platform file uploads (`post_file`: Telegram sendPhoto/sendDocument, Discord multipart, Slack external-upload, WeChat iLink CDN upload) — they all live here. The per-platform message-size caps (`MAX_CHARS`), chunking, markdown rendering (via `_format`), rendered hard-cap re-split (`HARD_CAPS`), and rate-limit retry are single-sourced in the same pipeline.
 
 `_format.py` is the outbound formatting single point: agent markdown → Telegram HTML (everything escaped, so any input is valid; the Telegram poster falls back to tag-stripped plain text if the API still rejects the entities), Slack mrkdwn, Discord passthrough, WeChat plain text. Code fences and inline code are placeholder-protected so inline transforms never touch code bodies.
 
@@ -300,6 +300,7 @@ openprogram/channels/
 ├── _attachments.py      inbound attachment download + turn-input
 │                        conversion (image blocks + path notes)
 ├── _message.py          ChannelMessage + Attachment neutral dataclasses
+├── _wechat_media.py     WeChat iLink media items + CDN AES-128-ECB crypto
 ├── outbound.py          entry A: send / send_full / send_file (thin wrapper)
 ├── _conversation.py     dispatch_inbound main flow + per-session lock
 │                        + progress streaming
@@ -336,6 +337,7 @@ How to read it: each module deals only with the callers it declares; there are n
 | `_room.py` | group rooms: activation mode (`rooms.json`), pending history, flood limit, duplicate delivery | base.handle_inbound |
 | `_attachments.py` | inbound attachment download + turn-input conversion | base.handle_inbound |
 | `_message.py` | ChannelMessage + Attachment neutral structures | adapter entry |
+| `_wechat_media.py` | iLink media items → attachments, CDN key decoding, AES-128-ECB encrypt/decrypt, outbound media items | wechat adapter, _attachments, _transport |
 | `base.py` | Channel ABC + MessageHandle + handle_inbound + run_forever | adapter subclasses, worker, dispatch_inbound |
 | `outbound.py` | entry A (one-shot send / send_file) | cron script, jupyter, Agent method |
 | `_conversation.py` | dispatch_inbound main flow + per-session lock | base.handle_inbound |
@@ -354,7 +356,7 @@ How to read it: each module deals only with the callers it declares; there are n
 | **Telegram** | long-poll `getUpdates` (no webhook dependency) | bot API `sendMessage` (HTML) / `editMessageText` / `sendPhoto`+`sendDocument` | ✓ | photo + document (file_id → getFile) | ✓ | bot token, public Bot API; group_sessions / require_mention settings |
 | **Discord** | discord.py Gateway WS | REST `POST /messages` / `PATCH /messages/{id}` / multipart upload | ✓ | ✓ (CDN URLs) | ✓ | bot token, intents.message_content |
 | **Slack** | Socket Mode (slack_sdk) | `chat.postMessage` (mrkdwn) / `chat.update` / external-upload | ✓ | ✓ (`url_private` + bearer) | ✓ | bot_token (xoxb-) + app_token (xapp-) |
-| **WeChat** | iLink `getupdates` long-poll | iLink `sendmessage` (plain text) | ✗ (iLink does not support edit) | ✗ (text-only protocol) | ✗ (`not_supported`) | personal WeChat QR login, no enterprise-verification barrier |
+| **WeChat** | iLink `getupdates` long-poll | iLink `sendmessage` (plain text) | ✗ (iLink does not support edit) | ✓ (image/voice/file/video, decrypted from the CDN) | ✓ (`getuploadurl` + encrypted CDN upload) | personal WeChat QR login, no enterprise-verification barrier |
 
 Platform differences are governed by this table and the docstring at the top of each adapter.
 

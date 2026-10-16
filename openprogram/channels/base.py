@@ -325,6 +325,9 @@ class Channel(abc.ABC):
             if notes:
                 joined = "\n".join(notes)
                 user_text = f"{user_text}\n\n{joined}" if user_text else joined
+            elif not user_text:
+                # 只发了附件且全部下载失败: 别开一个空轮次.
+                user_text = "(attachment could not be downloaded)"
         # 命令 (/answer · /decline) 原样交给 dispatch 解析, 不拼上下文块.
         if ch_msg.quoted_text and not verb:
             user_text = _quoted_block(ch_msg.quoted_text) + "\n\n" + user_text
@@ -444,8 +447,8 @@ class Channel(abc.ABC):
     def send_file(self, target: str, path: str, caption: str = ""):
         """把本地文件发给 ``target``. 返回 :class:`SendResult`.
 
-        走 :func:`._transport.post_file`. WeChat (iLink 无文件上传接口)
-        返回 ``not_supported`` — 调用方自行降级 (e.g. 改发带路径的文本).
+        走 :func:`._transport.post_file`. 平台不支持时返回
+        ``not_supported`` — 调用方自行降级 (e.g. 改发带路径的文本).
         """
         from openprogram.channels import _transport
         return _transport.post_file(

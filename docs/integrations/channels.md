@@ -9,7 +9,7 @@ Channels connect chat platforms — **Telegram, Discord, Slack, and WeChat** —
 | Telegram | Bot API long-polling | bot token (from BotFather) | yes | photos + documents | yes (photo/document) |
 | Discord | discord.py Gateway | bot token | yes | yes | yes |
 | Slack | Socket Mode (`slack_sdk`) | bot token (`xoxb-`) **and** app-level token (`xapp-`) | yes | yes (`files:read` scope) | yes (`files:write` scope) |
-| WeChat | iLink long-polling | QR scan with your personal WeChat | no (WeChat cannot edit sent messages) | no (iLink exposes text only) | no |
+| WeChat | iLink long-polling | QR scan with your personal WeChat | no (WeChat cannot edit sent messages) | images, voice, files, video | yes (image/video/file) |
 
 Supported releases include the Discord and Slack dependencies. Developers building from source receive the same channel dependencies through the complete development install.
 
@@ -199,7 +199,11 @@ Only questions belonging to that chat's session can be answered from it.
 
 ## Attachments
 
-Incoming photos and files are downloaded to `<state>/channels/<channel>/accounts/<account>/attachments/` (20 MB cap per file). Images up to 4 MB additionally reach the model as image input; every saved file is listed in the message as `[attachment: <path> (<type>, <size>)]` so the agent can open it with its file tools. If someone replies to an earlier message (Telegram/Discord reply, Slack thread), the quoted text is included above the new message as a `> quoted` block.
+Incoming photos and files are downloaded to `<state>/channels/<channel>/accounts/<account>/attachments/` (20 MB cap per file). Images up to 4 MB additionally reach the model as image input; every saved file is listed in the message as `[attachment: <path> (<type>, <size>)]` so the agent can open it with its file tools.
+
+WeChat media arrives encrypted from Tencent's CDN and is decrypted on download. A voice message reaches the agent as WeChat's own transcription when the message carries one. A voice message without a transcription is saved as a `.silk` file, an audio format the model cannot listen to directly.
+
+If someone replies to an earlier message (Telegram/Discord reply, Slack thread), the quoted text is included above the new message as a `> quoted` block.
 
 Sending files works from code and from agents through the outbound API:
 
@@ -208,7 +212,7 @@ from openprogram.channels.outbound import send_file
 send_file("telegram", "default", "123456", "/path/to/report.pdf", caption="Weekly report")
 ```
 
-Telegram sends images as photos and everything else as documents; Discord uploads the file with the caption as the message; Slack uses its external-upload flow (`files:write`). WeChat cannot receive files from iLink bots — `send_file` returns `not_supported`, so send a text message with the file path instead.
+Telegram sends images as photos and everything else as documents; Discord uploads the file with the caption as the message; Slack uses its external-upload flow (`files:write`). WeChat encrypts the file, uploads it to Tencent's CDN and sends it as an image, video or file message by its type (100 MB cap); a caption follows as a separate text message.
 
 ## Common Errors
 

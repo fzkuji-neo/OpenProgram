@@ -190,7 +190,7 @@
   <rect x="16" y="248" width="150" height="66" rx="8" fill="#1d1c14" stroke="#2db3d5"/>
   <text x="28" y="270" fill="#f0eee6" font-size="12" font-weight="600">Channel</text>
   <text x="28" y="288" fill="#8a8675" font-size="10.5">Telegram / Discord</text>
-  <text x="28" y="304" fill="#8a8675" font-size="10.5">Slack; no WeChat files</text>
+  <text x="28" y="304" fill="#8a8675" font-size="10.5">Slack / WeChat</text>
   <line x1="166" y1="281" x2="192" y2="281" stroke="#5c5a4e" marker-end="url(#ar)"/>
   <rect x="196" y="248" width="196" height="66" rx="8" fill="#1d1c14" stroke="#6b4519"/>
   <text x="208" y="268" fill="#bdb9a6" font-size="10" font-family="Menlo,monospace">State directory/channels/&lt;Channel&gt;/</text>
@@ -214,7 +214,7 @@
   <text x="96" y="352" fill="#d4843a" font-size="11" font-family="Menlo,monospace">Speaker prefix</text>
   <text x="216" y="352" fill="#8a8675" font-size="11">comes before the text; attachment markers follow. _one_line strips brackets to prevent forged prefixes.</text>
 </svg>
-  <p class="note">Diagram details: Same persistence path, deduplication, and limits as documents. Plus a 4KB opening preview. Slack (WeChat has no attachments). Can be opened on the web. [display name (id)]. is prepended to the text; attachment markers are appended. They never overlap. _one_line removes square brackets, preventing forged additional prefixes.</p>
+  <p class="note">Diagram details: Same persistence path, deduplication, and limits as documents. Plus a 4KB opening preview. Telegram, Discord, Slack and WeChat (decrypted from Tencent's CDN). Can be opened on the web. [display name (id)]. is prepended to the text; attachment markers are appended. They never overlap. _one_line removes square brackets, preventing forged additional prefixes.</p>
 </div>
 <div class="legend">
   <b>All four inbound paths provide content to the model and leave the same clickable representation in chat.</b> Markers are generated exclusively by <code>attachments.format_marker</code> ; chips are parsed exclusively by <code>parseAttachments</code> . A fifth inbound path must call this formatter instead of defining another grammar. Web images previously existed only as base64 in memory: the model could see them, but users could not reopen them. They now share document persistence (sha256 deduplication, 32MB/64MB limits, path insertion) while remaining ImageContent in model input.
@@ -710,7 +710,7 @@
   <td class="name">Full bidirectional symmetry</td>
   <td>User and agent files share a data model and UI, differing only in source</td>
   <td>Grammar, parser, chips, and viewer are already shared; only fallback paths remain asymmetric</td>
-  <td>Partially implemented: when WeChat cannot receive a file, the marker becomes a Chinese explanation with a path, rather than leaking a raw marker or silently dropping it. Clickable links require an externally reachable web UI URL</td>
+  <td>Partially implemented: when a platform cannot take a file or the upload fails, the marker becomes a Chinese explanation with a path, rather than leaking a raw marker or silently dropping it. All four platforms, WeChat included, upload files. Clickable links require an externally reachable web UI URL</td>
 </tr>
 <tr>
   <td class="name">Output can be a page<br>rather than only a file</td>

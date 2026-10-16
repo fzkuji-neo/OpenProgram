@@ -126,6 +126,7 @@ _AUDITED_FIXED_ORIGINS = MappingProxyType(
         ),
         "channel.slack.generated_asset.upload": frozenset({"https://files.slack.com"}),
         "channel.telegram.attachment": frozenset({"https://api.telegram.org"}),
+        "channel.wechat.cdn": frozenset({"https://novac2c.cdn.weixin.qq.com"}),
         "channel.feishu.api": frozenset(
             {"https://open.feishu.cn", "https://open.larksuite.com"}
         ),
@@ -338,6 +339,13 @@ _SPECS = (
         "channel.wechat.api",
         URLTrustClass.CONFIGURED_SERVICE,
         sdk_disposition=SDKDisposition.EXACT_ORIGIN,
+    ),
+    # iLink 媒体: 下载加密的入站媒体 (GET), 上传加密的出站文件 (POST).
+    # 内容本身是 AES 密文, 不带凭据.
+    replace(
+        _download("channel.wechat.cdn", URLTrustClass.FIXED_PUBLIC_SERVICE),
+        allowed_methods=_API_METHODS,
+        redirect_policy="same_origin",
     ),
     _api(
         "channel.feishu.api",

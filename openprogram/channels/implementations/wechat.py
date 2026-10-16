@@ -18,6 +18,10 @@ Protocol summary (host: ``https://ilinkai.weixin.qq.com``):
 
     POST /ilink/bot/getupdates   long-poll inbound
     POST /ilink/bot/sendmessage  send text reply
+    POST /ilink/bot/getuploadurl upload slot for an outbound file
+
+Media (image / voice / file / video) lives encrypted on Tencent's CDN;
+see :mod:`openprogram.channels._wechat_media`.
 
 Credentials persist under
     ~/.openprogram/wechat/<bot_id>.json    (mode 0600)
@@ -144,14 +148,10 @@ class WechatChannel(Channel):
     def _handle_message(self, msg: dict) -> None:
         if msg.get("message_type") != 1:
             return
-        items = msg.get("item_list") or []
-        text_item = next(
-            (it for it in items if it.get("type") == 1), None
-        )
-        if not text_item:
-            return
-        text = (text_item.get("text_item", {}) or {}).get("text", "").strip()
-        if not text:
+        # 文本、图片、语音、文件、视频条目; 语音优先用微信自己的转写.
+        from openprogram.channels._wechat_media import parse_items
+        text, attachments = parse_items(msg.get("item_list") or [])
+        if not text and not attachments:
             return
         from_id = msg.get("from_user_id")
         if not from_id:
@@ -174,6 +174,7 @@ class WechatChannel(Channel):
             ),
             chat_type="direct",
             ts=float(msg.get("ts") or 0),
+            attachments=attachments,
         )
 
         self.handle_inbound(ch_msg)
