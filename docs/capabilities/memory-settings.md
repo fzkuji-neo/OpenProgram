@@ -55,7 +55,9 @@ something is written to it. Nothing is written into the project's
 own folder. History shows each project's Memory under its Memory tab. With both layers in play, the Memory tools
 name the layer in every path, such as `project:topics/api.md`. A turn is
 written to one layer only, so switching project writes on or off never copies
-a conversation into the other.
+a conversation into the other, and a chat moved to another project writes
+only its later turns to that project's Memory; what the old project's Memory
+already holds stays there.
 
 ## Context and history
 

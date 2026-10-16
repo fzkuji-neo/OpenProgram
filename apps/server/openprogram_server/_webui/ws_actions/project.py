@@ -22,6 +22,10 @@ Actions:
                              reverse index). Rejected once the session
                              has turns and the bind names a different
                              project — see ``FROZEN_ERROR``.
+    move_session_to_project → move a conversation, turns and all, into
+                             another project: the repository moves with
+                             it and a ``project/move`` node records it.
+                             Refused while the conversation is running.
     relocate_project       → repair a project whose directory moved on
                              disk; records a ``project/relocate`` node
     list_session_workdirs  → the session's working-directory set
@@ -201,8 +205,9 @@ async def handle_set_session_project(ws, cmd: dict):
     """Bind the session's MAIN project. Legal only while the session has
     no turns yet: the main working directory freezes when the first real
     message commits, so this rejects a rebind on a non-empty session
-    (session/operations.md, "Main project binding"). Moving a project
-    that already has turns is `relocate_project`, not a rebind."""
+    (session/operations.md, "Main project binding"). A conversation that
+    already has turns changes project through `move_session_to_project`,
+    which moves its repository and records the move."""
     session_id = (cmd.get("session_id") or "").strip()
     project_id = (cmd.get("project_id") or "").strip()
     ok, error = False, None
@@ -225,6 +230,59 @@ async def handle_set_session_project(ws, cmd: dict):
         "type": "session_project_set",
         "data": {"ok": ok, "session_id": session_id, "project_id": project_id, "error": error},
     }, default=str))
+
+
+#: Rejection reason when a conversation is moved while a turn runs on it.
+RUNNING_ERROR = "the conversation is running; wait for it to finish"
+
+
+async def handle_move_session_to_project(ws, cmd: dict):
+    """Move a conversation into another project, turns and all.
+
+    The one way to change a frozen session's project: its repository moves
+    to the project's ``chats/`` folder, later turns run in the project's
+    folder and write the project's memory, and the move is recorded as a
+    ``project/move`` node on ``caller=ROOT`` (head stays where it was). A
+    running conversation is refused, since its turn is working in the old
+    folder."""
+    session_id = (cmd.get("session_id") or "").strip()
+    project_id = (cmd.get("project_id") or "").strip()
+    ok, error, from_project_id, node_id = False, None, None, None
+    if not session_id or not project_id:
+        error = "session_id and project_id are required"
+    else:
+        try:
+            from openprogram.agent.run_control import is_turn_running
+            from openprogram.agent.session_db import default_db
+            from openprogram.store.project import project_store as _projects
+            from openprogram.store.project.relocate_node import record_move
+            target = _projects.get_project(project_id)
+            if target is None:
+                error = "unknown project"
+            elif is_turn_running(session_id):
+                error = RUNNING_ERROR
+            else:
+                db = default_db()
+                before = _projects.project_for_session(session_id) or _projects.get_default_project()
+                result = db.move_session(session_id, project_id)
+                from_project_id = result.get("from_project_id")
+                if result.get("moved"):
+                    node_id = record_move(
+                        db, session_id,
+                        old_project_id=from_project_id or "", new_project_id=project_id,
+                        old_name=before.name if before else "", new_name=target.name)
+                ok = True
+        except Exception as e:  # noqa: BLE001
+            error = f"{type(e).__name__}: {e}"
+    await ws.send_text(json.dumps({
+        "type": "session_moved",
+        "data": {"ok": ok, "session_id": session_id, "from_project_id": from_project_id,
+                 "project_id": project_id, "node_id": node_id, "error": error},
+    }, default=str))
+    if ok:
+        from openprogram.webui import server
+        server._broadcast(json.dumps({"type": "projects_changed", "data": {"project_id": project_id}}))
+        await handle_list_projects(ws, {"session_id": session_id})
 
 
 async def handle_relocate_project(ws, cmd: dict):
@@ -462,6 +520,7 @@ ACTIONS = {
     "set_project_config": handle_set_project_config,
     "create_project": handle_create_project,
     "set_session_project": handle_set_session_project,
+    "move_session_to_project": handle_move_session_to_project,
     "relocate_project": handle_relocate_project,
     "list_session_workdirs": handle_list_session_workdirs,
     "add_session_workdir": handle_add_session_workdir,

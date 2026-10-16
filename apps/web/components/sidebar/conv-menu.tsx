@@ -34,11 +34,18 @@ export interface ConvMenuConv {
   group?: string;
 }
 
+/** A project the chat can be moved into. */
+export interface ConvMenuProject { id: string; name: string }
+
 export interface ConvMenuProps {
   conv: ConvMenuConv;
   /** Existing group names across all conversations, for the
    *  "Move to group" sub-list. */
   groups: string[];
+  /** The other projects, for the "Move to project" sub-list; the chat's
+   *  own project is left out. Absent until the registry has answered. */
+  projects?: ConvMenuProject[];
+  onMoveToProject?: (projectId: string) => void;
   onRename: () => void;
   onAutoRename: () => void;
   onTogglePin: () => void;
@@ -62,6 +69,8 @@ export function ConvMenu({
   onToggleArchive,
   onMoveToGroup,
   onNewGroup,
+  projects,
+  onMoveToProject,
   onCopyLink,
   onExport,
   onDelete,
@@ -69,6 +78,7 @@ export function ConvMenu({
 }: ConvMenuProps) {
   const { t } = useTranslation();
   const [groupOpen, setGroupOpen] = useState(false);
+  const [projectOpen, setProjectOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -142,6 +152,27 @@ export function ConvMenu({
           />
         </div>
       )}
+
+      {/* Move to project — the same inline sub-list; dragging the row
+          onto a project header does the same thing. */}
+      {projects && onMoveToProject && projects.length > 0 && <>
+        <button
+          type="button"
+          className={itemCls(false)}
+          onClick={() => setProjectOpen((v) => !v)}
+          aria-expanded={projectOpen}
+        >
+          <span className="flex-1 text-left">{t("sidebar.move_to_project")}</span>
+          <span className="flex w-[16px] shrink-0 items-center justify-center text-text-muted">{projectOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
+        </button>
+        {projectOpen && (
+          <div className="flex flex-col border-l border-[var(--border)] ml-3 my-0.5">
+            {projects.map((project) => (
+              <SubItem key={project.id} label={project.name} onClick={() => run(() => onMoveToProject(project.id))} />
+            ))}
+          </div>
+        )}
+      </>}
 
       <MenuItem label={t("sidebar.copy_link")} shortcut="C" onClick={() => run(onCopyLink)} />
 

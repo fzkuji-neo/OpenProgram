@@ -180,6 +180,7 @@ const DICT = {
   "sidebar.pin": { en: "Pin", zh: "置顶" },
   "sidebar.unpin": { en: "Unpin", zh: "取消置顶" },
   "sidebar.move_to_group": { en: "Move to group", zh: "移动到分组" },
+  "sidebar.move_to_project": { en: "Move to project", zh: "移动到项目" },
   "sidebar.new_group": { en: "New group…", zh: "新建分组…" },
   "sidebar.new_group_prompt": { en: "Group name", zh: "分组名称" },
   "sidebar.ungrouped": { en: "Ungrouped", zh: "未分组" },
