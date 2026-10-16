@@ -5,6 +5,7 @@ import styles from "../plugins.module.css";
 import { usePluginsStore } from "@/lib/abilities/plugins-store";
 import { useTranslation } from "@/lib/i18n";
 import { useModalA11y } from "@/lib/hooks/use-modal-a11y";
+import { SimpleSelect } from "@/components/ui/select";
 
 interface Props {
   name: string;
@@ -220,15 +221,12 @@ export function PluginOptionsDialog({ name, onClose }: Props) {
                       <span className="text-[var(--text-secondary)]">{text("enabled", "已启用")}</span>
                     </label>
                   ) : f.enum && f.enum.length > 0 ? (
-                    <select
+                    <SimpleSelect
                       value={String(values[k] ?? "")}
-                      onChange={(e) => update(k, e.target.value)}
-                      className="w-full rounded-md border border-[var(--border)] bg-[var(--bg-input)] px-2 py-1 text-sm"
-                    >
-                      {f.enum.map((opt) => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
+                      onValueChange={(v) => update(k, v)}
+                      className="w-full"
+                      options={f.enum.map((opt) => ({ value: String(opt), label: String(opt) }))}
+                    />
                   ) : (
                     <input
                       type={f.sensitive ? "password" : f.type === "number" ? "number" : "text"}

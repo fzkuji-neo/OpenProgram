@@ -13,7 +13,7 @@ import { runtimeState } from "@/lib/runtime-bridge/state";
 import { useFunctions } from "@/lib/abilities/functions-store";
 import { setPendingRunFunction } from "@/lib/execution/use-pending-run-function";
 
-import { CustomSelect } from "./custom-select";
+import { SimpleSelect } from "@/components/ui/select";
 import { CtxMenu, type CtxMenuState } from "./ctx-menu";
 import { FunctionCard, ToolCard, cardGridClass, cardListClass } from "./function-card";
 import { IconPicker, normalizeIcon } from "./icon-picker";
@@ -257,9 +257,11 @@ export function FunctionsPage() {
               value={search}
               onChange={setSearch}
             />
-            <CustomSelect
+            <SimpleSelect
+              size="sm"
+              aria-label={text("Sort", "排序")}
               value={sort}
-              onChange={setSort}
+              onValueChange={setSort}
               options={[
                 { value: "name", label: text("Sort: Name", "排序：名称") },
                 { value: "recent", label: text("Sort: Recent", "排序：最近") },

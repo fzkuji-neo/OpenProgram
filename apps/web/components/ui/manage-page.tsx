@@ -118,7 +118,7 @@ function ManageActionButton({ a }: { a: ManageAction }) {
   const Icon = isManageActionIcon(a.icon) ? a.icon as ManageTabIcon : null;
   return (
     <Button
-      size={a.iconOnly ? "icon" : "sm"}
+      size={a.iconOnly ? "icon" : "default"}
       variant={a.primary ? "default" : "outline"}
       className={a.primary ? undefined : "border border-[var(--border)] text-[var(--text-primary)]"}
       onClick={a.onClick}

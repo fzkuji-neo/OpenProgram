@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { SimpleSelect } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
@@ -245,17 +246,17 @@ export function EditDialog({
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="mcp-transport">{text("Transport", "传输")}</Label>
-            <select
+            <SimpleSelect
               id="mcp-transport"
+              className="w-full font-mono"
               value={state.transport}
-              onChange={(e) =>
-                setState({ ...state, transport: e.target.value as EditTarget["transport"] })}
-              className="ui-text-input flex h-[var(--ui-button-h)] w-full rounded-[var(--ui-button-radius)] border border-[var(--border)] bg-[var(--bg-input)] px-3 font-mono text-sm focus:outline-none focus:border-[color:var(--accent-blue)]"
-            >
-              <option value="local">{text("local (stdio subprocess)", "local（stdio 子进程）")}</option>
-              <option value="http">{text("http (Streamable HTTP)", "http（可流式 HTTP）")}</option>
-              <option value="sse">{text("sse (legacy Server-Sent Events)", "sse（旧版 Server-Sent Events）")}</option>
-            </select>
+              onValueChange={(value) => setState({ ...state, transport: value })}
+              options={[
+                { value: "local" as EditTarget["transport"], label: text("local (stdio subprocess)", "local（stdio 子进程）") },
+                { value: "http" as EditTarget["transport"], label: text("http (Streamable HTTP)", "http（可流式 HTTP）") },
+                { value: "sse" as EditTarget["transport"], label: text("sse (legacy Server-Sent Events)", "sse（旧版 Server-Sent Events）") },
+              ]}
+            />
           </div>
 
           {state.transport === "local" ? (
@@ -310,17 +311,17 @@ export function EditDialog({
 
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="mcp-auth">{text("Authentication", "认证")}</Label>
-                <select
+                <SimpleSelect
                   id="mcp-auth"
+                  className="w-full font-mono"
                   value={state.authKind}
-                  onChange={(e) =>
-                    setState({ ...state, authKind: e.target.value as EditTarget["authKind"] })}
-                  className="ui-text-input flex h-[var(--ui-button-h)] w-full rounded-[var(--ui-button-radius)] border border-[var(--border)] bg-[var(--bg-input)] px-3 font-mono text-sm focus:outline-none focus:border-[color:var(--accent-blue)]"
-                >
-                  <option value="none">{text("none", "无")}</option>
-                  <option value="bearer">{text("bearer token (static)", "Bearer token（静态）")}</option>
-                  <option value="oauth">{text("OAuth 2.1 (browser flow)", "OAuth 2.1（浏览器流程）")}</option>
-                </select>
+                  onValueChange={(value) => setState({ ...state, authKind: value })}
+                  options={[
+                    { value: "none" as EditTarget["authKind"], label: text("none", "无") },
+                    { value: "bearer" as EditTarget["authKind"], label: text("bearer token (static)", "Bearer token（静态）") },
+                    { value: "oauth" as EditTarget["authKind"], label: text("OAuth 2.1 (browser flow)", "OAuth 2.1（浏览器流程）") },
+                  ]}
+                />
               </div>
 
               {state.authKind === "bearer" && (

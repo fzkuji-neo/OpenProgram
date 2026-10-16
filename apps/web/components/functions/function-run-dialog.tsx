@@ -8,6 +8,7 @@ import { api } from "@/lib/net/api";
 import { useTranslation } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SimpleSelect } from "@/components/ui/select";
 import { useFolderPicker } from "@/components/ui/folder-picker";
 import { pushPath } from "@/lib/shallow-nav";
 import { runtimeState } from "@/lib/runtime-bridge/state";
@@ -240,36 +241,22 @@ function ParamInput({
         </p>
       )}
       {p.type === "bool" ? (
-        <select
+        <SimpleSelect
+          className="w-full"
           value={value || "false"}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-8 w-full rounded-md border px-2 text-[12px]"
-          style={{
-            background: "var(--bg-input)",
-            borderColor: "var(--border)",
-            color: "var(--text-primary)",
-          }}
-        >
-          <option value="false">false</option>
-          <option value="true">true</option>
-        </select>
+          onValueChange={onChange}
+          options={[
+            { value: "false", label: "false" },
+            { value: "true", label: "true" },
+          ]}
+        />
       ) : p.choices && p.choices.length > 0 ? (
-        <select
+        <SimpleSelect
+          className="w-full"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-8 w-full rounded-md border px-2 text-[12px]"
-          style={{
-            background: "var(--bg-input)",
-            borderColor: "var(--border)",
-            color: "var(--text-primary)",
-          }}
-        >
-          {p.choices.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+          onValueChange={onChange}
+          options={p.choices.map((c) => ({ value: c, label: c }))}
+        />
       ) : p.multiline ? (
         <textarea
           value={value}

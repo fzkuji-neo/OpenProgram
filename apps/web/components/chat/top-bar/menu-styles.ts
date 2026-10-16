@@ -1,32 +1,33 @@
-import { GLASS_SURFACE } from "@/lib/glass";
+import { GLASS_MATERIAL } from "@/lib/glass";
 
 /**
  * Canonical Tailwind class strings for ALL popover selection menus — the
- * single source of truth so every dropdown / context menu in the app is
- * visually identical: topbar pickers (channel / branch / project /
- * agent), the sidebar Recents context menu, and any future one.
+ * single source of truth so every dropdown / context menu / Select in the
+ * app is visually identical: topbar pickers (channel / branch / project /
+ * agent), the sidebar Recents context menu, ui/select, and any future one.
  *
- * ── Design spec (Claude desktop menu, compact density) ──────────────
- *  Panel (MENU_PANEL): glass material (lib/glass.ts GLASS_SURFACE,
- *    10px radius = 6px row radius + 4px padding) · 4px padding ·
- *    width hugs content, 128–320px · scrolls past 60vh.
- *  Row (itemCls):      24px tall (2.5px + 19px line + 2.5px) · 6px
- *    radius · 0 8px padding · 13px/19px text · 6px icon↔label gap, a
- *    leading icon 16px, pulled 3px left (Solar glyphs carry their own
- *    margin) ·
+ * ── Design spec (shadcn radix-rhea DropdownMenu geometry) ───────────
+ *  Values are Rhea's own; this app's root is 14px, so rem sizes render
+ *  at 7/8 (rounded-2xl = 14px, min-h-7 = 24.5px, text-sm = 12.25px).
+ *  Panel (MENU_PANEL): rounded-2xl · p-1 · width hugs content,
+ *    min-w-32 up to 320px · scrolls past 60vh. Material is the app's
+ *    own glass (lib/glass.ts GLASS_MATERIAL: translucent fill, blur,
+ *    hairline ring, shadow) in place of Rhea's solid bg-popover + ring —
+ *    Rhea's translucent-menu option, with the app's shadow.
+ *  Row (itemCls): min-h-7 · rounded-xl · px-2 py-1.5 · text-sm · gap-2 ·
+ *    icons size-4; a leading glyph is pulled 3px left (Solar glyphs
+ *    carry their own margin) ·
  *    hover = `--bg-hover` fill, the ONLY row tint (a selected row shows
- *    a right-aligned blue check, never a fill). danger = red text +
+ *    a right-aligned accent check, never a fill). danger = red text +
  *    faint red hover. Radix items add MENU_ITEM_STATES so keyboard
  *    highlight and the disabled look follow the same rule.
- *  Two-line row (ITEM_TWO_LINE): 2.5px top, 4px bottom, 13/19 title +
- *    12/15 description = 40.5px.
- *  Section label (GROUP_LABEL): 4px 8px padding, 12px/15px, weight 500,
- *    `--text-muted`.
- *  Separator (MENU_SEPARATOR): 1px `--border`, 4px vertical margin,
- *    inset 8px like the row text. Trailing column (MENU_TRAILING): 12px
- *    from the content, 6px between check and key hint (SHORTCUT, 12px
- *    tabular digits) · check (MenuCheck, 16px bold, accent blue) with
- *    CHECK_SLOT_PAD reserving the column on unselected rows.
+ *  Two-line row (ITEM_TWO_LINE): title over a text-xs description.
+ *  Section label (GROUP_LABEL): px-2 py-1 · text-xs · `--text-muted`.
+ *  Separator (MENU_SEPARATOR): full-bleed (-mx-1) · my-1 · 1px
+ *    `--border` at 50%. Trailing column (MENU_TRAILING): after the
+ *    content, check then key hint (SHORTCUT, text-xs tracking-widest) ·
+ *    check (MenuCheck, accent) with CHECK_SLOT_PAD reserving the column
+ *    on unselected rows.
  *
  *  The radix PopoverContent wrapper MUST be transparent
  *  (`border-0 bg-transparent p-0 shadow-none`) — the frame is always
@@ -36,53 +37,42 @@ import { GLASS_SURFACE } from "@/lib/glass";
  */
 
 export const MENU_PANEL =
-  // 10px 圆角 = 输入框同刻度（用户定的统一规则）；边缘走真 border
-  // （0.5px 发丝线），shadow 只投影。面板是玻璃材质（GLASS_SURFACE，
-  // 半透明 + 背景模糊），全应用弹窗共用。行保持"按钮"形态：面板四周
-  // 4px 衬、行自带圆角 hover（用户点名不要 Claude 的通铺行）。
-  // 尺寸照 Claude 桌面端菜单：面板 4px 衬，宽度贴内容、128–320px，
-  // 超宽时行内 truncate。只有内容本身需要固定宽度的菜单（git 的分支
-  // 列表 + 搜索框）才自带 w-[…]。
-  "flex max-h-[60vh] min-w-[128px] max-w-[320px] flex-col overflow-y-auto p-[4px] " + GLASS_SURFACE;
+  // 只有内容本身需要固定宽度的菜单（git 的分支列表 + 搜索框）才自带 w-[…]。
+  "flex max-h-[60vh] min-w-32 max-w-[320px] flex-col overflow-y-auto rounded-2xl p-1 " + GLASS_MATERIAL;
 
 export const GROUP_LABEL =
-  // Claude：4px 8px 衬，12px / 15px，字重 500，muted 色。
-  "flex items-center gap-[6px] px-[8px] py-[4px] leading-[15px] " +
-  "text-[12px] font-medium text-text-muted";
+  "flex items-center gap-2 px-2 py-1 text-xs text-text-muted";
 
 export const CHECK = "shrink-0 text-[var(--accent-blue)]";
 
-/** Grammar-A selection check — the Claude pattern for single-select
- *  menus: the SELECTED row shows a right-aligned bold Check (16px,
- *  MenuCheck) in accent blue; selection is NEVER a filled/shaded row (hover is the only
+/** Grammar-A selection check — the pattern for single-select menus:
+ *  the SELECTED row shows a right-aligned Check (MenuCheck) in the
+ *  accent; selection is NEVER a filled/shaded row (hover is the only
  *  bg tint). Any muted metadata (shortcut digit, badge) sits right-
  *  aligned BEFORE this check. Non-selected rows render CHECK_SLOT_PAD so
  *  right-side metadata stays column-aligned across rows. */
 export const CHECK_SLOT = "shrink-0 text-[var(--accent-blue)]";
-export const CHECK_SLOT_PAD = "w-[16px] shrink-0";
+export const CHECK_SLOT_PAD = "size-4 shrink-0";
 
 /** Right-aligned single-key shortcut hint (e.g. the R / P / C / A / D in
  *  the Recents context menu). Stays muted — doesn't brighten with the
  *  row on hover. */
-// Claude：12px 等宽数字，muted 色。
-export const SHORTCUT = "shrink-0 text-[12px] tabular-nums text-text-muted";
+export const SHORTCUT = "shrink-0 text-xs tracking-widest text-text-muted";
 
-/** Right column of a row (check, then key hint): 12px from the content,
- *  6px between its items. On a two-line row it is one title line tall
- *  (19px) and sits on the title. */
-export const MENU_TRAILING = "ms-[12px] flex h-[19px] shrink-0 items-center gap-[6px]";
+/** Right column of a row (check, then key hint) after the content, one
+ *  title line tall so on a two-line row it sits on the title. */
+export const MENU_TRAILING = "ms-3 flex h-5 shrink-0 items-center gap-1.5";
 
-/** Divider between menu groups, inset 8px like the row text. */
-export const MENU_SEPARATOR = "mx-[8px] my-[4px] h-px shrink-0 bg-[var(--border)]";
+/** Divider between menu groups, full-bleed like Rhea's. */
+export const MENU_SEPARATOR = "-mx-1 my-1 h-px shrink-0 bg-[var(--border)]/50";
 
 /** Two-line row — a title with a description under it — added to
- *  itemCls. Claude's Mode menu: 2.5px top + 13/19 title + 12/15
- *  description + 4px bottom = 40.5px, hover fill still the row's own
- *  6px-radius rectangle. Its MENU_TRAILING column sits on the title. */
-export const ITEM_TWO_LINE = "items-start pt-[2.5px] pb-[4px]";
+ *  itemCls; the hover fill is still the row's own rounded rectangle and
+ *  its MENU_TRAILING column sits on the title. */
+export const ITEM_TWO_LINE = "items-start pb-2";
 export const ITEM_TITLE = "block truncate text-text-bright";
 export const ITEM_DESC =
-  "block whitespace-normal text-[12px] leading-[15px] text-text-muted";
+  "block whitespace-normal text-xs text-text-muted";
 
 /** Inline metadata tag after a row's title ("Recommended", a channel
  *  account alias, git's "current" / "worktree") — the `.menu-tag` class
@@ -103,22 +93,19 @@ export const MENU_ITEM_STATES =
   "data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50";
 
 /** A selectable menu row — `active` swaps the resting / hover colours;
- *  `danger` makes it a destructive (red) action. 24px tall, Claude's
- *  compact control height. */
+ *  `danger` makes it a destructive (red) action. */
 export function itemCls(active: boolean, danger = false): string {
   const base =
-    // Claude 紧凑档：13px / 19px，上下 2.5px → 24px，左右 8px，图标与
-    // 文字间 6px；行保持圆角"按钮"hover。侧栏列表行仍是 32。
-    // 行首图标左移 3px：Solar 图标字形四周自带留白，不收的话看起来
-    // 比文字行缩进得多（用户反馈）。只认纯图标——svg 本身、只包一个
-    // svg 的 SolarIcon、或只包一个 SolarIcon 的 16px 槽；含文字的首段
+    // Rhea 的行：min-h-7、rounded-xl、px-2 py-1.5、text-sm、gap-2，图标
+    // size-4。行首图标左移 3px：Solar 图标字形四周自带留白，不收的话
+    // 看起来比文字行缩进得多（用户反馈）。只认纯图标——svg 本身、只包
+    // 一个 svg 的 SolarIcon、或只包一个 SolarIcon 的槽；含文字的首段
     // （模型名 + 能力图标）不动，否则正文会比分组标题更靠左。
-    "flex min-h-[24px] shrink-0 cursor-pointer items-center gap-[6px] rounded-[6px] " +
-    "px-[8px] py-[2.5px] text-[13px] leading-[19px] transition-colors duration-75 " +
+    "flex min-h-7 shrink-0 cursor-pointer items-center gap-2 rounded-xl " +
+    "px-2 py-1.5 text-sm transition-colors duration-75 " +
     "[&>:first-child:is(svg,:has(>svg:only-child),:has(>:only-child>svg:only-child))]:-ms-[3px] " +
-    // 行首图标统一 16px（Claude 菜单图标尺寸），各菜单不再各写 13/14/15。
-    "[&>svg:first-child]:size-[16px] [&>:first-child:has(>svg:only-child)>svg]:size-[16px] " +
-    "[&>:first-child:has(>:only-child>svg:only-child)>*>svg]:size-[16px] ";
+    "[&>svg:first-child]:size-4 [&>:first-child:has(>svg:only-child)>svg]:size-4 " +
+    "[&>:first-child:has(>:only-child>svg:only-child)>*>svg]:size-4 ";
   if (danger) {
     return (
       base +

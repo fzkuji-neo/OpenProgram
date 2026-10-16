@@ -16,6 +16,7 @@ import {
 import { useTranslation } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SimpleSelect } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { importBookmarkTree } from "@/lib/tabs/bookmarks";
 import {
@@ -199,24 +200,24 @@ export function BrowserImportDialog({
               <span>{text("No supported browser profiles found", "未发现支持的浏览器 profile")}</span>
             ) : (
               <>
-                <select
+                <SimpleSelect
                   value={browser?.id ?? ""}
-                  onChange={(event) => {
-                    const next = sources.find((item) => item.id === event.target.value);
-                    setBrowserId(event.target.value);
+                  onValueChange={(value) => {
+                    const next = sources.find((item) => item.id === value);
+                    setBrowserId(value);
                     setProfileId(next?.profiles[0]?.id ?? "");
                   }}
+                  className="max-w-[190px]"
                   aria-label={text("Source browser", "来源浏览器")}
-                >
-                  {sources.map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}
-                </select>
-                <select
+                  options={sources.map((source) => ({ value: source.id, label: source.name }))}
+                />
+                <SimpleSelect
                   value={profile?.id ?? ""}
-                  onChange={(event) => setProfileId(event.target.value)}
+                  onValueChange={setProfileId}
+                  className="max-w-[190px]"
                   aria-label={text("Browser profile", "浏览器 profile")}
-                >
-                  {browser?.profiles.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                </select>
+                  options={(browser?.profiles ?? []).map((item) => ({ value: item.id, label: item.name }))}
+                />
                 {(["history", "bookmarks", "cookies"] as const).map((item) => (
                   <label key={item}>
                     <input

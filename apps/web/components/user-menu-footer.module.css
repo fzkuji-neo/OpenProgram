@@ -121,33 +121,34 @@
   left: 8px;
   right: 8px;
   bottom: calc(100% + 8px);
-  padding: 4px;
+  padding: 0.25rem;
   z-index: 50;
   display: flex;
   flex-direction: column;
-  /* Glass popover recipe (app/styles/base.css --glass-*). */
+  /* Glass popover recipe (app/styles/base.css --glass-*) in the Rhea
+     menu frame (top-bar/menu-styles.ts MENU_PANEL: rounded-2xl p-1). */
   background: var(--glass-surface);
   -webkit-backdrop-filter: var(--glass-backdrop);
   backdrop-filter: var(--glass-backdrop);
   border: 0.5px solid var(--glass-ring);
-  border-radius: var(--glass-radius);
+  border-radius: 1rem;
   box-shadow: var(--glass-shadow);
 }
 
 
-/* Row = the shared menu row (top-bar/menu-styles.ts itemCls): 24px,
-   2.5px 8px padding, 13px/19px text, 6px icon gap, 6px radius; the
+/* Row = the shared menu row (top-bar/menu-styles.ts itemCls, Rhea):
+   min-h-7 rounded-xl px-2 py-1.5 text-sm gap-2, size-4 icons; the
    leading icon pulled 3px left like every menu. */
 .item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 2.5px 8px;
-  min-height: 24px;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  min-height: 1.75rem;
   box-sizing: border-box;
-  line-height: 19px;
-  border-radius: 6px;
-  font-size: 13px;
+  line-height: 1.25rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
   color: var(--text-primary);
   text-decoration: none;
   cursor: pointer;
@@ -158,14 +159,14 @@
   font-family: inherit;
 }
 .item:hover { background: var(--bg-hover); color: var(--text-bright); }
-.item svg { color: var(--text-muted); flex-shrink: 0; }
+.item svg { width: 1rem; height: 1rem; color: var(--text-muted); flex-shrink: 0; }
 .item > :first-child { margin-inline-start: -3px; }
 .item:hover svg { color: var(--text-primary); }
 
 .sep {
   height: 1px;
-  background: var(--border);
-  margin: 4px 8px;
+  background: color-mix(in srgb, var(--border) 50%, transparent);
+  margin: 0.25rem -0.25rem;
 }
 
 /* Collapsed-sidebar rules live in app/styles/02-sidebar.css and

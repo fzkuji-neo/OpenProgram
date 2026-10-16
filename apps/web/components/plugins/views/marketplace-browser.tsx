@@ -6,6 +6,7 @@ import { usePluginsStore } from "@/lib/abilities/plugins-store";
 import { useTranslation } from "@/lib/i18n";
 import { SearchInput } from "@/components/ui/search-input";
 import { Button } from "@/components/ui/button";
+import { SimpleSelect } from "@/components/ui/select";
 import { AddMarketplaceDialog } from "../dialogs/add-marketplace-dialog";
 import { ManageCatalogCard, managePageStyles as shared } from "@/components/ui/manage-page";
 import { PlusIcon } from "@/components/animated-icons";
@@ -127,15 +128,17 @@ export function MarketplaceBrowser({ externalFilter }: { externalFilter?: string
           placeholder={text("Search plugins...", "搜索插件...")}
         />
         )}
-        <select
+        <SimpleSelect
+          className="shrink-0"
+          aria-label={text("Sort", "排序")}
           value={sort}
-          onChange={(e) => setSort(e.target.value as SortKey)}
-          className="shrink-0 rounded-[var(--ui-button-radius)] border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition-colors focus:border-[color:var(--accent-blue)]"
-        >
-          <option value="default">{text("Sort: Default", "排序：默认")}</option>
-          <option value="name">{text("Name", "名称")}</option>
-          <option value="official">{text("Official first", "官方优先")}</option>
-        </select>
+          onValueChange={setSort}
+          options={[
+            { value: "default" as SortKey, label: text("Sort: Default", "排序：默认") },
+            { value: "name" as SortKey, label: text("Name", "名称") },
+            { value: "official" as SortKey, label: text("Official first", "官方优先") },
+          ]}
+        />
       </div>
 
       {/* Built-in catalog */}
@@ -177,16 +180,13 @@ export function MarketplaceBrowser({ externalFilter }: { externalFilter?: string
           {text("Add any JSON index URL (claude-code marketplace schema compatible).", "添加任意 JSON 索引 URL（兼容 claude-code marketplace schema）。")}
         </p>
         <div className="flex items-center gap-2 mb-3">
-          <select
+          <SimpleSelect
+            aria-label={text("Marketplace", "Marketplace")}
+            placeholder={text("Select a marketplace", "选择 Marketplace")}
             value={selectedId}
-            onChange={(e) => setSelectedId(e.target.value)}
-            className="rounded-[var(--ui-button-radius)] border border-[var(--border)] bg-[var(--bg-input)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none transition-colors focus:border-[color:var(--accent-blue)]"
-          >
-            <option value="">{text("- Select a marketplace -", "- 选择 Marketplace -")}</option>
-            {marketplaces.map((m) => (
-              <option key={m.id} value={m.id}>{m.name}</option>
-            ))}
-          </select>
+            onValueChange={setSelectedId}
+            options={marketplaces.map((m) => ({ value: m.id, label: m.name }))}
+          />
           <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}><PlusIcon size={16} aria-hidden />{text("Add", "添加")}</Button>
           {selectedId && (
             <Button

@@ -56,7 +56,7 @@ panel 表面上的组件就是按钮 / 胶囊 / 卡片：
 ```
 属性         token / 值
 ─────────────────────────────────────────────────────────────────
-高度         `--ui-list-h` → `--ui-button-h` → 30px
+高度         `--ui-list-h` → 30px
 内边距       6px 8px
 间距         12px
 圆角         `--ui-list-radius`（10px）
@@ -100,13 +100,41 @@ icon-lg                            圆角方形（31.5px，14px 圆角）
 
 不能做成 `<Button>` 的元素（自带 ✕ 的 span、渲染成 span 的 Radix 触发器）在 `className` 上用 `cn(buttonVariants({ variant, size }))` 拿同一套外观——`cn()` 合并不能省：原始类名里同时有 `border-transparent` 和变体自己的边框色。
 
-页头那一行（搜索 + tab 胶囊 + 图标按钮）必须同一垂直中线。控件之间差 1–2px 高度是 bug，不是变体。
+和按钮并排的控件——输入框、搜索框、页头 tab 胶囊——取 `--ui-button-h`，即 `2rem`（这里 28px），等于 Rhea 的 `default` / `icon` 高度。页头操作按钮（`ManageActionButton`）同理用 `default`。页头那一行（搜索 + tab 胶囊 + 图标按钮）必须同一垂直中线。控件之间差 1–2px 高度是 bug，不是变体。
 
-## 输入框、下拉、边框
+## 下拉选择与菜单
 
-输入框和下拉共用**一层 1px** 边（`border: 1px solid var(--border)`，底 `--bg-input`）。
+所有"从固定列表里选一个"都是 shadcn **radix-rhea** 的 `Select`（`apps/web/components/ui/select.tsx`）；应用里没有原生 `<select>`，也没有手写的 listbox。`SimpleSelect` 是一行写法（`value`、`onValueChange`、`options`，可选 `placeholder`、`size`、`align`），覆盖几乎所有调用处；分组选项传 `{label, options}`。
 
-- 不要在这 1px 边上再叠 2px 的 `:focus-visible` 光晕。原生 `<select>` 收起后焦点还在，叠出来就是双层框。
+- 触发器：registry 原样的 Rhea 触发器（`rounded-2xl`、`bg-input/50`、透明边，默认 `h-8` / `sm` 为 `h-7`）。调用处只加宽度（`w-full`、`max-w-*`）或错误边框，不另做外观。
+- 弹层：在触发器下方打开（`position="popper"`），和应用里其他菜单一致；叠在对话框之上（`z-[130]`）。
+- Radix 把 `""` 留给"未选择"：值为 `""` 的选项在 `SimpleSelect` 内部换成哨兵值传递；没有这种选项时，`""` 显示占位文字。
+
+所有菜单弹层——Radix `DropdownMenu`、Select 弹层，以及 CSS module 写的菜单（侧栏底部菜单、标签页右键菜单、函数右键菜单）——共用一个外框和一种行：
+
+```
+部分        几何（Rhea）                           材质（我们自己的）
+─────────────────────────────────────────────────────────────────
+面板        rounded-2xl · p-1 · min-w-32           --glass-surface、
+                                                   模糊、0.5px
+                                                   --glass-ring、
+                                                   --glass-shadow
+行          min-h-7 · rounded-xl · px-2 py-1.5 ·
+            text-sm · gap-2 · size-4 图标
+分组标题    px-2 py-1 · text-xs · 弱化色
+分隔线      -mx-1 my-1 · 1px · --border 50%
+快捷键      text-xs · tracking-widest · 弱化色
+选中        强调色对勾（MenuCheck），不铺底色
+─────────────────────────────────────────────────────────────────
+```
+
+几何来自 Rhea；玻璃材质和强调色对勾是应用自己的。`apps/web/components/chat/top-bar/menu-styles.ts` 里的 `MENU_PANEL` 和 `itemCls` 是源头；CSS module 菜单用 rem 写同样的数值。
+
+## 输入框与边框
+
+输入框共用**一层 1px** 边（`border: 1px solid var(--border)`，底 `--bg-input`）。
+
+- 不要在这 1px 边上再叠 2px 的 `:focus-visible` 光晕，叠出来就是双层框。
 - 悬停必须**保住**这 1px 边。`border-color: transparent` 会让框像消失了一样（MCP catalog 按钮踩过）。
 - 不要每个页面另做一套输入框。设置、对话框、插件、MCP 编辑器都用同一套 1px + `--bg-input`。
 
@@ -185,5 +213,5 @@ link         primary 字                           下划线
 
 ## 实现状态
 
-- 已完成：`Button`（radix-rhea）、输入框上方的环境标签、底部控制栏、发送按钮、输入框本体、网页预览小窗（外框、标题栏、图标按钮）、浏览器工具栏的图标按钮。
-- 尚未迁移：弹出层 / 菜单面板（`MENU_PANEL`、`components/ui/popover.tsx`、`dropdown-menu.tsx`）、提示框、徽标，以及手写样式的 CSS module 弹窗——它们仍用玻璃材质变量（`--glass-*`）。表单输入框和下拉在换成 shadcn input 之前继续遵守上面的 1px 边规则。侧栏列表行继续用上面的列表尺寸。
+- 已完成：`Button`（radix-rhea）、`Select`（radix-rhea，替换了所有原生 `<select>` 和自制下拉）、菜单面板和菜单行（Rhea 几何 + 玻璃材质）、输入框上方的环境标签、底部控制栏、发送按钮、输入框本体、网页预览小窗（外框、标题栏、图标按钮）、浏览器工具栏的图标按钮。
+- 尚未迁移：提示框、徽标。表单输入框在换成 shadcn input 之前继续遵守上面的 1px 边规则。侧栏列表行继续用上面的列表尺寸。

@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import styles from "./channels.module.css";
+import { SimpleSelect } from "@/components/ui/select";
 import { useTranslation } from "@/lib/i18n";
 import { useModalA11y } from "@/lib/hooks/use-modal-a11y";
 import { PLATFORMS, PLATFORM_LABEL } from "./types";
@@ -98,17 +99,12 @@ export function AddAccountDialog({ onClose, onAdded }: Props) {
         <div className={styles.modalBody}>
           <label className={styles.formRow}>
             <span className={styles.formLabel}>{text("Platform", "平台")}</span>
-            <select
-              className={styles.formInput}
+            <SimpleSelect
+              className="w-full"
               value={channel}
-              onChange={(e) => setChannel(e.target.value)}
-            >
-              {PLATFORMS.map((p) => (
-                <option key={p} value={p}>
-                  {PLATFORM_LABEL[p] || p}
-                </option>
-              ))}
-            </select>
+              onValueChange={setChannel}
+              options={PLATFORMS.map((p) => ({ value: p, label: PLATFORM_LABEL[p] || p }))}
+            />
           </label>
 
           <label className={styles.formRow}>

@@ -41,11 +41,13 @@
        taller so the click target is comfortable; corners are
        rounder so the pill silhouette is unmistakeable against
        the surrounding text. */
-  --ui-list-h: var(--ui-button-h);
+  --ui-list-h: 30px;
   /* 10px — Claude shape language: list rows and small buttons sit at
      10px; cards/panels at 12px (--radius-lg). */
   --ui-list-radius: 10px;
-  --ui-button-h: 30px;
+  /* 2rem = the Rhea Button/Select default (h-8), so inputs, search
+     fields and header pills line up with the buttons beside them. */
+  --ui-button-h: 2rem;
   --ui-button-radius: 10px;
   /* 聊天列（消息列 + 输入框三条带共用）：空间够就扩，封顶 900。
      消息正文左右不再内缩，文字边缘与输入框边缘对齐。 */

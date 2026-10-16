@@ -8,6 +8,7 @@ import { useTranslation } from "@/lib/i18n";
 import { useModalA11y } from "@/lib/hooks/use-modal-a11y";
 import { PlusIcon } from "@/components/animated-icons";
 import { InstalledList } from "./views/installed-list";
+import { SimpleSelect } from "@/components/ui/select";
 import { MarketplaceBrowser } from "./views/marketplace-browser";
 import { PluginErrors } from "./views/plugin-errors";
 
@@ -140,12 +141,17 @@ function ManualInstallDialog({ onClose }: { onClose: () => void }) {
         <div className={styles.dialogTitle}>{text("Manual plugin install", "手动安装插件")}</div>
         <div className={styles.dialogBody}>
           <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <select className={styles.select} value={source} onChange={(e) => setSource(e.target.value)}>
-              <option value="pip">pip</option>
-              <option value="npm">npm</option>
-              <option value="git">git</option>
-              <option value="path">{text("path (local directory)", "path（本地目录）")}</option>
-            </select>
+            <SimpleSelect
+              aria-label={text("Source", "来源")}
+              value={source}
+              onValueChange={setSource}
+              options={[
+                { value: "pip", label: "pip" },
+                { value: "npm", label: "npm" },
+                { value: "git", label: "git" },
+                { value: "path", label: text("path (local directory)", "path（本地目录）") },
+              ]}
+            />
             <input
               className={styles.input}
               placeholder={

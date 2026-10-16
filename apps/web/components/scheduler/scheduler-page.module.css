@@ -143,7 +143,6 @@
 }
 
 .form input,
-.form select,
 .form textarea {
   width: 100%;
   padding: 9px 10px;
@@ -155,14 +154,12 @@
   font: inherit;
   box-sizing: border-box;
 }
-.form input,
-.form select {
+.form input {
   height: var(--ui-button-h);
   padding: 0 10px;
 }
 
 .form input:focus,
-.form select:focus,
 .form textarea:focus {
   border-color: var(--accent-blue);
 }

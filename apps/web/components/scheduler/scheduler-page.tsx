@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SearchInput } from "@/components/ui/search-input";
+import { SimpleSelect } from "@/components/ui/select";
 import {
   ManageEmptyState, ManageIconButton, ManagePage, ManagePageHeader, ManageRow,
   ManageSubnav, ManageSummary, managePageStyles as shared,
@@ -328,21 +329,21 @@ export function SchedulerPage() {
           </DialogHeader>
           <div className={styles.form}>
             <label>{text("Title", "标题")}<input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
-            <label>{text("Type", "类型")}<select value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value as TaskType })}>
-              <option value="once">{text("One-time", "一次性")}</option>
-              <option value="recurring">{text("Recurring", "周期")}</option>
-              <option value="monitor">{text("Monitor", "监控")}</option>
-            </select></label>
+            <label>{text("Type", "类型")}<SimpleSelect className="w-full" value={form.type} onValueChange={(value) => setForm({ ...form, type: value })} options={[
+              { value: "once" as TaskType, label: text("One-time", "一次性") },
+              { value: "recurring" as TaskType, label: text("Recurring", "周期") },
+              { value: "monitor" as TaskType, label: text("Monitor", "监控") },
+            ]} /></label>
             {form.type === "once" ? (
               <label>{text("Run at", "执行时间")}<input type="datetime-local" value={form.runAt} onChange={(event) => setForm({ ...form, runAt: event.target.value })} /></label>
             ) : (
               <label>{text("Cron expression", "Cron 表达式")}<input value={form.cron} onChange={(event) => setForm({ ...form, cron: event.target.value })} placeholder="0 9 * * 1-5" /></label>
             )}
             <label>{text("Task prompt", "任务提示")}<textarea value={form.prompt} onChange={(event) => setForm({ ...form, prompt: event.target.value })} rows={4} /></label>
-            <label>{text("Memory context (optional)", "记忆上下文（可选）")}<select value={form.memoryId} onChange={(event) => setForm({ ...form, memoryId: event.target.value })}>
-              <option value="">{text("No Memory reference", "不引用记忆")}</option>
-              {memoryRefs.map((ref) => <option value={ref.memory_id} key={ref.memory_id}>{ref.topic_path} · {ref.content.slice(0, 70)}</option>)}
-            </select></label>
+            <label>{text("Memory context (optional)", "记忆上下文（可选）")}<SimpleSelect className="w-full" contentClassName="max-w-[min(520px,90vw)]" value={form.memoryId} onValueChange={(value) => setForm({ ...form, memoryId: value })} options={[
+              { value: "", label: text("No Memory reference", "不引用记忆") },
+              ...memoryRefs.map((ref) => ({ value: ref.memory_id, label: `${ref.topic_path} · ${ref.content.slice(0, 70)}` })),
+            ]} /></label>
             {error && <div className={styles.error} role="alert">{error}</div>}
           </div>
           <DialogFooter>

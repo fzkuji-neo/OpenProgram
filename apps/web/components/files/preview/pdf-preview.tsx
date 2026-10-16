@@ -5,6 +5,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { PDFViewer, EventBus, PDFLinkService } from "pdfjs-dist/web/pdf_viewer.mjs";
 import type { DocumentController } from "@/lib/files/document-controller";
 import { useTranslation } from "@/lib/i18n";
+import { SimpleSelect } from "@/components/ui/select";
 import { readPreviewBytes } from "@/lib/documents/read-preview-bytes";
 import { normalizePdfCopy } from "@/lib/documents/pdf-copy";
 import { bindPdfEditor } from "@/lib/documents/pdf-editor";
@@ -119,7 +120,7 @@ export default function PdfPreview({ sourceUrl, path, controller, saveStatus }: 
       <button type="button" disabled={!ready || page >= total} aria-label={text("Next page", "下一页")} onClick={() => go(page + 1)}>›</button>
       <input className={styles.pageInput} aria-label={text("Go to page", "跳转页码")} type="number" min={1} max={total} defaultValue={page} key={page} onKeyDown={event => { if (event.key === "Enter") go(Number(event.currentTarget.value)); }} />
       <button type="button" disabled={!ready} aria-label={text("Zoom out", "缩小")} onClick={() => zoom(String(Math.max(0.25, scale / 100 - 0.25)))}>−</button>
-      <select aria-label={text("Zoom", "缩放")} value="current" disabled={!ready} onChange={event => zoom(event.target.value)}><option value="current">{scale}%</option><option value="page-width">{text("Fit width", "适合宽度")}</option><option value="page-fit">{text("Fit page", "适合页面")}</option>{[50, 75, 100, 125, 150, 200].map(value => <option key={value} value={value / 100}>{value}%</option>)}</select>
+      <SimpleSelect size="sm" aria-label={text("Zoom", "缩放")} value="current" disabled={!ready} onValueChange={zoom} options={[{ value: "current", label: `${scale}%` }, { value: "page-width", label: text("Fit width", "适合宽度") }, { value: "page-fit", label: text("Fit page", "适合页面") }, ...[50, 75, 100, 125, 150, 200].map(value => ({ value: String(value / 100), label: `${value}%` }))]} />
       <button type="button" disabled={!ready} aria-label={text("Zoom in", "放大")} onClick={() => zoom(String(Math.min(4, scale / 100 + 0.25)))}>+</button>
       {controller && <><span className={styles.divider} /><button type="button" disabled={!ready} aria-pressed={mode === 0} onClick={() => annotate(0)}>{text("Read", "阅读")}</button><button type="button" disabled={!ready} aria-pressed={mode === 9} onClick={() => annotate(9)}>{text("Highlight", "高亮")}</button><button type="button" disabled={!ready} aria-pressed={mode === 3} onClick={() => annotate(3)}>{text("Text note", "文字批注")}</button><button type="button" disabled={!ready} onClick={() => runtime.current?.bus.dispatch("editingaction", { name: "undo" })}>{text("Undo", "撤销")}</button><button type="button" disabled={!ready} onClick={() => runtime.current?.bus.dispatch("editingaction", { name: "redo" })}>{text("Redo", "重做")}</button><button type="button" disabled={!ready} onClick={() => void controller.flush().catch(() => undefined)}>{text("Save", "保存")}</button></>}
       <form onSubmit={event => { event.preventDefault(); search(); }} className={styles.search}>

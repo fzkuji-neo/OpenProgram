@@ -11,6 +11,7 @@ import { useTranslation } from "@/lib/i18n";
 import { normalizeSecretReplacement } from "@/lib/net/secret-replacement";
 
 import { ProviderLogin } from "./provider-login";
+import { SimpleSelect } from "@/components/ui/select";
 import styles from "../settings-page.module.css";
 import type { Provider, ProviderAccountView } from "./types";
 
@@ -375,13 +376,17 @@ export function AccountManager({ provider, onChanged }: { provider: Provider; on
           <Switch checked={state.rotation} onCheckedChange={toggleRotation} />
           <span style={{ fontSize: "0.82rem", flex: 1 }}>{text("Rotate across accounts automatically", "在多个账号之间自动轮询")}</span>
           {state.rotation && (
-            <select value={state.strategy} onChange={(e) => setStrategy(e.target.value)}
-              style={{ height: "var(--ui-button-h)", background: "var(--bg-input)", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: "var(--ui-button-radius)", padding: "0 12px", fontSize: "0.875rem", cursor: "pointer" }}>
-              <option value="fill_first">{text("in order (failover)", "按顺序（容错）")}</option>
-              <option value="round_robin">{text("spread evenly", "均匀轮询")}</option>
-              <option value="random">{text("random", "随机")}</option>
-              <option value="least_used">{text("least used", "最少使用")}</option>
-            </select>
+            <SimpleSelect
+              aria-label={text("Rotation strategy", "轮换策略")}
+              value={state.strategy}
+              onValueChange={setStrategy}
+              options={[
+                { value: "fill_first", label: text("in order (failover)", "按顺序（容错）") },
+                { value: "round_robin", label: text("spread evenly", "均匀轮询") },
+                { value: "random", label: text("random", "随机") },
+                { value: "least_used", label: text("least used", "最少使用") },
+              ]}
+            />
           )}
         </div>
       )}

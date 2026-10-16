@@ -107,7 +107,7 @@ or selected fill for the rail on the right.
 ```
 property     token / value
 ─────────────────────────────────────────────────────────────────
-height       `--ui-list-h` → `--ui-button-h` → 30px
+height       `--ui-list-h` → 30px
 padding      6px 8px
 gap          12px
 radius       `--ui-list-radius` (10px)
@@ -173,18 +173,65 @@ Elements that cannot be a `<Button>` (a span that hosts its own
 `cn()` merge matters: the raw class list carries both
 `border-transparent` and the variant's border colour.
 
-A header row (search + tab pills + icon buttons) must share one
-vertical center. A 1–2 px height mismatch between those controls
-is a bug, not a variant.
+Controls that sit beside Buttons — inputs, search fields, header
+tab pills — take `--ui-button-h`, which is `2rem` (28 px here):
+the Rhea `default` / `icon` height. Page-header actions
+(`ManageActionButton`) use `default` for the same reason. A header
+row (search + tab pills + icon buttons) must share one vertical
+center. A 1–2 px height mismatch between those controls is a bug,
+not a variant.
 
-## Inputs, selects, and borders
+## Selects and menus
 
-Inputs and dropdowns share **one single-layer 1px** edge
+Every choice from a fixed list is the shadcn **radix-rhea**
+`Select` (`apps/web/components/ui/select.tsx`); the app has no
+native `<select>` and no hand-rolled listbox. `SimpleSelect` is the
+one-line form (`value`, `onValueChange`, `options`, optional
+`placeholder`, `size`, `align`) and covers almost every call site;
+grouped options pass `{label, options}` entries.
+
+- Trigger: the registry's Rhea trigger (`rounded-2xl`,
+  `bg-input/50`, transparent border, `h-8` default / `h-7` `sm`).
+  Call sites only add width (`w-full`, `max-w-*`) or an error
+  border, never their own chrome.
+- Popup: opens below the trigger (`position="popper"`), like the
+  app's other menus, and stacks above dialogs (`z-[130]`).
+- Radix reserves `""` for "nothing chosen": an option whose value
+  is `""` travels under a sentinel inside `SimpleSelect`; without
+  such an option, `""` shows the placeholder.
+
+All menu popups — Radix `DropdownMenu`, the Select popup, and the
+CSS-module menus (sidebar footer, tab context menu, function
+context menu) — share one frame and one row:
+
+```
+part        geometry (Rhea)                       material (ours)
+─────────────────────────────────────────────────────────────────
+panel       rounded-2xl · p-1 · min-w-32           --glass-surface,
+                                                   blur, 0.5px
+                                                   --glass-ring,
+                                                   --glass-shadow
+row         min-h-7 · rounded-xl · px-2 py-1.5 ·
+            text-sm · gap-2 · size-4 icons
+label       px-2 py-1 · text-xs · muted
+separator   -mx-1 my-1 · 1px · --border at 50%
+shortcut    text-xs · tracking-widest · muted
+chosen      accent check (MenuCheck), never a fill
+─────────────────────────────────────────────────────────────────
+```
+
+The geometry is Rhea's; the glass material and the accent check
+are the app's own. `MENU_PANEL` and `itemCls` in
+`apps/web/components/chat/top-bar/menu-styles.ts` are the source;
+CSS-module menus restate the same values in rem.
+
+## Inputs and borders
+
+Inputs share **one single-layer 1px** edge
 (`border: 1px solid var(--border)`, fill `--bg-input`).
 
-- Do not stack a 2px `:focus-visible` halo on that 1px edge.
-  After a native `<select>` closes and focus remains, the stacked
-  ring reads as a double frame.
+- Do not stack a 2px `:focus-visible` halo on that 1px edge; the
+  stacked ring reads as a double frame.
 - Hover must **keep** the 1px border. Setting `border-color:
   transparent` on hover makes the box look like it vanished
   (MCP catalog buttons had this).
@@ -332,13 +379,12 @@ carries geometry only, so the 40px row keeps its rhythm.
 
 ## Implementation status
 
-- Done: `Button` (radix-rhea), the composer environment chips,
+- Done: `Button` (radix-rhea), `Select` (radix-rhea, every former
+  `<select>` and custom dropdown), menu panels and rows in Rhea
+  geometry on the glass material, the composer environment chips,
   bottom-row controls, send button, input box, the web page preview
   (frame, header, icon buttons), and the browser toolbar's icon
   buttons.
-- Not yet migrated: popover / menu panels (`MENU_PANEL`,
-  `components/ui/popover.tsx`, `dropdown-menu.tsx`), tooltips,
-  badges, and the hand-styled CSS-module popups — they still use
-  the glass surface tokens (`--glass-*`). Form inputs and selects
-  keep the 1px-edge rule above until they move to the shadcn input.
-  Sidebar list rows stay on the list set above.
+- Not yet migrated: tooltips and badges. Form inputs keep the
+  1px-edge rule above until they move to the shadcn input. Sidebar
+  list rows stay on the list set above.

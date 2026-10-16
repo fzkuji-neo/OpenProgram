@@ -28,6 +28,7 @@ import { useSessionStore } from "@/lib/session-store";
 import { BranchItem } from "./branch-item";
 import { MergeModal } from "./merge-modal";
 import { runtimeState } from "@/lib/runtime-bridge/state";
+import { SimpleSelect } from "@/components/ui/select";
 import { selectResourceForHead } from "./resource-selection";
 
 import {
@@ -515,18 +516,17 @@ export function BranchesPanel({ variant = "list" }: {
                     {t("right.this_session")}
                   </button>
                   {otherSessions.length > 0 ? (
-                    <select
+                    <SimpleSelect
+                      size="sm"
                       className="branches-attach-scope-select"
+                      aria-label={t("right.other_session")}
                       value={pickerScope || ""}
-                      onChange={(e) => setPickerScope(e.target.value || null)}
-                    >
-                      <option value="">{t("right.other_session")}</option>
-                      {otherSessions.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.title || c.id.slice(0, 12)}
-                        </option>
-                      ))}
-                    </select>
+                      onValueChange={(value) => setPickerScope(value || null)}
+                      options={[
+                        { value: "", label: t("right.other_session") },
+                        ...otherSessions.map((c) => ({ value: c.id, label: c.title || c.id.slice(0, 12) })),
+                      ]}
+                    />
                   ) : null}
                 </div>
                 {attachCandidates.length === 0 ? (

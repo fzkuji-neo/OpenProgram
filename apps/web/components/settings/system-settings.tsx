@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 
 import { SystemAccess } from "./system-access";
 import { Switch } from "@/components/ui/switch";
+import { SimpleSelect } from "@/components/ui/select";
 import { useTranslation } from "@/lib/i18n";
 import styles from "./settings-page.module.css";
 
@@ -166,17 +167,12 @@ function Control({ row, onSave }: { row: Row; onSave: (k: string, v: unknown) =>
   }
   if (row.widget === "enum") {
     return (
-      <select
+      <SimpleSelect
+        aria-label={row.key}
         value={String(row.value)}
-        onChange={(e) => onSave(row.key, e.target.value)}
-        className={`${styles.systemControl} ${styles.systemControlSelect}`}
-      >
-        {(row.choices || []).map((c) => (
-          <option key={c} value={c}>
-            {c}
-          </option>
-        ))}
-      </select>
+        onValueChange={(value) => onSave(row.key, value)}
+        options={(row.choices || []).map((c) => ({ value: c, label: c }))}
+      />
     );
   }
   // Plain text input — a port number is typed, not nudged one at a time,
