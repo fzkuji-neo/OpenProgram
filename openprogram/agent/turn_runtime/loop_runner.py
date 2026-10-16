@@ -292,6 +292,11 @@ def resolve_agent_runtime(
     saved_legacy_goal = saved_runtime_contract is not None and any(
         tool["name"] == "goal" for tool in saved_runtime_contract["tools"]
     )
+    # chat_send posts into the chat a channel turn came from; no other
+    # source has one.
+    from openprogram.programs.tools.interaction.chat_send import CHANNEL_SOURCES
+    if req.source not in CHANNEL_SOURCES:
+        tools = [tool for tool in tools or [] if tool.name != "chat_send"]
     if req.source in {"web", "tui", "acp"} and not saved_legacy_goal:
         tools = [tool for tool in tools or [] if tool.name != "goal"]
     # Page inventory is transient. Keep this turn's browser-tool selection

@@ -311,8 +311,10 @@ openprogram/channels/
 │                        import webui)
 ├── _question_bridge.py  push a pending runtime.ask question into the chat
 ├── _question_commands.py /answer · /decline text-command handling
-├── _room.py             group rooms: activation mode, pending history,
-│                        flood limit, duplicate delivery
+├── _room.py             group rooms: activation mode, memory mode,
+│                        pending history, flood limit, duplicate delivery
+├── _active_turns.py     running channel turn per session (chat_send
+│                        target, asker-only /answer)
 ├── _heartbeats.py       adapter heartbeat registry
 ├── __init__.py          CHANNEL_CLASSES proxy + register_channel + entry_points
 ├── implementations/
@@ -334,7 +336,8 @@ How to read it: each module deals only with the callers it declares; there are n
 | `_transport.py` | the only place that sends bytes outward: chunk → render → hard-cap split → rate-limit retry, 4 platforms' HTTP (text/edit/file) | outbound + base.send_text/send_file |
 | `_format.py` | markdown → per-platform wire format | _transport |
 | `_access.py` | allowlist + pairing gate (`access.json`) | base.handle_inbound (check), CLI / loopback Web UI (mutation) |
-| `_room.py` | group rooms: activation mode (`rooms.json`), pending history, flood limit, duplicate delivery | base.handle_inbound |
+| `_room.py` | group rooms: activation and memory modes (`rooms.json`), pending history, flood limit, duplicate delivery | base.handle_inbound |
+| `_active_turns.py` | the running turn of each session: chat, speaker, ambient flag | _conversation (register), `chat_send` tool, /answer gate |
 | `_attachments.py` | inbound attachment download + turn-input conversion | base.handle_inbound |
 | `_message.py` | ChannelMessage + Attachment neutral structures | adapter entry |
 | `_wechat_media.py` | iLink media items → attachments, CDN key decoding, AES-128-ECB encrypt/decrypt, outbound media items | wechat adapter, _attachments, _transport |

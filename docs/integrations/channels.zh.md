@@ -151,17 +151,20 @@ openprogram --profile alice
 
 ### 群聊行为
 
-群里（Telegram 群、Discord 服务器频道、Slack 频道）大多数消息是人和人在聊。每个群处在两种模式之一：
+群里（Telegram 群、Discord 服务器频道、Slack 频道）大多数消息是人和人在聊。每个群处在三种模式之一：
 
 - `always`：每条消息都开启一轮。
 - `mention`：只有 @机器人 或回复机器人消息的那条才开启一轮，提及在进 agent 前被剥掉。其余消息会留着，下一轮把最近 50 条连同发信人放在触发消息上方一起交给 agent，让它知道问题之前聊了什么。网页记录里，它们收在这一轮气泡顶部一个"群里之前的消息"小开关后面。
+- `ambient`：agent 看每一条消息，自己决定要不要开口。没点名机器人的消息也开启一轮，标记为房间事件；agent 对它的回复只留在网页记录里（标着"旁听"），不发进群。agent 有值得说的话时，用 `chat_send` 工具发到群里。这类轮次不显示"正在输入"，也不加确认表情。点名机器人的消息照常回复。这个模式下每条消息都要调用一次模型。
 
-账号设置 `require_mention` 决定它下面各群的默认模式（`on` 即 `mention`，默认的 `off` 即 `always`）；群里任何人都可以用 `/activation mention` 或 `/activation always` 切换这个群，单发 `/activation` 查看当前模式。私聊永远不设门槛。
+账号设置 `require_mention` 决定它下面各群的默认模式（`on` 即 `mention`，默认的 `off` 即 `always`）；群里任何人都可以用 `/activation mention`、`/activation always` 或 `/activation ambient` 切换这个群，单发 `/activation` 查看当前模式。私聊永远不设门槛。
 
 ```bash
 openprogram channels accounts set telegram require_mention on       # 或 off（discord、slack 同样可用）
 openprogram channels accounts set telegram group_sessions per-user  # 或 shared（仅 telegram）
 ```
+
+群成员能接触到 agent 的记忆：agent 会调出记得的内容来回答他们，也会记下他们说的话。`/memory read` 让这个群不写入记忆，`/memory off` 让记忆完全不进这个群，`/memory on`（默认）沿用 agent 自己的记忆设置。私聊总是沿用 agent 的设置。
 
 `group_sessions`（Telegram，改完重启 worker 生效）——`shared`（默认）：全群对着同一通对话说话。`per-user`：群里每个成员各占一个会话，行为与 Discord/Slack 一致。
 
@@ -172,7 +175,8 @@ openprogram channels accounts set telegram group_sessions per-user  # 或 shared
 | 命令 | 作用 |
 |---|---|
 | `/new`、`/reset` | 为这个聊天开一通新对话 |
-| `/activation [mention\|always]` | 查看或切换这个群的模式 |
+| `/activation [mention\|always\|ambient]` | 查看或切换这个群的模式 |
+| `/memory [on\|read\|off]` | 查看或收窄这个群对 agent 记忆的访问 |
 | `/answer <question_id> <选项>` | 回答函数提出的问题（见下） |
 | `/decline <question_id>` | 拒绝这个问题 |
 
@@ -195,7 +199,7 @@ agent 输出是 markdown，发送时按平台渲染：Telegram 收到 HTML（`**
 /decline <question_id>
 ```
 
-只有属于该聊天会话的问题才能在这里回答。
+只有属于该聊天会话的问题才能在这里回答。在群里，只有发起这一轮的人能回答它停下来问的问题。
 
 ## 附件
 

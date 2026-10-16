@@ -97,8 +97,8 @@ feel present.
 | Mention gating | All group channels, patterns, reply-to-bot | Telegram, Discord, Slack; reply-to-bot; no custom patterns |
 | `/activation`, `/new`, `/reset` | Yes | Yes |
 | Pending group history | Yes | Yes |
-| Ambient rooms, agent decides to speak | Yes | No |
-| Per-group, per-sender tool policy | Yes | Tier policy per paired sender; no per-group policy |
+| Ambient rooms, agent decides to speak | Yes | `/activation ambient`, `chat_send` tool |
+| Per-group, per-sender tool policy | Yes | Every channel speaker is paired tier; per-group memory policy (`/memory`); asker-only answers |
 | Session scope, reset policy | Yes | `session_scope`, daily or idle reset |
 | Cross-channel identity links | Yes | No |
 | Live progress | Preview edits | Placeholder edited with tool steps |
@@ -123,16 +123,29 @@ runtime by `/activation`:
 - **mention** (default): only a mention, a mention pattern or a reply to
   the bot starts a turn. Everything else is recorded as pending history.
 - **always**: every message starts a turn.
+- **ambient**: every message starts a turn. A message that does not
+  address the bot becomes a room event: its text opens with the line
+  `[room event]`, no ack reaction or typing indicator runs, and the
+  turn's final text stays in the transcript, where the web labels the
+  bubble "overheard". The room only hears from the agent through the
+  `chat_send` tool. A message that does address the bot is an ordinary
+  turn. Room events still count against the flood limit (4.5).
 
 The account setting `require_mention` gives the default mode for its
 groups; `/activation` stores a per-group override in the account's
 `rooms.json`. Adapters only decide whether a message is addressed to the
 bot (`ChannelMessage.mentioned`) and strip the mention; the decision lives
 in `channels/_room.py`, so every platform gates the same way.
-- **ambient**: every message reaches the agent as a room event, and the
-  room only hears from the agent through a `send_message` tool. The final
-  text of an ambient turn stays in the transcript. No typing indicator
-  runs for these turns.
+
+`chat_send(text)` posts into the chat the running turn came from. The
+channel layer registers each running turn by session key in
+`channels/_active_turns.py` (channel, account, peer, speaker, ambient),
+and the tool looks its target up there rather than in the session row,
+because a `session_scope: main` session holds several chats. The tool
+needs only the `reply` capability, is on the safe auto-allow list, is
+hidden from every non-channel source, and posts at most five messages a
+turn. In an addressed turn it serves a short note before long work; the
+final reply is still posted.
 
 Direct messages are always on and never gated.
 
@@ -169,11 +182,23 @@ The delivery layer turns one reply into chat-shaped messages:
 
 ### 4.4 Who May Do What
 
-The sender's authority tier already decides what a turn may do. A room
-adds two things: a per-binding tool policy (a group can be limited to
-reading and memory tools) and a rule that non-owner speakers never get
-the owner's local-machine tools, whatever the binding says. A
-confirmation question raised in a group is only answerable by the owner.
+The sender's authority tier decides what a turn may do. Every channel
+speaker is paired tier, the owner's own account included, so a chat turn
+never reaches the owner's local-machine tools (files, shell, network);
+what a paired speaker can reach is replying, `chat_send`, and memory.
+
+Memory is therefore the room-level policy. Group members are paired
+speakers too, and memory recall would bring the owner's memory into the
+group, so each room has a memory mode stored next to its activation in
+`rooms.json`: `on` (the agent's own setting), `read` or `off`. `/memory`
+switches it. The channel layer turns `read` and `off` into
+`TurnRequest.memory_policy_override`, which can only narrow the agent's
+memory policy: `off` stops recall and hides the memory tools, `read`
+hides the writing ones.
+
+A question a turn raises while it waits (`runtime.ask`) belongs to the
+person who started that turn. In a group, `/answer` and `/decline` from
+anyone else are refused while that turn is running.
 
 ### 4.5 Loops and Floods
 
@@ -225,15 +250,15 @@ paragraph chunking and never the live placeholder.
 Implemented: pairing and allowlist, structured speaker identity in the
 input envelope and the web transcript, session scope and reset policy
 (daily, idle, `/new`), room modes and `/activation` (4.1), pending
-history (4.2), typing indicators, WeChat paragraph chunking and ack
-reactions (4.3), bot-message dropping, the per-room turn limit and
+history (4.2), ambient rooms and `chat_send` (4.1), typing indicators,
+WeChat paragraph chunking and ack reactions (4.3), the room memory mode
+and asker-only answers (4.4), bot-message dropping, the per-room turn limit and
 duplicate-delivery suppression (4.5), live progress placeholder,
 per-platform markdown and size-cap splitting, attachments on all four
 platforms including WeChat media and its voice transcripts (4.8),
 `/answer` and `/decline`, always-on delivery.
 
-Not implemented: ambient mode and the `send_message` tool (4.1), custom
-mention patterns, per-binding tool policy and the owner-only rule (4.4),
-identity links (4.6), channel persona and memory-scheduled follow-ups
+Not implemented: custom mention patterns, owner-tier chat speakers
+(4.4), identity links (4.6), channel persona and memory-scheduled follow-ups
 (4.7), transcribing voice that arrives without a platform transcript
 (WeChat SILK, Telegram and Discord voice notes), group introductions.

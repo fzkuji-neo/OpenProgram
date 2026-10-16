@@ -296,3 +296,66 @@ def test_ack_reaction_follows_the_account_setting(
     _Tg()._dispatch_and_reply(_group("two", mid="11"))
     _Tg()._dispatch_and_reply(_group("/new", mid="12"))
     assert reactions == [("telegram", "acct1", "room-1", "11")]
+
+
+# ---------------------------------------------------------------------------
+# Ambient rooms and room memory
+# ---------------------------------------------------------------------------
+
+def test_ambient_room_turns_unaddressed_messages_into_quiet_room_events(
+    dispatched, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from openprogram.channels.accounts import set_setting
+    touched: list[str] = []
+    monkeypatch.setattr("openprogram.channels._transport.add_reaction",
+                        lambda *a: touched.append("ack") or SendResult.success(""))
+    monkeypatch.setattr("openprogram.channels._transport.send_typing",
+                        lambda *a: touched.append("typing") or SendResult.success(""))
+
+    class _Tg(_FakeChannel):
+        platform_id = "telegram"
+
+    set_setting("telegram", "acct1", "ack_reaction", "on")
+    _room.set_activation("telegram", "acct1", "room-1", "ambient")
+    ch = _Tg()
+    ch._dispatch_and_reply(_group("lunch at noon?", mid="20"))
+    [event] = dispatched
+    assert event["ambient"] is True
+    assert event["user_text"] == f"{_room.ROOM_EVENT_HEADER}\nlunch at noon?"
+    assert touched == []
+
+    # Addressing the bot in an ambient room is an ordinary turn.
+    ch._dispatch_and_reply(_group("bot, book it", mid="21", mentioned=True))
+    assert dispatched[-1]["ambient"] is False
+    assert dispatched[-1]["user_text"] == "bot, book it"
+    assert touched[0] == "ack"
+
+
+def test_activation_accepts_ambient(dispatched) -> None:
+    ch = _FakeChannel()
+    ch._dispatch_and_reply(_group("/activation ambient"))
+    assert ch.sent[-1][1].startswith("✓") and "ambient" in ch.sent[-1][1]
+    assert _room.activation("faketg", "acct1", "room-1") == "ambient"
+
+
+def test_memory_command_narrows_the_room(dispatched) -> None:
+    ch = _FakeChannel()
+    ch._dispatch_and_reply(_group("hello"))
+    assert dispatched[-1]["memory_mode"] == "on"
+
+    ch._dispatch_and_reply(_group("/memory"))
+    assert "on" in ch.sent[-1][1]
+    ch._dispatch_and_reply(_group("/memory read"))
+    assert ch.sent[-1][1].startswith("✓")
+    ch._dispatch_and_reply(_group("/memory everything"))
+    assert ch.sent[-1][1].startswith("用法")
+    ch._dispatch_and_reply(_group("hello again"))
+    assert dispatched[-1]["memory_mode"] == "read"
+    assert _room.memory_override("read") == {"mode": "read_only"}
+    assert _room.memory_override("off") == {"mode": "off"}
+    assert _room.memory_override("on") is None
+
+    ch._dispatch_and_reply(ChannelMessage(
+        text="/memory off", chat_id="701", user_id="701", chat_type="direct"))
+    assert "私聊" in ch.sent[-1][1]
+    assert len(dispatched) == 2
