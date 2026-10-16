@@ -65,7 +65,7 @@ function codeRain(): Scene {
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       // 暗处的字也会偶尔自己变。
-      for (let n = 0; n < grid.length * dt * 6; n++) {
+      for (let n = 0; n < grid.length * dt * 0.5; n++) {
         const c = grid[Math.floor(Math.random() * grid.length)];
         c[Math.floor(Math.random() * rows)] = cell();
       }
@@ -77,8 +77,8 @@ function codeRain(): Scene {
         for (let k = 0; k < d.len; k++) {
           const row = top - k;
           if (row < 0 || row >= rows) continue;
-          // 拖尾里亮着的字不停地变，每个字每秒约四次。
-          if (Math.random() < dt * 4) grid[d.col][row] = cell();
+          // 拖尾里亮着的字偶尔换一个，每个字每秒约 0.3 次。
+          if (Math.random() < dt * 0.3) grid[d.col][row] = cell();
           const g = grid[d.col][row];
           const y = row * CELL + CELL / 2;
           if (k === 0) {
