@@ -7,10 +7,7 @@
   max-height: 112px;
   overflow-y: auto;
   scrollbar-gutter: stable;
-  /* The same column as the text below (chat-input-row: 43px row inset
-     + 2px text inset on the left, 42px on the right), so cards line up
-     with what you type and the mic keeps the left gutter to itself. */
-  padding: 8px 42px 4px 45px;
+  padding: 8px 10px 4px;
 }
 
 .attachmentItem {
