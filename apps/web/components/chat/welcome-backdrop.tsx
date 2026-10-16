@@ -111,7 +111,7 @@ function callGraph(): Scene {
 /** Code rain: columns of glyphs fall, a bright head and a fading tail. */
 function codeRain(): Scene {
   const GLYPHS = "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789{}()<>=;:+*/";
-  const CELL = 16;
+  const CELL = 18;
   type Drop = { y: number; speed: number; len: number; glyphs: string[] };
   let drops: Drop[] = [];
   let last = 0;
@@ -134,7 +134,7 @@ function codeRain(): Scene {
     draw(ctx, t, _w, h, pal) {
       const dt = last ? Math.min(0.05, t - last) : 0.016;
       last = t;
-      ctx.font = `${CELL - 3}px ui-monospace, "SF Mono", Menlo, monospace`;
+      ctx.font = `500 ${CELL - 2}px ui-monospace, "SF Mono", Menlo, monospace`;
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       drops.forEach((d, col) => {
@@ -148,7 +148,7 @@ function codeRain(): Scene {
           if (row < 0 || row * CELL > h) continue;
           const isHead = k === 0;
           ctx.fillStyle = isHead ? pal.accent : pal.ink;
-          ctx.globalAlpha = isHead ? 0.85 : 0.42 * (1 - k / d.len);
+          ctx.globalAlpha = isHead ? 1 : 0.15 + 0.6 * (1 - k / d.len);
           ctx.fillText(d.glyphs[(row % d.len + d.len) % d.len], x, row * CELL);
         }
       });
