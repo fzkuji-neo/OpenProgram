@@ -98,7 +98,7 @@ feel present.
 | `/activation`, `/new`, `/reset` | Yes | Yes |
 | Pending group history | Yes | Yes |
 | Ambient rooms, agent decides to speak | Yes | `/activation ambient`, `chat_send` tool |
-| Per-group, per-sender tool policy | Yes | Every channel speaker is paired tier; per-group memory policy (`/memory`); asker-only answers |
+| Per-group, per-sender tool policy | Yes | Per-account `sender_access` (owner or paired); group sessions sandboxed; per-group memory policy (`/memory`); asker-only answers |
 | Session scope, reset policy | Yes | `session_scope`, daily or idle reset |
 | Cross-channel identity links | Yes | No |
 | Live progress | Preview edits | Placeholder edited with tool steps |
@@ -182,16 +182,29 @@ The delivery layer turns one reply into chat-shaped messages:
 
 ### 4.4 Who May Do What
 
-The sender's authority tier decides what a turn may do. Every channel
-speaker is paired tier, the owner's own account included, so a chat turn
-never reaches the owner's local-machine tools (files, shell, network);
-what a paired speaker can reach is replying, `chat_send`, and memory.
+The sender's authority tier decides what a turn may do. The account
+setting `sender_access` picks the tier for every sender that passed
+admission:
 
-Memory is therefore the room-level policy. Group members are paired
-speakers too, and memory recall would bring the owner's memory into the
-group, so each room has a memory mode stored next to its activation in
-`rooms.json`: `on` (the agent's own setting), `read` or `off`. `/memory`
-switches it. The channel layer turns `read` and `off` into
+- `owner` (the default) gives the turn the owner's principal and tier
+  with interactive approvals, exactly as a turn typed in the web UI. The
+  session's permission mode and rules apply unchanged. An approval the
+  turn raises reaches the chat as a question and is answered with
+  `/answer`. The speaker fields still name the platform sender, so the
+  model and the transcript keep seeing who spoke.
+- `paired` limits the turn to replying, `chat_send` and memory; the
+  local-machine tools (files, shell, network) are refused.
+
+Under `owner`, a group session starts with the sandbox on: shell
+commands may write only inside the working directory. The channel layer
+sets the session's sandbox switch the first time the room talks and
+never overrides a value the owner set later in the web UI. Direct chats
+inherit the project's sandbox setting like any local session.
+
+Memory is the room-level policy on top of that: memory recall would
+bring the owner's memory into the group, so each room has a memory mode
+stored next to its activation in `rooms.json`: `on` (the agent's own
+setting), `read` or `off`. `/memory` switches it. The channel layer turns `read` and `off` into
 `TurnRequest.memory_policy_override`, which can only narrow the agent's
 memory policy: `off` stops recall and hides the memory tools, `read`
 hides the writing ones.
@@ -251,14 +264,14 @@ Implemented: pairing and allowlist, structured speaker identity in the
 input envelope and the web transcript, session scope and reset policy
 (daily, idle, `/new`), room modes and `/activation` (4.1), pending
 history (4.2), ambient rooms and `chat_send` (4.1), typing indicators,
-WeChat paragraph chunking and ack reactions (4.3), the room memory mode
-and asker-only answers (4.4), bot-message dropping, the per-room turn limit and
+WeChat paragraph chunking and ack reactions (4.3), `sender_access`,
+sandboxed group sessions, the room memory mode and asker-only answers (4.4), bot-message dropping, the per-room turn limit and
 duplicate-delivery suppression (4.5), live progress placeholder,
 per-platform markdown and size-cap splitting, attachments on all four
 platforms including WeChat media and its voice transcripts (4.8),
 `/answer` and `/decline`, always-on delivery.
 
-Not implemented: custom mention patterns, owner-tier chat speakers
-(4.4), identity links (4.6), channel persona and memory-scheduled follow-ups
+Not implemented: custom mention patterns, per-sender tiers within one
+account (4.4), identity links (4.6), channel persona and memory-scheduled follow-ups
 (4.7), transcribing voice that arrives without a platform transcript
 (WeChat SILK, Telegram and Discord voice notes), group introductions.

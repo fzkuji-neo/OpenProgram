@@ -363,7 +363,8 @@ openprogram channels accounts
   │     - wechat: 启动 iLink QR 扫码流程
   ├── set <channel> <key> <value> --id <name>      行为设置
   │     (telegram/discord/slack: require_mention=on|off, ack_reaction=on|off;
-  │      telegram: group_sessions=shared|per-user)
+  │      telegram: group_sessions=shared|per-user;
+  │      全部: sender_access=owner|paired)
   └── rm <channel> <account_id>                    删账号 + 关联 bindings
 
 openprogram channels access

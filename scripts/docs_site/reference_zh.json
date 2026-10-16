@@ -339,7 +339,7 @@
   "Session id to export": "要导出的会话 ID",
   "Session id to spawn into (the new branch / root lives here)": "创建新分支或根节点的目标会话 ID",
   "Session id whose jobs should be listed": "要列出后台任务的会话 ID",
-  "Set an account behavior setting: require_mention=on|off and ack_reaction=on|off (telegram, discord, slack; apply to the next message), group_sessions=shared|per-user (telegram; restart the worker to apply).": "设置账号行为：require_mention=on|off 和 ack_reaction=on|off（telegram、discord、slack，下一条消息起生效），group_sessions=shared|per-user（telegram，重启 worker 后生效）。",
+  "Set an account behavior setting: require_mention=on|off and ack_reaction=on|off (telegram, discord, slack; apply to the next message), group_sessions=shared|per-user (telegram; restart the worker to apply), sender_access=owner|paired (all channels; owner, the default, gives approved senders the local owner's tools and approvals and sandboxes group sessions, paired limits them to replies and memory).": "设置账号行为：require_mention=on|off 和 ack_reaction=on|off（telegram、discord、slack，下一条消息起生效），group_sessions=shared|per-user（telegram，重启 worker 后生效），sender_access=owner|paired（所有渠道；owner 为默认，通过准入的发信人拥有本机 owner 的工具和审批，群聊会话开沙盒；paired 只能回复和使用记忆）。",
   "Set which account (account) a provider runs on": "设置模型服务使用的账号",
   "Setting id, e.g. ui.web_port": "设置 ID，例如 ui.web_port",
   "Setting id, e.g. ui.web_port (see `config list`)": "设置 ID，例如 ui.web_port，见 `config list`",

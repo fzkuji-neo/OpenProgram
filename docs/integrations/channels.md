@@ -112,6 +112,18 @@ Pairing codes expire after one hour; a blocked sender who keeps writing gets the
 
 Pairing is the default path for unknown senders: they are blocked and receive a code. The owner can also use the local CLI/API `access allow` command to add a known platform user ID directly to the allowlist; it bypasses the pairing code for that sender. There is no setting that turns the access gate off for an account.
 
+### What Approved Senders May Do
+
+By default an approved sender acts as you, the owner: a chat turn can use the same tools as a turn you type in the web UI, under that chat session's permission mode and rules. When a tool needs approval, the request arrives in the chat as a question and you answer it with `/answer` (see [Replies, Progress, and Long Messages](#replies-progress-and-long-messages)). Group chats start with the sandbox on, so shell commands there can write only inside the working directory; you can switch it in that session's settings in the web UI, and the channel will not switch it back.
+
+To limit an account's senders to replies and memory, with no access to files, shell or network, set:
+
+```bash
+openprogram channels accounts set wechat sender_access paired   # or: owner (all channels)
+```
+
+Since everyone on the allowlist gets the same access, keep `owner` for accounts that only you, or people you fully trust, can reach.
+
 Someone who wants an agent with separate memory runs their own instance instead, with its own state directory and port:
 
 ```bash
@@ -199,7 +211,7 @@ When a function pauses on a question (`runtime.ask`), the question is pushed int
 /decline <question_id>
 ```
 
-Only questions belonging to that chat's session can be answered from it. In a group, only the person whose message started the waiting turn can answer its question.
+Only questions belonging to that chat's session can be answered from it. In a group, only the person whose message started the waiting turn can answer its question. Tool approvals arrive the same way, marked as needing approval.
 
 ## Attachments
 

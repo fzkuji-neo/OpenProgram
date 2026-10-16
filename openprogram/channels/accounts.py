@@ -324,15 +324,26 @@ _GROUP_SETTINGS: dict[str, tuple[str, ...]] = {
     "ack_reaction": ("off", "on"),
 }
 
+#: 通过准入的发信人拿什么权限: ``owner`` 和本机主人一样 (工具、批准都
+#: 照常, 群聊会话默认开沙盒); ``paired`` 只能回复和用记忆.
+SENDER_ACCESS = ("owner", "paired")
+
 ACCOUNT_SETTINGS: dict[str, dict[str, tuple[str, ...]]] = {
     "telegram": {
         # 群聊会话归属: 全群共享一个会话 / 群内每人一个会话
         "group_sessions": ("shared", "per-user"),
         **_GROUP_SETTINGS,
+        "sender_access": SENDER_ACCESS,
     },
-    "discord": dict(_GROUP_SETTINGS),
-    "slack": dict(_GROUP_SETTINGS),
+    "discord": {**_GROUP_SETTINGS, "sender_access": SENDER_ACCESS},
+    "slack": {**_GROUP_SETTINGS, "sender_access": SENDER_ACCESS},
+    "wechat": {"sender_access": SENDER_ACCESS},
 }
+
+
+def sender_access(channel: str, account_id: str) -> str:
+    value = get_settings(channel, account_id).get("sender_access", SENDER_ACCESS[0])
+    return value if value in SENDER_ACCESS else SENDER_ACCESS[0]
 
 
 def get_settings(channel: str, account_id: str) -> dict[str, str]:

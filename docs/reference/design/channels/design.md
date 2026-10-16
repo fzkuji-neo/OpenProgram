@@ -381,7 +381,8 @@ openprogram channels accounts
   │     - wechat: start iLink QR login flow
   ├── set <channel> <key> <value> --id <name>      behavior settings
   │     (telegram/discord/slack: require_mention=on|off, ack_reaction=on|off;
-  │      telegram: group_sessions=shared|per-user)
+  │      telegram: group_sessions=shared|per-user;
+  │      all: sender_access=owner|paired)
   └── rm <channel> <account_id>                    delete account + associated bindings
 
 openprogram channels access
