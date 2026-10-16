@@ -67,11 +67,19 @@
 }
 
 .projectGroup { position: relative; }
-/* A chat carried over this project: its header lights as the drop target. */
-.projectGroup[data-drop-target] .projectHeader {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+/* A chat carried over this project: a frame round the whole project,
+   header and chats, stretched by --drop-grow-top/-bottom to take in the
+   gap its rows opened (they move by transform, so the box itself does
+   not grow). */
+.projectGroup[data-drop-target]::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: calc(-1 * var(--drop-grow-top, 0px)) 0 calc(-1 * var(--drop-grow-bottom, 0px)) 0;
+  border-radius: var(--ui-list-radius);
   box-shadow: inset 0 0 0 1.5px var(--accent-orange);
+  background: color-mix(in srgb, var(--accent-orange) 6%, transparent);
+  pointer-events: none;
 }
 /* Chat rows and project headers ease aside for a carried chat, and
    ease back when it is dropped; keeps .ui-list-item's colour

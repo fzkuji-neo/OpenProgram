@@ -44,6 +44,10 @@ export function useChatDrag(
   const [draggingChat, setDraggingChat] = useState<DraggingChat | null>(null);
   const [dropProject, setDropProject] = useState<string | null>(null);
   const [offsets, setOffsets] = useState<Record<string, number>>({});
+  // How far (px) the target project's frame reaches past its box, to
+  // take in the gap its rows opened: below it when the chat comes from
+  // further down, above it when the rows moved up to meet the chat.
+  const [dropGrow, setDropGrow] = useState({ top: 0, bottom: 0 });
 
   // Pointer y in the lists' coordinates at the press (their own scroll
   // since then is added back), where the item bounds were measured.
@@ -75,10 +79,8 @@ export function useChatDrag(
     }
     return last + 1;
   }
-  function offsetsFor(drag: Drag, target: string | null): Record<string, number> {
+  function offsetsFor(drag: Drag, insertion: number): Record<string, number> {
     const next: Record<string, number> = {};
-    if (!target) return next;
-    const insertion = insertionAt(drag, target);
     // Items between the row's old place and the gap move by one row.
     if (insertion > drag.source) {
       for (let index = drag.source + 1; index < insertion; index++) next[drag.items[index].key] = -drag.height;
@@ -93,7 +95,10 @@ export function useChatDrag(
     setDraggingChat({ id: drag.id, dy: drag.y - drag.startY + drag.scroller.scrollTop - drag.scrollTop });
     const next = targetAt(drag);
     setDropProject(prev => (prev === next ? prev : next));
-    const shifted = offsetsFor(drag, next);
+    const insertion = next ? insertionAt(drag, next) : drag.source;
+    const shifted = offsetsFor(drag, insertion);
+    const grow = !next ? { top: 0, bottom: 0 } : insertion > drag.source ? { top: drag.height, bottom: 0 } : { top: 0, bottom: drag.height };
+    setDropGrow(prev => (prev.top === grow.top && prev.bottom === grow.bottom ? prev : grow));
     setOffsets(prev => {
       const keys = Object.keys(shifted);
       if (keys.length === Object.keys(prev).length && keys.every(key => prev[key] === shifted[key])) return prev;
@@ -112,6 +117,7 @@ export function useChatDrag(
     setDraggingChat(null);
     setDropProject(null);
     setOffsets({});
+    setDropGrow({ top: 0, bottom: 0 });
   }, []);
 
   useEffect(() => {
@@ -216,5 +222,5 @@ export function useChatDrag(
       },
     };
   }
-  return { draggingChat, dropProject, rowProps, rowOffset, headerOffset };
+  return { draggingChat, dropProject, dropGrow, rowProps, rowOffset, headerOffset };
 }
