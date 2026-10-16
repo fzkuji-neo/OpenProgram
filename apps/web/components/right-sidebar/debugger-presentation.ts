@@ -26,9 +26,19 @@ export function executionStatusLabel(snapshot: ExecutionSnapshot, text: Text): s
 export function executionRequest(snapshot: ExecutionSnapshot): string {
   return (snapshot.task_label || "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
 }
+/** The words a person would recognise the request by: attachment markers
+ *  become their file names, and the automatic resume prompt a short name. */
+export function readableRequest(request: string, text: Text): string {
+  if (/^Continue the interrupted task using saved conversation history\b/.test(request)) return text("Continue the interrupted task", "继续被中断的任务");
+  const files: string[] = [];
+  const rest = request.replace(/\[attachment: (.+?) \([^)]*\)[^\]]*(?:\]|$)/g, (_, name: string) => { files.push(name.trim()); return " "; })
+    .replace(/\s+/g, " ").trim();
+  if (rest) return rest;
+  return files.length ? `${text("Attachment", "附件")} ${files.join(", ")}` : request;
+}
 export function executionTitle(snapshot: ExecutionSnapshot, ordinal: number, text: Text): string {
   const display = snapshot.display;
-  const request = executionRequest(snapshot);
+  const request = readableRequest(executionRequest(snapshot), text);
   const label = display?.kind === "job_agent" && display.label ? display.label : request;
   if (label) {
     const characters = Array.from(label);

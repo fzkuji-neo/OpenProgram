@@ -7,7 +7,7 @@
  * goes back one level. Nothing expands in place and no group folds.
  */
 import { useEffect, useState, type ReactNode } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, MessageSquareText } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { useExecutionDebugger } from "@/lib/execution/use-execution-debugger";
 import { useManagedProcesses } from "@/lib/execution/use-managed-processes";
@@ -38,6 +38,11 @@ function Glyph({ name, tone }: { name: SolarIconName; tone: ToolTone | "run" }) 
   return <span className={styles.glyph} data-tone={tone} aria-hidden="true">
     <SolarIcon name={name} size={16} motionPreset="none" />
   </span>;
+}
+
+/** A run: the message it answered, as a line glyph in the text colour. */
+function RunGlyph() {
+  return <span className={styles.glyph} data-tone="run" aria-hidden="true"><MessageSquareText size={15} strokeWidth={1.8} /></span>;
 }
 
 function Status({ tone, children }: { tone: Tone; children: ReactNode }) {
@@ -198,7 +203,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
         ? `${run.runningCall ? `${text("Running", "正在运行")} ${run.runningCall.name}` : text("Running", "正在运行")} · ${duration(now - run.at, text)}`
         : [executionState(run.root, text), agents ? text(`${agents} sub-agent${agents === 1 ? "" : "s"}`, `${agents} 个子代理`) : "",
           run.programs.length ? text(`${run.programs.length} program${run.programs.length === 1 ? "" : "s"}`, `${run.programs.length} 个程序`) : ""].filter(Boolean).join(" · ");
-    return <Row key={run.root.execution_id} glyph={<Glyph name="chat-round-dots" tone="run" />} title={runTitle(run.root)}
+    return <Row key={run.root.execution_id} glyph={<RunGlyph />} title={runTitle(run.root)}
       status={live || run.issues.length ? status : `${status} · ${shortTime(run.at * 1000)}`} tone={tone}
       onOpen={() => open({ kind: "run", id: run.root.execution_id })} />;
   }
@@ -216,7 +221,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   }
   function childRow(item: ExecutionSnapshot): ReactNode {
     const agent = item.display?.kind === "job_agent";
-    return <Row key={`execution:${item.execution_id}`} glyph={<Glyph name={agent ? "bot" : "chat-round-dots"} tone={agent ? "agent" : "run"} />}
+    return <Row key={`execution:${item.execution_id}`} glyph={agent ? <Glyph name="bot" tone="agent" /> : <RunGlyph />}
       title={agent ? (item.display?.label || runTitle(item)).replace(/_/g, " ") : runTitle(item)}
       status={`${agent ? text("Sub-agent", "子代理") : text("Branch", "分支")} · ${executionState(item, text)}`} tone={executionTone(item)}
       onOpen={() => open({ kind: "run", id: item.execution_id })} />;
@@ -233,7 +238,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
         status={`${text("Program state unconfirmed", "后台程序状态待确认")} · ${dayLabel(issue.at, text)}`} tone="warn"
         onOpen={() => open({ kind: "program", id: issue.program.id })} />;
     }
-    return <Row key={issue.key} glyph={<Glyph name={issue.execution.status === "paused" ? "chat-round-question-mark" : "chat-round-dots"} tone="run" />}
+    return <Row key={issue.key} glyph={issue.execution.status === "paused" ? <Glyph name="chat-round-question-mark" tone="run" /> : <RunGlyph />}
       title={runTitle(issue.execution)} status={`${executionState(issue.execution, text)} · ${dayLabel(issue.at, text)}`} tone="warn"
       onOpen={() => open({ kind: "run", id: issue.execution.execution_id })} />;
   }
@@ -249,7 +254,6 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       body = text("The run stopped while this call was out, so whether it finished is not known.", "运行在这次调用途中中断，不确定它有没有做完。");
       const job = issue.owner && issue.call.name === "agent" ? spawnedBy(issue.call, model.childrenOf(issue.owner.execution_id)) : null;
       if (job) actions.push(<Button key="agent" variant="elevated" size="sm" onClick={() => void openAgentConversation(job)}>{text("Open its conversation", "打开它的对话")}</Button>);
-      if (here !== "call") actions.push(<Button key="call" variant="elevated" size="sm" onClick={() => open({ kind: "call", id: issue.call.id })}>{text("See the call", "查看这次调用")}</Button>);
     } else if (issue.kind === "execution") {
       const waiting = issue.execution.status === "paused";
       heading = waiting ? text("Waiting for you", "在等你处理") : text("An action's result is unconfirmed", "有一个操作结果待确认");

@@ -167,6 +167,20 @@ test("ongoing shell calls and background programs appear without opening a run",
   { calls: [{ id: "call", name: "bash", command: "sleep 30", started_at: now - 5, status: "running" }] });
 });
 
+test("run titles read as the words a person wrote, not attachment markup or resume prompts", async () => {
+  await mounted([
+    run("a", "completed", now - 10, { task_label: '[attachment: IMG_0177.JPG (jpg, 987 KB) @json "/Users/x/attachments/IMG_0177.JPG" ' }),
+    run("b", "completed", now - 20, { task_label: '[attachment: Inv.pdf (pdf, 112 KB) @json "/Users/x/Inv.pdf"] what about this?' }),
+    run("c", "completed", now - 30, { task_label: "Continue the interrupted task using saved conversation history. Inspect actual state" }),
+  ], async host => {
+    const text = host.textContent;
+    assert.match(text, /Attachment IMG_0177\.JPG/);
+    assert.match(text, /what about this\?/);
+    assert.match(text, /Continue the interrupted task(?! using)/);
+    assert.doesNotMatch(text, /\[attachment:|@json/);
+  });
+});
+
 test("calls do not flash as unowned before the executions are read", async () => {
   await mounted([], async host => {
     assert.doesNotMatch(host.textContent, /Needs you|Fix page close/);
