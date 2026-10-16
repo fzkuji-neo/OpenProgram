@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const {
+  UNRESPONSIVE_AFTER_MS,
   createRecoveryState,
   createRecoveryCoordinator,
   recordWorkerCommandExit,
@@ -115,6 +116,53 @@ assert.equal(beginRecoveryProbe(failedRestartState, 63_000), true);
 assert.equal(
   finishRecoveryProbe(failedRestartState, failedRestartCoordinator, false, false, 63_000), "spawn",
   "verified recovery resets the allowance for a later outage",
+);
+
+// While an installer holds the App install lock the backend is down on
+// purpose: the App neither starts nor restarts a worker, and the outage
+// clock restarts once the installer is gone.
+const installState = createRecoveryState();
+const installCoordinator = createRecoveryCoordinator();
+startRecoveryCycle(installState);
+for (let i = 0; i < 30; i += 1) {
+  assert.equal(beginRecoveryProbe(installState, i * 1_000), true);
+  assert.equal(
+    finishRecoveryProbe(installState, installCoordinator, false, false, i * 1_000, 1_000, true),
+    "installing",
+    "no worker is started while the App is being installed",
+  );
+}
+assert.equal(installCoordinator.workerSpawned, false);
+assert.equal(installCoordinator.unreachableProbes, 0);
+assert.equal(beginRecoveryProbe(installState, 30_000), true);
+assert.equal(
+  finishRecoveryProbe(installState, installCoordinator, false, false, 30_000, 1_000),
+  "spawn",
+  "once the installer is gone the worker is started as usual",
+);
+recordWorkerCommandExit(installCoordinator, "start", 1);
+// The spawn probe was the first unreachable one; the restart comes once
+// UNRESPONSIVE_AFTER_MS of one-second probes have failed.
+const restartProbe = 30 + UNRESPONSIVE_AFTER_MS / 1_000 - 1;
+for (let i = 31; i < restartProbe; i += 1) {
+  assert.equal(beginRecoveryProbe(installState, i * 1_000), true);
+  assert.equal(
+    finishRecoveryProbe(installState, installCoordinator, false, false, i * 1_000, 1_000),
+    null,
+    `a live worker gets ${UNRESPONSIVE_AFTER_MS / 1_000}s to boot at a 1s cadence (probe ${i})`,
+  );
+}
+assert.equal(beginRecoveryProbe(installState, restartProbe * 1_000), true);
+assert.equal(
+  finishRecoveryProbe(installState, installCoordinator, false, false, restartProbe * 1_000, 1_000),
+  "restart",
+  "the restart allowance is a duration, not a probe count",
+);
+assert.equal(beginRecoveryProbe(installState, (restartProbe + 1) * 1_000), true);
+assert.equal(
+  finishRecoveryProbe(installState, installCoordinator, true, true, (restartProbe + 1) * 1_000, 1_000, true),
+  "load",
+  "a reachable worker loads even while the lock is still held",
 );
 
 console.log("worker recovery checks passed");

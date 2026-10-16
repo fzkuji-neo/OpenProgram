@@ -17,7 +17,7 @@ The Back and Forward buttons also include the initial New tab page. After openin
 
 On macOS, install the architecture-matched DMG and copy `OpenProgram.app` to `/Applications`; current macOS releases are Developer ID signed and Apple notarized. On Windows, install only the signed `win-x64.exe` or `win-arm64.exe` attached to a published [GitHub Release](https://github.com/fzkuji-neo/OpenProgram/releases). If a release has no signed Windows EXE, use the CLI/server and browser UI for that version. The complete steps are in [Installation](../install/install.md).
 
-Terminal panes use the login shell on macOS and Windows PowerShell through ConPTY on Windows. Packaged apps on both platforms start the worker from their embedded managed Python and do not depend on a system Python or Node.js.
+Terminal panes use the login shell on macOS and Windows PowerShell through ConPTY on Windows. Packaged apps on both platforms start the worker from their embedded managed Python and do not depend on a system Python or Node.js. When the worker is not reachable at startup, the App starts it and shows **Waiting for backend to start...** until it answers, checking every second. While an installer is replacing the App and its runtime (an update, or a local refresh) the page shows **Updating OpenProgram...** instead; the App starts no worker then and reconnects on its own once the installer is done.
 
 When running Desktop from source on Linux, terminal panes use an installed absolute `SHELL` path, then fall back to `/bin/bash` or `/bin/sh`. They do not require zsh. If no shell is available, the terminal reports the missing prerequisite before starting a process.
 

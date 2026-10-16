@@ -67,6 +67,7 @@ const {
   beginRecoveryProbe,
   finishRecoveryProbe,
 } = require("./worker-recovery-state");
+const { installLockPath, installInProgress } = require("./install-lock");
 const { validateTransferPayload } = require("./tab-transfer-validation");
 const {
   STATE_FILE_NAME,
@@ -94,7 +95,9 @@ const UI_ORIGIN = new URL(START_URL).origin;
 const selfUpdateReopen = createSelfUpdateReopen({ argv: process.argv, origin: UI_ORIGIN });
 const HEALTH_URL = new URL("/healthz", START_URL).toString();
 const WORKER_COMMAND = "openprogram worker start";
-const RECOVERY_INTERVAL_MS = 3_000;
+// A worker boot takes a few seconds; probing every second shows the UI
+// about as soon as it is up instead of up to three seconds later.
+const RECOVERY_INTERVAL_MS = 1_000;
 const TRANSFER_TIMEOUT_MS = 15_000;
 const DESTINATION_UNDO_TIMEOUT_MS = 2_000;
 const COMMIT_RECONCILE_INITIAL_MS = 100;
@@ -258,12 +261,30 @@ app.commandLine.appendSwitch("remote-debugging-port", "9223");
 
 let currentChrome = themeChrome.chromeForTheme("beige-dark");
 
-function errorPageUrl() {
-  return themeChrome.buildErrorPageUrl(currentChrome, WORKER_COMMAND);
+function errorPageUrl(phase = "waiting") {
+  return themeChrome.buildErrorPageUrl(currentChrome, WORKER_COMMAND, phase);
 }
 
 function isErrorPageUrl(url) {
   return themeChrome.isErrorPageUrl(url);
+}
+
+/**
+ * Whether an installer (`install-app.sh`, the local refresh) is replacing
+ * this App right now. It quits the App and stops the worker first, so an
+ * App opened meanwhile finds no backend: it then waits for the installer
+ * instead of starting a worker from the half-installed runtime.
+ */
+function appInstallInProgress() {
+  if (!app.isPackaged) return false;
+  return installInProgress(installLockPath(process.execPath));
+}
+
+/** Show the waiting page for `phase` unless the window already shows it. */
+function showWaitPage(ctx, phase) {
+  if (ctx.win.isDestroyed()) return;
+  if (themeChrome.waitPagePhase(ctx.win.webContents.getURL?.()) === phase) return;
+  void ctx.win.loadURL(errorPageUrl(phase)).catch(() => {});
 }
 
 function themePrefsPath() {
@@ -389,6 +410,7 @@ async function resolveStartUrl() {
       if (authenticated) return authenticated;
     }
   }
+  if (!workerWasReachable && appInstallInProgress()) return errorPageUrl("updating");
   if (!workerWasReachable && !recoveryCoordinator.workerSpawned) {
     recoveryCoordinator.workerSpawned = true;
     spawnWorker();
@@ -409,6 +431,7 @@ async function runWindowRecoveryProbe(ctx) {
   if (ctx.win.isDestroyed() || !beginRecoveryProbe(state, Date.now())) return;
   const reachable = await probe(HEALTH_URL, 1000);
   const authenticated = reachable ? resolveWorkerStartUrl() : null;
+  const installing = !reachable && appInstallInProgress();
   const action = finishRecoveryProbe(
     state,
     recoveryCoordinator,
@@ -416,7 +439,14 @@ async function runWindowRecoveryProbe(ctx) {
     !!authenticated,
     Date.now(),
     RECOVERY_INTERVAL_MS,
+    installing,
   );
+  if (action === "installing") {
+    showWaitPage(ctx, "updating");
+  } else if (!reachable && !ctx.win.isDestroyed() && isErrorPageUrl(ctx.win.webContents.getURL?.())) {
+    // The installer is done (or was never there): back to the plain wait.
+    showWaitPage(ctx, "waiting");
+  }
   if (action === "spawn" || action === "restart") {
     spawnWorker(action === "restart" ? "restart" : "start");
   } else if (action === "load" && !ctx.win.isDestroyed()) {
@@ -436,9 +466,7 @@ function startWindowRecovery(ctx, showErrorPage = true) {
       RECOVERY_INTERVAL_MS,
     );
   }
-  if (showErrorPage && !isErrorPageUrl(ctx.win.webContents.getURL?.())) {
-    void ctx.win.loadURL(errorPageUrl()).catch(() => {});
-  }
+  if (showErrorPage) showWaitPage(ctx, appInstallInProgress() ? "updating" : "waiting");
   void runWindowRecoveryProbe(ctx);
 }
 

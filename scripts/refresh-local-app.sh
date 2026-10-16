@@ -70,6 +70,13 @@ installed_product_runtime="$runtime_root/product-runtime.json"
 installed_asar="$app_path/Contents/Resources/app.asar"
 uv_bin="${OPENPROGRAM_UV_BIN:-$(command -v uv || true)}"
 
+# Phase marks in the log: the App and the worker are down between
+# "quitting the App" and "worker healthy", so the marks say where that
+# time goes.
+stamp() {
+  printf '[refresh %s] %s\n' "$(date '+%H:%M:%S')" "$*"
+}
+
 # The default App is shared by every worktree. Recheck this gate after
 # packaging and under the installation lock as another checkout may advance
 # main while this build is running. Ignored build outputs are not source.
@@ -332,6 +339,7 @@ while true; do
   cp "$product_runtime_config" "$runtime_assets_stage/product-runtime.json"
   rm -rf "$repo_root/build"
   "$uv_bin" build --wheel --out-dir "$attempt_dir" "$repo_root"
+  stamp "wheel built"
   wheel="$(find "$attempt_dir" -maxdepth 1 -type f \
     -name 'openprogram-*.whl' -print -quit)"
   test -n "$wheel" || {
@@ -438,6 +446,7 @@ cp "$repo_root/apps/desktop/scripts/install-app.sh" "$installer_stage"
 validate_default_app_source "$build_revision"
 
 if pgrep -f "^/Applications/OpenProgram[.]app/Contents/MacOS/OpenProgram( |$)" >/dev/null 2>&1; then
+  stamp "quitting the App"
   osascript -e 'tell application id "ai.openprogram.desktop" to quit' >/dev/null 2>&1 || true
   for _ in {1..50}; do
     pgrep -f "^/Applications/OpenProgram[.]app/Contents/MacOS/OpenProgram( |$)" >/dev/null 2>&1 || break
@@ -456,6 +465,7 @@ if pgrep -f "^/Applications/OpenProgram[.]app/Contents/MacOS/OpenProgram( |$)" >
   }
 fi
 "$local_python" -m openprogram worker stop >/dev/null 2>&1 || true
+stamp "worker stopped; installing runtime packages"
 
 # A wheel reinstall does not remove files left by an older package layout.
 # Validate both runtimes before deleting either, then remove only OpenProgram's
@@ -486,6 +496,7 @@ if test "$(uname -s)" = Darwin; then
   "$app_python" -I -c \
       'from gui_harness.adapters.mac_window import window_support'
 fi
+stamp "runtime packages installed; assembling the runtime"
 cp "$product_runtime_stage" "$installed_product_runtime"
 mkdir -p "$runtime_root/bin" "$runtime_root/assets/tui"
 # Office installations live in the user cache and are preserved across App refreshes.
@@ -510,6 +521,7 @@ runtime_uv_version="$("$runtime_root/bin/uv" --version | awk '{print $2}')"
 # Replace the archive by rename, never by an in-place copy: an App launched
 # mid-refresh must read either the old or the new archive whole, never a
 # half-written preload (it fails as a syntax error and drops the bridge).
+stamp "runtime verified; installing App files"
 cp "$desktop_asar" "$installed_asar.incoming"
 mv -f "$installed_asar.incoming" "$installed_asar"
 if test -d "$desktop_asar.unpacked"; then
@@ -549,6 +561,7 @@ done < <(find "$app_path/Contents/Frameworks" -depth -type d \
 
 # Resource/source-marker writes happen after packaging. Reuse the same local
 # certificate for the managed runtime and its TCC-responsible containing App.
+stamp "App files installed; signing"
 "$local_python" "$repo_root/scripts/release/local-macos-signing.py" sign --app "$app_path"
 codesign --verify --strict "$app_path"
 codesign --verify --strict \
@@ -556,6 +569,7 @@ codesign --verify --strict \
 codesign --verify --deep --strict "$app_path"
 # Launch Services caches bundle icons by modification date.
 touch "$app_path"
+stamp "App signed"
 
 # Only a complete, verified App can be reopened from failure cleanup.
 reopen_app() {
@@ -583,6 +597,7 @@ reopen_app() {
   # A main process that throws while loading stays alive without a window.
   for _ in {1..150}; do
     if pgrep -f "^${app_path}/Contents/Frameworks/OpenProgram Helper \(Renderer\)[.]app/.*--type=renderer" >/dev/null 2>&1; then
+      stamp "App reopened"
       return 0
     fi
     sleep 0.2
@@ -606,6 +621,7 @@ bind_program_catalog(sys.argv[1], preserve_existing=True)
 migrate_program_source_paths()
 PYTHON
 
+stamp "starting the worker"
 if test -f "$HOME/Library/LaunchAgents/ai.openprogram.worker.plist"; then
   "$app_python" -I -B -m openprogram worker install
 else
@@ -625,6 +641,7 @@ while test "$SECONDS" -lt "$health_deadline"; do
   if curl -fsS --connect-timeout 1 --max-time "$probe_timeout" \
     http://127.0.0.1:18100/healthz >/dev/null 2>&1; then
     health_status=0
+    stamp "worker healthy"
     break
   else
     health_status=$?
