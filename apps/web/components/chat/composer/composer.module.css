@@ -206,24 +206,20 @@
 /* 角色图标（chat=气泡 / 执行=终端）常驻——用户要求模型名旁保留 logo。 */
 
 /* Send / stop button — a single absolute-positioned square anchored
-   to the wrapper. Its `top` is driven by inline style (set in
-   use-fn-form-wrapper.ts) so it interpolates linearly between the chat
-   position (top: 11) and the morphed position
-   (top: wrapper.height − 12 − own height), in sync with the wrapper's
-   own height transition. The result is one continuous motion instead
-   of a row-to-row teleport. */
+   to the wrapper's bottom-right corner in chat mode, so attachments
+   above and long text grow the box upward without moving it. `top`
+   (not `bottom`) carries the anchor so it still transitions into the
+   fn-form header slot below. */
 .actionBtn {
   position: absolute;
   /* A shadcn icon-sm Button (buttonVariants in index.tsx: default when
      there is something to send, ghost when empty, destructive to stop) —
-     28px at this app's 14px root — 9px inset from the box's right edge,
-     vertically centered in the 46px single-line row → (46−28)/2 = 9px
-     top. ONE geometry for every mode — the button keeps this identity
-     inside fn-forms too; only `top` glides (inline, from
-     use-fn-form-wrapper.ts), and index.tsx clears the inline value when
-     returning to chat mode so this 9px wins again. */
+     28px at this app's 14px root — 9px inset from the box's right and
+     bottom edges, which centres it in the last 46px text line →
+     (46−28)/2 = 9px. ONE geometry for every mode — inside fn-forms only
+     `top` and `right` glide (.morphed below). */
   right: 9px;
-  top: 9px;
+  top: calc(100% - 37px);
   transition: top var(--composer-height-transition),
     right var(--composer-height-transition),
     background-color 0.15s,
