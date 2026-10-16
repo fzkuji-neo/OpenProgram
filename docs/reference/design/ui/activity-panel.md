@@ -134,7 +134,9 @@ arrow names the page it returns to. Nothing expands in place.
 
 Rows have no frame at rest: a bare glyph in its kind's colour, the name
 over a status line led by the shared indicator dot, a chevron. Hover lifts
-the row into the raised card the file cards use. Rows stack above the
+the row into a raised card: the file cards' shadow over a solid fill a
+step toward the text colour (4%), since the panel is the input surface
+itself and a card of the same colour would show no edge. Rows stack above the
 tree lines, so a lifted card and its shadow cover the line instead of
 being crossed by it. The line is one solid colour, the muted text mixed
 into the panel's own background rather than a translucent stroke, so

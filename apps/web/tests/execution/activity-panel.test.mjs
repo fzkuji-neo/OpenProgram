@@ -285,7 +285,7 @@ test("Activity rows use a bare coloured glyph and a status dot, and lift on hove
   for (const name of ["glyph", "prose", "code"]) {
     assert.doesNotMatch(rule(name), /background|border:|box-shadow/, `${name} draws no surface`);
   }
-  assert.match(css, /\.row:hover \{ background: var\(--bg-input\); box-shadow: var\(--composer-shadow-focus\);/);
+  assert.match(css, /\.row:hover \{ background: color-mix\(in srgb, var\(--text-primary\) 4%, var\(--bg-input\)\); box-shadow: var\(--composer-shadow-focus\);/);
   // A lifted row covers the tree line, and the line is one solid colour so
   // its overlapping pieces never darken at a joint.
   assert.match(css, /\.panel \.row \{ position: relative; z-index: 1; \}/);
