@@ -82,8 +82,10 @@ conversations by copying messages; we fork the underlying repo.
 
 ## Memory that writes itself
 
-Memory lives in one place, `~/.openprogram/memory/`, and all of it
-is Markdown you can open in any editor.
+Your personal memory lives in one place,
+`~/.openprogram/projects/default/memory/`, and all of it is Markdown you
+can open in any editor. Each project keeps its own memory beside its chats,
+in `~/.openprogram/projects/<project>/memory/`, laid out the same way.
 
 | Path | What it holds |
 |---|---|

@@ -182,13 +182,13 @@ The floating webpage preview fills the space below its compact header, with 10px
 | `/agents` | Agents: create, configure and start conversations with Agents (model, abilities, memory, context) |
 | `/applications` | Applications: install software from a local folder, then open, enable, hide from the new tab page, update or uninstall it |
 | `/scheduler` | Scheduler: one-time, recurring and monitor tasks, filtered by type; pause, resume or delete each task |
-| `/chats` | History hub: session list (also `/history`); Projects and Memory are tabs on the same page |
+| `/chats` | History (also `/history`): projects on the left, System first; each project's Chats, Memory, Settings and Info tabs on the right |
 | `/programs` | Abilities hub: Programs catalog (call tree / graph). Plugins, Skills, and MCP are sibling tabs |
 | `/skills` | Abilities → Skills: browse installed SKILL.md files, discover and create skills; each skill has a detail page |
 | `/plugins` | Abilities → Plugins: Installed / Discover (marketplace) / Issues |
 | `/mcp` | Abilities → MCP: add from the directory, edit configs, view per-server status |
-| `/memory` | History → Memory: wiki, journal, and core memories |
-| `/projects` | History → Projects: per-project permission rules, default settings, associated sessions |
+| `/memory` | History with the Memory tab open: the selected project's wiki, journal and core memories |
+| `/projects` | History with the Chats tab open; Settings holds per-project permission rules and default settings |
 | `/settings` | Settings: providers (models and credentials), search, general (including theme, runtime version, and Desktop update status when the Electron bridge is present), system, usage, auth, channels |
 
 Message navigation previews and skill details display raw HTML as text while retaining Markdown formatting. Skill links do not grant access to local files.

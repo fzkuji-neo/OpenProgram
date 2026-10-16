@@ -36,7 +36,7 @@ A stream of events organized by time. Answers "what happened, and when".
 ### 2.2 Storage
 
 ```
-~/.openprogram/memory/timeline/
+~/.openprogram/projects/default/memory/timeline/
 ├── 2026-05.jsonl
 ├── 2026-06.jsonl
 └── ...
@@ -92,7 +92,7 @@ A graph structure of entities and relations. Answers "how things relate to one a
 ### 3.2 Storage
 
 ```
-~/.openprogram/memory/graph/
+~/.openprogram/projects/default/memory/graph/
 ├── entities.jsonl           nodes
 ├── edges.jsonl              edges (with bi-temporal + provenance)
 └── views/

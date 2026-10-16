@@ -4,31 +4,63 @@
 
 ## 磁盘布局
 
+会话存放在所属项目的文件夹里。每个项目（包括 id 为 `default` 的系统项目）
+各有一个文件夹：
+
 ```
-<state>/sessions/
-├── index.json                         # 注册表（摘要缓存）
-├── locations.json                     # session id → 仓库路径的持久映射
-├── <session_id_1>/                    # 默认项目和既有 home-root 布局
-│   ├── .git/                          # 会话仓库元数据
-│   ├── meta.json                      # 会话元数据和 DAG 当前 head
-│   ├── history/                       # 每个 DAG 节点一个 JSON 文件
-│   ├── context/                       # 持久化上下文产物
-│   └── workdir/attachments/           # 该会话上传的文件
-├── projects/<project_id>/              # 新建的项目绑定存储
-│   ├── <session_id>/                   # 会话 Git 仓库
-│   └── .file-recovery/<session_id>/<turn>/ # 该会话的每轮恢复文件
-├── .file-recovery/<session_id>/<turn>/ # 默认根目录的每轮恢复文件
+<state>/projects/
+├── projects.json                      # 项目注册表
+├── <project_id>/                      # 每个项目一个文件夹；`default` 是系统项目
+│   ├── settings.json                  # 项目默认设置
+│   ├── memory/                        # 项目的记忆工作区
+│   └── chats/
+│       ├── <session_id>/              # 会话 Git 仓库
+│       │   ├── .git/                  # 会话仓库元数据
+│       │   ├── meta.json              # 会话元数据和 DAG 当前 head
+│       │   ├── history/               # 每个 DAG 节点一个 JSON 文件
+│       │   ├── context/               # 持久化上下文产物
+│       │   └── workdir/attachments/   # 该会话上传的文件
+│       └── .file-recovery/<session_id>/<turn>/ # 每轮的文件撤销恢复
+├── .chats-index.json                  # 注册表（摘要缓存）
+├── .chats-locations.json              # session id → 仓库路径的持久映射
 ├── .migration/                        # 迁移日志和 staging 状态
 ├── .deleted/                          # 持久化删除意图
 └── .locks/ / .session-locks/          # 进程间协调
 ```
 
-默认根目录是 `<state>/sessions`，其中 `<state>` 是 OpenProgram 状态目录。
-新建且绑定非默认项目的 session 放在 `projects/<project_id>/<session_id>`。
-默认项目和集中存储迁移前创建的 session 仍留在根目录下的
-`<session_id>`。迁移或重定位期间，`locations.json` 是持久路径权威来源。
-工作目录不会作为主要会话仓库；旧的 `<project>/.openprogram/sessions/<id>/`
-只作为 legacy 迁移源读取。
+存储根目录是 `<state>/projects`，其中 `<state>` 是 OpenProgram 状态目录。
+会话放在 `<project_id>/chats/<session_id>`；不属于任何项目的会话归系统项目，
+落在 `default/chats/`。存储自己的簿记文件以隐藏条目放在同一个文件夹里，
+所以列目录只看到注册表和各项目文件夹。在其他根目录上打开的存储（应用运行
+记录、嵌入宿主）也用同样的 `<project_id>/chats/<session_id>` 放置方式。
+
+把会话分配到另一个项目时，会在注册表里重新绑定并更新 `meta.json`；还没有
+历史的会话会连文件夹一起移动。已有历史的会话保留原文件夹，由
+`.chats-locations.json` 记录位置。迁移或重定位期间，`.chats-locations.json`
+是持久路径权威来源。工作目录不会作为主要会话仓库；旧的
+`<project>/.openprogram/sessions/<id>/` 只作为 legacy 迁移源读取。
+
+### 旧版安装的迁移
+
+旧版把会话放在 `<state>/sessions/`（绑定项目的在 `sessions/projects/<project_id>/`），
+个人记忆在 `<state>/memory/`，项目记忆在各项目文件夹的
+`<project>/.openprogram/memory/`。第一个请求存储根目录的进程
+（`openprogram.store.project.layout_migration.ensure_layout`）先把这些目录复制到
+`<state>/backups/layout-<time>/`，再搬进来：
+
+- 会话归入注册表里列出它的项目；没有则归 `meta.json` 写明的项目；再没有则归系统项目；
+- `index.json` 和 `locations.json` 改名为 `.chats-index.json` 和
+  `.chats-locations.json`，隐藏的簿记目录合并进来；
+- 个人记忆变成 `default/memory/`，各项目记忆变成 `<project_id>/memory/`，
+  `default-settings.json` 变成 `default/settings.json`；
+- 被搬动的会话在自己的文本文件（`workdir/` 以外）、位置映射和迁移日志里记下的
+  绝对路径，改写为新位置。
+
+文件锁保证两个进程不会同时搬，`.layout` 标记记录搬迁已完成。旧版进程在搬迁后
+可能仍会写旧目录，所以每个进程首次使用时都会再检查一次，把新增的内容合并进来：
+新会话搬入；已搬会话的空壳、以及没有笔记的新初始化记忆工作区直接丢弃；另一个
+确实有笔记的工作区放到 `<state>/memory.legacy`。搬迁不认识的文件留在
+`<state>/sessions.legacy`。
 
 `history/` 文件构成对话 DAG。`meta.json` 保存 DAG 的活动 `head_id`，而仓库
 的 Git `HEAD` 表示最近一次存储提交。这两个指针含义不同：切换对话分支不会
@@ -57,7 +89,7 @@ DAG 节点列表。
 | `unread` | bool | 是 | 未读标记 |
 | `_auto_titled` | bool | 否 | 自动命名幂等标记（内部控制，不进注册表、不返回前端） |
 
-"注册表"列标记该字段是否缓存到 `index.json`。`_auto_titled` 和 `project_id` 不进注册表：前者是内部标记，后者在列举时由项目目录映射补充。
+"注册表"列标记该字段是否缓存到 `.chats-index.json`。`_auto_titled` 和 `project_id` 不进注册表：前者是内部标记，后者在列举时由项目目录映射补充。
 
 ## 注册表独有字段
 
@@ -115,8 +147,8 @@ SessionMemoryIndex)` 对。`GitSession` 负责文件和 Git 操作；内存索�
 `<state>/channels/*/accounts/*/attachments` 下的渠道附件根目录，由附件路径
 策略单独允许读取。`.file-recovery/<session_id>/<turn>/` 是普通的每轮文件撤销
 恢复目录，位于会话 Git 仓库之外。legacy 项目迁移时，会话数据和已有恢复目录
-先暂存到 `<state>/sessions/.migration/staging/` 并校验，再发布到中央目标路径的
-`.file-recovery` 兄弟目录；发布完成后才更新 `locations.json`。
+先暂存到 `<state>/projects/.migration/staging/` 并校验，再发布到中央目标路径的
+`.file-recovery` 兄弟目录；发布完成后才更新 `.chats-locations.json`。
 
 历史附件标记会保留原始绝对路径。附件界面、文件读取和 `send_file` 的路径解析
 只允许把精确的旧路径形式
