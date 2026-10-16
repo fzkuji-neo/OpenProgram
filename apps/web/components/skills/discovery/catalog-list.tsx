@@ -13,6 +13,7 @@ import {
 
 import { fmtCount, hasStats, relTime } from "./helpers";
 import type { Source, SortKey } from "./types";
+import { SimpleSelect } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { ManageCatalogCard, managePageStyles as shared } from "@/components/ui/manage-page";
 
@@ -125,17 +126,21 @@ export function CatalogList({
           />
         </div>
         )}
-        <select
+        <SimpleSelect
+          className="shrink-0"
+          aria-label={text("Sort", "排序")}
           value={sort}
-          onChange={(e) => setSort(e.target.value as SortKey)}
-          className="shrink-0 rounded-[var(--ui-button-radius)] border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition-colors focus:border-[color:var(--accent-blue)]"
-        >
-          <option value="default">{text("Sort", "排序")}：{hasMeta ? text("Trending", "热门") : text("Default", "默认")}</option>
-          <option value="name">{text("Name", "名称")}</option>
-          {hasMeta && <option value="downloads">{text("Most downloaded", "下载最多")}</option>}
-          {hasMeta && <option value="stars">{text("Most starred", "收藏最多")}</option>}
-          {hasMeta && <option value="updated">{text("Recently updated", "最近更新")}</option>}
-        </select>
+          onValueChange={setSort}
+          options={[
+            { value: "default" as SortKey, label: `${text("Sort", "排序")}：${hasMeta ? text("Trending", "热门") : text("Default", "默认")}` },
+            { value: "name" as SortKey, label: text("Name", "名称") },
+            ...(hasMeta ? [
+              { value: "downloads" as SortKey, label: text("Most downloaded", "下载最多") },
+              { value: "stars" as SortKey, label: text("Most starred", "收藏最多") },
+              { value: "updated" as SortKey, label: text("Recently updated", "最近更新") },
+            ] : []),
+          ]}
+        />
       </div>
 
       <div className={shared.catalogGrid}>

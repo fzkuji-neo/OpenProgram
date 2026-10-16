@@ -1,7 +1,7 @@
 "use client";
 
 /** General settings — theme, font, language, app metadata. */
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 
 import { useTranslation, type Locale } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -37,8 +37,7 @@ import { useWelcomeBackdropPref } from "@/lib/prefs/welcome-backdrop-pref";
 import { DRAG_SURFACE_STYLE, VISUAL_EFFECTS_LIMITS, type VisualEffectKey } from "@/lib/prefs/visual-effects-config";
 import styles from "./settings-page.module.css";
 import { DesktopAttentionSection } from "./desktop-attention-section";
-import { MenuCheck } from "@/components/chat/top-bar/menu-check";
-import { CHECK_SLOT_PAD } from "@/components/chat/top-bar/menu-styles";
+import { SimpleSelect } from "@/components/ui/select";
 
 const FONT_OPTIONS: FontKey[] = ["system", "inter", "serif", "mono"];
 
@@ -63,70 +62,17 @@ export function SettingsDropdown<T extends string>({
    *  a bare value. */
   label?: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const current = options.find((option) => option.value === value);
-
-  useEffect(() => {
-    if (!open) return;
-    function onDoc(e: MouseEvent) {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDoc);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
   return (
-    <div ref={wrapRef} className={styles.settingsDropdownWrap}>
-      <button
-        type="button"
-        className={styles.settingsDropdownTrigger}
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-label={label}
-      >
-        <span style={current?.style}>{current?.label}</span>
-        <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden>
-          <path
-            d="M2 4l4 4 4-4"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-      {open && (
-        <div className={styles.settingsDropdownMenu} role="listbox">
-          {options.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              role="option"
-              aria-selected={option.value === value}
-              className={
-                styles.settingsDropdownOption +
-                (option.value === value ? " " + styles.settingsDropdownOptionActive : "")
-              }
-              style={option.style}
-              onClick={() => { onChange(option.value); setOpen(false); }}
-            >
-              <span className="min-w-0 flex-1 truncate">{option.label}</span>
-              {option.value === value ? <MenuCheck /> : <span className={CHECK_SLOT_PAD} />}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <SimpleSelect
+      value={value}
+      onValueChange={onChange}
+      aria-label={label}
+      align="end"
+      options={options.map((option) => ({
+        value: option.value,
+        label: option.style ? <span style={option.style}>{option.label}</span> : option.label,
+      }))}
+    />
   );
 }
 

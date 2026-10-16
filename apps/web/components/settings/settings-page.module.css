@@ -370,10 +370,6 @@
   width: 120px;
   text-align: right;
 }
-.systemControlSelect {
-  width: auto;
-  text-align: left;
-}
 /* Bind address / origin lists: wider, left-aligned, monospace. */
 .systemControl[data-kind="text"] {
   width: min(320px, 100%);
@@ -492,85 +488,6 @@
 }
 .themeBtn.active {
   background: var(--bg-hover);
-  color: var(--text-bright);
-}
-
-.settingsDropdownWrap {
-  position: relative;
-  display: inline-block;
-}
-.settingsDropdownTrigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 32px;
-  padding: 6px 8px 6px 12px;
-  font-size: var(--fs-base);
-  line-height: 20px;
-  color: var(--text-primary);
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  font-family: inherit;
-  cursor: pointer;
-  outline: none;
-  white-space: nowrap;
-  transition: background 0.15s, color 0.15s;
-}
-.settingsDropdownTrigger:hover {
-  background: var(--bg-hover);
-}
-.settingsDropdownTrigger[aria-expanded="true"] {
-  background: var(--bg-hover);
-}
-.settingsDropdownTrigger svg {
-  flex-shrink: 0;
-  opacity: 0.6;
-}
-.settingsDropdownMenu {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  min-width: 100%;
-  width: max-content;
-  max-width: calc(100vw - 32px);
-  padding: 4px;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  /* Glass popover recipe (app/styles/base.css --glass-*). */
-  background: var(--glass-surface);
-  -webkit-backdrop-filter: var(--glass-backdrop);
-  backdrop-filter: var(--glass-backdrop);
-  border: 0.5px solid var(--glass-ring);
-  border-radius: var(--glass-radius);
-  box-shadow: var(--glass-shadow);
-}
-.settingsDropdownOption {
-  /* Row = the shared menu row (top-bar/menu-styles.ts itemCls); the
-     chosen option shows a check, never a fill. */
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  min-height: 24px;
-  padding: 2.5px 8px;
-  font-family: inherit;
-  font-size: 13px;
-  line-height: 19px;
-  color: var(--text-primary);
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  text-align: left;
-  white-space: nowrap;
-  transition: background 0.1s, color 0.1s;
-}
-.settingsDropdownOption:hover {
-  background: var(--bg-hover);
-}
-.settingsDropdownOptionActive {
   color: var(--text-bright);
 }
 
@@ -1111,7 +1028,6 @@
     width: auto !important;
     min-width: 0;
   }
-  .detailRow > select,
   .detailRow > .testResult {
     min-width: 0;
     max-width: 100% !important;

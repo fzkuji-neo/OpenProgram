@@ -100,8 +100,7 @@
   box-sizing: border-box;
 }
 .input:focus,
-.textarea:focus,
-.select:focus {
+.textarea:focus {
   outline: none;
   border-color: var(--accent-blue);
 }
@@ -114,17 +113,6 @@
   min-height: 200px;
   font-family: ui-monospace, monospace;
   resize: vertical;
-}
-
-.select {
-  height: var(--ui-button-h);
-  padding: 0 10px;
-  box-sizing: border-box;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: var(--ui-button-radius);
-  color: var(--text-primary);
-  font-size: 13px;
 }
 
 .checkRow {

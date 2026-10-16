@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { FileTextIcon, CopyIcon } from "@/components/animated-icons";
 import { jsonFetch } from "@/lib/net/fetch-client";
+import { SimpleSelect } from "@/components/ui/select";
 import { AgentButton } from "./agent-controls";
 import { ModelPicker, type ModelCatalog } from "./model-picker";
 import type { Agent, MemorySpace, Text } from "./agent-types";
@@ -38,7 +39,7 @@ export function MemoryPanel({ draft, update, text }: Props) {
     <p className={styles.note}>{text("Trial conversations use read-only memory at most. Turning memory off keeps existing records.", "试运行最多使用只读记忆。关闭记忆不会删除已有记录。")}</p>
     <fieldset className={styles.memoryFields} disabled={memory.mode === "off"}><legend>{text("Read from", "读取范围")}</legend>
       {spaces.map(([space, label, help]) => <label className={styles.memorySpace} key={space}><input type="checkbox" checked={memory.read_spaces.includes(space)} onChange={(event) => patch({ read_spaces: event.target.checked ? [...memory.read_spaces, space] : memory.read_spaces.filter((item) => item !== space) })} /><span><strong>{label}</strong><small>{help}</small></span></label>)}
-      <label className={styles.dialogField}>{text("Write to", "写入位置")}<select disabled={memory.mode !== "read_write"} value={memory.write_space} onChange={(event) => patch({ write_space: event.target.value as MemorySpace })}>{spaces.map(([space, label]) => <option key={space} value={space}>{label}</option>)}</select></label>
+      <label className={styles.dialogField}>{text("Write to", "写入位置")}<SimpleSelect className="w-full" disabled={memory.mode !== "read_write"} value={memory.write_space} onValueChange={(value) => patch({ write_space: value })} options={spaces.map(([space, label]) => ({ value: space, label }))} /></label>
       <label className={styles.memorySpace}><input type="checkbox" checked={memory.required} onChange={(event) => patch({ required: event.target.checked })} /><span><strong>{text("Require memory to be available", "要求记忆可用")}</strong><small>{text("If memory is unavailable, stop before starting a conversation.", "记忆不可用时阻止启动对话。")}</small></span></label>
     </fieldset>
   </>;
@@ -46,7 +47,12 @@ export function MemoryPanel({ draft, update, text }: Props) {
 export function ContextPanel({ draft, update, text }: Props) {
   return <><Intro title={text("Context", "上下文")}>{text("Control how channel conversations are separated and when an inactive conversation resets.", "控制频道对话的隔离方式，以及空闲对话的重置规则。")}</Intro>
     <p className={styles.note}>{text("New conversations and trial conversations start with a new history. These routing rules apply to channel conversations.", "新对话与试运行都使用新历史。以下路由规则用于频道对话。")}</p>
-    <div className={styles.formGrid}><label className={styles.fullField}>{text("Session scope", "会话范围")}<select value={draft.session_scope} onChange={(event) => update({ session_scope: event.target.value })}><option value="per-account-channel-peer">{text("Per account, channel and peer", "按账号、频道与联系人隔离")}</option><option value="per-channel-peer">{text("Per channel and peer", "按频道与联系人隔离")}</option><option value="per-peer">{text("Per peer", "按联系人隔离")}</option><option value="main">{text("Shared main session", "共享主会话")}</option></select></label>
+    <div className={styles.formGrid}><label className={styles.fullField}>{text("Session scope", "会话范围")}<SimpleSelect className="w-full" value={draft.session_scope} onValueChange={(value) => update({ session_scope: value })} options={[
+      { value: "per-account-channel-peer", label: text("Per account, channel and peer", "按账号、频道与联系人隔离") },
+      { value: "per-channel-peer", label: text("Per channel and peer", "按频道与联系人隔离") },
+      { value: "per-peer", label: text("Per peer", "按联系人隔离") },
+      { value: "main", label: text("Shared main session", "共享主会话") },
+    ]} /></label>
       <label>{text("Idle reset (minutes)", "空闲重置（分钟）")}<input type="number" min={0} max={525600} value={draft.session_idle_minutes} onChange={(event) => update({ session_idle_minutes: Number(event.target.value) })} /><small>{text("0 disables idle reset.", "0 表示禁用空闲重置。")}</small></label>
       <label>{text("Daily reset", "每日重置")}<input type="time" value={draft.session_daily_reset} onChange={(event) => update({ session_daily_reset: event.target.value })} /><small>{text("Empty disables daily reset.", "留空表示禁用。")}</small></label>
     </div>

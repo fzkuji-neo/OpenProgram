@@ -4,8 +4,10 @@
  * override it through tailwind-merge. Tokens live in app/styles/base.css
  * (--glass-*); CSS modules use those variables directly.
  */
-export const GLASS_SURFACE =
+export const GLASS_MATERIAL =
   "border-[0.5px] border-[var(--glass-ring)] " +
   "bg-[var(--glass-surface)] [-webkit-backdrop-filter:var(--glass-backdrop)] " +
-  "[backdrop-filter:var(--glass-backdrop)] shadow-[var(--glass-shadow)] " +
-  "rounded-[var(--glass-radius)]";
+  "[backdrop-filter:var(--glass-backdrop)] shadow-[var(--glass-shadow)]";
+
+/** The material plus the glass corner radius, for popovers that are not menus. */
+export const GLASS_SURFACE = GLASS_MATERIAL + " rounded-[var(--glass-radius)]";

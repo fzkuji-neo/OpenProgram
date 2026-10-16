@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Database, PencilLine, Search, Sparkles } from "lucide-react";
 
+import { SimpleSelect } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useTranslation } from "@/lib/i18n";
 import { api } from "@/lib/net/api";
@@ -164,20 +165,20 @@ export function MemorySettings() {
         <SettingsSection title={text("Background writing", "后台写入")}>
           <SettingsRow label={text("Writer model", "写入模型")} description={text("Automatic uses the default Agent's model, or the last used model when that Agent has none. You can also select an enabled model.", "自动：使用默认 Agent 的模型；该 Agent 没有设模型时，使用上次使用的模型。也可以选择一个已启用模型。") }>
             <Status live>{text("Live", "实时")}</Status>
-            <select aria-label={text("Writer model", "写入模型")} disabled={controlsDisabled} className={styles.select} value={writerModel} onChange={(event) => update("memory.writer.model", event.target.value)}>
-              <option value="">{text("Automatic", "自动")}</option>
-              {models.map((model) => <option key={`${model.provider}/${model.id}`} value={`${model.provider}/${model.id}`}>{model.name} · {model.provider}</option>)}
-            </select>
+            <SimpleSelect aria-label={text("Writer model", "写入模型")} disabled={controlsDisabled} className={styles.select} value={writerModel} onValueChange={(value) => update("memory.writer.model", value)} options={[
+              { value: "", label: text("Automatic", "自动") },
+              ...models.map((model) => ({ value: `${model.provider}/${model.id}`, label: `${model.name} · ${model.provider}` })),
+            ]} />
           </SettingsRow>
           <SettingsRow label={text("Automatic writing", "自动写入")} description={text("Turn completed conversations into Topic records in the background.", "在后台把已完成对话整理为 Topic 记录。") }>
             <Switch aria-label={text("Automatic writing", "自动写入")} disabled={controlsDisabled} checked={Boolean(draft["memory.writer.enabled"])} onCheckedChange={(value) => update("memory.writer.enabled", value)} />
           </SettingsRow>
           <SettingsRow label={text("Write frequency", "写入频率")} description={text("Controls how much conversation accumulates before a background write.", "控制后台写入前累计的对话量。") }>
-            <select aria-label={text("Write frequency", "写入频率")} disabled={controlsDisabled} className={styles.select} value={Number(draft["memory.writer.trigger_tokens"] ?? 16000)} onChange={(event) => update("memory.writer.trigger_tokens", Number(event.target.value))}>
-              <option value={8000}>{text("More frequent · about 8K tokens", "更频繁 · 约 8K Token")}</option>
-              <option value={16000}>{text("Balanced · about 16K tokens", "均衡 · 约 16K Token")}</option>
-              <option value={32000}>{text("Less frequent · about 32K tokens", "较少 · 约 32K Token")}</option>
-            </select>
+            <SimpleSelect aria-label={text("Write frequency", "写入频率")} disabled={controlsDisabled} className={styles.select} value={String(draft["memory.writer.trigger_tokens"] ?? 16000)} onValueChange={(value) => update("memory.writer.trigger_tokens", Number(value))} options={[
+              { value: "8000", label: text("More frequent · about 8K tokens", "更频繁 · 约 8K Token") },
+              { value: "16000", label: text("Balanced · about 16K tokens", "均衡 · 约 16K Token") },
+              { value: "32000", label: text("Less frequent · about 32K tokens", "较少 · 约 32K Token") },
+            ]} />
           </SettingsRow>
           <SettingsRow label={text("Verify after writing", "写入后校验")} description={text("After each write, ask a question about what was written, look it up, and repair Memory when the answer is not found. Costs a few extra model calls per write.", "每次写入后，就刚写入的内容提一个问题并检索；找不到答案时修复 Memory。每次写入会多几次模型调用。") }>
             <Switch aria-label={text("Verify after writing", "写入后校验")} disabled={controlsDisabled} checked={Boolean(draft["memory.writer.verify"])} onCheckedChange={(value) => update("memory.writer.verify", value)} />
@@ -187,32 +188,30 @@ export function MemorySettings() {
         <SettingsSection title={text("Retrieval", "检索")}>
           <SettingsRow label={text("Recall method", "检索方法")} description={text("Use ranked automatic recall, or let the Agent inspect Memory only when needed.", "使用自动排序检索，或仅由 Agent 在需要时查看 Memory。") }>
             <Status live>{text("Live", "实时")}</Status>
-            <select aria-label={text("Recall method", "检索方法")} disabled={controlsDisabled} className={styles.select} value={retrieval} onChange={(event) => update("memory.retrieval.method", event.target.value)}>
-              <option value="agent">{text("Agent · On demand", "Agent · 按需查看")}</option>
-              <option value="bm25">{text("Keyword · BM25", "关键词 · BM25")}</option>
-              <option value="embedding" disabled={!embeddingAvailable}>{text("Semantic · Embeddings", "语义 · Embedding")}{!embeddingAvailable ? text(" (unavailable)", "（不可用）") : ""}</option>
-              <option value="hybrid" disabled={!embeddingAvailable}>{text("Hybrid · BM25 + Embeddings", "混合 · BM25 + Embedding")}{!embeddingAvailable ? text(" (unavailable)", "（不可用）") : ""}</option>
-            </select>
+            <SimpleSelect aria-label={text("Recall method", "检索方法")} disabled={controlsDisabled} className={styles.select} value={retrieval} onValueChange={(value) => update("memory.retrieval.method", value)} options={[
+              { value: "agent", label: text("Agent · On demand", "Agent · 按需查看") },
+              { value: "bm25", label: text("Keyword · BM25", "关键词 · BM25") },
+              { value: "embedding", disabled: !embeddingAvailable, label: text("Semantic · Embeddings", "语义 · Embedding") + (!embeddingAvailable ? text(" (unavailable)", "（不可用）") : "") },
+              { value: "hybrid", disabled: !embeddingAvailable, label: text("Hybrid · BM25 + Embeddings", "混合 · BM25 + Embedding") + (!embeddingAvailable ? text(" (unavailable)", "（不可用）") : "") },
+            ]} />
           </SettingsRow>
           <SettingsRow label={text("Embedding model", "Embedding 模型")} description={text("Required only for semantic and hybrid retrieval. Installing also adds sentence-transformers and PyTorch when OpenProgram does not include them.", "仅语义检索和混合检索需要该模型。OpenProgram 未自带 sentence-transformers 和 PyTorch 时，安装会一并装上。") }>
             <Status missing={memoryStatus !== null && !memoryStatus.failed && !embeddingAvailable}>{memoryStatus === null ? text("Checking…", "检查中…") : memoryStatus.failed ? text("Unavailable", "无法检查") : embeddingAvailable ? text("Available", "可用") : text("Not installed", "未安装")}</Status>
             {memoryStatus !== null && !memoryStatus.failed && !embeddingAvailable && <button className={styles.installButton} type="button" onClick={installEmbedding} disabled={saving || installing}>{installing ? text("Installing…", "安装中…") : memoryStatus.embedding_packages === false ? text("Install · about 1 GB", "安装 · 约 1 GB") : text("Install · about 90 MB", "安装 · 约 90 MB")}</button>}
           </SettingsRow>
           <SettingsRow label={text("Hybrid weighting", "混合权重")} description={text("How hybrid recall balances keyword and semantic matches. Automatic leans on keywords for dates, quoted phrases and names.", "混合检索中关键词与语义匹配的比重。自动：查询含日期、引号短语或人名时偏向关键词。") }>
-            <select aria-label={text("Hybrid weighting", "混合权重")} disabled={controlsDisabled || retrieval !== "hybrid"} className={styles.select} value={String(draft["memory.retrieval.hybrid.weighting"] ?? "auto")} onChange={(event) => update("memory.retrieval.hybrid.weighting", event.target.value)}>
-              <option value="auto">{text("Automatic", "自动")}</option>
-              <option value="keyword">{text("Keyword first · 70 / 30", "关键词优先 · 70 / 30")}</option>
-              <option value="balanced">{text("Balanced · 50 / 50", "均衡 · 50 / 50")}</option>
-              <option value="semantic">{text("Semantic first · 30 / 70", "语义优先 · 30 / 70")}</option>
-            </select>
+            <SimpleSelect aria-label={text("Hybrid weighting", "混合权重")} disabled={controlsDisabled || retrieval !== "hybrid"} className={styles.select} value={String(draft["memory.retrieval.hybrid.weighting"] ?? "auto")} onValueChange={(value) => update("memory.retrieval.hybrid.weighting", value)} options={[
+              { value: "auto", label: text("Automatic", "自动") },
+              { value: "keyword", label: text("Keyword first · 70 / 30", "关键词优先 · 70 / 30") },
+              { value: "balanced", label: text("Balanced · 50 / 50", "均衡 · 50 / 50") },
+              { value: "semantic", label: text("Semantic first · 30 / 70", "语义优先 · 30 / 70") },
+            ]} />
           </SettingsRow>
           <SettingsRow label={text("Favour well-matched Topics", "同主题加权")} description={text("In hybrid recall, raise a Topic file that several matches come from.", "混合检索时，多条匹配来自同一个 Topic 文件时提高它的排名。") }>
             <Switch aria-label={text("Favour well-matched Topics", "同主题加权")} disabled={controlsDisabled || retrieval !== "hybrid"} checked={Boolean(draft["memory.retrieval.hybrid.file_boost"])} onCheckedChange={(value) => update("memory.retrieval.hybrid.file_boost", value)} />
           </SettingsRow>
           <SettingsRow label={text("Recall depth", "检索数量")} description={text("Maximum matching records added automatically to a turn.", "每个回合自动加入的最大匹配记录数。") }>
-            <select aria-label={text("Recall depth", "检索数量")} disabled={controlsDisabled || retrieval === "agent"} className={styles.select} value={Number(draft["memory.retrieval.top_k"] ?? 5)} onChange={(event) => update("memory.retrieval.top_k", Number(event.target.value))}>
-              {[3, 5, 8, 10].map((value) => <option key={value} value={value}>{value} {text("records", "条记录")}</option>)}
-            </select>
+            <SimpleSelect aria-label={text("Recall depth", "检索数量")} disabled={controlsDisabled || retrieval === "agent"} className={styles.select} value={String(draft["memory.retrieval.top_k"] ?? 5)} onValueChange={(value) => update("memory.retrieval.top_k", Number(value))} options={[3, 5, 8, 10].map((value) => ({ value: String(value), label: `${value} ${text("records", "条记录")}` }))} />
           </SettingsRow>
           <SettingsRow label={text("Search Source evidence", "检索 Source 证据")} description={text("Include archived evidence alongside curated Topic records.", "在整理后的 Topic 记录之外同时检索归档证据。") }>
             <Switch aria-label={text("Search Source evidence", "检索 Source 证据")} disabled={controlsDisabled || retrieval === "agent"} checked={Boolean(draft["memory.retrieval.include_sources"])} onCheckedChange={(value) => update("memory.retrieval.include_sources", value)} />
@@ -233,9 +232,7 @@ export function MemorySettings() {
             <Switch aria-label={text("Core Memory in every chat", "每次聊天注入核心记忆")} disabled={controlsDisabled} checked={Boolean(draft["memory.core.inject"])} onCheckedChange={(value) => update("memory.core.inject", value)} />
           </SettingsRow>
           <SettingsRow label={text("Recent view size", "Recent 视图大小")} description={text("Number of latest records retained after the next Memory write.", "下次 Memory 写入后保留的最新记录数量。") }>
-            <select aria-label={text("Recent view size", "Recent 视图大小")} disabled={controlsDisabled} className={styles.select} value={Number(draft["memory.recent.limit"] ?? 50)} onChange={(event) => update("memory.recent.limit", Number(event.target.value))}>
-              {[25, 50, 100].map((value) => <option key={value} value={value}>{value} {text("records", "条记录")}</option>)}
-            </select>
+            <SimpleSelect aria-label={text("Recent view size", "Recent 视图大小")} disabled={controlsDisabled} className={styles.select} value={String(draft["memory.recent.limit"] ?? 50)} onValueChange={(value) => update("memory.recent.limit", Number(value))} options={[25, 50, 100].map((value) => ({ value: String(value), label: `${value} ${text("records", "条记录")}` }))} />
           </SettingsRow>
           <SettingsRow label={text("Workspace", "工作区")} description={text("Current Memory data location. Runtime-managed files remain read-only.", "当前 Memory 数据位置；Runtime 管理的文件保持只读。") }>
             <span className={styles.monoValue}>{memoryStatus?.workspace_path || "~/.openprogram/memory"}</span>

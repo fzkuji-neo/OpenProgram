@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import styles from "./channels.module.css";
+import { SimpleSelect } from "@/components/ui/select";
 import { useTranslation } from "@/lib/i18n";
 import { useModalA11y } from "@/lib/hooks/use-modal-a11y";
 import { PLATFORM_LABEL } from "./types";
@@ -119,39 +120,33 @@ export function AddBindingDialog({ accounts, onClose, onAdded }: Props) {
 
           <label className={styles.formRow}>
             <span className={styles.formLabel}>① {text("Platform", "平台")}</span>
-            <select
-              className={styles.formInput}
+            <SimpleSelect
+              className="w-full"
               value={channel}
-              onChange={(e) => {
-                setChannel(e.target.value);
+              onValueChange={(value) => {
+                setChannel(value);
                 setAccountId("");
               }}
-            >
-              {channelOptions.length === 0 ? (
-                <option value="">{text("(no bots configured; add one above first)", "（还没有配置 bot，请先在上方添加）")}</option>
-              ) : null}
-              {channelOptions.map((c) => (
-                <option key={c} value={c}>
-                  {PLATFORM_LABEL[c] || c}
-                </option>
-              ))}
-            </select>
+              options={[
+                ...(channelOptions.length === 0
+                  ? [{ value: "", label: text("(no bots configured; add one above first)", "（还没有配置 bot，请先在上方添加）") }]
+                  : []),
+                ...channelOptions.map((c) => ({ value: c, label: PLATFORM_LABEL[c] || c })),
+              ]}
+            />
           </label>
 
           <label className={styles.formRow}>
             <span className={styles.formLabel}>② {text("Which bot", "哪个 bot")}</span>
-            <select
-              className={styles.formInput}
+            <SimpleSelect
+              className="w-full"
               value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
-            >
-              <option value="">{text("any bot", "任意 bot")}</option>
-              {accountOptions.map((a) => (
-                <option key={a.account_id} value={a.account_id}>
-                  {a.account_id}
-                </option>
-              ))}
-            </select>
+              onValueChange={setAccountId}
+              options={[
+                { value: "", label: text("any bot", "任意 bot") },
+                ...accountOptions.map((a) => ({ value: a.account_id, label: a.account_id })),
+              ]}
+            />
             <span className={styles.formHint}>
               {text("Leave as \"any bot\" to match every bot on this platform.", "保持“任意 bot”即可匹配这个平台上的所有 bot。")}
             </span>
@@ -176,32 +171,28 @@ export function AddBindingDialog({ accounts, onClose, onAdded }: Props) {
           {peer.trim() && (
             <label className={styles.formRow}>
               <span className={styles.formLabel}>{text("Sender type", "发送者类型")}</span>
-              <select
-                className={styles.formInput}
+              <SimpleSelect
+                className="w-full"
                 value={peerKind}
-                onChange={(e) => setPeerKind(e.target.value)}
-              >
-                <option value="direct">{text("direct chat (1-on-1)", "私聊（一对一）")}</option>
-                <option value="group">{text("group (multi-user)", "群组（多人）")}</option>
-                <option value="channel">{text("channel / broadcast", "频道 / 广播")}</option>
-              </select>
+                onValueChange={setPeerKind}
+                options={[
+                  { value: "direct", label: text("direct chat (1-on-1)", "私聊（一对一）") },
+                  { value: "group", label: text("group (multi-user)", "群组（多人）") },
+                  { value: "channel", label: text("channel / broadcast", "频道 / 广播") },
+                ]}
+              />
             </label>
           )}
 
           <label className={styles.formRow}>
             <span className={styles.formLabel}>④ {text("Send to agent", "发送到 Agent")}</span>
             {agents.length > 0 ? (
-              <select
-                className={styles.formInput}
+              <SimpleSelect
+                className="w-full"
                 value={agentId}
-                onChange={(e) => setAgentId(e.target.value)}
-              >
-                {agents.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name ? `${a.id} (${a.name})` : a.id}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setAgentId}
+                options={agents.map((a) => ({ value: a.id, label: a.name ? `${a.id} (${a.name})` : a.id }))}
+              />
             ) : (
               <input
                 className={styles.formInput}

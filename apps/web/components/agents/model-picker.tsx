@@ -7,6 +7,7 @@ import { jsonFetch } from "@/lib/net/fetch-client";
 import { AgentButton } from "./agent-controls";
 import type { Agent, Text } from "./agent-types";
 import styles from "./agents-page.module.css";
+import { SimpleSelect } from "@/components/ui/select";
 
 export type CatalogModel = {
   provider: string; id: string; name: string; enabled?: boolean;
@@ -69,11 +70,11 @@ export function ModelPicker({ draft, update, catalog, text, idPrefix = "agent", 
         <small>{inherited ? catalog.inherited ? `${catalog.inherited.provider} / ${catalog.inherited.id}` : text("No model used yet", "还没有使用过模型") : `${draft.model.provider}${!current && !catalog.loading ? text(" · Unavailable", " · 不可用") : ""}`}</small></span><ChevronDownIcon size={16} aria-hidden />
     </AgentButton></div>
     <label className={styles.dialogField} htmlFor={`${idPrefix}-effort`}>{text("Thinking effort", "思考强度")}
-      <select id={`${idPrefix}-effort`} value={draft.thinking_effort} onChange={(event) => update({ thinking_effort: event.target.value })} aria-describedby={!effortSupported ? `${idPrefix}-effort-warning` : undefined}>
-        <option value="">{text("Inherit model default", "继承模型默认值")}{current?.default_thinking_level ? ` (${current.default_thinking_level})` : ""}</option>
-        {!effortSupported && draft.thinking_effort ? <option value={draft.thinking_effort}>{draft.thinking_effort} — {text("not supported by this model", "当前模型不支持")}</option> : null}
-        {(current?.thinking_levels || []).map((level) => <option key={level} value={level}>{level}</option>)}
-      </select>
+      <SimpleSelect id={`${idPrefix}-effort`} className="w-full" value={draft.thinking_effort} onValueChange={(value) => update({ thinking_effort: value })} aria-describedby={!effortSupported ? `${idPrefix}-effort-warning` : undefined} options={[
+        { value: "", label: `${text("Inherit model default", "继承模型默认值")}${current?.default_thinking_level ? ` (${current.default_thinking_level})` : ""}` },
+        ...(!effortSupported && draft.thinking_effort ? [{ value: draft.thinking_effort, label: `${draft.thinking_effort} — ${text("not supported by this model", "当前模型不支持")}` }] : []),
+        ...(current?.thinking_levels || []).map((level) => ({ value: level, label: level })),
+      ]} />
     </label></div>
     {catalog.error ? <p className={styles.inlineError} role="alert">{catalog.error} <button type="button" onClick={catalog.retry}>{text("Retry loading models", "重新加载模型")}</button></p> : null}
     {!catalog.loading && !catalog.error && !current ? <p className={styles.inlineError}>{text("This model is unavailable. Keep the reference or choose an enabled model before starting a conversation.", "此模型不可用。可保留引用，或在发起对话前选择已启用模型。")}</p> : null}

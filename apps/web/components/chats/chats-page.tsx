@@ -40,8 +40,7 @@ import {
   ClockIcon,
   MessageCircleIcon,
 } from "@/components/animated-icons";
-import { MenuCheck } from "@/components/chat/top-bar/menu-check";
-import { CHECK_SLOT_PAD } from "@/components/chat/top-bar/menu-styles";
+import { SimpleSelect } from "@/components/ui/select";
 
 type SortKey = "recent" | "oldest" | "title";
 type StatusFilter = "all" | "active" | "archived";
@@ -181,18 +180,22 @@ export function ChatsPage({
 
   const selects = (
     <>
-      <CustomSelect
+      <SimpleSelect
+        size="sm"
+        aria-label={text("Sort", "排序")}
         value={sort}
-        onChange={setSort}
+        onValueChange={setSort}
         options={[
           { value: "recent", label: text("Sort: Recent", "排序：最近") },
           { value: "oldest", label: text("Sort: Oldest", "排序：最早") },
           { value: "title", label: text("Sort: Title", "排序：标题") },
         ]}
       />
-      <CustomSelect
+      <SimpleSelect
+        size="sm"
+        aria-label={text("Status", "状态")}
         value={statusFilter}
-        onChange={setStatusFilter}
+        onValueChange={setStatusFilter}
         options={[
           // Same `archived` flag as the sidebar's Recents → Status filter;
           // prefixed like the sort select so the trigger says what it filters.
@@ -354,78 +357,6 @@ function ChatRow({
     />
   );
 }
-
-/* Themed dropdown — same shape as the Programs page CustomSelect so
-   chats / programs / settings selects look identical. */
-function CustomSelect<T extends string>({
-  value,
-  options,
-  onChange,
-}: {
-  value: T;
-  options: { value: T; label: string }[];
-  onChange: (v: T) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onDocClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
-  }, [open]);
-
-  const current = options.find((o) => o.value === value);
-
-  return (
-    <div ref={ref} className={styles.selectWrap}>
-      <button
-        type="button"
-        className={styles.select}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span>{current?.label}</span>
-        <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden>
-          <path
-            d="M2 4l4 4 4-4"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-      {open && (
-        <div className={styles.selectMenu} role="listbox">
-          {options.map((o) => (
-            <button
-              key={o.value}
-              type="button"
-              role="option"
-              aria-selected={o.value === value}
-              className={
-                styles.selectOption +
-                (o.value === value ? " " + styles.selectOptionActive : "")
-              }
-              onClick={() => {
-                onChange(o.value);
-                setOpen(false);
-              }}
-            >
-              <span className="min-w-0 flex-1 truncate">{o.label}</span>
-              {o.value === value ? <MenuCheck /> : <span className={CHECK_SLOT_PAD} />}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 
 /** One left-rail filter row. "All chats" shows the chat-bubble glyph; the
  *  "by recency" buckets share the clock. The animated icon is driven from

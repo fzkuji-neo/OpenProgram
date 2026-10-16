@@ -11,6 +11,7 @@ import { useState } from "react";
 import { SolarIcon } from "@/components/solar-icons";
 import { OperationCode } from "./operation-code";
 import { Textarea } from "@/components/ui/textarea";
+import { SimpleSelect } from "@/components/ui/select";
 
 import type { PendingDecision, AskOne, FormFieldSchema } from "@/lib/session-store";
 import { useTranslation } from "@/lib/i18n";
@@ -406,15 +407,12 @@ function StepBody({
                   {f.description ? <span className={formStyles.hint}> · {f.description}</span> : null}
                 </span>
                 {f.enum && f.enum.length ? (
-                  <select
-                    className={styles.input}
-                    value={String(fields[name])}
-                    onChange={(e) => setField(name, e.target.value)}
-                  >
-                    {f.enum.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
+                  <SimpleSelect
+                    className="w-full"
+                    value={String(fields[name] ?? "")}
+                    onValueChange={(v) => setField(name, v)}
+                    options={f.enum.map((opt) => ({ value: String(opt), label: String(opt) }))}
+                  />
                 ) : (
                   <input
                     className={styles.input}

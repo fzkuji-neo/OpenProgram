@@ -21,6 +21,7 @@ import { KeyRound } from "lucide-react";
 import { api } from "@/lib/net/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SimpleSelect } from "@/components/ui/select";
 import { ManageEmptyState } from "@/components/ui/manage-page";
 import { PlusIcon } from "@/components/animated-icons";
 import styles from "@/components/settings/settings-page.module.css";
@@ -176,18 +177,12 @@ export default function AuthSettingsPage() {
             <div className={styles.row}>
               <label className={styles.label} htmlFor="auth-account">{text("Account", "账号")}</label>
               <div className={styles.control}>
-                <select
+                <SimpleSelect
                   id="auth-account"
-                  className={`${styles.systemControl} ${styles.systemControlSelect}`}
                   value={activeAccount}
-                  onChange={(e) => setActiveAccount(e.target.value)}
-                >
-                  {accounts.map((p) => (
-                    <option key={p.name} value={p.name}>
-                      {p.display_name || p.name}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={setActiveAccount}
+                  options={accounts.map((p) => ({ value: p.name, label: p.display_name || p.name }))}
+                />
               </div>
             </div>
           </div>
@@ -259,16 +254,15 @@ export default function AuthSettingsPage() {
             </label>
             <label className={styles.authField}>
               {text("Type", "类型")}
-              <select
-                className={`${styles.systemControl} ${styles.systemControlSelect}`}
+              <SimpleSelect
+                className="w-full"
                 value={addForm.type}
-                onChange={(e) =>
-                  setAddForm((f) => ({ ...f, type: e.target.value as "api_key" | "oauth" }))
-                }
-              >
-                <option value="api_key">{text("API key", "API key")}</option>
-                <option value="oauth">OAuth</option>
-              </select>
+                onValueChange={(value) => setAddForm((f) => ({ ...f, type: value }))}
+                options={[
+                  { value: "api_key" as const, label: text("API key", "API key") },
+                  { value: "oauth" as const, label: "OAuth" },
+                ]}
+              />
             </label>
             {addForm.type === "api_key" ? (
               <label className={`${styles.authField} ${styles.authFieldWide}`}>

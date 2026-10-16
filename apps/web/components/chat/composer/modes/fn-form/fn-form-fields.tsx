@@ -11,6 +11,7 @@ import { useTranslation } from "@/lib/i18n";
 
 import type { FnParam } from "@/lib/session-store";
 import { useWindowGlobals } from "@/components/sidebar/use-window-globals";
+import { SimpleSelect } from "@/components/ui/select";
 
 import styles from "./fn-form.module.css";
 
@@ -77,7 +78,7 @@ export function FieldRow({
       <FunctionSelect
         id={fieldId}
         name={p.name}
-        className={`${inputClass} ${styles.select}`}
+        className={`w-full ${errorClass}`.trim()}
         value={value}
         onChange={setValue}
       />
@@ -202,21 +203,15 @@ function FunctionSelect({
     return cat !== "meta" && cat !== "builtin";
   });
   return (
-    <select
+    <SimpleSelect
       id={id}
       name={name}
-      autoComplete="off"
       className={className}
       value={value}
-      onChange={(e) => onChange(e.target.value)}
-    >
-      <option value="">-- select --</option>
-      {fns.map((f) => (
-        <option key={f.name} value={f.name}>
-          {f.name}
-        </option>
-      ))}
-    </select>
+      onValueChange={onChange}
+      placeholder="-- select --"
+      options={fns.map((f) => ({ value: f.name, label: f.name }))}
+    />
   );
 }
 

@@ -22,6 +22,7 @@ import {
   useEnvironments,
   type EnvironmentInfo,
 } from "@/lib/environments/store";
+import { SimpleSelect } from "@/components/ui/select";
 import styles from "./settings-page.module.css";
 
 interface Result {
@@ -183,14 +184,15 @@ export function EnvironmentsSettings() {
           <form onSubmit={onAdd} className={`${styles.card} ${styles.authForm}`}>
             <label className={styles.authField}>
               {text("Type", "类型")}
-              <select
-                className={`${styles.systemControl} ${styles.systemControlSelect}`}
+              <SimpleSelect
+                className="w-full"
                 value={form.kind}
-                onChange={(e) => setForm((f) => ({ ...f, kind: e.target.value as Kind }))}
-              >
-                <option value="ssh">{text("SSH host", "SSH 主机")}</option>
-                <option value="docker">{text("Docker container", "Docker 容器")}</option>
-              </select>
+                onValueChange={(value) => setForm((f) => ({ ...f, kind: value }))}
+                options={[
+                  { value: "ssh" as Kind, label: text("SSH host", "SSH 主机") },
+                  { value: "docker" as Kind, label: text("Docker container", "Docker 容器") },
+                ]}
+              />
             </label>
             <label className={styles.authField}>
               {text("ID", "ID")}

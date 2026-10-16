@@ -20,6 +20,7 @@ import { SidebarNotice } from "./sidebar-notice";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { SimpleSelect } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { SectionHeader } from "../sidebar/section-header";
 import { useTranslation } from "@/lib/i18n";
@@ -448,11 +449,11 @@ export function DebuggerPanel({
 
             {snapshot.status === "paused" && <label>
               {text("Function code after restart", "重启后函数代码")}
-              <select aria-label={text("Function code after restart", "重启后函数代码")} value={codePolicies[snapshot.execution_id] || ""} onChange={(event) => setCodePolicies((previous) => ({ ...previous, [snapshot.execution_id]: event.target.value }))}>
-                <option value="">{text("Keep task policy", "沿用任务设置")}</option>
-                <option value="keep_original">{text("Continue original code", "继续原代码")}</option>
-                <option value="use_latest">{text("Use new code with saved results", "保留已有结果，使用新代码")}</option>
-              </select>
+              <SimpleSelect aria-label={text("Function code after restart", "重启后函数代码")} value={codePolicies[snapshot.execution_id] || ""} onValueChange={(value) => setCodePolicies((previous) => ({ ...previous, [snapshot.execution_id]: value }))} options={[
+                { value: "", label: text("Keep task policy", "沿用任务设置") },
+                { value: "keep_original", label: text("Continue original code", "继续原代码") },
+                { value: "use_latest", label: text("Use new code with saved results", "保留已有结果，使用新代码") },
+              ]} />
             </label>}
             <div className={styles.actions}>
               {(["pause", "continue", "step", "retry", "cancel"] as ExecutionCommandAction[]).filter((action) => availableExecutionActions(snapshot).includes(action)).map((action) => (
@@ -473,19 +474,13 @@ export function DebuggerPanel({
                 <div><strong>{wait.kind === "approval" ? text("Approval needed", "需要授权") : text("Answer needed", "需要回答")}</strong><p>{wait.request?.prompt || text("This execution is waiting for your response.", "此执行正在等待你的回复。")}</p></div>
                 <div className={styles.waitControls}>
                   {wait.kind === "approval" ? (
-                    <select aria-label="Approval scope" value={approvalScopes[waitKey(wait)] || ""} onChange={(event) => setApprovalScopes((current) => ({ ...current, [waitKey(wait)]: event.target.value }))} disabled={!onRespondWait || pendingWaits.has(waitKey(wait))}>
-                      <option value="">Choose approval scope</option>
-                      {(wait.policy_snapshot?.allowed_scopes ?? ["once"]).map((scope) => <option key={scope} value={scope}>{scope}</option>)}
-                    </select>
+                    <SimpleSelect aria-label="Approval scope" placeholder="Choose approval scope" value={approvalScopes[waitKey(wait)] || ""} onValueChange={(value) => setApprovalScopes((current) => ({ ...current, [waitKey(wait)]: value }))} disabled={!onRespondWait || pendingWaits.has(waitKey(wait))} options={(wait.policy_snapshot?.allowed_scopes ?? ["once"]).map((scope) => ({ value: scope, label: scope }))} />
                   ) : wait.kind === "form" ? (
                     <Textarea aria-label="Form answer" value={waitValues[waitKey(wait)] || ""} onChange={(event) => setWaitValues((current) => ({ ...current, [waitKey(wait)]: event.target.value }))} placeholder={JSON.stringify(Object.fromEntries(Object.entries(wait.request?.schema || {}).map(([name, field]) => [name, field.default ?? ""])), null, 2)} disabled={!onRespondWait || pendingWaits.has(waitKey(wait))} />
                   ) : wait.kind === "ask_many" || wait.request?.multi ? (
                     <Textarea aria-label={`${wait.kind} answer`} value={waitValues[waitKey(wait)] || ""} onChange={(event) => setWaitValues((current) => ({ ...current, [waitKey(wait)]: event.target.value }))} placeholder={'["answer 1", ["answer 2"]]'} disabled={!onRespondWait || pendingWaits.has(waitKey(wait))} />
                   ) : wait.request?.options?.length ? (
-                    <select aria-label={`${wait.kind} answer`} value={waitValues[waitKey(wait)] || ""} onChange={(event) => setWaitValues((current) => ({ ...current, [waitKey(wait)]: event.target.value }))} disabled={!onRespondWait || pendingWaits.has(waitKey(wait))}>
-                      <option value="">Choose an answer</option>
-                      {wait.request.options.map((option) => <option key={option} value={option}>{option}</option>)}
-                    </select>
+                    <SimpleSelect aria-label={`${wait.kind} answer`} placeholder="Choose an answer" value={waitValues[waitKey(wait)] || ""} onValueChange={(value) => setWaitValues((current) => ({ ...current, [waitKey(wait)]: value }))} disabled={!onRespondWait || pendingWaits.has(waitKey(wait))} options={wait.request.options.map((option) => ({ value: option, label: option }))} />
                   ) : (
                     <Input aria-label={`${wait.kind} answer`} value={waitValues[waitKey(wait)] || ""} onChange={(event) => setWaitValues((current) => ({ ...current, [waitKey(wait)]: event.target.value }))} placeholder="Answer" disabled={!onRespondWait || pendingWaits.has(waitKey(wait))} />
                   )}

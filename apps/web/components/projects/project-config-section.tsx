@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useTranslation } from "@/lib/i18n";
+import { SimpleSelect } from "@/components/ui/select";
 import { wsRequest } from "@/lib/net/ws-request";
 import { getSocket } from "@/lib/runtime-bridge/state";
 
@@ -87,17 +88,13 @@ export function ProjectConfigSection({ projectId }: { projectId: string }) {
           padding: "8px 0", gap: 16,
         }}>
           <span style={{ fontSize: 14, color: "var(--text-primary)" }}>{r.label}</span>
-          <select
+          <SimpleSelect
+            className="min-w-40"
+            aria-label={r.label}
             value={cfg[r.key] || r.fallback}
-            onChange={(e) => setField(r.key, e.target.value)}
-            style={{
-              padding: "6px 10px", borderRadius: 8,
-              border: "1px solid var(--border)", background: "var(--bg-primary)",
-              color: "var(--text-primary)", minWidth: 160,
-            }}
-          >
-            {r.opts.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
-          </select>
+            onValueChange={(value) => setField(r.key, value)}
+            options={r.opts.map((o) => ({ value: o.v, label: o.label }))}
+          />
         </div>
       ))}
     </div>
