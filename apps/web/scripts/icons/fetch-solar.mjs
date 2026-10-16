@@ -96,10 +96,13 @@ const EXTRA = {
 const ADJUST = {
   // The microphone head (every path after the stand) is stretched 10 %
   // upward from its bottom edge at y = 16.5, at the same width, so the
-  // capsule reads taller at 16 px; its top lands at y = 0.55.
+  // capsule reads taller at 16 px; its top lands at y = 0.55. The glyph
+  // then spans 0.55–22.5, so the whole of it moves down 0.475 to sit
+  // centred on y = 12 (1.025–22.975).
   "microphone-2": (body) =>
-    body.replace(/^(<g fill="currentColor"><path [^>]*\/>)(.*)(<\/g>)$/, (_, stand, head, end) =>
-      `${stand}<g transform="matrix(1 0 0 1.1 0 -1.65)">${head}</g>${end}`),
+    body.replace(/^<g fill="currentColor">(<path [^>]*\/>)(.*)<\/g>$/, (_, stand, head) =>
+      `<g fill="currentColor" transform="translate(0 0.475)">${stand}` +
+      `<g transform="matrix(1 0 0 1.1 0 -1.65)">${head}</g></g>`),
 };
 
 const ids = Object.entries(ICONS).map(([name, style]) => `${name}-${style}`);
