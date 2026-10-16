@@ -1,8 +1,8 @@
 /**
  * WelcomeScreen — the empty chat.
  *
- * No mark, tagline or starter buttons: only an animated backdrop that
- * rotates between scenes per load, with the composer floating over it.
+ * No mark, tagline or starter buttons: the composer floats over an empty
+ * area, or over the code rain when the "Welcome animation" setting is on.
  * Visible whenever the session store says so; mounted as a portal inside
  * the #welcome-mount placeholder that PageShell leaves in the chat area.
  */

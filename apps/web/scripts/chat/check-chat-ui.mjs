@@ -13,6 +13,8 @@ const source = (path) => readFileSync(new URL(path, root), "utf8");
 const welcome = source("components/chat/welcome-screen.tsx");
 const welcomeCss = source("components/chat/welcome-screen.module.css");
 const welcomeBackdrop = source("components/chat/welcome-backdrop.tsx");
+const welcomeBackdropPref = source("lib/prefs/welcome-backdrop-pref.ts");
+const generalSettings = source("components/settings/general-section.tsx");
 const messageList = source("components/chat/messages/use-chat-area-stick.ts") + source("components/chat/messages/message-list.tsx");
 const messageActions = source("components/chat/messages/message-actions.tsx");
 // The strip is split across center-tab-strip.tsx and its submodules;
@@ -239,7 +241,10 @@ assert.doesNotMatch(markdownRenderer, /return "<pre>" \+ escHtml\(str\) \+ "<\/p
 // The empty chat is a rotating animated backdrop only: no mark, tagline or starter buttons.
 assert.match(welcome, /<WelcomeBackdrop \/>/);
 assert.doesNotMatch(welcome, /icon\.svg|styles\.(?:mark|tagline|starter)/);
-assert.match(welcomeBackdrop, /const SCENES = \[callGraph, codeRain\];/);
+assert.match(welcomeBackdrop, /return enabled \? <CodeRainCanvas \/> : null;/);
+assert.doesNotMatch(welcomeBackdrop, /callGraph|SCENES/);
+assert.match(welcomeBackdropPref, /let current = false;/, "the welcome code rain is off by default");
+assert.match(generalSettings, /useWelcomeBackdropPref\(\)[\s\S]*id="welcome-code-rain"/);
 assert.match(welcomeBackdrop, /prefers-reduced-motion: reduce/);
 assert.match(welcomeCss, /\.backdrop\s*\{[^}]*position:\s*absolute;[^}]*pointer-events:\s*none;/s);
 
