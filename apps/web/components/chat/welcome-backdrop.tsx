@@ -60,9 +60,9 @@ function callGraph(): Scene {
         const children = nodes.map((n, i) => (n.parent >= 0 ? i : -1)).filter((i) => i >= 0);
         pulses.push({ to: children[Math.floor(Math.random() * children.length)], s: 0 });
       }
-      ctx.lineWidth = 1.2;
+      ctx.lineWidth = 1.4;
       ctx.strokeStyle = pal.ink;
-      ctx.globalAlpha = 0.2;
+      ctx.globalAlpha = 0.34;
       nodes.forEach((n, i) => {
         if (n.parent < 0) return;
         const a = pos[n.parent], b = pos[i];
@@ -99,7 +99,7 @@ function callGraph(): Scene {
           ctx.stroke();
         }
         ctx.fillStyle = n.lit > 0.05 ? pal.accent : pal.ink;
-        ctx.globalAlpha = 0.38 + n.lit * 0.55;
+        ctx.globalAlpha = 0.55 + n.lit * 0.45;
         ctx.beginPath();
         ctx.arc(p.x, p.y, n.parent < 0 ? 6 : 4.5, 0, Math.PI * 2);
         ctx.fill();
