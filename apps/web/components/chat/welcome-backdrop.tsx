@@ -18,30 +18,28 @@ type Scene = {
   draw(ctx: CanvasRenderingContext2D, t: number, width: number, height: number, pal: Palette): void;
 };
 
-/** Code rain after The Matrix: a fixed grid of glyphs (katakana, Latin
- *  capitals, digits, symbols; some mirrored) that drops of light run down,
- *  a glowing head with a long green tail. A lit glyph changes now and then,
- *  then rests: after each change it waits GLYPH_REST seconds on average
- *  before it may change again. Green regardless of the app theme. */
+/** Code rain after The Matrix: a fixed grid of mirrored glyphs (katakana,
+ *  Latin capitals, digits, symbols) that drops of light run down, a
+ *  glowing head with a long green tail. Every visible glyph has the same
+ *  chance to change, CHANGE_RATE times a second on average, rolled once
+ *  per frame however many drops light it. Green regardless of the theme. */
 function codeRain(): Scene {
   const GLYPHS =
     "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ" +
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:.=*+-<>|\"_";
   const CELL = 20;
-  const GLYPH_REST = 10;
-  // next: the earliest time this glyph may change again; -1 until first lit.
-  type Cell = { ch: string; flip: boolean; next: number };
+  const CHANGE_RATE = 0.1;
+  // rolled: the last frame this glyph's change was rolled, so two drops
+  // over one cell don't roll it twice.
+  type Cell = { ch: string; rolled: number };
   type Drop = { col: number; y: number; speed: number; len: number };
   let grid: Cell[][] = [];
   let drops: Drop[] = [];
   let rows = 0;
   let last = 0;
-  const cell = (): Cell => ({
-    ch: GLYPHS[Math.floor(Math.random() * GLYPHS.length)],
-    flip: Math.random() < 0.3,
-    next: -1,
-  });
-  const rest = (t: number) => t + GLYPH_REST * (0.5 + Math.random());
+  let frame = 0;
+  const glyph = () => GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
+  const cell = (): Cell => ({ ch: glyph(), rolled: -1 });
   const spawn = (col: number, scatter: boolean): Drop => {
     const len = 18 + Math.floor(Math.random() * 30);
     return {
@@ -64,6 +62,7 @@ function codeRain(): Scene {
     draw(ctx, t, _w, _h, pal) {
       const dt = last ? Math.min(0.05, t - last) : 0.016;
       last = t;
+      frame++;
       const dark = !isDark(pal.ink); // 深色主题：正文墨色是浅的。
       const tail = dark ? "#22e35b" : "#118a3a";
       const head = dark ? "#eafff0" : "#063d18";
@@ -79,9 +78,11 @@ function codeRain(): Scene {
           const row = top - k;
           if (row < 0 || row >= rows) continue;
           const g = grid[d.col][row];
-          // 冷却到期才换字，换完重新冷却；不会连着变。
-          if (g.next < 0) g.next = rest(t);
-          else if (t >= g.next) Object.assign(g, cell(), { next: rest(t) });
+          // 看得见的字每帧掷一次，所有字概率相同。
+          if (g.rolled !== frame) {
+            g.rolled = frame;
+            if (Math.random() < dt * CHANGE_RATE) g.ch = glyph();
+          }
           const y = row * CELL + CELL / 2;
           if (k === 0) {
             ctx.fillStyle = head;
@@ -95,15 +96,12 @@ function codeRain(): Scene {
             ctx.globalAlpha = Math.max(0.06, fade) * (dark ? 0.92 : 0.78);
             ctx.shadowBlur = 0;
           }
-          if (g.flip) {
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.scale(-1, 1);
-            ctx.fillText(g.ch, 0, 0);
-            ctx.restore();
-          } else {
-            ctx.fillText(g.ch, x, y);
-          }
+          // 所有字都镜像。
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.scale(-1, 1);
+          ctx.fillText(g.ch, 0, 0);
+          ctx.restore();
         }
       }
       ctx.shadowBlur = 0;
