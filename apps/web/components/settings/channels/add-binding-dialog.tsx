@@ -120,7 +120,7 @@ export function AddBindingDialog({ accounts, onClose, onAdded }: Props) {
 
           <label className={styles.formRow}>
             <span className={styles.formLabel}>① {text("Platform", "平台")}</span>
-            <SimpleSelect
+            <SimpleSelect label={text("Platform", "平台")}
               className="w-full"
               value={channel}
               onValueChange={(value) => {
@@ -138,7 +138,7 @@ export function AddBindingDialog({ accounts, onClose, onAdded }: Props) {
 
           <label className={styles.formRow}>
             <span className={styles.formLabel}>② {text("Which bot", "哪个 bot")}</span>
-            <SimpleSelect
+            <SimpleSelect label={text("Which bot", "哪个 bot")}
               className="w-full"
               value={accountId}
               onValueChange={setAccountId}
@@ -171,7 +171,7 @@ export function AddBindingDialog({ accounts, onClose, onAdded }: Props) {
           {peer.trim() && (
             <label className={styles.formRow}>
               <span className={styles.formLabel}>{text("Sender type", "发送者类型")}</span>
-              <SimpleSelect
+              <SimpleSelect label={text("Sender type", "发送者类型")}
                 className="w-full"
                 value={peerKind}
                 onValueChange={setPeerKind}
@@ -187,7 +187,7 @@ export function AddBindingDialog({ accounts, onClose, onAdded }: Props) {
           <label className={styles.formRow}>
             <span className={styles.formLabel}>④ {text("Send to agent", "发送到 Agent")}</span>
             {agents.length > 0 ? (
-              <SimpleSelect
+              <SimpleSelect label={text("Send to agent", "发送到 Agent")}
                 className="w-full"
                 value={agentId}
                 onValueChange={setAgentId}

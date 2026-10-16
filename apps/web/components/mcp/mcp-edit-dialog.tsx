@@ -246,7 +246,7 @@ export function EditDialog({
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="mcp-transport">{text("Transport", "传输")}</Label>
-            <SimpleSelect
+            <SimpleSelect label={text("Transport", "传输")}
               id="mcp-transport"
               className="w-full font-mono"
               value={state.transport}
@@ -311,7 +311,7 @@ export function EditDialog({
 
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="mcp-auth">{text("Authentication", "认证")}</Label>
-                <SimpleSelect
+                <SimpleSelect label={text("Authentication", "认证")}
                   id="mcp-auth"
                   className="w-full font-mono"
                   value={state.authKind}

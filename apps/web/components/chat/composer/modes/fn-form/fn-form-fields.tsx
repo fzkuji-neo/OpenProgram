@@ -203,7 +203,7 @@ function FunctionSelect({
     return cat !== "meta" && cat !== "builtin";
   });
   return (
-    <SimpleSelect
+    <SimpleSelect label={name}
       id={id}
       name={name}
       className={className}

@@ -177,7 +177,7 @@ export default function AuthSettingsPage() {
             <div className={styles.row}>
               <label className={styles.label} htmlFor="auth-account">{text("Account", "账号")}</label>
               <div className={styles.control}>
-                <SimpleSelect
+                <SimpleSelect label={text("Account", "账号")}
                   id="auth-account"
                   value={activeAccount}
                   onValueChange={setActiveAccount}
@@ -254,7 +254,7 @@ export default function AuthSettingsPage() {
             </label>
             <label className={styles.authField}>
               {text("Type", "类型")}
-              <SimpleSelect
+              <SimpleSelect label={text("Type", "类型")}
                 className="w-full"
                 value={addForm.type}
                 onValueChange={(value) => setAddForm((f) => ({ ...f, type: value }))}

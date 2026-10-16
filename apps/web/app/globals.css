@@ -34,6 +34,69 @@
    explicitly light is dark (shadcn components rely on this variant). */
 @custom-variant dark (&:where(:root:not([data-theme-mode="light"]), :root:not([data-theme-mode="light"]) *));
 
+/* shadcn/ui state variants, copied from the shadcn package's tailwind.css
+   (packages/shadcn/src/tailwind.css). The registry components write
+   data-open: / data-checked: … for Radix's data-state attributes. */
+@custom-variant data-open {
+  &:where([data-state="open"]),
+  &:where([data-open]:not([data-open="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-closed {
+  &:where([data-state="closed"]),
+  &:where([data-closed]:not([data-closed="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-checked {
+  &:where([data-state="checked"]),
+  &:where([data-checked]:not([data-checked="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-unchecked {
+  &:where([data-state="unchecked"]),
+  &:where([data-unchecked]:not([data-unchecked="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-selected {
+  &:where([data-selected="true"]) {
+    @slot;
+  }
+}
+
+@custom-variant data-disabled {
+  &:where([data-disabled="true"]),
+  &:where([data-disabled]:not([data-disabled="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-active {
+  &:where([data-state="active"]),
+  &:where([data-active]:not([data-active="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-horizontal {
+  &:where([data-orientation="horizontal"]) {
+    @slot;
+  }
+}
+
+@custom-variant data-vertical {
+  &:where([data-orientation="vertical"]) {
+    @slot;
+  }
+}
+
 /* Design tokens → Tailwind utility names. Mirrors app/styles/base.css
    (:root), which stays the single source of truth — this block only
    hands Tailwind the utility aliases (was theme.extend in
@@ -167,6 +230,29 @@
   ::before {
     border-color: var(--border);
   }
+}
+
+/* shadcn/ui at the docs' scale. The registry's sizes are rem-based and
+   written for a 16px root; this app's root is 14px (base.css), which
+   renders every official component at 7/8 size. Pages built entirely
+   from the official components (Settings) set .shadcn-scale on their
+   content column: Tailwind v4 utilities read these theme variables, so
+   h-8, text-sm, gap-2 … resolve to the docs' 32px, 14px, 8px inside it,
+   while px-based CSS modules elsewhere are untouched. */
+.shadcn-scale {
+  --spacing: 4px;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 18px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  /* shadcn's --radius: 0.625rem ladder (sm .6×, md .8×, lg 1×, xl 1.4×) */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  font-size: 14px;
 }
 
 /* shadcn token bridge so shadcn/ui components keep working */

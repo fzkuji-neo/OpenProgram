@@ -1,7 +1,7 @@
 "use client";
 
 /** General settings — theme, font, language, app metadata. */
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useId, useState, type CSSProperties } from "react";
 
 import { useTranslation, type Locale } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,12 @@ import { DRAG_SURFACE_STYLE, VISUAL_EFFECTS_LIMITS, type VisualEffectKey } from 
 import styles from "./settings-page.module.css";
 import { DesktopAttentionSection } from "./desktop-attention-section";
 import { SimpleSelect } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Slider } from "@/components/ui/slider";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Field, FieldContent, FieldGroup, FieldLabel, FieldTitle } from "@/components/ui/field";
+import { SettingsPage, SettingsRow, SettingsSection } from "./settings-ui";
 
 const FONT_OPTIONS: FontKey[] = ["system", "inter", "serif", "mono"];
 
@@ -135,74 +141,51 @@ function ProfileEditor({
     onChange({ ...profile, avatar: next });
   }
 
+  const nameId = useId();
+
   return (
-    <div className={styles.card}>
-        <div className={styles.row}>
-          <div className={styles.label}>{t("general.agent.preview")}</div>
-          <div className={styles.control}>
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
-              <Avatar
-                size={40}
-                name={profile.name}
-                config={
-                  profile.avatar?.kind === "letter"
-                    ? {
-                        kind: "letter",
-                        letter: profile.initial,
-                        bg: profile.color,
-                      }
-                    : profile.avatar
-                }
-              />
-              <span style={{ fontWeight: 600 }}>{profile.name}</span>
-            </span>
-          </div>
-        </div>
-
-        <div className={styles.row}>
-          <div className={styles.label}>{t("general.agent.name")}</div>
-          <div className={styles.control}>
-            <input
-              type="text"
-              value={profile.name}
-              maxLength={32}
-              placeholder={namePlaceholder}
-              onChange={(e) => updateName(e.target.value)}
-              style={{
-                padding: "6px 10px",
-                background: "var(--bg-secondary)",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--ui-button-radius)",
-                color: "var(--text-primary)",
-                font: "inherit",
-                width: 200,
-              }}
-            />
-          </div>
-        </div>
-
-        <div className={styles.row + " " + styles.rowTop}>
-          <div className={styles.label}>{t("general.avatar")}</div>
-          <div className={styles.control}>
-            <AvatarPicker
-              value={profile.avatar}
-              onChange={updateAvatar}
-              name={profile.name}
-              letterBg={profile.color}
-              letterText={profile.initial}
-              onLetterBgChange={updateColor}
-              onLetterTextChange={updateInitial}
-              colors={colors}
-            />
-          </div>
-        </div>
-      </div>
+    <>
+      <SettingsRow label={t("general.agent.preview")}>
+        <span className="inline-flex items-center gap-2.5">
+          <Avatar
+            size={40}
+            name={profile.name}
+            config={
+              profile.avatar?.kind === "letter"
+                ? {
+                    kind: "letter",
+                    letter: profile.initial,
+                    bg: profile.color,
+                  }
+                : profile.avatar
+            }
+          />
+          <span className="font-medium">{profile.name}</span>
+        </span>
+      </SettingsRow>
+      <SettingsRow label={t("general.agent.name")} htmlFor={nameId}>
+        <Input
+          id={nameId}
+          className="w-48"
+          value={profile.name}
+          maxLength={32}
+          placeholder={namePlaceholder}
+          onChange={(e) => updateName(e.target.value)}
+        />
+      </SettingsRow>
+      <SettingsRow label={t("general.avatar")} stacked>
+        <AvatarPicker
+          value={profile.avatar}
+          onChange={updateAvatar}
+          name={profile.name}
+          letterBg={profile.color}
+          letterText={profile.initial}
+          onLetterBgChange={updateColor}
+          onLetterTextChange={updateInitial}
+          colors={colors}
+        />
+      </SettingsRow>
+    </>
   );
 }
 
@@ -210,15 +193,14 @@ function AgentSection() {
   const { t } = useTranslation();
   const profile = useAgentProfile();
   return (
-    <section>
-      <h3 className={styles.sectionTitle}>{t("general.section.agent")}</h3>
+    <SettingsSection title={t("general.section.agent")}>
       <ProfileEditor
         profile={profile}
         onChange={setAgentProfile}
         colors={AGENT_COLORS}
         namePlaceholder={t("general.agent.name.placeholder")}
       />
-    </section>
+    </SettingsSection>
   );
 }
 
@@ -226,15 +208,14 @@ function UserSection() {
   const { t } = useTranslation();
   const profile = useUserProfile();
   return (
-    <section>
-      <h3 className={styles.sectionTitle}>{t("general.section.you")}</h3>
+    <SettingsSection title={t("general.section.you")}>
       <ProfileEditor
         profile={profile}
         onChange={setUserProfile}
         colors={AGENT_COLORS}
         namePlaceholder={t("general.you.name.placeholder")}
       />
-    </section>
+    </SettingsSection>
   );
 }
 
@@ -323,97 +304,79 @@ function ApplicationSection() {
   const progress = updateState?.progress;
 
   return (
-    <section>
-      <h3 className={styles.sectionTitle}>{t("general.section.application")}</h3>
-      <div className={styles.card}>
-        <div className={styles.row}>
-          <div className={styles.label}>{t("general.version")}</div>
-          <div className={styles.control}>{updateState?.currentVersion || hostVersion}</div>
-        </div>
-        {bridge?.updates ? (
-          <>
-            <div className={styles.row}>
-              <label className={styles.label} htmlFor="automatic-update-checks">
-                {text("Automatically check for updates", "自动检查更新")}
-              </label>
-              <div className={styles.control}>
-                <Switch
-                  id="automatic-update-checks"
-                  checked={updateState?.automaticChecks ?? true}
-                  onCheckedChange={(checked) => { void runUpdateAction(() => bridge.updates.setAutomaticChecks(checked)); }}
-                />
-              </div>
-            </div>
-            <div className={styles.row}>
-              <div className={styles.label}>{text("Update status", "更新状态")}</div>
-              <div
-                className={styles.control}
-                role={updateState?.status === "downloading" ? "progressbar" : "status"}
-                aria-live={updateState?.status === "downloading" ? undefined : "polite"}
-                aria-atomic="true"
-                aria-valuemin={progress ? 0 : undefined}
-                aria-valuemax={progress?.total}
-                aria-valuenow={progress?.downloaded}
-                aria-valuetext={progress ? statusText : undefined}
-                data-tip={statusDetail}
-              >
-                {statusText}
-              </div>
-            </div>
-            {updateState?.release?.publishedAt && updateState.release.status === "available" && (
-              <div className={styles.row}>
-                <div className={styles.label}>{text("Published", "发布时间")}</div>
-                <div className={styles.control}>{new Date(updateState.release.publishedAt).toLocaleDateString()}</div>
-              </div>
+    <SettingsSection title={t("general.section.application")}>
+      <SettingsRow label={t("general.version")}>
+        <span className="text-sm text-muted-foreground">{updateState?.currentVersion || hostVersion}</span>
+      </SettingsRow>
+      {bridge?.updates ? (
+        <>
+          <SettingsRow label={text("Automatically check for updates", "自动检查更新")} htmlFor="automatic-update-checks">
+            <Switch
+              id="automatic-update-checks"
+              checked={updateState?.automaticChecks ?? true}
+              onCheckedChange={(checked) => { void runUpdateAction(() => bridge.updates.setAutomaticChecks(checked)); }}
+            />
+          </SettingsRow>
+          <SettingsRow label={text("Update status", "更新状态")}>
+            <span
+              className="text-sm text-muted-foreground"
+              role={updateState?.status === "downloading" ? "progressbar" : "status"}
+              aria-live={updateState?.status === "downloading" ? undefined : "polite"}
+              aria-atomic="true"
+              aria-valuemin={progress ? 0 : undefined}
+              aria-valuemax={progress?.total}
+              aria-valuenow={progress?.downloaded}
+              aria-valuetext={progress ? statusText : undefined}
+              data-tip={statusDetail}
+            >
+              {statusText}
+            </span>
+          </SettingsRow>
+          {updateState?.release?.publishedAt && updateState.release.status === "available" && (
+            <SettingsRow label={text("Published", "发布时间")}>
+              <span className="text-sm text-muted-foreground">{new Date(updateState.release.publishedAt).toLocaleDateString()}</span>
+            </SettingsRow>
+          )}
+          {updateState?.release?.releaseNotes && updateState.release.status === "available" && (
+            <SettingsRow label={text("Release notes", "版本说明")} stacked>
+              <p className="text-sm whitespace-pre-wrap text-muted-foreground">
+                {updateState.release.releaseNotes.slice(0, 600)}
+              </p>
+            </SettingsRow>
+          )}
+          <SettingsRow label={text("Actions", "操作")}>
+            <Button variant="outline" disabled={busy} onClick={() => { void runUpdateAction(() => bridge.updates.check()); }}>
+              {text("Check now", "立即检查")}
+            </Button>
+            {updateState?.release?.status === "available" && (
+              <Button disabled={busy} onClick={() => { void runUpdateAction(() => bridge.updates.download()); }}>
+                {text("Download and open installer", "下载并打开安装程序")}
+              </Button>
             )}
-            {updateState?.release?.releaseNotes && updateState.release.status === "available" && (
-              <div className={`${styles.row} ${styles.rowTop}`}>
-                <div className={styles.label}>{text("Release notes", "版本说明")}</div>
-                <div className={styles.control} style={{ whiteSpace: "pre-wrap", textAlign: "left" }}>
-                  {updateState.release.releaseNotes.slice(0, 600)}
-                </div>
-              </div>
+            {updateState?.release && (
+              <Button variant="outline" onClick={() => { void runUpdateAction(() => bridge.updates.openRelease()); }}>
+                {text("View release", "查看 Release")}
+              </Button>
             )}
-            <div className={styles.row}>
-              <div className={styles.label}>{text("Actions", "操作")}</div>
-              <div className={styles.control} style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <Button variant="outline" size="sm" className={"text-fs-base " + styles.settingsAction} disabled={busy} onClick={() => { void runUpdateAction(() => bridge.updates.check()); }}>
-                  {text("Check now", "立即检查")}
-                </Button>
-                {updateState?.release?.status === "available" && (
-                  <Button size="sm" className={"text-fs-base " + styles.settingsAction} disabled={busy} onClick={() => { void runUpdateAction(() => bridge.updates.download()); }}>
-                    {text("Download and open installer", "下载并打开安装程序")}
-                  </Button>
-                )}
-                {updateState?.release && (
-                  <Button variant="outline" size="sm" className={"text-fs-base " + styles.settingsAction} onClick={() => { void runUpdateAction(() => bridge.updates.openRelease()); }}>
-                    {text("View release", "查看 Release")}
-                  </Button>
-                )}
-              </div>
+          </SettingsRow>
+        </>
+      ) : (
+        <>
+          <SettingsRow label={text("Installation", "安装类型")}>
+            <span className="text-sm text-muted-foreground">{installType}</span>
+          </SettingsRow>
+          <SettingsRow label={text("Check for updates", "检查更新")}>
+            <div className="grid gap-1 text-right font-mono text-sm text-muted-foreground">
+              <code>openprogram upgrade --check</code>
+              <code>openprogram upgrade</code>
             </div>
-          </>
-        ) : (
-          <>
-            <div className={styles.row}>
-              <div className={styles.label}>{text("Installation", "安装类型")}</div>
-              <div className={styles.control}>{installType}</div>
-            </div>
-            <div className={styles.row}>
-              <div className={styles.label}>{text("Check for updates", "检查更新")}</div>
-              <div className={styles.value} style={{ display: "grid", gap: 4 }}>
-                <code>openprogram upgrade --check</code>
-                <code>openprogram upgrade</code>
-              </div>
-            </div>
-          </>
-        )}
-        <div className={styles.row}>
-          <div className={styles.label}>{t("general.framework")}</div>
-          <div className={styles.control}>Agentic Programming</div>
-        </div>
-      </div>
-    </section>
+          </SettingsRow>
+        </>
+      )}
+      <SettingsRow label={t("general.framework")}>
+        <span className="text-sm text-muted-foreground">Agentic Programming</span>
+      </SettingsRow>
+    </SettingsSection>
   );
 }
 
@@ -459,294 +422,231 @@ export function GeneralSection() {
   ];
 
   return (
-    <div className={styles.page}>
-      <div className={styles.pageHeader}>
-        <h2 className={styles.pageTitle}>{t("general.title")}</h2>
-        <p className={styles.pageMeta}>{t("general.meta")}</p>
-      </div>
-      <div className={styles.pageBody}>
-        <section>
-          <h3 className={styles.sectionTitle}>{t("general.section.preferences")}</h3>
-          <div className={styles.card}>
-            <div className={styles.row + " " + styles.rowTop}>
-              <div className={styles.label}>{text("Mode", "明暗模式")}</div>
-              <div className={styles.control}>
-                <div className={styles.themeGrid}>
-                  {THEME_MODES.map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      className={
-                        styles.themeCard +
-                        (mode === m ? " " + styles.active : "")
-                      }
-                      onClick={() => setMode(m)}
-                      title={MODE_LABELS[m]}
-                      aria-pressed={mode === m}
-                    >
-                      <span
-                        className={styles.themeSwatch}
-                        data-theme={
-                          m === "auto"
-                            ? THEME_STYLE_PAIRS[style].dark
-                            : THEME_STYLE_PAIRS[style][m]
-                        }
-                        aria-hidden="true"
-                      >
-                        <span
-                          className={styles.themeDot}
-                          style={{ background: "var(--accent-orange)" }}
-                        />
-                        <span
-                          className={styles.themeDot}
-                          style={{ background: "var(--accent-green)" }}
-                        />
-                        <span
-                          className={styles.themeDot}
-                          style={{ background: "var(--text-primary)" }}
-                        />
-                      </span>
-                      <span className={styles.themeCardLabel}>
-                        {MODE_LABELS[m]}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
+    <SettingsPage title={t("general.title")} description={t("general.meta")}>
+      <SettingsSection title={t("general.section.preferences")}>
+        <SettingsRow label={text("Mode", "明暗模式")} stacked>
+          <ThemeChoices
+            name="theme-mode"
+            value={mode}
+            onChange={(value) => setMode(value as ThemeMode)}
+            options={THEME_MODES.map((m) => ({
+              value: m,
+              label: MODE_LABELS[m],
+              theme: m === "auto" ? THEME_STYLE_PAIRS[style].dark : THEME_STYLE_PAIRS[style][m],
+            }))}
+          />
+        </SettingsRow>
 
-            <div className={styles.row + " " + styles.rowTop}>
-              <div className={styles.label}>{text("Color style", "颜色风格")}</div>
-              <div className={styles.control}>
-                <div className={styles.themeGrid}>
-                  {THEME_STYLES.map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      className={
-                        styles.themeCard +
-                        (style === s ? " " + styles.active : "")
-                      }
-                      onClick={() => setStyle(s)}
-                      title={STYLE_LABELS[s]}
-                      aria-pressed={style === s}
-                    >
-                      <span
-                        className={styles.themeSwatch}
-                        data-theme={
-                          mode === "auto"
-                            ? THEME_STYLE_PAIRS[s].dark
-                            : THEME_STYLE_PAIRS[s][mode]
-                        }
-                        aria-hidden="true"
-                      >
-                        <span
-                          className={styles.themeDot}
-                          style={{ background: "var(--accent-orange)" }}
-                        />
-                        <span
-                          className={styles.themeDot}
-                          style={{ background: "var(--accent-green)" }}
-                        />
-                        <span
-                          className={styles.themeDot}
-                          style={{ background: "var(--text-primary)" }}
-                        />
-                      </span>
-                      <span className={styles.themeCardLabel}>
-                        {STYLE_LABELS[s]}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
+        <SettingsRow label={text("Color style", "颜色风格")} stacked>
+          <ThemeChoices
+            name="theme-style"
+            value={style}
+            onChange={(value) => setStyle(value as ThemeStyle)}
+            options={THEME_STYLES.map((s) => ({
+              value: s,
+              label: STYLE_LABELS[s],
+              theme: mode === "auto" ? THEME_STYLE_PAIRS[s].dark : THEME_STYLE_PAIRS[s][mode],
+            }))}
+          />
+        </SettingsRow>
 
-            <div className={styles.row + " " + styles.rowTop}>
-              <div className={styles.label}>
-                {text("Accent color", "强调色")}
-              </div>
-              <div className={styles.control}>
-                <div className={styles.accentControls}>
-                  <input
-                    type="color"
-                    className={styles.accentColorInput}
-                    aria-label={text("Accent color", "强调色")}
-                    value={accentValue}
-                    onChange={(e) => setAccent(e.target.value)}
+        <SettingsRow
+          label={text("Accent color", "强调色")}
+          description={text(
+            "Overrides the current theme package accent. Empty / reset uses that package's default.",
+            "覆盖当前主题包的强调色。留空或重置则使用该主题包的默认强调色。",
+          )}
+        >
+          <input
+            type="color"
+            className={styles.accentColorInput}
+            aria-label={text("Accent color", "强调色")}
+            value={accentValue}
+            onChange={(e) => setAccent(e.target.value)}
+          />
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label={text("Accent presets", "强调色预设")}>
+            {ACCENT_PRESETS.map((hex) => (
+              <button
+                key={hex}
+                type="button"
+                className={styles.accentPreset}
+                style={{ background: hex }}
+                aria-label={hex}
+                aria-pressed={accentValue.toLowerCase() === hex.toLowerCase()}
+                onClick={() => setAccent(hex)}
+              />
+            ))}
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => resetAccent()}
+            disabled={!accent}
+            aria-label={text("Reset to theme default", "重置为主题默认")}
+          >
+            {text("Reset", "重置")}
+          </Button>
+        </SettingsRow>
+
+        <SettingsRow
+          label={text("Welcome animation", "欢迎页动画")}
+          description={text(
+            "Code rain behind an empty chat. Saved on this device.",
+            "空白对话背后的代码雨。保存在此设备。",
+          )}
+          htmlFor="welcome-code-rain"
+        >
+          <Switch
+            id="welcome-code-rain"
+            checked={welcomeBackdrop.enabled}
+            onCheckedChange={welcomeBackdrop.setEnabled}
+          />
+        </SettingsRow>
+
+        <SettingsRow
+          label={text("Tab drag appearance", "标签拖动外观")}
+          description={text(
+            "Applies immediately to tab dragging inside and outside the strip, and split-pane title previews. 0% transparency is opaque; 0px blur and 0% shadow disable those effects. Saved on this device.",
+            "即时应用于标签栏内外的标签拖动预览和分屏标题预览。透明度 0% 为不透明，模糊 0px 和阴影 0% 分别关闭对应效果。保存在此设备。",
+          )}
+          stacked
+        >
+          <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_14rem]">
+            <FieldGroup className="gap-4">
+              {effectControls.map(({ key, label, unit }) => (
+                <Field key={key}>
+                  <div className="flex items-center justify-between gap-2">
+                    <FieldLabel htmlFor={`visual-effect-${key}`}>{label}</FieldLabel>
+                    <span className="text-sm text-muted-foreground tabular-nums">{effects[key]}{unit}</span>
+                  </div>
+                  <Slider
+                    id={`visual-effect-${key}`}
+                    min={VISUAL_EFFECTS_LIMITS[key].min}
+                    max={VISUAL_EFFECTS_LIMITS[key].max}
+                    step={1}
+                    value={[effects[key]]}
+                    aria-valuetext={`${effects[key]} ${unit}`}
+                    onValueChange={([value]) => setEffect(key, value)}
                   />
-                  <div className={styles.accentPresets} role="group" aria-label={text("Accent presets", "强调色预设")}>
-                    {ACCENT_PRESETS.map((hex) => (
-                      <button
-                        key={hex}
-                        type="button"
-                        className={styles.accentPreset}
-                        style={{ background: hex }}
-                        aria-label={hex}
-                        title={hex}
-                        aria-pressed={accentValue.toLowerCase() === hex.toLowerCase()}
-                        onClick={() => setAccent(hex)}
-                      />
-                    ))}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={"text-fs-base " + styles.settingsAction}
-                    onClick={() => resetAccent()}
-                    disabled={!accent}
-                  >
-                    {text("Reset to theme default", "重置为主题默认")}
-                  </Button>
-                </div>
-                <div className={styles.customCssHint}>
-                  {text(
-                    "Overrides the current theme package accent. Empty / reset uses that package's default.",
-                    "覆盖当前主题包的强调色。留空或重置则使用该主题包的默认强调色。",
-                  )}
-                </div>
+                </Field>
+              ))}
+              <div>
+                <Button variant="outline" onClick={resetEffects}>
+                  {text("Restore defaults", "恢复默认")}
+                </Button>
               </div>
-            </div>
-
-            <div className={styles.row + " " + styles.rowTop}>
-              <label className={styles.label} htmlFor="welcome-code-rain">
-                {text("Welcome animation", "欢迎页动画")}
-              </label>
-              <div className={styles.control}>
-                <Switch
-                  id="welcome-code-rain"
-                  checked={welcomeBackdrop.enabled}
-                  onCheckedChange={welcomeBackdrop.setEnabled}
-                />
-                <div className={styles.customCssHint}>
-                  {text(
-                    "Code rain behind an empty chat. Saved on this device.",
-                    "空白对话背后的代码雨。保存在此设备。",
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.row + " " + styles.rowTop}>
-              <div className={styles.label}>{text("Tab drag appearance", "标签拖动外观")}</div>
-              <div className={styles.control + " " + styles.effectsControl}>
-                <div className={styles.effectsSliders}>
-                  {effectControls.map(({ key, label, unit }) => (
-                    <div className={styles.effectsSliderRow} key={key}>
-                      <label htmlFor={`visual-effect-${key}`}>{label}</label>
-                      <input
-                        id={`visual-effect-${key}`}
-                        type="range"
-                        min={VISUAL_EFFECTS_LIMITS[key].min}
-                        max={VISUAL_EFFECTS_LIMITS[key].max}
-                        step={1}
-                        value={effects[key]}
-                        aria-valuetext={`${effects[key]} ${unit}`}
-                        onChange={(event) => setEffect(key, Number(event.target.value))}
-                      />
-                      <output htmlFor={`visual-effect-${key}`}>{effects[key]}{unit}</output>
-                    </div>
-                  ))}
-                </div>
-                <div className={styles.effectsPreviewBackground} aria-hidden="true">
-                  <span className={styles.effectsPreviewBackdrop}>Aa 123 • Aa 123</span>
-                  <div className={styles.effectsPreviewTab} style={DRAG_SURFACE_STYLE}>
-                    <svg viewBox="0 0 16 16" width="16" height="16" fill="none">
-                      <rect x="2" y="2" width="12" height="12" rx="3" stroke="currentColor" />
-                      <path d="M2 6h12" stroke="currentColor" />
-                    </svg>
-                    <span>{text("Dragged tab", "拖动中的标签")}</span>
-                  </div>
-                </div>
-                <div className={styles.effectsFooter}>
-                  <span className={styles.customCssHint}>{text("Preview", "预览")}</span>
-                  <Button variant="outline" size="sm" className={"text-fs-base " + styles.settingsAction} onClick={resetEffects}>
-                    {text("Restore defaults", "恢复默认")}
-                  </Button>
-                </div>
-                <div className={styles.customCssHint}>
-                  {text(
-                    "Applies immediately to tab dragging inside and outside the strip, and split-pane title previews. 0% transparency is opaque; 0px blur and 0% shadow disable those effects. Saved on this device.",
-                    "即时应用于标签栏内外的标签拖动预览和分屏标题预览。透明度 0% 为不透明，模糊 0px 和阴影 0% 分别关闭对应效果。保存在此设备。",
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.row + " " + styles.rowTop}>
-              <div className={styles.label}>
-                {text("Custom CSS", "自定义 CSS")}
-              </div>
-              <div className={styles.control}>
-                <div className={styles.customCssToolbar}>
-                  <label className={styles.customCssEnable}>
-                    <Switch
-                      checked={customCssEnabled}
-                      onCheckedChange={setCustomCssEnabled}
-                    />
-                    {text("Enable custom CSS", "启用自定义 CSS")}
-                  </label>
-                  <Button variant="outline" size="sm" className={"text-fs-base " + styles.settingsAction} onClick={() => insertCustomCssTemplate()}>
-                    {text("Insert template", "插入模板")}
-                  </Button>
-                  <Button variant="outline" size="sm" className={"text-fs-base " + styles.settingsAction} onClick={() => clearCustomCss()}>
-                    {text("Clear", "清空")}
-                  </Button>
-                </div>
-                <textarea
-                  className={styles.customCssArea}
-                  aria-label={text("Custom CSS", "自定义 CSS")}
-                  value={customCss}
-                  spellCheck={false}
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  placeholder={CUSTOM_CSS_TEMPLATE}
-                  onChange={(e) => setCustomCss(e.target.value)}
-                />
-                <div className={styles.customCssHint}>
-                  {text(
-                    "Overlay on the current theme package. Turn on Enable custom CSS to apply it. Use Insert template for a starter snippet, or Clear to remove it. Applies live, saved in this browser. You can still target any data-theme.",
-                    "叠加在当前主题包之上。打开「启用自定义 CSS」后生效。可用「插入模板」写入示例，或「清空」删除。即时生效，仅保存在本浏览器。仍可针对任意 data-theme。",
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.row}>
-              <div className={styles.label}>{t("general.font")}</div>
-              <div className={styles.control}>
-                <SettingsDropdown
-                  value={font}
-                  options={FONT_SELECT_OPTIONS}
-                  onChange={setFont}
-                  label={t("general.font")}
-                />
-              </div>
-            </div>
-
-            <div className={styles.row}>
-              <div className={styles.label}>{t("general.language")}</div>
-              <div className={styles.control}>
-                <SettingsDropdown
-                  value={locale}
-                  options={LANG_OPTIONS}
-                  onChange={setLocale}
-                  label={t("general.language")}
-                />
+            </FieldGroup>
+            <div className={styles.effectsPreviewBackground} aria-hidden="true">
+              <span className={styles.effectsPreviewBackdrop}>Aa 123 • Aa 123</span>
+              <div className={styles.effectsPreviewTab} style={DRAG_SURFACE_STYLE}>
+                <svg viewBox="0 0 16 16" width="16" height="16" fill="none">
+                  <rect x="2" y="2" width="12" height="12" rx="3" stroke="currentColor" />
+                  <path d="M2 6h12" stroke="currentColor" />
+                </svg>
+                <span>{text("Dragged tab", "拖动中的标签")}</span>
               </div>
             </div>
           </div>
-        </section>
+        </SettingsRow>
 
-        <AgentSection />
+        <SettingsRow
+          label={text("Custom CSS", "自定义 CSS")}
+          description={text(
+            "Overlay on the current theme package. Turn on Enable custom CSS to apply it. Use Insert template for a starter snippet, or Clear to remove it. Applies live, saved in this browser. You can still target any data-theme.",
+            "叠加在当前主题包之上。打开「启用自定义 CSS」后生效。可用「插入模板」写入示例，或「清空」删除。即时生效，仅保存在本浏览器。仍可针对任意 data-theme。",
+          )}
+          stacked
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <Field orientation="horizontal" className="w-auto">
+              <Switch
+                id="custom-css-enabled"
+                checked={customCssEnabled}
+                onCheckedChange={setCustomCssEnabled}
+              />
+              <FieldLabel htmlFor="custom-css-enabled">{text("Enable custom CSS", "启用自定义 CSS")}</FieldLabel>
+            </Field>
+            <div className="ms-auto flex gap-2">
+              <Button variant="outline" onClick={() => insertCustomCssTemplate()}>
+                {text("Insert template", "插入模板")}
+              </Button>
+              <Button variant="outline" onClick={() => clearCustomCss()}>
+                {text("Clear", "清空")}
+              </Button>
+            </div>
+          </div>
+          <Textarea
+            className="max-h-96 min-h-40 font-mono"
+            aria-label={text("Custom CSS", "自定义 CSS")}
+            value={customCss}
+            spellCheck={false}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            placeholder={CUSTOM_CSS_TEMPLATE}
+            onChange={(e) => setCustomCss(e.target.value)}
+          />
+        </SettingsRow>
 
-        <UserSection />
+        <SettingsRow label={t("general.font")}>
+          <SettingsDropdown
+            value={font}
+            options={FONT_SELECT_OPTIONS}
+            onChange={setFont}
+            label={t("general.font")}
+          />
+        </SettingsRow>
 
-        <DesktopAttentionSection />
+        <SettingsRow label={t("general.language")}>
+          <SettingsDropdown
+            value={locale}
+            options={LANG_OPTIONS}
+            onChange={setLocale}
+            label={t("general.language")}
+          />
+        </SettingsRow>
+      </SettingsSection>
 
-        <ApplicationSection />
-      </div>
-    </div>
+      <AgentSection />
+
+      <UserSection />
+
+      <DesktopAttentionSection />
+
+      <ApplicationSection />
+    </SettingsPage>
+  );
+}
+
+/** Theme pickers as the docs' radio "choice cards": a FieldLabel card per
+ *  option holding a live swatch of that theme, its name and the radio. */
+function ThemeChoices({
+  name,
+  value,
+  onChange,
+  options,
+}: {
+  name: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string; theme: string }[];
+}) {
+  return (
+    <RadioGroup value={value} onValueChange={onChange} className="grid-cols-3 gap-3">
+      {options.map((option) => (
+        <FieldLabel key={option.value} htmlFor={`${name}-${option.value}`}>
+          <Field orientation="horizontal">
+            <FieldContent>
+              <span className={styles.themeSwatch} data-theme={option.theme} aria-hidden="true">
+                <span className={styles.themeDot} style={{ background: "var(--accent-orange)" }} />
+                <span className={styles.themeDot} style={{ background: "var(--accent-green)" }} />
+                <span className={styles.themeDot} style={{ background: "var(--text-primary)" }} />
+              </span>
+              <FieldTitle className="mt-2">{option.label}</FieldTitle>
+            </FieldContent>
+            <RadioGroupItem value={option.value} id={`${name}-${option.value}`} />
+          </Field>
+        </FieldLabel>
+      ))}
+    </RadioGroup>
   );
 }

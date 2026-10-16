@@ -1,27 +1,22 @@
 "use client"
 
-// shadcn/ui radix-rhea Select (registry styles/radix-rhea/select), adapted
-// to this app:
-// - React 18: the parts forward their refs (refs are not props until 19).
-// - The popup is the app's menu frame (MENU_PANEL: Rhea geometry on the
-//   glass material every menu shares) instead of the registry's solid
-//   bg-popover + ring. It keeps the registry's `item-aligned` position:
-//   the popup covers the trigger with the chosen row over it.
-// - The chosen row shows the app's accent check (MenuCheck), and the
-//   trigger text takes --text-bright rather than inheriting a muted parent.
-// - It stacks above dialogs (z-[130]; DialogContent is z-[120]).
-// - The trigger and its value may shrink (min-w-0) and SimpleSelect labels
-//   truncate, so a long option ends in an ellipsis inside its row instead
-//   of pushing the trigger out of it.
+// shadcn/ui Select, radix-nova style (the style ui.shadcn.com's docs
+// use), copied verbatim from the official registry
+// (/r/styles/radix-nova/select.json). Adaptations:
+// - Imports point at the packages this app ships (@radix-ui/react-select,
+//   lucide-react icons for the registry's IconPlaceholder, @/lib/utils cn),
+//   and the parts forward their refs (React 18: refs are not props
+//   until 19).
+// - The popup stacks above dialogs (z-[130]; DialogContent is z-[120]).
+// - SimpleSelect gives its popup .shadcn-scale (app/globals.css) when its
+//   trigger sits inside one, so the portalled popup matches its trigger.
 // `SimpleSelect` below is the one-line form for a value + option list,
 // which is how the app's former <select> elements read.
 
 import * as React from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
-import { ChevronDown, ChevronUp } from "lucide-react"
+import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 
-import { MenuCheck } from "@/components/chat/top-bar/menu-check"
-import { MENU_PANEL } from "@/components/chat/top-bar/menu-styles"
 import { cn } from "@/lib/utils"
 
 const Select = SelectPrimitive.Root
@@ -33,7 +28,7 @@ const SelectGroup = React.forwardRef<
   <SelectPrimitive.Group
     ref={ref}
     data-slot="select-group"
-    className={cn("scroll-my-1.5", className)}
+    className={cn("scroll-my-1 p-1", className)}
     {...props}
   />
 ))
@@ -56,36 +51,72 @@ const SelectTrigger = React.forwardRef<
     data-slot="select-trigger"
     data-size={size}
     className={cn(
-      "flex w-fit min-w-0 items-center justify-between gap-1.5 rounded-2xl border border-transparent bg-input/50 px-3 py-2 text-sm whitespace-nowrap text-[var(--text-bright)] transition-[color,box-shadow] duration-200 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+      "flex w-fit items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
       className
     )}
     {...props}
   >
     {children}
     <SelectPrimitive.Icon asChild>
-      <ChevronDown className="pointer-events-none size-4 text-muted-foreground" />
+      <ChevronDownIcon className="pointer-events-none size-4 text-muted-foreground" />
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 ))
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName
 
+const SelectScrollUpButton = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.ScrollUpButton>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.ScrollUpButton>
+>(({ className, ...props }, ref) => (
+  <SelectPrimitive.ScrollUpButton
+    ref={ref}
+    data-slot="select-scroll-up-button"
+    className={cn(
+      "z-10 flex cursor-default items-center justify-center bg-popover py-1 [&_svg:not([class*='size-'])]:size-4",
+      className
+    )}
+    {...props}
+  >
+    <ChevronUpIcon />
+  </SelectPrimitive.ScrollUpButton>
+))
+SelectScrollUpButton.displayName = SelectPrimitive.ScrollUpButton.displayName
+
+const SelectScrollDownButton = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.ScrollDownButton>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.ScrollDownButton>
+>(({ className, ...props }, ref) => (
+  <SelectPrimitive.ScrollDownButton
+    ref={ref}
+    data-slot="select-scroll-down-button"
+    className={cn(
+      "z-10 flex cursor-default items-center justify-center bg-popover py-1 [&_svg:not([class*='size-'])]:size-4",
+      className
+    )}
+    {...props}
+  >
+    <ChevronDownIcon />
+  </SelectPrimitive.ScrollDownButton>
+))
+SelectScrollDownButton.displayName = SelectPrimitive.ScrollDownButton.displayName
+
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className, children, position = "item-aligned", ...props }, ref) => (
+>(({ className, children, position = "item-aligned", align = "center", ...props }, ref) => (
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content
       ref={ref}
       data-slot="select-content"
       data-align-trigger={position === "item-aligned"}
       className={cn(
-        MENU_PANEL,
-        "relative z-[130] max-h-(--radix-select-content-available-height) min-w-36 origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto text-popover-foreground duration-100 data-[align-trigger=true]:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
+        "relative z-[130] max-h-(--radix-select-content-available-height) min-w-36 origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[align-trigger=true]:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
         position === "popper" &&
           "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
         className
       )}
       position={position}
+      align={align}
       {...props}
     >
       <SelectScrollUpButton />
@@ -108,7 +139,7 @@ const SelectLabel = React.forwardRef<
   <SelectPrimitive.Label
     ref={ref}
     data-slot="select-label"
-    className={cn("px-2 py-1 text-xs text-muted-foreground", className)}
+    className={cn("px-1.5 py-1 text-xs text-muted-foreground", className)}
     {...props}
   />
 ))
@@ -122,14 +153,14 @@ const SelectItem = React.forwardRef<
     ref={ref}
     data-slot="select-item"
     className={cn(
-      "relative flex min-h-7 w-full cursor-default items-center gap-2 rounded-xl py-1.5 pr-8 pl-2 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+      "relative flex w-full cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
       className
     )}
     {...props}
   >
     <span className="pointer-events-none absolute right-2 flex size-4 items-center justify-center">
       <SelectPrimitive.ItemIndicator>
-        <MenuCheck />
+        <CheckIcon className="pointer-events-none" />
       </SelectPrimitive.ItemIndicator>
     </span>
     <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
@@ -150,36 +181,6 @@ const SelectSeparator = React.forwardRef<
 ))
 SelectSeparator.displayName = SelectPrimitive.Separator.displayName
 
-const SelectScrollUpButton = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.ScrollUpButton>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.ScrollUpButton>
->(({ className, ...props }, ref) => (
-  <SelectPrimitive.ScrollUpButton
-    ref={ref}
-    data-slot="select-scroll-up-button"
-    className={cn("z-10 flex cursor-default items-center justify-center py-1 [&_svg:not([class*='size-'])]:size-4", className)}
-    {...props}
-  >
-    <ChevronUp />
-  </SelectPrimitive.ScrollUpButton>
-))
-SelectScrollUpButton.displayName = SelectPrimitive.ScrollUpButton.displayName
-
-const SelectScrollDownButton = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.ScrollDownButton>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.ScrollDownButton>
->(({ className, ...props }, ref) => (
-  <SelectPrimitive.ScrollDownButton
-    ref={ref}
-    data-slot="select-scroll-down-button"
-    className={cn("z-10 flex cursor-default items-center justify-center py-1 [&_svg:not([class*='size-'])]:size-4", className)}
-    {...props}
-  >
-    <ChevronDown />
-  </SelectPrimitive.ScrollDownButton>
-))
-SelectScrollDownButton.displayName = SelectPrimitive.ScrollDownButton.displayName
-
 // Radix reserves "" for "no selection" (the placeholder shows), so an
 // option whose value is "" travels under this sentinel and comes back
 // out as "". Without such an option, "" is the placeholder state.
@@ -197,13 +198,17 @@ export interface SimpleSelectGroup<T extends string = string> {
 }
 
 /**
- * A value + option list as one Select. Options may be grouped
- * (`{label, options}` entries render a SelectLabel heading).
+ * A value + option list as one Select, laid out like the docs example:
+ * the popup opens with a SelectLabel heading that names what is being
+ * chosen (`label`, else `aria-label`), then the options. Grouped options
+ * (`{label, options}` entries) each get their own heading instead. The
+ * default-size trigger is the docs' field width (w-full max-w-48).
  */
 function SimpleSelect<T extends string = string>({
   value,
   onValueChange,
   options,
+  label,
   placeholder,
   size = "default",
   disabled,
@@ -217,6 +222,7 @@ function SimpleSelect<T extends string = string>({
   value: T
   onValueChange: (value: T) => void
   options: (SimpleSelectOption<T> | SimpleSelectGroup<T>)[]
+  label?: React.ReactNode
   placeholder?: React.ReactNode
   size?: "sm" | "default"
   disabled?: boolean
@@ -230,31 +236,54 @@ function SimpleSelect<T extends string = string>({
   const flat = options.flatMap((entry) => ("options" in entry ? entry.options : [entry]))
   const hasEmpty = flat.some((o) => o.value === "")
   const toRadix = (v: string) => (v === "" && hasEmpty ? EMPTY : v)
+  const heading = label ?? ariaLabel
   const item = (o: SimpleSelectOption<T>) => (
     <SelectItem key={toRadix(o.value)} value={toRadix(o.value)} disabled={o.disabled}>
       <span className="truncate">{o.label}</span>
     </SelectItem>
   )
+  const grouped = options.some((entry) => "options" in entry)
+  // The popup portals to <body>; inside a .shadcn-scale page (Settings)
+  // it takes the same docs-scale variables as its trigger.
+  const triggerRef = React.useRef<HTMLButtonElement>(null)
+  const [scaled, setScaled] = React.useState(false)
   return (
     <Select
       value={toRadix(value)}
       onValueChange={(v) => onValueChange((v === EMPTY ? "" : v) as T)}
       disabled={disabled}
       name={name}
+      onOpenChange={(open) => {
+        if (open) setScaled(Boolean(triggerRef.current?.closest(".shadcn-scale")))
+      }}
     >
-      <SelectTrigger id={id} size={size} className={className} aria-label={ariaLabel} aria-describedby={ariaDescribedBy}>
+      <SelectTrigger
+        ref={triggerRef}
+        id={id}
+        size={size}
+        className={cn(size === "default" && "w-full max-w-48", "min-w-0", className)}
+        aria-label={ariaLabel ?? (typeof label === "string" ? label : undefined)}
+        aria-describedby={ariaDescribedBy}
+      >
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectContent className={contentClassName}>
-        {options.map((entry, index) =>
-          "options" in entry ? (
-            <SelectGroup key={`group-${index}`}>
-              <SelectLabel>{entry.label}</SelectLabel>
-              {entry.options.map(item)}
-            </SelectGroup>
-          ) : (
-            item(entry)
+      <SelectContent className={cn(scaled && "shadcn-scale", contentClassName)}>
+        {grouped ? (
+          options.map((entry, index) =>
+            "options" in entry ? (
+              <SelectGroup key={`group-${index}`}>
+                <SelectLabel>{entry.label}</SelectLabel>
+                {entry.options.map(item)}
+              </SelectGroup>
+            ) : (
+              <SelectGroup key={`group-${index}`}>{item(entry)}</SelectGroup>
+            )
           )
+        ) : (
+          <SelectGroup>
+            {heading ? <SelectLabel>{heading}</SelectLabel> : null}
+            {(options as SimpleSelectOption<T>[]).map(item)}
+          </SelectGroup>
         )}
       </SelectContent>
     </Select>

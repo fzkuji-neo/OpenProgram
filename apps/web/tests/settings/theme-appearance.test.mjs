@@ -8,7 +8,7 @@ import { CUSTOM_CSS_TEMPLATE, THEME_STYLES } from "../../lib/prefs/theme-config.
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const settings = readFileSync(join(root, "components/settings/general-section.tsx"), "utf8");
-const css = readFileSync(join(root, "components/settings/settings-page.module.css"), "utf8");
+const ui = readFileSync(join(root, "components/settings/settings-ui.tsx"), "utf8");
 const picker = readFileSync(join(root, "components/avatar/AvatarPicker.tsx"), "utf8");
 
 test("settings color style grid has three packages and no Custom card", () => {
@@ -52,60 +52,41 @@ test("snippet template targets html / current packages, not a Custom skin", () =
   assert.match(settings, /CUSTOM_CSS_TEMPLATE/);
 });
 
-test("appearance chrome uses the sans control column, not mono .value", () => {
-  assert.match(css, /\.value\s*\{[^}]*font-family:\s*var\(--font-mono\)/s);
-  assert.match(css, /\.control\s*\{[^}]*font-size:\s*14px[^}]*font-family:\s*var\(--font-sans\)/s);
-  assert.match(css, /\.themeCardLabel\s*\{[^}]*font-size:\s*14px[^}]*font-family:\s*var\(--font-sans\)/s);
-  assert.match(css, /\.customCssEnable\s*\{[^}]*font-size:\s*var\(--fs-sm\)[^}]*font-family:\s*var\(--font-sans\)/s);
-  assert.match(css, /\.customCssHint\s*\{[^}]*font-size:\s*var\(--fs-sm\)[^}]*color:\s*var\(--text-muted\)[^}]*font-family:\s*var\(--font-sans\)/s);
-  assert.match(css, /\.customCssArea\s*\{[^}]*font-family:\s*var\(--font-mono\)/s);
-  assert.match(css, /\.settingsAction\s*\{[^}]*font-size:\s*var\(--fs-base\)[^}]*font-family:\s*var\(--font-sans\)/s);
-
-  assert.doesNotMatch(settings, /styles\.valueWide/);
-  assert.doesNotMatch(settings, /valueWide/);
-  assert.doesNotMatch(css, /\.valueWide\s*\{/);
+test("General is built from the shared settings blocks and official components", () => {
+  assert.match(settings, /from "\.\/settings-ui"/);
+  assert.match(settings, /<SettingsPage/);
+  assert.match(settings, /<SettingsSection/);
+  assert.match(settings, /<SettingsRow/);
+  assert.match(settings, /from "@\/components\/ui\/radio-group"/);
+  assert.match(settings, /from "@\/components\/ui\/switch"/);
+  assert.match(settings, /<Textarea/);
   assert.match(settings, /t\("general.avatar"\)/);
-  assert.doesNotMatch(settings, /styles\.avatarBlock/);
-  assert.doesNotMatch(settings, /Avatar style/);
-  assert.match(settings, /styles\.control\}>\{updateState\?\.currentVersion/);
-  assert.match(settings, /styles\.control\}>Agentic Programming/);
   assert.match(settings, /<code>openprogram upgrade --check<\/code>/);
-  assert.match(settings, /className=\{"text-fs-base " \+ styles\.settingsAction\}/);
   assert.match(settings, /style: \{ fontFamily: fontStack\(font\) \}/);
+  assert.doesNotMatch(settings, /styles\.(row|label|control|value|settingsAction)\b/);
+  assert.doesNotMatch(settings, /valueWide/);
 });
 
-test("settings rows keep a left label and a shrink-wrapped right cluster", () => {
-  assert.match(css, /\.label\s*\{[^}]*flex:\s*0 1 auto/s);
-  assert.match(css, /\.control\s*\{[^}]*margin-left:\s*auto/s);
-  assert.match(css, /\.control\s*\{[^}]*align-items:\s*flex-end/s);
-  assert.match(css, /\.value\s*\{[^}]*margin-left:\s*auto/s);
-  assert.match(css, /\.themeGrid\s*\{[^}]*justify-content:\s*flex-end/s);
-  assert.match(css, /\.themeCard\s*\{[^}]*flex:\s*0 0 96px/s);
-  assert.doesNotMatch(css, /\.themeGrid\s*\{[^}]*width:\s*100%/s);
-  assert.doesNotMatch(css, /\.themeGrid\s*\{[^}]*1fr/s);
-  assert.match(css, /\.customCssArea\s*\{[^}]*width:\s*min\(100%,\s*520px\)/s);
-  assert.match(settings, /styles\.row \+ " " \+ styles\.rowTop[\s\S]*t\("general.avatar"\)[\s\S]*styles\.control/);
+test("settings rows keep a left label and a right control cluster", () => {
+  assert.match(ui, /orientation="horizontal"/);
+  assert.match(ui, /<FieldContent>/);
+  assert.match(ui, /shrink-0 items-center justify-end/);
+  assert.match(ui, /\[&>\[data-slot=select-trigger\]\]:w-48/);
 });
 
-test("avatar picker on General uses the 13px sans floor", () => {
-  assert.match(picker, /fontSize: "var\(--fs-sm\)"/);
-  assert.match(picker, /fontFamily: "var\(--font-sans\)"/);
-  assert.match(picker, /text-fs-sm/);
+test("avatar picker uses official toggle groups and buttons", () => {
+  assert.match(picker, /from "@\/components\/ui\/toggle-group"/);
+  assert.match(picker, /from "@\/components\/ui\/button"/);
+  assert.match(picker, /<FieldDescription>/);
   assert.doesNotMatch(picker, /text-\[12px\]/);
   assert.doesNotMatch(picker, /fontSize: 11/);
+  assert.doesNotMatch(picker, /title=\{/);
 });
 
 test("avatar picker variants use a fixed track, not 1fr fill", () => {
   assert.match(picker, /repeat\(auto-fill, 48px\)/);
   assert.match(picker, /justifyContent: "start"/);
-  assert.match(picker, /width: 440/);
-  assert.match(picker, /maxWidth: "100%"/);
+  assert.match(picker, /w-\[440px\] max-w-full/);
   assert.doesNotMatch(picker, /1fr/);
   assert.doesNotMatch(picker, /repeat\(auto-fit/);
-  assert.doesNotMatch(picker, /minmax\(min\(80px/);
-  assert.doesNotMatch(picker, /minmax\(56px/);
-  assert.doesNotMatch(picker, /maxWidth:\s*544/);
-  assert.match(picker, /overflowWrap:\s*"normal"/);
-  assert.match(picker, /wordBreak:\s*"normal"/);
-  assert.doesNotMatch(picker, /overflowWrap:\s*"anywhere"/);
 });

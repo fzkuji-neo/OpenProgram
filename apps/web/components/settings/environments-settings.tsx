@@ -184,7 +184,7 @@ export function EnvironmentsSettings() {
           <form onSubmit={onAdd} className={`${styles.card} ${styles.authForm}`}>
             <label className={styles.authField}>
               {text("Type", "类型")}
-              <SimpleSelect
+              <SimpleSelect label={text("Type", "类型")}
                 className="w-full"
                 value={form.kind}
                 onValueChange={(value) => setForm((f) => ({ ...f, kind: value }))}

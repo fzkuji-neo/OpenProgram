@@ -150,7 +150,7 @@ export function SettingsTabsLayout({
               ))}
             </div>
           </nav>
-          <div className={styles.content}>{children}</div>
+          <div className={styles.content + " shadcn-scale"}>{children}</div>
         </div>
       </div>
     </div>

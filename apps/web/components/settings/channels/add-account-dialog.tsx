@@ -99,7 +99,7 @@ export function AddAccountDialog({ onClose, onAdded }: Props) {
         <div className={styles.modalBody}>
           <label className={styles.formRow}>
             <span className={styles.formLabel}>{text("Platform", "平台")}</span>
-            <SimpleSelect
+            <SimpleSelect label={text("Platform", "平台")}
               className="w-full"
               value={channel}
               onValueChange={setChannel}
