@@ -399,9 +399,7 @@ function dispatch(msg: ChatMsg, sessionIdOverride?: string) {
   if (msg.role === "user" && msg.spawnedFrom) {
     return (
       <>
-        <div className="attach-row" data-spawned-root={msg.id}>
-          <SpawnedFromCard msg={msg} />
-        </div>
+        <SpawnedFromCard msg={msg} />
         <UserBubble msg={msg} sessionIdOverride={sessionIdOverride} />
       </>
     );

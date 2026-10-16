@@ -23,9 +23,9 @@ of its own.
 
 An **issue** is a concrete thing waiting on the reader:
 
-- a call whose result is unconfirmed: the run stopped while it was out;
-- an execution paused on a question or approval, or holding an unconfirmed
-  action that no unconfirmed call already names;
+- a stopped call: the run stopped before it returned;
+- an execution paused on a question or approval, or stopped during an
+  action that no stopped call already names;
 - a program whose state is unknown or lost.
 
 An execution whose only missing records are model responses
@@ -37,8 +37,8 @@ Three groups in a fixed order; an empty group is not shown, and no group
 folds.
 
 1. **Needs you**: issues, newest first. The row is the issue itself
-   ("Fix page close · Sub-agent result unconfirmed"), not the conversation.
-   An unconfirmed `agent` call whose sub-agent is listed shows as that
+   ("Fix page close · Sub-agent stopped"), not the conversation.
+   A stopped `agent` call whose sub-agent is listed shows as that
    sub-agent, and the sub-agent is not listed again below.
 2. **Running**: live sub-agents, with the call they are on and the time so
    far, plus calls and programs in flight outside a sub-agent.
@@ -55,7 +55,7 @@ arrow names the page it returns to. Nothing expands in place.
 
 - **Sub-agent / run**: kind, start and duration, the name or message, its
   state. Its issues come first, each with its actions as raised pills:
-  **End this run** (cancel) when the execution allows it, **Answer** /
+  **Mark as ended** (cancel) when the execution allows it, **Answer** /
   **See details** for a pause. A sub-agent adds **Open its conversation**,
   **From** (the run that started it) and, while its `agent` call is open,
   **Task given to it**. Then what it did: open calls (an `agent` call is

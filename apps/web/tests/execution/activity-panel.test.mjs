@@ -95,7 +95,7 @@ test("the overview lists agents, what is in flight and what needs you, never pla
     run("j_done", "completed", now - 50, { parent_execution_id: "done", display: { kind: "job_agent", label: "Research" } }),
   ], async host => {
     const text = host.textContent;
-    assert.match(text, /Needs you1.*Fix page close.*Sub-agent result unconfirmed/s);
+    assert.match(text, /Needs you1.*Fix page close.*Sub-agent stopped/s);
     assert.match(text, /Running1.*Form filler.*Running/s);
     assert.match(text, /Sub-agents1.*Today.*Research.*Completed/s);
     // The messages themselves stay in the chat.
@@ -105,20 +105,20 @@ test("the overview lists agents, what is in flight and what needs you, never pla
   }, [], {}, { calls: [agentCall] });
 });
 
-test("an unconfirmed agent call opens a page with its task and what can be done", async () => {
+test("a stopped agent call opens a page with its task and what can be done", async () => {
   globalThis.agentTip = "j_fix_tip";
   await mounted([run("turn", "reconciliation_required", now - 3 * DAY, { task_label: "check and fix it" }), spawned], async (host, click) => {
     await click("Fix page close");
     const text = host.textContent;
     assert.match(text, /Sub-agent ·/);
-    assert.match(text, /Result unconfirmed/);
-    assert.match(text, /whether it finished is not known/);
+    assert.match(text, /Stopped/);
+    assert.match(text, /before this sub-agent finished/);
     assert.match(text, /Task given to it.*Inspect the close branch/s);
     assert.match(text, /From.*check and fix it/s);
     await click("Open its conversation");
     assert.deepEqual(globalThis.sentCommands.map(c => c.action), ["checkout_branch", "load_session"]);
     assert.equal(globalThis.sentCommands[0].head_msg_id, "j_fix_tip");
-    await click("End this run");
+    await click("Mark as ended");
     assert.equal(globalThis.commands[0].action, "execution.cancel");
     assert.equal(globalThis.commands[0].execution_id, "turn");
     // Back goes up one level, to the overview.
@@ -134,12 +134,12 @@ test("an agent page leads with its issue, then where it came from and what it di
   async (host, click, selected) => {
     await click("Fix page close");
     let text = host.textContent;
-    assert.match(text, /Sub-agent ·.*Fix page close.*Result unconfirmed/s);
-    assert.match(text, /while this sub-agent was working.*End this run.*Open its conversation.*From.*check and fix it.*Task given to it.*What it did.*Technical details/s);
+    assert.match(text, /Sub-agent ·.*Fix page close.*Stopped/s);
+    assert.match(text, /before this sub-agent finished.*Mark as ended.*Open its conversation.*From.*check and fix it.*Task given to it.*What it did.*Technical details/s);
     await click("check and fix it");
     text = host.textContent;
     assert.match(text, /Run ·.*check and fix it.*1 to handle/s);
-    assert.match(text, /Sub-agent "Fix page close": result unconfirmed.*What this run did.*Fix page close.*Write docs/s);
+    assert.match(text, /Sub-agent "Fix page close" stopped.*What this run did.*Fix page close.*Write docs/s);
     assert.match(host.textContent, /← Fix page close/);
     await click("Write docs");
     await click("Technical details");
