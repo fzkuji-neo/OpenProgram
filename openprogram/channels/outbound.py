@@ -62,7 +62,7 @@ def send_file(
     """把本地文件发给 (channel, account_id, user_id).
 
     telegram 图片走 sendPhoto、其余 sendDocument; discord multipart
-    上传; slack external-upload 三步. WeChat 返回 ``not_supported``
-    (iLink 无文件上传接口) — 调用方自行降级.
+    上传; slack external-upload 三步; wechat 经 iLink CDN 加密上传.
+    平台不支持时返回 ``not_supported`` — 调用方自行降级.
     """
     return _transport.post_file(channel, account_id, user_id, path, caption)

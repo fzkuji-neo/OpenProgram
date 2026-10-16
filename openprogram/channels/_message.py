@@ -26,6 +26,8 @@ class Attachment:
     * ``file_id`` — Telegram file_id (与空 ``url`` 配对使用).
     * ``size``    — platform 报告的字节数, 0 = 未知. 超过下载上限的
                     直接跳过不发起请求.
+    * ``aes_key`` — 下载到的字节要先用这个 AES-128-ECB 密钥 (hex) 解密.
+                    只有 WeChat iLink 的 CDN 媒体用 (见 :mod:`._wechat_media`).
     """
     name: str = ""
     mime: str = ""
@@ -33,6 +35,7 @@ class Attachment:
     headers: tuple = ()
     file_id: str = ""
     size: int = 0
+    aes_key: str = ""
 
 
 @dataclass(frozen=True)

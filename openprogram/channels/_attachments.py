@@ -21,7 +21,9 @@ adapter 只在 parse 时把 platform 附件元数据填进
 * slack    — ``url_private`` 需要 Bearer bot token, adapter 已把
   header 填进 Attachment.headers.
 * discord  — CDN URL 直接可下.
-* wechat   — iLink 入站只解析文本消息, 无附件 (协议未暴露媒体下载).
+* wechat   — 媒体在腾讯 CDN 上, AES-128-ECB 加密; Attachment 带
+  ``aes_key``, 下载时边收边解密 (协议见 :mod:`._wechat_media`).
+  CDN 只回 octet-stream, 图片 MIME 从解密后的文件头认.
 """
 from __future__ import annotations
 
@@ -37,6 +39,7 @@ from typing import Iterable
 
 import httpx
 
+from openprogram.channels import _wechat_media
 from openprogram.channels import accounts as _accounts
 from openprogram.channels._message import Attachment
 from openprogram.security.safe_http import safe_client
@@ -116,7 +119,10 @@ def _download_one(
     consumer = {
         "slack": "channel.slack.attachment",
         "telegram": "channel.telegram.attachment",
+        "wechat": "channel.wechat.cdn",
     }.get(channel, "channel.attachment.download")
+    decryptor = _wechat_media.Decryptor(bytes.fromhex(att.aes_key)) if att.aes_key else None
+    folder = attachments_dir(channel, account_id)
     with safe_client(consumer) as client:
         with client.stream("GET", url, headers=headers, timeout=60) as response:
             if not response.is_success:
@@ -125,15 +131,16 @@ def _download_one(
                     f"download HTTP {response.status_code}"
                 )
                 return None
-            mime = att.mime or response.headers.get("Content-Type", "").partition(
-                ";"
-            )[0]
-            dest = attachments_dir(channel, account_id) / _dest_name(att.name, mime)
+            mime = att.mime or (
+                "" if decryptor else
+                response.headers.get("Content-Type", "").partition(";")[0]
+            )
             descriptor, temporary_name = tempfile.mkstemp(
-                prefix=f".{dest.name}.", dir=dest.parent
+                prefix=".download.", dir=folder
             )
             temporary = Path(temporary_name)
             size = 0
+            head = b""
             try:
                 try:
                     output = os.fdopen(descriptor, "wb")
@@ -142,10 +149,24 @@ def _download_one(
                     raise
                 with output:
                     for chunk in response.iter_bytes():
+                        if decryptor is not None:
+                            chunk = decryptor.update(chunk)
+                        if len(head) < 16:
+                            head += chunk[:16]
                         output.write(chunk)
                         size += len(chunk)
+                        if size > MAX_DOWNLOAD_BYTES:
+                            raise ValueError("attachment exceeds download limit")
+                    if decryptor is not None:
+                        tail = decryptor.finish()
+                        head = (head + tail)[:16] if len(head) < 16 else head
+                        output.write(tail)
+                        size += len(tail)
                     output.flush()
                     os.fsync(output.fileno())
+                if not mime:
+                    mime = _wechat_media.sniff_image_mime(head) or "application/octet-stream"
+                dest = folder / _dest_name(att.name, mime)
                 os.replace(temporary, dest)
             finally:
                 temporary.unlink(missing_ok=True)

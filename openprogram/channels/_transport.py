@@ -25,7 +25,7 @@
   ``rate_limit``   — 速率限制 (Telegram 429 / Discord 429 / Slack ratelimited)
   ``bad_target``   — 收信人不对: chat_id 错、channel 不存在、bot 没权限
   ``network``      — 连不上 / 超时 / SSL 错
-  ``not_supported``— 平台不支持该操作 (WeChat edit / WeChat 发文件)
+  ``not_supported``— 平台不支持该操作 (WeChat edit)
   ``format``       — 平台拒绝渲染后的格式 (telegram HTML 解析失败;
                      poster 内部已剥标签重发过, 走到外面说明兜底也失败)
   ``unknown``      — 其他, 看 error_detail
@@ -199,9 +199,9 @@ def post_file(
     """把本地文件发给 ``target``. 返回 :class:`SendResult`.
 
     平台能力: telegram (sendPhoto / sendDocument), discord (multipart
-    upload), slack (files external-upload 三步). WeChat iLink 没有
-    文件上传接口 → ``not_supported``, 调用方自行降级 (比如改发一条
-    带路径说明的文本).
+    upload), slack (files external-upload 三步), wechat (iLink CDN 加密
+    上传, 图片 / 视频 / 文件三种条目). 不在表里的平台 → ``not_supported``,
+    调用方自行降级 (比如改发一条带路径说明的文本).
     """
     p = Path(path).expanduser()
     if not p.is_file():
@@ -736,7 +736,7 @@ def _post_file_slack(
 
 
 # ---------------------------------------------------------------------------
-# WeChat — iLink. Edit / 文件上传不支持.
+# WeChat — iLink. 不支持 edit; 文件走 CDN 加密上传.
 # ---------------------------------------------------------------------------
 
 def _make_wechat_uin() -> str:
@@ -747,6 +747,13 @@ def _make_wechat_uin() -> str:
 
 
 def _post_wechat(account_id: str, user_id: str, text: str) -> SendResult:
+    return _send_wechat_item(
+        account_id, user_id, {"type": 1, "text_item": {"text": text}},
+    )
+
+
+def _send_wechat_item(account_id: str, user_id: str, item: dict) -> SendResult:
+    """``sendmessage`` 发一个条目 (文本或上传好的媒体)."""
     creds = _accounts.load_credentials("wechat", account_id)
     bot_token = creds.get("bot_token") or ""
     bot_id = creds.get("ilink_bot_id") or ""
@@ -777,7 +784,7 @@ def _post_wechat(account_id: str, user_id: str, text: str) -> SendResult:
                         "client_id": uuid.uuid4().hex,
                         "message_type": 2,
                         "message_state": 2,
-                        "item_list": [{"type": 1, "text_item": {"text": text}}],
+                        "item_list": [item],
                         "context_token": "",
                     },
                     "base_info": {},
@@ -798,6 +805,83 @@ def _post_wechat(account_id: str, user_id: str, text: str) -> SendResult:
         return SendResult.success("")
     except Exception as e:  # noqa: BLE001
         return _classify_network_error(e)
+
+
+#: 出站文件上限. iLink 插件的媒体上限是 100 MB; 整个文件要读进内存加密.
+WECHAT_MAX_UPLOAD_BYTES = 100 * 1024 * 1024
+
+
+def _post_file_wechat(
+    account_id: str, user_id: str, path: Path, caption: str,
+) -> SendResult:
+    """getuploadurl → AES-128-ECB 加密 → POST 到 CDN → sendmessage 发图片 /
+    视频 / 文件条目. 说明文字在文件之后单独发一条 (iLink 条目没有 caption)."""
+    import hashlib
+    import os
+    from urllib.parse import urlsplit
+
+    from openprogram.channels import _wechat_media as media
+
+    size = path.stat().st_size
+    if size > WECHAT_MAX_UPLOAD_BYTES:
+        return SendResult.fail(
+            "bad_target", f"{size} bytes exceeds {WECHAT_MAX_UPLOAD_BYTES}",
+        )
+    mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+    upload_type, item_type = media.upload_kind(mime)
+    try:
+        plaintext = path.read_bytes()
+        key = os.urandom(16)
+        filekey = os.urandom(16).hex()
+        ciphertext = media.encrypt(plaintext, key)
+        data = _wechat_post(account_id, "getuploadurl", {
+            "filekey": filekey,
+            "media_type": upload_type,
+            "to_user_id": user_id,
+            "rawsize": len(plaintext),
+            "rawfilemd5": hashlib.md5(plaintext).hexdigest(),  # noqa: S324 — iLink 协议字段
+            "filesize": len(ciphertext),
+            "no_need_thumb": True,
+            "aeskey": key.hex(),
+        })
+        if data.get("ret", 0) != 0:
+            return SendResult.fail("unknown", f"iLink getuploadurl ret={data.get('ret')}")
+        param = str(data.get("upload_param") or "")
+        full = str(data.get("upload_full_url") or "").strip()
+        target = media.upload_url(param, filekey) if param else full
+        if not target:
+            return SendResult.fail("unknown", "getuploadurl returned no upload URL")
+        try:
+            with safe_client("channel.wechat.cdn") as client:
+                up = client.post(
+                    target, content=ciphertext,
+                    headers={"Content-Type": "application/octet-stream"},
+                    timeout=120,
+                )
+        except httpx.RequestError as e:
+            return SendResult.fail(
+                "network", f"{type(e).__name__} for {normalize_origin(target)}",
+                retryable=True,
+            )
+        if up.status_code != 200:
+            return _classify_http_status(up.status_code, up.headers.get("x-error-message", ""))
+        download_param = up.headers.get("x-encrypted-param", "")
+        if not download_param:
+            return SendResult.fail(
+                "unknown",
+                f"{urlsplit(target).hostname}: upload response has no x-encrypted-param",
+            )
+        result = _send_wechat_item(account_id, user_id, media.media_item(
+            item_type, download_param=download_param, key=key, name=path.name,
+            raw_size=len(plaintext), cipher_size=len(ciphertext),
+        ))
+    except PermissionError as e:
+        return SendResult.fail("auth", str(e))
+    except Exception as e:  # noqa: BLE001
+        return _classify_network_error(e)
+    if result.ok and caption.strip():
+        _post_wechat(account_id, user_id, caption)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -993,5 +1077,5 @@ _FILE_POSTERS = {
     "telegram": _post_file_telegram,
     "discord":  _post_file_discord,
     "slack":    _post_file_slack,
-    # wechat: iLink 无文件上传接口, 缺这一项 → post_file 返回 not_supported
+    "wechat":   _post_file_wechat,
 }
