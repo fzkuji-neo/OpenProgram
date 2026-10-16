@@ -524,3 +524,74 @@ def test_ambient_room_event_speaks_only_through_chat_send(
     contents = [m.get("content") for m in tmp_db.get_messages(session["id"])]
     assert "answered the lunch question" in contents
     assert _active_turns.get(session["id"]) is None
+
+
+def _capture_turn(monkeypatch: pytest.MonkeyPatch) -> dict:
+    seen: dict = {}
+    orig_run = D._run_loop_blocking
+
+    def _wrapped(*, req, history, on_event, cancel_event, **_):
+        seen["req"] = req
+        return orig_run(req=req, history=history, on_event=on_event,
+                        cancel_event=cancel_event,
+                        stream_fn=make_text_stream("ok"))
+
+    monkeypatch.setattr(D, "_run_loop_blocking", _wrapped)
+    return seen
+
+
+def test_channel_speakers_get_owner_authority_and_rooms_a_sandbox(
+    tmp_db: SessionDB, stub_routing, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Default ``sender_access: owner``: a chat turn runs with the owner's
+    tier and approvals, the speaker still named; a group session starts
+    sandboxed, and a later explicit choice in the session is kept."""
+    from openprogram.agent.authority import owner_principal_id
+    from openprogram.agent.session_config import (
+        load_session_run_config, save_session_run_config,
+    )
+
+    monkeypatch.setattr("openprogram.paths.get_state_dir", lambda: tmp_path)
+    seen = _capture_turn(monkeypatch)
+
+    C.dispatch_inbound(channel="wechat", account_id="acct1",
+                       peer_kind="direct", peer_id="u-1", user_text="hi",
+                       speaker_id="u-1", speaker_display="Me")
+    req = seen["req"]
+    assert (req.authority_tier, req.speaker_kind, req.interaction) == (
+        "owner", "owner", "interactive")
+    assert req.principal_id == owner_principal_id()
+    assert (req.speaker_id, req.speaker_display) == ("u-1", "Me")
+    assert load_session_run_config(req.session_id).sandbox_enabled is None
+
+    C.dispatch_inbound(channel="telegram", account_id="acct1",
+                       peer_kind="group", peer_id="-100", user_text="hi",
+                       speaker_id="701", speaker_display="Ada")
+    room = seen["req"].session_id
+    assert seen["req"].authority_tier == "owner"
+    assert load_session_run_config(room).sandbox_enabled is True
+
+    save_session_run_config(room, agent_id="main", sandbox_enabled=False)
+    C.dispatch_inbound(channel="telegram", account_id="acct1",
+                       peer_kind="group", peer_id="-100", user_text="again",
+                       speaker_id="701", speaker_display="Ada")
+    assert load_session_run_config(room).sandbox_enabled is False
+
+
+def test_paired_sender_access_keeps_the_paired_tier(
+    tmp_db: SessionDB, stub_routing, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from openprogram.agent.session_config import load_session_run_config
+
+    monkeypatch.setattr("openprogram.paths.get_state_dir", lambda: tmp_path)
+    monkeypatch.setattr("openprogram.channels.accounts.sender_access",
+                        lambda channel, account_id: "paired")
+    seen = _capture_turn(monkeypatch)
+    C.dispatch_inbound(channel="telegram", account_id="acct1",
+                       peer_kind="group", peer_id="-100", user_text="hi",
+                       speaker_id="701", speaker_display="Ada")
+    req = seen["req"]
+    assert (req.authority_tier, req.speaker_kind) == ("paired", "human")
+    assert load_session_run_config(req.session_id).sandbox_enabled is None

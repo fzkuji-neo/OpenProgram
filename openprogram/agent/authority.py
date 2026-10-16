@@ -187,6 +187,33 @@ def paired_channel_authority(
     }
 
 
+def channel_owner_authority(
+    channel: str,
+    account_id: str,
+    user_id: str,
+    user_display: str,
+) -> dict[str, Any]:
+    """A chat-channel sender the owner treats as themselves.
+
+    Used when the account's ``sender_access`` setting is ``owner``: the
+    turn gets the owner's tier and approvals, exactly as a turn typed in
+    the local UI, while the speaker fields keep naming the platform sender
+    so the transcript and the model still see who spoke.
+    """
+    if not all(str(value).strip() for value in (channel, account_id, user_id)):
+        raise AuthorityError("channel owner authority requires platform stable IDs")
+    return {
+        "speaker_kind": "owner",
+        "speaker_id": str(user_id),
+        "speaker_display": sanitize_speaker_display(
+            str(user_display or user_id)
+        ),
+        "principal_id": owner_principal_id(),
+        "authority_tier": "owner",
+        "interaction": "interactive",
+    }
+
+
 def mcp_client_authority(client_id: str) -> dict[str, Any]:
     """Build fixed paired authority for one credential-derived MCP client."""
     if not isinstance(client_id, str) or not _MCP_CLIENT_RE.fullmatch(client_id):
@@ -427,6 +454,7 @@ __all__ = [
     "MESSAGE_SCHEMA_VERSION", "MESSAGE_SCHEMA_FIELD",
     "stamp_schema", "is_legacy_message",
     "owner_principal_id", "owner_authority", "local_owner_authority",
+    "channel_owner_authority",
     "mcp_web_control_authority",
     "paired_channel_authority", "mcp_client_authority",
     "runtime_authority", "normalize_authority",

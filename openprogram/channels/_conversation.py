@@ -22,6 +22,7 @@ dispatch 流程紧绑, 不适合拆出去因为需要在 closure 里共享 state
 from __future__ import annotations
 
 import asyncio
+import logging
 import threading
 import time
 from typing import Optional
@@ -52,6 +53,8 @@ from openprogram.channels._session_store import (
 # 下一条消息排队, 不同 session 并行.
 # ponytail: 锁表随 session_key 单调增长不回收; 每 key 一个 Lock 很小, 真成
 # 问题再换带回收的表.
+_log = logging.getLogger(__name__)
+
 _SESSION_LOCKS: dict[str, threading.Lock] = {}
 _SESSION_LOCKS_GUARD = threading.Lock()
 
@@ -143,8 +146,7 @@ def dispatch_inbound(
     # /answer <qid> <choice> 文本消息回答（聊天软件没有网页那种问题卡片）。
     # 命中且该 qid 属于本 session 才 resolve 并回执，不走 agent dispatch；
     # 否则（不是命令 / qid 不属于本 session）返回 None，照常进 agent。
-    from openprogram.agent.authority import paired_channel_authority
-    _question_actor = paired_channel_authority(
+    _question_actor = _channel_authority(
         channel, account_id, speaker_id or "", speaker_display or user_display,
     )
     _question_actor.update({
@@ -179,6 +181,43 @@ def dispatch_inbound(
             attachments=attachments, block_stream=block_stream,
             ambient=ambient, memory_mode=memory_mode,
         )
+
+
+def _channel_authority(
+    channel: str, account_id: str, speaker_id: str, display: str,
+) -> dict:
+    """账号的 ``sender_access``: ``owner`` (默认) 让通过准入的发信人和本机
+    主人同权 — 工具、批准照常; ``paired`` 只能回复和用记忆."""
+    from openprogram.agent.authority import (
+        channel_owner_authority, paired_channel_authority,
+    )
+    from openprogram.channels.accounts import sender_access
+    if sender_access(channel, account_id) == "owner":
+        return channel_owner_authority(channel, account_id, speaker_id, display)
+    return paired_channel_authority(channel, account_id, speaker_id, display)
+
+
+def _sandbox_room_session(
+    channel: str, account_id: str, peer: dict, agent_id: str, session_key: str,
+) -> None:
+    """群聊里谁都能说话, 主人权限的群会话默认开沙盒 (命令只能写工作区).
+    只在会话还没设过沙盒开关时写入, 用户在网页里关掉后不再改回."""
+    if (peer.get("kind") or "direct") == "direct":
+        return
+    from openprogram.channels.accounts import sender_access
+    if sender_access(channel, account_id) != "owner":
+        return
+    from openprogram.agent.session_config import (
+        load_session_run_config, save_session_run_config,
+    )
+    try:
+        if load_session_run_config(session_key).sandbox_enabled is None:
+            save_session_run_config(
+                session_key, agent_id=agent_id, sandbox_enabled=True,
+            )
+    except Exception:
+        _log.warning("could not enable the sandbox for %s", session_key,
+                     exc_info=True)
 
 
 def _route(channel: str, account_id: str, peer: dict):
@@ -294,6 +333,7 @@ def _run_turn_body(
         peer=peer,
         user_display=user_display or str(peer_id),
     )
+    _sandbox_room_session(channel, account_id, peer, agent_id, session_key)
 
     # ---- run config 加载 (permission/tools/effort) ---------------------
     from openprogram.agent.session_config import (
@@ -354,7 +394,6 @@ def _run_turn_body(
     )
 
     # ---- canonical Agent admission + stream event 监听 ------------------
-    from openprogram.agent.authority import paired_channel_authority
     from openprogram.agent.dispatcher import TurnRequest
     from openprogram.agent.production_driver import CanonicalAgentAdapter
 
@@ -408,7 +447,7 @@ def _run_turn_body(
                     break
             _maybe_edit("\n".join(progress_lines))
 
-    _authority = paired_channel_authority(
+    _authority = _channel_authority(
         channel, account_id, speaker_id or "",
         speaker_display or user_display,
     )

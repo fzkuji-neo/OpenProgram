@@ -845,7 +845,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Set an account behavior setting: require_mention=on|off "
              "and ack_reaction=on|off (telegram, discord, slack; apply "
              "to the next message), group_sessions=shared|per-user "
-             "(telegram; restart the worker to apply).")
+             "(telegram; restart the worker to apply), "
+             "sender_access=owner|paired (all channels; owner, the "
+             "default, gives approved senders the local owner's tools and "
+             "approvals and sandboxes group sessions, paired limits them "
+             "to replies and memory).")
     p_chacct_set.add_argument("channel", help="Channel id",
         choices=["wechat", "telegram", "discord", "slack"])
     p_chacct_set.add_argument("key", help="Setting key (see channel docs)")
