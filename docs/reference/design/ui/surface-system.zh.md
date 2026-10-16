@@ -82,7 +82,7 @@ list        30 px     10 px     --ui-list-h · --ui-list-radius
 
 侧栏行、MCP tab 胶囊、MCP 服务器行都走这条 30px 节奏。列表行没有 sm / md / lg：一个位置能挑多种尺寸，每位作者都会跟设计讨价还价，尺寸跟着分叉。
 
-按钮是 shadcn/ui 的 `Button`，**radix-luma** 风格。`apps/web/components/ui/button.tsx` 从官方组件仓库原样复制（`npx shadcn add button`，style `radix-luma`），本地只改了 import 和一层给 React 18 用的 `forwardRef`。所有尺寸都是胶囊（`rounded-4xl`）；调用处从官方尺寸里挑一个，不改样式类。
+按钮是 shadcn/ui 的 `Button`，**radix-rhea** 风格（Rhea 是紧凑版的 Luma：形状相同，尺寸小一档）。`apps/web/components/ui/button.tsx` 从官方组件仓库原样复制（`npx shadcn add button`，style `radix-rhea`），本地只改了 import 和一层给 React 18 用的 `forwardRef`。圆角是 `rounded-2xl`（这里是 14px），所以 `sm` 和 `default` 是胶囊，`lg` 接近胶囊；调用处从官方尺寸里挑一个，不改样式类。
 
 这些尺寸按 rem 计算，而本 App 的根字号是 14px（`base.css` 里的 `html { font-size: 14px }`，现有约 560 处样式按它调过），所以 shadcn 每个尺寸实际显示为标称值的 7/8：
 
@@ -90,10 +90,11 @@ list        30 px     10 px     --ui-list-h · --ui-list-radius
 size        App 内高度  App 内字号  用途
 ─────────────────────────────────────────────────────────────────
 xs          21 px       10.5 px    避免使用——字太小
-sm          28 px       12.25 px   标签、紧凑的控件行
-default     31.5 px     12.25 px   对话框和设置页的操作
-lg          35 px       12.25 px   首屏 / 空状态的大操作
-icon-sm/default/lg                 方形，在这些高度上就是圆形
+sm          24.5 px     12.25 px   标签、紧凑的控件行
+default     28 px       12.25 px   对话框和设置页的操作
+lg          31.5 px     12.25 px   首屏 / 空状态的大操作
+icon-sm/default                    方形，在这些高度上就是圆形
+icon-lg                            圆角方形（31.5px，14px 圆角）
 ─────────────────────────────────────────────────────────────────
 ```
 
@@ -142,7 +143,7 @@ link         primary 字                           下划线
 
 所有变体按下时下沉 1px，键盘聚焦时有 3px 的 `ring/30` 光环，禁用时降到 50% 不透明度。
 
-`elevated` 是 Luma 注册表里没有的那一个：Luma 的 Button 没有带阴影的变体（只有 Card 用 `shadow-md`），而输入框周围的胶囊要和输入框一样"无边框、浮起来"。它复用每套主题的 composer 阴影对——`app/globals.css` 的 `@theme` 把它们声明成 `shadow-raised` / `shadow-raised-hover` 工具类——所以胶囊和输入框在每套主题里一起浮起。
+`elevated` 是 Rhea 注册表里没有的那一个：Rhea 的 Button 没有带阴影的变体（只有 Card 用 `shadow-md`），而输入框周围的胶囊要和输入框一样"无边框、浮起来"。它复用每套主题的 composer 阴影对——`app/globals.css` 的 `@theme` 把它们声明成 `shadow-raised` / `shadow-raised-hover` 工具类——所以胶囊和输入框在每套主题里一起浮起。
 
 按场景选择：
 
@@ -184,5 +185,5 @@ link         primary 字                           下划线
 
 ## 实现状态
 
-- 已完成：`Button`（radix-luma）、输入框上方的环境标签、底部控制栏、发送按钮、输入框本体、网页预览小窗（外框、标题栏、图标按钮）、浏览器工具栏的图标按钮。
+- 已完成：`Button`（radix-rhea）、输入框上方的环境标签、底部控制栏、发送按钮、输入框本体、网页预览小窗（外框、标题栏、图标按钮）、浏览器工具栏的图标按钮。
 - 尚未迁移：弹出层 / 菜单面板（`MENU_PANEL`、`components/ui/popover.tsx`、`dropdown-menu.tsx`）、提示框、徽标，以及手写样式的 CSS module 弹窗——它们仍用玻璃材质变量（`--glass-*`）。表单输入框和下拉在换成 shadcn input 之前继续遵守上面的 1px 边规则。侧栏列表行继续用上面的列表尺寸。

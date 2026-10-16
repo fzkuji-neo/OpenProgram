@@ -141,11 +141,13 @@ Sidebar rows, MCP tab pills, and MCP server rows all sit on this
 one slot may pick from several sizes, every author negotiates with
 the design and the sizes drift apart.
 
-Buttons are the shadcn/ui `Button` in the **radix-luma** style.
+Buttons are the shadcn/ui `Button` in the **radix-rhea** style
+(Rhea is the compact Luma: the same shapes, one size step smaller).
 `apps/web/components/ui/button.tsx` is copied verbatim from the
-official registry (`npx shadcn add button`, style `radix-luma`);
+official registry (`npx shadcn add button`, style `radix-rhea`);
 the only local changes are its imports and a `forwardRef` wrapper
-for React 18. Every size is a pill (`rounded-4xl`); the call site
+for React 18. The radius is `rounded-2xl` (14px here), so `sm` and
+`default` render as pills and `lg` as a near-pill; the call site
 picks one of the official sizes and never edits the classes.
 
 The sizes are rem-based and this app's root font size is 14px
@@ -157,10 +159,11 @@ its nominal value:
 size        app height  app text   use
 ─────────────────────────────────────────────────────────────────
 xs          21 px       10.5 px    avoid — text is too small here
-sm          28 px       12.25 px   chips and compact control rows
-default     31.5 px     12.25 px   dialog and settings actions
-lg          35 px       12.25 px   hero / empty-state actions
-icon-sm/default/lg                 square = circle at those heights
+sm          24.5 px     12.25 px   chips and compact control rows
+default     28 px       12.25 px   dialog and settings actions
+lg          31.5 px     12.25 px   hero / empty-state actions
+icon-sm/default                    square = circle at those heights
+icon-lg                            rounded square (31.5 px, 14 px radius)
 ─────────────────────────────────────────────────────────────────
 ```
 
@@ -231,7 +234,7 @@ link         primary text                         underline
 All variants press down 1px while active, show a 3px `ring/30`
 halo on keyboard focus, and drop to 50% opacity when disabled.
 
-`elevated` is the one variant Luma's registry does not have: Luma
+`elevated` is the one variant Rhea's registry does not have: Rhea
 ships no shadowed Button (only its Card carries `shadow-md`), and
 the composer's pills want the same borderless raised look as the
 input box. It reuses the per-theme composer shadow pair through
@@ -329,7 +332,7 @@ carries geometry only, so the 40px row keeps its rhythm.
 
 ## Implementation status
 
-- Done: `Button` (radix-luma), the composer environment chips,
+- Done: `Button` (radix-rhea), the composer environment chips,
   bottom-row controls, send button, input box, the web page preview
   (frame, header, icon buttons), and the browser toolbar's icon
   buttons.
