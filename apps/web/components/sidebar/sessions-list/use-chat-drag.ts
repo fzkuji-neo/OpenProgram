@@ -56,14 +56,21 @@ export function useChatDrag(
     const slot = drag.slots.find(item => y >= item.top && y < item.bottom);
     return slot && slot.id !== drag.from ? slot.id : null;
   }
-  /** Where the row would land in `target`: the index of the item the gap opens before. */
+  /**
+   * Where the row would land in `target`: the index of the item the gap
+   * opens before. The gap is the one whose centre is nearest the carried
+   * row's centre, so the row hovers over its gap rather than ahead of it:
+   * above its old place a gap before an item sits where that item was,
+   * below it the gap sits one row higher (the items between moved up).
+   */
   function insertionAt(drag: Drag, target: string): number {
-    const y = listY(drag);
+    const source = drag.items[drag.source];
+    const centre = (source.top + source.bottom) / 2 + listY(drag) - drag.startY;
     let last = -1;
     for (let index = 0; index < drag.items.length; index++) {
       const item = drag.items[index];
       if (item.group !== target) continue;
-      if (item.row && (item.top + item.bottom) / 2 > y) return index;
+      if (item.row && (index < drag.source ? item.bottom : item.top) > centre) return index;
       last = index;
     }
     return last + 1;
