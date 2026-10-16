@@ -286,6 +286,10 @@ test("Activity rows use a bare coloured glyph and a status dot, and lift on hove
     assert.doesNotMatch(rule(name), /background|border:|box-shadow/, `${name} draws no surface`);
   }
   assert.match(css, /\.row:hover \{ background: var\(--bg-input\); box-shadow: var\(--composer-shadow-focus\);/);
+  // A lifted row covers the tree line, and the line is one solid colour so
+  // its overlapping pieces never darken at a joint.
+  assert.match(css, /\.panel \.row \{ position: relative; z-index: 1; \}/);
+  assert.match(css, /--branch-line: color-mix\(in srgb, var\(--text-muted\) \d+%, var\(--color-sidebar\)\)/);
   assert.match(panel, /<SolarIcon name=\{name\} size=\{16\} motionPreset="none" \/>/);
   assert.match(panel, /className=\{`indicator-dot sm \$\{DOT\[tone\]\}`\}/);
   assert.doesNotMatch(panel, /<details|collapsible=\{true\}|collapsible\b(?!=\{false\})/, "nothing expands in place or folds");
@@ -362,4 +366,27 @@ test("a pruned tree redraws its lines for the rows that are left", async () => {
   ]);
   const two = pruneBranches(rows, row => ["j_a1", "j_b"].includes(row.item.execution_id));
   assert.deepEqual(two.map(row => [row.item.execution_id, row.last, row.guides]), [["j_b", false, []], ["j_a", true, []], ["j_a1", true, []]]);
+});
+
+test("a sub-agent waiting on a question shows it and goes to the chat's card to answer", async () => {
+  const decision = { id: "q1", sessionId: "session", executionId: "j_ask", waitGeneration: 1, expectedVersion: 1, kind: "ask",
+    prompt: "Which venue should I book?", options: ["Hotel A", "Hotel B"], multi: false, allow_custom: true };
+  useSessionStore.setState({ pendingDecisions: [decision] });
+  const card = document.createElement("section");
+  card.setAttribute("data-decision-output", "q1");
+  const choice = document.createElement("button"); choice.textContent = "Hotel A"; card.append(choice);
+  choice.focus = () => { card.dataset.focused = "Hotel A"; };
+  card.scrollIntoView = () => { card.dataset.scrolled = "1"; };
+  document.body.append(card);
+  try {
+    await mounted([run("turn", "completed", now - 600), run("j_ask", "paused", now - 300, { parent_execution_id: "turn", display: { kind: "job_agent", label: "Book_hotel" } })],
+    async (host, click) => {
+      assert.match(host.textContent, /Book hotelWaiting for your answer · /);
+      await click("Book hotel");
+      assert.match(host.textContent, /Book hotelWaiting for your answerWaiting for your answerWhich venue should I book\?Choices: Hotel A · Hotel BAnswer in chat/);
+      await click("Answer in chat");
+      assert.equal(card.dataset.scrolled, "1");
+      assert.equal(card.dataset.focused, "Hotel A");
+    });
+  } finally { card.remove(); useSessionStore.setState({ pendingDecisions: [] }); }
 });

@@ -166,6 +166,9 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   const state = useExecutionDebugger(active, sessionId, undefined, view?.kind === "tech");
   const processes = useManagedProcesses(active, sessionId, view?.kind === "program" ? view.id : null);
   const conversationTitle = useSessionStore(s => (sessionId ? s.conversations[sessionId]?.title : undefined) || "");
+  // Questions and approvals are answered in the chat's input box, which
+  // shows each one with its choices; Activity says what is asked and goes there.
+  const allDecisions = useSessionStore(s => s.pendingDecisions);
   const listView = useActivityView();
   const [shown, setShown] = useState(PAGE);
   const [programsShown, setProgramsShown] = useState(PAGE);
@@ -292,6 +295,19 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     finally { setPending(null); }
   }
 
+  /** The open question or approval an execution is waiting on, if the chat has it. */
+  function decisionFor(executionId: string) {
+    return allDecisions.find(entry => entry.sessionId === sessionId && entry.executionId === executionId);
+  }
+  /** Bring the chat's card for this decision into view, with its first choice focused. */
+  function answerInChat(decisionId: string) {
+    const card = [...document.querySelectorAll<HTMLElement>("[data-decision-output]")]
+      .find(node => node.getAttribute("data-decision-output") === decisionId);
+    if (!card) { useSessionStore.getState().focusComposer(); return; }
+    card.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    card.querySelector<HTMLElement>("button:not([disabled]), input:not([disabled]), textarea:not([disabled])")?.focus({ preventScroll: true });
+  }
+
   async function openAgentConversation(job: ExecutionSnapshot) {
     const target = await loadSubAgentTranscript(sessionId!, job.execution_id, { jobId: job.execution_id, headId: job.display?.assistant_message_id })
       || job.display?.assistant_message_id;
@@ -317,8 +333,11 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     const issues = issuesOf(item);
     const live = activeIn(ids);
     const runningCall = calls.filter(entry => ids.has(entry.execution_id) && entry.status === "running").at(-1);
+    const only = issues.length === 1 ? issues[0] : null;
     if (issues.length) return {
-      label: issues.length === 1 && issues[0].kind === "call" ? `${text("Stopped", "已停止")} · ${when(issues[0].at, text)}` : text(`${issues.length} to handle`, `有 ${issues.length} 项待处理`),
+      label: only?.kind === "call" ? `${text("Stopped", "已停止")} · ${when(only.at, text)}`
+        : only?.kind === "execution" ? `${waitingState(only.execution)} · ${when(only.at, text)}`
+          : text(`${issues.length} to handle`, `有 ${issues.length} 项待处理`),
       tone: "warn", at: live ? now : startedAt(item),
     };
     if (live) return {
@@ -326,6 +345,12 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       tone: "run", at: now,
     };
     return { label: `${executionState(item, text)} · ${when(startedAt(item), text)}`, tone: executionTone(item), at: startedAt(item) };
+  }
+  /** A paused or stopped execution in the reader's words: what it waits on. */
+  function waitingState(item: ExecutionSnapshot): string {
+    const decision = item.status === "paused" ? decisionFor(item.execution_id) : undefined;
+    if (decision) return decision.kind === "approval" ? text("Needs your approval", "需要你授权") : text("Waiting for your answer", "等你回答");
+    return executionState(item, text);
   }
   /** Who started a branch, appended when the list is not a tree. */
   const startedBy = (owner: string | null) => {
@@ -375,6 +400,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   // ---- issue block on a page --------------------------------------------------
   function issueBlock(issue: ActivityIssue, here: "main" | "run" | "agent" | "call" | "program"): ReactNode {
     let heading = "", body = "";
+    let choices: string[] = [];
     const actions: ReactNode[] = [];
     const owner = issue.kind === "call" ? issue.owner : issue.kind === "execution" ? issue.execution : null;
     if (issue.kind === "call") {
@@ -387,15 +413,24 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       if (job && here !== "agent") actions.push(<Button key="agent" variant="elevated" size="sm" onClick={() => void openAgentConversation(job)}>{text("Open its conversation", "打开它的对话")}</Button>);
     } else if (issue.kind === "execution") {
       const waiting = issue.execution.status === "paused";
+      const decision = waiting ? decisionFor(issue.execution.execution_id) : undefined;
+      const approval = decision?.kind === "approval";
       // The main agent's page gathers several runs, so each block names its run.
       const title = runTitle(issue.execution);
       heading = here === "main"
-        ? waiting ? text(`"${title}" is waiting for you`, `“${title}”在等你处理`) : text(`"${title}" stopped during an action`, `“${title}”在一个操作途中停止了`)
-        : waiting ? text("Waiting for you", "在等你处理") : text("Stopped during an action", "在一个操作途中停止了");
-      body = waiting
-        ? text("This run paused on a question or an approval.", "这次运行停在一个问题或审批上。")
-        : text("The run stopped before an action returned.", "运行在一个操作返回前停止了。");
-      actions.push(<Button key="tech" variant="elevated" size="sm" onClick={() => openTech(issue.execution.execution_id)}>{waiting ? text("Answer", "去处理") : text("See details", "查看详情")}</Button>);
+        ? waiting
+          ? approval ? text(`"${title}" needs your approval`, `“${title}”需要你授权`) : text(`"${title}" is waiting for your answer`, `“${title}”在等你回答`)
+          : text(`"${title}" stopped during an action`, `“${title}”在一个操作途中停止了`)
+        : waiting
+          ? approval ? text("Needs your approval", "需要你授权") : text("Waiting for your answer", "在等你回答")
+          : text("Stopped during an action", "在一个操作途中停止了");
+      body = !waiting ? text("The run stopped before an action returned.", "运行在一个操作返回前停止了。")
+        : decision ? decision.prompt || decision.questions?.[0]?.prompt || ""
+          : text("This run paused on a question or an approval.", "这次运行停在一个问题或审批上。");
+      choices = decision?.options?.length ? decision.options : decision?.questions?.[0]?.options ?? [];
+      actions.push(decision
+        ? <Button key="answer" variant="elevated" size="sm" onClick={() => answerInChat(decision.id)}>{approval ? text("Review in chat", "去聊天里授权") : text("Answer in chat", "去聊天里回答")}</Button>
+        : <Button key="tech" variant="elevated" size="sm" onClick={() => openTech(issue.execution.execution_id)}>{waiting ? text("Answer", "去处理") : text("See details", "查看详情")}</Button>);
     } else {
       heading = here === "program" ? "" : text(`Program "${programName(issue.program, text)}": state unconfirmed`, `后台程序“${programName(issue.program, text)}”状态待确认`);
       body = text("Its supervisor is unavailable, so whether it exited is not known. The record is kept.", "程序监督进程不可用，不确定它是否已退出，记录仍保留。");
@@ -408,6 +443,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     return <div className={styles.issue} key={issue.key}>
       {heading && <h4 className={styles.issueTitle}>{heading}</h4>}
       <p className={styles.issueText}>{body}</p>
+      {choices.length > 0 && <p className={styles.choices}>{text("Choices: ", "可选：")}{choices.join(text(" · ", "、"))}</p>}
       {actions.length > 0 && <div className={styles.actions}>{actions}</div>}
     </div>;
   }
@@ -484,7 +520,8 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
         <div className={styles.head}>
           <div className={styles.kind}>{agent ? text("Sub-agent", "子代理") : isRoot ? text("Run", "一次运行") : text("Branch", "分支")} · {updatedTime(startedAt(item))} · {text("took", "用时")} {duration(end - startedAt(item), text)}</div>
           <h3 className={styles.title}>{agent ? agentName(item) : runTitle(item)}</h3>
-          <Status tone={issues.length ? "warn" : executionTone(item)}>{issues.length ? agent && issues.length === 1 && issues[0].kind === "call" ? text("Stopped", "已停止") : text(`${issues.length} to handle`, `有 ${issues.length} 项待处理`) : executionState(item, text)}</Status>
+          <Status tone={issues.length ? "warn" : executionTone(item)}>{issues.length ? issues.length === 1 && issues[0].kind === "execution" ? waitingState(issues[0].execution)
+            : agent && issues.length === 1 && issues[0].kind === "call" ? text("Stopped", "已停止") : text(`${issues.length} to handle`, `有 ${issues.length} 项待处理`) : executionState(item, text)}</Status>
         </div>
         {issues.map(issue => issueBlock(issue, agent ? "agent" : "run"))}
         {agent && <div className={styles.actions} data-inline="1">

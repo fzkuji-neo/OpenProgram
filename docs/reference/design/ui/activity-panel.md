@@ -106,8 +106,14 @@ arrow names the page it returns to. Nothing expands in place.
   failed to start one. **Technical details** opens the latest run.
 - **Sub-agent / run**: kind, start and duration, the name or message, its
   state. Its issues come first, each with its actions as raised pills:
-  **Mark as ended** (cancel) when the execution allows it, **Answer** /
-  **See details** for a pause. A sub-agent adds **Open its conversation**,
+  **Mark as ended** (cancel) when the execution allows it. A pause with a
+  queued decision (`pendingDecisions`, matched by execution) shows its
+  prompt and choices, and **Answer in chat** / **Review in chat** scrolls
+  to the composer's decision card (`data-decision-output`) and focuses its
+  first control; the choice is made there, not in Activity. A pause with
+  no queued decision offers **Answer**, which opens Technical details. A
+  single such pause reads as "Waiting for your answer" or "Needs your
+  approval" in the list and on the page. A sub-agent adds **Open its conversation**,
   **Started by** (the main agent or the sub-agent above it),
   **From** (the run of the message that started it) and **Task given to
   it**, from its `agent` call. Then what it did: open calls (an `agent`
@@ -128,5 +134,9 @@ arrow names the page it returns to. Nothing expands in place.
 
 Rows have no frame at rest: a bare glyph in its kind's colour, the name
 over a status line led by the shared indicator dot, a chevron. Hover lifts
-the row into the raised card the file cards use. An issue on a page is a
+the row into the raised card the file cards use. Rows stack above the
+tree lines, so a lifted card and its shadow cover the line instead of
+being crossed by it. The line is one solid colour, the muted text mixed
+into the panel's own background rather than a translucent stroke, so
+where its pieces overlap at a joint it never darkens. An issue on a page is a
 soft amber tint with no border.
