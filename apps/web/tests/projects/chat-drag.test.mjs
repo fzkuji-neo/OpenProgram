@@ -70,6 +70,7 @@ test('a chat row slides with the pointer, the lists make room, and dropped on an
   // pointer (s2, then project b's header) moves up one row; s3, below
   // the pointer, stays, so the gap opens above it.
   assert.equal(last.rowOffset('s2'), -30); assert.equal(last.headerOffset('b'), -30);
+  assert.deepEqual(last.dropGrow, { top: 30, bottom: 0 }, 'the frame round b reaches up over the gap its rows left');
   assert.equal(last.rowOffset('s3'), 0); assert.equal(last.headerOffset('a'), 0);
   assert.equal(row('s2').style.transform, 'translateY(-30px)');
   assert.equal(frames.size, 1, 'edge auto-scroll is armed while dragging');
@@ -77,6 +78,7 @@ test('a chat row slides with the pointer, the lists make room, and dropped on an
   assert.deepEqual(moves, [['s1', 'b']]);
   assert.equal(last.draggingChat, null); assert.equal(last.dropProject, null);
   assert.equal(last.rowOffset('s2'), 0); assert.equal(last.headerOffset('b'), 0);
+  assert.deepEqual(last.dropGrow, { top: 0, bottom: 0 });
   assert.equal(capture.size, 0); assert.equal(frames.size, 0);
   await fire('s1', 'click', 10, 120); assert.equal(clicks, 0);
   // A plain press and release still opens the chat.
@@ -98,6 +100,7 @@ test('a chat row slides with the pointer, the lists make room, and dropped on an
     // row (s3's height plus the 1px gap) to open the gap above s1.
     assert.equal(last.rowOffset('s1'), 31, cancel); assert.equal(last.rowOffset('s2'), 31, cancel);
     assert.equal(last.headerOffset('b'), 31, cancel); assert.equal(last.headerOffset('a'), 0, cancel);
+    assert.deepEqual(last.dropGrow, { top: 0, bottom: 31 }, cancel);
     if (cancel === 'outside') await fire('s3', 'pointerup', 300, 40);
     else if (cancel === 'disabled') await act(async () => root.render(h(Harness, { enabled: false })));
     else if (cancel === 'Escape' || cancel === 'blur') await act(async () => {

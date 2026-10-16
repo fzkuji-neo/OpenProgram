@@ -128,7 +128,7 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
   const projectMode = view.groupBy === "project";
   const [orderNotice, setOrderNotice] = useState("");
   const { draggingProject, projectOffset, headerProps } = useProjectDrag(projectMode, reorderProject);
-  const { dropProject, rowProps, headerOffset: chatHeaderOffset } = useChatDrag(projectMode, (sessionId, projectId) => void moveChat(sessionId, projectId));
+  const { dropProject, dropGrow, rowProps, headerOffset: chatHeaderOffset } = useChatDrag(projectMode, (sessionId, projectId) => void moveChat(sessionId, projectId));
   const reducedMotion = useReducedMotion();
 
   const [projects, setProjects] = useState<SidebarProject[]>([]);
@@ -558,7 +558,9 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
                     className={`${styles.projectGroup} flex flex-col gap-px`}
                     animate={{ y: projectOffset(g.key), scale: draggingProject?.id === g.key ? 1.02 : 1 }}
                     transition={reducedMotion || draggingProject?.id === g.key ? { duration: 0 } : { type: "spring", stiffness: 600, damping: 40 }}
-                    style={{ zIndex: draggingProject?.id === g.key ? 5 : undefined }}
+                    style={{ zIndex: draggingProject?.id === g.key ? 5 : undefined,
+                      // The drop frame (::after) reaches past the box to take in the gap the rows opened.
+                      ...(dropProject === g.key ? { "--drop-grow-top": `${dropGrow.top}px`, "--drop-grow-bottom": `${dropGrow.bottom}px` } as React.CSSProperties : {}) }}
                     data-dragging={draggingProject?.id === g.key || undefined}
                     data-drop-target={dropProject === g.key || undefined}
                   >
