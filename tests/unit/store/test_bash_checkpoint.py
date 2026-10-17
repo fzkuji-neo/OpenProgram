@@ -50,8 +50,11 @@ def test_bash_write_is_not_attributed_to_turn(tmp_path: Path, monkeypatch) -> No
         def reject_scan(*_args, **_kwargs):
             raise AssertionError("bash execution must not walk the workspace")
 
-        monkeypatch.setattr("os.scandir", reject_scan)
-        asyncio.run(_execute_tool_calls([tool], message, None, EventStream()))
+        # Only the execution is barred from walking; finding the session
+        # directory for the check below may list the store.
+        with monkeypatch.context() as scoped:
+            scoped.setattr("os.scandir", reject_scan)
+            asyncio.run(_execute_tool_calls([tool], message, None, EventStream()))
     finally:
         reset_worktree(worktree_token)
         _current_turn_id.reset(turn_token)
