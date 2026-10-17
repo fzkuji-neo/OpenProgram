@@ -1,6 +1,6 @@
 # 操控电脑
 
-`computer_use` 工具让模型在你继续工作的同时读取并操作桌面应用的窗口：应用留在后台，键盘和鼠标仍归你，不会有窗口被带到前台。模型看到的是窗口截图加上它的 Accessibility 树，对编号元素执行动作，然后只拿回发生变化的那几行。它支持 macOS，也支持 X11 下的 Linux，差异见[在 Linux 上](#在-linux-上)。
+`computer_use` 工具让模型在你继续工作的同时读取并操作桌面应用的窗口：应用留在后台，键盘和鼠标仍归你，不会有窗口被带到前台。模型看到的是窗口截图加上它的 Accessibility 树，对编号元素执行动作，然后只拿回发生变化的那几行。它支持 macOS、X11 下的 Linux 和 Windows，差异见[在 Linux 上](#在-linux-上)和[在 Windows 上](#在-windows-上)。
 
 网页有自己的工具 `web_use`，它驱动 App 内置浏览器和无头 Chromium。`computer_use` 负责桌面上的其他一切：Finder、备忘录、计算器、Xcode、聊天客户端、游戏启动器。
 
@@ -111,7 +111,7 @@ App 浏览器里的页面全程留在后台：事件在页面内派发，标签�
 
 ## 要求
 
-- macOS，或使用 X11（Xorg）会话的 Linux。不支持 Windows。
+- macOS、使用 X11（Xorg）会话的 Linux，或 Windows 10、11。
 - 在 macOS 上，签名的运行时（`ai.openprogram.runtime`）必须持有**辅助功能**和**屏幕录制**权限。工具会报告缺哪一项，设置 → 系统访问可以发起请求。[权限](permissions.zh.md)描述了运行时的 macOS 授权方式。
 
 
@@ -132,6 +132,21 @@ Linux 上，工具通过 AT-SPI 读取窗口的无障碍树（GTK 3、GTK 4 应�
 - 不接入无障碍总线的应用在列表里标为 "no accessibility tree"：模型读它的截图（装了 tesseract 时带 OCR 文字），按坐标操作。
 - 录音只读取该应用（及其子进程）自己的音频流，来源是 PipeWire 或 PulseAudio。PipeWire 下四分之一秒内就开始录；只有 PulseAudio、没有 PipeWire 时，已经在播放的音频流开头约一秒可能录不到。
 - 拒绝操作：密码框、Seahorse 和 KWallet、polkit 与 gcr 认证弹窗，以及 OpenProgram 自身。
+
+## 在 Windows 上
+
+Windows 上，工具读取窗口的 UI Automation 树（Win32、WPF、WinForms、应用商店应用（UWP、WinUI）和基于 Chromium 的应用都提供），窗口被挡住时也能截图。需要 `comtypes` 包，Windows 安装已包含；`PATH` 上有 `tesseract` 时，没有树的应用的截图文字也能识别。Windows 支持是新加的，项目还没有在 Windows 机器上实际跑过；遇到问题请连同失败的那一步一起反馈。
+
+相同的部分：树的格式、稳定的编号和差异、截图、`zoom`、`find`、`batch`、`select_text`、`set_value`、`copy`、`paste`（纯文本、markdown 和 HTML）、按元素滚动、录音以及审批。应用按 `list_apps` 打印的名字指定：开始菜单里的名称（`计算器`）、可执行文件名（`notepad`）或进程号；已安装的应用从它的开始菜单条目启动。
+
+不同的部分：
+
+- 元素动作通过 UI Automation 在后台进行。对窗口的点击、滚动和不带修饰键的按键以窗口消息发给这个窗口，不会把它切到前台；`hover` 不移动你的鼠标指针。
+- 带修饰键的按键（`ctrl+s`）需要真实的键盘状态，`paste` 在多数应用里要按 `ctrl+v`，所以这一步会把窗口短暂切到前台，完成后把焦点和鼠标指针还给你。只接收真实输入的窗口（应用商店应用的外框、Chromium、Firefox）的指针输入也这样处理。请用 Windows 的快捷键：`ctrl+c`，不是 `cmd+c`。
+- `menu` 支持传统菜单栏和通过 UI Automation 提供的菜单；用功能区（Ribbon）的应用，命令在窗口的树里。
+- `copy` 直接返回选中的文字，不动剪贴板。`paste` 之后恢复剪贴板里原来的文字，其他格式不保留。
+- 录音通过 Windows 的进程回环采集该应用自己的进程树（需要 Windows 10 2004 或更高版本）。
+- 拒绝操作：密码框、凭据与提权（UAC）弹窗、锁屏，以及 OpenProgram 自身。
 
 ## 录音
 

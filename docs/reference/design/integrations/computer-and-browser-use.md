@@ -66,7 +66,7 @@ Codex records computer audio with `start_audio_recording` / `stop_audio_recordin
 | Module | Role |
 |---|---|
 | `openprogram/computer_use/base.py` | what every backend shares: `ComputerUseError`, `Report`, `Observation`, `AudioClip`, argument checks, recording storage |
-| `openprogram/computer_use/backends.py` | `support()` and `backend()` for the host: `macos` on Darwin, `linux` on Linux |
+| `openprogram/computer_use/backends.py` | `support()` and `backend()` for the host: `macos` on Darwin, `linux` on Linux, `windows` on Windows |
 | `openprogram/computer_use/keys.py` | xdotool chord parsing to macOS key codes and modifier flags (`super+shift+z`, `ctrl++`, `KP_0`, lone modifiers) |
 | `openprogram/computer_use/tree.py` | `Node`, rendering, signatures, stable numbering (`Snapshot`, `number`) and the diff |
 | `openprogram/computer_use/audio.py` | ScreenCaptureKit audio capture of one application, sample limit, WAV encoding |
@@ -74,6 +74,8 @@ Codex records computer audio with `start_audio_recording` / `stop_audio_recordin
 | `openprogram/computer_use/skylight.py` | ctypes bindings to SkyLight for background pointer and keyboard routing |
 | `openprogram/computer_use/macos.py` | `MacComputer`: app resolution, window selection, capture, tree walk, every action |
 | `openprogram/computer_use/linux.py` | `LinuxComputer`: the same interface over AT-SPI, xdotool, Gdk capture and PipeWire/PulseAudio |
+| `openprogram/computer_use/windows.py` | `WindowsComputer`: the same interface over UI Automation (comtypes), window messages, `SendInput` and `PrintWindow` |
+| `openprogram/computer_use/windows_audio.py` | WASAPI process-loopback capture of one process tree |
 | `openprogram/programs/tools/system/computer_use.py` | the registered tool: schema, description with the confirmation policy, approval reason, batch, result assembly |
 
 ### Background delivery
@@ -105,6 +107,23 @@ The tool never types into `AXSecureTextField` elements or while macOS reports se
 - **Refusals.** `password text` elements, Seahorse, KWallet, gcr prompts, polkit agents and OpenProgram's own entries.
 
 The tool's description is rewritten for Linux at import (`_LINUX_DESCRIPTION`): which steps bring the window forward, plain-text `paste`, clipboard-free `copy`, the Linux refusals. The `computer_use_apps` WebSocket reply carries the worker's `platform`, and on Linux the approval card states for coordinate input, drags, hovers and keys other than Return (`needsForeground`) that the window comes forward for that step.
+
+### Windows backend
+
+`WindowsComputer` keeps the same interface. The process is per-monitor DPI aware (`SetProcessDpiAwarenessContext(-4)`), so window frames, UI Automation bounds and input coordinates are all physical screen pixels. Every Win32 function it calls has its `restype` and `argtypes` declared, so 64-bit handles pass intact.
+
+- **Apps.** Top-level windows from `EnumWindows` that are visible, unowned, not tool windows and titled, grouped by process. A UWP frame (`ApplicationFrameWindow`) belongs to ApplicationFrameHost; its app is the process of the `Windows.UI.Core.CoreWindow` child. Installed apps are `Get-StartApps` (desktop and Store alike, cached for a minute); a running process is matched to a row by executable or name, and launching runs `explorer.exe shell:AppsFolder\<AppID>`, then waits for a new window.
+- **Tree.** `IUIAutomation.ElementFromHandle` on the window, walked with the control view walker; offscreen subtrees are skipped except menu items. Roles are the control types (50000–50040) named in lower case (`button`, `edit`, `check box`). Unnamed panes, groups and custom elements without actions are transparent. Flags come from patterns: Toggle state, `IsEnabled`, `HasKeyboardFocus`, SelectionItem, ExpandCollapse, a writable Value or a RangeValue (`settable`), `IsPassword` (`secure`). Values come from RangeValue, Value or the Text pattern's document range. Secondary actions are expand, collapse, scroll, select and a LegacyIAccessible default action other than press, click, invoke or jump.
+- **Element actions in the background.** Click tries Invoke, Toggle, SelectionItem.Select, ExpandCollapse and LegacyIAccessible.DoDefaultAction in order, and focuses an edit; `set_value` uses Toggle, RangeValue, Value or LegacyIAccessible; `select_text` moves a Text pattern range by characters; `copy` reads the Text pattern's selection; `scroll` by element uses the nearest Scroll pattern by large increments; `menu` walks a classic `HMENU` (`GetMenu`) and posts `WM_COMMAND`, or expands and invokes UI Automation menu items.
+- **Posted input.** A coordinate click, drag, wheel scroll or hover is posted as mouse messages to the deepest child window under the point (`ChildWindowFromPointEx`), in its client coordinates; a second click is `WM_LBUTTONDBLCLK`. A key without named modifiers is `WM_KEYDOWN`/`WM_CHAR`/`WM_KEYUP` to the thread's focus window (`GetGUIThreadInfo`); `type_text` posts `WM_CHAR` per UTF-16 unit. `paste` into a classic edit or rich edit control sends `WM_PASTE`.
+- **Foreground input.** Shortcuts read `GetKeyState`, which posted messages do not change, and UWP frames, Chromium and Firefox windows read raw input, so a chord with modifiers, pointer input to those window classes, and `paste` elsewhere use `SendInput` inside `_Forward`: it joins the foreground thread's input queue (`AttachThreadInput`) to call `SetForegroundWindow`, runs the input, and then puts the cursor and the previous foreground window back.
+- **Screenshots.** `PrintWindow` with `PW_RENDERFULLCONTENT` renders the window, covered or not, into a bitmap the size of its outer rectangle; the visible frame (`DWMWA_EXTENDED_FRAME_BOUNDS`) is cut from it and scaled with `StretchBlt` in HALFTONE mode to 1568 pixels on the long side, then `GetDIBits` gives BGRA rows that `png_encode` writes as a PNG without any imaging library. A minimized window has no screenshot; `show_window` restores it with `SW_SHOWNOACTIVATE`.
+- **Clipboard.** `paste` writes `CF_UNICODETEXT` and, for md and html, the "HTML Format" payload whose header offsets `cf_html` computes, and restores the previous text afterwards.
+- **OCR.** As on Linux, tesseract when it is installed.
+- **Audio.** `ActivateAudioInterfaceAsync` on `VAD\Process_Loopback` with `PROCESS_LOOPBACK_MODE_INCLUDE_TARGET_PROCESS_TREE` gives an `IAudioClient` initialised in shared loopback mode with auto-conversion to 16 kHz mono float, read event-driven through `IAudioCaptureClient` on its own COM thread. The completion handler is an agile COM object, since Windows calls it on a worker thread.
+- **Refusals.** `IsPassword` elements, CredentialUIBroker, consent (UAC), LogonUI, LockApp, credwiz, keymgr and OpenProgram.
+
+The tool's description is rewritten for Windows at import (`_WINDOWS_DESCRIPTION`), and the approval card says for a chord or a paste (`needsForeground(args, "windows")`) that the window comes forward for that step.
 
 ### Permissions and approval
 
@@ -174,8 +193,6 @@ The person points the agent at things the way Codex lets them:
 - In a web tab, **Comment on the page…** picks one element and adds its selector, text and the comment to the draft; **Screenshot a region…** lets them drag a rectangle and adds those pixels as a PNG attachment. Both run in one isolated world (`PICKER_WORLD` in `apps/desktop/main/web-views.js`) that shares a cancel hook, so one mode ends the other. The region overlay is removed and two frames are painted before `capturePage` takes the rectangle, scaled by the page zoom. The file reaches the target conversation through `lib/composer-inbox.ts`: the composer showing that conversation takes it as a dropped file, and it waits there until one does.
 - The composer's `@` menu lists open web tabs and running apps above the files (`attach/mention-sources.ts`). A tab is written as a markdown link to its address and an app as its name and bundle id, so "this tab" resolves without the model guessing. Running apps come from `computer_use_apps` with `running: true`, which lists regular apps other than the refused ones and is kept for ten seconds in the page.
 
-A Windows backend (UI Automation) would follow the same interface; it is not started.
-
 ## Relation to the GUI Agent
 
 The GUI Agent workflow (`gui_agent`), its grounding pipeline and its capability planner are unchanged. `computer_use` does not call it and it does not call `computer_use`. Whether the workflow later becomes a thin sub-agent that runs on `computer_use` through the generic `agent` tool is an open decision, taken only after the base tools are complete.
@@ -191,4 +208,5 @@ The GUI Agent workflow (`gui_agent`), its grounding pipeline and its capability 
 - Implemented: element comments and region screenshots in web tabs; `@`-mentions of open tabs and running apps.
 - Implemented: outlines of icons and controls without text in sparse windows.
 - Implemented: the Linux (X11) backend described above. It is tested in a Debian 12 container with Xvfb, Openbox, the AT-SPI bus and PipeWire against a GTK 3 window (menu bar, entry, password entry, check box, slider, scrolled text view, drawing area, a button that plays sound from a child process), GNOME Calculator (GTK 4 with libadwaita, launched from its desktop entry, 7×6 computed by element clicks) and ImageMagick `display` (an Xt client without AT-SPI, read by OCR). Host-independent parts have unit tests.
-- Not implemented: audio input over the Responses and Anthropic APIs, whose models take no audio; moving a window from another Space, which since macOS 14.5 only the Dock may do (`SLSMoveWindowsToManagedSpace` from any other process needs System Integrity Protection relaxed, as yabai documents); a Windows backend, which cannot be run or tested on the macOS machines this is built on (no Windows guest is available to a container runtime here); naming an icon from its outline (the model reads the screenshot).
+- Implemented, not yet run on Windows: the Windows backend described above. The macOS machines it is built on have no Windows guest, so only its host-independent parts (PNG encoding, key mapping, the HTML clipboard payload, Start menu parsing, the control-type table, refusals, the recording format) have unit tests.
+- Not implemented: audio input over the Responses and Anthropic APIs, whose models take no audio; moving a window from another Space, which since macOS 14.5 only the Dock may do (`SLSMoveWindowsToManagedSpace` from any other process needs System Integrity Protection relaxed, as yabai documents); naming an icon from its outline (the model reads the screenshot).

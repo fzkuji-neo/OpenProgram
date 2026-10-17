@@ -66,7 +66,7 @@ Codex 用 `start_audio_recording` / `stop_audio_recording` 录电脑声音（默
 | 模块 | 职责 |
 |---|---|
 | `openprogram/computer_use/base.py` | 各后端共用的部分：`ComputerUseError`、`Report`、`Observation`、`AudioClip`、参数检查、录音保存 |
-| `openprogram/computer_use/backends.py` | 按主机给出 `support()` 和 `backend()`：Darwin 用 `macos`，Linux 用 `linux` |
+| `openprogram/computer_use/backends.py` | 按主机给出 `support()` 和 `backend()`：Darwin 用 `macos`，Linux 用 `linux`，Windows 用 `windows` |
 | `openprogram/computer_use/keys.py` | xdotool 组合键解析为 macOS 键码和修饰键标志（`super+shift+z`、`ctrl++`、`KP_0`、单独修饰键） |
 | `openprogram/computer_use/tree.py` | `Node`、渲染、签名、稳定编号（`Snapshot`、`number`）和 diff |
 | `openprogram/computer_use/audio.py` | 单个应用的 ScreenCaptureKit 音频采集、采样上限、WAV 编码 |
@@ -74,6 +74,8 @@ Codex 用 `start_audio_recording` / `stop_audio_recording` 录电脑声音（默
 | `openprogram/computer_use/skylight.py` | SkyLight 的 ctypes 绑定，用于后台指针和键盘路由 |
 | `openprogram/computer_use/macos.py` | `MacComputer`：应用解析、窗口选择、抓图、树遍历、全部动作 |
 | `openprogram/computer_use/linux.py` | `LinuxComputer`：同一接口，基于 AT-SPI、xdotool、Gdk 抓图和 PipeWire/PulseAudio |
+| `openprogram/computer_use/windows.py` | `WindowsComputer`：同一接口，基于 UI Automation（comtypes）、窗口消息、`SendInput` 和 `PrintWindow` |
+| `openprogram/computer_use/windows_audio.py` | 用 WASAPI 进程回环采集一个进程树的声音 |
 | `openprogram/programs/tools/system/computer_use.py` | 注册的工具：schema、含确认策略的说明、审批理由、批量、结果拼装 |
 
 ### 后台投递
@@ -105,6 +107,23 @@ Codex 用 `start_audio_recording` / `stop_audio_recording` 录电脑声音（默
 - **拒绝。** `password text` 元素、Seahorse、KWallet、gcr 弹窗、polkit 代理以及 OpenProgram 自身的条目。
 
 工具描述在导入时按 Linux 改写（`_LINUX_DESCRIPTION`）：哪些步骤会把窗口切到前台、纯文本 `paste`、不经剪贴板的 `copy`、Linux 上的拒绝列表。`computer_use_apps` 的 WebSocket 回复带上 worker 的 `platform`；在 Linux 上，审批卡片对按坐标输入、拖拽、悬停和回车以外的按键（`needsForeground`）说明这一步会把窗口切到前台。
+
+### Windows 后端
+
+`WindowsComputer` 保持同一个接口。进程设为按显示器感知 DPI（`SetProcessDpiAwarenessContext(-4)`），所以窗口框、UI Automation 的边界和输入坐标都是物理屏幕像素。它调用的每个 Win32 函数都声明了 `restype` 和 `argtypes`，64 位句柄不会被截断。
+
+- **应用。** `EnumWindows` 给出的可见、无所有者、非工具窗口且有标题的顶层窗口，按进程分组。UWP 外框（`ApplicationFrameWindow`）属于 ApplicationFrameHost，它的应用是子窗口 `Windows.UI.Core.CoreWindow` 所在的进程。已安装应用来自 `Get-StartApps`（桌面应用和应用商店应用都在，缓存一分钟）；运行中的进程按可执行文件或名称对应到一行，启动时运行 `explorer.exe shell:AppsFolder\<AppID>`，再等新窗口出现。
+- **树。** 对窗口调用 `IUIAutomation.ElementFromHandle`，用控件视图遍历器遍历；屏幕外的子树跳过，菜单项除外。角色是控件类型（50000–50040）的小写名称（`button`、`edit`、`check box`）。没有名字、没有动作的 pane、group 和 custom 是透明的。标志来自模式：Toggle 状态、`IsEnabled`、`HasKeyboardFocus`、SelectionItem、ExpandCollapse、可写的 Value 或 RangeValue（`settable`）、`IsPassword`（`secure`）。值取自 RangeValue、Value 或 Text 模式的文档范围。次要动作是 expand、collapse、scroll、select，以及 LegacyIAccessible 里不是 press、click、invoke、jump 的默认动作。
+- **后台元素动作。** 点击依次尝试 Invoke、Toggle、SelectionItem.Select、ExpandCollapse 和 LegacyIAccessible.DoDefaultAction，对输入框则是聚焦；`set_value` 用 Toggle、RangeValue、Value 或 LegacyIAccessible；`select_text` 按字符移动 Text 模式的范围；`copy` 读取 Text 模式的选区；按元素 `scroll` 用最近的 Scroll 模式按大步滚动；`menu` 遍历传统 `HMENU`（`GetMenu`）并投递 `WM_COMMAND`，或展开并调用 UI Automation 菜单项。
+- **投递输入。** 按坐标的点击、拖拽、滚轮和悬停，以鼠标消息投递给该点下最深的子窗口（`ChildWindowFromPointEx`），用它的客户区坐标；第二次点击是 `WM_LBUTTONDBLCLK`。不带命名修饰键的按键，以 `WM_KEYDOWN`/`WM_CHAR`/`WM_KEYUP` 发给该线程的焦点窗口（`GetGUIThreadInfo`）；`type_text` 每个 UTF-16 单元投递一个 `WM_CHAR`。向传统 edit 或 rich edit 控件 `paste` 时发送 `WM_PASTE`。
+- **前台输入。** 快捷键读的是 `GetKeyState`，投递消息改变不了它；UWP 外框、Chromium 和 Firefox 窗口读取原始输入。所以带修饰键的组合键、对这些窗口类的指针输入，以及其他情况下的 `paste`，都在 `_Forward` 里用 `SendInput`：它先接入前台线程的输入队列（`AttachThreadInput`）以便调用 `SetForegroundWindow`，执行输入，再把光标和原来的前台窗口还回去。
+- **截图。** `PrintWindow` 加 `PW_RENDERFULLCONTENT` 把窗口（无论是否被挡住）画进一张外框大小的位图；从中裁出可见框（`DWMWA_EXTENDED_FRAME_BOUNDS`），用 HALFTONE 模式的 `StretchBlt` 缩到长边 1568 像素，再由 `GetDIBits` 取出 BGRA 行，`png_encode` 不借助任何图像库写成 PNG。最小化的窗口没有截图；`show_window` 用 `SW_SHOWNOACTIVATE` 还原它。
+- **剪贴板。** `paste` 写入 `CF_UNICODETEXT`，md 和 html 还写入 "HTML Format"（头部偏移由 `cf_html` 计算），之后恢复原来的文字。
+- **OCR。** 与 Linux 相同，装了 tesseract 时使用。
+- **音频。** 对 `VAD\Process_Loopback` 调用 `ActivateAudioInterfaceAsync`，参数为 `PROCESS_LOOPBACK_MODE_INCLUDE_TARGET_PROCESS_TREE`，得到一个 `IAudioClient`，以共享回环模式初始化并自动转换为 16 kHz 单声道 float，在独立的 COM 线程上由事件驱动经 `IAudioCaptureClient` 读取。完成回调是 agile COM 对象，因为 Windows 在工作线程上调用它。
+- **拒绝。** `IsPassword` 元素、CredentialUIBroker、consent（UAC）、LogonUI、LockApp、credwiz、keymgr 和 OpenProgram。
+
+工具描述在导入时按 Windows 改写（`_WINDOWS_DESCRIPTION`）；对组合键和粘贴（`needsForeground(args, "windows")`），审批卡片说明这一步会把窗口切到前台。
 
 ### 权限与审批
 
@@ -174,8 +193,6 @@ Codex 用 `start_audio_recording` / `stop_audio_recording` 录电脑声音（默
 - 在网页标签里，**评论页面元素…** 选中一个元素，把它的选择器、文字和评论加进草稿；**区域截图…** 让人拖出一个矩形，把这块像素作为 PNG 附件加入。两者运行在同一个隔离脚本环境里（`apps/desktop/main/web-views.js` 的 `PICKER_WORLD`），共用一个取消钩子，开启一种会结束另一种。区域遮罩先被移除、再画两帧，`capturePage` 才按页面缩放截取那个矩形。文件经 `lib/composer-inbox.ts` 送到目标对话：显示这个对话的输入框把它当作拖进来的文件收下，在那之前它一直在收件箱里等。
 - 输入框的 `@` 菜单在文件之前列出已打开的网页标签和正在运行的应用（`attach/mention-sources.ts`）。标签页写成指向其地址的 markdown 链接，应用写成名称加 bundle id，所以「这个标签页」不用模型去猜。正在运行的应用来自带 `running: true` 的 `computer_use_apps`，它列出被拒应用之外的常规应用，页面里缓存十秒。
 
-Windows 后端（UI Automation）会沿用同一个接口，尚未开始。
-
 ## 与 GUI Agent 的关系
 
 GUI Agent 工作流（`gui_agent`）、它的 grounding 流水线和能力 planner 保持不变。`computer_use` 不调用它，它也不调用 `computer_use`。该工作流日后是否变成一个经通用 `agent` 工具运行在 `computer_use` 之上的轻量子 agent，是悬而未决的决定，只在基础工具完备后再做。
@@ -191,4 +208,5 @@ GUI Agent 工作流（`gui_agent`）、它的 grounding 流水线和能力 plann
 - 已实现：网页标签里的元素评论和区域截图；对已打开标签页和正在运行应用的 `@` 提及。
 - 已实现：稀疏窗口里不带文字的图标和控件的轮廓。
 - 已实现：上文所述的 Linux（X11）后端。测试在 Debian 12 容器里进行，环境是 Xvfb、Openbox、AT-SPI 总线和 PipeWire，对象是一个 GTK 3 窗口（菜单栏、输入框、密码框、复选框、滑块、带滚动的文本视图、绘图区、一个由子进程放声音的按钮）、GNOME 计算器（GTK 4 加 libadwaita，从桌面条目启动，靠元素点击算出 7×6）以及 ImageMagick 的 `display`（不接入 AT-SPI 的 Xt 客户端，靠 OCR 读取）。与主机无关的部分有单元测试。
-- 未实现：经 Responses 和 Anthropic API 的音频输入（这两个接口的模型不收音频）；把窗口从另一个桌面空间移过来（macOS 14.5 起只有 Dock 能这样做，其他进程调用 `SLSMoveWindowsToManagedSpace` 需要放宽系统完整性保护，yabai 的文档写明了这一点）；Windows 后端（在构建它的 macOS 机器上无法运行和测试，这里的容器运行时也起不了 Windows 客户机）；从轮廓直接认出图标的名字（模型看截图分辨）。
+- 已实现、尚未在 Windows 上运行：上文所述的 Windows 后端。构建它的 macOS 机器没有 Windows 客户机，所以只有与主机无关的部分（PNG 编码、按键映射、HTML 剪贴板内容、开始菜单解析、控件类型表、拒绝列表、录音格式）有单元测试。
+- 未实现：经 Responses 和 Anthropic API 的音频输入（这两个接口的模型不收音频）；把窗口从另一个桌面空间移过来（macOS 14.5 起只有 Dock 能这样做，其他进程调用 `SLSMoveWindowsToManagedSpace` 需要放宽系统完整性保护，yabai 的文档写明了这一点）；从轮廓直接认出图标的名字（模型看截图分辨）。

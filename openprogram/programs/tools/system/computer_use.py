@@ -97,9 +97,38 @@ _LINUX_DESCRIPTION = (
      "Refused: password fields, password stores (Seahorse, KWallet), authentication prompts (polkit, gcr), and "
      "OpenProgram itself."),
 )
+# What differs on Windows: shortcuts read the real keyboard state, and some
+# windows (UWP frames, Chromium) take raw input instead of window messages.
+_WINDOWS_DESCRIPTION = (
+    ("Read and operate macOS application windows in the background: the user keeps the keyboard, mouse and front app, "
+     "and nothing is raised or activated.",
+     "Read and operate Windows application windows. Element actions run in the background through UI Automation, and "
+     "clicks, scrolls and plain keys at a window are posted to it without raising it. A key with modifiers (ctrl+s), "
+     "and pointer input to windows that take only real input (Store apps, Chromium), bring the window forward for "
+     "that moment and then give focus and the cursor back, so prefer element_index."),
+    ("When an app exposes little to Accessibility", "When an app exposes little to UI Automation"),
+    ("super/cmd is Command. Keys go to that app only, so system-wide shortcuts (Spotlight, Mission Control) cannot be "
+     "pressed.", "super/cmd is the Windows key; ctrl is Control. Use the Windows shortcuts (ctrl+c, not super+c)."),
+    ("one of the element's listed actions (AXShowMenu, AXIncrement …).",
+     "one of the element's listed actions (expand, collapse, select, or its default action)."),
+    ("un-minimize a window or unhide the app, still in the background.",
+     "un-minimize a window without activating it."),
+    ("through the clipboard, which is restored afterwards; md for formatted text in rich editors.",
+     "through the clipboard, whose text is restored afterwards; md for formatted text in rich editors."),
+    ("the app's own Copy on the current selection; returns the copied text and restores the clipboard.",
+     "returns the selected text of the element (or the focused one); the clipboard is not touched."),
+    ("list_windows(app): window ids, titles, minimized / hidden / other-Space state.",
+     "list_windows(app): window ids, titles, focused and minimized state."),
+    ("Refused: password fields, the Keychain and Passwords apps, system login prompts, and OpenProgram itself.",
+     "Refused: password fields, credential and elevation prompts (Credential UI, UAC), the lock screen, and "
+     "OpenProgram itself."),
+)
 if platform.system() == "Linux":
     for _mac, _linux in _LINUX_DESCRIPTION:
         DESCRIPTION = DESCRIPTION.replace(_mac, _linux)
+elif platform.system() == "Windows":
+    for _mac, _windows in _WINDOWS_DESCRIPTION:
+        DESCRIPTION = DESCRIPTION.replace(_mac, _windows)
 
 _STEP_PROPERTIES: dict[str, Any] = {
     "element_index": {"type": "integer", "description": "Index of an element in the app's last tree."},
@@ -154,8 +183,8 @@ _PARAMETERS = {
 
 
 def available() -> bool:
-    """Process-level gate: macOS with the PyObjC frameworks, or Linux on X11 with AT-SPI."""
-    if platform.system() not in ("Darwin", "Linux"):
+    """Process-level gate: macOS with the PyObjC frameworks, Linux on X11 with AT-SPI, or Windows with UI Automation."""
+    if platform.system() not in ("Darwin", "Linux", "Windows"):
         return False
     from openprogram.computer_use.backends import support
     return bool(support()["available"])

@@ -60,12 +60,20 @@ export function computerUseStep(args: Args, text: Text): { verb: string; target:
 const POINTER_ACTIONS = new Set(["click", "drag", "scroll", "hover"]);
 const BACKGROUND_KEYS = new Set(["return", "enter", "kp_enter"]);
 
-/** On Linux, input at a coordinate and key presses reach a window only while it
- *  is focused, so such a step brings the window forward for a moment. */
-export function needsForeground(args: Args): boolean {
+/** Whether a step brings the window forward for a moment. On Linux, input at a
+ *  coordinate and key presses reach a window only while it is focused. On
+ *  Windows, plain input is posted to the window, but a key with modifiers needs
+ *  the real keyboard state, and paste presses ctrl+v in most apps. */
+export function needsForeground(args: Args, platform = "linux"): boolean {
   const action = str(args.action);
   if (action === "batch") return Array.isArray(args.actions) && args.actions.some((step) =>
-    !!step && typeof step === "object" && needsForeground(step as Args));
+    !!step && typeof step === "object" && needsForeground(step as Args, platform));
+  if (platform === "windows") {
+    if (action === "paste") return true;
+    const key = str(args.key);
+    return action === "press_key" && key !== "+" && key.replace(/\+\+$/, "+x").split("+").length > 1;
+  }
+  if (platform !== "linux") return false;
   if (POINTER_ACTIONS.has(action)) {
     const index = args.element_index;
     const byElement = typeof index === "number" || (typeof index === "string" && index !== "");

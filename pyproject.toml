@@ -112,6 +112,9 @@ dependencies = [
     "pyobjc-framework-EventKit>=10; sys_platform == 'darwin'",
     # computer_use reads text off the screenshot when an app exposes no Accessibility tree.
     "pyobjc-framework-Vision>=10; sys_platform == 'darwin'",
+    # computer_use on Windows reads windows through UI Automation and records an
+    # app's own sound through WASAPI process loopback, both COM interfaces.
+    "comtypes>=1.4; sys_platform == 'win32'",
     # Windows ConPTY binding (import name ``winpty``). Drives the interactive
     # Claude-account browser login through a pseudo-terminal on Windows, where
     # stdlib ``pty`` doesn't exist (POSIX reuses ``pty``). Windows-only marker;

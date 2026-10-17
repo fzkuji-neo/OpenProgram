@@ -67,9 +67,9 @@ def test_support_needs_linux_with_x11(monkeypatch):
     assert not state["available"] and "Wayland" in state["reason"]
 
 
-def test_hosts_other_than_macos_and_linux_have_no_backend(monkeypatch):
-    monkeypatch.setattr(backends.platform, "system", lambda: "Windows")
-    assert backends.support() == {"available": False, "reason": "computer_use supports macOS and Linux (X11)"}
+def test_other_hosts_have_no_backend(monkeypatch):
+    monkeypatch.setattr(backends.platform, "system", lambda: "FreeBSD")
+    assert backends.support() == {"available": False, "reason": "computer_use supports macOS, Linux (X11) and Windows"}
 
 
 def test_linux_description_replaces_every_macos_only_sentence():
