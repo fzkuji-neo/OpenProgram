@@ -61,7 +61,7 @@ _render_range_override: ContextVar[Optional[dict]] = ContextVar(
 # depth counter is only a backstop: if a runaway model ignores the
 # guidance and re-enters the SAME function past the limit, we abort
 # instead of burning tokens forever. Per-function-name depth, so
-# distinct functions (wiki_agent → gui_agent → …) never collide.
+# distinct functions (wiki_agent → research_agent → …) never collide.
 _MAX_AGENTIC_RECURSION_DEPTH = 5
 _recursion_depth: ContextVar[Optional[dict]] = ContextVar(
     '_recursion_depth', default=None,

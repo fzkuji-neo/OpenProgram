@@ -153,7 +153,7 @@ def run_programs_section() -> int:
 
     items = []
     for prog in KNOWN_PROGRAMS:
-        label = f"{prog.function} — {prog.summary}  [{prog.size_note}]"
+        label = f"{prog.label} — {prog.summary}  [{prog.size_note}]"
         # Light programs default to selected (they cost nothing); the
         # heavy GUI agent defaults to unselected. Already-installed ones
         # show checked so deselecting offers uninstall.

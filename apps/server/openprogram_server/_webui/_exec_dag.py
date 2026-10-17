@@ -333,7 +333,7 @@ def _poll(session_id: str, msg_id: str, func_name: str,
     state = {"last_tree": None, "last_graph": None, "shim": None}
     # streaming-resume: also patch the persisted placeholder reply with
     # the latest tree so a mid-run page refresh sees the in-progress
-    # Execution DAG, not an empty ``gui_agent()`` shell. The reply
+    # Execution DAG, not an empty ``research_agent()`` shell. The reply
     # placeholder lives at ``msg_id + "_reply"`` (see _execute/run.py).
     _placeholder_id = msg_id + "_reply"
 

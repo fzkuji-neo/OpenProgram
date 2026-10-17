@@ -70,7 +70,7 @@ class CapabilitySpec:
 _CAPABILITY_SPECS = (
     CapabilitySpec(
         'screen_recording', 'Screen recording', '屏幕录制', 'desktop', 'runtime',
-        'native', operations=('gui_agent:desktop', 'computer_use:desktop'), module='Quartz',
+        'native', operations=('computer_use:desktop',), module='Quartz',
         check_method='CGPreflightScreenCaptureAccess',
         request_method='CGRequestScreenCaptureAccess',
         settings_pane='Privacy_ScreenCapture',
@@ -81,7 +81,7 @@ _CAPABILITY_SPECS = (
     ),
     CapabilitySpec(
         'accessibility', 'Desktop control', '桌面控制', 'desktop', 'runtime', 'native',
-        operations=('gui_agent:desktop', 'computer_use:desktop'), module='ApplicationServices',
+        operations=('computer_use:desktop',), module='ApplicationServices',
         check_method='AXIsProcessTrusted',
         request_method='AXIsProcessTrustedWithOptions',
         request_style='accessibility_prompt',
@@ -267,7 +267,7 @@ def validate_capability_registry() -> None:
         for operation in spec.operations:
             prefix, separator, action = operation.partition(':')
             if (not operation or not separator or not prefix or not action or
-                    prefix not in {'gui_agent', 'computer_use', 'apple_events', 'calendar',
+                    prefix not in {'computer_use', 'apple_events', 'calendar',
                                    'reminders', 'file', 'microphone', 'camera'}):
                 raise RuntimeError(f'Invalid operation mapping for {spec.id}.')
     package_usage_declarations()

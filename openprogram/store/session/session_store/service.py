@@ -80,8 +80,8 @@ class SessionStore(IndexOperations, StorageOperations, SessionsOperations, Messa
         its OWN ``SessionStore`` instance. The parent worker's cached
         index never observes those writes, so ``get_messages`` /
         ``build_branches_payload`` keep returning the pre-subprocess
-        snapshot — which is missing every nested code/tool node (the
-        gui_agent square + its gui_step / conclusion / exec children).
+        snapshot — which is missing every nested code/tool node (an
+        Agent method's square + its sub-call and exec children).
 
         Cheap: O(history length) git directory listing on next access.
         """

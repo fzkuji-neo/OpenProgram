@@ -98,11 +98,19 @@ def load_programs_meta(default: dict[str, Any]) -> dict[str, Any]:
 
         aliases = {
             alias: program.function
-            for program in KNOWN_PROGRAMS
+            for program in KNOWN_PROGRAMS if program.function
+            for alias in (program.install_dir, program.package, program.repo_dir_name)
+        }
+        # A library Program has nothing to run, so a favorite of it, or of
+        # the GUI Program's retired gui_agent entry, is dropped.
+        libraries = {"gui_agent"} | {
+            alias
+            for program in KNOWN_PROGRAMS if not program.function
             for alias in (program.install_dir, program.package, program.repo_dir_name)
         }
         rewritten_favorites = list(dict.fromkeys(
-            aliases.get(name, name) for name in favorites if isinstance(name, str)
+            aliases.get(name, name) for name in favorites
+            if isinstance(name, str) and name not in libraries
         ))
         if rewritten_favorites != favorites:
             data["favorites"] = rewritten_favorites

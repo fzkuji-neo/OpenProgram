@@ -301,7 +301,7 @@ def _callable_name(relative: str) -> str:
 
     for program in KNOWN_PROGRAMS:
         if name in {program.install_dir, program.package, program.repo_dir_name}:
-            return program.function
+            return program.function or name
     return name
 
 
@@ -1018,7 +1018,7 @@ def _program_logic(relative: str) -> dict:
         from ..execution.program_calls import package_calls
         from openprogram.programs._programs import iter_programs
 
-        entry = next((p.function for p in iter_programs() if Path(relative).name in {
+        entry = next((p.function or None for p in iter_programs() if Path(relative).name in {
             p.install_dir, p.package, p.repo_dir_name,
         }), None)
         result = package_calls(entities[relative], relative, entry)

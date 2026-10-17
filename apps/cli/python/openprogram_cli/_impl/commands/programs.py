@@ -169,7 +169,7 @@ def _print_programs_status() -> None:
             status = "not yet published"
         else:
             status = f"available — openprogram programs install {p.extra}"
-        print(f"  {p.function:24s}  [{status}]")
+        print(f"  {p.label:24s}  [{status}]")
         print(f"  {'':24s}  {p.summary}")
 
     third_party = list(_iter_third_party_harnesses())
@@ -413,7 +413,7 @@ def _cmd_install(name: str, *, upgrade: bool = False) -> None:
 
     for prog in progs:
         if not prog.public:
-            print(f"[skip] {prog.function}: {prog.repo} is not published yet. "
+            print(f"[skip] {prog.label}: {prog.repo} is not published yet. "
                   f"Skipping.")
             continue
 
@@ -421,22 +421,22 @@ def _cmd_install(name: str, *, upgrade: bool = False) -> None:
         if os.path.islink(dest):
             from openprogram.programs._registry import _find_python_package
             if not _find_python_package(dest):
-                print(f"[x] {prog.function}: dev symlink does not satisfy the package contract; not registered.")
+                print(f"[x] {prog.label}: dev symlink does not satisfy the package contract; not registered.")
                 continue
             record_program_source(dest, source=prog.repo, kind="git-symlink")
-            print(f"[ok] {prog.function}: owner-recorded dev symlink at {dest}; target unchanged.")
+            print(f"[ok] {prog.label}: owner-recorded dev symlink at {dest}; target unchanged.")
             continue
         already = os.path.isdir(os.path.join(dest, ".git"))
 
         if already and not upgrade:
-            print(f"[ok] {prog.function}: already cloned at {dest} "
+            print(f"[ok] {prog.label}: already cloned at {dest} "
                   f"(re-run with --upgrade to pull latest).")
         else:
             if prog.heavy:
-                print(f"\n[install] {prog.function} -> {dest}\n  heavy: also "
+                print(f"\n[install] {prog.label} -> {dest}\n  heavy: also "
                       f"pulls large deps (torch via ultralytics). May take a while.")
             else:
-                print(f"\n[install] {prog.function} -> {dest}")
+                print(f"\n[install] {prog.label} -> {dest}")
 
             if already and upgrade:
                 rc = subprocess.call(["git", "-C", dest, "pull", "--ff-only"])
@@ -446,7 +446,7 @@ def _cmd_install(name: str, *, upgrade: bool = False) -> None:
                     prog.git_url(), dest,
                 ])
             if rc != 0:
-                print(f"[x] {prog.function}: git clone/pull failed (exit {rc}).")
+                print(f"[x] {prog.label}: git clone/pull failed (exit {rc}).")
                 continue
 
         # Install the harness's OWN declared dependencies — the harness
@@ -470,7 +470,7 @@ def _cmd_install(name: str, *, upgrade: bool = False) -> None:
             dep_cmd.append(dest)
             rc = subprocess.call(dep_cmd)
             if rc != 0:
-                print(f"[!] {prog.function}: cloned but installing its "
+                print(f"[!] {prog.label}: cloned but installing its "
                       f"dependencies failed (exit {rc}). It may not run "
                       f"until they're present — see the harness README.")
                 continue
@@ -478,10 +478,10 @@ def _cmd_install(name: str, *, upgrade: bool = False) -> None:
         # Confirm the package imports (registers the function).
         if prog.in_tree_pkg_dir(base):
             record_program_source(dest, source=prog.repo, kind="catalog")
-            print(f"[ok] {prog.function} installed at {dest}. "
+            print(f"[ok] {prog.label} installed at {dest}. "
                   f"It will appear on next launch.")
         else:
-            print(f"[!] {prog.function}: cloned but package '{prog.package}' "
+            print(f"[!] {prog.label}: cloned but package '{prog.package}' "
                   f"not found under {dest} — check the repo layout.")
 
 
@@ -530,7 +530,7 @@ def _cmd_uninstall(name: str) -> None:
     for prog in progs:
         dest = prog.clone_dir()
         if not (dest and os.path.isdir(dest)):
-            print(f"[skip] {prog.function}: not installed.")
+            print(f"[skip] {prog.label}: not installed.")
             continue
         try:
             if os.path.islink(dest):
@@ -538,9 +538,9 @@ def _cmd_uninstall(name: str) -> None:
             else:
                 shutil.rmtree(dest)
             remove_program_source(dest)
-            print(f"[ok] {prog.function} removed ({dest}).")
+            print(f"[ok] {prog.label} removed ({dest}).")
         except OSError as e:
-            print(f"[x] {prog.function}: could not remove {dest}: {e}")
+            print(f"[x] {prog.label}: could not remove {dest}: {e}")
 
 
 def _cmd_run(name, arg_list, provider=None, model=None):

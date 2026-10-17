@@ -317,7 +317,7 @@ def run_agent_method_call(
     # disabled the run would fall back to a pinned / auto-detected
     # default the user explicitly turned off. Reject so the UI can
     # prompt for a model instead of silently executing (the exact
-    # surprise of "I disabled everything yet gui_agent still ran").
+    # surprise of "I disabled everything yet research_agent still ran").
     if not _s._runtime_management._enabled_model_keys():
         return {
             "error": (

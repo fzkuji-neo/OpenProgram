@@ -122,7 +122,7 @@ def _discover_program_functions(seen: set[str]) -> list[dict]:
     except Exception:
         return out
     for prog in installed_programs():
-        if prog.function in seen:
+        if not prog.function or prog.function in seen:
             continue
         reg = _registry.get(prog.function)
         if reg is None:

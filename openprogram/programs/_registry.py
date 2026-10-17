@@ -104,7 +104,7 @@ def load_program_modules(
     #    / wiki_agent_harness). Importing an installed package fires its
     #    explicit exports register the entry point.
     #    Absent packages are skipped silently — this is the supported way
-    #    to ship gui_agent / research_agent / wiki_agent, replacing the
+    #    to ship research_agent / wiki_agent, replacing the
     #    old per-machine symlinks under agentics/. See functions/_programs.py.
     try:
         from openprogram.programs._programs import import_installed_programs

@@ -308,10 +308,10 @@ class HistoryOperations:
             # the same helper the no-store fallback uses, so image /
             # video / audio blocks survive the DAG render path. The old
             # version concatenated text parts only — any screenshot the
-            # caller attached to this turn (gui_agent's verify / plan /
-            # locate sub-calls all do this) was silently dropped, so
-            # the LLM ended up reasoning over the OCR/component text
-            # alone and missed the current frame.
+            # caller attached to this turn (an Agent method's vision
+            # sub-calls do this) was silently dropped, so the LLM
+            # ended up reasoning over the accompanying text alone and
+            # missed the current frame.
             ctx, _sp = _build_pi_context(frame_prefix_blocks + (content or []))
             return history + [ctx.messages[0]]
         except Exception as exc:

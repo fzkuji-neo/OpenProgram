@@ -129,7 +129,7 @@ def test_programs_explorer_lists_program_catalog_lazily(
         (entry["name"], entry["program_kind"], entry["callable_name"])
         for entry in applications["entries"]
     ] == [
-        ("gui_harness", None, "gui_agent"),
+        ("gui_harness", None, "gui_harness"),
         ("research_app", None, "research_app"),
     ]
 
@@ -176,7 +176,8 @@ def test_multi_callable_package_remains_an_expandable_group(
 def test_known_application_directories_resolve_to_registered_callables() -> None:
     from openprogram.webui.routes.catalog.programs import _callable_name
 
-    assert _callable_name("applications/gui_harness") == "gui_agent"
+    # The GUI Program is a library: it has no entry to resolve to.
+    assert _callable_name("applications/gui_harness") == "gui_harness"
     assert _callable_name("applications/research_harness") == "research_agent"
     assert _callable_name("applications/wiki_agent_harness") == "wiki_agent"
 

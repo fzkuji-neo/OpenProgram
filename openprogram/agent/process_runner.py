@@ -7,7 +7,7 @@ the tool body on the worker's own thread. Canonical execution cancellation
 can mark
 the session cancelled and the Agent method pre-invocation hook
 would eventually raise CancelledError — but only at the *next* hook
-point, which for a gui_agent in the middle of a vision call could be
+point, which for an agent in the middle of a vision call could be
 800–1500ms away. Users compared this to Claude Code's instant stop
 and asked for the same UX.
 
@@ -943,7 +943,7 @@ def _child_entry(
     # triggered this tool), but the parent's call_kind is typically "chat"
     # which is wrong for an Agent method subprocess. Set it to "exec"
     # with the tool's name as call_label so metering can distinguish
-    # research_agent / gui_agent / wiki_agent etc.
+    # research_agent / wiki_agent etc.
     try:
         from openprogram.usage.context import (
             apply_snapshot as _apply_uctx,

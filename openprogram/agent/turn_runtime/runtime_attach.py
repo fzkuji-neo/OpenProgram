@@ -498,7 +498,7 @@ def _wrap_agentic_runtime_block(
         # its OWN SessionStore. The parent worker's cached
         # SessionMemoryIndex never observed those writes, so any
         # subsequent build_branches_payload / get_messages would
-        # return the pre-subprocess snapshot — missing the gui_agent
+        # return the pre-subprocess snapshot — missing the Agent method's
         # square and all of its sub-call children, leaving the
         # mini-DAG showing only the conv chain (user / llm reply /
         # runtime placeholder). Drop the cache so build_exec_dag

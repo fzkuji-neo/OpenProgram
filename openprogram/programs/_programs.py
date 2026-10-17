@@ -5,9 +5,11 @@ git repositories and get installed **in-tree** under
 The three flagship welcome-screen functions are big enough to keep their
 own repos (own deps, tests, docs, release cadence):
 
-    gui_agent       <- gui_harness          (GUI-Agent-Harness)
     research_agent  <- research_harness      (Research-Agent-Harness)
     wiki_agent      <- wiki_agent_harness    (Wiki-Agent-Harness)
+
+The GUI program (gui_harness, GUI-Agent-Harness) has no entry: it is a
+library for computer_use_agent's describe grounding.
 
 Install model: owner-recorded source under ``programs/packages/``
 ------------------------------------------------------------------
@@ -460,7 +462,8 @@ class Program:
 
     Attributes:
         function: The user-facing Program entry name the package
-            registers (what the welcome screen / DEFAULT_TOOLS calls).
+            registers (what the welcome screen / DEFAULT_TOOLS calls);
+            empty for a library Program that registers no entry.
         package: The importable package name inside the repo (``import
             <package>``). Its ``__init__`` imports the entry point so the
             decorator self-registers on import.
@@ -497,6 +500,11 @@ class Program:
     size_note: str = "repo < 1 MB, no extra deps"
     install_dir: str = ""
     entries: bool = True
+
+    @property
+    def label(self) -> str:
+        """The name shown to people: the entry, or the selector of a library Program."""
+        return self.function or self.extra
 
     @property
     def repo_dir_name(self) -> str:
@@ -615,7 +623,7 @@ def _has_installed_distribution(package: str) -> bool:
 # The catalogue. Order is the welcome-screen / menu priority order.
 KNOWN_PROGRAMS: list[Program] = [
     Program(
-        function="gui_agent",
+        function="",
         package="gui_harness",
         extra="gui",
         repo=f"{_GH}/GUI-Agent-Harness",
@@ -655,10 +663,11 @@ KNOWN_PROGRAMS: list[Program] = [
 
 # Convenience lookups -------------------------------------------------
 
-_BY_FUNCTION = {p.function: p for p in KNOWN_PROGRAMS}
+_BY_FUNCTION = {p.function: p for p in KNOWN_PROGRAMS if p.function}
 _BY_NAME: dict[str, Program] = {}
 for _p in KNOWN_PROGRAMS:
-    _BY_NAME[_p.function] = _p
+    if _p.function:
+        _BY_NAME[_p.function] = _p
     _BY_NAME[_p.extra] = _p
     _BY_NAME[_p.package] = _p
     _BY_NAME[_p.repo_dir_name] = _p
