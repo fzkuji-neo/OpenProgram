@@ -46,11 +46,12 @@ export function matchApps(apps: Awaited<ReturnType<MentionSources["apps"]>>, par
     .slice(0, GROUP_LIMIT);
 }
 
-/** The text that replaces `@partial` in the draft, after the `@`. */
+/** The text that replaces `@partial` in the draft. Only a file keeps its
+ *  `@`: an `@token` is resolved as a file path when the message is sent. */
 export function mentionInsert(item: Mention): string {
   if (item.kind === "tab") return `[${item.title.replace(/[[\]]/g, "")}](${item.url}) `;
   if (item.kind === "app") return `${item.name} (${item.bundle_id}) `;
-  return item.is_dir ? `${item.path}/` : `${item.path} `;
+  return item.is_dir ? `@${item.path}/` : `@${item.path} `;
 }
 
 export function mentionKey(item: Mention): string {
