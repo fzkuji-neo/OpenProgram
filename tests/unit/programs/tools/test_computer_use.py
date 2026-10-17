@@ -225,6 +225,27 @@ def test_running_apps_are_looked_up_per_process_so_a_new_launch_is_seen():
     assert macos._running_apps(FakeAppKit) == [me]
 
 
+def test_the_tree_walk_stops_at_a_cycle_back_to_the_app_or_an_element_seen_before(monkeypatch):
+    # QuickTime Player with no document lists the application as its window, whose child is itself.
+    graph = {"app": ["window", "menubar"], "window": ["button", "app"], "button": ["window"], "menubar": []}
+    roles = {"app": "AXApplication", "window": "AXWindow", "button": "AXButton", "menubar": "AXMenuBar"}
+    computer = macos.MacComputer()
+    monkeypatch.setattr(computer, "_node", lambda element, depth: (
+        Node(roles[element], depth, label=element), list(graph[element])))
+    monkeypatch.setattr(computer, "_attr", lambda element, name: {
+        ("app", "AXChildren"): graph["app"], ("app", "AXMenuBar"): "menubar",
+        ("app", "AXWindows"): ["app", "window"]}.get((element, name)) or (
+        roles.get(element) if name == "AXRole" else None))
+    nodes, _elements, complete = computer._read_tree("app", "window")
+    assert [n.label for n in nodes] == ["window", "button", "menubar"] and complete
+    assert computer._windows("app") == ["window"]
+    # A focused "window" that is the application itself is not picked.
+    monkeypatch.setattr(computer, "_attr", lambda element, name: {
+        ("app", "AXWindows"): ["app"], ("app", "AXFocusedWindow"): "app"}.get((element, name)) or (
+        roles.get(element) if name == "AXRole" else None))
+    assert computer._pick_window("app", None) is None
+
+
 def test_menu_titles_match_case_insensitively_without_the_ellipsis():
     assert macos._menu_key("Export…") == macos._menu_key("export") == macos._menu_key(" EXPORT... ")
     assert macos._menu_key("Export as PDF…") != macos._menu_key("Export")
@@ -453,3 +474,4 @@ def test_app_lookup_dedupes_names_and_launches_nothing(monkeypatch):
 def test_app_lookup_rejects_anything_but_a_short_list_of_names():
     assert _ws_reply({"apps": "notes"})["data"]["status"] == "error"
     assert _ws_reply({"apps": ["x"] * 51})["data"]["status"] == "error"
+
