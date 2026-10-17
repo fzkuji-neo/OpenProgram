@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import pytest
 
+from openprogram.computer_use import base
 from openprogram.computer_use import keys
 from openprogram.computer_use import macos
 from openprogram.computer_use import ocr
@@ -609,8 +610,8 @@ def test_audio_actions_reach_the_backend_without_a_state_read(fake):
 def test_recordings_are_saved_under_the_state_directory_and_pruned(monkeypatch, tmp_path):
     import openprogram.paths as paths
     monkeypatch.setattr(paths, "get_state_dir", lambda: tmp_path)
-    monkeypatch.setattr(macos, "KEEP_RECORDINGS", 2)
-    saved = [macos._save_recording("Quick Time", b"x") for _ in range(3)]
+    monkeypatch.setattr(base, "KEEP_RECORDINGS", 2)
+    saved = [base.save_recording("Quick Time", b"x") for _ in range(3)]
     left = sorted(p.name for p in (tmp_path / "computer-use" / "audio").iterdir())
     assert len(left) == 2 and saved[-1].name in left and saved[0].name.endswith("quick-time.wav")
 

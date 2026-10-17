@@ -3,7 +3,8 @@
 Games, canvas editors, remote desktops and some Electron apps draw their
 content without exposing it to Accessibility. Their screenshot still has
 the words on it: Vision's text recognizer reads them with a box each, and
-the box centre is a coordinate an action can click. Icons and controls
+the box centre is a coordinate an action can click (on Linux, tesseract
+reads them when it is installed). Icons and controls
 without words are found as shapes: Vision's contour detector outlines
 them, outlines that touch are merged, and whatever covers text or is too
 small, too large or too thin to be a control is dropped.
@@ -12,6 +13,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import importlib.util
+import shutil
+import subprocess
 import threading
 from typing import Any
 
@@ -132,6 +135,54 @@ def recognize(png: bytes, width: float, height: float) -> list[TextBox]:
             found.append((str(candidates[0].string()),
                           (box.origin.x, box.origin.y, box.size.width, box.size.height)))
     return boxes_from_normalized(found, width, height)
+
+
+
+# Tesseract language packs tried in this order; the installed ones are used together.
+_TESSERACT_LANGUAGES = ("eng", "chi_sim", "chi_tra", "jpn", "kor")
+_tesseract_languages: str | None = None
+
+
+def boxes_from_tesseract(tsv: str) -> list[TextBox]:
+    """Lines of tesseract's TSV output (one row per word) as boxes, top to bottom, left to right."""
+    lines: dict[tuple[str, str, str], list[tuple[str, int, int, int, int]]] = {}
+    for row in tsv.splitlines()[1:]:
+        cols = row.split("\t")
+        if len(cols) < 12 or cols[0] != "5" or not cols[11].strip():
+            continue
+        try:
+            confidence = float(cols[10])
+            left, top, width, height = (int(c) for c in cols[6:10])
+        except ValueError:
+            continue
+        if confidence < 30:
+            continue
+        lines.setdefault((cols[2], cols[3], cols[4]), []).append((cols[11].strip(), left, top, width, height))
+    out = []
+    for words in lines.values():
+        x0 = min(w[1] for w in words)
+        y0 = min(w[2] for w in words)
+        x1 = max(w[1] + w[3] for w in words)
+        y1 = max(w[2] + w[4] for w in words)
+        text = " ".join(_BIDI_MARKS.sub("", w[0]) for w in words).strip()
+        if text:
+            out.append(TextBox(text, float(x0), float(y0), float(x1 - x0), float(y1 - y0)))
+    out.sort(key=lambda b: (round((b.y + b.height / 2) / max(b.height, 1.0) * 2), b.x))
+    return out
+
+
+def recognize_tesseract(png: bytes) -> list[TextBox]:
+    """Lines of text in a PNG read by tesseract; empty when it is not installed."""
+    global _tesseract_languages
+    if not png or shutil.which("tesseract") is None:
+        return []
+    if _tesseract_languages is None:
+        listed = subprocess.run(["tesseract", "--list-langs"], capture_output=True, text=True, timeout=10).stdout
+        have = set(listed.split())
+        _tesseract_languages = "+".join(lang for lang in _TESSERACT_LANGUAGES if lang in have) or "eng"
+    done = subprocess.run(["tesseract", "stdin", "stdout", "-l", _tesseract_languages, "--psm", "11", "tsv"],
+                          input=png, capture_output=True, timeout=30)
+    return boxes_from_tesseract(done.stdout.decode("utf-8", "replace")) if done.returncode == 0 else []
 
 
 @dataclass(frozen=True)

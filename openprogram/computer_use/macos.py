@@ -31,13 +31,14 @@ from typing import Any
 from . import audio
 from . import keys as keymap
 from . import ocr
+from .base import (HOVER_SECONDS, INCLUDE, MAX_COPY_CHARS, MAX_TEXT_CHARS, OCR_SPARSE_NODES,
+                   AudioClip, ComputerUseError, Observation, Report, check_cancelled as _check_cancelled,
+                   click_args, click_words as _click_words, find_text, menu_key as _menu_key, menu_path,
+                   save_recording as _save_recording, scroll_args, seconds_arg as _seconds,
+                   window_node_count as _window_node_count)
 from .processes import running_applications
 from .skylight import SUBTYPE_DEFAULT, SUBTYPE_TOUCH, skylight
 from .tree import _BIDI_MARKS, Node, Snapshot, TRANSPARENT_ROLES, diff, number, render, role_name, snapshot
-
-
-class ComputerUseError(RuntimeError):
-    """An action that cannot run; the message is shown to the model."""
 
 
 # Applications the tool never reads or drives: credential prompts and
@@ -56,11 +57,7 @@ APP_DIRECTORIES = (
 MAX_NODES = 1500
 MAX_DEPTH = 60
 MAX_IMAGE_SIDE = 1568
-MAX_TEXT_CHARS = 5000
-MAX_COPY_CHARS = 20_000
 MAX_DRAG_STEPS = 24
-MAX_HOLD_SECONDS = 10.0
-HOVER_SECONDS = 0.8  # long enough for tooltips and hover menus to open
 # After an action the tool waits for the window to settle: until two quick
 # reads agree (at most SETTLE_MAX seconds), or up to BUSY_MAX seconds while
 # a progress or busy indicator is on screen.
@@ -68,9 +65,6 @@ SETTLE_MIN = 0.3
 SETTLE_MAX = 1.5
 BUSY_MAX = 5.0
 QUICK_NODES = 400
-# A window whose tree has fewer elements than this shows little beyond its
-# frame and title bar; its screenshot is read with OCR as well.
-OCR_SPARSE_NODES = 12
 _BUSY_ROLES = frozenset({"AXBusyIndicator", "AXProgressIndicator"})
 # Wheel notches per page: ten notches of three lines cover about one window.
 TICKS_PER_PAGE = 10
@@ -103,14 +97,6 @@ def support() -> dict[str, Any]:
     if missing:
         return {"available": False, "reason": "missing PyObjC frameworks: " + ", ".join(missing)}
     return {"available": True, "reason": ""}
-
-
-def _check_cancelled() -> None:
-    try:
-        from openprogram.agent.run_control import check_cancelled
-    except ImportError:
-        return
-    check_cancelled()
 
 
 class _Frameworks:
@@ -173,37 +159,6 @@ class WindowState:
     sparse: bool = False         # the tree shows little of the window, so reads add OCR text and shapes
     text_boxes: list[ocr.TextBox] = field(default_factory=list)
     shapes: list[ocr.Shape] = field(default_factory=list)
-
-
-@dataclass
-class Observation:
-    text: str
-    image: bytes | None
-    app: str
-
-
-INCLUDE = ("all", "tree", "screenshot")
-
-
-class Report(str):
-    """An action result that read something and changed nothing, so no new state follows it."""
-
-
-@dataclass
-class AudioClip:
-    """A finished recording: the WAV on disk and what it holds."""
-    app: str
-    path: Path
-    data: bytes
-    seconds: float
-    peak: float
-
-    @property
-    def silent(self) -> bool:
-        return self.peak < audio.SILENCE_PEAK
-
-
-KEEP_RECORDINGS = 20
 
 
 class MacComputer:
@@ -1055,16 +1010,7 @@ class MacComputer:
             return handler(app, int(app.processIdentifier()), state, args)
 
     def _do_click(self, app, pid, state, args) -> str:
-        button = str(args.get("mouse_button") or "left").lower()
-        button = {"l": "left", "r": "right", "m": "middle"}.get(button, button)
-        if button not in _BUTTONS:
-            raise ComputerUseError("mouse_button must be left, right or middle")
-        try:
-            count = int(args.get("click_count") or 1)
-        except (TypeError, ValueError) as exc:
-            raise ComputerUseError("click_count must be 1, 2 or 3") from exc
-        if not 1 <= count <= 3:
-            raise ComputerUseError("click_count must be 1, 2 or 3")
+        button, count = click_args(args)
         try:
             flags = keymap.modifier_flags(args.get("key"))
         except keymap.KeyNameError as exc:
@@ -1133,22 +1079,7 @@ class MacComputer:
         return f"dragged from ({args.get('x')}, {args.get('y')}) to ({args.get('to_x')}, {args.get('to_y')})"
 
     def _do_scroll(self, app, pid, state, args) -> str:
-        direction = str(args.get("direction") or "down").lower()
-        direction = {"u": "up", "d": "down", "l": "left", "r": "right"}.get(direction, direction)
-        if direction not in ("up", "down", "left", "right"):
-            raise ComputerUseError("direction must be up, down, left or right")
-        try:
-            pages = float(args.get("pages") or 1)
-        except (TypeError, ValueError) as exc:
-            raise ComputerUseError("pages must be a number between 0 and 20") from exc
-        if not 0 < pages <= 20:
-            raise ComputerUseError("pages must be between 0 and 20")
-        try:
-            pixels = float(args.get("pixels") or 0)
-        except (TypeError, ValueError) as exc:
-            raise ComputerUseError("pixels must be a number") from exc
-        if not 0 <= pixels <= 20_000:
-            raise ComputerUseError("pixels must be between 0 and 20000")
+        direction, pages, pixels = scroll_args(args)
         amount = f"{pixels:g} pixels" if pixels else f"{pages:g} page(s)"
         index = args.get("element_index")
         if index is not None and pixels:
@@ -1435,10 +1366,7 @@ class MacComputer:
     def _do_menu(self, app, pid, state, args) -> str:
         """Walk the menu bar by title: list a menu, or press a leaf item, without opening anything."""
         _, ax, _, _ = _frameworks()
-        path = args.get("menu_path")
-        if isinstance(path, str):
-            path = [part for part in (p.strip() for p in path.replace("›", ">").split(">")) if part]
-        path = [str(p) for p in (path or [])]
+        path = menu_path(args)
         bar = self._attr(ax.AXUIElementCreateApplication(pid), "AXMenuBar")
         if bar is None:
             raise ComputerUseError(f"{app.localizedName()} has no menu bar")
@@ -1700,71 +1628,8 @@ def _await(start):
     return result[0]
 
 
-def _save_recording(app: str, data: bytes) -> Path:
-    """Write a recording under the state directory, keeping the newest KEEP_RECORDINGS."""
-    from openprogram.paths import get_state_dir
-
-    folder = get_state_dir() / "computer-use" / "audio"
-    folder.mkdir(parents=True, exist_ok=True)
-    stem = "".join(c if c.isalnum() else "-" for c in app).strip("-").lower() or "app"
-    path = folder / f"{time.strftime('%Y%m%d-%H%M%S')}-{stem}.wav"
-    suffix = 1
-    while path.exists():
-        suffix += 1
-        path = folder / f"{time.strftime('%Y%m%d-%H%M%S')}-{stem}-{suffix}.wav"
-    path.write_bytes(data)
-    for old in sorted(folder.glob("*.wav"), key=lambda p: p.stat().st_mtime)[:-KEEP_RECORDINGS]:
-        old.unlink(missing_ok=True)
-    return path
-
-
-def _window_node_count(nodes: list[Node]) -> int:
-    """Elements of the window itself: the first walk, up to the next top-level node."""
-    return next((i for i, node in enumerate(nodes[1:], 1) if node.depth == 0), len(nodes))
-
-
-def _seconds(value, name: str) -> float:
-    try:
-        seconds = float(value or 0)
-    except (TypeError, ValueError) as exc:
-        raise ComputerUseError(f"{name} must be a number of seconds") from exc
-    if not 0 <= seconds <= MAX_HOLD_SECONDS:
-        raise ComputerUseError(f"{name} must be between 0 and {MAX_HOLD_SECONDS:g} seconds")
-    return seconds
-
-
-def _menu_key(title: str) -> str:
-    """Menu titles compare case-insensitively and without a trailing ellipsis."""
-    title = " ".join(str(title).split()).lower()
-    for tail in ("…", "..."):
-        if title.endswith(tail):
-            title = title[: -len(tail)].rstrip()
-    return title
-
-
-def _click_words(button: str, count: int) -> str:
-    verb = {"left": "clicked", "right": "right-clicked", "middle": "middle-clicked"}[button]
-    if count == 1:
-        return verb
-    if button == "left":
-        return {2: "double-clicked", 3: "triple-clicked"}[count]
-    return f"{verb} {count} times"
-
-
 def utf16_len(text: str) -> int:
     return len(text.encode("utf-16-le")) // 2
-
-
-def find_text(value: str, text: str, prefix: str = "", suffix: str = "") -> int | None:
-    """Index of the first ``text`` in ``value`` preceded by ``prefix`` and followed by ``suffix``."""
-    start = value.find(text)
-    while start != -1:
-        before = value[max(0, start - len(prefix)):start]
-        after = value[start + len(text):start + len(text) + len(suffix)]
-        if (not prefix or before == prefix) and (not suffix or after == suffix):
-            return start
-        start = value.find(text, start + 1)
-    return None
 
 
 def markdown_to_html(text: str) -> str:

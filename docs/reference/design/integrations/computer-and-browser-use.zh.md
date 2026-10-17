@@ -65,12 +65,15 @@ Codex 用 `start_audio_recording` / `stop_audio_recording` 录电脑声音（默
 
 | 模块 | 职责 |
 |---|---|
+| `openprogram/computer_use/base.py` | 各后端共用的部分：`ComputerUseError`、`Report`、`Observation`、`AudioClip`、参数检查、录音保存 |
+| `openprogram/computer_use/backends.py` | 按主机给出 `support()` 和 `backend()`：Darwin 用 `macos`，Linux 用 `linux` |
 | `openprogram/computer_use/keys.py` | xdotool 组合键解析为 macOS 键码和修饰键标志（`super+shift+z`、`ctrl++`、`KP_0`、单独修饰键） |
 | `openprogram/computer_use/tree.py` | `Node`、渲染、签名、稳定编号（`Snapshot`、`number`）和 diff |
 | `openprogram/computer_use/audio.py` | 单个应用的 ScreenCaptureKit 音频采集、采样上限、WAV 编码 |
-| `openprogram/computer_use/ocr.py` | Vision 文字识别、识别框换算为截图像素、阅读顺序、语言提示 |
+| `openprogram/computer_use/ocr.py` | Vision 文字识别（Linux 上为 tesseract TSV）、识别框换算为截图像素、阅读顺序、语言提示、轮廓形状 |
 | `openprogram/computer_use/skylight.py` | SkyLight 的 ctypes 绑定，用于后台指针和键盘路由 |
 | `openprogram/computer_use/macos.py` | `MacComputer`：应用解析、窗口选择、抓图、树遍历、全部动作 |
+| `openprogram/computer_use/linux.py` | `LinuxComputer`：同一接口，基于 AT-SPI、xdotool、Gdk 抓图和 PipeWire/PulseAudio |
 | `openprogram/programs/tools/system/computer_use.py` | 注册的工具：schema、含确认策略的说明、审批理由、批量、结果拼装 |
 
 ### 后台投递
@@ -86,6 +89,22 @@ Codex 用 `start_audio_recording` / `stop_audio_recording` 录电脑声音（默
 ### 拒绝
 
 工具从不向 `AXSecureTextField` 元素输入，macOS 报告安全键盘输入（`kCGSSessionSecureInputPID`）期间也不输入，并拒绝以钥匙串访问、密码、loginwindow、SecurityAgent 和 OpenProgram 自身的 bundle 为目标。拒绝以错误返回并请用户来做这一步；任何审批范围都不能覆盖它。
+
+### Linux 后端
+
+`LinuxComputer` 保持 `MacComputer` 的接口，工具、服务端的应用查询和测试都通过 `backends.backend()` 驱动任一后端。它只在 X11 会话里运行：Wayland 下任何客户端都不能读取别的客户端的画面或向其注入输入，`support()` 会如实说明。
+
+- **应用。** AT-SPI 桌面下拥有窗口的子节点，加上所属进程不接入无障碍总线的顶层 X 窗口。X 窗口的所属进程取 `_NET_WM_PID`；Xt、Motif 客户端不设置它时，取名称或可执行文件名以窗口 WM_CLASS 实例名开头的最新进程。每个应用按可执行文件或名称匹配桌面条目（`Gio.AppInfo`），由此得到标识（`org.gnome.Calculator`）、显示名，以及在 hicolor 主题里查到的图标。启动通过 `Gio.DesktopAppInfo.launch`，之后既等窗口也等应用的 AT-SPI 根节点，因为 GTK 4 应用在窗口映射之后才加入总线。
+- **窗口。** 顶层窗口取窗口管理器的 `_NET_CLIENT_LIST`（用 `xprop` 读取），这样排除了 GTK 10×10 的 client-leader 窗口；没有客户端列表时，跳过 10×10 及更小的窗口。AT-SPI 的 frame 先按标题、再按尺寸与 X 窗口配对。不在已映射集合里的窗口报告为最小化；`show_window` 重新映射它。
+- **树。** 角色是 AT-SPI 角色名（`push button`、`text`、`check box`），`role_name` 原样打印。子树在屏幕上时才读：GTK 3 设置 SHOWING，GTK 4 在窗口以下只设置 VISIBLE，所以窗口的子节点只要有一个报告 SHOWING 就按 SHOWING 遍历，否则按 VISIBLE。未展开组合框的弹出项和 GTK 的提示窗口跳过。无名的 filler、panel、section 是透明的。GTK 4 用类名给无名控件命名（`AdwGizmo`、`GtkMenuButton`），这类名字不当作标签。标志来自状态（CHECKED 或 PRESSED、FOCUSED、SELECTED、EXPANDED、非 ENABLED/SENSITIVE），`settable` 来自 EditableText 或 Value，`secure` 来自 `password text` 角色。次要动作是元素的 Action 名称中除 click、press、activate、toggle、jump、open、select 以外的部分。
+- **后台的元素动作。** 点击执行元素的主动作；`set_value` 用 `EditableText.set_text_contents`、`Value.set_current_value`，复选框状态不一致时执行切换；`type_text` 和 `paste` 用 `EditableText.insert_text`（UTF-8 字节长度）在光标处插入并替换选区，换行执行输入框的 `activate` 动作；对输入框 `press_key Return` 执行 `activate`；`select_text` 用 `Text.set_selection` 或光标偏移（字符偏移，不是 UTF-16）；`copy` 读取 `Text.get_selection`，不经过剪贴板；按元素 `scroll` 把最近的滚动条的 Value 每页移动其长度的 90%；`menu` 遍历窗口的 `menu bar` 并执行叶子项的动作。`Component.grab_focus` 会让 GTK 把窗口提到前台，所以凡是必须移动焦点的地方，都会把焦点还给原先活动的窗口。
+- **前台输入。** GTK 和 Qt 通过 XInput 2 读取指针和按键，会忽略用 `XSendEvent` 发给未聚焦窗口的核心事件，所以按坐标点击、拖拽、滚轮、悬停和按键都通过 XTEST 发送：先激活窗口（`windowactivate`；没有 EWMH 窗口管理器时用 `windowraise` 加 `windowfocus`），执行输入，再恢复指针位置和原先活动的窗口；`hover` 让指针留在原处。组合键用 xdotool 名称，`cmd`、`command`、`meta`、`win` 映射为 `super`，`option` 映射为 `alt`。
+- **截图。** 对外部 X 窗口调用 `Gdk.pixbuf_get_from_window`，得到窗口自身按 X 分辨率的像素，长边缩到 1568 像素以内；最小化的窗口没有截图。截图像素通过 `xdotool getwindowgeometry` 给出的窗口位置换算为屏幕像素，与 AT-SPI 屏幕坐标用的是同一个参照系。
+- **OCR。** 稀疏窗口（以及 `find` 的回退）用 `tesseract --psm 11 tsv`，语言取 eng、chi_sim、chi_tra、jpn、kor 中已安装的；置信度 30 以上的词拼成行。Linux 上不检测轮廓形状。
+- **音频。** `pactl list sink-inputs` 给出每个音频流的 `application.process.id`；录音器轮询，直到出现该应用或其任一子孙进程的音频流（每次轮询都重新读取子孙进程，因为播放器通常是开始录音之后才启动的子进程），然后用 `parec --monitor-stream=<index>` 以 16 kHz 单声道浮点读取。读取持续到 parec 结束，所以停止时它还缓冲着的样本也会保留。PipeWire 下四分之一秒内就收到第一批样本；PulseAudio 的定时调度下，对一个音频流的首次监听会晚 1.2–1.7 秒开始，这段会丢失。
+- **拒绝。** `password text` 元素、Seahorse、KWallet、gcr 弹窗、polkit 代理以及 OpenProgram 自身的条目。
+
+工具描述在导入时按 Linux 改写（`_LINUX_DESCRIPTION`）：哪些步骤会把窗口切到前台、纯文本 `paste`、不经剪贴板的 `copy`、Linux 上的拒绝列表。`computer_use_apps` 的 WebSocket 回复带上 worker 的 `platform`；在 Linux 上，审批卡片对按坐标输入、拖拽、悬停和回车以外的按键（`needsForeground`）说明这一步会把窗口切到前台。
 
 ### 权限与审批
 
@@ -146,7 +165,7 @@ Codex 用 `start_audio_recording` / `stop_audio_recording` 录电脑声音（默
 
 ## 界面工作
 
-`computer_use` 的审批卡片（`computer-use-approval.tsx`）先展示应用本身：图标、显示名和 bundle id 来自 `computer_use_apps` WebSocket 动作，它调用 `MacComputer.app_info`，不启动任何东西，Web 按名字缓存结果（`lib/net/computer-use-apps.ts`）。其下一个标签用文字说明这一步（`computer-use-step.ts`），两行分别说明这一步在后台进行（录音则说明只录该应用的声音）以及可选范围的含义，去掉空值的参数折叠在"查看执行详情"里。
+`computer_use` 的审批卡片（`computer-use-approval.tsx`）先展示应用本身：图标、显示名和 bundle id 来自 `computer_use_apps` WebSocket 动作，它调用后端的 `app_info`，不启动任何东西，Web 按名字缓存结果（`lib/net/computer-use-apps.ts`）。其下一个标签用文字说明这一步（`computer-use-step.ts`），两行分别说明这一步在后台进行（录音则说明只录该应用的声音）以及可选范围的含义，去掉空值的参数折叠在"查看执行详情"里。
 
 项目设置页在默认设置和权限规则之间有一个"操控电脑"分区（`computer-use-apps-section.tsx`）。它把项目的 `computer_use(<app>)` 允许规则列成每个应用一行，带图标、名字、bundle id 和移除按钮，通用规则列表不再重复这些规则。移除一行即删除该规则。对话级授权是随对话结束的会话规则，所以这里不列出。
 
@@ -155,7 +174,7 @@ Codex 用 `start_audio_recording` / `stop_audio_recording` 录电脑声音（默
 - 在网页标签里，**评论页面元素…** 选中一个元素，把它的选择器、文字和评论加进草稿；**区域截图…** 让人拖出一个矩形，把这块像素作为 PNG 附件加入。两者运行在同一个隔离脚本环境里（`apps/desktop/main/web-views.js` 的 `PICKER_WORLD`），共用一个取消钩子，开启一种会结束另一种。区域遮罩先被移除、再画两帧，`capturePage` 才按页面缩放截取那个矩形。文件经 `lib/composer-inbox.ts` 送到目标对话：显示这个对话的输入框把它当作拖进来的文件收下，在那之前它一直在收件箱里等。
 - 输入框的 `@` 菜单在文件之前列出已打开的网页标签和正在运行的应用（`attach/mention-sources.ts`）。标签页写成指向其地址的 markdown 链接，应用写成名称加 bundle id，所以「这个标签页」不用模型去猜。正在运行的应用来自带 `running: true` 的 `computer_use_apps`，它列出被拒应用之外的常规应用，页面里缓存十秒。
 
-Windows 和 Linux 后端（UI Automation；AT-SPI 加 xdotool）沿用同一个 `MacComputer` 接口，尚未开始。
+Windows 后端（UI Automation）会沿用同一个接口，尚未开始。
 
 ## 与 GUI Agent 的关系
 
@@ -171,4 +190,5 @@ GUI Agent 工作流（`gui_agent`）、它的 grounding 流水线和能力 plann
 - 已实现：对 Gemini 和 Chat Completions 的音频模型，把录音作为音频输入；Chat Completions 视觉模型能看到工具结果里的截图。
 - 已实现：网页标签里的元素评论和区域截图；对已打开标签页和正在运行应用的 `@` 提及。
 - 已实现：稀疏窗口里不带文字的图标和控件的轮廓。
-- 未实现：经 Responses 和 Anthropic API 的音频输入（这两个接口的模型不收音频）；把窗口从另一个桌面空间移过来（macOS 14.5 起只有 Dock 能这样做，其他进程调用 `SLSMoveWindowsToManagedSpace` 需要放宽系统完整性保护，yabai 的文档写明了这一点）；Windows 与 Linux 后端（在构建它的 macOS 机器上无法运行和测试）；从轮廓直接认出图标的名字（模型看截图分辨）。
+- 已实现：上文所述的 Linux（X11）后端。测试在 Debian 12 容器里进行，环境是 Xvfb、Openbox、AT-SPI 总线和 PipeWire，对象是一个 GTK 3 窗口（菜单栏、输入框、密码框、复选框、滑块、带滚动的文本视图、绘图区、一个由子进程放声音的按钮）、GNOME 计算器（GTK 4 加 libadwaita，从桌面条目启动，靠元素点击算出 7×6）以及 ImageMagick 的 `display`（不接入 AT-SPI 的 Xt 客户端，靠 OCR 读取）。与主机无关的部分有单元测试。
+- 未实现：经 Responses 和 Anthropic API 的音频输入（这两个接口的模型不收音频）；把窗口从另一个桌面空间移过来（macOS 14.5 起只有 Dock 能这样做，其他进程调用 `SLSMoveWindowsToManagedSpace` 需要放宽系统完整性保护，yabai 的文档写明了这一点）；Windows 后端（在构建它的 macOS 机器上无法运行和测试，这里的容器运行时也起不了 Windows 客户机）；从轮廓直接认出图标的名字（模型看截图分辨）。

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { computerUseStep, readsWhat, setArgs } from '../../components/chat/composer/modes/question/computer-use-step.ts';
+import { computerUseStep, needsForeground, readsWhat, setArgs } from '../../components/chat/composer/modes/question/computer-use-step.ts';
 import { computerUseRuleApp } from '../../lib/computer-use-rule.ts';
 
 const zh = (_english, chinese) => chinese;
@@ -27,4 +27,18 @@ test('only computer_use rules that name an app belong to the apps section', () =
   assert.equal(computerUseRuleApp(' computer_use( google chrome ) '), 'google chrome');
   assert.equal(computerUseRuleApp('computer_use'), null);
   assert.equal(computerUseRuleApp('bash(git:*)'), null);
+});
+
+test('on Linux, coordinate input and key presses are the steps that bring the window forward', () => {
+  assert.equal(needsForeground({ action: 'click', element_index: 3 }), false);
+  assert.equal(needsForeground({ action: 'click', element_index: 0 }), false);
+  assert.equal(needsForeground({ action: 'click', x: 10, y: 20 }), true);
+  assert.equal(needsForeground({ action: 'scroll', element_index: 4, direction: 'down' }), false);
+  assert.equal(needsForeground({ action: 'drag', x: 1, y: 2, to_x: 3, to_y: 4 }), true);
+  assert.equal(needsForeground({ action: 'hover', element_index: 2 }), true);
+  assert.equal(needsForeground({ action: 'press_key', key: 'Return' }), false);
+  assert.equal(needsForeground({ action: 'press_key', key: 'ctrl+a' }), true);
+  assert.equal(needsForeground({ action: 'type_text', text: 'hi' }), false);
+  assert.equal(needsForeground({ action: 'batch', actions: [{ action: 'set_value' }, { action: 'click', x: 1, y: 1 }] }), true);
+  assert.equal(needsForeground({ action: 'batch', actions: [{ action: 'set_value' }, null] }), false);
 });

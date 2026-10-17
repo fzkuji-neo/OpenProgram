@@ -57,6 +57,25 @@ export function computerUseStep(args: Args, text: Text): { verb: string; target:
   }
 }
 
+const POINTER_ACTIONS = new Set(["click", "drag", "scroll", "hover"]);
+const BACKGROUND_KEYS = new Set(["return", "enter", "kp_enter"]);
+
+/** On Linux, input at a coordinate and key presses reach a window only while it
+ *  is focused, so such a step brings the window forward for a moment. */
+export function needsForeground(args: Args): boolean {
+  const action = str(args.action);
+  if (action === "batch") return Array.isArray(args.actions) && args.actions.some((step) =>
+    !!step && typeof step === "object" && needsForeground(step as Args));
+  if (POINTER_ACTIONS.has(action)) {
+    const index = args.element_index;
+    const byElement = typeof index === "number" || (typeof index === "string" && index !== "");
+    // An element click or scroll runs through AT-SPI; a hover always moves the pointer.
+    return action === "hover" || action === "drag" || !byElement;
+  }
+  if (action === "press_key") return !BACKGROUND_KEYS.has(str(args.key).toLowerCase());
+  return false;
+}
+
 /** What a read returns, shown beside the step. */
 export function readsWhat(args: Args, text: Text): string {
   if (str(args.action) !== "get_app_state") return "";

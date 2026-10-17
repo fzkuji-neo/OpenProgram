@@ -1,6 +1,6 @@
 # 操控电脑
 
-`computer_use` 工具让模型在你继续工作的同时读取并操作 macOS 应用的窗口：应用留在后台，键盘和鼠标仍归你，不会有窗口被带到前台。模型看到的是窗口截图加上它的 Accessibility 树，对编号元素执行动作，然后只拿回发生变化的那几行。
+`computer_use` 工具让模型在你继续工作的同时读取并操作桌面应用的窗口：应用留在后台，键盘和鼠标仍归你，不会有窗口被带到前台。模型看到的是窗口截图加上它的 Accessibility 树，对编号元素执行动作，然后只拿回发生变化的那几行。它支持 macOS，也支持 X11 下的 Linux，差异见[在 Linux 上](#在-linux-上)。
 
 网页有自己的工具 `web_use`，它驱动 App 内置浏览器和无头 Chromium。`computer_use` 负责桌面上的其他一切：Finder、备忘录、计算器、Xcode、聊天客户端、游戏启动器。
 
@@ -111,8 +111,27 @@ App 浏览器里的页面全程留在后台：事件在页面内派发，标签�
 
 ## 要求
 
-- macOS。Windows 和 Linux 暂不支持。
-- 签名的运行时（`ai.openprogram.runtime`）必须持有**辅助功能**和**屏幕录制**权限。工具会报告缺哪一项，设置 → 系统访问可以发起请求。[权限](permissions.zh.md)描述了运行时的 macOS 授权方式。
+- macOS，或使用 X11（Xorg）会话的 Linux。不支持 Windows。
+- 在 macOS 上，签名的运行时（`ai.openprogram.runtime`）必须持有**辅助功能**和**屏幕录制**权限。工具会报告缺哪一项，设置 → 系统访问可以发起请求。[权限](permissions.zh.md)描述了运行时的 macOS 授权方式。
+
+
+## 在 Linux 上
+
+Linux 上，工具通过 AT-SPI 读取窗口的无障碍树（GTK 3、GTK 4 应用默认提供；Qt 应用需要 `QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1`），并用 `xdotool` 执行动作。需要：
+
+- X11 会话：Wayland 不允许一个应用读取或操作另一个应用的窗口，所以在 Wayland 下工具会报告不可用；
+- `python3-gi`，以及 `gir1.2-atspi-2.0`、`gir1.2-gtk-3.0` 和 `xdotool`；
+- 可选：`x11-utils`（`xprop`，用来区分真正的窗口和辅助窗口）、`tesseract-ocr`（为没有无障碍树的应用识别截图上的文字）、`pulseaudio-utils`（录音）。
+
+相同的部分：树的格式、稳定的编号和差异、截图、`zoom`、`find`、`batch`、`menu`（有菜单栏的应用）、`select_text`、`set_value`、按元素拖动滚动条，以及审批。应用按 `list_apps` 打印的桌面条目 id（`org.gnome.Calculator`）、名称或进程名来指定；已安装的应用通过它的桌面条目启动。
+
+不同的部分：
+
+- 元素动作（按下、切换、设值、插入和选中文字、选择菜单项、在输入框里按回车）在后台进行。按 `x`、`y` 的指针输入（点击、拖拽、滚轮）、`hover`，以及回车以外的按键，只有在 GTK 或 Qt 窗口获得焦点时才能送达，所以这一步会把窗口短暂切到前台，输入完成后把焦点和鼠标指针还回原处。`hover` 会让指针停在窗口上。审批卡片会对这些步骤如实说明。
+- `paste` 把纯文本直接插入有焦点的输入框，不经过剪贴板；不支持 `format=md` 和 `html`。`copy` 直接返回选中的文字，不动剪贴板。
+- 不接入无障碍总线的应用在列表里标为 "no accessibility tree"：模型读它的截图（装了 tesseract 时带 OCR 文字），按坐标操作。
+- 录音只读取该应用（及其子进程）自己的音频流，来源是 PipeWire 或 PulseAudio。PipeWire 下四分之一秒内就开始录；只有 PulseAudio、没有 PipeWire 时，已经在播放的音频流开头约一秒可能录不到。
+- 拒绝操作：密码框、Seahorse 和 KWallet、polkit 与 gcr 认证弹窗，以及 OpenProgram 自身。
 
 ## 录音
 

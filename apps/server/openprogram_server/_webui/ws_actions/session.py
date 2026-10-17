@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import platform
 
 
 # Keep ordinary tool results byte-for-byte compatible while preventing one
@@ -1681,25 +1682,31 @@ _MAX_APP_LOOKUPS = 50
 
 
 def _computer_use_apps(queries: list[str]) -> list[dict]:
-    """Display name, bundle id and icon for the apps computer_use rules and approvals name."""
+    """Display name, bundle id and icon for the apps computer_use rules and approvals name,
+    and the worker's platform, which decides what a step does to the user's own input."""
+    host = platform.system().lower()
     try:
-        from openprogram.computer_use.macos import ComputerUseError, backend
+        from openprogram.computer_use.backends import backend
+        from openprogram.computer_use.base import ComputerUseError
         computer = backend()
     except Exception:
-        return [{"query": q, "name": q, "bundle_id": "", "icon": "", "installed": False} for q in queries]
+        return [{"query": q, "name": q, "bundle_id": "", "icon": "", "installed": False, "platform": host}
+                for q in queries]
     out = []
     for query in queries:
         try:
-            out.append(computer.app_info(query))
+            out.append({**computer.app_info(query), "platform": host})
         except ComputerUseError:
-            out.append({"query": query, "name": query, "bundle_id": "", "icon": "", "installed": False})
+            out.append({"query": query, "name": query, "bundle_id": "", "icon": "", "installed": False,
+                        "platform": host})
     return out
 
 
 def _computer_use_running_apps() -> list[dict]:
     """The running apps the composer's @ menu offers; empty where there is no backend."""
     try:
-        from openprogram.computer_use.macos import ComputerUseError, backend
+        from openprogram.computer_use.backends import backend
+        from openprogram.computer_use.base import ComputerUseError
         return backend().running_apps()
     except (ComputerUseError, ImportError, OSError):
         return []
