@@ -1,100 +1,22 @@
-/* computer_use approval: the app first, then the step, then what approving means. */
-.app {
+/* computer_use approval: the app icon beside the shared approval question. */
+.head {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--text-secondary) 9%, transparent);
+  gap: 8px;
   min-width: 0;
+  color: var(--text-secondary);
 }
 
-.icon,
-.iconFallback {
-  width: 32px;
-  height: 32px;
+.head svg { flex: 0 0 auto; }
+
+.icon {
+  width: 20px;
+  height: 20px;
   flex: 0 0 auto;
 }
 
-.iconFallback {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  background: var(--bg-primary);
-  color: var(--text-secondary);
-}
-
-.appText {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.question {
-  color: var(--text-primary);
-  font-family: var(--font-sans);
-  font-size: var(--fs-base);
-  font-weight: 600;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-
-.identity {
-  color: var(--text-secondary);
-  font-family: var(--font-sans);
-  font-size: var(--fs-sm);
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-
-.chips {
+.badges {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-}
-
-.chip {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  max-width: 100%;
-  padding: 2px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  font-family: var(--font-sans);
-  font-size: var(--fs-sm);
-  line-height: 1.6;
-  overflow-wrap: anywhere;
-}
-
-.chip strong { font-weight: 600; }
-.chipLabel { color: var(--text-secondary); }
-.chipTarget { color: var(--text-primary); }
-
-.facts {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.facts li {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  color: var(--text-secondary);
-  font-family: var(--font-sans);
-  font-size: var(--fs-sm);
-  line-height: 1.6;
-}
-
-.facts li svg {
-  flex: 0 0 auto;
-  margin-top: 0.2em;
-  color: var(--text-muted);
 }

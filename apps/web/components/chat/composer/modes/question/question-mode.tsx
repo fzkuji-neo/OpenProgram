@@ -12,7 +12,13 @@ import { SolarIcon } from "@/components/solar-icons";
 import { OperationCode } from "./operation-code";
 import { ComputerUseApproval } from "./computer-use-approval";
 import { appStepArgs } from "@/lib/computer-use-agent-call";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Kbd } from "@/components/ui/kbd";
 import { Textarea } from "@/components/ui/textarea";
+import { HoverTip } from "@/components/ui/tooltip";
 import { SimpleSelect } from "@/components/ui/select";
 
 import type { PendingDecision, AskOne, FormFieldSchema } from "@/lib/session-store";
@@ -246,21 +252,21 @@ export function QuestionMode({ decision: q, onResolve }: QuestionModeProps) {
   return (
     <div className={styles.panel} data-question-card onKeyDown={onKey}>
       <div className={styles.header} data-fn-form-header data-decision>
-        {!discussionOpen && <span className={styles.progress}
+        {!discussionOpen && <Badge variant="secondary"
           aria-label={text(`Question ${stepIndex + 1} of ${steps.length}`, `第 ${stepIndex + 1} 题，共 ${steps.length} 题`)}>
           {stepIndex + 1}/{steps.length}
-        </span>}
+        </Badge>}
         <div className={styles.badge}>{discussionOpen ? (cur.kind === "approval"
           ? text("Deny with a note", "拒绝并说明") : text("Discuss this request", "讨论这个请求"))
           : cur.kind === "approval" ? text("Approval required", "需要批准") : cur.prompt}</div>
         <div className={styles.headerActions}>
-          <button type="button" className={styles.iconBtn} aria-expanded={!collapsed}
+          <Button type="button" variant="ghost" size="icon-sm" aria-expanded={!collapsed}
             aria-label={collapsed ? text("Expand request", "展开请求") : text("Collapse request", "折叠请求")}
             onClick={() => updateDraft({ collapsed: !collapsed })}>
             {collapsed ? <SolarIcon name="alt-arrow-right" size={16} /> : <SolarIcon name="alt-arrow-down" size={16} />}
-          </button>
-          {!collapsed && <button type="button" className={styles.iconBtn}
-            aria-label={text("Hide request", "收起请求")} onClick={() => updateDraft({ collapsed: true })}><SolarIcon name="close-circle" size={16} /></button>}
+          </Button>
+          {!collapsed && <Button type="button" variant="ghost" size="icon-sm"
+            aria-label={text("Hide request", "收起请求")} onClick={() => updateDraft({ collapsed: true })}><SolarIcon name="close-circle" size={16} /></Button>}
         </div>
       </div>
       {!collapsed && <>
@@ -303,59 +309,59 @@ export function QuestionMode({ decision: q, onResolve }: QuestionModeProps) {
         <div className={`${styles.actions} ${styles.footer}`} role="group" aria-label={text("Decision actions", "答复操作")}>
           {cur.kind === "approval" && !discussionOpen && (
             <div className={styles.actionButtons}>
-              <button type="button" className={`${styles.navBtn} ${styles.discussBtn}`} disabled={answerLocked}
+              <Button type="button" variant="outline" size="icon" disabled={answerLocked}
                 onClick={() => setDiscussionOpen(true)} aria-label={text("Deny with a note", "拒绝并说明")}>
                 <SolarIcon name="chat-round-dots" size={15} aria-hidden="true" />
-              </button>
-              <button type="button" className={styles.navBtn}
+              </Button>
+              <Button type="button" variant="outline"
                 disabled={answerPending || (answerLocked && submission?.command.action !== "execution.wait.decline")}
                 onClick={() => { patch(0, { pick: "deny" }); void sendAnswer("execution.wait.decline"); }}>
                 {text("Deny", "拒绝")}
-              </button>
+              </Button>
               {(["session", "always", "always_path"] as const).filter(scope => cur.allowedScopes?.includes(scope)).map(scope => (
-                <button key={scope} type="button" className={styles.navBtn}
+                <Button key={scope} type="button" variant="outline"
                   disabled={answerLocked}
                   onClick={() => { patch(0, { pick: scope }); void sendAnswer("execution.wait.answer", { answer: APPROVE_ANSWER, scope }); }}>
                   {scope === "session" ? text("Allow this conversation", "允许此对话")
                     : scope === "always" ? text("Always allow", "始终允许") : text("Always allow this path", "始终允许此路径")}
-                </button>
+                </Button>
               ))}
-              <button type="button" className={`${styles.navBtn} ${styles.navBtnPrimary}`}
+              <Button type="button"
                 disabled={answerPending || (answerLocked && submission?.command.action !== "execution.wait.answer")}
                 aria-busy={answerPending}
                 onClick={() => { patch(0, { pick: "once" }); void sendAnswer("execution.wait.answer", { answer: APPROVE_ANSWER, scope: "once" }); }}>
                 {answerPending ? text("Sending…", "提交中…") : text("Allow once", "同意")}
-              </button>
+              </Button>
             </div>
           )}
           {discussionOpen && <div className={styles.actionButtons}>
-            <button type="button" className={styles.navBtn} disabled={feedbackLocked}
-              onClick={() => setDiscussionOpen(false)}>{text("Cancel", "取消")}</button>
-            <button type="button" className={`${styles.navBtn} ${styles.navBtnPrimary}`}
+            <Button type="button" variant="outline" disabled={feedbackLocked}
+              onClick={() => setDiscussionOpen(false)}>{text("Cancel", "取消")}</Button>
+            <Button type="button"
               disabled={discussionPending || !feedback.trim()} aria-busy={discussionPending}
               onClick={() => void sendDiscussion()}>
               {discussionPending ? text("Sending…", "发送中…") : feedbackLocked
                 ? text("Retry", "重试") : cur.kind === "approval"
                   ? text("Deny and send", "拒绝并发送") : text("Send discussion", "发送讨论")}
-              <kbd className={styles.submitKey} aria-hidden="true">Ctrl ↵</kbd>
-            </button>
+              <Kbd aria-hidden="true">Ctrl ↵</Kbd>
+            </Button>
           </div>}
-          {cur.kind !== "approval" && !discussionOpen && stepIndex > 0 && <button type="button"
-            className={styles.navBtn} disabled={answerLocked || discussionPending}
-            onClick={() => updateDraft({ stepIndex: stepIndex - 1 })}>{text("Back", "上一题")}</button>}
+          {cur.kind !== "approval" && !discussionOpen && stepIndex > 0 && <Button type="button" variant="outline" disabled={answerLocked || discussionPending}
+            onClick={() => updateDraft({ stepIndex: stepIndex - 1 })}>{text("Back", "上一题")}</Button>}
           {cur.kind !== "approval" && !discussionOpen && <div className={styles.actionButtons}>
-            <button type="button" className={`${styles.navBtn} ${styles.discussBtn}`} disabled={answerLocked}
+            <Button type="button" variant="outline" size="icon" disabled={answerLocked}
               onClick={() => setDiscussionOpen(true)} aria-label={text("Discuss", "先讨论")}>
               <SolarIcon name="chat-round-dots" size={15} aria-hidden="true" />
-            </button>
-            <button type="button" className={styles.navBtn} disabled={answerLocked || discussionPending}
-              title={text("Skip this request without submitting answers", "跳过整组请求，不提交回答")}
-              onClick={() => void sendAnswer("execution.wait.decline")}>{text("Skip", "跳过")}</button>
-            <button type="button" className={`${styles.navBtn} ${styles.navBtnPrimary}`}
+            </Button>
+            <HoverTip label={text("Skip this request without submitting answers", "跳过整组请求，不提交回答")}>
+              <Button type="button" variant="outline" disabled={answerLocked || discussionPending}
+                onClick={() => void sendAnswer("execution.wait.decline")}>{text("Skip", "跳过")}</Button>
+            </HoverTip>
+            <Button type="button"
               onClick={advance} aria-label={submitLabel} aria-busy={answerPending}
               disabled={discussionPending || answerPending || (!answerLocked && (!currentAnswered || (lastStep && !allAnswered)))}>
-              {submitLabel}<kbd className={styles.submitKey} aria-hidden="true">Ctrl ↵</kbd>
-            </button>
+              {submitLabel}<Kbd aria-hidden="true">Ctrl ↵</Kbd>
+            </Button>
           </div>}
         </div>
       </>}
@@ -395,11 +401,9 @@ function StepBody({
                     {label}
                     {f.description ? <span className={formStyles.hint}> · {f.description}</span> : null}
                   </span>
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={Boolean(fields[name])}
-                    onChange={(e) => setField(name, e.target.checked)}
-                    className={formStyles.checkbox}
+                    onCheckedChange={(checked) => setField(name, checked === true)}
                   />
                 </label>
               );
@@ -418,8 +422,7 @@ function StepBody({
                     options={f.enum.map((opt) => ({ value: String(opt), label: String(opt) }))}
                   />
                 ) : (
-                  <input
-                    className={styles.input}
+                  <Input
                     type={f.type === "integer" || f.type === "number" ? "number" : "text"}
                     value={String(fields[name])}
                     min={f.minimum}
@@ -481,10 +484,11 @@ function StepBody({
       {step.options.length > 0 ? (
         <div className={styles.options}>
           {step.options.map((opt, index) => (
-            <button
+            <Button
               key={opt}
               type="button"
-              className={styles.opt + (aa.picked.has(opt) ? " " + styles.optPicked : "")}
+              variant={aa.picked.has(opt) ? "secondary" : "outline"}
+              className="h-auto min-h-12 w-full justify-between gap-4 py-2.5 text-left font-normal whitespace-pre-wrap"
               aria-pressed={aa.picked.has(opt)} aria-label={opt} data-choice-number={index + 1}
               onClick={() => toggle(opt)}
             >
@@ -494,18 +498,17 @@ function StepBody({
                   && typeof step.optionDescriptions[opt] === "string"
                   && <span className={styles.optionDescription}>{step.optionDescriptions[opt]}</span>}
               </span>
-              <kbd className={styles.keycap} aria-hidden="true">{index + 1}</kbd>
-            </button>
+              <Kbd aria-hidden="true">{index + 1}</Kbd>
+            </Button>
           ))}
         </div>
       ) : null}
       {step.allowCustom ? (
-        <label className={`${styles.customOption} ${aa.custom.trim() ? styles.optPicked : ""}`}>
+        <label className={styles.customOption}>
           {step.options.length > 0 && <span className={styles.customTitle}>
-            {text("Other", "其他")}<kbd className={styles.keycap} aria-hidden="true">{step.options.length + 1}</kbd>
+            {text("Other", "其他")}<Kbd aria-hidden="true">{step.options.length + 1}</Kbd>
           </span>}
-        <input
-          className={styles.input}
+        <Input
           value={aa.custom}
           aria-label={step.prompt} data-choice-number={step.options.length + 1}
           placeholder={step.options.length

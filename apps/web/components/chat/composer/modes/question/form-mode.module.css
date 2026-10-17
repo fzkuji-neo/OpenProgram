@@ -36,10 +36,3 @@
   color: var(--text-muted);
 }
 
-.checkbox {
-  align-self: flex-start;
-  width: 16px;
-  height: 16px;
-  accent-color: var(--accent-orange);
-  cursor: pointer;
-}
