@@ -6,7 +6,7 @@ from importlib import import_module
 state = import_module("..", __package__)
 
 from . import page_actions as pa
-from . import page_logs
+from . import observe_diff, page_logs
 
 
 def _safe_observation_id(candidate: str, secrets, used=()) -> str:
@@ -95,6 +95,7 @@ class BrowserPageController:
         self._refs: dict[str, state.Any] = {}
         self._ref_meta: dict[str, dict[str, state.Any]] = {}
         self._frame_seq = 0
+        self._last_observation: dict[str, state.Any] | None = None
         self._mutations = 0
         self._verified_mutation = -1
         self._evidence: list[dict[str, state.Any]] = []
@@ -688,7 +689,13 @@ class BrowserPageController:
             return {"ok": False, "reason_code": "task_blocked",
                     "message": text or "The planner cannot complete the task with the available actions."}
         if action == "observe":
-            return run(self._observe)
+            previous = self._last_observation
+            frame = run(self._observe)
+            if isinstance(frame, dict) and "frame_id" in frame:
+                self._last_observation = frame
+                if options.get("changes_only"):
+                    return observe_diff.changes(previous, frame)
+            return frame
         if action in page_logs.LOG_ACTIONS:
             return run(self._read_logs, action, options)
         if action in {"screenshot", "verify"} and not expected_frame_id and self._frame:

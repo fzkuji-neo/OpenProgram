@@ -47,7 +47,7 @@ _VERIFY_LIFT_FIELDS = (
     "assertion",
     "value",
 )
-_OBSERVE_LIFT_FIELDS = ("url",)
+_OBSERVE_LIFT_FIELDS = ("url", "visible", "changes_only")
 _WEB_USE_CALL_KEYS = frozenset({
     "command",
     "backend",
@@ -195,6 +195,22 @@ def _observe_arguments_schema() -> dict[str, Any]:
         "type": "object",
         "properties": {
             "url": _url_property(),
+            "visible": {
+                "type": "boolean",
+                "description": (
+                    "With url: open the tab in front so the user can watch. Only when the "
+                    "user asked to see it; by default pages open in the background."
+                ),
+            },
+            "changes_only": {
+                "type": "boolean",
+                "description": (
+                    "List in full only elements that are new or changed since the previous "
+                    "observation of this page; unchanged ones are one line each with their new "
+                    "ref, and an unchanged text or ARIA snapshot is left out. Every ref shown "
+                    "belongs to this frame."
+                ),
+            },
             "detail": {
                 "type": "string",
                 "description": "Observation detail, for example interactive.",

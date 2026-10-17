@@ -325,3 +325,68 @@ def test_controller_reads_console_and_requests_without_invalidating_the_frame(pa
     result = controller.execute(action="console_messages", expected_frame_id=frame, only_errors=True)
     assert result["ok"] and "[error] leak [redacted]" in result["result"] and "pw-123" not in result["result"]
     assert controller._frame and controller._frame["frame_id"] == frame
+
+
+@pytest.mark.parametrize("visible, background", [(None, True), (False, True), (True, False)])
+def test_observe_opens_a_url_in_the_background_unless_the_user_asked_to_watch(monkeypatch, visible, background):
+    from openprogram.agent import surface_context
+    from openprogram.programs.workflow.browser._runtime import web_use
+    opened = []
+    monkeypatch.setattr(surface_context, "current", lambda: None)
+    monkeypatch.setattr(surface_context, "open_page",
+                        lambda url, **kw: opened.append((url, kw)) or {"ok": False, "reason_code": "desktop_unavailable"})
+    args = {"url": "https://example.com/", **({} if visible is None else {"visible": visible})}
+    result = web_use._execute_web_use("observe", arguments=args)
+    assert opened == [("https://example.com/", {"background": background})] and result["ok"] is False
+    lifted = normalize_web_use_arguments({"command": "observe", "url": "https://example.com/", "visible": True})
+    assert lifted["arguments"] == {"url": "https://example.com/", "visible": True}
+
+
+from openprogram.programs.workflow.browser._runtime import observe_diff
+
+
+def _frame(elements, text="body", url="https://example.com/"):
+    return {"frame_id": "f", "url": url, "text": text, "aria_snapshot": "- tree", "elements": elements}
+
+
+def test_changes_only_lists_new_and_changed_elements_and_names_removed_ones():
+    before = _frame([{"ref": "e1", "role": "button", "name": "Save"},
+                     {"ref": "e2", "role": "textbox", "name": "Title", "value": "a"},
+                     {"ref": "e3", "role": "link", "name": "Help"}])
+    after = _frame([{"ref": "e1", "role": "button", "name": "Save"},
+                    {"ref": "e2", "role": "textbox", "name": "Title", "value": "ab"},
+                    {"ref": "e3", "role": "dialog", "name": "Saved"}])
+    out = observe_diff.changes(before, after)
+    assert out["changes_only"] is True
+    assert [e["ref"] for e in out["elements"]] == ["e2", "e3"]
+    assert out["unchanged_elements"] == ["e1 button 'Save'"]
+    assert out["removed_elements"] == ["link 'Help'"]
+    assert "text" not in out and out["text_unchanged"] and out["aria_snapshot_unchanged"]
+
+
+def test_changes_only_shows_the_whole_frame_without_an_earlier_one_of_the_page():
+    frame = _frame([{"ref": "e1", "role": "button", "name": "Go"}])
+    for previous in (None, _frame([], url="https://other.example/")):
+        out = observe_diff.changes(previous, frame)
+        assert out["changes_only"] is False and out["elements"] == frame["elements"] and out["text"] == "body"
+
+
+def test_controller_observes_changes_with_refs_of_the_new_frame(page):
+    from openprogram.programs.workflow.browser._runtime.controller import BrowserPageController
+
+    class Api:
+        _sessions = {"br_x": {"page": page}}
+    page.set_content("<button>Save</button><input aria-label=Title value=a>")
+    controller = BrowserPageController(Api(), url="http://localhost/")
+    controller.session_id = "br_x"
+    controller._owner.shutdown(wait=True)
+    controller._submit = lambda fn, *a, **k: fn(*a, **k)
+    controller.execute(action="observe")
+    page.fill("input", "ab")
+    out = controller.execute(action="observe", changes_only=True)
+    assert out["changes_only"] and [e.get("value") for e in out["elements"]] == ["ab"]
+    assert len(out["unchanged_elements"]) == 1 and "Save" in out["unchanged_elements"][0]
+    assert controller._frame["frame_id"] == out["frame_id"] and len(controller._frame["elements"]) == 2
+    assert set(controller._refs) == {e["ref"] for e in controller._frame["elements"]}
+    lifted = normalize_web_use_arguments({"command": "observe", "changes_only": True})
+    assert lifted["arguments"] == {"changes_only": True}
