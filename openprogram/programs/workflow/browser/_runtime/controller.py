@@ -820,8 +820,7 @@ class BrowserPageController:
                 for held in click["modifiers"]:
                     page.keyboard.down(held)
                 try:
-                    page.mouse.click(point_x * scale, point_y * scale,
-                                     button=click["button"], click_count=click["count"])
+                    page.mouse.click(point_x * scale, point_y * scale, **pa.mouse_options(click))
                 finally:
                     for held in reversed(click["modifiers"]):
                         page.keyboard.up(held)
@@ -862,6 +861,8 @@ class BrowserPageController:
                 # A bound tab stays in the background: dispatch the events in the page.
                 self._agent_click(lambda: run(target.evaluate, pa.POINTER_SCRIPT, {
                     "button": click["button"], "count": click["count"], "flags": click["flags"]}))
+            elif pa.is_plain_click(click):
+                self._agent_click(lambda: run(target.click))
             else:
                 self._agent_click(lambda: run(
                     target.click, button=click["button"], click_count=click["count"],

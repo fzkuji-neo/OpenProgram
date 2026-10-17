@@ -317,11 +317,14 @@ def test_backend_parity_lifecycle(monkeypatch, backend):
     assert stale["reason_code"] == "stale_observation"
     assert _write_count(backend, controllers, clients) == writes_before_rejections
 
-    unsupported = registry.execute(
+    # A drag with no endpoints is refused before anything is sent; the fake
+    # native controller does not implement drag at all.
+    endless = registry.execute(
         command="act", web_session_id=session_id, owner_id="owner-1",
         arguments={"action": "drag", "expected_frame_id": frame_id},
     )
-    assert unsupported["reason_code"] == "unsupported_action"
+    assert endless["reason_code"] == (
+        "unsupported_action" if backend == "open_claude_chrome" else "invalid_arguments")
     assert _write_count(backend, controllers, clients) == writes_before_rejections
 
     acted = registry.execute(

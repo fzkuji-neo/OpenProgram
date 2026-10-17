@@ -360,7 +360,7 @@ class OfficialMCPPageBackend:
                         **({"modifiers": click["modifiers"]} if click["modifiers"] else {})}
                 if pa.is_plain_click(click) or (click["count"] == 2 and click["button"] == "left"
                                                 and not click["modifiers"]):
-                    return "click", {"uid": ref, "pageId": page_id, "dblClick": click["count"] == 2}
+                    return "click", {"uid": ref, "pageId": page_id, **({"dblClick": True} if click["count"] == 2 else {})}
                 return self._evaluate(session, ref, pa.bound_call(pa.POINTER_SCRIPT, {
                     "button": click["button"], "count": click["count"], "flags": click["flags"]}))
             if click["modifiers"]:
@@ -378,6 +378,8 @@ class OfficialMCPPageBackend:
                         else ("drag", {"from_uid": ref, "to_uid": to_ref, "pageId": page_id}))
             if ref or to_ref:
                 unsupported("a drag between a ref and a point")
+            if any(arguments.get(key) is None for key in ("x", "y", "to_x", "to_y")):
+                raise pa.ActionError("invalid_arguments", "drag needs ref and to_ref, or x, y, to_x and to_y")
             if not playwright:
                 unsupported("a coordinate drag")
             return "browser_mouse_drag_xy", {"startX": arguments.get("x"), "startY": arguments.get("y"),

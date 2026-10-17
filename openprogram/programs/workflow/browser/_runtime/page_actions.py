@@ -77,6 +77,16 @@ def is_plain_click(options: dict[str, Any]) -> bool:
     return options["button"] == "left" and options["count"] == 1 and not options["modifiers"]
 
 
+def mouse_options(options: dict[str, Any]) -> dict[str, Any]:
+    """Playwright mouse arguments that differ from a single left click."""
+    out: dict[str, Any] = {}
+    if options["button"] != "left":
+        out["button"] = options["button"]
+    if options["count"] != 1:
+        out["click_count"] = options["count"]
+    return out
+
+
 def scroll_delta(arguments: dict[str, Any]) -> tuple[int, int]:
     """(dx, dy) in CSS pixels; ``amount`` keeps its old meaning (signed, vertical) without a direction."""
     try:
@@ -315,7 +325,7 @@ def bound_call(script: str, options: dict[str, Any], *, with_element: bool = Tru
 
 __all__ = [
     "ActionError", "EVALUATE_ACTION", "INSERT_TEXT_SCRIPT", "MAX_RESULT_CHARS", "MAX_SCRIPT_CHARS", "PARITY_ACTIONS", "PASTE_SCRIPT", "POINTER_SCRIPT",
-    "SCROLL_SCRIPT", "SELECT_TEXT_SCRIPT", "bound_call", "click_options", "evaluate_source", "evaluation_text",
+    "SCROLL_SCRIPT", "SELECT_TEXT_SCRIPT", "bound_call", "click_options", "evaluate_source", "mouse_options", "evaluation_text",
     "hold_seconds",
     "is_plain_click", "modifiers", "paste_payload", "scroll_delta", "selection_request",
 ]
