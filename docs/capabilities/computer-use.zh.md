@@ -27,6 +27,8 @@ computer_use(action="click", app="Calculator", element_index=18)
 
 每个动作返回 `Done: …`，后面跟树的 diff：`-` 开头的行消失了，`+` 开头的行是新增或变化的。序号是稳定的：元素只要还在窗口里就保持原序号，即使它上方插入了新东西；新元素拿到一个从未用过的号，所以早先读到的序号绝不会悄悄指向别的元素。给 `get_app_state` 传 `full=true` 可以重新拿到整棵树。树最多 1500 个元素，截图长边最多 1568 像素。
 
+有些应用自己绘制内容，不向辅助功能描述它：游戏、画布类编辑器、远程桌面、部分 Electron 应用。窗口的树少于 12 个元素时，状态里还会列出 macOS 从截图上识别出的文字，每行一条并带中心点的像素位置，例如 `"New Game" at (160, 215), 120x30`；模型用 `x`、`y` 点击它。识别在本机完成，优先使用你的首选语言，并按每张截图检测语言。
+
 动作之后工具等待窗口稳定，而不是固定停顿：至少 0.3 秒，直到树不再变化，最多 1.5 秒——界面上有转圈或进度条时最多 5 秒。
 
 ## 动作
@@ -37,7 +39,7 @@ computer_use(action="click", app="Calculator", element_index=18)
 | `list_windows` | `app` | 应用的窗口，带 `window_id`、标题、尺寸，以及是否为主窗口、焦点窗口、已最小化或在另一个桌面空间 |
 | `get_app_state` | `app`、`window?` 或 `window_id?`、`full?`、`include?` | 截图和树。未打开的应用会在后台启动。`window` 按标题子串或序号选窗口；上次读过的窗口保持选中。`include` 取 `all`、`tree` 或 `screenshot` |
 | `zoom` | `app`、`x`、`y`、`width`、`height` | 以显示器的完整像素密度查看上一张截图的一块区域，用于看清小字。动作坐标仍以那张截图为准 |
-| `find` | `app`、`text?`、`role?` | 上一棵树里标签、值或占位符包含 `text` 的元素，可限定角色（`button`、`text field`……） |
+| `find` | `app`、`text?`、`role?` | 上一棵树里标签、值或占位符包含 `text` 的元素，可限定角色（`button`、`text field`……）。没有元素匹配时，返回截图上显示 `text` 的文字行及其位置 |
 | `click` | `app`、`element_index` 或 `x`,`y`、`mouse_button?`、`click_count?`、`key?`、`duration?` | 按下一个元素，或点击上一张截图上的一点。`key` 是按住的修饰键，如 `cmd`、`shift+alt`；`duration` 是按住鼠标的秒数，至多 10 秒 |
 | `type_text` | `app`、`text`、`element_index?` | 向焦点元素输入；给了 `element_index` 就先聚焦它。元素是按钮等不能接收文字的控件时拒绝 |
 | `press_key` | `app`、`key`、`element_index?`、`duration?` | 一个 xdotool 写法的组合键：`Return`、`Escape`、`super+c`、`ctrl+shift+Tab`、`KP_0`、`F5`。`super` 和 `cmd` 都是 Command 键 |

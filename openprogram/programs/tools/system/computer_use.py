@@ -34,7 +34,7 @@ MAX_BATCH = 20
 DESCRIPTION = """Read and operate macOS application windows in the background: the user keeps the keyboard, mouse and front app, and nothing is raised or activated.
 
 Workflow
-1. get_app_state(app) first (list_apps shows installed and running apps; a closed app is launched in the background). It returns a screenshot and the window's Accessibility tree, one element per line with an index.
+1. get_app_state(app) first (list_apps shows installed and running apps; a closed app is launched in the background). It returns a screenshot and the window's Accessibility tree, one element per line with an index. When an app exposes little to Accessibility (games, canvases, remote desktops), the state also lists the text read off the screenshot by OCR, each line with the pixel x,y of its centre.
 2. Act by element_index whenever the tree has the element; element actions reach covered, hidden and minimized windows. Use x,y (pixels of the app's last screenshot) only for what the tree lacks: canvases, custom controls.
 3. Every action returns its result and the tree lines that changed (indices you already have stay valid; new elements get new indices). Do not call get_app_state again just to check; call it when an index is reported stale, or with full=true for the whole tree.
 4. Put several deterministic steps (fill a form, type then press Return) in one batch; the state comes back once, at the end.
@@ -43,7 +43,7 @@ Actions
 - list_apps; list_windows(app): window ids, titles, minimized / hidden / other-Space state.
 - get_app_state(app, window? | window_id?, full?, include=all|tree|screenshot).
 - zoom(app, x, y, width, height): a region of the last screenshot at full pixel density, for small text; coordinates stay those of the screenshot.
-- find(app, text?, role?): elements of the last tree whose label, value or placeholder contains text.
+- find(app, text?, role?): elements of the last tree whose label, value or placeholder contains text; when none does, lines of the screenshot that show the text (OCR), with their x,y.
 - click(app, element_index | x,y, mouse_button=left|right|middle, click_count=1..3, key=held modifiers like "cmd" or "shift+alt", duration=seconds to hold).
 - type_text(app, text, element_index?): types at the focus (focusing element_index first). set_value replaces a field's whole value; paste suits long text.
 - press_key(app, key, element_index?, duration?): xdotool names: "Return", "Escape", "Tab", "super+c", "ctrl+shift+Tab", "KP_0", "F5". super/cmd is Command.

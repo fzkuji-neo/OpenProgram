@@ -5,6 +5,7 @@ import pytest
 
 from openprogram.computer_use import keys
 from openprogram.computer_use import macos
+from openprogram.computer_use import ocr
 from openprogram.computer_use.tree import Node, diff, number, render, role_name, snapshot
 from openprogram.programs.permission_rule import exact_rule_for_call, parse_command, rule_to_string
 from openprogram.programs.tools.system import computer_use as tool
@@ -142,6 +143,70 @@ def test_diff_falls_back_to_the_full_tree_when_most_lines_changed():
     after = _numbered([Node(role="AXButton", depth=0, label=f"x{i}") for i in range(30)], _snap(before))
     text, is_diff = diff(_snap(before), after)
     assert not is_diff and text == render(after)
+
+
+# ----------------------------------------------------------------- OCR fallback
+
+def test_vision_boxes_become_screenshot_pixels_in_reading_order():
+    found = [("right", (0.5, 0.8, 0.2, 0.1)), ("left", (0.1, 0.81, 0.2, 0.1)), ("below", (0.1, 0.1, 0.3, 0.1)),
+             ("  ", (0, 0, 0.1, 0.1))]
+    boxes = ocr.boxes_from_normalized(found, 1000, 500)
+    assert [b.text for b in boxes] == ["left", "right", "below"]
+    assert boxes[1] == ocr.TextBox("right", 500, 50, 200, 50)
+    assert boxes[1].line() == '"right" at (600, 75), 200x50'
+
+
+def test_ocr_lines_are_capped_and_matched_case_insensitively():
+    boxes = [ocr.TextBox(f"Item {n}", 0, n * 10, 50, 10) for n in range(ocr.MAX_LINES + 5)]
+    rendered = ocr.render(boxes).splitlines()
+    assert len(rendered) == ocr.MAX_LINES + 1 and rendered[-1].startswith("…and 5 more")
+    assert [b.text for b in ocr.matching(boxes, "item  10")] == ["Item 10"] + [f"Item {n}" for n in range(100, 110)]
+
+
+def test_recognition_hints_put_preferred_languages_first_then_cjk_and_english():
+    supported = ["en-US", "fr-FR", "zh-Hans", "zh-Hant", "ja-JP", "ko-KR", "de-DE"]
+    assert ocr.pick_languages(["zh-Hant-TW", "fr-CA"], supported) == [
+        "zh-Hant", "fr-FR", "zh-Hans", "ja-JP", "ko-KR", "en-US"]
+    assert ocr.pick_languages(["de-AT"], ["en-US", "de-DE"]) == ["de-DE", "en-US"]
+
+
+def test_only_the_window_walk_counts_towards_a_sparse_tree():
+    nodes = [Node("AXWindow", 0), Node("AXButton", 1), Node("AXButton", 1), Node("AXMenuBar", 0), Node("AXMenuBarItem", 1)]
+    assert macos._window_node_count(nodes) == 3
+    assert macos._window_node_count(nodes[:3]) == 3
+
+
+def test_find_falls_back_to_text_on_the_screenshot(monkeypatch):
+    computer = macos.MacComputer()
+    state = macos.WindowState(pid=1, window_title="Game", nodes=[Node("AXWindow", 0, label="Game", index=0)],
+                              has_screenshot=True, scale=2.0, size=(400, 300),
+                              text_boxes=[ocr.TextBox("New Game", 100, 200, 120, 30)])
+    monkeypatch.setattr(computer, "_state_for", lambda session, query: (None, state))
+    assert '"New Game" at (160, 215)' in computer.find("s", "Game", text="new game")
+    assert computer.find("s", "Game", text="quit").startswith("no element of the last tree matches")
+    assert computer.find("s", "Game", text="Game").startswith("1 match(es)")
+
+
+def test_vision_reads_mixed_scripts_from_a_rendered_image():
+    if not ocr.available():
+        pytest.skip("Vision is not installed")
+    AppKit = pytest.importorskip("AppKit")
+    Foundation = pytest.importorskip("Foundation")
+    image = AppKit.NSImage.alloc().initWithSize_((520, 160))
+    image.lockFocus()
+    AppKit.NSColor.whiteColor().set()
+    AppKit.NSBezierPath.fillRect_(((0, 0), (520, 160)))
+    font = {AppKit.NSFontAttributeName: AppKit.NSFont.systemFontOfSize_(30)}
+    Foundation.NSString.stringWithString_("Start Game").drawAtPoint_withAttributes_((30, 100), font)
+    Foundation.NSString.stringWithString_("设置 选项").drawAtPoint_withAttributes_((260, 20), font)
+    image.unlockFocus()
+    bitmap = AppKit.NSBitmapImageRep.alloc().initWithData_(image.TIFFRepresentation())
+    png = bytes(bitmap.representationUsingType_properties_(AppKit.NSBitmapImageFileTypePNG, {}))
+    width, height = bitmap.pixelsWide(), bitmap.pixelsHigh()
+    boxes = ocr.recognize(png, width, height)
+    assert [b.text.replace(" ", "") for b in boxes] == ["StartGame", "设置选项"]
+    x, y = boxes[0].center
+    assert x < width / 2 and y < height / 2
 
 
 def test_menu_titles_match_case_insensitively_without_the_ellipsis():
