@@ -1,9 +1,12 @@
-"""Text read off a screenshot, for windows whose Accessibility tree shows little.
+"""Text and icons read off a screenshot, for windows whose Accessibility tree shows little.
 
 Games, canvas editors, remote desktops and some Electron apps draw their
 content without exposing it to Accessibility. Their screenshot still has
 the words on it: Vision's text recognizer reads them with a box each, and
-the box centre is a coordinate an action can click.
+the box centre is a coordinate an action can click. Icons and controls
+without words are found as shapes: Vision's contour detector outlines
+them, outlines that touch are merged, and whatever covers text or is too
+small, too large or too thin to be a control is dropped.
 """
 from __future__ import annotations
 
@@ -16,6 +19,7 @@ from .tree import _BIDI_MARKS
 
 MAX_LINES = 150
 MAX_LINE_CHARS = 200
+MAX_SHAPES = 60
 
 
 @dataclass(frozen=True)
@@ -130,4 +134,108 @@ def recognize(png: bytes, width: float, height: float) -> list[TextBox]:
     return boxes_from_normalized(found, width, height)
 
 
-__all__ = ["MAX_LINES", "TextBox", "available", "boxes_from_normalized", "matching", "pick_languages", "recognize", "render"]
+@dataclass(frozen=True)
+class Shape:
+    """An icon or control without text, in pixels of the screenshot it was found in."""
+    x: float
+    y: float
+    width: float
+    height: float
+
+    @property
+    def center(self) -> tuple[int, int]:
+        return int(round(self.x + self.width / 2)), int(round(self.y + self.height / 2))
+
+    def line(self) -> str:
+        cx, cy = self.center
+        return f"({cx}, {cy}), {int(round(self.width))}x{int(round(self.height))}"
+
+
+def _overlaps(a: tuple[float, float, float, float], b: tuple[float, float, float, float], gap: float = 0.0) -> bool:
+    return (a[0] - gap < b[0] + b[2] and b[0] - gap < a[0] + a[2]
+            and a[1] - gap < b[1] + b[3] and b[1] - gap < a[1] + a[3])
+
+
+def shapes_from_boxes(boxes: list[tuple[float, float, float, float]], text: list[TextBox],
+                      scale: float) -> list[Shape]:
+    """Outline boxes (screenshot pixels) as controls: merge outlines within 3 points
+    of each other, then keep the ones that look like a control and cover no line
+    of text."""
+    merged: list[list[float]] = []
+    for box in sorted(boxes, key=lambda b: (b[1], b[0])):
+        current = [float(v) for v in box]
+        changed = True
+        while changed:
+            changed = False
+            for other in merged:
+                if _overlaps(current, other, 3 * scale):
+                    x, y = min(current[0], other[0]), min(current[1], other[1])
+                    right = max(current[0] + current[2], other[0] + other[2])
+                    bottom = max(current[1] + current[3], other[1] + other[3])
+                    current = [x, y, right - x, bottom - y]
+                    merged.remove(other)
+                    changed = True
+                    break
+        merged.append(current)
+    # A one-character "line" is often an icon the recognizer misread as a
+    # glyph, so only longer lines rule a shape out.
+    words = [(t.x, t.y, t.width, t.height) for t in text if len(t.text.replace(" ", "")) > 1]
+    keep = []
+    for x, y, w, h in merged:
+        short, long = min(w, h), max(w, h)
+        if short < 8 * scale or long > 80 * scale or long > 4 * short:
+            continue
+        if any(_overlaps((x, y, w, h), word) for word in words):
+            continue
+        keep.append(Shape(*(round(v, 1) for v in (x, y, w, h))))
+    # Rows are 16-point bands of the centre, so a toolbar's icons of slightly
+    # different heights stay one row, read left to right.
+    keep.sort(key=lambda s: (int((s.y + s.height / 2) // (16 * scale)), s.x))
+    return keep
+
+
+def render_shapes(shapes: list[Shape]) -> str:
+    lines = [s.line() for s in shapes[:MAX_SHAPES]]
+    if len(shapes) > MAX_SHAPES:
+        lines.append(f"…and {len(shapes) - MAX_SHAPES} more; zoom into a region to see them.")
+    return "\n".join(lines)
+
+
+def detect_shapes(png: bytes, width: float, height: float, text: list[TextBox], scale: float) -> list[Shape]:
+    """Icons and controls without text in a PNG ``width`` x ``height`` pixels; empty
+    when Vision is missing."""
+    if not png or not available():
+        return []
+    import Foundation
+    import Quartz
+    import Vision
+
+    found: list[Shape] = []
+    with _lock:
+        data = Foundation.NSData.dataWithBytes_length_(png, len(png))
+        # Dark icons on a light window and light icons on a dark one are
+        # outlined by separate passes; each is filtered on its own, then a
+        # shape both passes found is kept once.
+        for dark_on_light in (True, False):
+            handler = Vision.VNImageRequestHandler.alloc().initWithData_options_(data, {})
+            request = Vision.VNDetectContoursRequest.alloc().init()
+            request.setContrastAdjustment_(2.0)
+            request.setDetectsDarkOnLight_(dark_on_light)
+            request.setMaximumImageDimension_(1024)
+            ok, _error = handler.performRequests_error_([request], None)
+            if not ok or not request.results():
+                continue
+            boxes = []
+            for contour in request.results()[0].topLevelContours() or []:
+                (nx, ny), (nw, nh) = Quartz.CGPathGetBoundingBox(contour.normalizedPath())
+                boxes.append((nx * width, (1.0 - ny - nh) * height, nw * width, nh * height))
+            for shape in shapes_from_boxes(boxes, text, scale):
+                box = (shape.x, shape.y, shape.width, shape.height)
+                if not any(_overlaps(box, (o.x, o.y, o.width, o.height)) for o in found):
+                    found.append(shape)
+    found.sort(key=lambda s: (int((s.y + s.height / 2) // (16 * scale)), s.x))
+    return found
+
+
+__all__ = ["MAX_LINES", "MAX_SHAPES", "Shape", "TextBox", "available", "boxes_from_normalized", "detect_shapes",
+           "matching", "pick_languages", "recognize", "render", "render_shapes", "shapes_from_boxes"]
