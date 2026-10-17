@@ -84,8 +84,11 @@ Element actions reach windows that are hidden, minimised or covered by another w
 | `select_text` | `ref`, `text`, `prefix?`, `suffix?`, `selection_type?` | Select text inside an element, or place the caret before or after it |
 | `press` | `key`, `ref?`, `duration?` | Without `ref` the key goes to the page's focus; `duration` holds it |
 | `back` / `forward` / `reload` | — | History navigation; `no_history` when there is nowhere to go |
+| `evaluate` | `script` | Runs a JavaScript expression or function such as `() => document.title` in the page and returns its result as JSON, at most 20,000 characters; password field values in the result are redacted |
 
 A page in the App's browser stays in the background throughout: the events are dispatched inside the page and the tab is not activated. On the Playwright and Chrome DevTools MCP backends an option the backend cannot perform, such as a triple click or a held key, fails with `unsupported_option` before anything is sent.
+
+A script can read and change everything a signed-in page holds, so every `evaluate` call asks you first and shows the whole script, in every permission mode and even when a rule allows `web_use`. The approval covers that one call: there is no "always allow" for it, and scheduled or channel turns that cannot ask are refused.
 
 ## Approval
 

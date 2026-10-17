@@ -121,6 +121,7 @@ computer_use(action, app, element_index | x,y, …)
 | 选中文本或放置光标 | `selectText` | `select_text` |
 | 带时长的按键、无目标的按键 | `pressKey(key, {durationMs})` | `press` 带 `duration`，`ref` 可选 |
 | 后退/前进/刷新 | 标签页方法 | `back`、`forward`、`reload` |
+| 在页面里运行 JavaScript | `evaluate` | `evaluate` 带 `script`，逐次审批 |
 
 参数名沿用 `computer_use` 的（`mouse_button`、`click_count`、`direction`、`format`、`prefix`、`suffix`、`selection_type`、`duration`），让两个工具读起来一致；只有点击时按住的键叫 `modifiers`，因为 `key` 已经是 `press` 的按键。
 
@@ -131,7 +132,9 @@ computer_use(action, app, element_index | x,y, …)
 - Playwright MCP 用原生的 `browser_click` 选项、`browser_drag`、`browser_mouse_drag_xy`、双轴的 `browser_mouse_wheel` 和 `browser_navigate_back`；Chrome DevTools MCP 用 `click(dblClick)`、`drag` 和 `navigate_page(back|forward|reload)`。后端做不到的选项在发送任何东西之前抛出 `unsupported_option`，而不是退而执行一个更弱的动作。
 - `paste` 派发一个携带 `DataTransfer` 的 `ClipboardEvent`；页面不处理时，用 `insertHTML`（富文本编辑器，`md`/`html`）或 `insertText` 插入。系统剪贴板从不被触碰。
 
-标签页对应已有命令：`list_pages` 即 `listTabs`，从它拿到的 Page 别名即 `getTab`，带 `url` 的 `observe` 会打开一个隐藏的后台标签页（即隐藏的 `createBrowserTab`），除非已绑定的 Page 正显示同一来源；`close` 结束会话。相对 Codex 仍缺：打开会抢焦点的可见标签页、以 diff 形式观察、受控的 JavaScript `evaluate`。可见标签页会挪走用户的焦点，而后台操作正是要避免这一点。一次观察最多 120 个可见元素，ref 只属于它所在的那一帧，过期 ref 正是靠这一点被拒绝；diff 省不了多少，还需要跨帧存活的 ref，所以观察保持完整返回。任意求值能读到已登录页面持有的一切，包括观察结果里被脱敏的内容，所以在它能带上逐次审批之前不做。
+标签页对应已有命令：`list_pages` 即 `listTabs`，从它拿到的 Page 别名即 `getTab`，带 `url` 的 `observe` 会打开一个隐藏的后台标签页（即隐藏的 `createBrowserTab`），除非已绑定的 Page 正显示同一来源；`close` 结束会话。相对 Codex 仍缺：打开会抢焦点的可见标签页、以 diff 形式观察。可见标签页会挪走用户的焦点，而后台操作正是要避免这一点。一次观察最多 120 个可见元素，ref 只属于它所在的那一帧，过期 ref 正是靠这一点被拒绝；diff 省不了多少，还需要跨帧存活的 ref，所以观察保持完整返回。
+
+`evaluate` 能读到已登录页面持有的一切，包括观察结果里被脱敏的内容，所以它的门控放在权限策略里而不是工具里：`action`（顶层或嵌套）为 `evaluate` 的 `web_use` 调用由 `force_approval` 在任何模式下都询问，先于允许规则、bypass 和绑定页面授权；`one_shot_approval` 让卡片只有“本次”范围，从不保存规则，并完整展示参数。非交互来源直接拒绝。脚本在每个后端上都经由控制器运行，MCP 后端也一样，因为控制器持有同一个标签页及其字段的密码值：结果经过与观察相同的脱敏，并经过 `_mutated`，因此当前帧失效，下一步重新观察。表达式被包成 `() => (expr)`；脚本最多 8000 个字符，结果最多 20,000 个字符。
 
 ## 界面工作
 
@@ -150,6 +153,6 @@ GUI Agent 工作流（`gui_agent`）、它的 grounding 流水线和能力 plann
 ## 实现状态
 
 - 已实现：macOS 上 `computer_use` 的上述读取、执行与批量动作，稳定序号，自适应等待，后台指针与键盘投递，树 diff，四个范围的按应用审批，系统访问门控，Web 展示，按键/树编号/菜单匹配/批量/规则/审批接线的单元测试。
-- `web_use` 已实现：上面对照表的每一行，三个后端都支持，并有在 Chromium 里运行页面脚本的测试。
+- `web_use` 已实现：上面对照表的每一行，三个后端都支持，并有在 Chromium 里运行页面脚本的测试，以及 `evaluate` 的逐次审批。
 - 已实现：为树稀疏的窗口提供 OCR 文字，并作为 `find` 的回退，附带一个经 Vision 识别渲染图像的测试。
-- 未实现：`web_use` 的可见标签页、观察 diff 和受控求值；电脑音频录制；把窗口从另一个桌面空间移过来；设置页、标注模式、区域截图和 `@` 提及；Windows 与 Linux 后端；对不带文字的图标和控件做目标检测。
+- 未实现：`web_use` 的可见标签页和观察 diff；电脑音频录制；把窗口从另一个桌面空间移过来；设置页、标注模式、区域截图和 `@` 提及；Windows 与 Linux 后端；对不带文字的图标和控件做目标检测。

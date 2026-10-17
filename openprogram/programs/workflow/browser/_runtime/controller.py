@@ -132,6 +132,8 @@ class BrowserPageController:
     def _requires_approval(self, action: str = "", url: str = "", **_kw):
         if action == "upload":
             return "Upload the selected local file to the bound website; this can transmit file contents immediately."
+        if action == pa.EVALUATE_ACTION:
+            return "Run a script in the page; it can read and change everything the page holds."
         if action not in {
             "navigate", "click", "type", "press", "scroll", "hover", "select", *pa.PARITY_ACTIONS,
         }:
@@ -521,7 +523,7 @@ class BrowserPageController:
             return None, "stale_observation"
         return target, None
 
-    def _mutated(self, detail: str, *, point: dict | None = None) -> dict[str, state.Any]:
+    def _mutated(self, detail: str, *, point: dict | None = None, extra: dict | None = None) -> dict[str, state.Any]:
         from openprogram.programs.tools.web.browser._privacy import password_values, redact_password_values
         secrets = self._frame_passwords
         identity: dict[str, state.Any] = {}
@@ -551,6 +553,7 @@ class BrowserPageController:
         payload = {"ok": True, "detail": detail, "observe_required": True, **identity}
         if point is not None:
             payload["point"] = point
+        payload.update(extra or {})
         return redact_password_values(payload, secrets)
 
     def _write_allowed(self) -> dict[str, state.Any] | None:
@@ -758,6 +761,17 @@ class BrowserPageController:
                 return {"ok": False, "reason_code": "no_history",
                         "message": f"The page has no history to go {action} to."}
             return self._mutated(f"went {action} to {page.url}")
+        if action == pa.EVALUATE_ACTION:
+            source = pa.evaluate_source(options)
+            try:
+                value = run(page.evaluate, source)
+            except Exception as exc:
+                # The script may have changed the page before it threw.
+                failed = self._mutated("the script threw", extra={
+                    "ok": False, "reason_code": "evaluate_failed",
+                    "message": str(exc).strip().splitlines()[0][:500] if str(exc).strip() else type(exc).__name__})
+                return failed
+            return self._mutated("evaluated the script", extra={"result": pa.evaluation_text(value)})
         if action == "scroll":
             dx, dy = pa.scroll_delta(options)
             if ref:
