@@ -104,23 +104,29 @@ computer_use(action, app, element_index | x,y, …)
 
 `web_use` 现状：`observe`，`act` 含 `screenshot`、`navigate`、`click`、`type`、`press`、`scroll`、`hover`、`select`、`upload`，`verify` 含文本、URL、标题、元素和文件断言，三个后端（Playwright MCP、Chrome DevTools MCP、App 自带 Chrome）。
 
-相对 Codex 目标 API 的差距：
+相对 Codex 目标 API，`web_use` 现在覆盖：
 
 | 能力 | Codex | `web_use` |
 |---|---|---|
-| 右键/中键/双击、带修饰键点击 | `click(target, {mouseButton, clickCount, key})` | 仅左键单击 |
-| 拖拽 | `drag(from, to)` | — |
-| 按 ref 滚动指定元素 | `scroll(index, direction, pages)` | 按量滚动页面 |
-| 追加输入 vs 替换值 | `typeText` / `setValue` | 仅 `type` |
-| 粘贴文本、Markdown 或 HTML | `paste(text, {format})` | — |
-| 选中文本或放置光标 | `selectText` | — |
-| 带时长的按键、无目标的按键 | `pressKey(key, {durationMs})` | 带 ref 的 `press` |
-| 后退/前进/刷新 | 标签页方法 | 仅 `navigate(url)` |
-| 新标签页，可见或隐藏 | `createBrowserTab(kind, url, {visible})` | 每会话一个页面 |
-| 受控的 JavaScript 求值 | `evaluate` | — |
-| 以 diff 形式观察 | `getAXState({diff: true})` | 每次全量快照 |
+| 右键/中键/双击、带修饰键点击 | `click(target, {mouseButton, clickCount, key})` | `click` 带 `mouse_button`、`click_count`、`modifiers` |
+| 拖拽 | `drag(from, to)` | 在 ref 或点之间 `drag` |
+| 滚动指定元素 | `scroll(index, direction, pages)` | `scroll` 带 `ref` 和 `direction` |
+| 追加输入 vs 替换值 | `typeText` / `setValue` | `type_text` / `type` |
+| 粘贴文本、Markdown 或 HTML | `paste(text, {format})` | `paste` 带 `format` |
+| 选中文本或放置光标 | `selectText` | `select_text` |
+| 带时长的按键、无目标的按键 | `pressKey(key, {durationMs})` | `press` 带 `duration`，`ref` 可选 |
+| 后退/前进/刷新 | 标签页方法 | `back`、`forward`、`reload` |
 
-这些逐项加进 `web_use` 的 `act` 词汇，复用 `computer_use` 已有的参数名（`mouse_button`、`click_count`、`key`、`pages`、`format`、`selection_type`），让两个工具读起来一致。
+参数名沿用 `computer_use` 的（`mouse_button`、`click_count`、`direction`、`format`、`prefix`、`suffix`、`selection_type`、`duration`），让两个工具读起来一致；只有点击时按住的键叫 `modifiers`，因为 `key` 已经是 `press` 的按键。
+
+`page_actions.py` 承载页面一侧：参数解析和五段脚本（`POINTER_SCRIPT`、`SCROLL_SCRIPT`、`INSERT_TEXT_SCRIPT`、`PASTE_SCRIPT`、`SELECT_TEXT_SCRIPT`），每段都是 `(element, options)` 的函数。控制器在 ref 的句柄上用 `evaluate` 运行它们；MCP 后端经 `browser_evaluate` / `evaluate_script` 运行，选项以 JSON 内联，并带一个 `require` 守卫，页面报告失败时抛错，由后端自己的错误路径上报。各路径的取舍：
+
+- 绑定的 App 标签页保持后台规则：普通点击仍用原有的后台点击脚本；其他点击在页面内派发 pointer 和 mouse 事件；拖拽和坐标点击照旧经页面的输入派发并使用标签页的输入缩放。
+- 无头 Chromium 用原生 Playwright 调用：`click(button, click_count, modifiers)`、拖拽用 `mouse.move(steps=12)`、按住按键用 `keyboard.down/up`、`go_back` / `go_forward` / `reload`。
+- Playwright MCP 用原生的 `browser_click` 选项、`browser_drag`、`browser_mouse_drag_xy`、双轴的 `browser_mouse_wheel` 和 `browser_navigate_back`；Chrome DevTools MCP 用 `click(dblClick)`、`drag` 和 `navigate_page(back|forward|reload)`。后端做不到的选项在发送任何东西之前抛出 `unsupported_option`，而不是退而执行一个更弱的动作。
+- `paste` 派发一个携带 `DataTransfer` 的 `ClipboardEvent`；页面不处理时，用 `insertHTML`（富文本编辑器，`md`/`html`）或 `insertText` 插入。系统剪贴板从不被触碰。
+
+相对 Codex 仍缺：标签页管理（`createBrowserTab` 可见或隐藏、`listTabs`、按 URL 或提及 `getTab`）、以 diff 形式观察、受控的 JavaScript `evaluate`。任意求值能读到已登录页面持有的一切，包括观察结果里被脱敏的内容，所以在它能带上逐次审批之前不做。
 
 ## 界面工作
 
@@ -139,4 +145,5 @@ GUI Agent 工作流（`gui_agent`）、它的 grounding 流水线和能力 plann
 ## 实现状态
 
 - 已实现：macOS 上 `computer_use` 的上述读取、执行与批量动作，稳定序号，自适应等待，后台指针与键盘投递，树 diff，四个范围的按应用审批，系统访问门控，Web 展示，按键/树编号/菜单匹配/批量/规则/审批接线的单元测试。
-- 未实现：浏览器差距表的每一行；电脑音频录制；把窗口从另一个桌面空间移过来；设置页、标注模式、区域截图和 `@` 提及；Windows 与 Linux 后端；给 Accessibility 树为空的应用准备的感知回退（目标检测与 OCR）。
+- `web_use` 已实现：上面对照表的每一行，三个后端都支持，并有在 Chromium 里运行页面脚本的测试。
+- 未实现：`web_use` 的标签页管理、观察 diff 和受控求值；电脑音频录制；把窗口从另一个桌面空间移过来；设置页、标注模式、区域截图和 `@` 提及；Windows 与 Linux 后端；给 Accessibility 树为空的应用准备的感知回退（目标检测与 OCR）。

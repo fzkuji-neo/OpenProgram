@@ -9,6 +9,7 @@ from contextlib import suppress
 from typing import Any, Callable, Mapping
 
 from openprogram.mcp.client import MCPClient
+from ._runtime import page_actions as pa
 from openprogram.mcp.config import MCPServerConfig
 
 
@@ -323,53 +324,111 @@ class OfficialMCPPageBackend:
             "backend_observation": self.name,
         }
 
+    def _evaluate(self, session, ref: str, function: str):
+        """Run ``function`` in the page, on the element ``ref`` names when given."""
+        if self.name == "playwright_mcp":
+            return "browser_evaluate", {**({"target": ref} if ref else {}), "function": function}
+        return "evaluate_script", {"pageId": session.state["upstream_page"], "function": function,
+                                   **({"args": [ref]} if ref else {})}
+
     def _action_call(self, session, arguments: Mapping[str, Any]):
+        """The upstream tool call for one act, or None for an action this backend lacks.
+
+        Raises ``ActionError`` for options the backend cannot honour, so the
+        call fails before anything is sent instead of doing something weaker.
+        """
         action = str(arguments.get("action") or "")
         ref = str(arguments.get("ref") or "").lstrip("@")
-        if self.name == "playwright_mcp":
-            click = (
-                ("browser_click", {"target": ref})
-                if ref else (
-                    "browser_mouse_click_xy",
-                    {"x": arguments.get("x"), "y": arguments.get("y")},
-                )
-            )
+        options = dict(arguments)
+        playwright = self.name == "playwright_mcp"
+        page_id = None if playwright else session.state["upstream_page"]
+
+        def unsupported(what: str):
+            raise pa.ActionError("unsupported_option", f"{what} is not available on the {self.name} backend")
+
+        if action == "click":
+            click = pa.click_options(options)
+            if ref:
+                if playwright:
+                    if click["count"] == 3:
+                        unsupported("a triple click")
+                    return "browser_click", {
+                        "target": ref, "doubleClick": click["count"] == 2,
+                        "button": click["button"], "modifiers": click["modifiers"]}
+                if pa.is_plain_click(click) or (click["count"] == 2 and click["button"] == "left"
+                                                and not click["modifiers"]):
+                    return "click", {"uid": ref, "pageId": page_id, "dblClick": click["count"] == 2}
+                return self._evaluate(session, ref, pa.bound_call(pa.POINTER_SCRIPT, {
+                    "button": click["button"], "count": click["count"], "flags": click["flags"]}))
+            if click["modifiers"]:
+                unsupported("a coordinate click with modifiers")
+            if playwright:
+                return "browser_mouse_click_xy", {"x": arguments.get("x"), "y": arguments.get("y"),
+                                                  "button": click["button"], "clickCount": click["count"]}
+            if not pa.is_plain_click(click):
+                unsupported("a coordinate click other than a single left click")
+            return "click_at", {"x": arguments.get("x"), "y": arguments.get("y"), "pageId": page_id}
+        if action == "drag":
+            to_ref = str(arguments.get("to_ref") or "").lstrip("@")
+            if ref and to_ref:
+                return (("browser_drag", {"startTarget": ref, "endTarget": to_ref}) if playwright
+                        else ("drag", {"from_uid": ref, "to_uid": to_ref, "pageId": page_id}))
+            if ref or to_ref:
+                unsupported("a drag between a ref and a point")
+            if not playwright:
+                unsupported("a coordinate drag")
+            return "browser_mouse_drag_xy", {"startX": arguments.get("x"), "startY": arguments.get("y"),
+                                             "endX": arguments.get("to_x"), "endY": arguments.get("to_y")}
+        if action == "scroll":
+            dx, dy = pa.scroll_delta(options)
+            if ref:
+                return self._evaluate(session, ref, pa.bound_call(pa.SCROLL_SCRIPT, {"dx": dx, "dy": dy},
+                                                                  require="moved"))
+            if playwright:
+                return "browser_mouse_wheel", {"deltaX": dx, "deltaY": dy}
+            return self._evaluate(session, "", f"() => window.scrollBy({dx}, {dy})")
+        if action == "type_text":
+            text = arguments.get("text")
+            if not isinstance(text, str) or not text:
+                raise pa.ActionError("text_required", "type_text needs text")
+            return self._evaluate(session, ref, pa.bound_call(
+                pa.INSERT_TEXT_SCRIPT, {"text": text}, with_element=bool(ref), require="ok"))
+        if action == "paste":
+            return self._evaluate(session, ref, pa.bound_call(
+                pa.PASTE_SCRIPT, pa.paste_payload(options), with_element=bool(ref), require="ok"))
+        if action == "select_text":
+            if not ref:
+                raise pa.ActionError("ref_not_found", "select_text needs the ref of the element holding the text")
+            return self._evaluate(session, ref, pa.bound_call(
+                pa.SELECT_TEXT_SCRIPT, pa.selection_request(options), require="ok"))
+        if action == "press":
+            if pa.hold_seconds(options):
+                unsupported("holding a key")
+            return (("browser_press_key", {"key": arguments.get("key")}) if playwright
+                    else ("press_key", {"key": arguments.get("key"), "pageId": page_id}))
+        if action in ("back", "forward", "reload"):
+            if not playwright:
+                return "navigate_page", {"type": action, "pageId": page_id}
+            if action == "back":
+                return "browser_navigate_back", {}
+            return self._evaluate(session, "", "() => history.forward()" if action == "forward"
+                                  else "() => location.reload()")
+        if playwright:
             mapping = {
-                "click": click,
                 "type": ("browser_type", {
                     "target": ref, "text": str(arguments.get("text") or ""),
                 }),
-                "press": ("browser_press_key", {"key": arguments.get("key")}),
                 "hover": ("browser_hover", {"target": ref}),
                 "select": ("browser_select_option", {
                     "target": ref, "values": [str(arguments.get("value") or "")],
                 }),
                 "navigate": ("browser_navigate", {"url": arguments.get("url")}),
-                "scroll": ("browser_mouse_wheel", {
-                    "deltaY": int(arguments.get("amount") or 600),
-                    "deltaX": 0,
-                }),
             }
         else:
-            page_id = session.state["upstream_page"]
-            click = (
-                ("click", {"uid": ref, "pageId": page_id})
-                if ref else (
-                    "click_at",
-                    {
-                        "x": arguments.get("x"), "y": arguments.get("y"),
-                        "pageId": page_id,
-                    },
-                )
-            )
             mapping = {
-                "click": click,
                 "type": ("fill", {
                     "uid": ref, "value": str(arguments.get("text") or ""),
                     "pageId": page_id,
-                }),
-                "press": ("press_key", {
-                    "key": arguments.get("key"), "pageId": page_id,
                 }),
                 "hover": ("hover", {"uid": ref, "pageId": page_id}),
                 "select": ("fill", {
@@ -380,17 +439,8 @@ class OfficialMCPPageBackend:
                     "type": "url", "url": arguments.get("url"),
                     "pageId": page_id,
                 }),
-                "scroll": ("evaluate_script", {
-                    "function": (
-                        "() => window.scrollBy(0, "
-                        f"{int(arguments.get('amount') or 600)})"
-                    ),
-                    "pageId": page_id,
-                }),
             }
-        if action not in mapping:
-            return None
-        return mapping[action]
+        return mapping.get(action)
 
     def act(self, session, arguments: Mapping[str, Any], *, before_dispatch=None):
         controller = self._controller(session)
@@ -417,12 +467,16 @@ class OfficialMCPPageBackend:
         if rejected is not None:
             return rejected
         scale = 1.0
-        if action in {"click", "hover", "scroll"}:
+        if action in {"click", "hover", "scroll", "drag"}:
             get_scale = getattr(controller, "pointer_scale", None)
             scale = get_scale() if callable(get_scale) else 1.0
             if scale is None:
                 return controller.invalidate_external_frame()
-        call = self._action_call(session, arguments)
+        try:
+            call = self._action_call(session, arguments)
+            click = pa.click_options(dict(arguments)) if action == "click" else None
+        except pa.ActionError as exc:
+            return exc.result()
         hover_attribute = None
         ref = str(arguments.get("ref") or "").lstrip("@")
         if call is not None and scale != 1:
@@ -430,6 +484,12 @@ class OfficialMCPPageBackend:
             if action == "click" and not ref:
                 params = {**params, "x": float(arguments["x"]) * scale,
                           "y": float(arguments["y"]) * scale}
+            elif action == "drag" and name == "browser_mouse_drag_xy":
+                params = {key: float(value) * scale for key, value in params.items()}
+            elif action == "click" and ref and not pa.is_plain_click(click):
+                # A bound tab stays in the background: dispatch the events in the page.
+                name, params = self._evaluate(session, ref, pa.bound_call(pa.POINTER_SCRIPT, {
+                    "button": click["button"], "count": click["count"], "flags": click["flags"]}))
             elif action in {"click", "hover"} and ref:
                 if action == "click":
                     from . import _BACKGROUND_REF_CLICK_SCRIPT
@@ -465,7 +525,7 @@ class OfficialMCPPageBackend:
             }
         client = self._ensure_bound(session)
         set_cursor = getattr(controller, "set_agent_cursor_armed", None)
-        cursor_armed = action == "click" and callable(set_cursor)
+        cursor_armed = action in {"click", "drag"} and callable(set_cursor)
         if cursor_armed:
             with suppress(Exception):
                 set_cursor(True)

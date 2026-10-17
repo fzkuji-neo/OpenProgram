@@ -24,6 +24,18 @@ _ACTION_FIELD_NAMES = (
     "value",
     "amount",
     "assertion",
+    "mouse_button",
+    "click_count",
+    "modifiers",
+    "to_ref",
+    "to_x",
+    "to_y",
+    "direction",
+    "format",
+    "prefix",
+    "suffix",
+    "selection_type",
+    "duration",
 )
 _VERIFY_LIFT_FIELDS = (
     "ref",
@@ -59,6 +71,13 @@ _ACT_ACTION_ENUM = (
     "hover",
     "select",
     "upload",
+    "drag",
+    "type_text",
+    "paste",
+    "select_text",
+    "back",
+    "forward",
+    "reload",
 )
 
 
@@ -96,15 +115,30 @@ def _action_properties() -> dict[str, Any]:
         "x": {"type": "number"},
         "y": {"type": "number"},
         "url": _url_property(),
-        "text": {"type": "string"},
+        "text": {
+            "type": "string",
+            "description": "type replaces the field's value; type_text inserts at the caret; paste and select_text use it too.",
+        },
         "path": {"type": "string", "description": "User-approved local file to upload, at most 50 MiB. May immediately transmit its contents."},
-        "key": {"type": "string"},
+        "key": {"type": "string", "description": "press: the key, e.g. Enter or Control+A. Without ref it goes to the page's focus."},
         "value": {"type": "string"},
-        "amount": {"type": "integer"},
+        "amount": {"type": "integer", "description": "scroll: pixels (default 500); negative scrolls up when no direction is given."},
         "assertion": {
             "type": "string",
             "enum": list(_ASSERTION_ENUM),
         },
+        "mouse_button": {"type": "string", "enum": ["left", "right", "middle"], "description": "click: which button (default left)."},
+        "click_count": {"type": "integer", "minimum": 1, "maximum": 3, "description": "click: 2 for a double click."},
+        "modifiers": {"type": "string", "description": "click: keys held, e.g. \"cmd\" or \"shift+alt\"."},
+        "to_ref": {"type": "string", "description": "drag: the ref to drop on."},
+        "to_x": {"type": "number", "description": "drag: destination x in the last screenshot."},
+        "to_y": {"type": "number", "description": "drag: destination y in the last screenshot."},
+        "direction": {"type": "string", "enum": ["down", "up", "right", "left"], "description": "scroll direction; with ref the nearest scrollable container of that element scrolls."},
+        "format": {"type": "string", "enum": ["text", "md", "html"], "description": "paste: how text is offered to the page (default text)."},
+        "prefix": {"type": "string", "description": "select_text: text that must precede the match."},
+        "suffix": {"type": "string", "description": "select_text: text that must follow the match."},
+        "selection_type": {"type": "string", "enum": ["text", "cursor_before", "cursor_after"], "description": "select_text: select the text or place the caret."},
+        "duration": {"type": "number", "minimum": 0, "maximum": 10, "description": "press: seconds to hold the key."},
     }
 
 

@@ -104,23 +104,29 @@ The tool is in `DEFAULT_TOOLS` but deferred (`DEFERRED_DEFAULT_TOOLS`): its sche
 
 `web_use` today: `observe`, `act` with `screenshot`, `navigate`, `click`, `type`, `press`, `scroll`, `hover`, `select`, `upload`, and `verify` with text, URL, title, element and file assertions, on three backends (Playwright MCP, Chrome DevTools MCP, the App's own Chrome).
 
-Against the Codex target API the gaps are:
+Against the Codex target API, `web_use` now covers:
 
 | Capability | Codex | `web_use` |
 |---|---|---|
-| Right / middle / double click, modifier clicks | `click(target, {mouseButton, clickCount, key})` | left single click only |
-| Drag | `drag(from, to)` | — |
-| Scroll a specific element by ref | `scroll(index, direction, pages)` | page scroll by amount |
-| Append text vs replace value | `typeText` / `setValue` | `type` only |
-| Paste text, Markdown or HTML | `paste(text, {format})` | — |
-| Select text or place the cursor | `selectText` | — |
-| Key with duration, key without a target | `pressKey(key, {durationMs})` | `press` with a ref |
-| Back / forward / reload | tab methods | `navigate(url)` only |
-| New tab, visible or hidden | `createBrowserTab(kind, url, {visible})` | one page per session |
-| Gated JavaScript evaluation | `evaluate` | — |
-| Observation as a diff | `getAXState({diff: true})` | full snapshot each time |
+| Right / middle / double click, modifier clicks | `click(target, {mouseButton, clickCount, key})` | `click` with `mouse_button`, `click_count`, `modifiers` |
+| Drag | `drag(from, to)` | `drag` between refs or points |
+| Scroll a specific element | `scroll(index, direction, pages)` | `scroll` with `ref` and `direction` |
+| Append text vs replace value | `typeText` / `setValue` | `type_text` / `type` |
+| Paste text, Markdown or HTML | `paste(text, {format})` | `paste` with `format` |
+| Select text or place the cursor | `selectText` | `select_text` |
+| Key with duration, key without a target | `pressKey(key, {durationMs})` | `press` with `duration`, `ref` optional |
+| Back / forward / reload | tab methods | `back`, `forward`, `reload` |
 
-These are added to `web_use`'s `act` vocabulary one by one, reusing the argument names `computer_use` already uses (`mouse_button`, `click_count`, `key`, `pages`, `format`, `selection_type`) so the two tools read alike.
+The argument names are `computer_use`'s (`mouse_button`, `click_count`, `direction`, `format`, `prefix`, `suffix`, `selection_type`, `duration`), so the two tools read alike; only the held keys of a click are `modifiers`, because `key` already names the key of `press`.
+
+`page_actions.py` holds the page-side half: argument parsing and five scripts (`POINTER_SCRIPT`, `SCROLL_SCRIPT`, `INSERT_TEXT_SCRIPT`, `PASTE_SCRIPT`, `SELECT_TEXT_SCRIPT`), each a function of `(element, options)`. The controller runs them with `evaluate` on a ref's handle; the MCP backends run them through `browser_evaluate` / `evaluate_script` with the options inlined as JSON and a `require` guard that throws when the page reports failure, so the backend's own error path reports it. Choices per path:
+
+- Bound App tabs keep the background rule: plain clicks still use the existing background click script; other clicks dispatch pointer and mouse events in the page; drags and coordinate clicks go through the page's input dispatch with the tab's input scale, as before.
+- The headless Chromium uses native Playwright calls: `click(button, click_count, modifiers)`, `mouse.move(steps=12)` for drags, `keyboard.down/up` for held keys, `go_back` / `go_forward` / `reload`.
+- Playwright MCP uses its native `browser_click` options, `browser_drag`, `browser_mouse_drag_xy`, `browser_mouse_wheel` with both axes and `browser_navigate_back`; Chrome DevTools MCP uses `click(dblClick)`, `drag`, and `navigate_page(back|forward|reload)`. An option a backend cannot perform raises `unsupported_option` before anything is sent, rather than performing a weaker action.
+- `paste` dispatches a `ClipboardEvent` carrying a `DataTransfer`; when the page does not handle it, the text is inserted with `insertHTML` (rich editors, `md`/`html`) or `insertText`. The system clipboard is never touched.
+
+Still missing against Codex: tab management (`createBrowserTab` visible or hidden, `listTabs`, `getTab` by URL or mention), observation as a diff, and gated JavaScript `evaluate`. Arbitrary evaluation reads everything a signed-in page holds, including what the observation redacts, so it is left out until it can carry its own per-call approval.
 
 ## Interface work
 
@@ -139,4 +145,5 @@ The GUI Agent workflow (`gui_agent`), its grounding pipeline and its capability 
 ## Implementation status
 
 - Implemented: `computer_use` on macOS with the reading, acting and batch actions above, stable indices, adaptive settling, background pointer and keyboard delivery, tree diffs, per-app approval with the four scopes, system-access gating, web presentation, unit tests for keys, tree numbering, menu matching, batch, rules and approval wiring.
-- Not implemented: every row of the browser gap table; computer audio recording; moving a window from another Space; the settings page, annotation mode, region screenshot and `@`-mentions; Windows and Linux backends; a perception fallback (object detection and OCR) for applications whose Accessibility tree is empty.
+- Implemented for `web_use`: every row of the parity table above, on all three backends, with tests that run the page scripts in Chromium.
+- Not implemented: `web_use` tab management, observation diffs and gated evaluation; computer audio recording; moving a window from another Space; the settings page, annotation mode, region screenshot and `@`-mentions; Windows and Linux backends; a perception fallback (object detection and OCR) for applications whose Accessibility tree is empty.

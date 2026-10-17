@@ -69,3 +69,8 @@ test('the public computer_use tool reads as the action in the app; the GUI capab
   assert.equal(capability.title, 'Computer Use');
   assert.equal(capability.target, 'TextEdit');
 });
+
+test('web_use shows the nested act action rather than the command', () => {
+  assert.equal(presentTool('web_use', JSON.stringify({ command: 'act', arguments: { action: 'drag', ref: 'e1', to_ref: 'e2' } }), en).target, 'drag');
+  assert.equal(presentTool('web_use', JSON.stringify({ command: 'observe', arguments: { url: 'https://example.com' } }), en).target, 'observe https://example.com');
+});

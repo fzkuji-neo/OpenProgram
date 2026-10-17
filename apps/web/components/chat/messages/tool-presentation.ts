@@ -170,9 +170,15 @@ export function presentTool(name: string, input: string | undefined, text: Text)
       return { icon: "global", tone: "web", title: text("Fetched", "抓取网页"), target: pick(args, "url") };
     case "agent_browser":
     case "playwright_browser":
-    case "web_use":
+    case "web_use": {
+      // An act names its action inside arguments; show that instead of "act".
+      const nested = args.arguments && typeof args.arguments === "object" && !Array.isArray(args.arguments)
+        ? args.arguments as Args : {};
+      const action = pick(args, "action") ?? pick(nested, "action");
+      const url = pick(args, "url") ?? pick(nested, "url");
       return { icon: "cursor", tone: "web", title: text("Browser", "浏览器"),
-        target: [pick(args, "command", "action"), pick(args, "url")].filter(Boolean).join(" ") || undefined };
+        target: [action ?? pick(args, "command"), url].filter(Boolean).join(" ") || undefined };
+    }
     case "image_generate":
       return { icon: "gallery-add", tone: "media", title: text("Generated image", "生成图片"),
         target: firstLine(pick(args, "prompt")) };
