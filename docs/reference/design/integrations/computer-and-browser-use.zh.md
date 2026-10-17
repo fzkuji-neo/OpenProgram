@@ -47,7 +47,9 @@ computer_use(action, app, element_index | x,y, …)
 
 ### 菜单栏
 
-`menu` 按标题遍历 `AXMenuBar`，不分大小写，忽略末尾的 `…` 或 `...`。路径停在子菜单时列出其菜单项，带快捷键符号（由 `AXMenuItemCmdModifiers` 得到 `⌃⌥⇧⌘`）、`[checked]` 和 `[disabled]`；末端项用 `AXPress` 按下。经 Accessibility 读菜单树不会在屏幕上打开任何东西。`copy` 按下应用自己快捷键为 ⌘C 的菜单项——按快捷键而非本地化标题查找——找不到时退回发送 ⌘C；它等待粘贴板的 change count 变化，读出字符串，再恢复先前的粘贴板。
+`menu` 按标题遍历 `AXMenuBar`，不分大小写，忽略末尾的 `…` 或 `...`。路径停在子菜单时列出其菜单项，带快捷键符号（由 `AXMenuItemCmdModifiers` 得到 `⌃⌥⇧⌘`）、`[checked]` 和 `[disabled]`；末端项用 `AXPress` 按下。经 Accessibility 读菜单树不会在屏幕上打开任何东西。`copy` 按下应用自己快捷键为 ⌘C 的菜单项——按快捷键而非本地化标题查找——找不到时退回发送 ⌘C；该菜单项存在但被禁用（没有选区，或焦点在控件上）时立即如实报告。否则它等待粘贴板的 change count 变化，读出字符串，再恢复先前的粘贴板。
+
+不带 `element_index` 的 `copy`、`press_key`、`type_text` 和 `paste` 作用于应用当前的焦点，不需要先 `get_app_state`；`menu` 和 `show_window` 从不需要。`focus` 设置 `AXFocused` 并最多等半秒让应用报告它，因为应用会在之后的 run loop 轮次才应用焦点。
 
 截图是经 ScreenCaptureKit 抓取的窗口自身图像，缩放到长边至多 1568 像素；模型发来的坐标是这张图上的像素，用生成它的比例映射回屏幕点。
 

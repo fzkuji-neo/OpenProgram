@@ -47,7 +47,9 @@ After an action the tool polls a cheap fingerprint of the first 400 elements eve
 
 ### Menu bar
 
-`menu` walks `AXMenuBar` by title, case-insensitively and ignoring a trailing `…` or `...`. A path that ends at a submenu lists its items with shortcut glyphs (`⌃⌥⇧⌘` from `AXMenuItemCmdModifiers`), `[checked]` and `[disabled]`; a leaf is pressed with `AXPress`. Reading the menu tree through Accessibility opens nothing on screen. `copy` presses the app's own menu item whose shortcut is ⌘C, found by shortcut rather than by its localized title, and falls back to posting ⌘C; it waits for the pasteboard change count, reads the string, and restores the previous pasteboard.
+`menu` walks `AXMenuBar` by title, case-insensitively and ignoring a trailing `…` or `...`. A path that ends at a submenu lists its items with shortcut glyphs (`⌃⌥⇧⌘` from `AXMenuItemCmdModifiers`), `[checked]` and `[disabled]`; a leaf is pressed with `AXPress`. Reading the menu tree through Accessibility opens nothing on screen. `copy` presses the app's own menu item whose shortcut is ⌘C, found by shortcut rather than by its localized title, and falls back to posting ⌘C; when that item exists but is disabled (nothing selected, or focus on a control) it reports so at once. Otherwise it waits for the pasteboard change count, reads the string, and restores the previous pasteboard.
+
+`copy`, `press_key`, `type_text` and `paste` without an `element_index` act on the app's current focus and need no earlier `get_app_state`; `menu` and `show_window` never need one. `focus` sets `AXFocused` and waits up to half a second for the app to report it, since apps apply focus on a later run-loop turn.
 
 The screenshot is the window's own image captured through ScreenCaptureKit, scaled so the long side is at most 1568 pixels; coordinates the model sends are pixels of that image and are mapped back to screen points with the scale that produced it.
 
