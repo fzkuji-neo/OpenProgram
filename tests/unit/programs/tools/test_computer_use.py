@@ -374,22 +374,28 @@ def decide(monkeypatch):
     return run
 
 
-@pytest.mark.parametrize("mode", ["auto", "bypass", "default", "acceptEdits"])
-def test_first_touch_of_an_app_asks_in_every_mode(decide, mode):
+@pytest.mark.parametrize("mode", ["default", "acceptEdits"])
+def test_first_touch_of_an_app_asks_in_the_modes_that_ask(decide, mode):
     assert decide({"action": "click", "args": {"app": "Calculator"}}, mode=mode) == ("ask", "APP_GRANT_REQUIRED")
+
+
+def test_bypass_runs_and_auto_reviews_app_control_without_a_grant(decide):
+    click = {"action": "click", "args": {"app": "Calculator"}}
+    assert decide(click, mode="bypass") == ("allow", "BYPASS")
+    assert decide(click, mode="auto") == ("auto", "AUTO_CLASSIFY")
 
 
 @pytest.mark.parametrize("rule", ["computer_use_agent(calculator)", "computer_use(calculator)"])
 def test_an_allow_rule_for_the_app_lets_it_run_and_names_only_that_app(decide, rule):
     # Rules saved under the tool's earlier name still grant the app.
     click = {"action": "click", "args": {"app": "Calculator"}}
-    assert decide(click, allow=[rule]) == ("allow", "PERMISSION_RULE_ALLOW")
-    assert decide({"action": "click", "args": {"app": "Notes"}}, allow=[rule]) == ("ask", "APP_GRANT_REQUIRED")
+    assert decide(click, allow=[rule], mode="default") == ("allow", "PERMISSION_RULE_ALLOW")
+    assert decide({"action": "click", "args": {"app": "Notes"}}, allow=[rule], mode="default") == ("ask", "APP_GRANT_REQUIRED")
 
 
 def test_list_apps_needs_no_grant_and_unattended_sources_cannot_grant(decide):
     assert decide({"action": "list_apps"}, mode="bypass") == ("allow", "BYPASS")
-    assert decide({"action": "click", "args": {"app": "Calculator"}}, source="cron")[0] == "deny"
+    assert decide({"action": "click", "args": {"app": "Calculator"}}, mode="default", source="cron")[0] == "deny"
 
 
 def test_page_scripts_ask_every_time_and_never_become_a_rule(decide):

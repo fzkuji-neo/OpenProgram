@@ -74,7 +74,7 @@ A spawned agent cannot ask for approval, so the `fresh` call carries it: it name
 
 | Call | Approval |
 |---|---|
-| `app` (except `list_apps`) | per application, as before: rule `computer_use_agent(<app>)`, mandatory in every mode; former `computer_use(<app>)` rules still match |
+| `app` (except `list_apps`) | per application, as before: rule `computer_use_agent(<app>)`, asked in the modes that ask; former `computer_use(<app>)` rules still match |
 | `browser` | the turn's Page grant when the conversation has Pages; otherwise the permission mode; `evaluate` is approved per call, once |
 | `vm` | per endpoint: rule `computer_use_agent(vm:<url>)` |
 | `fresh` | as the target it names |
@@ -217,7 +217,7 @@ For the `app` target `requires_approval` returns `computer_use_agent controls <a
 | always | the project rules |
 | deny | nowhere |
 
-The grant is mandatory in every permission mode. `permission_decision` treats `computer_use_agent` as an app-grant tool (`_APP_GRANT_TOOLS`) for its `app` and `vm` targets: when the tool's own `requires_approval` says the call needs approval and no allow rule names the application, the decision is `ask` with reason `APP_GRANT_REQUIRED`, before Auto classification or Bypass is consulted. Unattended sources therefore deny such calls, and an allow rule is the only way past the card. `_RULE_ALIASES` lets rules saved under the former name, `computer_use(<app>)`, match `computer_use_agent` calls. The `browser` target has no rule of its own: a conversation with Pages gets the turn's `SURFACE_GRANT`, and an upload or a website outside this computer asks.
+The grant applies in the modes that ask; Bypass allows the call and Auto sends it to the Auto review. `permission_decision` treats `computer_use_agent` as an app-grant tool (`_APP_GRANT_TOOLS`) for its `app` and `vm` targets: when the tool's own `requires_approval` says the call needs approval and no allow rule names the application, the decision is `ask` with reason `APP_GRANT_REQUIRED`, Unattended sources therefore deny such calls outside Bypass, and in the modes that ask an allow rule is the only way past the card. `_RULE_ALIASES` lets rules saved under the former name, `computer_use(<app>)`, match `computer_use_agent` calls. The `browser` target has no rule of its own: a conversation with Pages gets the turn's `SURFACE_GRANT`, and an upload or a website outside this computer asks.
 
 Permission rules are reloaded at every operation boundary (global < project < session), so a session rule applies to the next call without a restart.
 

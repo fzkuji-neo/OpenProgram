@@ -45,10 +45,11 @@ def one_shot_approval(name: str, args: dict | None) -> bool:
     return name in _ONE_SHOT_FORCE_APPROVAL_TOOLS or _page_script(name, args)
 
 
-# Desktop control is granted per application (and a VM per endpoint): in
-# every permission mode the first touch asks until an allow rule (this
-# conversation or the project) names it. Calls the tool marks approval-free
-# (list_apps, built-in browser Pages) skip this.
+# Desktop control is granted per application (and a VM per endpoint): in the
+# modes that ask, the first touch asks until an allow rule (this conversation
+# or the project) names it. Bypass runs it and Auto reviews it like any other
+# call. Calls the tool marks approval-free (list_apps, built-in browser Pages)
+# skip this.
 _APP_GRANT_TOOLS = {"computer_use_agent"}
 # Rules written for the tool's earlier name still grant the same app.
 _RULE_ALIASES = {"computer_use_agent": {"computer_use"}}
@@ -264,7 +265,9 @@ def permission_decision(agent_tool, req, args: dict) -> tuple[str, str, str, obj
         reason = "RECOVERY_EFFECT_UNCERTAIN"
     elif verdict == "ask" or force_approval(name, args):
         reason = "PERMISSION_RULE_ASK" if verdict == "ask" else "MANDATORY_APPROVAL"
-    elif name in _APP_GRANT_TOOLS and verdict != "allow" and _app_grant_needed(agent_tool, args):
+    elif (name in _APP_GRANT_TOOLS and verdict != "allow"
+          and req.permission_mode not in {"bypass", "auto"}
+          and _app_grant_needed(agent_tool, args)):
         reason = "APP_GRANT_REQUIRED"
     else:
         if name == "web_use" or (name == "computer_use_agent" and isinstance(args, dict)

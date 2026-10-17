@@ -74,7 +74,7 @@ computer_use_agent(target, action?, args?, actions?, code?, timeout?, context?, 
 
 | 调用 | 审批 |
 |---|---|
-| `app`（`list_apps` 除外） | 按应用：规则 `computer_use_agent(<app>)`，任何模式下都必须；旧的 `computer_use(<app>)` 规则仍然匹配 |
+| `app`（`list_apps` 除外） | 按应用：规则 `computer_use_agent(<app>)`，在会询问的模式下必须；旧的 `computer_use(<app>)` 规则仍然匹配 |
 | `browser` | 对话有 Page 时用本轮的 Page 授权；否则按权限模式；`evaluate` 每次调用单独审批一次 |
 | `vm` | 按服务地址：规则 `computer_use_agent(vm:<url>)` |
 | `fresh` | 与它指定的目标相同 |
@@ -217,7 +217,7 @@ app 指南在发送时按 Windows 改写（`_WINDOWS_GUIDE`）；对组合键和
 | always | 项目规则 |
 | deny | 不保存 |
 
-这项授权在所有权限模式下都是强制的。`permission_decision` 对 `app` 和 `vm` 目标把 `computer_use_agent` 当作按应用授权的工具（`_APP_GRANT_TOOLS`）：当工具自身的 `requires_approval` 表明这次调用需要审批、且没有允许规则点名该应用时，决定是 `ask`，理由 `APP_GRANT_REQUIRED`，先于 Auto 分类和 Bypass。因此无人值守的来源会拒绝这类调用，允许规则是越过卡片的唯一途径。`_RULE_ALIASES` 让以旧名 `computer_use(<app>)` 保存的规则匹配 `computer_use_agent` 调用。`browser` 目标没有自己的规则：有 Page 的对话得到本轮的 `SURFACE_GRANT`，上传文件或打开本机之外的网站会询问。
+这项授权只在会询问的模式下生效；Bypass 直接放行，Auto 交给自动审查。`permission_decision` 对 `app` 和 `vm` 目标把 `computer_use_agent` 当作按应用授权的工具（`_APP_GRANT_TOOLS`）：当工具自身的 `requires_approval` 表明这次调用需要审批、且没有允许规则点名该应用时，决定是 `ask`，理由 `APP_GRANT_REQUIRED`，因此在 Bypass 之外，无人值守的来源会拒绝这类调用；在会询问的模式下，允许规则是越过卡片的唯一途径。`_RULE_ALIASES` 让以旧名 `computer_use(<app>)` 保存的规则匹配 `computer_use_agent` 调用。`browser` 目标没有自己的规则：有 Page 的对话得到本轮的 `SURFACE_GRANT`，上传文件或打开本机之外的网站会询问。
 
 权限规则在每个操作边界重新加载（全局 < 项目 < 会话），所以会话规则对下一次调用立即生效，无需重启。
 
