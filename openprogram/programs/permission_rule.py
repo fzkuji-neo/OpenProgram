@@ -305,10 +305,19 @@ def parse_command(tool_name: str, args: dict) -> Optional[str]:
         p = args.get("path") or args.get("file_path")
         if p is not None:
             return _canon_path(p)
-    if low == "computer_use":
+    if low in {"computer_use_agent", "computer_use"}:
         # One approval covers an application, not one click in it: the rule
-        # names the app the model addressed (``computer_use(calculator)``).
-        app = " ".join(str(args.get("app") or "").split()).lower()
+        # names the app the model addressed (``computer_use_agent(calculator)``),
+        # or the VM endpoint (``computer_use_agent(vm:http://host:5000)``).
+        # Built-in browser Pages ask per call, so they have no rule.
+        target = args.get("target", "app")
+        if target == "vm":
+            from openprogram.programs.tools.system.computer_use_agent.targets import vm
+            return f"vm:{vm.url()}" if vm.url() else None
+        if target != "app":
+            return None
+        nested = args.get("args") if isinstance(args.get("args"), dict) else args
+        app = " ".join(str(nested.get("app") or "").split()).lower()
         return app or None
     try:
         return json.dumps(

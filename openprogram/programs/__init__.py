@@ -105,11 +105,10 @@ DEFAULT_TOOLS: list[str] = [
     "skill",
     "playwright_browser",
     "browser_agent",
-    "web_use",
-    # Background control of a desktop application: Accessibility tree in,
-    # per-app approved clicks / keys / paste out. Deferred below: the
-    # schema is large and most sessions never touch another app.
-    "computer_use",
+    # One entry for every screen: application windows, built-in browser
+    # Pages, a VM. Resident: its description is a short catalogue of
+    # targets, and each target's guide arrives with the first call to it.
+    "computer_use_agent",
     # Plan-mode gate — the LLM is allowed to enter plan mode on its
     # own when it judges the task warrants it (mirrors claude-code's
     # EnterPlanMode tool). The "plan" pseudo-channel filter in
@@ -131,11 +130,10 @@ DEFAULT_TOOLS: list[str] = [
     *MEMORY_TOOL_NAMES,
     "scheduler",
     # Agentic harness entry points — these are the user-facing
-    # programs (gui_agent / research_agent / wiki_agent) that the
-    # LLM should know about by default. Without them in DEFAULT_TOOLS
-    # the model has no idea these exist and resorts to bash-grepping
-    # the filesystem when asked to "use gui_agent" or similar.
-    "gui_agent",
+    # programs (research_agent / wiki_agent) that the LLM should know
+    # about by default. Without them in DEFAULT_TOOLS the model has no
+    # idea these exist and resorts to bash-grepping the filesystem when
+    # asked to "use research_agent" or similar.
     "research_agent",
     "wiki_agent",
 ]
@@ -161,8 +159,6 @@ DEFERRED_DEFAULT_TOOLS: set = {
     # "打开网页/截图" 时模型再加载，日常编码会话完全用不到。
     "playwright_browser",
     "browser_agent",
-    # ~1.3k tok 的动作 schema；模型决定去操作某个应用的那一轮再加载。
-    "computer_use",
     # 378 tok。跨 session/branch 通信，多分支协作场景才用得上。
     "send_message",
     # 技能加载动词。<available_skills> 每轮已经列了名字和描述，模型要用
@@ -176,7 +172,7 @@ DEFERRED_DEFAULT_TOOLS: set = {
 # 这是治「exec 默认全塞 ~14000 token」的唯一旋钮 —— 保守取，宁多勿缺。
 RESIDENT_TOOLS: set = (
     (set(DEFAULT_TOOLS) - DEFERRED_DEFAULT_TOOLS)
-    | {"web_use", "tool_search"}
+    | {"tool_search"}
     | {"job_output"}
 )
 

@@ -339,6 +339,18 @@ def _validate_mcp_exposed_tools(value: Any) -> Optional[str]:
     return None
 
 
+def _validate_vm_url(value: Any) -> Optional[str]:
+    from urllib.parse import urlparse
+
+    text = str(value or "").strip()
+    if not text:
+        return None
+    parsed = urlparse(text)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return "must be an http:// or https:// URL"
+    return None
+
+
 def _validate_web_bind_host(value: Any) -> Optional[str]:
     from openprogram.backend_endpoint import OwnerAuthError, canonicalize_bind_host
 
@@ -623,6 +635,13 @@ SETTINGS: list[SettingSpec] = [
         apply=APPLY_LIVE, default="",
         help="Empty uses the engine's default: gpt-4o-mini-transcribe (OpenAI), "
              "whisper-large-v3-turbo (Groq), large-v3-turbo-q5_0 (local). Applies only when an engine is chosen.",
+    ),
+    SettingSpec(
+        key="computer_use.vm_url", path=("computer_use", "vm_url"),
+        group="Computer use", label="Virtual machine server", widget="text",
+        apply=APPLY_LIVE, default="", validate=_validate_vm_url,
+        help="Base URL of an OSWorld-compatible server (GET /screenshot, POST /execute), "
+             "e.g. http://192.168.64.2:5000. Set it to give computer_use_agent its vm target; empty turns it off.",
     ),
     SettingSpec(
         key="search.default_provider", path=("search", "default_provider"),

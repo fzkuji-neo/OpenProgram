@@ -23,9 +23,17 @@ def _web_use_evaluates(args: dict | None) -> bool:
                for value in (args.get("action"), nested.get("action")))
 
 
+def _page_script(name: str, args: dict | None) -> bool:
+    """A call that runs JavaScript in a browser Page."""
+    if name == "computer_use_agent":
+        from openprogram.programs.tools.system.computer_use_agent import evaluates
+        return evaluates(args)
+    return name == "web_use" and _web_use_evaluates(args)
+
+
 def force_approval(name: str, args: dict | None) -> bool:
     """Calls that ask in every mode, whatever the rules say."""
-    return name in _FORCE_APPROVAL_TOOLS or (name == "web_use" and _web_use_evaluates(args))
+    return name in _FORCE_APPROVAL_TOOLS or _page_script(name, args)
 
 
 def one_shot_approval(name: str, args: dict | None) -> bool:
@@ -34,13 +42,16 @@ def one_shot_approval(name: str, args: dict | None) -> bool:
     A page script reads everything a signed-in page holds, including what
     observations redact, so each one is shown to the user and approved alone.
     """
-    return name in _ONE_SHOT_FORCE_APPROVAL_TOOLS or (name == "web_use" and _web_use_evaluates(args))
+    return name in _ONE_SHOT_FORCE_APPROVAL_TOOLS or _page_script(name, args)
 
 
-# Desktop control is granted per application: in every permission mode the
-# first touch of an app asks until an allow rule (this conversation or the
-# project) names it. Calls the tool marks approval-free (list_apps) skip this.
-_APP_GRANT_TOOLS = {"computer_use"}
+# Desktop control is granted per application (and a VM per endpoint): in
+# every permission mode the first touch asks until an allow rule (this
+# conversation or the project) names it. Calls the tool marks approval-free
+# (list_apps, built-in browser Pages) skip this.
+_APP_GRANT_TOOLS = {"computer_use_agent"}
+# Rules written for the tool's earlier name still grant the same app.
+_RULE_ALIASES = {"computer_use_agent": {"computer_use"}}
 # auto 档下即便未声明 requires_approval 也仍要审批的高风险工具。
 _RISKY_TOOLS = {"bash", "exec", "shell", "execute_code", "process"}
 # Non-interactive worktree side effects mutate repository state outside the
@@ -75,7 +86,7 @@ def _match_rule(rules, tool_name: str, args: dict) -> "str | None":
     for behavior, ruleset in (("deny", rules.deny), ("ask", rules.ask), ("allow", rules.allow)):
         for raw in ruleset:
             rv = parse_rule(raw)
-            if rv.tool_name != tool_name:
+            if rv.tool_name != tool_name and rv.tool_name not in _RULE_ALIASES.get(tool_name, ()):
                 continue
             if rv.pattern is None:
                 return behavior
@@ -256,7 +267,8 @@ def permission_decision(agent_tool, req, args: dict) -> tuple[str, str, str, obj
     elif name in _APP_GRANT_TOOLS and verdict != "allow" and _app_grant_needed(agent_tool, args):
         reason = "APP_GRANT_REQUIRED"
     else:
-        if name == "web_use":
+        if name == "web_use" or (name == "computer_use_agent" and isinstance(args, dict)
+                                 and args.get("target") == "browser"):
             from openprogram.agent.surface_context import web_use_available
             if web_use_available(getattr(req, "surface_context", None)):
                 return "allow", "SURFACE_GRANT", "", None

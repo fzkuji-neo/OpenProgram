@@ -18,6 +18,7 @@ from .gui import spawn_gui_python
 _MAX_TEXT = 256 * 1024
 _MAX_FRAME = 2 * 1024 * 1024
 _MAX_WIRE = 4 * 1024 * 1024
+MAX_TIMEOUT = 120
 
 
 class GuiRunnerError(RuntimeError):
@@ -92,8 +93,8 @@ class GuiPythonRunner:
                 cancel: threading.Event | None = None) -> GuiPythonResult:
         if not isinstance(code, str) or len(code.encode("utf-8")) > _MAX_TEXT:
             raise ValueError("code exceeds input limit or is not text")
-        if not math.isfinite(timeout) or not 0 < timeout <= 30:
-            raise ValueError("timeout must be finite and in (0, 30]")
+        if not math.isfinite(timeout) or not 0 < timeout <= MAX_TIMEOUT:
+            raise ValueError(f"timeout must be finite and in (0, {MAX_TIMEOUT}]")
         if not self._lock.acquire(blocking=False):
             raise GuiRunnerError("concurrent execution is not allowed")
         try:

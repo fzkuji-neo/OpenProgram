@@ -309,9 +309,7 @@ def _wrap_agentic_runtime_block(
                     contextvars.copy_context().run, _run_subprocess,
                 )
                 if out.get("function_suspended"):
-                    from openprogram.agentic_programming.continuation import FunctionSuspended, FunctionSystemAccessRequired
-                    if out.get("system_access_required"):
-                        raise FunctionSystemAccessRequired(out["call_key"])
+                    from openprogram.agentic_programming.continuation import FunctionSuspended
                     raise FunctionSuspended()
                 cleanup_result = out.get("page_cleanup_result")
                 if out.get("page_cleanup_failed") and isinstance(

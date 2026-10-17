@@ -277,11 +277,6 @@ class ExecutionOperations:
                         if request.surface_context_snapshot is not None else None
                     ),
                 )
-                if isinstance(result, shared.Mapping) and result.get("function_suspended") and result.get("system_access_required"):
-                    if request.tool_name != "gui_agent" or result.get("call_key") != request.anchor_msg_id:
-                        raise shared.AgentDriverError("invalid_wait", "Selected GUI wait has no exact invocation owner")
-                    self._open_selected_gui_system_access_wait(attempt, request, result["call_key"])
-                    return shared._SafePointHandoff()
                 if isinstance(result, shared.Mapping) and result.get("function_suspended"):
                     from openprogram.execution.checkpoints import CheckpointFragment
                     from openprogram.agentic_programming.continuation import default_policy
@@ -361,7 +356,6 @@ class ExecutionOperations:
         attempt: shared.AttemptRecord,
         request: shared.ForcedToolActivation,
         manifest: shared.Mapping[str, shared.Any],
-        *, call_key: str | None = None, agent_checkpoint=None, emit_wait: bool = True,
     ):
         """Suspend a forced local GUI entry before its subprocess is spawned."""
         from openprogram.execution.checkpoints import CheckpointFragment
@@ -375,9 +369,8 @@ class ExecutionOperations:
         digest = shared.hashlib.sha256(shared.canonical_json_bytes({
             "execution_id": attempt.execution_id,
             "generation": attempt.generation,
-            "tool_name": getattr(request, "tool_name", "gui_agent"),
-            "tool_input": dict(getattr(request, "tool_input", {}) or {}),
-            "call_key": call_key,
+            "tool_name": request.tool_name,
+            "tool_input": dict(request.tool_input or {}),
         })).hexdigest()[:32]
         wait_id = f"wait_{digest}"
         request_data = {
@@ -390,36 +383,18 @@ class ExecutionOperations:
             "questions": list(manifest.get("questions") or ()),
             **dict(manifest.get("request_metadata") or {}),
         }
-        if call_key is not None and not emit_wait:
-            request_data["silent_selected_gui_ready"] = True
-        if agent_checkpoint is not None:
-            fragment = CheckpointFragment(
-                safe_point_kind=agent_checkpoint.payload["safe_point"]["kind"],
-                frontier=tuple(agent_checkpoint.payload["frontier"]), state_refs={},
-            )
-        elif call_key is not None:
-            from openprogram.agentic_programming.continuation import default_policy
-            from openprogram.execution.restart import window_seconds
-            fragment = CheckpointFragment(
-                safe_point_kind="function.step.after",
-                frontier=({"kind": "function.step.after", "call_key": call_key},),
-                state_refs={"function": {"version": 1, "call_key": call_key,
-                    "policy": default_policy(self.executions, attempt.execution_id)},
-                    "restart_window_seconds": window_seconds()},
-            )
-        else:
-            fragment = CheckpointFragment(
-                safe_point_kind="agent.wait.before_tool",
-                frontier=({"step_id": "forced_tool.before", "phase": "before_tool"},),
-                state_refs={"forced_tool": {"version": 1, "tool_name": request.tool_name,
-                    "tool_input": dict(request.tool_input)}},
-            )
+        fragment = CheckpointFragment(
+            safe_point_kind="agent.wait.before_tool",
+            frontier=({"step_id": "forced_tool.before", "phase": "before_tool"},),
+            state_refs={"forced_tool": {"version": 1, "tool_name": request.tool_name,
+                "tool_input": dict(request.tool_input)}},
+        )
         suspension = self._control_service().open_wait_at_safe_point(
             execution_id=attempt.execution_id,
             attempt_id=attempt.attempt_id,
             generation=attempt.generation,
             expected_version=execution.status_version,
-            fragment=fragment, agent_checkpoint=agent_checkpoint,
+            fragment=fragment,
             kind="system_access",
             request=request_data,
             policy_snapshot=dict(manifest.get("policy_snapshot") or {
@@ -428,8 +403,6 @@ class ExecutionOperations:
             expires_at=0,
             wait_id=wait_id,
         )
-        if not emit_wait:
-            return suspension
         try:
             from openprogram.events import emit_ws_frame
             emit_ws_frame({"type": "system_access.waiting", "data": {
@@ -449,30 +422,4 @@ class ExecutionOperations:
         except Exception:
             shared._log.debug("failed to publish forced system access wait", exc_info=True)
 
-        return suspension
-
-
-    def _open_selected_gui_system_access_wait(self, attempt, request, call_key, *, agent_checkpoint=None):
-        """Suspend an exact settled function cursor, using a fresh host report."""
-        from contextlib import closing
-        from openprogram.agentic_programming.continuation import suspension_evidence
-        from openprogram.execution.waits import DurableWaitStore
-        from openprogram.system_access import report, selected_desktop_access_manifest
-        with closing(self.executions._connect()) as connection:
-            if not suspension_evidence(self.executions, connection, attempt.execution_id, call_key):
-                raise shared.AgentDriverError("invalid_wait", "Selected GUI operation has no settled durable invocation")
-        snapshot = report()
-        args = dict(getattr(request, "tool_input", {}) or {})
-        manifest = selected_desktop_access_manifest(args, snapshot)
-        if manifest is None:
-            raise shared.AgentDriverError("system_access_unavailable", "Selected desktop access is unavailable on this execution host")
-        ready = all(row["status"] == "granted" for row in manifest["capabilities"])
-        suspension = self._open_forced_system_access_wait(
-            attempt, request, manifest, call_key=call_key,
-            agent_checkpoint=agent_checkpoint, emit_wait=not ready,
-        )
-        if ready:
-            DurableWaitStore(self.executions).resolve_system_access(
-                suspension.wait.wait_id, report=snapshot, owner_id=self._control_service().owner_id,
-            )
         return suspension

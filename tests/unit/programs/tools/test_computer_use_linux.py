@@ -8,7 +8,7 @@ import pytest
 
 from openprogram.computer_use import backends, linux, ocr
 from openprogram.computer_use.base import ComputerUseError
-from openprogram.programs.tools.system import computer_use as tool
+from openprogram.programs.tools.system.computer_use_agent.targets import app as tool
 
 
 def test_tesseract_words_are_joined_into_lines_in_reading_order():
@@ -72,9 +72,9 @@ def test_other_hosts_have_no_backend(monkeypatch):
     assert backends.support() == {"available": False, "reason": "computer_use supports macOS, Linux (X11) and Windows"}
 
 
-def test_linux_description_replaces_every_macos_only_sentence():
-    for mac, linux_text in tool._LINUX_DESCRIPTION:
-        assert mac in tool.DESCRIPTION or linux_text in tool.DESCRIPTION
+def test_linux_guide_replaces_every_macos_only_sentence():
+    for mac, linux_text in tool._LINUX_GUIDE:
+        assert mac in tool._GUIDE or linux_text in tool._GUIDE
 
 
 def test_recording_finds_the_streams_an_app_or_its_children_play(monkeypatch):

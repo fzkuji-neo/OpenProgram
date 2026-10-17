@@ -1,4 +1,4 @@
-"""computer_use: pure logic (key chords, tree rendering, diffs, rules, approval)."""
+"""computer_use_agent's app target: pure logic (key chords, tree rendering, diffs, rules, approval)."""
 from __future__ import annotations
 
 import pytest
@@ -9,7 +9,8 @@ from openprogram.computer_use import macos
 from openprogram.computer_use import ocr
 from openprogram.computer_use.tree import Node, diff, number, render, role_name, snapshot
 from openprogram.programs.permission_rule import exact_rule_for_call, parse_command, rule_to_string
-from openprogram.programs.tools.system import computer_use as tool
+from openprogram.programs.tools.system.computer_use_agent import tool as entry
+from openprogram.programs.tools.system.computer_use_agent.targets import app as tool
 
 
 # ----------------------------------------------------------------- key chords
@@ -305,40 +306,50 @@ def test_hold_durations_are_bounded():
 # ----------------------------------------------------------------- rules and approval
 
 def test_rule_for_a_call_names_the_app_only():
-    args = {"action": "click", "app": "  Calculator ", "element_index": 12, "x": 1}
-    assert parse_command("computer_use", args) == "calculator"
-    assert rule_to_string(exact_rule_for_call("computer_use", args)) == "computer_use(calculator)"
-    assert parse_command("computer_use", {"action": "list_apps"}) is None
+    args = {"target": "app", "action": "click", "args": {"app": "  Calculator ", "element_index": 12, "x": 1}}
+    assert parse_command("computer_use_agent", args) == "calculator"
+    assert rule_to_string(exact_rule_for_call("computer_use_agent", args)) == "computer_use_agent(calculator)"
+    assert parse_command("computer_use_agent", {"target": "app", "action": "list_apps"}) is None
+    assert parse_command("computer_use_agent", {"target": "browser", "action": "click", "args": {"ref": "e1"}}) is None
 
 
 def test_every_action_but_list_apps_requires_approval_per_app():
-    assert tool.requires_approval(action="list_apps") is False
-    assert tool.requires_approval(action="click", app="Calculator") == "computer_use controls calculator"
-    assert tool.requires_approval(action="get_app_state", app="") == "computer_use controls an application"
+    assert entry.requires_approval(target="app", action="list_apps") is False
+    assert entry.requires_approval(target="app", action="click", args={"app": "Calculator"}) == \
+        "computer_use_agent controls calculator"
+    assert entry.requires_approval(target="app", action="get_app_state") == "computer_use_agent controls an application"
+    # Opening the target, code and a fresh agent all reach the whole app.
+    for call in ({}, {"code": "pass"}, {"context": "fresh"}):
+        assert entry.requires_approval(target="app", args={"app": "Notes"}, **call) == "computer_use_agent controls notes"
 
 
-def test_tool_is_a_deferred_default_hidden_from_chat_channels():
+def test_tool_is_a_resident_default_hidden_from_chat_channels():
     from openprogram.programs import DEFAULT_TOOLS, DEFERRED_DEFAULT_TOOLS, RESIDENT_TOOLS, _unsafe_in_for
     from openprogram.programs._runtime import get
-    registered = get("computer_use")
-    assert registered is not None and registered._defer is True
-    assert "computer_use" in DEFAULT_TOOLS and "computer_use" in DEFERRED_DEFAULT_TOOLS
-    assert "computer_use" not in RESIDENT_TOOLS
-    assert {"wechat", "telegram", "plan"} <= set(_unsafe_in_for("computer_use"))
-    assert set(tool.ACTIONS) == set(registered.parameters["properties"]["action"]["enum"])
+    registered = get("computer_use_agent")
+    assert registered is not None and not registered._defer
+    assert "computer_use_agent" in DEFAULT_TOOLS and "computer_use_agent" not in DEFERRED_DEFAULT_TOOLS
+    assert "computer_use_agent" in RESIDENT_TOOLS
+    assert {"wechat", "telegram", "plan"} <= set(_unsafe_in_for("computer_use_agent"))
+    assert registered.parameters["properties"]["target"]["enum"] == ["app", "browser", "vm"]
+    for gone in ("computer_use", "gui_agent", "web_use"):
+        assert gone not in DEFAULT_TOOLS and gone not in RESIDENT_TOOLS
 
 
 def test_unknown_action_is_an_error_without_touching_the_host():
-    result = tool.computer_use("fly")
-    assert result.is_error and "unknown action" in result.text
+    result = tool.run([("fly", {})], {"app": "Notes"}, "s")
+    assert result.is_error and "unknown app action" in result.text
+    result = entry.computer_use_agent(target="printer")
+    assert result.is_error and "unknown target" in result.text
 
 
 def test_desktop_access_is_required_for_everything_but_list_apps():
     from openprogram.system_access import _desktop_operation
-    assert _desktop_operation("computer_use", {"action": "list_apps"}) is None
-    assert _desktop_operation("computer_use", {"action": "click", "app": "Notes"}) == "computer_use:desktop"
-    assert _desktop_operation("gui_agent", {"surface": "desktop"}) == "gui_agent:desktop"
-    assert _desktop_operation("gui_agent", {"surface": "browser"}) is None
+    assert _desktop_operation("computer_use_agent", {"target": "app", "action": "list_apps"}) is None
+    assert _desktop_operation("computer_use_agent", {"target": "app", "action": "click", "args": {"app": "Notes"}}) \
+        == "computer_use:desktop"
+    assert _desktop_operation("computer_use_agent", {"target": "app", "code": "pass"}) == "computer_use:desktop"
+    assert _desktop_operation("computer_use_agent", {"target": "browser", "action": "click"}) is None
 
 
 @pytest.fixture
@@ -353,36 +364,45 @@ def decide(monkeypatch):
     monkeypatch.setattr(authority, "decide_tool_authority",
                         lambda *a, **k: SimpleNamespace(allowed=True, reason_code="", capability=""))
     monkeypatch.setattr(recovery, "approval_context", lambda *a, **k: None)
-    agent_tool = get("computer_use")
+    agent_tool = get("computer_use_agent")
 
     def run(args, *, mode="auto", allow=(), source="web"):
         rules = SimpleNamespace(allow=list(allow), ask=[], deny=[])
         req = SimpleNamespace(permission_mode=mode, permission_rules=rules, session_id="s-test",
                               source=source, surface_context=None)
-        return policy.permission_decision(agent_tool, req, args)[:2]
+        return policy.permission_decision(agent_tool, req, {"target": "app", **args})[:2]
     return run
 
 
 @pytest.mark.parametrize("mode", ["auto", "bypass", "default", "acceptEdits"])
 def test_first_touch_of_an_app_asks_in_every_mode(decide, mode):
-    assert decide({"action": "click", "app": "Calculator"}, mode=mode) == ("ask", "APP_GRANT_REQUIRED")
+    assert decide({"action": "click", "args": {"app": "Calculator"}}, mode=mode) == ("ask", "APP_GRANT_REQUIRED")
 
 
-def test_an_allow_rule_for_the_app_lets_it_run_and_names_only_that_app(decide):
-    rule = ["computer_use(calculator)"]
-    assert decide({"action": "click", "app": "Calculator"}, allow=rule) == ("allow", "PERMISSION_RULE_ALLOW")
-    assert decide({"action": "click", "app": "Notes"}, allow=rule) == ("ask", "APP_GRANT_REQUIRED")
+@pytest.mark.parametrize("rule", ["computer_use_agent(calculator)", "computer_use(calculator)"])
+def test_an_allow_rule_for_the_app_lets_it_run_and_names_only_that_app(decide, rule):
+    # Rules saved under the tool's earlier name still grant the app.
+    click = {"action": "click", "args": {"app": "Calculator"}}
+    assert decide(click, allow=[rule]) == ("allow", "PERMISSION_RULE_ALLOW")
+    assert decide({"action": "click", "args": {"app": "Notes"}}, allow=[rule]) == ("ask", "APP_GRANT_REQUIRED")
 
 
 def test_list_apps_needs_no_grant_and_unattended_sources_cannot_grant(decide):
     assert decide({"action": "list_apps"}, mode="bypass") == ("allow", "BYPASS")
-    assert decide({"action": "click", "app": "Calculator"}, source="cron")[0] == "deny"
+    assert decide({"action": "click", "args": {"app": "Calculator"}}, source="cron")[0] == "deny"
+
+
+def test_page_scripts_ask_every_time_and_never_become_a_rule(decide):
+    from openprogram.agent.permissions import policy
+    call = {"target": "browser", "actions": [{"action": "evaluate", "args": {"script": "1"}}]}
+    assert policy.force_approval("computer_use_agent", call) and policy.one_shot_approval("computer_use_agent", call)
+    assert not policy.force_approval("computer_use_agent", {"target": "browser", "action": "click"})
 
 
 def test_approval_card_offers_the_conversation_scope_for_computer_use():
     from openprogram.agent.permissions import approval
     from openprogram.execution.waits import _APPROVAL_SCOPES
-    assert "computer_use" in approval._SESSION_SCOPE_TOOLS
+    assert "computer_use_agent" in approval._SESSION_SCOPE_TOOLS
     assert "session" in _APPROVAL_SCOPES
 
 
@@ -445,7 +465,7 @@ def fake(monkeypatch):
 
 def test_an_action_settles_once_and_returns_the_changed_tree(fake):
     computer = fake("pressed button \"7\"")
-    result = tool.computer_use(action="click", app="Calculator", element_index=3)
+    result = tool.run([("click", {"app": "Calculator", "element_index": 3})], {"app": "Calculator"}, "s")
     assert not result.is_error and computer.settled == 1
     assert result.text == 'Done: pressed button "7".\n\n+ 4 button "="'
     assert computer.calls[0][1]["element_index"] == 3
@@ -453,34 +473,45 @@ def test_an_action_settles_once_and_returns_the_changed_tree(fake):
 
 def test_a_read_only_result_comes_back_without_a_new_state(fake):
     computer = fake(macos.Report("menu bar: File | Edit"))
-    result = tool.computer_use(action="menu", app="Calculator")
+    result = tool.run([("menu", {})], {"app": "Calculator"}, "s")
     assert result.text == "menu bar: File | Edit" and computer.settled == 0
 
 
 def test_a_batch_runs_in_order_stops_at_the_first_error_and_reports_the_state_once(fake):
     computer = fake("typed 3 character(s)", macos.ComputerUseError("element 9 no longer exists"), "unused")
-    result = tool.computer_use(action="batch", app="Notes", actions=[
-        {"action": "type_text", "text": "abc"}, {"action": "click", "element_index": 9}, {"action": "press_key", "key": "Return"}])
+    result = tool.run([("type_text", {"text": "abc"}), ("click", {"element_index": 9}), ("press_key", {"key": "Return"})],
+                      {"app": "Notes"}, "s")
     assert result.is_error and computer.settled == 1 and len(computer.calls) == 2
     assert result.text.startswith("Done:\n1. typed 3 character(s)\nError: step 2 (click) failed: element 9 no longer exists")
     assert all(step["app"] == "Notes" for _, step in computer.calls)
 
 
 @pytest.mark.parametrize("steps, message", [
-    ([], "batch needs actions"),
-    ([{"action": "get_app_state"}], "cannot run in a batch"),
-    ([{"action": "click", "app": "Finder", "element_index": 1}], "names another app"),
+    ([{"action": "get_app_state"}, {"action": "click"}], "cannot run among several steps"),
+    ([{"action": "click", "args": {"app": "Finder", "element_index": 1}}, {"action": "wait"}], "names another app"),
     ([{"action": "click"}] * 21, "at most 20"),
+    ([{"args": {}}], "needs action"),
 ])
-def test_a_batch_is_checked_before_any_step_runs(fake, steps, message):
+def test_steps_are_checked_before_any_step_runs(fake, steps, message):
     computer = fake()
-    result = tool.computer_use(action="batch", app="Notes", actions=steps)
+    entry._shown.add(("default", 0, "app"))
+    result = entry.computer_use_agent(target="app", args={"app": "Notes"}, actions=steps)
     assert result.is_error and message in result.text and computer.calls == []
+
+
+def test_the_first_call_to_a_target_carries_its_guide_once(fake):
+    computer = fake()
+    computer.list_apps = lambda: "Notes (running)"
+    entry._shown.clear()
+    first = entry.computer_use_agent(target="app", action="list_apps")
+    assert first.text.startswith('Guide: target "app"') and first.text.endswith("Notes (running)")
+    assert entry.computer_use_agent(target="app", action="list_apps").text == "Notes (running)"
+    assert entry.computer_use_agent(target="app", action="guide").text.startswith('Guide: target "app"')
 
 
 def test_every_action_but_list_apps_needs_an_app(fake):
     fake()
-    result = tool.computer_use(action="list_windows")
+    result = tool.run([("list_windows", {})], {}, "s")
     assert result.is_error and "list_windows needs app" in result.text
 
 
@@ -602,10 +633,11 @@ def test_audio_actions_reach_the_backend_without_a_state_read(fake):
     computer = fake()
     started = []
     computer.start_audio = lambda session, app, limit: started.append((app, limit)) or macos.Report("Recording Music")
-    assert tool.computer_use(action="start_audio_recording", app="Music", max_duration=30).text == "Recording Music"
+    assert tool.run([("start_audio_recording", {"max_duration": 30})], {"app": "Music"}, "s").text == "Recording Music"
     assert started == [("Music", 30)] and computer.settled == 0
-    assert tool.computer_use(action="stop_audio_recording").is_error  # the approval names the app
-    assert tool.requires_approval(action="start_audio_recording", app="Music") == "computer_use controls music"
+    assert tool.run([("stop_audio_recording", {})], {}, "s").is_error  # the approval names the app
+    assert entry.requires_approval(target="app", action="start_audio_recording", args={"app": "Music"}) == \
+        "computer_use_agent controls music"
 
 
 def test_recordings_are_saved_under_the_state_directory_and_pruned(monkeypatch, tmp_path):
@@ -642,10 +674,10 @@ def test_a_recording_reaches_models_that_hear_audio_and_only_them():
     def contents(inputs):
         model = Model(id="gemini-2.5-pro", name="g", api="google-generative-ai", provider="google",
                       base_url="", input=inputs)
-        calls = [ToolCall(id=f"c{i}", name="computer_use", arguments={}) for i in (1, 2)]
+        calls = [ToolCall(id=f"c{i}", name="computer_use_agent", arguments={}) for i in (1, 2)]
         messages = [UserMessage(content="listen", timestamp=0),
                     AssistantMessage(content=calls, api=model.api, provider=model.provider, model=model.id, timestamp=0),
-                    *[ToolResultMessage(tool_call_id=f"c{i}", tool_name="computer_use", content=result.content, timestamp=0)
+                    *[ToolResultMessage(tool_call_id=f"c{i}", tool_name="computer_use_agent", content=result.content, timestamp=0)
                       for i in (1, 2)]]
         return convert_messages(model, Context(messages=messages))
 
@@ -670,12 +702,12 @@ def test_chat_completions_models_see_tool_result_screenshots_and_hear_recordings
 
     def messages(inputs):
         model = Model(id="m", name="m", api="openai-completions", provider="openrouter", base_url="", input=inputs)
-        calls = [ToolCall(id=f"c{i}", name="computer_use", arguments={}) for i in (1, 2)]
+        calls = [ToolCall(id=f"c{i}", name="computer_use_agent", arguments={}) for i in (1, 2)]
         return _build_messages(Context(messages=[
             UserMessage(content="look and listen", timestamp=0),
             AssistantMessage(content=calls, api=model.api, provider=model.provider, model=model.id, timestamp=0),
-            ToolResultMessage(tool_call_id="c1", tool_name="computer_use", content=clip, timestamp=0),
-            ToolResultMessage(tool_call_id="c2", tool_name="computer_use", content=shot, timestamp=0),
+            ToolResultMessage(tool_call_id="c1", tool_name="computer_use_agent", content=clip, timestamp=0),
+            ToolResultMessage(tool_call_id="c2", tool_name="computer_use_agent", content=shot, timestamp=0),
             UserMessage(content="next", timestamp=0)]), model)
 
     both = messages(["text", "image", "audio"])

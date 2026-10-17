@@ -44,7 +44,7 @@ def test_agent_driver_declares_only_p0_safe_point_capabilities():
     )
 
 
-def test_gui_agent_safe_point_waits_before_tool_effect_and_resumes_once(
+def test_app_control_safe_point_waits_before_tool_effect_and_resumes_once(
     tmp_path, monkeypatch
 ):
     from types import SimpleNamespace
@@ -125,8 +125,8 @@ def test_gui_agent_safe_point_waits_before_tool_effect_and_resumes_once(
             ],
         },
     )
-    args = {"task": "Open the desktop app", "surface": "desktop"}
-    manifest = system_access.access_manifest_for_tool("gui_agent", args)
+    args = {"target": "app", "action": "click", "args": {"app": "Notes", "element_index": 1}}
+    manifest = system_access.access_manifest_for_tool("computer_use_agent", args)
     assert manifest is not None
 
     assert (
@@ -159,7 +159,7 @@ def test_gui_agent_safe_point_waits_before_tool_effect_and_resumes_once(
     )
     payload = {
         "tool_call_id": "gui-call",
-        "tool_name": "gui_agent",
+        "tool_name": "computer_use_agent",
         "arguments": args,
         "next_tool_index": 0,
         "pre_wait": manifest,
@@ -199,7 +199,7 @@ def test_gui_agent_safe_point_waits_before_tool_effect_and_resumes_once(
     assert DurableWaitStore(store).get_wait(wait.wait_id).status is WaitStatus.RESOLVED
 
 
-def test_forced_gui_entry_uses_durable_system_wait_before_subprocess(
+def test_forced_app_control_uses_durable_system_wait_before_subprocess(
     tmp_path, monkeypatch
 ):
     from types import SimpleNamespace
@@ -215,8 +215,8 @@ def test_forced_gui_entry_uses_durable_system_wait_before_subprocess(
     payload = {
         "version": 1,
         "kind": "forced_tool",
-        "tool_name": "gui_agent",
-        "tool_input": {"task": "Open desktop", "surface": "desktop"},
+        "tool_name": "computer_use_agent",
+        "tool_input": {"target": "app", "args": {"app": "Notes"}},
         "source": "web",
         "agent_id": "main",
     }

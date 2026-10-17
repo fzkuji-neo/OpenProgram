@@ -5,7 +5,7 @@ from ._support import (
 )
 
 
-def test_web_use_is_registered_as_surface_aware_public_tool():
+def test_built_in_pages_are_a_target_of_the_one_screen_tool():
     from openprogram.programs import (
         DEFERRED_DEFAULT_TOOLS,
         DEFAULT_TOOLS,
@@ -13,12 +13,12 @@ def test_web_use_is_registered_as_surface_aware_public_tool():
         apply_tool_policy,
     )
 
-    assert "web_use" in DEFAULT_TOOLS
-    assert "web_use" not in DEFERRED_DEFAULT_TOOLS
-    tool = next(item for item in agent_tools(names=["web_use"]) if item.name == "web_use")
-    assert "page" in tool.parameters["properties"]
-    assert "command" in tool.parameters["properties"]
-    assert "arguments" in tool.parameters["properties"]
+    # web_use stays registered for workflows and MCP, but the model sees one screen tool.
+    assert "web_use" not in DEFAULT_TOOLS
+    assert "computer_use_agent" in DEFAULT_TOOLS
+    assert "computer_use_agent" not in DEFERRED_DEFAULT_TOOLS
+    tool = next(item for item in agent_tools(names=["computer_use_agent"]) if item.name == "computer_use_agent")
+    assert "browser" in tool.parameters["properties"]["target"]["enum"]
     assert apply_tool_policy([tool], source="plan") == []
 
 

@@ -228,27 +228,27 @@ _INDEPENDENT_BROWSER_TOOLS = {
 
 
 def _configure_web_use_tools(tools, surface_context, *, enabled: bool | None = None):
-    """Expose one in-app browser contract when Desktop Page inventory exists."""
+    """Built-in browser Pages are a computer_use_agent target; while they exist it replaces the other browser tools."""
     from openprogram.agent.surface_context import tool_enabled, web_use_available
 
+    current = [tool for tool in tools or [] if tool.name != "web_use"]
     if enabled is None:
-        enabled = tool_enabled(surface_context) or (bool(tools) and web_use_available(surface_context))
-    current = list(tools or [])
+        enabled = tool_enabled(surface_context) or (bool(current) and web_use_available(surface_context))
     if not enabled:
-        return [tool for tool in current if tool.name != "web_use"], False
+        return current, False
 
     from openprogram.programs import get_agent_tool
 
-    web_use_tool = next((tool for tool in current if tool.name == "web_use"), None)
-    if web_use_tool is None:
-        web_use_tool = get_agent_tool("web_use")
+    screen_tool = next((tool for tool in current if tool.name == "computer_use_agent"), None)
+    if screen_tool is None:
+        screen_tool = get_agent_tool("computer_use_agent")
     current = [
         tool for tool in current
-        if tool.name not in _INDEPENDENT_BROWSER_TOOLS and tool.name != "web_use"
+        if tool.name not in _INDEPENDENT_BROWSER_TOOLS and tool.name != "computer_use_agent"
     ]
-    if web_use_tool is not None:
-        current.append(web_use_tool)
-    return current, web_use_tool is not None
+    if screen_tool is not None:
+        current.append(screen_tool)
+    return current, screen_tool is not None
 
 
 def _retain_saved_contract_tools(tools, saved_runtime_contract: Mapping | None):
@@ -302,7 +302,7 @@ def resolve_agent_runtime(
     # Page inventory is transient. Keep this turn's browser-tool selection
     # through reconnects; each actual browser action still validates access.
     saved_web_use = None if saved_runtime_contract is None else any(
-        tool["name"] == "web_use" for tool in saved_runtime_contract["tools"]
+        tool["name"] in {"computer_use_agent", "web_use"} for tool in saved_runtime_contract["tools"]
     )
     tools, web_use_enabled = _configure_web_use_tools(tools, req.surface_context, enabled=saved_web_use)
     if req.source in {"self_update_verify", "self_update_diagnose", "self_update_repair"}:

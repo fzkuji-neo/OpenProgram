@@ -388,7 +388,7 @@ _WRITE_TOOLS = {
 }
 _PROCESS_TOOLS = {
     "bash", "exec", "shell", "execute_code", "process", "agent",
-    "gui_agent", "research_agent", "wiki_agent", "browser_agent",
+    "research_agent", "wiki_agent", "browser_agent",
     "playwright_browser",
 }
 _BROWSER_CONTROL_TOOLS = {"web_use"}
@@ -431,6 +431,13 @@ def capability_for_tool(tool_name: str, args: Mapping[str, Any] | None = None) -
         return "process.exec"
     if name in _BROWSER_CONTROL_TOOLS:
         return "browser.control"
+    if name == "computer_use_agent":
+        # Built-in browser Pages are browser control; application windows, a
+        # VM, code and a new agent reach further and stay with the owner.
+        call = args or {}
+        page_only = (call.get("target") == "browser" and not call.get("code")
+                     and call.get("context", "inherit") != "fresh")
+        return "browser.control" if page_only else "process.exec"
     if name in _NETWORK_TOOLS:
         return "network.send"
     if name in _REPLY_LOCAL_TOOLS:

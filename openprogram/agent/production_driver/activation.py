@@ -104,14 +104,10 @@ class ActivationOperations:
         if envelope["kind"] != "chat":
             tool_name = str(envelope.get("tool_name") or "")
             tool_input = envelope.get("tool_input")
-            surface = str(tool_input.get("surface") or "").strip().lower() if isinstance(tool_input, shared.Mapping) else ""
-            desktop_wait = (
-                tool_name == "gui_agent"
-                and surface in {"", "desktop"}
-                and isinstance(tool_input, shared.Mapping)
-                and not tool_input.get("vm_url")
-                and not (not surface and tool_input.get("backend"))
-            )
+            # A tool that needs desktop grants may stop before it runs to wait for them.
+            from openprogram.system_access import _desktop_operation
+            desktop_wait = isinstance(tool_input, shared.Mapping) and _desktop_operation(
+                tool_name, dict(tool_input)) is not None
             from openprogram.programs._runtime import get
             tool = get(tool_name)
             if tool is not None and getattr(tool, "_resumable", False):
@@ -335,13 +331,6 @@ class ActivationOperations:
                 task.set_exception(exc)
             else:
                 task.set_result(result)
-                # Future callbacks release the old driver handle synchronously.
-                # Resume ready native waits only after both runtime and handle
-                # ownership have ended; startup also recovers this outcome.
-                try:
-                    shared.asyncio.run(self._recover_selected_gui_ready_wait(attempt))
-                except Exception:
-                    shared._log.exception("selected system access outcome recovery failed")
 
         shared.threading.Thread(
             target=_run_owned_attempt,
@@ -358,22 +347,6 @@ class ActivationOperations:
             driver=self,
             handle=handle,
         )
-
-
-    async def _recover_selected_gui_ready_wait(self, attempt):
-        """Resume only this owner's silent, already-granted GUI wait outcome."""
-        from openprogram.execution.waits import DurableWaitStore, WaitStatus
-        execution = self.executions.get_execution(attempt.execution_id)
-        if (execution is None or execution.status is not shared.ExecutionStatus.PAUSED
-                or execution.reason_code != "system_access_required"):
-            return
-        for wait in DurableWaitStore(self.executions).list_outcomes():
-            if (wait.execution_id == attempt.execution_id and wait.attempt_id == attempt.attempt_id
-                    and wait.status is WaitStatus.RESOLVED and wait.outcome == "granted"
-                    and wait.kind == "system_access" and wait.checkpoint_id == execution.checkpoint_head_id
-                    and wait.request.get("silent_selected_gui_ready") is True):
-                await self._control_service()._resume_wait_if_required(wait=wait, execution=execution)
-                return
 
 
     def _maintain_owner(self, attempt: shared.AttemptRecord, handle: shared.AgentDriverHandle) -> None:

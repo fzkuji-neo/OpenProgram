@@ -70,6 +70,13 @@ class GuiBroker:
             self._resources[handle] = _Resource(target, MappingProxyType(dict(methods)), validate)
             return handle
 
+    def bind_invocation(self, invocation_id: str):
+        """Host-only: the tool call whose primitives the next receipts belong to."""
+        if not invocation_id:
+            raise ValueError("GUI broker requires an invocation identity")
+        with self._lock:
+            self._invocation_id = invocation_id
+
     def revoke_resource(self, handle: str):
         with self._lock:
             self._resources.pop(handle, None)

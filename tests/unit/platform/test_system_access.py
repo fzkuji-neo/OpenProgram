@@ -197,7 +197,7 @@ def test_explicit_settings_remains_available_when_probe_cannot_request(monkeypat
     assert calls == ['accessibility']
 
 
-def test_gui_agent_desktop_manifest_requires_missing_macos_capabilities(monkeypatch):
+def test_app_control_manifest_requires_missing_macos_capabilities(monkeypatch):
     monkeypatch.setattr(system_access.platform, 'system', lambda: 'Darwin')
     monkeypatch.setattr(system_access, '_native_probe', lambda: {
         'identity': {'executable': sys.executable},
@@ -208,18 +208,18 @@ def test_gui_agent_desktop_manifest_requires_missing_macos_capabilities(monkeypa
     })
 
     manifest = system_access.access_manifest_for_tool(
-        'gui_agent', {'task': 'Open the app', 'surface': 'desktop'}
+        'computer_use_agent', {'target': 'app', 'action': 'click', 'args': {'app': 'Notes'}}
     )
 
     assert manifest is not None
     assert manifest['kind'] == 'system_access'
     assert manifest['required_capabilities'] == ['screen_recording']
-    assert manifest['request_metadata']['tool'] == 'gui_agent'
+    assert manifest['request_metadata']['tool'] == 'computer_use_agent'
     assert manifest['policy_snapshot']['on_grant'] == 'continue'
 
 
 @pytest.mark.parametrize('status', ['unavailable', 'unsupported'])
-def test_gui_agent_unresolvable_access_does_not_create_permanent_wait(monkeypatch, status):
+def test_unresolvable_app_access_does_not_create_permanent_wait(monkeypatch, status):
     monkeypatch.setattr(system_access.platform, 'system', lambda: 'Darwin')
     monkeypatch.setattr(system_access, '_native_probe', lambda: {
         'identity': {'executable': sys.executable},
@@ -228,16 +228,18 @@ def test_gui_agent_unresolvable_access_does_not_create_permanent_wait(monkeypatc
             'accessibility': {'status': 'granted', 'detail': 'fresh'},
         },
     })
-    state = system_access.required_access_state('gui_agent', {'surface': 'desktop'})
+    call = {'target': 'app', 'action': 'click', 'args': {'app': 'Notes'}}
+    state = system_access.required_access_state('computer_use_agent', call)
     assert state['state'] == 'infeasible'
     assert state['reason_code'] == 'system_access_unavailable'
-    assert system_access.access_manifest_for_tool('gui_agent', {'surface': 'desktop'}) is None
+    assert system_access.access_manifest_for_tool('computer_use_agent', call) is None
 
 
 @pytest.mark.parametrize('args', [
-    {'task': 'Use browser', 'surface': 'browser'},
-    {'task': 'Use VM', 'surface': 'vm', 'vm_url': 'http://vm'},
+    {'target': 'browser', 'action': 'observe'},
+    {'target': 'vm', 'action': 'click', 'args': {'x': 1, 'y': 2}},
+    {'target': 'app', 'action': 'list_apps'},
 ])
-def test_gui_agent_remote_surfaces_skip_system_access_manifest(monkeypatch, args):
+def test_pages_vm_and_app_listing_skip_system_access_manifest(monkeypatch, args):
     monkeypatch.setattr(system_access.platform, 'system', lambda: 'Darwin')
-    assert system_access.access_manifest_for_tool('gui_agent', args) is None
+    assert system_access.access_manifest_for_tool('computer_use_agent', args) is None

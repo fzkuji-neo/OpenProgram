@@ -725,6 +725,22 @@ COMPATIBILITY_FIXTURES = {
         True,
         None,
     ),
+    "computer_use.vm": (
+        "configured_service",
+        "POST",
+        "http://configured.example.test:17654",
+        17654,
+        ("http", "https"),
+        ("GET", "HEAD", "POST"),
+        None,
+        "same_origin",
+        5,
+        16_777_216,
+        ("image/", "application/", "text/"),
+        "same_origin",
+        True,
+        None,
+    ),
 }
 
 

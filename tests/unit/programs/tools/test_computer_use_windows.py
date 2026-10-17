@@ -11,7 +11,7 @@ import pytest
 
 from openprogram.computer_use import backends, windows, windows_audio
 from openprogram.computer_use.base import ComputerUseError
-from openprogram.programs.tools.system import computer_use as tool
+from openprogram.programs.tools.system.computer_use_agent.targets import app as tool
 
 
 def _png_pixels(png: bytes) -> tuple[int, int, bytes]:
@@ -87,9 +87,9 @@ def test_support_reports_hosts_other_than_windows(monkeypatch):
         backends.backend()
 
 
-def test_windows_description_replaces_every_macos_only_sentence():
-    for mac, windows_text in tool._WINDOWS_DESCRIPTION:
-        assert mac in tool.DESCRIPTION or windows_text in tool.DESCRIPTION
+def test_windows_guide_replaces_every_macos_only_sentence():
+    for mac, windows_text in tool._WINDOWS_GUIDE:
+        assert mac in tool._GUIDE or windows_text in tool._GUIDE
 
 
 def test_recording_format_is_the_shared_16k_mono_float():

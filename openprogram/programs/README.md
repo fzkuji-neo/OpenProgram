@@ -29,7 +29,6 @@ relies on.
 ## Files in this directory
 
 - **`_execution_common.py`** — Shared tool-execution wrappers used by ``@function`` and Agent methods
-- **`_gui_operations.py`** — Fixed host operations for the version-one durable GUI orchestration API
 - **`_helpers.py`** — Small helpers shared by tool `execute` implementations
 - **`_programs.py`** — First-party *programs*
 - **`_providers.py`** — Shared provider-registry scaffolding for tools with pluggable backends
@@ -37,8 +36,6 @@ relies on.
 - **`_runtime.py`** — @function decorator + runtime layer
 - **`_source_loader.py`** — Definition-time call scopes for explicitly authorized Program sources
 - **`application_client.py`** — Use installed application operations from Programs and local CLI clients
-- **`gui_browser_agent.py`** — Browser GUI tasks through the standard Agent and isolated Python tool
-- **`gui_harness_bridge.py`** — Optional adapter from the installed GUI Agent Harness to web_use
 - **`meta_storage.py`** — Profile-scoped persistence for tool profiles and Functions UI metadata
 - **`permission_rule.py`** — 权限规则字符串的解析、序列化、匹配。
 - **`watcher.py`** — Background watcher

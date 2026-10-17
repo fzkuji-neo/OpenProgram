@@ -62,5 +62,6 @@ def test_gui_manifest_selects_only_operation_capabilities(monkeypatch):
             ],
         },
     )
-    manifest = system_access.access_manifest_for_tool("gui_agent", {"surface": "desktop"})
+    manifest = system_access.access_manifest_for_tool(
+        "computer_use_agent", {"target": "app", "action": "click", "args": {"app": "Notes"}})
     assert manifest["required_capabilities"] == ["screen_recording"]

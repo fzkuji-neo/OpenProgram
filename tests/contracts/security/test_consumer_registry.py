@@ -57,6 +57,7 @@ EXPECTED_CONSUMERS = {
     "webui.model_listing.fixed",
     "webui.model_listing.configured",
     "runtime.local_probe",
+    "computer_use.vm",
 }
 
 EXPECTED_FIXED_ORIGINS = {

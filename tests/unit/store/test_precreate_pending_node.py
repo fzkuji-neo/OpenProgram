@@ -672,8 +672,8 @@ def test_parent_page_cleanup_failure_preserves_terminal_metadata(
     shim = SessionNodeWriter(store, "s1")
     node = create_pending_call_node(
         pending_id="gui-cleanup",
-        function_name="gui_agent",
-        arguments={"task": "inspect", "surface": "browser"},
+        function_name="browser_agent",
+        arguments={"task": "inspect"},
         expose="io",
         caller="",
         store=shim,
@@ -708,7 +708,7 @@ def test_parent_page_cleanup_failure_preserves_terminal_metadata(
     )
 
     class _Tool:
-        name = "gui_agent"
+        name = "browser_agent"
         _is_agent_method = True
 
     monkeypatch.setattr(
@@ -733,8 +733,8 @@ def test_parent_page_cleanup_failure_preserves_terminal_metadata(
     result = forced_tool.dispatch_forced_tool_call(
         session_id="s1",
         anchor_msg_id="|node:gui-cleanup",
-        tool_name="gui_agent",
-        tool_input={"task": "inspect", "surface": "browser"},
+        tool_name="browser_agent",
+        tool_input={"task": "inspect"},
         surface_context_snapshot={"context_id": "ctx", "surfaces": []},
     )
 
@@ -762,7 +762,7 @@ def test_browser_surface_capture_error_defers_to_child_handoff(monkeypatch):
     from openprogram.agent.dispatcher import forced_tool
 
     class _Tool:
-        name = "gui_agent"
+        name = "browser_agent"
         _is_agent_method = True
 
     monkeypatch.setattr(
@@ -791,9 +791,9 @@ def test_browser_surface_capture_error_defers_to_child_handoff(monkeypatch):
 
     result = forced_tool.dispatch_forced_tool_call(
         session_id="s1",
-        anchor_msg_id="|node:gui-agent",
-        tool_name="gui_agent",
-        tool_input={"task": "inspect", "surface": "browser"},
+        anchor_msg_id="|node:browser-agent",
+        tool_name="browser_agent",
+        tool_input={"task": "inspect"},
     )
 
     assert result["ok"] is True

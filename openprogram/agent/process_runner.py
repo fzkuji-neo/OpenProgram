@@ -53,7 +53,7 @@ _active: dict[str, mp.Process] = {}
 _active_stop_q: dict[str, "mp.Queue"] = {}
 _active_lock = threading.Lock()
 
-_BOUNDED_AGENTIC_TOOLS = {"browser_agent", "gui_agent"}
+_BOUNDED_AGENTIC_TOOLS = {"browser_agent"}
 _DEFAULT_AGENTIC_TIMEOUT_SECONDS = 300.0
 AGENTIC_TIMEOUT_ENV = "OPENPROGRAM_AGENTIC_TIMEOUT_S"
 _STOP_GRACE_MIN_SECONDS = 30.0
@@ -1302,7 +1302,7 @@ def _child_entry(
         with open(result_path, "wb") as f:
             pickle.dump(payload, f)
     except BaseException as e:  # noqa: BLE001
-        from openprogram.agentic_programming.continuation import FunctionSuspended, FunctionSystemAccessRequired
+        from openprogram.agentic_programming.continuation import FunctionSuspended
         # A recoverable invocation can fail before its wrapper is entered (for
         # example, an unavailable retained dependency or runtime credential).
         # Preserve its completed steps and pending result destination.
@@ -1332,8 +1332,6 @@ def _child_entry(
             if isinstance(e, FunctionSuspended)
             else {"error": f"{type(e).__name__}: {e}"}
         )
-        if isinstance(e, FunctionSystemAccessRequired):
-            outcome["system_access_required"] = True
         try:
             with open(result_path, "wb") as f:
                 pickle.dump(outcome, f)

@@ -10,10 +10,10 @@ def test_public_web_use_schema_is_command_based_and_legacy_name_is_hidden():
     from openprogram.providers.utils.validation import validate_tool_arguments
     from openprogram.programs import agent_tools
 
-    # computer_use is its own desktop tool now, not a legacy alias of web_use.
-    tools = {item.name: item for item in agent_tools(names=["web_use", "computer_use"])}
-    assert set(tools) == {"web_use", "computer_use"}
-    assert "command" not in tools["computer_use"].parameters["properties"]
+    # computer_use_agent is its own tool, not a legacy alias of web_use.
+    tools = {item.name: item for item in agent_tools(names=["web_use", "computer_use_agent"])}
+    assert set(tools) == {"web_use", "computer_use_agent"}
+    assert "command" not in tools["computer_use_agent"].parameters["properties"]
     tool = next(
         item for item in agent_tools(names=["web_use"])
         if item.name == "web_use"

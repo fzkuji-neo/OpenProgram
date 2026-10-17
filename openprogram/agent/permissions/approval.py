@@ -54,7 +54,7 @@ def _persist_always_allow_rule(session_id: str, tool_name: str, args: dict) -> b
 
 # Tools whose approval card offers "allow for this conversation": the grant
 # is written as a session-layer rule, so it ends with the conversation.
-_SESSION_SCOPE_TOOLS = {"computer_use"}
+_SESSION_SCOPE_TOOLS = {"computer_use_agent"}
 
 
 def _persist_session_allow_rule(session_id: str, tool_name: str, args: dict) -> bool:

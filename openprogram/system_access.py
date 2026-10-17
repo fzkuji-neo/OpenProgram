@@ -678,14 +678,15 @@ def _desktop_operation(tool_name: str, args: dict | None) -> str | None:
     if not isinstance(args, dict):
         return None
     name = str(tool_name)
-    if name == 'gui_agent':
-        surface = str(args.get('surface') or '').strip().lower()
-        if surface != 'desktop' or args.get('vm_url'):
-            return None
-        return 'gui_agent:desktop'
-    if name == 'computer_use':
+    if name == 'computer_use_agent':
+        # Application windows need the desktop grants; Pages and a VM do not.
         # Listing applications reads nothing from the screen or the windows.
-        if str(args.get('action') or '').strip() == 'list_apps':
+        if args.get('target') != 'app':
+            return None
+        steps = args.get('actions') if isinstance(args.get('actions'), list) else [{'action': args.get('action')}]
+        if not args.get('code') and steps and all(
+                isinstance(step, dict) and str(step.get('action') or '').strip() in {'list_apps', 'guide'}
+                for step in steps):
             return None
         return 'computer_use:desktop'
     return None
@@ -745,33 +746,20 @@ def access_manifest_for_tool(tool_name: str, args: dict | None) -> dict | None:
         return None
     capabilities = list(state['capabilities'])
     required = list(state['required_capabilities'])
-    return _desktop_access_manifest(args, capabilities, required)
+    return _desktop_access_manifest(tool_name, args, capabilities, required)
 
 
-def selected_desktop_access_manifest(args: dict, snapshot: dict) -> dict | None:
-    """Declare every native desktop requirement for a retained GUI decision."""
-    required = sorted(spec.id for spec in capability_registry() if 'gui_agent:desktop' in spec.operations)
-    rows = {row['id']: dict(row) for row in snapshot.get('capabilities', ())
-            if isinstance(row, dict) and row.get('id') in required}
-    if snapshot.get('platform') != 'Darwin' or any(
-        rows.get(capability, {}).get('status') in {None, 'unsupported', 'unavailable'}
-        for capability in required
-    ):
-        return None
-    return _desktop_access_manifest({**args, 'surface': 'desktop'}, list(rows.values()), required)
-
-
-def _desktop_access_manifest(args, capabilities, required):
+def _desktop_access_manifest(tool_name, args, capabilities, required):
     return {
         'kind': 'system_access',
         'required_capabilities': required,
         'capabilities': capabilities,
-        'prompt': 'Desktop access is required before this GUI task can run.',
+        'prompt': 'Desktop access is required before this step can run.',
         'options': [], 'multi': False, 'allow_custom': False,
         'detail': 'Authorize the required capabilities on the execution computer, then return to OpenProgram.',
         'schema': {}, 'questions': [], 'timeout': None,
         'request_metadata': {
-            'tool': 'gui_agent', 'args': dict(args),
+            'tool': str(tool_name), 'args': dict(args),
             'required_capabilities': required,
             'capabilities': capabilities,
             'source': 'system_access',

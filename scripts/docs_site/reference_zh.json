@@ -532,5 +532,8 @@
   "How hybrid recall weighs keywords against meaning. `auto` favours keywords for queries with a date, a quoted phrase or a name, and balances them otherwise.": "混合检索中关键词与语义的权重。`auto` 在查询含日期、引号短语或人名时偏向关键词，其余情况两者均衡。",
   "In hybrid recall, raise the best paragraph of a Topic that several matches come from.": "混合检索时，若多条匹配来自同一个 Topic，提升该 Topic 中最匹配的段落。",
   "A conversation in a project also reads that project's own Memory, kept in ~/.openprogram/projects/<project>/memory.": "项目中的对话还会读取该项目自己的 Memory，存放在 ~/.openprogram/projects/<project>/memory。",
-  "With Project memory on, write what a project's conversations record into that project's Memory instead of the personal one.": "开启项目记忆时，把项目对话记下的内容写入该项目的 Memory，而不是个人 Memory。"
+  "With Project memory on, write what a project's conversations record into that project's Memory instead of the personal one.": "开启项目记忆时，把项目对话记下的内容写入该项目的 Memory，而不是个人 Memory。",
+  "Computer use": "电脑操作",
+  "Virtual machine server": "虚拟机服务器",
+  "Base URL of an OSWorld-compatible server (GET /screenshot, POST /execute), e.g. http://192.168.64.2:5000. Set it to give computer_use_agent its vm target; empty turns it off.": "OSWorld 兼容服务器的基础地址（GET /screenshot、POST /execute），例如 http://192.168.64.2:5000。设置后 computer_use_agent 获得 vm 目标；留空则关闭。"
 }

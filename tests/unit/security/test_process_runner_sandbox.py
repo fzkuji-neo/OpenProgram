@@ -178,7 +178,7 @@ def test_agentic_limits_hand_the_budget_to_the_agent(monkeypatch):
 
     monkeypatch.delenv("OPENPROGRAM_AGENTIC_TIMEOUT_S", raising=False)
     args = {"task": "inspect"}
-    limits = process_runner.agentic_subprocess_limits("gui_agent", args)
+    limits = process_runner.agentic_subprocess_limits("browser_agent", args)
     assert limits.kwargs == {"task": "inspect", "max_seconds": 300.0}
     assert args == {"task": "inspect"}
     assert (limits.budget_seconds, limits.timeout_seconds) == (300.0, 360.0)
@@ -190,7 +190,7 @@ def test_agentic_limits_hand_the_budget_to_the_agent(monkeypatch):
     assert (explicit.budget_seconds, explicit.timeout_seconds) == (12.0, 42.0)
 
     unbounded = process_runner.agentic_subprocess_limits(
-        "gui_agent", {"task": "t", "max_seconds": 0},
+        "browser_agent", {"task": "t", "max_seconds": 0},
     )
     assert unbounded.kwargs == {"task": "t", "max_seconds": 0}
     assert (unbounded.budget_seconds, unbounded.timeout_seconds) == (None, None)
@@ -211,11 +211,11 @@ def test_agentic_default_budget_comes_from_the_environment(
     from openprogram.agent import process_runner
 
     monkeypatch.setenv("OPENPROGRAM_AGENTIC_TIMEOUT_S", raw)
-    limits = process_runner.agentic_subprocess_limits("gui_agent", {"task": "t"})
+    limits = process_runner.agentic_subprocess_limits("browser_agent", {"task": "t"})
     assert (limits.budget_seconds, limits.timeout_seconds) == (budget, timeout)
     assert limits.kwargs.get("max_seconds") == budget
     explicit = process_runner.agentic_subprocess_limits(
-        "gui_agent", {"task": "t", "max_seconds": 50},
+        "browser_agent", {"task": "t", "max_seconds": 50},
     )
     assert explicit.budget_seconds == 50.0
 
@@ -226,9 +226,9 @@ def test_agentic_timeout_reports_the_childs_last_progress(monkeypatch):
     delivered = threading.Event()
     killed = []
     tree = {
-        "path": "run", "name": "gui_agent", "status": "running",
+        "path": "run", "name": "browser_agent", "status": "running",
         "children": [
-            {"path": "a", "name": "gui_operation", "status": "completed",
+            {"path": "a", "name": "open_page", "status": "completed",
              "duration_ms": 120},
             {"path": "b", "name": "plan_next_capability", "status": "completed",
              "duration_ms": 4200},
@@ -288,7 +288,7 @@ def test_agentic_timeout_reports_the_childs_last_progress(monkeypatch):
     monkeypatch.setattr("openprogram._compat.kill_process_tree", kill_process_tree)
 
     result = process_runner.run_agent_method_in_subprocess(
-        tool_name="gui_agent",
+        tool_name="browser_agent",
         kwargs={"task": "t", "max_seconds": 300.0},
         session_id="s",
         anchor_msg_id="m",
@@ -302,7 +302,7 @@ def test_agentic_timeout_reports_the_childs_last_progress(monkeypatch):
     progress = result["progress"]
     assert progress["events"] == 3
     assert progress["steps"] == [
-        "gui_operation: completed (0.1 s)",
+        "open_page: completed (0.1 s)",
         "plan_next_capability: completed (4.2 s)",
         "computer_use: running",
         "  locate_target: error - element not found",
@@ -313,7 +313,7 @@ def test_agentic_timeout_reports_the_childs_last_progress(monkeypatch):
     assert "within its 300-second budget plus 60 seconds" in error
     assert "  computer_use: running" in error
     assert "OPENPROGRAM_AGENTIC_TIMEOUT_S" in error
-    assert "pass max_seconds to gui_agent" in error
+    assert "pass max_seconds to browser_agent" in error
 
 
 def test_blocked_non_page_event_does_not_report_page_cleanup_failure(monkeypatch):
@@ -486,7 +486,7 @@ def test_subprocess_timeout_reports_late_background_page_cleanup(
 
     started_at = time.monotonic()
     result = process_runner.run_agent_method_in_subprocess(
-        tool_name="gui_agent",
+        tool_name="browser_agent",
         kwargs={},
         session_id="s",
         anchor_msg_id="m",

@@ -37,14 +37,6 @@ class FunctionSuspended(BaseException):
     """An invocation has durable progress and stopped at an explicit boundary."""
 
 
-class FunctionSystemAccessRequired(FunctionSuspended):
-    """A retained GUI decision requires a parent-owned native access wait."""
-
-    def __init__(self, call_key):
-        super().__init__("Selected desktop capability requires system access")
-        self.call_key = call_key
-
-
 class FunctionCompatibilityError(FunctionSuspended):
     """Saved execution cannot safely use the requested code or inputs."""
 
@@ -104,7 +96,6 @@ def _validate_orchestration(fn):
         "step",
         "workflow",
         "parallel",
-        "gui_operation",
         "range",
         "enumerate",
         "zip",
@@ -123,7 +114,7 @@ def _validate_orchestration(fn):
     }:
         expected = (
             globals()[name]
-            if name in {"step", "workflow", "parallel", "gui_operation"}
+            if name in {"step", "workflow", "parallel"}
             else getattr(builtins, name)
         )
         if name in bindings and bindings[name] is not expected:
@@ -144,7 +135,6 @@ def _validate_source(source):
         "step",
         "workflow",
         "parallel",
-        "gui_operation",
         "range",
         "enumerate",
         "zip",
@@ -226,7 +216,7 @@ def _validate_source(source):
                 not isinstance(node, ast.ImportFrom)
                 or node.module != "openprogram.agentic_programming.continuation"
                 or any(
-                    alias.name not in {"step", "workflow", "parallel", "gui_operation"} or alias.asname
+                    alias.name not in {"step", "workflow", "parallel"} or alias.asname
                     for alias in node.names
                 )
             ):
@@ -309,7 +299,7 @@ def _snapshot(fn):
         if (
             inspect.isfunction(value)
             and value.__module__ == __name__
-            and value.__name__ in {"step", "workflow", "parallel", "gui_operation"}
+            and value.__name__ in {"step", "workflow", "parallel"}
         ):
             return {"api": value.__name__, "version": 1}
         if inspect.isfunction(value):
@@ -340,7 +330,7 @@ def _snapshot(fn):
                     isinstance(item, ast.ImportFrom)
                     and item.module == "openprogram.agentic_programming.continuation"
                     and all(
-                        alias.name in {"step", "workflow", "parallel", "gui_operation"}
+                        alias.name in {"step", "workflow", "parallel"}
                         and alias.asname is None
                         for alias in item.names
                     )
@@ -475,7 +465,6 @@ def _restore(snapshot):
                 "step",
                 "workflow",
                 "parallel",
-                "gui_operation",
             }:
                 raise FunctionCompatibilityError(
                     "Unsupported continuation API contract"
@@ -960,21 +949,9 @@ def step(name, fn, *args, **kwargs):
     return _step(name, fn, args, kwargs)
 
 
-def gui_operation(name, operation, payload):
-    """Versioned host GUI operations; no dynamic callable or import admission."""
-    from openprogram.programs._gui_operations import dispatch, guard
-    if operation not in {"initialize", "legacy", "plan", "decide", "capability", "advance", "finish"}:
-        raise FunctionCompatibilityError("Unknown GUI operation contract")
-    _result_json(payload)
-    return _step(name, dispatch, (operation, payload), {},
-                 before_dispatch=lambda: guard(operation, payload, _current.get()))
-
-
-def _step(name, fn, args, kwargs, before_dispatch=None):
+def _step(name, fn, args, kwargs):
     context = _current.get()
     if context is None:
-        if before_dispatch is not None:
-            before_dispatch()
         return fn(*args, **kwargs)
     if not context.frames or not isinstance(name, str) or not name:
         raise FunctionCompatibilityError(
@@ -1008,8 +985,6 @@ def _step(name, fn, args, kwargs, before_dispatch=None):
             raise FunctionCompatibilityError(f"Step result is missing: {name}")
         return json.loads(blob["payload"])
     context.boundary()
-    if before_dispatch is not None:
-        before_dispatch()
     try:
         effects.register(
             effect_id=effect_id,

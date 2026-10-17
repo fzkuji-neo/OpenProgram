@@ -661,13 +661,13 @@ def test_registered_page_inventory_keeps_web_use_when_preview_is_unavailable(
     names = [tool.name for tool in configured]
 
     assert enabled is True
-    assert "web_use" in names
+    assert "computer_use_agent" in names
     assert "web_search" in names
     assert not ({"agent_browser", "browser_agent", "playwright_browser"} & set(names))
     prompt = surface_context.render_for_model(
         context, web_use_enabled=enabled,
     )
-    assert "web_use list_pages" in prompt
+    assert 'computer_use_agent(target="browser"): list_pages' in prompt
     assert "Never put a URL in page" in prompt
 
 

@@ -57,26 +57,29 @@ def test_code_backends_do_not_register_software_resources(tmp_path, monkeypatch,
         reset_current_session_id(token)
 
 
-def test_vm_adapter_reports_attachment_during_harness_call(tmp_path, monkeypatch):
+def test_vm_target_reports_attachment_during_the_call(tmp_path, monkeypatch):
     from openprogram.session_resources import ResourceUseStore
     from openprogram.agent.run_control import set_current_session_id, reset_current_session_id
-    from openprogram.programs.gui_harness_bridge import install_gui_harness_web_use
+    from openprogram.programs._execution_common import ToolReturn
+    from openprogram.programs.tools.system.computer_use_agent import tool
+    from openprogram.programs.tools.system.computer_use_agent.targets import vm
 
     monkeypatch.setattr("openprogram.paths.get_state_dir", lambda: tmp_path)
     monkeypatch.setattr("openprogram.session_resources.process_identity", lambda pid: "birth")
-    def harness(**kwargs):
+    monkeypatch.setattr(vm, "url", lambda: "http://vm.test:5000?secret=token")
+
+    def run(steps, args, session):
         rows = ResourceUseStore().list("session-vm")
-        assert len(rows) == 1
-        assert rows[0]["kind"] == "vm"
-        assert rows[0]["target"] == "http://vm.test:5000"
-        return {"success": True}
-    wrapped = install_gui_harness_web_use(harness)
+        assert [(row["kind"], row["target"]) for row in rows] == [("vm", "http://vm.test:5000")]
+        return ToolReturn(text="ok")
+    monkeypatch.setattr(vm, "run", run)
     token = set_current_session_id("session-vm")
     try:
-        result = wrapped.__wrapped__("inspect", surface="vm", vm_url="http://vm.test:5000?secret=token")
-        assert result["status"] == "succeeded"
+        tool._shown.add(("session-vm", 0, "vm"))
+        assert tool.computer_use_agent(target="vm", action="click", args={"x": 1, "y": 2}).text == "ok"
         assert ResourceUseStore().list("session-vm") == []
     finally:
+        tool._shown.clear()
         reset_current_session_id(token)
 
 

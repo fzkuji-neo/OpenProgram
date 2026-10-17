@@ -110,19 +110,7 @@ def dispatch_forced_tool_call(
         # The canonical execution identity is supplied by AgentDriver. The
         # DAG anchor is content provenance only and can never own lifecycle.
         resolved_execution_id = execution_id
-        browser_surface = (
-            tool_name == "browser_agent"
-            or (
-                tool_name == "gui_agent"
-                and (
-                    str((tool_input or {}).get("surface") or "")
-                    .strip()
-                    .lower()
-                    in {"", "browser"}
-                    or bool((tool_input or {}).get("backend"))
-                )
-            )
-        )
+        browser_surface = tool_name == "browser_agent"
         surface_snapshot = surface_context_snapshot
         if browser_surface and surface_snapshot is None:
             from openprogram.agent import surface_context

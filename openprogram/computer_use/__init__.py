@@ -1,6 +1,6 @@
 """Computer use: read and operate application windows for the main Agent.
 
-The tool itself lives in ``openprogram.programs.tools.system.computer_use``;
+The tool itself is the ``app`` target of ``openprogram.programs.tools.system.computer_use_agent``;
 this package holds the platform backends and the pure helpers (key chord
 parsing, Accessibility tree rendering, numbering and diffing) they share.
 """

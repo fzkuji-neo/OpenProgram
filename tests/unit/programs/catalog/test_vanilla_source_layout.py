@@ -21,7 +21,7 @@ EXPECTED_SOURCES = {
     "code": {"execute_code", "lsp", "semble"},
     "interaction": {"always_on_report", "canvas", "chat_send", "clarify", "send_file"},
     "runtime": {"framework", "mcp_meta", "program", "resource", "skill"},
-    "system": {"computer_use", "self_update"},
+    "system": {"computer_use_agent", "self_update"},
 }
 
 

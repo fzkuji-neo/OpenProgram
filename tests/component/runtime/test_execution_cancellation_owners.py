@@ -784,13 +784,13 @@ def test_forced_tool_passes_canonical_execution_id(monkeypatch):
     )
     assert captured["execution_id"] is None
 
-    _Tool.name = "gui_agent"
+    _Tool.name = "browser_agent"
     captured.clear()
     forced_tool.dispatch_forced_tool_call(
         session_id="s1",
-        anchor_msg_id="|node:guiagent",
-        tool_name="gui_agent",
-        tool_input={"task": "inspect", "surface": "browser"},
+        anchor_msg_id="|node:browseragent",
+        tool_name="browser_agent",
+        tool_input={"task": "inspect"},
     )
     assert captured["kwargs"]["max_seconds"] == 300
     assert captured["budget_seconds"] == 300
@@ -802,9 +802,9 @@ def test_forced_tool_passes_canonical_execution_id(monkeypatch):
     captured.clear()
     forced_tool.dispatch_forced_tool_call(
         session_id="s1",
-        anchor_msg_id="|node:guiagent-origin",
-        tool_name="gui_agent",
-        tool_input={"task": "inspect", "surface": "browser"},
+        anchor_msg_id="|node:browseragent-origin",
+        tool_name="browser_agent",
+        tool_input={"task": "inspect"},
         surface_context_snapshot=origin_context,
     )
     assert captured["surface_context_snapshot"] is origin_context

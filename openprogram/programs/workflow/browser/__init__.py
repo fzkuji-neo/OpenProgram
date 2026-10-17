@@ -635,6 +635,62 @@ def _close_web_use_page(web_session_id: str) -> dict | ToolReturn:
     return ToolReturn(json_data=failure, is_error=True)
 
 
+def run_web_use(
+    command: str,
+    backend: str = "",
+    page: str = "",
+    page_context_token: str = "",
+    web_session_id: str = "",
+    arguments: dict | None = None,
+) -> dict | ToolReturn:
+    """One web_use command, with page recovery; shared by web_use and computer_use_agent."""
+    if str(command or "").strip() == "close":
+        nested = arguments.get("web_session_id") if isinstance(arguments, dict) else ""
+        return _close_web_use_page(str(web_session_id or nested or "").strip())
+    result = _execute_web_use(
+        command,
+        backend,
+        page,
+        page_context_token,
+        web_session_id,
+        arguments,
+    )
+    if isinstance(result, dict) and result.get("ok") is False:
+        # Re-observe the exact lost target, but never replay a possibly
+        # completed write.
+        reason_code = result.get("reason_code")
+        url = result.get("recovery_url")
+        known_page = bool(
+            result.get("recovery_tab_id") and result.get("recovery_window_id")
+        )
+        if reason_code in _RECOVERABLE_WEB_USE_REASONS and (
+            known_page
+            or (isinstance(url, str) and url.startswith(("http://", "https://")))
+        ):
+            recovered = _recover_web_use_page(result, backend=backend)
+            if isinstance(recovered, dict) and recovered.get("ok") is not False:
+                recovered.update(
+                    recovered_page=True,
+                    observe_required=True,
+                    recovery_reason_code=reason_code,
+                    recovery_previous_command=command,
+                    previous_action_replayed=False,
+                    message="The page was observed again. Continue using this fresh observation; the previous action was not replayed.",
+                )
+                return recovered
+            if isinstance(recovered, dict):
+                result = recovered
+        if (
+            result.get("reason_code") in _ENDED_HANDLE_REASONS
+            # A consumed token whose session is alive already names the
+            # one next call (use that web_session_id); keep it.
+            and not result.get("live_web_session_id")
+        ):
+            result = _with_current_pages(result)
+        return ToolReturn(json_data=result, is_error=True)
+    return result
+
+
 class WebUseAgent(Agent):
     method_options = {
         "web_use": {
@@ -693,51 +749,7 @@ class WebUseAgent(Agent):
         ``url`` opens a desktop web tab when no Page is available. ``close``
         closes the observed Page's tab.
         """
-        if str(command or "").strip() == "close":
-            nested = arguments.get("web_session_id") if isinstance(arguments, dict) else ""
-            return _close_web_use_page(str(web_session_id or nested or "").strip())
-        result = _execute_web_use(
-            command,
-            backend,
-            page,
-            page_context_token,
-            web_session_id,
-            arguments,
-        )
-        if isinstance(result, dict) and result.get("ok") is False:
-            # Re-observe the exact lost target, but never replay a possibly
-            # completed write.
-            reason_code = result.get("reason_code")
-            url = result.get("recovery_url")
-            known_page = bool(
-                result.get("recovery_tab_id") and result.get("recovery_window_id")
-            )
-            if reason_code in _RECOVERABLE_WEB_USE_REASONS and (
-                known_page
-                or (isinstance(url, str) and url.startswith(("http://", "https://")))
-            ):
-                recovered = _recover_web_use_page(result, backend=backend)
-                if isinstance(recovered, dict) and recovered.get("ok") is not False:
-                    recovered.update(
-                        recovered_page=True,
-                        observe_required=True,
-                        recovery_reason_code=reason_code,
-                        recovery_previous_command=command,
-                        previous_action_replayed=False,
-                        message="The page was observed again. Continue using this fresh observation; the previous action was not replayed.",
-                    )
-                    return recovered
-                if isinstance(recovered, dict):
-                    result = recovered
-            if (
-                result.get("reason_code") in _ENDED_HANDLE_REASONS
-                # A consumed token whose session is alive already names the
-                # one next call (use that web_session_id); keep it.
-                and not result.get("live_web_session_id")
-            ):
-                result = _with_current_pages(result)
-            return ToolReturn(json_data=result, is_error=True)
-        return result
+        return run_web_use(command, backend, page, page_context_token, web_session_id, arguments)
 
 
 web_use = WebUseAgent().web_use
@@ -752,6 +764,7 @@ if getattr(web_use, "_agent_tool", None) is not None:
 
 __all__ = [
     "browser_agent",
+    "run_web_use",
     "web_use",
     "execute_direct_web_use",
     "BrowserPageController",

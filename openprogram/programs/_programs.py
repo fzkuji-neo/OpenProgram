@@ -482,6 +482,8 @@ class Program:
             omitted from auto-install / git specs so a clone never fails
             on a private/missing repo.
         branch: Git ref to clone / pull.
+        entries: False when OpenProgram only imports the package as a
+            library and registers none of its Program entries.
     """
 
     function: str
@@ -494,6 +496,7 @@ class Program:
     branch: str = "main"
     size_note: str = "repo < 1 MB, no extra deps"
     install_dir: str = ""
+    entries: bool = True
 
     @property
     def repo_dir_name(self) -> str:
@@ -616,12 +619,15 @@ KNOWN_PROGRAMS: list[Program] = [
         package="gui_harness",
         extra="gui",
         repo=f"{_GH}/GUI-Agent-Harness",
-        summary="Autonomous GUI agent — give it a task, it operates the desktop.",
+        summary="GUI perception: lets computer_use_agent find screen elements from a description.",
         heavy=True,   # ultralytics -> torch, opencv-python, Pillow, pynput
         public=True,
         size_note=("downloads PyTorch: ~300 MB (no NVIDIA GPU) / ~3 GB "
                    "(CUDA); ~1.5 GB on disk"),
         install_dir="gui_harness",
+        # Only its detector, OCR and locate_target are used (describe
+        # grounding); its own gui_agent loop is not offered to the model.
+        entries=False,
     ),
     Program(
         function="research_agent",
@@ -728,13 +734,10 @@ def import_installed_programs() -> list[str]:
                             or _has_installed_distribution(package_name)
                         ),
                     )
+            if not prog.entries:
+                continue
             module = importlib.import_module(f"{prog.package}.agentics")
             register_public_entries(module, require_exports=True)
-            if prog.function == "gui_agent":
-                from openprogram.programs.gui_harness_bridge import (
-                    install_gui_harness_web_use,
-                )
-                install_gui_harness_web_use()
             registered.append(prog.function)
         except Exception as e:  # noqa: BLE001 — never let one break import
             import logging

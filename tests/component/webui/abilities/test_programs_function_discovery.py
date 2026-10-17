@@ -222,38 +222,6 @@ def test_goal_form_keeps_prompt_primary_and_preserves_explicit_controls() -> Non
     assert not advanced.intersection({"runtime", "resume", "expected_goal"})
 
 
-def test_gui_agent_form_exposes_primary_and_advanced_parameters() -> None:
-    source = Path(__file__).parents[4] / "openprogram/programs/gui_harness_bridge.py"
-    gui = next(
-        info
-        for info in _extract_all_functions(str(source), "app")
-        if info["name"] == "gui_agent"
-    )
-
-    primary = [
-        param["name"] for param in gui["params_detail"] if not param.get("hidden")
-    ]
-    advanced = {
-        param["name"] for param in gui["params_detail"] if param.get("advanced")
-    }
-    user_params = {
-        param["name"]
-        for param in gui["params_detail"]
-        if not param.get("hidden") or param.get("advanced")
-    }
-
-    assert primary == ["task"]
-    assert advanced == {
-        "max_steps",
-        "max_seconds",
-        "app_name",
-        "surface",
-        "backend",
-        "vm_url",
-    }
-    assert user_params == {*primary, *advanced}
-
-
 def test_function_info_preserves_advanced_input_metadata(tmp_path: Path) -> None:
     source = tmp_path / "advanced_function.py"
     source.write_text(
