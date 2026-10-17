@@ -64,14 +64,28 @@ def test_transcribe_posts_wav_to_the_openai_endpoint(monkeypatch, no_local):
         def json(self):
             return {"text": " 你好 "}
 
-    def fake_post(url, *, headers, data, files, timeout):
-        sent.update(url=url, headers=headers, data=data, files=files)
-        return Response()
+    class FakeClient:
+        def __enter__(self):
+            return self
 
-    monkeypatch.setattr("httpx.post", fake_post)
+        def __exit__(self, *exc):
+            return False
+
+        def post(self, url, *, headers, data, files):
+            sent.update(url=url, headers=headers, data=data, files=files)
+            return Response()
+
+    def fake_safe_client(consumer, *, timeout):
+        sent.update(consumer=consumer, timeout=timeout)
+        return FakeClient()
+
+    # The request goes through the managed transport, never a bare httpx call.
+    monkeypatch.setattr("openprogram.security.safe_http.safe_client", fake_safe_client)
+    monkeypatch.setattr("httpx.post", None)
     with patch("openprogram.setup._read_config", return_value=_cfg(language="zh")):
         result = voice.transcribe(b"RIFF....")
     assert result == {"text": "你好", "engine": "openai", "model": "gpt-4o-mini-transcribe"}
+    assert sent["consumer"] == "tool.voice_api.fixed" and sent["timeout"] == 120
     assert sent["url"] == "https://api.openai.com/v1/audio/transcriptions"
     assert sent["headers"]["Authorization"] == "Bearer sk-test"
     assert sent["data"] == {"model": "gpt-4o-mini-transcribe", "response_format": "json", "language": "zh",

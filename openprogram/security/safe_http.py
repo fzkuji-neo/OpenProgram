@@ -116,6 +116,9 @@ _AUDITED_FIXED_ORIGINS = MappingProxyType(
                 "https://queue.fal.run",
             }
         ),
+        "tool.voice_api.fixed": frozenset(
+            {"https://api.groq.com", "https://api.openai.com"}
+        ),
         "channel.telegram.api": frozenset({"https://api.telegram.org"}),
         "channel.discord.api": frozenset({"https://discord.com"}),
         "channel.discord.gateway_sdk": frozenset({"https://discord.com"}),
@@ -280,6 +283,7 @@ _SPECS = (
     _api("tool.web_search.configured_api", URLTrustClass.CONFIGURED_SERVICE),
     _api("tool.image_api.fixed", URLTrustClass.FIXED_PUBLIC_SERVICE),
     _api("tool.image_api.configured", URLTrustClass.CONFIGURED_SERVICE),
+    _api("tool.voice_api.fixed", URLTrustClass.FIXED_PUBLIC_SERVICE),
     replace(
         _download("tool.image_result.download", URLTrustClass.UNTRUSTED_PUBLIC),
         accepted_mime_prefixes=("image/", "application/octet-stream"),

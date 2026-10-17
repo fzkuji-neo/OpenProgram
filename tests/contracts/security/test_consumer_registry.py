@@ -18,6 +18,7 @@ EXPECTED_CONSUMERS = {
     "tool.web_search.configured_api",
     "tool.image_api.fixed",
     "tool.image_api.configured",
+    "tool.voice_api.fixed",
     "tool.image_result.download",
     "channel.attachment.download",
     "channel.telegram.api",
@@ -87,6 +88,9 @@ EXPECTED_FIXED_ORIGINS = {
             "https://generativelanguage.googleapis.com",
             "https://queue.fal.run",
         }
+    ),
+    "tool.voice_api.fixed": frozenset(
+        {"https://api.groq.com", "https://api.openai.com"}
     ),
     "channel.telegram.api": frozenset({"https://api.telegram.org"}),
     "channel.discord.api": frozenset({"https://discord.com"}),
