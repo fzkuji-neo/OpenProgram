@@ -432,13 +432,16 @@ class MacComputer:
         root = ax.AXUIElementCreateApplication(pid)
         deadline = time.monotonic() + seconds
         while time.monotonic() < deadline:
-            if self._attr(root, "AXWindows"):
+            if self._windows(root):
                 return
             time.sleep(0.15)
 
     # ------------------------------------------------------------------ windows
     def _windows(self, root) -> list[Any]:
-        return list(self._attr(root, "AXWindows") or [])
+        # Some apps (QuickTime Player with no document open) list the
+        # application element itself among their windows.
+        return [w for w in self._attr(root, "AXWindows") or []
+                if w != root and self._attr(w, "AXRole") == "AXWindow"]
 
     def _ax_window_id(self, window) -> int:
         return (skylight().window_id(window) or 0) if skylight().available else 0
@@ -473,7 +476,7 @@ class MacComputer:
             raise ComputerUseError(f"no window title contains {which!r}")
         for name in ("AXFocusedWindow", "AXMainWindow"):
             window = self._attr(root, name)
-            if window is not None:
+            if window is not None and window in windows:
                 return window
         return windows[0] if windows else None
 
@@ -535,13 +538,23 @@ class MacComputer:
         children = values.get("AXChildren") or []
         return node, list(children)
 
-    def _walk(self, roots: list[tuple[Any, int]], nodes, elements, budget: list[int], *, menus_open_only=False):
+    def _walk(self, roots: list[tuple[Any, int]], nodes, elements, budget: list[int], *, menus_open_only=False,
+              seen: set | None = None):
         stack = list(reversed(roots))
+        # An element reached twice is a cycle (an app listing itself as its
+        # window's child); reading it again would repeat it to MAX_DEPTH.
+        seen = set() if seen is None else seen
         while stack:
             _check_cancelled()
             if budget[0] <= 0:
                 return False
             element, depth = stack.pop()
+            try:
+                if element in seen:
+                    continue
+                seen.add(element)
+            except TypeError:  # an unhashable element: walk it without the guard
+                pass
             node, children = self._node(element, depth)
             transparent = (node.role in TRANSPARENT_ROLES and not node.label and not node.value
                            and not [a for a in node.actions if a not in ("AXScrollToVisible", "AXShowMenu")])
@@ -566,18 +579,21 @@ class MacComputer:
         elements: list[Any] = []
         budget = [MAX_NODES]
         complete = True
+        # The application element is never part of the tree; a child pointing back at it is a cycle.
+        seen: set = {root}
         if window is not None:
-            complete = self._walk([(window, 0)], nodes, elements, budget)
+            complete = self._walk([(window, 0)], nodes, elements, budget, seen=seen)
         # Menus and popovers opened by the app sit beside its windows.
         for child in self._attr(root, "AXChildren") or []:
             role = str(self._attr(child, "AXRole") or "")
             if role in ("AXMenu", "AXPopover") or (
                     role == "AXWindow" and child != window
                     and self._attr(child, "AXSubrole") in ("AXFloatingWindow", "AXSystemDialog", "AXDialog")):
-                complete = self._walk([(child, 0)], nodes, elements, budget) and complete
+                complete = self._walk([(child, 0)], nodes, elements, budget, seen=seen) and complete
         menubar = self._attr(root, "AXMenuBar")
         if menubar is not None and budget[0] > 0:
-            complete = self._walk([(menubar, 0)], nodes, elements, budget, menus_open_only=True) and complete
+            complete = self._walk([(menubar, 0)], nodes, elements, budget, menus_open_only=True,
+                                  seen=seen) and complete
         return nodes, elements, complete
 
     # ------------------------------------------------------------------ screenshot
@@ -1525,8 +1541,15 @@ class MacComputer:
         for child in self._attr(root, "AXChildren") or []:
             if str(self._attr(child, "AXRole") or "") in ("AXMenu", "AXSheet", "AXPopover"):
                 queue.append(child)
+        seen: set = {root}
         while queue and len(out) < QUICK_NODES:
             element = queue.pop(0)
+            try:
+                if element in seen:
+                    continue
+                seen.add(element)
+            except TypeError:
+                pass
             values = self._attrs(element, ["AXRole", "AXTitle", "AXValue", "AXEnabled", "AXChildren"])
             role = str(values.get("AXRole") or "")
             value = values.get("AXValue")
