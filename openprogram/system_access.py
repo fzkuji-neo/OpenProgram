@@ -683,8 +683,10 @@ def _desktop_operation(tool_name: str, args: dict | None) -> str | None:
         # Listing applications reads nothing from the screen or the windows.
         if args.get('target') != 'app':
             return None
-        steps = args.get('actions') if isinstance(args.get('actions'), list) else [{'action': args.get('action')}]
-        if not args.get('code') and steps and all(
+        named = isinstance(args.get('args'), dict) and bool(args['args'].get('app'))
+        opening = 'get_app_state' if named else 'list_apps'  # A call without an action reads the app, or lists apps.
+        steps = args.get('actions') if isinstance(args.get('actions'), list) else [{'action': args.get('action') or opening}]
+        if not args.get('code') and args.get('context') != 'fresh' and steps and all(
                 isinstance(step, dict) and str(step.get('action') or '').strip() in {'list_apps', 'guide'}
                 for step in steps):
             return None

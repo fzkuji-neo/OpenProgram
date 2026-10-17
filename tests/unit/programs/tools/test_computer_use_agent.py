@@ -190,3 +190,13 @@ def test_the_guides_ship_in_the_wheel():
     for path in guides:
         rel = path.relative_to(root / "openprogram").as_posix()
         assert any(fnmatch.fnmatch(rel, pattern) for pattern in patterns), rel
+
+
+def test_opening_the_app_target_without_an_app_only_lists_apps():
+    from openprogram.system_access import _desktop_operation
+
+    assert entry.requires_approval(target="app") is False
+    assert entry.requires_approval(target="app", args={"app": "Notes"})
+    assert _desktop_operation("computer_use_agent", {"target": "app"}) is None
+    assert _desktop_operation("computer_use_agent", {"target": "app", "args": {"app": "Notes"}})
+    assert _desktop_operation("computer_use_agent", {"target": "app", "context": "fresh", "brief": "b"})

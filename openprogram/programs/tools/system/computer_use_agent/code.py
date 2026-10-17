@@ -112,7 +112,11 @@ def close(session: str) -> None:
 def _adapter(target, action: str, call_args: dict, session: str) -> Callable:
     def method(arguments: dict, observation, context) -> ToolReturn:
         context.check()
-        result = target.run([(action, dict(arguments))], call_args, session)
+        step = dict(arguments)
+        if target is app_target and action == "get_app_state":
+            # Code parses what it reads, so a read is the whole tree, not the change since the last one.
+            step.setdefault("full", True)
+        result = target.run([(action, step)], call_args, session)
         # Code reads text and data; screenshots come back to a model through action calls.
         return ToolReturn(text=result.text, json_data=result.json_data, is_error=result.is_error)
     return method

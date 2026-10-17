@@ -144,7 +144,11 @@ def requires_approval(target: str = "", action: str = "", args: Any = None, acti
         steps = []
     if code or context == "fresh" or not steps:
         # The whole target is in play: what code or a new agent may do, or the target's state on opening.
-        steps = [("get_app_state", {})] if module is app else [("list_pages", {})] if module is browser else steps
+        if module is app:
+            # Without an app the call lists applications, which needs no approval.
+            steps = [("get_app_state", {})] if call_args.get("app") or code or context == "fresh" else [("list_apps", {})]
+        elif module is browser:
+            steps = [("list_pages", {})]
     return module.approval(steps, call_args)
 
 

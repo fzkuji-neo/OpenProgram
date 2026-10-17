@@ -72,3 +72,9 @@ def test_code_cannot_reach_another_app_or_run_page_scripts(interpreter):
 def test_without_an_app_there_is_no_app_target(interpreter):
     result = code.run("print(hasattr(cu, 'app'), hasattr(cu, 'browser'), hasattr(cu, 'vm'))", {}, "s")
     assert result.text == "False True False"
+
+
+def test_a_read_in_code_is_the_whole_tree(interpreter):
+    calls, _ = interpreter
+    code.run("await cu.app.get_app_state(app='Numbers')", {"app": "Numbers"}, "s")
+    assert calls == [("app", [("get_app_state", {"app": "Numbers", "full": True})], "Numbers")]
