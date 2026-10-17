@@ -170,8 +170,9 @@ class WindowState:
     size: tuple[float, float] = (0.0, 0.0)
     scale: float = 1.0           # screenshot pixels per screen point
     has_screenshot: bool = False
-    sparse: bool = False         # the tree shows little of the window, so reads add OCR text
+    sparse: bool = False         # the tree shows little of the window, so reads add OCR text and shapes
     text_boxes: list[ocr.TextBox] = field(default_factory=list)
+    shapes: list[ocr.Shape] = field(default_factory=list)
 
 
 @dataclass
@@ -738,9 +739,10 @@ class MacComputer:
                 previous.size = (frame[2], frame[3]) if frame else previous.size
                 previous.scale, previous.has_screenshot = scale, image is not None
                 previous.text_boxes = self._read_text(image, frame, scale) if previous.sparse else []
+                previous.shapes = self._read_shapes(image, frame, scale, previous.text_boxes) if previous.sparse else []
                 lines.append("")
                 lines.append("Tree not read (include=screenshot); element indices are those of the last tree.")
-                lines.extend(self._text_section(previous.text_boxes))
+                lines.extend(self._text_section(previous.text_boxes, previous.shapes))
                 return Observation(text="\n".join(lines), image=image, app=name)
             nodes, elements, complete = self._read_tree(root, target)
             prior = previous.snapshot if same_window else None
@@ -757,13 +759,14 @@ class MacComputer:
             state.sparse = target is not None and _window_node_count(nodes) < OCR_SPARSE_NODES
             if state.sparse:
                 state.text_boxes = self._read_text(image, frame, scale)
+                state.shapes = self._read_shapes(image, frame, scale, state.text_boxes)
             self._states[key] = state
             if not complete:
                 lines.append(f"The tree was cut at {MAX_NODES} elements.")
             lines.append("")
             lines.append("Accessibility tree changes since the last state:" if is_diff else "Accessibility tree:")
             lines.append(body or "(empty)")
-            lines.extend(self._text_section(state.text_boxes))
+            lines.extend(self._text_section(state.text_boxes, state.shapes))
             return Observation(text="\n".join(lines), image=image, app=name)
 
     def _read_text(self, image: bytes | None, frame, scale: float) -> list[ocr.TextBox]:
@@ -774,12 +777,24 @@ class MacComputer:
         except Exception:  # OCR only adds to a read; a failure must not fail it
             return []
 
-    @staticmethod
-    def _text_section(boxes: list[ocr.TextBox]) -> list[str]:
-        if not boxes:
+    def _read_shapes(self, image: bytes | None, frame, scale: float, text: list[ocr.TextBox]) -> list[ocr.Shape]:
+        if image is None or frame is None:
             return []
-        return ["", "Text on the screenshot (OCR; this app exposes little to Accessibility, so act on it "
-                    "with x,y at a line's centre):", ocr.render(boxes)]
+        try:
+            return ocr.detect_shapes(image, frame[2] * scale, frame[3] * scale, text, scale)
+        except Exception:  # like OCR, shapes only add to a read
+            return []
+
+    @staticmethod
+    def _text_section(boxes: list[ocr.TextBox], shapes: list[ocr.Shape] = ()) -> list[str]:
+        out = []
+        if boxes:
+            out += ["", "Text on the screenshot (OCR; this app exposes little to Accessibility, so act on it "
+                        "with x,y at a line's centre):", ocr.render(boxes)]
+        if shapes:
+            out += ["", "Icons and controls without text on the screenshot (outlines; check the screenshot "
+                        "for what each is, then act with x,y at its centre):", ocr.render_shapes(list(shapes))]
+        return out
 
     def _state_for(self, session: str, query: str) -> tuple[Any, WindowState]:
         app = self.resolve_app(query, launch=False)

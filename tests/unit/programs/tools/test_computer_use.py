@@ -170,6 +170,45 @@ def test_recognition_hints_put_preferred_languages_first_then_cjk_and_english():
     assert ocr.pick_languages(["de-AT"], ["en-US", "de-DE"]) == ["de-DE", "en-US"]
 
 
+def test_touching_outlines_merge_into_one_control_and_text_or_odd_sizes_are_dropped():
+    boxes = [(100, 100, 20, 30), (122, 110, 20, 20),   # one icon drawn as two outlines, 2 px apart
+             (300, 100, 40, 40),                        # a lone icon
+             (500, 104, 30, 30),                        # covers the word below
+             (10, 10, 6, 6), (10, 300, 400, 30), (600, 100, 20, 120)]   # a speck, a bar, a sliver
+    shapes = ocr.shapes_from_boxes(boxes, [ocr.TextBox("Save", 495, 100, 60, 40),
+                                           ocr.TextBox("前", 300, 100, 40, 40)], scale=2.0)  # a misread icon
+    assert shapes == [ocr.Shape(100, 100, 42, 30), ocr.Shape(300, 100, 40, 40)]
+    assert ocr.render_shapes(shapes).splitlines() == ["(121, 115), 42x30", "(320, 120), 40x40"]
+    many = [ocr.Shape(n * 40, 0, 20, 20) for n in range(ocr.MAX_SHAPES + 2)]
+    assert ocr.render_shapes(many).splitlines()[-1].startswith("…and 2 more")
+
+
+def test_vision_outlines_icons_that_carry_no_text():
+    if not ocr.available():
+        pytest.skip("Vision is not installed")
+    AppKit = pytest.importorskip("AppKit")
+    image = AppKit.NSImage.alloc().initWithSize_((600, 160))
+    image.lockFocus()
+    AppKit.NSColor.whiteColor().set()
+    AppKit.NSBezierPath.fillRect_(((0, 0), (600, 160)))
+    names = ["gearshape", "trash", "magnifyingglass", "square.and.arrow.up"]
+    for i, name in enumerate(names):
+        symbol = AppKit.NSImage.imageWithSystemSymbolName_accessibilityDescription_(name, None)
+        symbol.drawInRect_(((40 + i * 120, 90), (32, 32)))
+    font = {AppKit.NSFontAttributeName: AppKit.NSFont.systemFontOfSize_(22)}
+    AppKit.NSString.stringWithString_("Save changes").drawAtPoint_withAttributes_((40, 20), font)
+    image.unlockFocus()
+    bitmap = AppKit.NSBitmapImageRep.alloc().initWithData_(image.TIFFRepresentation())
+    png = bytes(bitmap.representationUsingType_properties_(AppKit.NSBitmapImageFileTypePNG, {}))
+    width, height = bitmap.pixelsWide(), bitmap.pixelsHigh()
+    scale = width / 600
+    shapes = ocr.detect_shapes(png, width, height, ocr.recognize(png, width, height), scale)
+    assert len(shapes) == len(names)
+    for shape, i in zip(shapes, range(len(names))):
+        cx, cy = shape.center
+        assert abs(cx / scale - (56 + i * 120)) < 8 and abs(cy / scale - (160 - 106)) < 8
+
+
 def test_only_the_window_walk_counts_towards_a_sparse_tree():
     nodes = [Node("AXWindow", 0), Node("AXButton", 1), Node("AXButton", 1), Node("AXMenuBar", 0), Node("AXMenuBarItem", 1)]
     assert macos._window_node_count(nodes) == 3
