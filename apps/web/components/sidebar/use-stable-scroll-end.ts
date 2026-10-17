@@ -21,7 +21,7 @@ export function useStableScrollEnd(
     let lastTop = scroller.scrollTop;
     let spare = 0;
     const setSpare = (value: number) => {
-      spare = Math.max(0, Math.round(value));
+      spare = Math.max(0, value);
       spacer.style.height = spare ? `${spare}px` : "";
     };
     const contentHeight = () => scroller.scrollHeight - spare;
@@ -40,8 +40,10 @@ export function useStableScrollEnd(
         scroller.scrollTop = lastTop;
       } else {
         lastTop = top;
-        // Give back whatever spacer has left the screen.
-        if (spare) setSpare(Math.min(spare, top + scroller.clientHeight - content));
+        // Give back whatever spacer has left the screen. scrollTop snaps
+        // to device pixels, so sub-pixel differences are not a move.
+        const onScreen = top + scroller.clientHeight - content;
+        if (spare && onScreen < spare - 1) setSpare(onScreen);
       }
       lastContent = content;
     };
