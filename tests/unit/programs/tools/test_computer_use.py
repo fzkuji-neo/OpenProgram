@@ -273,6 +273,7 @@ def test_the_tree_walk_stops_at_a_cycle_back_to_the_app_or_an_element_seen_befor
     graph = {"app": ["window", "menubar"], "window": ["button", "app"], "button": ["window"], "menubar": []}
     roles = {"app": "AXApplication", "window": "AXWindow", "button": "AXButton", "menubar": "AXMenuBar"}
     computer = macos.MacComputer()
+    monkeypatch.setattr(computer, "_other_space_windows", lambda root, windows: [])
     monkeypatch.setattr(computer, "_node", lambda element, depth: (
         Node(roles[element], depth, label=element), list(graph[element])))
     monkeypatch.setattr(computer, "_attr", lambda element, name: {
@@ -684,3 +685,78 @@ def test_chat_completions_models_see_tool_result_screenshots_and_hear_recordings
     assert both[4]["content"][1]["input_audio"]["format"] == "wav"
     assert [p["type"] for p in messages(["text", "image"])[4]["content"]] == ["text", "image_url"]
     assert [m["role"] for m in messages(["text"])] == ["user", "assistant", "tool", "tool", "user"]
+
+
+# ----------------------------------------------------------------- other Spaces
+
+def _off_space(monkeypatch, insert_result=True):
+    computer = macos.MacComputer()
+    inserted = []
+    monkeypatch.setattr(macos, "_frameworks", lambda: (None, None, None, None))
+    monkeypatch.setattr(computer, "_keys_reach", lambda pid, state: False)
+    monkeypatch.setattr(computer, "_insert", lambda pid, text: inserted.append(text) or insert_result)
+    monkeypatch.setattr(computer, "_focused_element", lambda pid: None)
+    monkeypatch.setattr(computer, "_refuse_secure_input", lambda: None)
+    monkeypatch.setattr(computer, "_post_chord", lambda *a, **k: pytest.fail("keys posted to another Space"))
+    monkeypatch.setattr(computer, "_post_text", lambda *a, **k: pytest.fail("keys posted to another Space"))
+    return computer, inserted
+
+
+def test_keys_for_a_window_on_another_space_become_inserted_text_or_an_error(monkeypatch):
+    computer, inserted = _off_space(monkeypatch)
+    assert "inserted 5 character(s)" in computer._do_type_text(None, 1, None, {"text": "hello"})
+    assert "as plain text" in computer._do_paste(None, 1, None, {"text": "<b>hi</b>", "format": "html"})
+    assert inserted == ["hello", "hi"]
+    with pytest.raises(base.ComputerUseError, match="another Space"):
+        computer._do_press_key(None, 1, None, {"key": "Escape"})
+    computer, _ = _off_space(monkeypatch, insert_result=False)
+    with pytest.raises(base.ComputerUseError, match="takes no inserted text"):
+        computer._do_type_text(None, 1, None, {"text": "x"})
+
+
+class _Sky:
+    available = True
+
+    def __init__(self):
+        self.searches = []
+
+    def remote_windows(self, pid, wanted):
+        self.searches.append(set(wanted))
+        return {wid: f"window {wid}" for wid in wanted if wid != 99}
+
+
+class _Cg:
+    kCGWindowListOptionOnScreenOnly = kCGNullWindowID = 0
+
+    @staticmethod
+    def CGWindowListCopyWindowInfo(option, window):  # noqa: N802 - Quartz name
+        return [{"kCGWindowNumber": 10}]
+
+
+class _Ax:
+    @staticmethod
+    def AXUIElementGetPid(root, _):  # noqa: N802 - HIServices name
+        return 0, 7
+
+
+def test_windows_on_other_spaces_are_found_once_per_set_of_window_ids(monkeypatch):
+    computer = macos.MacComputer()
+    sky = _Sky()
+    rows = [
+        {"kCGWindowNumber": 10, "kCGWindowOwnerPID": 7, "kCGWindowLayer": 0, "kCGWindowBounds": {"Width": 500, "Height": 400}},
+        {"kCGWindowNumber": 11, "kCGWindowOwnerPID": 7, "kCGWindowLayer": 0, "kCGWindowBounds": {"Width": 500, "Height": 400}},
+        {"kCGWindowNumber": 12, "kCGWindowOwnerPID": 7, "kCGWindowLayer": 0, "kCGWindowBounds": {"Width": 1512, "Height": 37}},
+        {"kCGWindowNumber": 13, "kCGWindowOwnerPID": 8, "kCGWindowLayer": 0, "kCGWindowBounds": {"Width": 500, "Height": 400}},
+    ]
+    monkeypatch.setattr(macos, "skylight", lambda: sky)
+    monkeypatch.setattr(macos, "_frameworks", lambda: (None, _Ax, _Cg, None))
+    monkeypatch.setattr(computer, "_window_rows", lambda: rows)
+    monkeypatch.setattr(computer, "_ax_window_id", lambda window: 0)
+    # 10 is on screen (listed by AXWindows already), 12 is a menu-bar strip, 13 is another app's.
+    assert computer._other_space_windows("root", []) == ["window 11"]
+    assert computer._other_space_windows("root", []) == ["window 11"]
+    assert sky.searches == [{11}]
+    rows.append({"kCGWindowNumber": 99, "kCGWindowOwnerPID": 7, "kCGWindowLayer": 0,
+                 "kCGWindowBounds": {"Width": 300, "Height": 200}})
+    assert computer._other_space_windows("root", []) == ["window 11"]
+    assert sky.searches == [{11}, {11, 99}]

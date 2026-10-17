@@ -169,6 +169,8 @@ class MacComputer:
         self._lock = threading.RLock()
         self._icons: dict[str, str] = {}
         self._recordings: dict[str, audio.Recording] = {}
+        # pid -> (window ids searched for, the elements found for them)
+        self._remote: dict[int, tuple[frozenset[int], dict[int, Any]]] = {}
 
     # ------------------------------------------------------------------ AX helpers
     def _attr(self, element, name):
@@ -432,8 +434,42 @@ class MacComputer:
     def _windows(self, root) -> list[Any]:
         # Some apps (QuickTime Player with no document open) list the
         # application element itself among their windows.
-        return [w for w in self._attr(root, "AXWindows") or []
-                if w != root and self._attr(w, "AXRole") == "AXWindow"]
+        windows = [w for w in self._attr(root, "AXWindows") or []
+                   if w != root and self._attr(w, "AXRole") == "AXWindow"]
+        return windows + self._other_space_windows(root, windows)
+
+    def _other_space_windows(self, root, windows: list[Any]) -> list[Any]:
+        """Windows of the app on other Spaces, which ``AXWindows`` leaves out.
+
+        Their ids are the app's off-screen ordinary windows that no listed
+        window has; their elements come from SkyLight's remote-token lookup,
+        searched again only when that set of ids changes.
+        """
+        if not skylight().available:
+            return []
+        _, ax, cg, _ = _frameworks()
+        error, pid = ax.AXUIElementGetPid(root, None)
+        if error:
+            return []
+        onscreen = {int(r.get("kCGWindowNumber", 0)) for r in cg.CGWindowListCopyWindowInfo(
+            cg.kCGWindowListOptionOnScreenOnly, cg.kCGNullWindowID) or []}
+        listed = {self._ax_window_id(w) for w in windows}
+        wanted = set()
+        for row in self._window_rows():
+            wid = int(row.get("kCGWindowNumber", 0))
+            bounds = row.get("kCGWindowBounds") or {}
+            if (int(row.get("kCGWindowOwnerPID", -1)) == pid and row.get("kCGWindowLayer") == 0
+                    and row.get("kCGWindowAlpha", 1) > 0 and wid not in onscreen and wid not in listed
+                    and float(bounds.get("Width", 0)) >= 80 and float(bounds.get("Height", 0)) >= 60):
+                wanted.add(wid)
+        if not wanted:
+            return []
+        key = frozenset(wanted)
+        cached = self._remote.get(pid)
+        if cached is None or cached[0] != key:
+            cached = (key, skylight().remote_windows(pid, wanted))
+            self._remote[pid] = cached
+        return [element for wid, element in sorted(cached[1].items()) if wid in wanted]
 
     def _ax_window_id(self, window) -> int:
         return (skylight().window_id(window) or 0) if skylight().available else 0
@@ -990,6 +1026,33 @@ class MacComputer:
         _, ax, _, _ = _frameworks()
         return self._attr(ax.AXUIElementCreateApplication(pid), "AXFocusedUIElement")
 
+    def _keys_reach(self, pid: int, state) -> bool:
+        """Whether posted keys reach the app's window. They do not while it is on
+        another Space: clicks and Accessibility actions arrive there, keys are dropped."""
+        _, ax, cg, _ = _frameworks()
+        root = ax.AXUIElementCreateApplication(pid)
+        windows = self._windows(root)
+        window = None
+        if state is not None and state.window_id:
+            window = next((w for w in windows if self._ax_window_id(w) == state.window_id), None)
+        if window is None:
+            focused = self._attr(root, "AXFocusedWindow")
+            window = focused if focused is not None else (windows[0] if windows else None)
+        if window is None or self._attr(window, "AXMinimized"):
+            return True
+        wid = self._ax_window_id(window)
+        if not wid:
+            return True
+        return any(int(r.get("kCGWindowNumber", 0)) == wid for r in cg.CGWindowListCopyWindowInfo(
+            cg.kCGWindowListOptionOnScreenOnly, cg.kCGNullWindowID) or [])
+
+    def _insert(self, pid: int, text: str) -> bool:
+        """Put ``text`` at the focused field's caret through Accessibility, replacing its selection."""
+        element = self._focused_element(pid)
+        if element is None or not self._settable(element, "AXSelectedText"):
+            return False
+        return self._set(element, "AXSelectedText", text) == 0
+
     # ------------------------------------------------------------------ actions
     # Actions that need no earlier state of the window, and actions that need
     # it only to resolve an element_index (otherwise they act on the focus).
@@ -1135,6 +1198,10 @@ class MacComputer:
             self._focus(self._element(state, args["element_index"]))
         if chord.text:
             self._refuse_secure_input()
+        if not self._keys_reach(pid, state):
+            raise ComputerUseError(
+                "The window is on another Space, where macOS does not deliver keys to it. Use element actions "
+                "(click, set_value, menu) instead; type_text and paste still insert text into a focused field.")
         self._post_chord(pid, chord, _seconds(args.get("duration"), "duration"))
         return f"pressed {args.get('key')}"
 
@@ -1155,6 +1222,13 @@ class MacComputer:
             self._focus(element)
         self._refuse_secure(None, self._focused_element(pid))
         self._refuse_secure_input()
+        if not self._keys_reach(pid, state):
+            if not self._insert(pid, text):
+                raise ComputerUseError(
+                    "The window is on another Space, where macOS does not deliver keys to it, and the focused "
+                    "element takes no inserted text. Focus a text field first, or use element actions.")
+            return (f"inserted {len(text)} character(s) at the focused field (the window is on another Space, "
+                    "where keys do not arrive; a newline went in as text, not as Return)")
         self._post_text(pid, text)
         return f"typed {len(text)} character(s)"
 
@@ -1247,6 +1321,14 @@ class MacComputer:
             self._focus(element)
         self._refuse_secure(None, self._focused_element(pid))
         self._refuse_secure_input()
+        if not self._keys_reach(pid, state):
+            plain = text if kind != "html" else _strip_tags(text)
+            if not self._insert(pid, plain):
+                raise ComputerUseError(
+                    "The window is on another Space, where macOS does not deliver the paste shortcut, and the "
+                    "focused element takes no inserted text. Focus a text field first, or use element actions.")
+            return (f"inserted {len(plain)} character(s) at the focused field as plain text (the window is on "
+                    "another Space, where the paste shortcut does not arrive)")
         board = appkit.NSPasteboard.generalPasteboard()
         saved = _save_pasteboard(board)
         board.clearContents()
@@ -1451,9 +1533,10 @@ class MacComputer:
             frame = self._frame(window)
             wid = self._window_id(window, pid, frame)
             if wid and wid not in self._onscreen_ids(pid):
-                raise ComputerUseError(
-                    "The window is on another desktop Space. Element actions still reach it; for coordinate "
-                    "actions or a screenshot of it, ask the user to move it to the current Space.")
+                return Report(
+                    "the window is on another Space and stays there: macOS lets only the Dock move windows between "
+                    "Spaces. Screenshots, clicks and element actions reach it as it is; keys do not, so type_text "
+                    "and paste insert into the focused field and press_key fails.")
             return Report("the window is already showing")
         time.sleep(0.4)
         return "; ".join(done) + " (the app stays in the background)"
