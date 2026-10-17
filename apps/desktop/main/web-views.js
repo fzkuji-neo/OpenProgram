@@ -779,8 +779,9 @@ function createWebViews({
   // Region screenshot: the user drags a rectangle over the page and the
   // chat gets those pixels. The overlay lives in the picker's isolated world
   // and shares its cancel hook, so Escape or Cancel ends either mode. It is
-  // removed and two frames painted before the rectangle is returned, so the
-  // capture never contains it.
+  // removed and two frames painted (or 150 ms passed, on a page that is not
+  // painting) before the rectangle is returned, so the capture never
+  // contains it.
   const REGION_SOURCE = `(() => new Promise((resolve) => {
     window.__openprogramPick?.cancel();
     const root = document.documentElement;
@@ -828,7 +829,11 @@ function createWebViews({
       layer.remove();
       delete window.__openprogramPick;
       if (!value) { resolve(null); return; }
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve(value)));
+      // A page that is not painting runs no frames; the timer stands in.
+      let done = false;
+      const settle = () => { if (!done) { done = true; resolve(value); } };
+      requestAnimationFrame(() => requestAnimationFrame(settle));
+      setTimeout(settle, 150);
     };
     window.addEventListener("mousedown", down, true);
     window.addEventListener("mousemove", move, true);
