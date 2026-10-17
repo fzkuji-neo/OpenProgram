@@ -103,6 +103,8 @@ The first time a conversation touches an application, an approval card names it 
 
 The card appears in every permission mode, Auto and Bypass included: only a saved rule for that application skips it. Scheduled and other unattended runs cannot answer a card, so they can only operate applications already allowed for the project. `list_apps` never asks. Each application is approved separately: allowing Notes says nothing about Mail. Rules can be inspected and removed like any other permission rule; see [Permissions](permissions.md).
 
+Allowing an application lets the model operate it; it does not let the model take consequential steps on its own. The tool instructs the model to prepare a step and ask you right before it: always for deleting data, sending or submitting anything to other people, payments and subscriptions, new accounts or access keys, installing software and changing system settings; for logins, uploads, file moves and typing personal data unless your request named them. CAPTCHAs, passwords and security prompts are handed to you. Text the model reads on screen is never treated as your permission.
+
 ## Requirements
 
 - macOS. Windows and Linux are not supported yet.
