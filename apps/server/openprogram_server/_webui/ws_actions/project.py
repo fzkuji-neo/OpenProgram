@@ -294,7 +294,8 @@ async def handle_relocate_project(ws, cmd: dict):
     follows), not the session→project binding, so the freeze from
     ``set_session_project`` stays intact. The move lands as a
     ``project/relocate`` node on ``caller=ROOT``, which leaves head
-    where it was."""
+    where it was. When a missing project folds into the project that
+    already owns ``path``, the reply's ``project_id`` names that owner."""
     session_id = (cmd.get("session_id") or "").strip()
     project_id = (cmd.get("project_id") or "").strip()
     path = (cmd.get("path") or "").strip()
@@ -302,6 +303,7 @@ async def handle_relocate_project(ws, cmd: dict):
     expected_revision = cmd.get("expected_revision")
     replace_identity = bool(cmd.get("replace_identity"))
     ok, error, old_path, node_id = False, None, None, None
+    resolved_id = project_id
     if not project_id or not path:
         error = "project_id and path are required"
     elif not os.path.isdir(os.path.expanduser(path)):
@@ -315,16 +317,16 @@ async def handle_relocate_project(ws, cmd: dict):
                 expected_path = before.path
             if expected_revision is None and before is not None:
                 expected_revision = getattr(before, "location_revision", 0)
-            _projects.relocate_project(
+            resolved_id = _projects.relocate_project(
                 project_id, path,
                 expected_path=expected_path,
                 expected_revision=expected_revision,
                 replace_identity=replace_identity,
-            )
+            ).id
             ok = True
         except Exception as e:  # noqa: BLE001
             error = f"{type(e).__name__}: {e}"
-    if ok and session_id:
+    if ok and session_id and resolved_id == project_id:
         try:
             from openprogram.agent.session_db import default_db
             from openprogram.store.project.relocate_node import record_relocate
@@ -335,7 +337,7 @@ async def handle_relocate_project(ws, cmd: dict):
             node_id = None
     await ws.send_text(json.dumps({
         "type": "project_relocated",
-        "data": {"ok": ok, "session_id": session_id, "project_id": project_id,
+        "data": {"ok": ok, "session_id": session_id, "project_id": resolved_id,
                  "old_path": old_path, "path": path, "node_id": node_id,
                  "error": error},
     }, default=str))

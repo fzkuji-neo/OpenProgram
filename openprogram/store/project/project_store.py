@@ -839,6 +839,29 @@ def resolve_project(path: str | Path | None = None, *, name: str | None = None) 
                             expected_revision=owner.location_revision, require_identity=True)
 
 
+def _fold_into(stale: Project, owner: Project) -> Project:
+    """Drop a registration whose folder is gone in favour of the project
+    that already owns the folder the user located.
+
+    This happens when a folder was moved and then opened again, which
+    registers it a second time. Only a registration without conversations
+    folds: conversations stay bound to the project they started in.
+    """
+    if stale.is_default or owner.is_default:
+        raise ProjectStoreError("destination belongs to another project")
+    if stale.path and Path(stale.path).expanduser().is_dir():
+        raise ProjectStoreError(f"this folder is already the project “{owner.name}”")
+    if stale.session_ids:
+        raise ProjectStoreError(
+            f"this folder is already the project “{owner.name}”; "
+            "the missing project keeps its conversations until its own folder is found")
+    with _registry_transaction():
+        reg = _read_registry()
+        reg.pop(stale.id, None)
+        _write_registry(reg)
+    return owner
+
+
 def relocate_project(
     project_id: str,
     new_path: str | Path,
@@ -862,10 +885,11 @@ def relocate_project(
             raise ProjectStoreError("project changed during location update")
         if expected_revision is not None and int(proj.location_revision) != int(expected_revision):
             raise ProjectStoreError("project changed during location update")
-        if any(other.id != project_id and other.path
-               and Path(other.path).expanduser().resolve() == p.resolve()
-               for other in list_projects()):
-            raise ProjectStoreError("destination belongs to another project")
+        owner = next((other for other in list_projects()
+                      if other.id != project_id and other.path
+                      and Path(other.path).expanduser().resolve() == p.resolve()), None)
+        if owner is not None:
+            return _fold_into(proj, owner)
         if proj.is_default:
             raise ProjectStoreError("the default project cannot be relocated")
         from .identity import read_marker
