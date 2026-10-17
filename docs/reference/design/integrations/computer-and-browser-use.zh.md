@@ -126,7 +126,7 @@ computer_use(action, app, element_index | x,y, …)
 - Playwright MCP 用原生的 `browser_click` 选项、`browser_drag`、`browser_mouse_drag_xy`、双轴的 `browser_mouse_wheel` 和 `browser_navigate_back`；Chrome DevTools MCP 用 `click(dblClick)`、`drag` 和 `navigate_page(back|forward|reload)`。后端做不到的选项在发送任何东西之前抛出 `unsupported_option`，而不是退而执行一个更弱的动作。
 - `paste` 派发一个携带 `DataTransfer` 的 `ClipboardEvent`；页面不处理时，用 `insertHTML`（富文本编辑器，`md`/`html`）或 `insertText` 插入。系统剪贴板从不被触碰。
 
-相对 Codex 仍缺：标签页管理（`createBrowserTab` 可见或隐藏、`listTabs`、按 URL 或提及 `getTab`）、以 diff 形式观察、受控的 JavaScript `evaluate`。任意求值能读到已登录页面持有的一切，包括观察结果里被脱敏的内容，所以在它能带上逐次审批之前不做。
+标签页对应已有命令：`list_pages` 即 `listTabs`，从它拿到的 Page 别名即 `getTab`，带 `url` 的 `observe` 会打开一个隐藏的后台标签页（即隐藏的 `createBrowserTab`），除非已绑定的 Page 正显示同一来源；`close` 结束会话。相对 Codex 仍缺：打开会抢焦点的可见标签页、以 diff 形式观察、受控的 JavaScript `evaluate`。可见标签页会挪走用户的焦点，而后台操作正是要避免这一点。任意求值能读到已登录页面持有的一切，包括观察结果里被脱敏的内容，所以在它能带上逐次审批之前不做。
 
 ## 界面工作
 

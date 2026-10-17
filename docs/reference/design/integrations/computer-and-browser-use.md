@@ -126,7 +126,7 @@ The argument names are `computer_use`'s (`mouse_button`, `click_count`, `directi
 - Playwright MCP uses its native `browser_click` options, `browser_drag`, `browser_mouse_drag_xy`, `browser_mouse_wheel` with both axes and `browser_navigate_back`; Chrome DevTools MCP uses `click(dblClick)`, `drag`, and `navigate_page(back|forward|reload)`. An option a backend cannot perform raises `unsupported_option` before anything is sent, rather than performing a weaker action.
 - `paste` dispatches a `ClipboardEvent` carrying a `DataTransfer`; when the page does not handle it, the text is inserted with `insertHTML` (rich editors, `md`/`html`) or `insertText`. The system clipboard is never touched.
 
-Still missing against Codex: tab management (`createBrowserTab` visible or hidden, `listTabs`, `getTab` by URL or mention), observation as a diff, and gated JavaScript `evaluate`. Arbitrary evaluation reads everything a signed-in page holds, including what the observation redacts, so it is left out until it can carry its own per-call approval.
+Tabs map onto existing commands: `list_pages` is `listTabs`, a Page alias from it is `getTab`, `observe` with a `url` opens a hidden background tab (`createBrowserTab` hidden) unless a bound Page already shows that origin, and `close` ends the session. Still missing against Codex: opening a visible tab that takes focus, observation as a diff, and gated JavaScript `evaluate`. A visible tab would move the user's focus, which background operation deliberately avoids. Arbitrary evaluation reads everything a signed-in page holds, including what the observation redacts, so it is left out until it can carry its own per-call approval.
 
 ## Interface work
 
