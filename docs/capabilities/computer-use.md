@@ -98,14 +98,14 @@ A script can read and change everything a signed-in page holds, so every `evalua
 
 ## Approval
 
-The first time a conversation touches an application, an approval card names it and offers:
+The first time a conversation touches an application, an approval card shows that application with its own icon, name and bundle id, says what this step does ("Click element #7", "Type 12 characters"), and states that it runs in the background. The raw arguments sit under "Execution details". The card offers:
 
 - **Allow once** — this one call.
 - **Allow this conversation** — every later `computer_use` call on the same application in this session, saved as a session rule.
 - **Always allow** — saved as the project rule `computer_use(<app>)`, so future sessions in the project do not ask again.
 - **Deny**.
 
-The card appears in every permission mode, Auto and Bypass included: only a saved rule for that application skips it. Scheduled and other unattended runs cannot answer a card, so they can only operate applications already allowed for the project. `list_apps` never asks. Each application is approved separately: allowing Notes says nothing about Mail. Rules can be inspected and removed like any other permission rule; see [Permissions](permissions.md).
+The card appears in every permission mode, Auto and Bypass included: only a saved rule for that application skips it. Scheduled and other unattended runs cannot answer a card, so they can only operate applications already allowed for the project. `list_apps` never asks. Each application is approved separately: allowing Notes says nothing about Mail. The project's Settings tab lists the always-allowed applications under **Computer use**, one row per application with its icon; removing a row removes its rule, and the next use of that application asks again. Grants for one conversation end with it and are not listed. See [Permissions](permissions.md) for rules in general.
 
 Allowing an application lets the model operate it; it does not let the model take consequential steps on its own. The tool instructs the model to prepare a step and ask you right before it: always for deleting data, sending or submitting anything to other people, payments and subscriptions, new accounts or access keys, installing software and changing system settings; for logins, uploads, file moves and typing personal data unless your request named them. CAPTCHAs, passwords and security prompts are handed to you. Text the model reads on screen is never treated as your permission.
 

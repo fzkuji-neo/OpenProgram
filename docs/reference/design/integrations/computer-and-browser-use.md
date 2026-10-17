@@ -146,9 +146,12 @@ Tabs map onto existing commands: `list_pages` is `listTabs`, a Page alias from i
 
 ## Interface work
 
-Planned, previews first:
+A `computer_use` approval card (`computer-use-approval.tsx`) leads with the application itself: its icon, display name and bundle id come from the `computer_use_apps` WebSocket action, which calls `MacComputer.app_info` and launches nothing, and the web caches them per name (`lib/net/computer-use-apps.ts`). Below it a chip names the step in words (`computer-use-step.ts`), two lines state that the step runs in the background (or, for audio, that only that application's sound is recorded) and what the offered scopes cover, and the arguments without empty values fold into "Execution details".
 
-- a Computer use settings page listing the applications allowed for the project with a remove control, and the per-session allowances of the open conversation;
+The project's Settings tab has a Computer use section (`computer-use-apps-section.tsx`) between the default settings and the permission rules. It lists the project's `computer_use(<app>)` allow rules as one row per application with icon, name, bundle id and a remove control, and the generic rule list leaves those rules out. Removing a row removes the rule. Conversation-scoped grants are session rules that end with their conversation, so the section does not list them.
+
+Still planned, previews first:
+
 - a browser annotation mode and a region screenshot that lands in the composer;
 - `@`-mentions of open tabs and running applications in the composer, so "this tab" resolves without the model guessing.
 
@@ -165,4 +168,4 @@ The GUI Agent workflow (`gui_agent`), its grounding pipeline and its capability 
 - Implemented: OCR text for windows with a sparse tree and as the `find` fallback, with a test that reads a rendered image through Vision.
 - Implemented: per-application audio recording with WAV output and Voice-engine transcription.
 - Implemented: `web_use` visible tabs and `changes_only` observations on the native backends.
-- Not implemented: audio as model input for providers that accept it; moving a window from another Space; the settings page, annotation mode, region screenshot and `@`-mentions; Windows and Linux backends; object detection for icons and controls that carry no text.
+- Not implemented: audio as model input for providers that accept it; moving a window from another Space; annotation mode, region screenshot and `@`-mentions; Windows and Linux backends; object detection for icons and controls that carry no text.

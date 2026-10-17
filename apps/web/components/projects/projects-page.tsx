@@ -25,6 +25,7 @@ import { ChatsPage } from "@/components/chats/chats-page";
 import { MemoryPage } from "@/components/memory";
 import { useSessionStore, type ConvSummary } from "@/lib/session-store";
 import { PermissionsSection } from "./permissions-section";
+import { ComputerUseAppsSection } from "./computer-use-apps-section";
 import { ProjectConfigSection } from "./project-config-section";
 
 interface Project extends EditableProject {
@@ -407,6 +408,10 @@ export function ProjectsPage({
                   <div className={styles.tabBody}>
                     <div className={styles.sectionTitle}>{text("Default Settings", "默认设置")}</div>
                     <ProjectConfigSection projectId={selected.id} />
+                    <div className={styles.sectionTitle} style={{ marginTop: 28 }}>
+                      {text("Computer use", "操控电脑")}
+                    </div>
+                    <ComputerUseAppsSection projectId={selected.id} />
                     <div className={styles.sectionTitle} style={{ marginTop: 28 }}>
                       {text("Permission Rules", "权限规则")}
                     </div>

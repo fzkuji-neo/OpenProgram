@@ -12,6 +12,7 @@ import { useTranslation } from "@/lib/i18n";
 import { wsRequest } from "@/lib/net/ws-request";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { computerUseRuleApp } from "@/lib/computer-use-rule";
 
 type Behavior = "deny" | "ask" | "allow";
 type Rules = Record<Behavior, string[]>;
@@ -84,6 +85,9 @@ export function PermissionsSection({ projectId }: { projectId: string }) {
   };
   const add = (behavior: Behavior) => void mutate(behavior, draft[behavior].trim(), true);
   const remove = (behavior: Behavior, rule: string) => void mutate(behavior, rule, false);
+  // Apps allowed for computer use have their own section with icons and names.
+  const shown = (behavior: Behavior) => behavior === "allow"
+    ? rules.allow.filter((rule) => computerUseRuleApp(rule) === null) : rules[behavior];
 
   return (
     <div aria-busy={pending}>
@@ -105,13 +109,13 @@ export function PermissionsSection({ projectId }: { projectId: string }) {
             <strong>{text(en, zh)}</strong>
           </div>
 
-          {rules[key].length === 0 ? (
+          {shown(key).length === 0 ? (
             <div style={{ color: "var(--text-muted)", fontSize: "var(--fs-base)", paddingLeft: 16 }}>
               {text("No rules.", "暂无规则。")}
             </div>
           ) : (
             <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-              {rules[key].map((rule) => (
+              {shown(key).map((rule) => (
                 <li key={rule} style={{
                   display: "flex", justifyContent: "space-between", alignItems: "center",
                   padding: "6px 12px", borderRadius: 8,
