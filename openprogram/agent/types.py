@@ -10,6 +10,7 @@ from pydantic import PrivateAttr, BaseModel, Field, model_validator
 
 from openprogram.providers.types import (
     AssistantMessageEvent,
+    AudioContent,
     ImageContent,
     Message,
     Model,
@@ -96,7 +97,7 @@ class AgentLoopConfig(SimpleStreamOptions):
 
 class AgentToolResult(BaseModel):
     """Result of a tool execution."""
-    content: list[TextContent | ImageContent]
+    content: list[TextContent | ImageContent | AudioContent]
     details: Any = None
     is_error: bool = False
 

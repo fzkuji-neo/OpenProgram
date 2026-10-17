@@ -42,7 +42,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional, Union
 
 from openprogram.agent.types import AgentToolResult
-from openprogram.providers.types import ImageContent, TextContent
+from openprogram.providers.types import AudioContent, ImageContent, TextContent
 
 
 DEFAULT_MAX_RESULT_CHARS = 30_000
@@ -63,6 +63,8 @@ class ToolReturn:
     """
     text: Optional[str] = None
     images: list[Union[bytes, str]] = field(default_factory=list)
+    # WAV recordings; providers whose model accepts audio input pass them on.
+    audio: list[bytes] = field(default_factory=list)
     json_data: Any = None
     is_error: bool = False
 
@@ -148,6 +150,7 @@ def _normalize_result(
         return raw
 
     images: list[ImageContent] = []
+    audio: list[AudioContent] = []
     is_error = False
     json_payload: Any = None
     text_part: Optional[str] = None
@@ -163,6 +166,9 @@ def _normalize_result(
                 images.append(ImageContent(data=b64, mime_type="image/png"))
             elif isinstance(img, str):
                 images.append(ImageContent(data=img, mime_type="image/png"))
+        import base64
+        audio = [AudioContent(data=base64.b64encode(clip).decode("ascii"), mime_type="audio/wav")
+                 for clip in raw.audio if clip]
     elif isinstance(raw, str):
         text_part = raw
     elif raw is None:
@@ -205,6 +211,7 @@ def _normalize_result(
     if text_part:
         content.append(TextContent(text=text_part))
     content.extend(images)
+    content.extend(audio)
     if not content:
         content.append(TextContent(text=""))
 

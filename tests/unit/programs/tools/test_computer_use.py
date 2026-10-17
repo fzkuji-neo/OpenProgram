@@ -551,3 +551,33 @@ def test_wait_needs_no_state_and_is_bounded(monkeypatch):
     with pytest.raises(macos.ComputerUseError):
         computer.act("s", "wait", {"app": "Music", "duration": 11})
     assert {"hover", "wait"} <= set(tool.ACTING_ACTIONS)
+
+
+def test_a_recording_reaches_models_that_hear_audio_and_only_them():
+    import base64
+    from openprogram.programs._execution_common import ToolReturn, _normalize_result
+    from openprogram.providers._shared.google import convert_messages
+    from openprogram.providers.types import (AssistantMessage, Context, Model, ToolCall, ToolResultMessage,
+                                             UserMessage)
+
+    result = _normalize_result(ToolReturn(text="Recorded 1 seconds of Chess.", audio=[b"RIFFwav"]), call_id="c1",
+                               max_chars=10_000, persist_full=False, head_ratio=0.5)
+    assert [c.type for c in result.content] == ["text", "audio"]
+    assert base64.b64decode(result.content[1].data) == b"RIFFwav" and result.content[1].mime_type == "audio/wav"
+
+    def contents(inputs):
+        model = Model(id="gemini-2.5-pro", name="g", api="google-generative-ai", provider="google",
+                      base_url="", input=inputs)
+        calls = [ToolCall(id=f"c{i}", name="computer_use", arguments={}) for i in (1, 2)]
+        messages = [UserMessage(content="listen", timestamp=0),
+                    AssistantMessage(content=calls, api=model.api, provider=model.provider, model=model.id, timestamp=0),
+                    *[ToolResultMessage(tool_call_id=f"c{i}", tool_name="computer_use", content=result.content, timestamp=0)
+                      for i in (1, 2)]]
+        return convert_messages(model, Context(messages=messages))
+
+    heard = contents(["text", "audio"])
+    # Both function responses stay in one turn; the audio follows it.
+    assert sum("functionResponse" in p for p in heard[-2]["parts"]) == 2
+    assert [p.get("inlineData", {}).get("mimeType") for p in heard[-1]["parts"]] == [None, "audio/wav", None, "audio/wav"]
+    deaf = contents(["text", "image"])
+    assert not any("inlineData" in p for turn in deaf for p in turn["parts"])
