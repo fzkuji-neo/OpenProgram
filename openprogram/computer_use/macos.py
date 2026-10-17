@@ -302,12 +302,14 @@ class MacComputer:
             raise ComputerUseError("app is required: a name, bundle id or .app path from list_apps")
         app = self._running_match(query)
         if app is None:
+            # A refused app says so whether or not it is running.
+            target = self._installed_match(query)
+            if target is not None:
+                self._refuse(target["bundle_id"], target["display_name"])
             if not launch:
                 raise ComputerUseError(f"{query!r} is not running")
-            target = self._installed_match(query)
             if target is None:
                 raise ComputerUseError(f"No application matches {query!r}. Call list_apps to see what is available.")
-            self._refuse(target["bundle_id"], target["display_name"])
             subprocess.run(["/usr/bin/open", "-g", "-b", target["bundle_id"]], check=False,
                            capture_output=True, timeout=20)
             deadline = time.monotonic() + 20

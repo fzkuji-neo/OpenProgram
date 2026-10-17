@@ -153,6 +153,20 @@ def test_approval_card_offers_the_conversation_scope_for_computer_use():
     assert "session" in _APPROVAL_SCOPES
 
 
+@pytest.mark.parametrize("launch", [True, False])
+def test_refused_apps_are_refused_before_launch_whether_or_not_running(monkeypatch, launch):
+    from openprogram.computer_use import macos
+    computer = macos.MacComputer()
+    launched = []
+    monkeypatch.setattr(computer, "_running_match", lambda _q: None)
+    monkeypatch.setattr(computer, "_installed_match", lambda _q: {
+        "bundle_id": "com.apple.Passwords", "display_name": "Passwords", "name": "Passwords", "path": ""})
+    monkeypatch.setattr(macos.subprocess, "run", lambda *a, **k: launched.append(a))
+    with pytest.raises(macos.ComputerUseError, match="cannot be controlled"):
+        computer.resolve_app("Passwords", launch=launch)
+    assert launched == []
+
+
 # ----------------------------------------------------------------- text helpers
 
 def test_find_text_honours_prefix_and_suffix_and_utf16_offsets():
