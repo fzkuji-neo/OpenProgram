@@ -1,7 +1,9 @@
 "use client";
 
 /**
- * Floating menu for ``@file`` mentions in the composer.
+ * Floating menu for ``@`` mentions in the composer: open web tabs and
+ * running apps (when the composer supplies them), then files, each group
+ * under its own heading.
  *
  * Owns nothing of its own — the parent composer drives ``items``,
  * ``selectedIndex``, ``onPick``. Layout mirrors the slash menu (same
@@ -14,10 +16,14 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "@/lib/i18n";
 import { FileTypeIcon } from "@/components/files/file-type-icon";
 import { SolarIcon } from "@/components/solar-icons";
+import { TabFavicon } from "@/components/center-tabs/tab-favicon";
 
-export interface FileMatch {
-  path: string;
-  is_dir: boolean;
+import { mentionHost, mentionKey, type Mention } from "./mention-sources";
+
+export type FileMatch = Mention;
+
+function kindOf(item: Mention): "tab" | "app" | "file" {
+  return item.kind ?? "file";
 }
 
 interface FileMenuProps {
@@ -70,15 +76,35 @@ export function FileMenu({
       ) : items.length === 0 ? (
         <div style={{ padding: "2.5px 8px", color: "var(--text-muted)" }}>
           {query
-            ? text(`No files match "${query}"`, `没有匹配“${query}”的文件`)
+            ? text(`Nothing matches "${query}"`, `没有匹配“${query}”的内容`)
             : text("Type to search files", "输入以搜索文件")}
         </div>
       ) : (
         items.map((item, i) => {
           const selected = i === selectedIndex;
+          const kind = kindOf(item);
+          const heading = kind !== kindOf(items[i - 1] ?? item) || i === 0
+            ? { tab: text("Tabs", "标签页"), app: text("Running apps", "正在运行的应用"), file: text("Files", "文件") }[kind]
+            : null;
+          // Headings appear only once tabs or apps share the menu with files.
+          const grouped = items.some((other) => kindOf(other) !== "file");
           return (
+            <React.Fragment key={mentionKey(item)}>
+            {grouped && heading && (
+              <div
+                role="presentation"
+                style={{
+                  padding: i === 0 ? "2px 8px" : "6px 8px 2px",
+                  color: "var(--text-muted)",
+                  fontFamily: "var(--font-sans)",
+                  fontSize: 11,
+                  lineHeight: "16px",
+                }}
+              >
+                {heading}
+              </div>
+            )}
             <div
-              key={item.path}
               role="option"
               aria-selected={selected}
               onMouseEnter={() => onHover(i)}
@@ -110,18 +136,31 @@ export function FileMenu({
                   color: "var(--text-muted)",
                 }}
               >
-                {item.is_dir ? <SolarIcon name="folder-with-files" size={16} /> : <FileTypeIcon name={item.path} />}
+                {item.kind === "tab"
+                  ? <TabFavicon url={item.faviconUrl} />
+                  : item.kind === "app"
+                    ? item.icon
+                      ? <img src={item.icon} alt="" width={16} height={16} style={{ display: "block" }} />
+                      : <SolarIcon name="monitor" size={16} />
+                    : item.is_dir ? <SolarIcon name="folder-with-files" size={16} /> : <FileTypeIcon name={item.path} />}
               </span>
               <span
                 style={{
                   flex: 1,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
+                  ...(item.kind === "tab" || item.kind === "app" ? { fontFamily: "var(--font-sans)" } : {}),
                 }}
               >
-                {item.path}{item.is_dir ? "/" : ""}
+                {item.kind === "tab" ? item.title : item.kind === "app" ? item.name : `${item.path}${item.is_dir ? "/" : ""}`}
               </span>
+              {(item.kind === "tab" || item.kind === "app") && (
+                <span style={{ flexShrink: 0, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", color: "var(--text-muted)" }}>
+                  {item.kind === "tab" ? mentionHost(item.url) : item.bundle_id}
+                </span>
+              )}
             </div>
+            </React.Fragment>
           );
         })
       )}

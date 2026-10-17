@@ -9,7 +9,7 @@ import { parseHTML } from 'linkedom';
 const rootURL = new URL('../../', import.meta.url);
 const hooks = registerHooks({
     resolve(s, c, next) {
-        const mocks = { '@/lib/i18n': 'export const useTranslation=()=>({text:x=>x});', '@/components/files/file-type-icon': 'export const FileTypeIcon=()=>null;', '@/components/solar-icons': 'export const SolarIcon=()=>null;' };
+        const mocks = { '@/lib/i18n': 'export const useTranslation=()=>({text:x=>x});', '@/components/files/file-type-icon': 'export const FileTypeIcon=()=>null;', '@/components/solar-icons': 'export const SolarIcon=()=>null;', '@/components/center-tabs/tab-favicon': 'export const TabFavicon=()=>null;' };
         if (mocks[s])
             return { url: 'data:text/javascript,' + encodeURIComponent(mocks[s]), shortCircuit: true };
         const base = s.startsWith('@/') ? new URL(s.slice(2), rootURL) : s.startsWith('.') ? new URL(s, c.parentURL) : null;

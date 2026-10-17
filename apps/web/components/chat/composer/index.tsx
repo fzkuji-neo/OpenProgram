@@ -49,6 +49,10 @@ import { AttachmentStrip } from "./attach/attachment-strip";
 import { attachmentsBlockSend } from "./attach/attachment-session-cache";
 import { useComposerAttachments } from "./attach/use-composer-attachments";
 import { useFileMention } from "./attach/use-file-mention";
+import type { MentionSources } from "./attach/mention-sources";
+import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
+import { runningApps } from "@/lib/net/computer-use-apps";
+import { onComposerFiles, takeComposerFiles } from "@/lib/composer-inbox";
 import { useFnFormState } from "./modes/fn-form/use-fn-form-state";
 import { useFnFormWrapper } from "./modes/fn-form/use-fn-form-wrapper";
 import { useFnFormSubmit } from "./modes/fn-form/use-fn-form-submit";
@@ -94,6 +98,9 @@ function wsSend(payload: unknown): boolean {
 }
 
 const noop = () => {};
+
+// An @ in the draft can name an open web tab or a running app, not only a file.
+const MENTION_SOURCES: MentionSources = { tabs: () => useCenterTabs.getState().tabs, apps: runningApps };
 
 /**
  * @param boundSessionId  Render this composer against a SPECIFIC session
@@ -152,6 +159,18 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
     detachForSubmit: detachAttachmentsForSubmit,
   } = useComposerAttachments(bound);
 
+  // Files sent here from elsewhere in the window (a web tab's region
+  // screenshot) arrive as if dropped on this composer.
+  useEffect(() => {
+    if (!activeChatKey) return;
+    const take = () => {
+      const files = takeComposerFiles(activeChatKey);
+      if (files.length) void addFiles(files);
+    };
+    take();
+    return onComposerFiles(take);
+  }, [activeChatKey, addFiles]);
+
   // Refs declared up-front so the @file mention hook below can
   // reference them. The other refs (wrapper, sendBtn, plus menu,
   // thinking pill) get declared in their original spot.
@@ -187,7 +206,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
   // positioning + picker all live in ./use-file-mention now. The hook
   // owns the 6 useStates + 2 effects + pickFile callback that used to
   // sit here.
-  const fileMention = useFileMention({ input, setInput, textareaRef });
+  const fileMention = useFileMention({ input, setInput, textareaRef, sources: MENTION_SOURCES });
 
   // Thinking-effort + plus-menu + tools toggles each live in their own
   // dedicated hooks now — see ./use-thinking-effort, ./use-tools-toggles.

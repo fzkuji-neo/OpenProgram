@@ -1696,11 +1696,23 @@ def _computer_use_apps(queries: list[str]) -> list[dict]:
     return out
 
 
+def _computer_use_running_apps() -> list[dict]:
+    """The running apps the composer's @ menu offers; empty where there is no backend."""
+    try:
+        from openprogram.computer_use.macos import ComputerUseError, backend
+        return backend().running_apps()
+    except (ComputerUseError, ImportError, OSError):
+        return []
+
+
 async def handle_computer_use_apps(ws, cmd: dict):
-    """Look up apps by the names the model used; launches nothing."""
+    """Look up apps by the names the model used, or with ``running`` list the
+    running ones; launches nothing."""
     raw = cmd.get("apps")
     response = {"request_id": cmd.get("request_id"), "action": cmd.get("action"), "status": "ok"}
-    if not isinstance(raw, list) or not all(isinstance(q, str) for q in raw) or len(raw) > _MAX_APP_LOOKUPS:
+    if cmd.get("running") is True:
+        response["apps"] = await asyncio.to_thread(_computer_use_running_apps)
+    elif not isinstance(raw, list) or not all(isinstance(q, str) for q in raw) or len(raw) > _MAX_APP_LOOKUPS:
         response.update(status="error", error=f"apps must be a list of at most {_MAX_APP_LOOKUPS} names")
     else:
         queries = list(dict.fromkeys(q.strip()[:200] for q in raw if q.strip()))

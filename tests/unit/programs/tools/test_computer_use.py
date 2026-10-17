@@ -472,6 +472,37 @@ def test_app_lookup_dedupes_names_and_launches_nothing(monkeypatch):
     assert [app["name"] for app in reply["data"]["apps"]] == ["Notes", "Mail"] and seen == ["notes", "mail"]
 
 
+def test_the_mention_menu_lists_running_regular_apps_but_not_refused_ones(monkeypatch):
+    import os
+
+    class _App:
+        def __init__(self, name, bundle, pid, policy=0):
+            self.name, self.bundle, self.pid, self.policy = name, bundle, pid, policy
+        def bundleIdentifier(self): return self.bundle
+        def localizedName(self): return self.name
+        def processIdentifier(self): return self.pid
+        def activationPolicy(self): return self.policy
+        def isTerminated(self): return False
+        def bundleURL(self): return None
+
+    class _AppKit:
+        NSApplicationActivationPolicyRegular = 0
+
+    apps = [_App("Notes", "com.apple.Notes", 11), _App("Calculator", "com.apple.calculator", 12),
+            _App("Passwords", "com.apple.Passwords", 13), _App("Dock helper", "com.apple.dock.extra", 14, policy=1),
+            _App("Me", "com.example.me", os.getpid())]
+    monkeypatch.setattr(macos, "_appkit", lambda: _AppKit)
+    monkeypatch.setattr(macos, "running_applications", lambda appkit: apps)
+    computer = macos.MacComputer.__new__(macos.MacComputer)
+    listed = computer.running_apps()
+    assert [(a["name"], a["bundle_id"]) for a in listed] == [("Calculator", "com.apple.calculator"),
+                                                             ("Notes", "com.apple.Notes")]
+
+    monkeypatch.setattr(macos, "backend", lambda: computer)
+    reply = _ws_reply({"running": True, "request_id": "r2"})["data"]
+    assert reply["status"] == "ok" and [a["name"] for a in reply["apps"]] == ["Calculator", "Notes"]
+
+
 def test_app_lookup_rejects_anything_but_a_short_list_of_names():
     assert _ws_reply({"apps": "notes"})["data"]["status"] == "error"
     assert _ws_reply({"apps": ["x"] * 51})["data"]["status"] == "error"

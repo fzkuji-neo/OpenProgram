@@ -43,6 +43,8 @@ Keyboard shortcuts apply to the Browser tab in the focused pane (Ctrl replaces �
 
 To point the agent at part of a page, open the page's **⋮** menu and choose **Comment on the page…**, then click an element. The page outlines the element under the pointer; Esc or the X on the comment row cancels. Type a comment and choose **Add to message**: the composer of a conversation gets a block naming the page title and address, the element's CSS selector and visible text, and your comment. The comment goes to the conversation in focus, else the one whose agent opened the page, else the one you were last in; the confirmation names it. Nothing is sent until you send the message, so you can comment on several elements first. Picking runs in a separate script context the webpage cannot see.
 
+To show the agent part of a page as an image, choose **Screenshot a region…** in the same menu and drag over the area. The size shows while you drag; a click without a drag starts over, and Esc or the X on the hint row cancels. The capture is added to the composer as a PNG attachment named after the site and its size, in the same conversation a comment would go to. The selection is drawn in the same separate script context and removed before the capture, so it never appears in the image.
+
 
 ## Page navigation, popups, and right-click actions
 

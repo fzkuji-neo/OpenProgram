@@ -98,6 +98,7 @@ contextBridge.exposeInMainWorld("openprogramDesktop", {
     find: (id, query, options) => ipcRenderer.send("webtab:find", id, query, options),
     stopFind: (id, action) => ipcRenderer.send("webtab:stop-find", id, action),
     pickElement: (id) => ipcRenderer.invoke("webtab:pick-element", id),
+    pickRegion: (id) => ipcRenderer.invoke("webtab:pick-region", id),
     cancelPick: (id) => ipcRenderer.send("webtab:cancel-pick", id),
     zoom: (id, action) => ipcRenderer.invoke("webtab:zoom", id, action),
     print: (id) => ipcRenderer.invoke("webtab:print", id),
