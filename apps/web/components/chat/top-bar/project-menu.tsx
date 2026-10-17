@@ -36,6 +36,7 @@ import { useSessionStore } from "@/lib/session-store";
 import { closeAllPopovers } from "@/lib/runtime-bridge/ui";
 import { useTranslation } from "@/lib/i18n";
 import { wsRequest } from "@/lib/net/ws-request";
+import { duplicateNamePrefixes } from "@/lib/projects/duplicate-names";
 import { useBoundChat } from "./bound-chat";
 import { CHECK_SLOT, CHECK_SLOT_PAD, GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR, itemCls } from "./menu-styles";
 import { MenuCheck } from "./menu-check";
@@ -240,6 +241,8 @@ export function ProjectMenu({
     (!sessionId ? pendingProjectId : currentId) ??
     list.find((p) => p.is_default)?.id ??
     null;
+  // Same-named projects lead with the parent folder that tells them apart.
+  const parents = duplicateNamePrefixes(list.filter((p) => !p.hidden || p.id === activeId));
   // The main directory freezes when the draft becomes a real session,
   // i.e. exactly when a session_id exists. Past that the picker is gone;
   // the backend rejects a rebind anyway (FROZEN_ERROR).
@@ -337,6 +340,7 @@ export function ProjectMenu({
           点击它走定位修复而不是选中——选一个死路径当主目录没有意义。 */}
       {list.map((p) => {
         if (p.hidden && p.id !== activeId) return null;
+        const parent = parents.get(p.id);
         const active = p.id === activeId;
         const unavailable = p.path_missing === true || p.path_replaced === true ||
           ["missing", "replaced", "migrating", "pending", "error"].includes(p.location_state ?? "");
@@ -363,7 +367,10 @@ export function ProjectMenu({
               !busy && (p.path_missing ? locateFolder(p.id) : unavailable ? locateFolder(p.id) : switchTo(p.id))
             }
           >
-            <span className="min-w-0 flex-1 truncate">{p.name}</span>
+            <span className="min-w-0 flex-1 truncate">
+              {parent && <span className="text-text-muted">{parent} / </span>}
+              {p.name}
+            </span>
             {unavailable ? (
               <SolarIcon
                 motionPreset="none"

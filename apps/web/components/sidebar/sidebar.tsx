@@ -31,6 +31,7 @@ import {
   PlusIcon,
 } from "../animated-icons";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 import { useTranslation } from "@/lib/i18n";
 import { activateOnKey } from "@/lib/utils";
 import { UserMenuFooter } from "../user-menu-footer";
@@ -48,6 +49,7 @@ import { useWindowGlobals } from "./use-window-globals";
 import { runtimeState } from "@/lib/runtime-bridge/state";
 import { openNewChat } from "@/lib/tabs/open-session";
 import { useResizableRail } from "../layout/use-resizable-rail";
+import { useStableScrollEnd } from "./use-stable-scroll-end";
 
 // At or below this width the expanded sidebar is a fixed overlay over the
 // page (base.css), so it starts collapsed and closes after navigation.
@@ -89,6 +91,9 @@ export const Sidebar = memo(function Sidebar() {
   const [navScrolled, setNavScrolled] = useState(false);
   const toggleIconRef = useRef<AnimatedNavIconHandle>(null);
   const newChatIconRef = useRef<AnimatedNavIconHandle>(null);
+  const navScrollerRef = useRef<HTMLDivElement>(null);
+  const navSpacerRef = useRef<HTMLDivElement>(null);
+  useStableScrollEnd(navScrollerRef, navSpacerRef);
 
   const { availableFunctions, programsMeta } = useWindowGlobals();
   const favSet = new Set(programsMeta.favorites || []);
@@ -308,7 +313,12 @@ export const Sidebar = memo(function Sidebar() {
             aria-hidden="true"
           />
         )}
-        <div
+        {/* layoutScroll: project groups animate layout inside this
+            scroller, so their positions are measured in its content, not
+            shifted by its scrollTop. */}
+        <motion.div
+          ref={navScrollerRef}
+          layoutScroll
           className="flex flex-1 min-h-0 flex-col overflow-y-auto overflow-x-hidden
           [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           onScroll={(e) => {
@@ -359,7 +369,9 @@ export const Sidebar = memo(function Sidebar() {
               </div>
             </div>
           )}
-        </div>
+          {/* Stands in for removed rows at the end; see useStableScrollEnd. */}
+          <div ref={navSpacerRef} className="shrink-0" aria-hidden="true" />
+        </motion.div>
       </div>
       {/* /relative 浮层容器 */}
 
