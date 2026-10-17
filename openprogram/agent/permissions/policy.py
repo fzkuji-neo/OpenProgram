@@ -12,6 +12,10 @@ _FORCE_APPROVAL_TOOLS = {"exit_plan_mode", "self_update_prepare", "self_update_r
 # These approvals bind one exact request and must never become a project-wide
 # allow rule. A later candidate always needs its own owner decision.
 _ONE_SHOT_FORCE_APPROVAL_TOOLS = {"self_update_prepare", "self_update_retry"}
+# Desktop control is granted per application: in every permission mode the
+# first touch of an app asks until an allow rule (this conversation or the
+# project) names it. Calls the tool marks approval-free (list_apps) skip this.
+_APP_GRANT_TOOLS = {"computer_use"}
 # auto 档下即便未声明 requires_approval 也仍要审批的高风险工具。
 _RISKY_TOOLS = {"bash", "exec", "shell", "execute_code", "process"}
 # Non-interactive worktree side effects mutate repository state outside the
@@ -185,6 +189,15 @@ def _audit_delegated_risky(tool_name: str, req: "TurnRequest") -> None:
         )
 
 
+def _app_grant_needed(agent_tool, args: dict) -> bool:
+    from openprogram.programs import tool_requires_approval
+    try:
+        needed, _reason = tool_requires_approval(agent_tool, args)
+    except Exception:
+        return True
+    return bool(needed)
+
+
 def permission_decision(agent_tool, req, args: dict) -> tuple[str, str, str, object]:
     """One synchronous decision for both wait publication and execution.
 
@@ -215,6 +228,8 @@ def permission_decision(agent_tool, req, args: dict) -> tuple[str, str, str, obj
         reason = "RECOVERY_EFFECT_UNCERTAIN"
     elif verdict == "ask" or name in _FORCE_APPROVAL_TOOLS:
         reason = "PERMISSION_RULE_ASK" if verdict == "ask" else "MANDATORY_APPROVAL"
+    elif name in _APP_GRANT_TOOLS and verdict != "allow" and _app_grant_needed(agent_tool, args):
+        reason = "APP_GRANT_REQUIRED"
     else:
         if name == "web_use":
             from openprogram.agent.surface_context import web_use_available

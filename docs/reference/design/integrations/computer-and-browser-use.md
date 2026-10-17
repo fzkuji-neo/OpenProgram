@@ -62,6 +62,8 @@ The tool never types into `AXSecureTextField` elements or while macOS reports se
 | always | the project rules |
 | deny | nowhere |
 
+The grant is mandatory in every permission mode. `permission_decision` treats `computer_use` as an app-grant tool (`_APP_GRANT_TOOLS`): when the tool's own `requires_approval` says the call needs approval and no allow rule names the application, the decision is `ask` with reason `APP_GRANT_REQUIRED`, before Auto classification or Bypass is consulted. Unattended sources therefore deny such calls, and an allow rule is the only way past the card.
+
 Permission rules are reloaded at every operation boundary (global < project < session), so a session rule applies to the next call without a restart.
 
 System access: `computer_use:desktop` is an operation of both the `accessibility` and `screen_recording` capabilities; `_desktop_operation` maps every call except `list_apps` to it, so a missing grant pauses the call with the standard "waiting" state and the Settings → System access flow, exactly like the GUI Agent's desktop surface.
@@ -70,7 +72,7 @@ The tool is in `DEFAULT_TOOLS` but deferred (`DEFERRED_DEFAULT_TOOLS`): its sche
 
 ### Web presentation
 
-`tool-presentation.ts` renders `computer_use` calls with the monitor icon and the system tone; the title names the action and the application ("Clicked in Calculator"), the target line shows the key, text, action name or window where one is given. The approval card's scope buttons add "Allow this conversation" between once and always, and the answer summary prints "Allowed for this conversation".
+`tool-presentation.ts` renders `computer_use` calls with the monitor icon and the system tone; the title names the action and the application ("Clicked in Calculator"), the target line shows the key, text, action name or window where one is given. The approval card's scope buttons add "Allow this conversation" between once and always, and the answer summary prints "Allowed for this conversation". The GUI Agent's internal desktop capability is also named `computer_use`; the web tells the two apart by argument shape (`isGuiToolCall`): only a call without an `action` argument is a GUI Agent step rendered by the GUI view.
 
 ## Browser use: what `web_use` has and what it lacks
 

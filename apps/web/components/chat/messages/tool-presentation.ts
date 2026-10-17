@@ -107,6 +107,9 @@ export function presentTool(name: string, input: string | undefined, text: Text)
     case "gui_agent":
       return { icon: "monitor", tone: "system", title: guiCapabilityLabel(name, text), target: firstLine(pick(args, "task")) };
     case "computer_use":
+      // The public tool always names an action; the GUI Agent capability never does.
+      if (typeof args.action === "string") return computerUsePresentation(args, text);
+      // falls through
     case "vm_use":
       return { icon: "monitor", tone: "system", title: guiCapabilityLabel(name, text),
         target: pick(args, "app_name") ?? firstLine(pick(args, "task")) };
@@ -156,8 +159,6 @@ export function presentTool(name: string, input: string | undefined, text: Text)
     case "web_use":
       return { icon: "cursor", tone: "web", title: text("Browser", "浏览器"),
         target: [pick(args, "command", "action"), pick(args, "url")].filter(Boolean).join(" ") || undefined };
-    case "computer_use":
-      return computerUsePresentation(args, text);
     case "image_generate":
       return { icon: "gallery-add", tone: "media", title: text("Generated image", "生成图片"),
         target: firstLine(pick(args, "prompt")) };

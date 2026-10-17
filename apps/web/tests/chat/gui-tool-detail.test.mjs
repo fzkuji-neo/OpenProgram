@@ -133,3 +133,12 @@ test('GUI activity participates in collapsed conversation summaries', () => {
   assert.equal(summarizeToolGroup([block],{text:en}).label,'Ran a GUI call');
   assert.equal(summarizeToolGroup([block],{text:en,active:true,runningIds:new Set(['g1'])}).label,'Running a GUI call…');
 });
+
+test('the public computer_use tool is not a GUI Agent step', () => {
+  const params = {action: 'click', app: 'Calculator', element_index: 20};
+  const output = 'Done: pressed button "7".\n\nApp: Calculator';
+  assert.equal(guiToolView({name: 'computer_use', status: 'completed', output, params}), null);
+  assert.equal(guiResultNote('computer_use', output, 'completed', (e) => e, params), '');
+  assert.notEqual(guiToolView({name: 'computer_use', status: 'completed', output: {status: 'applied'},
+    params: {task: 'inspect', app_name: 'TextEdit'}}), null);
+});

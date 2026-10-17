@@ -62,6 +62,8 @@ computer_use(action, app, element_index | x,y, …)
 | always | 项目规则 |
 | deny | 不保存 |
 
+这项授权在所有权限模式下都是强制的。`permission_decision` 把 `computer_use` 当作按应用授权的工具（`_APP_GRANT_TOOLS`）：当工具自身的 `requires_approval` 表明这次调用需要审批、且没有允许规则点名该应用时，决定是 `ask`，理由 `APP_GRANT_REQUIRED`，先于 Auto 分类和 Bypass。因此无人值守的来源会拒绝这类调用，允许规则是越过卡片的唯一途径。
+
 权限规则在每个操作边界重新加载（全局 < 项目 < 会话），所以会话规则对下一次调用立即生效，无需重启。
 
 系统访问：`computer_use:desktop` 同时是 `accessibility` 和 `screen_recording` 两项能力的操作；`_desktop_operation` 把除 `list_apps` 外的每次调用映射到它，于是缺少授权时调用进入标准的"等待"状态并走设置 → 系统访问流程，与 GUI Agent 的桌面表面完全一致。
@@ -70,7 +72,7 @@ computer_use(action, app, element_index | x,y, …)
 
 ### Web 展示
 
-`tool-presentation.ts` 用显示器图标和 system 色调渲染 `computer_use` 调用；标题写动作和应用（"在 Calculator 中点击"），目标行在给了按键、文本、动作名或窗口时显示它们。审批卡片的范围按钮在"允许一次"和"始终允许"之间加入"允许此对话"，答案摘要打印"允许此对话"。
+`tool-presentation.ts` 用显示器图标和 system 色调渲染 `computer_use` 调用；标题写动作和应用（"在 Calculator 中点击"），目标行在给了按键、文本、动作名或窗口时显示它们。审批卡片的范围按钮在"允许一次"和"始终允许"之间加入"允许此对话"，答案摘要打印"允许此对话"。GUI Agent 内部的桌面 capability 也叫 `computer_use`；Web 按参数形状区分两者（`isGuiToolCall`）：只有不带 `action` 参数的调用才是由 GUI 视图渲染的 GUI Agent 步骤。
 
 ## 浏览器：`web_use` 有什么、缺什么
 

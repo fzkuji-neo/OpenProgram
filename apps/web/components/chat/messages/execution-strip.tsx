@@ -18,7 +18,7 @@ import { memo, useEffect, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { SolarIcon, type SolarIconName } from "@/components/solar-icons";
 import { presentTool, summarizeResult, type ToolTone } from "./tool-presentation";
-import { GUI_TOOL_NAMES, guiResultNote } from "./gui-tool-view";
+import { guiResultNote, isGuiToolCall } from "./gui-tool-view";
 import type { ToolGroupSummary } from "./tool-group-summary";
 import { afterTwoAnimationFrames } from "./collapse-frame";
 
@@ -477,8 +477,8 @@ export function FunctionStep({
       title={view.title}
       target={view.target ? short(view.target, 72) : undefined}
       note={result !== undefined && result !== null && result !== ""
-        ? short(GUI_TOOL_NAMES.has(name)
-          ? guiResultNote(name, decodeEscapes(String(result)), detailStatus, text)
+        ? short(isGuiToolCall(name, detail.params)
+          ? guiResultNote(name, decodeEscapes(String(result)), detailStatus, text, detail.params)
           : summarizeResult(decodeEscapes(String(result)), text), 90) : undefined}
       error={isError || cancelled}
       running={running || loadingFull}
@@ -569,8 +569,9 @@ export function TreeStep({ node, actions, defaultKidsOpen, sessionId }: {
     ...(reasoning ? { thinking: reasoning } : {}),
   };
   const isLlm = node.node_type === "exec" || node.name === "LLM";
-  if (out && !node.error && node.name && GUI_TOOL_NAMES.has(node.name)) {
-    noteParts.push(short(guiResultNote(node.name, out, node.status || "", text), 60));
+  const guiStep = !!node.name && isGuiToolCall(node.name, params);
+  if (out && !node.error && guiStep) {
+    noteParts.push(short(guiResultNote(node.name!, out, node.status || "", text, params), 60));
   } else if (out && !node.error) noteParts.push("→ " + short(out, 60));
   else if (isLlm && running && reasoning && !out) {
     noteParts.push(text("thinking…", "思考中") + " · " + short(reasoning, 40));
@@ -592,8 +593,8 @@ export function TreeStep({ node, actions, defaultKidsOpen, sessionId }: {
       icon={isLlm ? "llm" : "function"}
       glyph={isLlm ? undefined : treeView?.icon}
       tone={isLlm ? undefined : treeView?.tone}
-      title={isLlm ? "LLM" : (GUI_TOOL_NAMES.has(node.name || "") ? treeView?.title : node.name) || node.node_type || "call"}
-      target={GUI_TOOL_NAMES.has(node.name || "") && treeView?.target ? short(treeView.target, 72) : undefined}
+      title={isLlm ? "LLM" : (guiStep ? treeView?.title : node.name) || node.node_type || "call"}
+      target={guiStep && treeView?.target ? short(treeView.target, 72) : undefined}
       note={noteParts.join(" · ")}
       error={isError}
       running={running}

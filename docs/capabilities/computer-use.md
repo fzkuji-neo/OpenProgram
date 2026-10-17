@@ -56,7 +56,7 @@ The first time a conversation touches an application, an approval card names it 
 - **Always allow** — saved as the project rule `computer_use(<app>)`, so future sessions in the project do not ask again.
 - **Deny**.
 
-`list_apps` never asks. Each application is approved separately: allowing Notes says nothing about Mail. Rules can be inspected and removed like any other permission rule; see [Permissions](permissions.md).
+The card appears in every permission mode, Auto and Bypass included: only a saved rule for that application skips it. Scheduled and other unattended runs cannot answer a card, so they can only operate applications already allowed for the project. `list_apps` never asks. Each application is approved separately: allowing Notes says nothing about Mail. Rules can be inspected and removed like any other permission rule; see [Permissions](permissions.md).
 
 ## Requirements
 
