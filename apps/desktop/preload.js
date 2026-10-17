@@ -54,6 +54,7 @@ contextBridge.exposeInMainWorld("openprogramDesktop", {
   platform: process.platform,
   windowId,
   refreshOwnerAuth: () => ipcRenderer.invoke("owner-auth:refresh"),
+  nativeActionCue: (cue) => ipcRenderer.send("native:action-cue", cue),
   selfUpdateCapture: (nonce) => ipcRenderer.invoke("self-update:ui-capture", nonce),
   selfUpdateReopen: {
     getState: () => ipcRenderer.invoke("self-update:reopen-state"),

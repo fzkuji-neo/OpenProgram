@@ -2,6 +2,8 @@
 
 import { create } from "zustand";
 import { followNativeWindow } from "../chat/session-resources.ts";
+import type { NativeActionCue } from "../desktop/bridge-api.ts";
+import { showActionsEnabled } from "./browser-control.ts";
 
 /** The native app window an Agent last operated in a conversation. */
 export type NativeWindow = {
@@ -46,9 +48,20 @@ export function nativeWindowFrameUrl(operated: NativeWindow): string | null {
   return `/api/session/${session}/native-window/frame?window_id=${operated.windowId}&v=${operated.sequence}`;
 }
 
+/** Hand an Agent step's screen point to the desktop shell's agent cursor,
+ *  unless the user turned action cues off. */
+function cueNativeAction(data: unknown): void {
+  const cue = data as Partial<NativeActionCue> | null;
+  if (!cue || typeof cue.session_id !== "string" || ![cue.x, cue.y, cue.sequence, cue.at]
+    .every((value) => typeof value === "number" && Number.isFinite(value))) return;
+  if (!showActionsEnabled()) return;
+  window.openprogramDesktop?.nativeActionCue?.(cue as NativeActionCue);
+}
+
 if (typeof window !== "undefined") {
   window.addEventListener("op:ws-message", (event) => {
     const detail = (event as CustomEvent<{ type?: string; data?: unknown }>).detail;
     if (detail?.type === "native.window") ingestNativeWindow(detail.data);
+    if (detail?.type === "native.action") cueNativeAction(detail.data);
   });
 }

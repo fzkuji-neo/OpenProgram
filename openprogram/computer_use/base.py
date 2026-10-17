@@ -13,6 +13,7 @@ MAX_TEXT_CHARS = 5000
 MAX_COPY_CHARS = 20_000
 MAX_HOLD_SECONDS = 10.0
 HOVER_SECONDS = 0.8  # long enough for tooltips and hover menus to open
+CUE_LEAD_SECONDS = 0.15  # time for the App's agent cursor to reach a step's point
 # A window whose tree has fewer elements than this shows little beyond its
 # frame and title bar; its screenshot is read with OCR as well.
 OCR_SPARSE_NODES = 12

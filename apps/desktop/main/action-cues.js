@@ -347,7 +347,132 @@ function createActionCues({
     return true;
   }
 
-  return { viewZoomFactor, cssViewportSize, finiteNumber, pointInViewport, viewportMatchesMarker, actionCueResourceId, isStaleActionMarker, rememberActionCueIdentity, boundsDiffer, actionCueStillCurrent, overlayUiOrigin, stopCueMotion, hideActionCueWindow, closeActionCueWindow, cueWindowContentOrigin, sendPendingCue, ensureActionCueWindow, bindHostOverlayRelayout, placeActionCueWindow, cleanupCue, clearActionCue, showActionView };
+  // The agent cursor over desktop apps: one window for every App window,
+  // placed in screen points. Each App window receives the same step, so a
+  // step already shown is dropped by its identity.
+  const nativeCue = { win: null, ready: false, loaded: false, pending: null,
+    lastPoint: null, seen: [], token: 0, timer: null, motionTimer: null };
+
+  function nativeCueSender(event) {
+    const win = nativeCue.win;
+    return !!(win && !win.isDestroyed?.() && event && event.sender === win.webContents);
+  }
+
+  function markNativeCueReady() {
+    nativeCue.ready = true;
+    sendNativeCue();
+  }
+
+  function sendNativeCue() {
+    const win = nativeCue.win;
+    if (!nativeCue.pending || !win || win.isDestroyed?.() || !nativeCue.ready) return;
+    try { win.webContents.send("webtab:action-cue", nativeCue.pending); } catch { /* overlay not ready */ }
+  }
+
+  function ensureNativeCueWindow() {
+    if (nativeCue.win && !nativeCue.win.isDestroyed?.()) return nativeCue.win;
+    const win = new BrowserWindow({
+      frame: false,
+      transparent: true,
+      show: false,
+      focusable: false,
+      skipTaskbar: true,
+      hasShadow: false,
+      alwaysOnTop: true,
+      width: ACTION_CUE_SIZE,
+      height: ACTION_CUE_SIZE,
+      webPreferences: {
+        preload: path.join(__dirname, "preload.js"),
+        contextIsolation: true,
+        nodeIntegration: false,
+        additionalArguments: [
+          "--openprogram-window-id=native-action-cue",
+          "--openprogram-surface=action-cue",
+        ],
+      },
+    });
+    win.setIgnoreMouseEvents(true, { forward: true });
+    win.setAlwaysOnTop(true, "floating");
+    if (typeof win.setMenuBarVisibility === "function") win.setMenuBarVisibility(false);
+    nativeCue.win = win;
+    nativeCue.ready = false;
+    win.on("closed", () => {
+      if (nativeCue.win === win) nativeCue.win = null;
+    });
+    win.loadURL(`${overlayUiOrigin()}/menu-overlay/action-cue`).catch(() => {});
+    return win;
+  }
+
+  function placeNativeCue(x, y) {
+    const win = nativeCue.win;
+    if (!win || win.isDestroyed?.()) return;
+    const size = ACTION_CUE_SIZE;
+    win.setBounds({ x: Math.round(x - size / 2), y: Math.round(y - size / 2), width: size, height: size });
+    if (typeof win.showInactive === "function") win.showInactive();
+    else win.show();
+  }
+
+  function stopNativeCue() {
+    if (nativeCue.timer != null) clearTimeout(nativeCue.timer);
+    if (nativeCue.motionTimer != null) clearTimeout(nativeCue.motionTimer);
+    nativeCue.timer = null;
+    nativeCue.motionTimer = null;
+  }
+
+  function showNativeActionCue(cue) {
+    if (!cue || typeof cue !== "object" || typeof cue.session_id !== "string") return false;
+    const { x, y, sequence, at } = cue;
+    if (![x, y, sequence, at].every(finiteNumber)) return false;
+    const key = `${cue.session_id}:${sequence}:${at}`;
+    if (nativeCue.seen.includes(key)) return false;
+    nativeCue.seen.push(key);
+    if (nativeCue.seen.length > 64) nativeCue.seen.shift();
+    let win;
+    try { win = ensureNativeCueWindow(); } catch { return false; }
+    if (!win) return false;
+    stopNativeCue();
+    const token = ++nativeCue.token;
+    const reducedMotion = !!(nativeTheme && nativeTheme.prefersReducedMotion);
+    const last = nativeCue.lastPoint;
+    const next = { x, y };
+    const finish = () => {
+      if (nativeCue.token !== token) return;
+      placeNativeCue(next.x, next.y);
+      nativeCue.pending = { play: reducedMotion ? "never" : "once", playSeq: token, reducedMotion };
+      sendNativeCue();
+      nativeCue.lastPoint = next;
+      nativeCue.timer = setTimeout(() => {
+        if (nativeCue.token !== token) return;
+        nativeCue.timer = null;
+        nativeCue.lastPoint = null;
+        try { nativeCue.win?.hide(); } catch { /* already gone */ }
+      }, ACTION_CUE_MS);
+    };
+    if (!last || reducedMotion || (last.x === next.x && last.y === next.y)) {
+      finish();
+      return true;
+    }
+    const dx = next.x - last.x;
+    const dy = next.y - last.y;
+    const duration = Math.min(280, Math.max(80, Math.round(Math.sqrt(dx * dx + dy * dy) * 0.4)));
+    const started = Date.now();
+    const step = () => {
+      if (nativeCue.token !== token) return;
+      const t = Math.min(1, (Date.now() - started) / duration);
+      const ease = t * (2 - t);
+      placeNativeCue(last.x + dx * ease, last.y + dy * ease);
+      if (t < 1) {
+        nativeCue.motionTimer = setTimeout(step, 16);
+        return;
+      }
+      nativeCue.motionTimer = null;
+      finish();
+    };
+    nativeCue.motionTimer = setTimeout(step, 16);
+    return true;
+  }
+
+  return { nativeCueSender, markNativeCueReady, showNativeActionCue, viewZoomFactor, cssViewportSize, finiteNumber, pointInViewport, viewportMatchesMarker, actionCueResourceId, isStaleActionMarker, rememberActionCueIdentity, boundsDiffer, actionCueStillCurrent, overlayUiOrigin, stopCueMotion, hideActionCueWindow, closeActionCueWindow, cueWindowContentOrigin, sendPendingCue, ensureActionCueWindow, bindHostOverlayRelayout, placeActionCueWindow, cleanupCue, clearActionCue, showActionView };
 }
 
 module.exports = { createActionCues };

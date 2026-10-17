@@ -72,6 +72,8 @@ After an action the tool waits for the window to settle instead of a fixed pause
 
 Element actions reach windows that are hidden, minimised or covered by another window. Coordinate clicks, drags and wheel scrolls also run in the background: the pointer does not move and the front application does not change. Coordinates exist for canvases and custom controls that the tree does not describe; prefer an index whenever one is listed.
 
+On macOS the desktop App shows where each step lands: the agent cursor, the same one that marks actions on the App's Pages, glides over the application's window to the element or point and plays a click there, while your own pointer stays put. **Show actions** in the browser toolbar turns it off for Pages and applications alike.
+
 ## Several steps, code and a new agent
 
 Several steps go in `actions`, up to 20, run in order on one app. They stop at the first error and return the state once, at the end; every step uses the indices and coordinates of the state read before them:

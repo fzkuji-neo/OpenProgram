@@ -57,6 +57,20 @@ export interface DesktopBridge {
   terminal?: DesktopTerminalApi;
   /** Keep the native window background aligned with the resolved web theme. */
   theme?: DesktopThemeApi;
+  /** Draw the agent cursor at a screen point an Agent step acts on in a
+   *  desktop app. Absent in shells older than this build. */
+  nativeActionCue?(cue: NativeActionCue): void;
+}
+
+/** One Agent step in a desktop app: its screen point (points, origin at the
+ *  top left of the main display) and the identity that dedupes the frame
+ *  every App window receives. */
+export interface NativeActionCue {
+  session_id: string;
+  x: number;
+  y: number;
+  sequence: number;
+  at: number;
 }
 
 /** The preload-exposed bridge, or null outside the desktop shell. */

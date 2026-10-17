@@ -740,6 +740,9 @@ const {
   cleanupCue,
   clearActionCue,
   showActionView,
+  nativeCueSender,
+  markNativeCueReady,
+  showNativeActionCue,
 } = require("./main/action-cues").createActionCues({
   ACTION_CUE_MS,
   ACTION_CUE_SIZE,
@@ -1138,7 +1141,15 @@ function registerWebTabIpc() {
   ipcMain.on("webtab:control-overlay-event", (event, payload) => {
     handleControlOverlayEvent(event, payload);
   });
+  ipcMain.on("native:action-cue", (event, cue) => {
+    if (!contextForSender(event)) return;
+    showNativeActionCue(cue);
+  });
   ipcMain.on("webtab:action-cue-ready", (event) => {
+    if (nativeCueSender(event)) {
+      markNativeCueReady();
+      return;
+    }
     const owner = actionCueOwner(event);
     if (!owner) return;
     owner.record.actionCueReady = true;

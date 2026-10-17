@@ -131,6 +131,47 @@ def record_operated_window(
         _log.debug("native window broadcast failed", exc_info=True)
 
 
+_action_sequence = 0
+
+
+def note_action_point(app_name: str, point: tuple[float, float], action: str) -> None:
+    """Tell the App where on screen an Agent step lands, for its agent cursor.
+
+    ``point`` is in screen points with the origin at the top left of the main
+    display, the space both macOS accessibility frames and Electron use.
+    """
+    global _action_sequence
+    x, y = float(point[0]), float(point[1])
+    with _lock:
+        _action_sequence += 1
+        sequence = _action_sequence
+    session_id, execution_id = _owner()
+    observed = {"kind": "action", "x": x, "y": y, "action": str(action)[:40],
+                "app_name": str(app_name)[:120], "sequence": sequence, "execution_id": execution_id or ""}
+    if _forward is not None:
+        _forward(observed)
+        return
+    if session_id:
+        record_action_point(observed, session_id=session_id)
+
+
+def record_action_point(observed: Mapping[str, Any], *, session_id: str) -> None:
+    """Announce one step's screen point to the conversation's App windows."""
+    try:
+        x, y, sequence = float(observed["x"]), float(observed["y"]), int(observed["sequence"])
+    except (KeyError, TypeError, ValueError):
+        return
+    if not session_id:
+        return
+    data = {"session_id": session_id, "x": x, "y": y, "sequence": sequence, "at": time.time(),
+            "action": str(observed.get("action") or "")[:40], "app_name": str(observed.get("app_name") or "")[:120]}
+    try:
+        from openprogram.webui import server as _s
+        _s._broadcast(json.dumps({"type": "native.action", "data": data}))
+    except Exception:
+        _log.debug("native action broadcast failed", exc_info=True)
+
+
 def public_window(entry: Mapping[str, Any]) -> dict[str, Any]:
     return {
         key: entry[key]
@@ -145,6 +186,6 @@ def latest_window(session_id: str) -> dict[str, Any] | None:
 
 
 __all__ = [
-    "forward_to_parent", "latest_window", "note_operated_window", "operated_window",
-    "public_window", "record_operated_window",
+    "forward_to_parent", "latest_window", "note_action_point", "note_operated_window", "operated_window",
+    "public_window", "record_action_point", "record_operated_window",
 ]

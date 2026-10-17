@@ -95,3 +95,25 @@ def test_the_frame_route_serves_only_the_current_window_of_an_allowed_session(tm
     assert other.status_code == 404
     assert state.json()["window"]["app_name"] == "WeChat"
     assert "frame" not in state.json()["window"]
+
+
+def test_a_step_point_is_announced_for_the_agent_cursor(_clean):
+    nw.note_action_point("Calculator", (412.5, 300.0), "click")
+    nw.note_action_point("Calculator", (420.0, 310.0), "click")
+
+    frames = [frame for frame in _clean if frame["type"] == "native.action"]
+    assert [(f["data"]["x"], f["data"]["y"], f["data"]["app_name"]) for f in frames] == [
+        (412.5, 300.0, "Calculator"), (420.0, 310.0, "Calculator")]
+    assert all(f["data"]["session_id"] == "conv" for f in frames)
+    assert frames[1]["data"]["sequence"] > frames[0]["data"]["sequence"]
+
+
+def test_a_subprocess_hands_its_step_point_to_the_worker(_clean):
+    forwarded = []
+    nw.forward_to_parent(forwarded.append)
+    nw.note_action_point("Notes", (1.0, 2.0), "hover")
+    assert _clean == []
+    assert forwarded[0]["kind"] == "action" and (forwarded[0]["x"], forwarded[0]["y"]) == (1.0, 2.0)
+
+    nw.record_action_point(forwarded[0], session_id="parent-conv")
+    assert _clean[0]["type"] == "native.action" and _clean[0]["data"]["session_id"] == "parent-conv"

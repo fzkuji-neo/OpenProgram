@@ -31,7 +31,7 @@ from typing import Any
 from . import audio
 from . import keys as keymap
 from . import ocr
-from .base import (HOVER_SECONDS, INCLUDE, MAX_COPY_CHARS, MAX_TEXT_CHARS, OCR_SPARSE_NODES,
+from .base import (CUE_LEAD_SECONDS, HOVER_SECONDS, INCLUDE, MAX_COPY_CHARS, MAX_TEXT_CHARS, OCR_SPARSE_NODES,
                    AudioClip, ComputerUseError, Observation, Report, check_cancelled as _check_cancelled,
                    click_args, click_words as _click_words, find_text, menu_key as _menu_key, menu_path,
                    save_recording as _save_recording, scroll_args, seconds_arg as _seconds,
@@ -1070,7 +1070,25 @@ class MacComputer:
                 return handler(app, int(app.processIdentifier()), self._states.get(
                     (session, int(app.processIdentifier()))), args)
             app, state = self._state_for(session, args.get("app") or "")
+            self._cue(app, state, action, args)
             return handler(app, int(app.processIdentifier()), state, args)
+
+    def _cue(self, app, state, action: str, args: dict[str, Any]) -> None:
+        """Show the user where this step lands: the App draws its agent cursor there."""
+        try:
+            if args.get("element_index") is not None:
+                point = self._center(self._element(state, args["element_index"]))
+            elif args.get("x") is not None and args.get("y") is not None:
+                point = self._point(state, args.get("x"), args.get("y"))
+            else:
+                return
+            from openprogram.native_window_resources import note_action_point
+            note_action_point(str(app.localizedName() or ""), point, action)
+        except Exception:
+            # The cue is a courtesy; a step never fails because of it.
+            return
+        # Let the cursor arrive before the step acts.
+        time.sleep(CUE_LEAD_SECONDS)
 
     def _do_click(self, app, pid, state, args) -> str:
         button, count = click_args(args)
