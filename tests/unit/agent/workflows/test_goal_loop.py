@@ -19,6 +19,11 @@ def db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> SessionDB:
     store.create_session("s1", "main")
     monkeypatch.setattr(G, "_db", lambda: store)
     monkeypatch.setattr("openprogram.agent.session_db.default_db", lambda: store)
+    # Executions of "s1" that other tests left in the process's shared store
+    # must not decide whether this test's Goal can resume.
+    from openprogram.execution.store import ExecutionStore
+    executions = ExecutionStore(tmp_path / "executions.db")
+    monkeypatch.setattr("openprogram.execution.default_store", lambda: executions)
     return store
 
 
