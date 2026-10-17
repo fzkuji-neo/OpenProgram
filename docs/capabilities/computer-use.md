@@ -53,6 +53,8 @@ After an action the tool waits for the window to settle instead of a fixed pause
 | `focus` | `app`, `element_index` | Move keyboard focus to an element without clicking it |
 | `menu` | `app`, `menu_path?` | Without a path, list the menu bar. With a path such as `["View", "Scientific"]`, list that menu (with shortcuts, checked and disabled items) or choose a leaf item. Titles match without regard to case or a trailing `…`; no menu opens on screen |
 | `show_window` | `app`, `window?` or `window_id?` | Restore a minimised window or unhide the app, without bringing it to the front |
+| `hover` | `app`, `element_index` or `x`,`y`, `duration?` | Rest the pointer over an element for `duration` seconds (default 0.8) so tooltips and hover menus open; your cursor does not move. Apps that ignore the pointer while in the background show nothing |
+| `wait` | `app`, `duration?` | Let up to 10 seconds pass (default 1), then return what changed: a page loading, playback, a reply arriving |
 | `batch` | `app`, `actions` | Up to 20 of the acting steps above, run in order on one app; stops at the first error and returns the state once, at the end |
 | `start_audio_recording` | `app`, `max_duration?` | Record the sound that app plays, for up to `max_duration` seconds (default 60, at most 300). Only that app is recorded and you keep hearing it; other actions run meanwhile |
 | `stop_audio_recording` | `app`, `transcribe?` | Stop, save a 16 kHz WAV and return its path; with a speech engine set up in Settings → Voice, also the transcript |

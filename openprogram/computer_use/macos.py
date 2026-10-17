@@ -60,6 +60,7 @@ MAX_TEXT_CHARS = 5000
 MAX_COPY_CHARS = 20_000
 MAX_DRAG_STEPS = 24
 MAX_HOLD_SECONDS = 10.0
+HOVER_SECONDS = 0.8  # long enough for tooltips and hover menus to open
 # After an action the tool waits for the window to settle: until two quick
 # reads agree (at most SETTLE_MAX seconds), or up to BUSY_MAX seconds while
 # a progress or busy indicator is on screen.
@@ -1006,7 +1007,7 @@ class MacComputer:
     # ------------------------------------------------------------------ actions
     # Actions that need no earlier state of the window, and actions that need
     # it only to resolve an element_index (otherwise they act on the focus).
-    STATELESS = frozenset({"menu", "show_window"})
+    STATELESS = frozenset({"menu", "show_window", "wait"})
     AT_FOCUS = frozenset({"copy", "press_key", "type_text", "paste"})
 
     def act(self, session: str, action: str, args: dict[str, Any]) -> str:
@@ -1063,6 +1064,36 @@ class MacComputer:
         self._background_click(state, pid, point, button, count, flags, hold)
         return (f"{_click_words(button, count)} at ({args.get('x')}, {args.get('y')})"
                 + (f" (held {hold:g}s)" if hold else ""))
+
+    def _do_hover(self, app, pid, state, args) -> str:
+        """Move the pointer over an element or point, in the app only, and rest there."""
+        index = args.get("element_index")
+        if index is not None:
+            point, what = self._center(self._element(state, index)), self._node_at(state, index).body()
+        else:
+            point, what = self._point(state, args.get("x"), args.get("y")), f"({args.get('x')}, {args.get('y')})"
+        rest = _seconds(args.get("duration"), "duration") or HOVER_SECONDS
+        sky = self._route(state)
+        _, _, cg, _ = _frameworks()
+        group = sky.next_group()
+        # Approach in a few steps so tracking areas see the pointer enter.
+        for fraction in (0.0, 0.5, 1.0):
+            at = (point[0] - 12 * (1 - fraction), point[1] - 12 * (1 - fraction))
+            move = self._mouse_event(cg, cg.kCGEventMouseMoved, at, cg.kCGMouseButtonLeft)
+            self._post_mouse(sky, cg, state, pid, move, at, click_state=0, button=0, subtype=SUBTYPE_TOUCH,
+                             group=group)
+            time.sleep(0.03)
+        time.sleep(rest)
+        return f"hovered over {what} for {rest:g}s"
+
+    def _do_wait(self, app, pid, state, args) -> str:
+        """Let time pass, then report what changed (a download, an animation, a reply)."""
+        rest = _seconds(args.get("duration"), "duration") or 1.0
+        deadline = time.monotonic() + rest
+        while time.monotonic() < deadline:
+            _check_cancelled()
+            time.sleep(min(0.1, max(0.0, deadline - time.monotonic())))
+        return f"waited {rest:g}s"
 
     def _do_drag(self, app, pid, state, args) -> str:
         start = self._point(state, args.get("x"), args.get("y"))

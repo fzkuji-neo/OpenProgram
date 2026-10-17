@@ -25,7 +25,7 @@ NAME = "computer_use"
 # Actions that change the app and are followed by its new state.
 ACTING_ACTIONS = (
     "click", "type_text", "press_key", "set_value", "scroll", "drag", "perform_secondary_action",
-    "select_text", "paste", "focus", "copy", "menu", "show_window",
+    "select_text", "paste", "focus", "copy", "menu", "show_window", "hover", "wait",
 )
 AUDIO_ACTIONS = ("start_audio_recording", "stop_audio_recording")
 ACTIONS = ("list_apps", "list_windows", "get_app_state", "zoom", "find", *ACTING_ACTIONS, "batch", *AUDIO_ACTIONS)
@@ -51,6 +51,8 @@ Actions
 - set_value(app, element_index, value): text field, slider, checkbox.
 - scroll(app, element_index | x,y, direction=up|down|left|right, pages=1 | pixels).
 - drag(app, x, y, to_x, to_y).
+- hover(app, element_index | x,y, duration=0.8): rest the pointer there (the real cursor does not move) to open tooltips and hover menus; apps that ignore the pointer while in the background show nothing.
+- wait(app, duration=1): let up to 10 seconds pass, then get what changed; for loading, playback or a reply.
 - perform_secondary_action(app, element_index, action_name): one of the element's listed actions (AXShowMenu, AXIncrement …).
 - select_text(app, element_index, text, prefix?, suffix?, selection_type=text|cursor_before|cursor_after).
 - paste(app, text, format=text|md|html, element_index?): through the clipboard, which is restored afterwards; md for formatted text in rich editors.
@@ -89,7 +91,7 @@ _STEP_PROPERTIES: dict[str, Any] = {
     "suffix": {"type": "string", "description": "select_text: text that must follow the match."},
     "selection_type": {"type": "string", "enum": ["text", "cursor_before", "cursor_after"], "description": "select_text: select the text or place the cursor."},
     "format": {"type": "string", "enum": ["text", "md", "html"], "description": "paste: clipboard format (default text)."},
-    "duration": {"type": "number", "minimum": 0, "maximum": 10, "description": "press_key / click: seconds to hold."},
+    "duration": {"type": "number", "minimum": 0, "maximum": 10, "description": "press_key / click: seconds to hold. hover: seconds to rest (default 0.8). wait: seconds (default 1)."},
     "menu_path": {"type": "array", "items": {"type": "string"}, "description": "menu: titles from the menu bar down, e.g. [\"Edit\", \"Find\", \"Find…\"]."},
     "window": {"type": "string", "description": "A window title substring or index when the app has several windows."},
     "window_id": {"type": "integer", "description": "A window id from list_windows."},

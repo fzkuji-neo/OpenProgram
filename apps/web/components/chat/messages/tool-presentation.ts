@@ -79,6 +79,8 @@ function computerUsePresentation(args: Args, text: Text): ToolPresentation {
     menu: ["Used the menu", "使用菜单"],
     show_window: ["Showed the window", "显示窗口"],
     batch: ["Ran steps", "执行多步"],
+    hover: ["Hovered", "悬停"],
+    wait: ["Waited", "等待"],
     start_audio_recording: ["Started recording", "开始录音"],
     stop_audio_recording: ["Stopped recording", "停止录音"],
   };

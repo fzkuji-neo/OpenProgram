@@ -53,6 +53,8 @@ computer_use(action="click", app="Calculator", element_index=18)
 | `focus` | `app`、`element_index` | 不点击，直接把键盘焦点移到元素上 |
 | `menu` | `app`、`menu_path?` | 不给路径时列出菜单栏。给出 `["View", "Scientific"]` 这样的路径时，列出那个菜单（带快捷键、勾选和禁用项），或选中末端菜单项。标题匹配不分大小写，末尾的 `…` 可省略；屏幕上不会弹出菜单 |
 | `show_window` | `app`、`window?` 或 `window_id?` | 恢复最小化的窗口或取消隐藏应用，不把它带到前台 |
+| `hover` | `app`、`element_index` 或 `x`,`y`、`duration?` | 让指针在元素上停留 `duration` 秒（默认 0.8），以打开提示和悬停菜单；你的光标不会动。在后台时不理会指针的应用不会有反应 |
+| `wait` | `app`、`duration?` | 等待最多 10 秒（默认 1），然后返回发生的变化：页面加载、播放、收到回复 |
 | `batch` | `app`、`actions` | 至多 20 个上面的执行类步骤，按顺序作用于同一个应用；遇到第一个错误即停止，最后只返回一次状态 |
 | `start_audio_recording` | `app`、`max_duration?` | 录下该应用播放的声音，最长 `max_duration` 秒（默认 60，最多 300）。只录这个应用，你照常听得到；录音期间可以继续执行其他动作 |
 | `stop_audio_recording` | `app`、`transcribe?` | 停止录音，保存 16 kHz WAV 并返回路径；在设置 → 语音里配置了语音引擎时还返回转写文字 |

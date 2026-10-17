@@ -540,3 +540,13 @@ def test_recordings_are_saved_under_the_state_directory_and_pruned(monkeypatch, 
     saved = [macos._save_recording("Quick Time", b"x") for _ in range(3)]
     left = sorted(p.name for p in (tmp_path / "computer-use" / "audio").iterdir())
     assert len(left) == 2 and saved[-1].name in left and saved[0].name.endswith("quick-time.wav")
+
+
+def test_wait_needs_no_state_and_is_bounded(monkeypatch):
+    computer = macos.MacComputer()
+    monkeypatch.setattr(computer, "resolve_app", lambda query, launch=True: type(
+        "App", (), {"processIdentifier": lambda self: 7})())
+    assert computer.act("s", "wait", {"app": "Music", "duration": 0.05}) == "waited 0.05s"
+    with pytest.raises(macos.ComputerUseError):
+        computer.act("s", "wait", {"app": "Music", "duration": 11})
+    assert {"hover", "wait"} <= set(tool.ACTING_ACTIONS)
