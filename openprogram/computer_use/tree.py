@@ -36,8 +36,12 @@ def role_name(role: str, subrole: str = "") -> str:
     return name
 
 
+# Bidirectional marks some apps wrap numbers in; invisible, and they break text search.
+_BIDI_MARKS = re.compile("[\u200e\u200f\u202a-\u202e\u2066-\u2069]")
+
+
 def _clip(value: str, limit: int = MAX_TEXT) -> str:
-    value = " ".join(str(value).split())
+    value = " ".join(_BIDI_MARKS.sub("", str(value)).split())
     return value if len(value) <= limit else value[: limit - 1] + "…"
 
 
@@ -85,27 +89,81 @@ def render(nodes: list[Node]) -> str:
 
 
 def signature(nodes: list[Node]) -> list[str]:
-    """Index-free lines, stored to diff the next state against."""
+    """Index-free lines, the part of a state two states are compared on."""
     return [node.key() for node in nodes]
 
 
-def diff(previous: list[str] | None, nodes: list[Node]) -> tuple[str, bool]:
-    """Return ``(text, is_diff)``.
+@dataclass
+class Snapshot:
+    """What the model was last shown of one window: each line and its index."""
+    keys: list[str]
+    indices: list[int]
+    next_index: int
 
-    ``previous`` is the :func:`signature` of the last state. Lines that are
-    new or changed carry a ``+`` and their new index; removed lines carry a
-    ``-`` and no index, since they can no longer be addressed.
+
+def snapshot(nodes: list[Node], next_index: int = 0) -> Snapshot:
+    """``next_index`` is what :func:`number` returned, so freed indices are never reused."""
+    return Snapshot(keys=signature(nodes), indices=[node.index for node in nodes],
+                    next_index=max(next_index, max((node.index for node in nodes), default=-1) + 1))
+
+
+def _same_element(before: str, after: str) -> bool:
+    """A changed line still names the same element when its depth and role hold."""
+    def head(key: str) -> tuple[int, str]:
+        stripped = key.lstrip(" ")
+        return len(key) - len(stripped), _ROLE_END.split(stripped, 1)[0]
+    return head(before) == head(after)
+
+
+_ROLE_END = re.compile(r' (?="|value=|placeholder=|\[|actions:)')
+
+
+def number(nodes: list[Node], previous: Snapshot | None) -> int:
+    """Give every node its index, keeping the indices the model already knows.
+
+    An element that is unchanged since ``previous``, or changed in place
+    (same depth and role, e.g. a new value), keeps its index; an element
+    that is new gets the next unused one. So an index the model read
+    earlier never silently points at a different element after an
+    insertion above it. Without ``previous`` the nodes are numbered 0..n-1.
+    Returns the next unused index.
+    """
+    if previous is None:
+        for position, node in enumerate(nodes):
+            node.index = position
+        return len(nodes)
+    current = signature(nodes)
+    fresh = previous.next_index
+    matcher = difflib.SequenceMatcher(a=previous.keys, b=current, autojunk=False)
+    for op, a0, a1, b0, b1 in matcher.get_opcodes():
+        for offset, node in enumerate(nodes[b0:b1]):
+            old = a0 + offset
+            if op == "equal" or (op == "replace" and old < a1
+                                 and _same_element(previous.keys[old], current[b0 + offset])):
+                node.index = previous.indices[old]
+            else:
+                node.index = fresh
+                fresh += 1
+    return fresh
+
+
+def diff(previous: Snapshot | None, nodes: list[Node]) -> tuple[str, bool]:
+    """Return ``(text, is_diff)`` for nodes already given indices by :func:`number`.
+
+    Lines that are new or changed carry a ``+`` and their index; removed
+    lines carry a ``-`` and no index, since they can no longer be addressed.
+    Unchanged lines are left out: their indices are the ones already shown.
     """
     if previous is None:
         return render(nodes), False
     current = signature(nodes)
-    matcher = difflib.SequenceMatcher(a=previous, b=current, autojunk=False)
+    matcher = difflib.SequenceMatcher(a=previous.keys, b=current, autojunk=False)
     out: list[str] = []
     changed = 0
     for op, a0, a1, b0, b1 in matcher.get_opcodes():
         if op == "equal":
             continue
-        for line in previous[a0:a1]:
+        for line in previous.keys[a0:a1]:
             out.append("- " + line.strip())
             changed += 1
         for node in nodes[b0:b1]:

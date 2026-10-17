@@ -23,9 +23,31 @@ OpenProgram takes Codex's shape and the Claude app's vocabulary:
 computer_use(action, app, element_index | x,y, …)
 ```
 
-Actions: `list_apps`, `get_app_state`, `click`, `type_text`, `press_key`, `set_value`, `scroll`, `drag`, `perform_secondary_action`, `select_text`, `paste`. The names and arguments follow Codex's target API so the same model habits transfer. Only `list_apps` is read-only and approval-free.
+Actions come in three groups:
 
-Every acting call returns `Done: <summary>` followed by the Accessibility tree **diff** against the state the model last saw: `- line` for elements that vanished, `+ index line` for new or changed ones. When more than half the lines (and at least twelve) changed, the whole tree is returned instead, because a diff of a rebuilt view is longer than the view. `get_app_state(full=true)` returns the full tree on demand. The tree is capped at 1500 nodes and rendered one element per line: index, role (`AXTextField` → `text field`, with the subrole in parentheses), label, value, placeholder, flags (`focused`, `selected`, `checked`, `disabled`, `secure`, `settable` …) and the element's secondary actions other than the primary press.
+- **Reading:** `list_apps`, `list_windows`, `get_app_state` (`include` = all / tree / screenshot, `window` or `window_id`), `zoom` (a region of the last screenshot at full pixel density), `find` (text and role search over the last tree).
+- **Acting**, Codex's target API: `click` (button, count, held modifiers, hold duration), `type_text`, `press_key`, `set_value`, `scroll` (pages or pixels), `drag`, `perform_secondary_action`, `select_text`, `paste`; and from the Claude app's `app_*` set: `copy`, `focus`, `menu`, `show_window`.
+- **`batch`:** up to 20 acting steps on one app, in order, stopping at the first error; one settle and one state at the end.
+
+Only `list_apps` is approval-free. A batch step cannot name a different app, because the approval the call carries names only the batch's app.
+
+Every acting call returns `Done: <summary>` followed by the Accessibility tree **diff** against the state the model last saw: `- line` for elements that vanished, `+ index line` for new or changed ones. When more than half the lines (and at least twelve) changed, the whole tree is returned instead, because a diff of a rebuilt view is longer than the view. `get_app_state(full=true)` returns the full tree on demand. The tree is capped at 1500 nodes and rendered one element per line: index, role (`AXTextField` → `text field`, with the subrole in parentheses), label, value, placeholder, flags (`focused`, `selected`, `checked`, `disabled`, `secure`, `settable` …) and the element's secondary actions other than the primary press. Bidirectional marks some apps wrap numbers in are dropped from the rendering and from `find`.
+
+The tree covers the window, the menus, popovers and dialogs beside it, and the menu bar with only open menus expanded. Closed menus are read by the `menu` action, so every read covers the same ground and a diff never shows a whole menu bar appearing or vanishing.
+
+Results that changed nothing are marked: `menu` listings, `copy` and an already-visible `show_window` return a `Report`, and the tool returns it without settling or reading the state again.
+
+### Stable indices
+
+`tree.number` gives indices against the window's previous `Snapshot` (its index-free lines, their indices, and the next unused index). A line that is equal, or replaced by a line of the same depth and role (a new value, a renamed button), keeps its index; any other new line takes the next unused index. Indices freed by removed elements are never reused. The model's earlier indices therefore never point at a different element after an insertion above them, which Codex's positional numbering does not guarantee.
+
+### Settling
+
+After an action the tool polls a cheap fingerprint of the first 400 elements every 0.2 seconds, starting after 0.3 seconds, and stops when two fingerprints agree, after 1.5 seconds, or after 5 seconds while a busy indicator or an unfinished progress indicator is present — Codex's "about a second, up to five while loading".
+
+### Menu bar
+
+`menu` walks `AXMenuBar` by title, case-insensitively and ignoring a trailing `…` or `...`. A path that ends at a submenu lists its items with shortcut glyphs (`⌃⌥⇧⌘` from `AXMenuItemCmdModifiers`), `[checked]` and `[disabled]`; a leaf is pressed with `AXPress`. Reading the menu tree through Accessibility opens nothing on screen. `copy` presses the app's own menu item whose shortcut is ⌘C, found by shortcut rather than by its localized title, and falls back to posting ⌘C; it waits for the pasteboard change count, reads the string, and restores the previous pasteboard.
 
 The screenshot is the window's own image captured through ScreenCaptureKit, scaled so the long side is at most 1568 pixels; coordinates the model sends are pixels of that image and are mapped back to screen points with the scale that produced it.
 
@@ -34,16 +56,18 @@ The screenshot is the window's own image captured through ScreenCaptureKit, scal
 | Module | Role |
 |---|---|
 | `openprogram/computer_use/keys.py` | xdotool chord parsing to macOS key codes and modifier flags (`super+shift+z`, `ctrl++`, `KP_0`, lone modifiers) |
-| `openprogram/computer_use/tree.py` | `Node`, rendering, signatures and the diff |
+| `openprogram/computer_use/tree.py` | `Node`, rendering, signatures, stable numbering (`Snapshot`, `number`) and the diff |
 | `openprogram/computer_use/skylight.py` | ctypes bindings to SkyLight for background pointer and keyboard routing |
 | `openprogram/computer_use/macos.py` | `MacComputer`: app resolution, window selection, capture, tree walk, every action |
-| `openprogram/programs/tools/system/computer_use.py` | the registered tool: schema, approval reason, result assembly |
+| `openprogram/programs/tools/system/computer_use.py` | the registered tool: schema, description with the confirmation policy, approval reason, batch, result assembly |
 
 ### Background delivery
 
 Element actions go through Accessibility: `AXPress` / `AXConfirm` / `AXPick`, then `AXSelected`, then focus, then a pointer click at the element's centre as the last resort; `AXShowMenu` for right clicks; `AXValue` for `set_value`; `AXSelectedTextRange` (UTF-16 offsets) for `select_text`; page scrolling actions, then the scrollbar's value, then wheel events for `scroll`.
 
 Pointer events that have to be real (coordinate clicks, drags, wheel) are posted with the recipe the open-source cua-driver established: a focus-without-raise record posted to the target process serial number, a `mouseMoved` primer, the event stamped with click state, button, subtype 3, target pid, window id and a click group, `CGEventSetWindowLocation` for the window-relative position, and `SLEventPostToPid` for delivery. Keyboard events carry an `SLSEventAuthenticationMessage` so the receiving process accepts them; without SkyLight the code falls back to `CGEventPostToPid`. The result is a click the application handles as if the user clicked, while the real cursor stays where it is and the front application does not change.
+
+A window is chosen by `window` (title substring or index) or `window_id`; without either, the window the model read last stays selected while it is open, then the focused or main window. A minimized window or a hidden app still gives its tree; the screenshot is unavailable until `show_window` un-minimizes it (`AXMinimized`) or unhides the app, neither of which activates it. A window on another Space is reported as such and is not moved.
 
 `paste` writes the pasteboard (plain text, or HTML rendered from Markdown with `markdown-it`), sends Cmd+V to the target process, and restores the previous pasteboard contents when the change count shows nothing else wrote in between.
 
@@ -112,5 +136,5 @@ The GUI Agent workflow (`gui_agent`), its grounding pipeline and its capability 
 
 ## Implementation status
 
-- Implemented: `computer_use` on macOS with all eleven actions, background pointer and keyboard delivery, tree diffs, per-app approval with the four scopes, system-access gating, web presentation, unit tests for keys, tree, rules and approval wiring.
-- Not implemented: every row of the browser gap table; the settings page, annotation mode, region screenshot and `@`-mentions; Windows and Linux backends; a batch action; a perception fallback (object detection and OCR) for applications whose Accessibility tree is empty.
+- Implemented: `computer_use` on macOS with the reading, acting and batch actions above, stable indices, adaptive settling, background pointer and keyboard delivery, tree diffs, per-app approval with the four scopes, system-access gating, web presentation, unit tests for keys, tree numbering, menu matching, batch, rules and approval wiring.
+- Not implemented: every row of the browser gap table; computer audio recording; moving a window from another Space; the settings page, annotation mode, region screenshot and `@`-mentions; Windows and Linux backends; a perception fallback (object detection and OCR) for applications whose Accessibility tree is empty.

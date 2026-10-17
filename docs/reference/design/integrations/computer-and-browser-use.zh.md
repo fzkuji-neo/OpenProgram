@@ -23,9 +23,31 @@ OpenProgram 取 Codex 的形态、Claude App 的词汇：
 computer_use(action, app, element_index | x,y, …)
 ```
 
-动作：`list_apps`、`get_app_state`、`click`、`type_text`、`press_key`、`set_value`、`scroll`、`drag`、`perform_secondary_action`、`select_text`、`paste`。名称和参数沿用 Codex 的目标 API，模型的习惯可以直接迁移。只有 `list_apps` 是只读且免审批的。
+动作分三组：
 
-每个执行动作的调用返回 `Done: <摘要>`，后面跟 Accessibility 树相对模型上次所见状态的 **diff**：`- 行` 是消失的元素，`+ 序号 行` 是新增或变化的。变化行数超过一半（且至少十二行）时改为返回整棵树，因为重建后视图的 diff 比视图本身还长。`get_app_state(full=true)` 按需返回全树。树上限 1500 个节点，每元素一行：序号、角色（`AXTextField` → `text field`，子角色放括号里）、标签、值、占位符、标记（`focused`、`selected`、`checked`、`disabled`、`secure`、`settable`……）以及除主按压之外的次级动作。
+- **读取：**`list_apps`、`list_windows`、`get_app_state`（`include` = all / tree / screenshot，`window` 或 `window_id`）、`zoom`（以完整像素密度查看上一张截图的一块区域）、`find`（在上一棵树里按文字和角色查找）。
+- **执行**，即 Codex 的目标 API：`click`（按钮、次数、按住的修饰键、按住时长）、`type_text`、`press_key`、`set_value`、`scroll`（按页或按像素）、`drag`、`perform_secondary_action`、`select_text`、`paste`；以及来自 Claude App `app_*` 一组的 `copy`、`focus`、`menu`、`show_window`。
+- **`batch`：**对同一个应用按顺序执行至多 20 个执行类步骤，遇到第一个错误即停止；最后只等待稳定一次、只返回一次状态。
+
+只有 `list_apps` 免审批。批量里的步骤不能指定别的应用，因为这次调用携带的审批只点名批量本身的应用。
+
+每个执行动作的调用返回 `Done: <摘要>`，后面跟 Accessibility 树相对模型上次所见状态的 **diff**：`- 行` 是消失的元素，`+ 序号 行` 是新增或变化的。变化行数超过一半（且至少十二行）时改为返回整棵树，因为重建后视图的 diff 比视图本身还长。`get_app_state(full=true)` 按需返回全树。树上限 1500 个节点，每元素一行：序号、角色（`AXTextField` → `text field`，子角色放括号里）、标签、值、占位符、标记（`focused`、`selected`、`checked`、`disabled`、`secure`、`settable`……）以及除主按压之外的次级动作。有些应用给数字包上的双向文字标记会从渲染和 `find` 中去掉。
+
+树覆盖窗口、它旁边的菜单、弹出框和对话框，以及只展开已打开菜单的菜单栏。未打开的菜单由 `menu` 动作读取，所以每次读取的范围一致，diff 里不会出现整条菜单栏凭空出现或消失。
+
+没有改变任何东西的结果会被标记：`menu` 的列表、`copy` 和窗口本已可见时的 `show_window` 返回 `Report`，工具直接返回它，不等待稳定，也不再读取状态。
+
+### 稳定序号
+
+`tree.number` 参照窗口上一次的 `Snapshot`（不含序号的各行、它们的序号和下一个未用序号）分配序号。相同的行，或被同深度同角色的行替换（值变了、按钮改名），保留原序号；其他新行取下一个未用序号。被移除元素释放的序号永不复用。因此模型先前拿到的序号在其上方插入新元素后也不会指向别的元素——Codex 按位置编号做不到这一点。
+
+### 等待稳定
+
+动作之后，工具从 0.3 秒起每 0.2 秒对前 400 个元素取一次轻量指纹，两次指纹一致即停止；最多 1.5 秒，存在忙碌指示器或未完成的进度指示器时最多 5 秒——对应 Codex 的"约一秒，加载时最多五秒"。
+
+### 菜单栏
+
+`menu` 按标题遍历 `AXMenuBar`，不分大小写，忽略末尾的 `…` 或 `...`。路径停在子菜单时列出其菜单项，带快捷键符号（由 `AXMenuItemCmdModifiers` 得到 `⌃⌥⇧⌘`）、`[checked]` 和 `[disabled]`；末端项用 `AXPress` 按下。经 Accessibility 读菜单树不会在屏幕上打开任何东西。`copy` 按下应用自己快捷键为 ⌘C 的菜单项——按快捷键而非本地化标题查找——找不到时退回发送 ⌘C；它等待粘贴板的 change count 变化，读出字符串，再恢复先前的粘贴板。
 
 截图是经 ScreenCaptureKit 抓取的窗口自身图像，缩放到长边至多 1568 像素；模型发来的坐标是这张图上的像素，用生成它的比例映射回屏幕点。
 
@@ -34,16 +56,18 @@ computer_use(action, app, element_index | x,y, …)
 | 模块 | 职责 |
 |---|---|
 | `openprogram/computer_use/keys.py` | xdotool 组合键解析为 macOS 键码和修饰键标志（`super+shift+z`、`ctrl++`、`KP_0`、单独修饰键） |
-| `openprogram/computer_use/tree.py` | `Node`、渲染、签名和 diff |
+| `openprogram/computer_use/tree.py` | `Node`、渲染、签名、稳定编号（`Snapshot`、`number`）和 diff |
 | `openprogram/computer_use/skylight.py` | SkyLight 的 ctypes 绑定，用于后台指针和键盘路由 |
 | `openprogram/computer_use/macos.py` | `MacComputer`：应用解析、窗口选择、抓图、树遍历、全部动作 |
-| `openprogram/programs/tools/system/computer_use.py` | 注册的工具：schema、审批理由、结果拼装 |
+| `openprogram/programs/tools/system/computer_use.py` | 注册的工具：schema、含确认策略的说明、审批理由、批量、结果拼装 |
 
 ### 后台投递
 
 元素动作走 Accessibility：`AXPress` / `AXConfirm` / `AXPick`，然后 `AXSelected`，然后聚焦，最后才在元素中心做一次指针点击；右键用 `AXShowMenu`；`set_value` 用 `AXValue`；`select_text` 用 `AXSelectedTextRange`（UTF-16 偏移）；`scroll` 先用翻页动作，再用滚动条的值，再用滚轮事件。
 
 必须真实发生的指针事件（坐标点击、拖拽、滚轮）按开源 cua-driver 确立的配方投递：向目标进程序列号发一条不提升窗口的聚焦记录、一个 `mouseMoved` 预热事件、给事件打上点击状态、按钮、子类型 3、目标 pid、窗口 id 和点击组，`CGEventSetWindowLocation` 设定窗口相对位置，`SLEventPostToPid` 送达。键盘事件附带 `SLSEventAuthenticationMessage` 以便接收进程接受；没有 SkyLight 时回退到 `CGEventPostToPid`。结果是应用把这次点击当成用户点击来处理，而真实光标留在原地、前台应用不变。
+
+窗口由 `window`（标题子串或序号）或 `window_id` 选定；两者都不给时，模型上次读过的窗口只要还开着就保持选中，否则取焦点窗口或主窗口。最小化的窗口或被隐藏的应用仍然给出树；截图要等 `show_window` 取消最小化（`AXMinimized`）或取消隐藏应用后才有，这两者都不会激活应用。在另一个桌面空间的窗口会如实报告，不会被移动。
 
 `paste` 写入粘贴板（纯文本，或用 `markdown-it` 从 Markdown 渲染出的 HTML），向目标进程发 Cmd+V，并在 change count 表明期间没有别人写入时恢复先前的粘贴板内容。
 
@@ -112,5 +136,5 @@ GUI Agent 工作流（`gui_agent`）、它的 grounding 流水线和能力 plann
 
 ## 实现状态
 
-- 已实现：macOS 上的 `computer_use` 全部十一个动作、后台指针与键盘投递、树 diff、四个范围的按应用审批、系统访问门控、Web 展示、按键/树/规则/审批接线的单元测试。
-- 未实现：浏览器差距表的每一行；设置页、标注模式、区域截图和 `@` 提及；Windows 与 Linux 后端；批量动作；给 Accessibility 树为空的应用准备的感知回退（目标检测与 OCR）。
+- 已实现：macOS 上 `computer_use` 的上述读取、执行与批量动作，稳定序号，自适应等待，后台指针与键盘投递，树 diff，四个范围的按应用审批，系统访问门控，Web 展示，按键/树编号/菜单匹配/批量/规则/审批接线的单元测试。
+- 未实现：浏览器差距表的每一行；电脑音频录制；把窗口从另一个桌面空间移过来；设置页、标注模式、区域截图和 `@` 提及；Windows 与 Linux 后端；给 Accessibility 树为空的应用准备的感知回退（目标检测与 OCR）。

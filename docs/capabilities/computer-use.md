@@ -25,25 +25,46 @@ Each line is one element: its index, its role, its label, its current value, sta
 computer_use(action="click", app="Calculator", element_index=18)
 ```
 
-Every action returns `Done: …` followed by a diff of the tree: lines prefixed `-` disappeared, lines prefixed `+` are new or changed and carry their new index. Pass `full=true` to `get_app_state` to receive the whole tree again. Trees are capped at 1500 elements and screenshots at 1568 pixels on the long side.
+Every action returns `Done: …` followed by a diff of the tree: lines prefixed `-` disappeared, lines prefixed `+` are new or changed. Indices are stable: an element keeps its index while it stays in the window, even when something is inserted above it, and a new element gets a number not used before, so an index read earlier never silently points at something else. Pass `full=true` to `get_app_state` to receive the whole tree again. Trees are capped at 1500 elements and screenshots at 1568 pixels on the long side.
+
+After an action the tool waits for the window to settle instead of a fixed pause: at least 0.3 seconds, until the tree stops changing, at most 1.5 seconds — or 5 seconds while a spinner or progress bar is showing.
 
 ## Actions
 
 | Action | Arguments | Effect |
 |---|---|---|
 | `list_apps` | — | Running and installed applications, with bundle ids |
-| `get_app_state` | `app`, `window?`, `full?` | Screenshot and tree. A closed app is launched in the background. `window` picks one by title substring or index |
-| `click` | `app`, `element_index` or `x`,`y`, `mouse_button?`, `click_count?`, `key?` | Press an element, or click a point of the last screenshot. `key` holds modifiers such as `cmd` or `shift+alt` |
-| `type_text` | `app`, `text`, `element_index?` | Type into the focused element, focusing `element_index` first when given |
+| `list_windows` | `app` | The app's windows with their `window_id`, title, size, and whether each is main, focused, minimised or on another Space |
+| `get_app_state` | `app`, `window?` or `window_id?`, `full?`, `include?` | Screenshot and tree. A closed app is launched in the background. `window` picks one by title substring or index; the window read last stays selected. `include` is `all`, `tree` or `screenshot` |
+| `zoom` | `app`, `x`, `y`, `width`, `height` | A region of the last screenshot at the display's full pixel density, for small text. Action coordinates still refer to the screenshot |
+| `find` | `app`, `text?`, `role?` | Elements of the last tree whose label, value or placeholder contains `text`, optionally of one role (`button`, `text field` …) |
+| `click` | `app`, `element_index` or `x`,`y`, `mouse_button?`, `click_count?`, `key?`, `duration?` | Press an element, or click a point of the last screenshot. `key` holds modifiers such as `cmd` or `shift+alt`; `duration` holds the button down, up to 10 seconds |
+| `type_text` | `app`, `text`, `element_index?` | Type into the focused element, focusing `element_index` first when given. Refused when the element is a button or another control that cannot take text |
 | `press_key` | `app`, `key`, `element_index?`, `duration?` | One chord in xdotool spelling: `Return`, `Escape`, `super+c`, `ctrl+shift+Tab`, `KP_0`, `F5`. `super` and `cmd` are the Command key |
 | `set_value` | `app`, `element_index`, `value` | Replace a field's value, move a slider, toggle a checkbox |
-| `scroll` | `app`, `element_index` or `x`,`y`, `direction?`, `pages?` | Scroll a page per unit; fractions allowed |
+| `scroll` | `app`, `element_index` or `x`,`y`, `direction?`, `pages?` or `pixels?` | Scroll by pages (fractions allowed) or by a distance in points |
 | `drag` | `app`, `x`, `y`, `to_x`, `to_y` | Drag between two points of the last screenshot |
 | `perform_secondary_action` | `app`, `element_index`, `action_name` | One of the element's listed actions, e.g. `AXShowMenu`, `AXIncrement` |
 | `select_text` | `app`, `element_index`, `text`, `prefix?`, `suffix?`, `selection_type?` | Select a phrase inside a text element, or place the cursor before or after it |
 | `paste` | `app`, `text`, `format?`, `element_index?` | Insert through the clipboard as `text`, `md` or `html`; the clipboard is restored afterwards |
+| `copy` | `app`, `element_index?` | Run the app's own Copy on the current selection and return the copied text; the clipboard is restored afterwards |
+| `focus` | `app`, `element_index` | Move keyboard focus to an element without clicking it |
+| `menu` | `app`, `menu_path?` | Without a path, list the menu bar. With a path such as `["View", "Scientific"]`, list that menu (with shortcuts, checked and disabled items) or choose a leaf item. Titles match without regard to case or a trailing `…`; no menu opens on screen |
+| `show_window` | `app`, `window?` or `window_id?` | Restore a minimised window or unhide the app, without bringing it to the front |
+| `batch` | `app`, `actions` | Up to 20 of the acting steps above, run in order on one app; stops at the first error and returns the state once, at the end |
 
 `app` is a name, bundle id or `.app` path as `list_apps` prints it. `x` and `y` are pixels of that app's most recent screenshot, not screen coordinates.
+
+In a `batch`, every step uses the indices and coordinates of the state read before the batch, and each step names its own `action` but not the app:
+
+```
+computer_use(action="batch", app="Calculator", actions=[
+  {"action": "click", "element_index": 18},
+  {"action": "press_key", "key": "KP_Multiply"},
+  {"action": "click", "element_index": 18},
+  {"action": "press_key", "key": "KP_Enter"}
+])
+```
 
 Element actions reach windows that are hidden, minimised or covered by another window. Coordinate clicks, drags and wheel scrolls also run in the background: the pointer does not move and the front application does not change. Coordinates exist for canvases and custom controls that the tree does not describe; prefer an index whenever one is listed.
 
@@ -66,5 +87,7 @@ The card appears in every permission mode, Auto and Bypass included: only a save
 ## What the tool refuses
 
 The tool does not type into secure text fields or while macOS reports secure keyboard input, and it never operates the Keychain Access and Passwords apps, system login and authorisation prompts, or OpenProgram itself. When a task needs one of those steps, the model asks you to do it.
+
+The tool's description asks the model to check with you before deleting data, sending messages, submitting forms, spending money, changing accounts, permissions or system settings, and installing software, and to hand CAPTCHAs, password entry and security prompts to you. Text shown in a window is never treated as your permission.
 
 The tool is not offered in WeChat and Telegram channels, nor in plan mode.
