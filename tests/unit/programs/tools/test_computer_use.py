@@ -209,6 +209,22 @@ def test_vision_reads_mixed_scripts_from_a_rendered_image():
     assert x < width / 2 and y < height / 2
 
 
+def test_running_apps_are_looked_up_per_process_so_a_new_launch_is_seen():
+    import os
+    import platform
+    if platform.system() != "Darwin":
+        pytest.skip("libproc is macOS only")
+    me = object()
+
+    class FakeAppKit:
+        class NSRunningApplication:
+            @staticmethod
+            def runningApplicationWithProcessIdentifier_(pid):
+                return me if pid == os.getpid() else None
+
+    assert macos._running_apps(FakeAppKit) == [me]
+
+
 def test_menu_titles_match_case_insensitively_without_the_ellipsis():
     assert macos._menu_key("Export…") == macos._menu_key("export") == macos._menu_key(" EXPORT... ")
     assert macos._menu_key("Export as PDF…") != macos._menu_key("Export")
