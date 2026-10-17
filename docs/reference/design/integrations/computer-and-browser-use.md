@@ -127,6 +127,7 @@ Against the Codex target API, `web_use` now covers:
 | Key with duration, key without a target | `pressKey(key, {durationMs})` | `press` with `duration`, `ref` optional |
 | Back / forward / reload | tab methods | `back`, `forward`, `reload` |
 | Run JavaScript in the page | `evaluate` | `evaluate` with `script`, approved per call |
+| Console and network (Claude in Chrome's `read_console_messages`, `read_network_requests`) | — | `console_messages`, `network_requests` |
 
 The argument names are `computer_use`'s (`mouse_button`, `click_count`, `direction`, `format`, `prefix`, `suffix`, `selection_type`, `duration`), so the two tools read alike; only the held keys of a click are `modifiers`, because `key` already names the key of `press`.
 
@@ -140,6 +141,8 @@ The argument names are `computer_use`'s (`mouse_button`, `click_count`, `directi
 Tabs map onto existing commands: `list_pages` is `listTabs`, a Page alias from it is `getTab`, `observe` with a `url` opens a hidden background tab (`createBrowserTab` hidden) unless a bound Page already shows that origin, and `close` ends the session. Still missing against Codex: opening a visible tab that takes focus, and observation as a diff. A visible tab would move the user's focus, which background operation deliberately avoids. An observation is capped at 120 visible elements and its refs belong to one frame, which is how a stale ref is refused; a diff would save little and would need refs that outlive their frame, so observations stay whole.
 
 `evaluate` reads everything a signed-in page holds, including what observations redact, so it is gated in the permission policy rather than by the tool: `force_approval` makes a `web_use` call whose `action` (top-level or nested) is `evaluate` ask in every mode, before allow rules, bypass and the bound-surface grant are consulted, and `one_shot_approval` keeps the card to the "once" scope, never saves a rule, and shows the arguments untruncated. Non-interactive sources are refused. The script runs through the controller on every backend, the MCP ones included, because the controller holds the same tab and the password values of its fields: the result passes through the same redaction as an observation and through `_mutated`, so the frame is invalidated and the next step observes again. An expression is wrapped as `() => (expr)`; scripts are capped at 8000 characters and results at 20,000.
+
+`console_messages` and `network_requests` (`page_logs.py`) read Playwright's own per-Page history (`console_messages()`, `page_errors()`, `requests()`), so nothing has to be listening before the first read. They run through the controller on every backend like `evaluate`, are read-only and leave the frame valid. Console text passes the password redaction; requests are listed by method, URL without query or fragment, status (`no response` when the browser never received one) and resource type, never with headers or bodies.
 
 ## Interface work
 

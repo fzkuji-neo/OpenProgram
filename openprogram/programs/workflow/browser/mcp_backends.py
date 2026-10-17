@@ -460,11 +460,12 @@ class OfficialMCPPageBackend:
         if str(arguments.get("ref") or "").lstrip("@").startswith("file_"):
             return {"ok": False, "reason_code": "file_ref_action_required",
                     "message": "File refs support upload and file_selected verification only."}
-        if action == pa.EVALUATE_ACTION:
+        if action == pa.EVALUATE_ACTION or action in ("console_messages", "network_requests"):
             # Through the controller's handle on the same tab, so the result
             # is redacted like an observation.
             return controller.execute(
-                action=action, expected_frame_id=frame_id, script=arguments.get("script"),
+                action=action, expected_frame_id=frame_id,
+                **{key: arguments[key] for key in ("script", "pattern", "only_errors", "limit") if key in arguments},
                 **({"before_dispatch": before_dispatch} if before_dispatch is not None else {}),
             )
         if action in {"screenshot", "wait"}:

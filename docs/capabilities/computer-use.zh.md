@@ -88,6 +88,8 @@ computer_use(action="batch", app="Calculator", actions=[
 | `select_text` | `ref`、`text`、`prefix?`、`suffix?`、`selection_type?` | 选中元素里的文字，或把光标放到它前后 |
 | `press` | `key`、`ref?`、`duration?` | 不给 `ref` 时按键发给页面当前焦点；`duration` 是按住的秒数 |
 | `back` / `forward` / `reload` | — | 历史导航；无处可去时返回 `no_history` |
+| `console_messages` | `pattern?`、`only_errors?`、`limit?` | 页面的控制台输出和未捕获错误，从旧到新，默认最新 50 条；密码字段的值会被脱敏 |
+| `network_requests` | `pattern?`、`only_errors?`、`limit?` | 页面发出的请求及其方法、状态码和资源类型；URL 不带查询参数，也不含请求体 |
 | `evaluate` | `script` | 在页面里运行一个 JavaScript 表达式或函数（如 `() => document.title`），以 JSON 返回结果，最多 20,000 个字符；结果里的密码字段值会被脱敏 |
 
 App 浏览器里的页面全程留在后台：事件在页面内派发，标签页不会被激活。在 Playwright 和 Chrome DevTools MCP 后端上，后端做不到的选项（例如三击或按住按键）会在发送任何东西之前以 `unsupported_option` 失败。

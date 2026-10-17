@@ -265,3 +265,63 @@ def test_an_evaluate_approval_covers_that_call_only():
     assert one_shot_approval("web_use", {"command": "act", "arguments": {"action": "evaluate"}})
     assert not one_shot_approval("web_use", {"command": "act", "arguments": {"action": "click"}})
     assert one_shot_approval("self_update_prepare", {})
+
+
+# ----------------------------------------------------------------- console and network
+
+from openprogram.programs.workflow.browser._runtime import page_logs as logs
+
+
+def test_request_urls_lose_their_query_fragment_and_data():
+    assert logs.short_url("https://api.example.com/v1/me?token=abc#x") == "https://api.example.com/v1/me?…"
+    assert logs.short_url("https://example.com/a") == "https://example.com/a"
+    assert logs.short_url("data:image/png;base64,AAAA") == "data:image/png;base64,…"
+
+
+def test_log_options_are_checked():
+    assert logs.options({}) == ("", False, logs.DEFAULT_LIMIT)
+    assert logs.options({"pattern": " API ", "only_errors": True, "limit": "5"}) == ("api", True, 5)
+    for bad in (0, 201, "many"):
+        with pytest.raises(logs.LogError):
+            logs.options({"limit": bad})
+
+
+def test_console_and_requests_render_newest_last_with_filters():
+    rows = [{"type": "log", "text": "boot", "where": ""}, {"type": "error", "text": "API failed", "where": "a.js:3"},
+            {"type": "pageerror", "text": "boom", "where": ""}]
+    assert logs.render_console(rows, "", True, 50).splitlines()[1:] == ["[error] API failed  (a.js:3)", "[pageerror] boom"]
+    assert logs.render_console(rows, "", False, 1).startswith("1 of 3 console message(s)")
+    assert logs.render_console([], "", False, 50) == "No console messages yet."
+    requests = [{"method": "GET", "url": "https://x/a", "type": "fetch", "status": 200, "failure": ""},
+                {"method": "POST", "url": "https://x/b", "type": "xhr", "status": 500, "failure": ""},
+                {"method": "GET", "url": "https://x/c", "type": "image", "status": None, "failure": "net::ERR_FAILED"}]
+    assert logs.render_requests(requests, "", True, 50).splitlines()[1:] == [
+        "POST https://x/b → 500 [xhr]", "GET https://x/c → failed: net::ERR_FAILED [image]"]
+    assert logs.render_requests(requests, "zzz", False, 50) == "No requests match."
+
+
+def test_log_actions_are_in_the_schema_and_go_through_the_controller():
+    act = web_use_parameters()["allOf"][0]["then"]["properties"]["arguments"]["properties"]
+    assert {"console_messages", "network_requests"} <= set(act["action"]["enum"])
+    assert {"pattern", "only_errors", "limit"} <= set(act)
+    adapter, session = _adapter("chrome_devtools_mcp")
+    calls = []
+    adapter._controller = lambda _session: type("C", (), {"execute": lambda self, **kw: calls.append(kw) or {"ok": True}})()
+    adapter.act(session, {"action": "network_requests", "only_errors": True, "expected_frame_id": "f2"})
+    assert calls == [{"action": "network_requests", "expected_frame_id": "f2", "only_errors": True}]
+
+
+def test_controller_reads_console_and_requests_without_invalidating_the_frame(page):
+    from openprogram.programs.workflow.browser._runtime.controller import BrowserPageController
+
+    class Api:
+        _sessions = {"br_x": {"page": page}}
+    page.set_content("<input type=password value='pw-123'><script>console.error('leak pw-123')</script>")
+    controller = BrowserPageController(Api(), url="http://localhost/")
+    controller.session_id = "br_x"
+    controller._owner.shutdown(wait=True)  # run on the test's own thread, which owns the page
+    controller._submit = lambda fn, *a, **k: fn(*a, **k)
+    frame = controller.execute(action="observe")["frame_id"]
+    result = controller.execute(action="console_messages", expected_frame_id=frame, only_errors=True)
+    assert result["ok"] and "[error] leak [redacted]" in result["result"] and "pw-123" not in result["result"]
+    assert controller._frame and controller._frame["frame_id"] == frame
