@@ -171,4 +171,4 @@ The GUI Agent workflow (`gui_agent`), its grounding pipeline and its capability 
 - Implemented: recordings as audio input for Gemini and Chat Completions audio models; tool-result screenshots on Chat Completions vision models.
 - Implemented: element comments and region screenshots in web tabs; `@`-mentions of open tabs and running apps.
 - Implemented: outlines of icons and controls without text in sparse windows.
-- Not implemented: audio input over the Responses and Anthropic APIs; moving a window from another Space; Windows and Linux backends; naming an icon from its outline (the model reads the screenshot).
+- Not implemented: audio input over the Responses and Anthropic APIs, whose models take no audio; moving a window from another Space, which since macOS 14.5 only the Dock may do (`SLSMoveWindowsToManagedSpace` from any other process needs System Integrity Protection relaxed, as yabai documents); Windows and Linux backends, which cannot be run or tested on the macOS machines this is built on; naming an icon from its outline (the model reads the screenshot).

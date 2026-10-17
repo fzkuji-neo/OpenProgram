@@ -171,4 +171,4 @@ GUI Agent 工作流（`gui_agent`）、它的 grounding 流水线和能力 plann
 - 已实现：对 Gemini 和 Chat Completions 的音频模型，把录音作为音频输入；Chat Completions 视觉模型能看到工具结果里的截图。
 - 已实现：网页标签里的元素评论和区域截图；对已打开标签页和正在运行应用的 `@` 提及。
 - 已实现：稀疏窗口里不带文字的图标和控件的轮廓。
-- 未实现：经 Responses 和 Anthropic API 的音频输入；把窗口从另一个桌面空间移过来；Windows 与 Linux 后端；从轮廓直接认出图标的名字（模型看截图分辨）。
+- 未实现：经 Responses 和 Anthropic API 的音频输入（这两个接口的模型不收音频）；把窗口从另一个桌面空间移过来（macOS 14.5 起只有 Dock 能这样做，其他进程调用 `SLSMoveWindowsToManagedSpace` 需要放宽系统完整性保护，yabai 的文档写明了这一点）；Windows 与 Linux 后端（在构建它的 macOS 机器上无法运行和测试）；从轮廓直接认出图标的名字（模型看截图分辨）。
