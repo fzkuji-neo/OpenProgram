@@ -160,3 +160,26 @@ def test_agent_tool_agent_id_accepts_null():
     assert _accepts_null(props["agent_id"]), props["agent_id"]
     # agent_id is optional → not in required
     assert "agent_id" not in params.get("required", [])
+
+
+# The Codex backend fails a request whose type list with "null" describes an
+# object with declared fields or an array of them; such optionals use anyOf.
+
+def test_allow_null_object_with_fields_uses_any_of():
+    steps = {"type": "array", "description": "steps",
+             "items": {"type": "object", "properties": {"x": {"type": "number"}}}}
+    out = _allow_null(steps)
+    assert out == {"anyOf": [{"type": "array", "items": steps["items"]}, {"type": "null"}], "description": "steps"}
+    assert _allow_null(out) == out
+    assert _allow_null({"type": "object", "properties": {}})["anyOf"][1] == {"type": "null"}
+
+
+def test_allow_null_free_form_object_keeps_type_list():
+    assert _allow_null({"type": "object"})["type"] == ["object", "null"]
+    assert _allow_null({"type": "array", "items": {"type": "string"}})["type"] == ["array", "null"]
+
+
+def test_gemini_folds_a_nullable_union_back_into_its_schema():
+    from openprogram.providers._schema.dialects import gemini_openapi
+    out = gemini_openapi(_allow_null({"type": "object", "properties": {"x": {"type": "number"}}}))
+    assert out == {"type": "object", "properties": {"x": {"type": "number"}}, "nullable": True}

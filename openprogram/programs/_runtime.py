@@ -405,12 +405,31 @@ def _allow_null(schema: dict[str, Any]) -> dict[str, Any]:
                 out["enum"] = [*out["enum"], None]
         # else: no type/oneOf/enum — treat as free-form, accepts null.
         return out
-    if isinstance(t, list):
-        if "null" not in t:
-            out["type"] = [*t, "null"]
-    elif t != "null":
-        out["type"] = [t, "null"]
+    if (t == "null" or (isinstance(t, list) and "null" in t)):
+        return out
+    if _holds_object(out):
+        # The Codex backend fails the whole request, with an empty error event,
+        # when a type list with "null" describes an object or an array of
+        # objects; the same choice spelled as anyOf is accepted.
+        description = out.pop("description", None)
+        widened: dict[str, Any] = {"anyOf": [out, {"type": "null"}]}
+        if description is not None:
+            widened["description"] = description
+        return widened
+    out["type"] = [*t, "null"] if isinstance(t, list) else [t, "null"]
     return out
+
+
+def _holds_object(schema: dict[str, Any]) -> bool:
+    """An object with declared fields, or an array of such objects; free-form
+    mappings are accepted as a type list and keep that form."""
+    def declared(node: dict[str, Any]) -> bool:
+        return _has_object_type(node) and ("properties" in node or node.get("additionalProperties") is False)
+    if declared(schema):
+        return True
+    t = schema.get("type")
+    items = schema.get("items")
+    return (t == "array" or (isinstance(t, list) and "array" in t)) and isinstance(items, dict) and declared(items)
 
 
 def _has_object_type(schema: dict[str, Any]) -> bool:
