@@ -222,7 +222,8 @@ def test_running_apps_are_looked_up_per_process_so_a_new_launch_is_seen():
             def runningApplicationWithProcessIdentifier_(pid):
                 return me if pid == os.getpid() else None
 
-    assert macos._running_apps(FakeAppKit) == [me]
+    from openprogram.computer_use.processes import running_applications
+    assert running_applications(FakeAppKit) == [me]
 
 
 def test_the_tree_walk_stops_at_a_cycle_back_to_the_app_or_an_element_seen_before(monkeypatch):

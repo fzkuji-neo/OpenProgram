@@ -199,9 +199,12 @@ class WeChatWindow:
             or not ApplicationServices.AXIsProcessTrusted()
         ):
             raise VisualUnavailable("ACCESS_REQUIRED")
+        from openprogram.computer_use.processes import running_applications
+
+        # NSWorkspace's own list goes stale in a worker without a run loop.
         apps = [
             a
-            for a in AppKit.NSWorkspace.sharedWorkspace().runningApplications()
+            for a in running_applications(AppKit)
             if a.bundleIdentifier() == "com.tencent.xinWeChat"
         ]
         try:
