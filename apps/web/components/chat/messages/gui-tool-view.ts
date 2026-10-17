@@ -31,6 +31,14 @@ function string(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+/** The public `computer_use` tool shares its name with the GUI Agent's internal
+ *  desktop capability. Only the capability (task / app_name, no `action`) is a
+ *  GUI step; the public tool keeps the ordinary tool renderer. */
+export function isGuiToolCall(name: string, params?: unknown): boolean {
+  if (!GUI_TOOL_NAMES.has(name)) return false;
+  return name !== "computer_use" || typeof object(params).action !== "string";
+}
+
 export function guiStatus(output: unknown, executionStatus = ""): string {
   const result = object(output);
   // A stop on this execution takes precedence over its last successful step.
@@ -84,7 +92,7 @@ function stepView(capability: string, input: unknown, output: unknown, execution
 export function guiToolView(node: {
   name: string; status: string; output?: unknown; params?: RecordValue; tree_root?: unknown;
 }): GuiToolView | null {
-  if (!GUI_TOOL_NAMES.has(node.name)) return null;
+  if (!isGuiToolCall(node.name, node.params)) return null;
   const tree = object(node.tree_root) as TNode;
   const output = object(node.output ?? tree.output);
   const root = stepView(node.name, node.params, output, node.status);
@@ -121,8 +129,10 @@ export function guiToolView(node: {
 }
 
 /** One-line timeline note that agrees with the Details status. */
-export function guiResultNote(name: string, output: unknown, executionStatus: string, text: Text): string {
-  const view = guiToolView({ name, status: executionStatus, output });
+export function guiResultNote(
+  name: string, output: unknown, executionStatus: string, text: Text, params?: RecordValue,
+): string {
+  const view = guiToolView({ name, status: executionStatus, output, params });
   if (!view) return "";
   const detail = view.handoff || view.blocker || view.summary;
   return [guiStatusLabel(view.status, text), detail].filter(Boolean).join(" · ");

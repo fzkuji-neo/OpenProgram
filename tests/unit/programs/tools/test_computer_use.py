@@ -146,6 +146,44 @@ def test_desktop_access_is_required_for_everything_but_list_apps():
     assert _desktop_operation("gui_agent", {"surface": "browser"}) is None
 
 
+@pytest.fixture
+def decide(monkeypatch):
+    """permission_decision for computer_use with authority and recovery stubbed out."""
+    from types import SimpleNamespace
+    from openprogram.agent import authority
+    from openprogram.agent.permissions import policy, recovery
+    from openprogram.programs._runtime import get
+
+    monkeypatch.setattr(policy, "_hard_constraint_violation", lambda *a, **k: None)
+    monkeypatch.setattr(authority, "decide_tool_authority",
+                        lambda *a, **k: SimpleNamespace(allowed=True, reason_code="", capability=""))
+    monkeypatch.setattr(recovery, "approval_context", lambda *a, **k: None)
+    agent_tool = get("computer_use")
+
+    def run(args, *, mode="auto", allow=(), source="web"):
+        rules = SimpleNamespace(allow=list(allow), ask=[], deny=[])
+        req = SimpleNamespace(permission_mode=mode, permission_rules=rules, session_id="s-test",
+                              source=source, surface_context=None)
+        return policy.permission_decision(agent_tool, req, args)[:2]
+    return run
+
+
+@pytest.mark.parametrize("mode", ["auto", "bypass", "default", "acceptEdits"])
+def test_first_touch_of_an_app_asks_in_every_mode(decide, mode):
+    assert decide({"action": "click", "app": "Calculator"}, mode=mode) == ("ask", "APP_GRANT_REQUIRED")
+
+
+def test_an_allow_rule_for_the_app_lets_it_run_and_names_only_that_app(decide):
+    rule = ["computer_use(calculator)"]
+    assert decide({"action": "click", "app": "Calculator"}, allow=rule) == ("allow", "PERMISSION_RULE_ALLOW")
+    assert decide({"action": "click", "app": "Notes"}, allow=rule) == ("ask", "APP_GRANT_REQUIRED")
+
+
+def test_list_apps_needs_no_grant_and_unattended_sources_cannot_grant(decide):
+    assert decide({"action": "list_apps"}, mode="bypass") == ("allow", "BYPASS")
+    assert decide({"action": "click", "app": "Calculator"}, source="cron")[0] == "deny"
+
+
 def test_approval_card_offers_the_conversation_scope_for_computer_use():
     from openprogram.agent.permissions import approval
     from openprogram.execution.waits import _APPROVAL_SCOPES

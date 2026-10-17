@@ -52,3 +52,14 @@ test('JSON results are summarised instead of printed raw', () => {
   assert.equal(summarizeResult('{"frame_id": "f1", "title": "Google", "url": "https://www.google.com/webhp', en), 'Google');
   assert.equal(summarizeResult('{"frame_id": "f1", "nodes": [1, 2', en), 'structured output');
 });
+
+test('the public computer_use tool reads as the action in the app; the GUI capability keeps its label', () => {
+  const click = presentTool('computer_use', JSON.stringify({ action: 'click', app: 'Calculator', element_index: 20 }), en);
+  assert.equal(click.title, 'Clicked in Calculator');
+  assert.equal(click.icon, 'monitor');
+  assert.equal(presentTool('computer_use', JSON.stringify({ action: 'press_key', app: 'Notes', key: 'super+c' }), en).target, 'super+c');
+  assert.equal(presentTool('computer_use', JSON.stringify({ action: 'list_apps' }), en).title, 'Listed apps');
+  const capability = presentTool('computer_use', JSON.stringify({ task: 'inspect', app_name: 'TextEdit' }), en);
+  assert.equal(capability.title, 'Computer Use');
+  assert.equal(capability.target, 'TextEdit');
+});
