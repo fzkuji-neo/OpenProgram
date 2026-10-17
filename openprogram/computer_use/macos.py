@@ -886,8 +886,10 @@ class MacComputer:
         return self._attr(ax.AXUIElementCreateApplication(pid), "AXFocusedUIElement")
 
     # ------------------------------------------------------------------ actions
-    # Actions that need no earlier state of the window.
+    # Actions that need no earlier state of the window, and actions that need
+    # it only to resolve an element_index (otherwise they act on the focus).
     STATELESS = frozenset({"menu", "show_window"})
+    AT_FOCUS = frozenset({"copy", "press_key", "type_text", "paste"})
 
     def act(self, session: str, action: str, args: dict[str, Any]) -> str:
         """Run one action and return a short description of what happened."""
@@ -895,7 +897,7 @@ class MacComputer:
             handler = getattr(self, f"_do_{action}", None)
             if handler is None:
                 raise ComputerUseError(f"unknown action {action!r}")
-            if action in self.STATELESS:
+            if action in self.STATELESS or (action in self.AT_FOCUS and args.get("element_index") is None):
                 app = self.resolve_app(args.get("app") or "", launch=False)
                 return handler(app, int(app.processIdentifier()), self._states.get(
                     (session, int(app.processIdentifier()))), args)
@@ -1163,7 +1165,10 @@ class MacComputer:
         if not self._settable(element, "AXFocused"):
             raise ComputerUseError(f"element {index} cannot take keyboard focus; click it instead")
         self._set(element, "AXFocused", True)
-        time.sleep(0.08)
+        # Apps apply focus on their next run-loop turn, sometimes later.
+        deadline = time.monotonic() + 0.5
+        while self._attr(element, "AXFocused") is not True and time.monotonic() < deadline:
+            time.sleep(0.05)
         if self._attr(element, "AXFocused") is not True:
             raise ComputerUseError(f"focus did not move to element {index}; the app keeps its text cursor in "
                                    "another window. Click the element instead.")
@@ -1180,8 +1185,11 @@ class MacComputer:
         board = appkit.NSPasteboard.generalPasteboard()
         saved = _save_pasteboard(board)
         before = board.changeCount()
+        item = self._shortcut_item(pid, "c", enabled_only=False)
+        if item is not None and self._attr(item, "AXEnabled") is False:
+            raise ComputerUseError(f"{app.localizedName()}'s Copy is disabled right now: nothing is selected, or "
+                                   "focus is on a control. Select text first (select_text, or press_key cmd+a).")
         try:
-            item = self._shortcut_item(pid, "c")
             if item is None or self._perform(item, "AXPress") != 0:
                 self._post_chord(pid, keymap.parse_chord("cmd+c"))
             deadline = time.monotonic() + 1.5
@@ -1231,8 +1239,8 @@ class MacComputer:
             parts.append("▸")
         return " ".join(parts)
 
-    def _shortcut_item(self, pid: int, char: str, modifiers: int = 0):
-        """The enabled menu item whose shortcut is ⌘<char>, in any locale."""
+    def _shortcut_item(self, pid: int, char: str, modifiers: int = 0, *, enabled_only: bool = True):
+        """The menu item whose shortcut is ⌘<char>, in any locale (enabled ones only, by default)."""
         _, ax, _, _ = _frameworks()
         bar = self._attr(ax.AXUIElementCreateApplication(pid), "AXMenuBar")
         for top in self._attr(bar, "AXChildren") or [] if bar is not None else []:
@@ -1240,7 +1248,7 @@ class MacComputer:
                 values = self._attrs(item, ["AXMenuItemCmdChar", "AXMenuItemCmdModifiers", "AXEnabled"])
                 if (str(values.get("AXMenuItemCmdChar") or "").lower() == char
                         and int(values.get("AXMenuItemCmdModifiers") or 0) == modifiers
-                        and values.get("AXEnabled") is not False):
+                        and (values.get("AXEnabled") is not False or not enabled_only)):
                     return item
         return None
 
