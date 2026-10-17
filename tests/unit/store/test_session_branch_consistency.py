@@ -96,6 +96,8 @@ def test_rewind_syncs_mirror_so_save_session_cannot_revert_it(
     srv._sessions["s1"] = {
         "id": "s1", "head_id": ids[-1], "messages": [{"id": i} for i in ids],
     }
+    # Runs other tests left registered in this process must not gate the rewind.
+    monkeypatch.setattr(srv, "_is_run_active", lambda _sid: False)
 
     # rewind to the second user turn (m2) -> head lands on m1
     monkeypatch.setattr(
