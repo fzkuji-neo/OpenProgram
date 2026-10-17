@@ -6,7 +6,7 @@
  */
 import type { AssistantBlock, TurnFileSummary } from "../../../lib/session-store/types.ts";
 import { parseToolArgs, presentTool } from "./tool-presentation.ts";
-import { GUI_TOOL_NAMES } from "./gui-tool-view.ts";
+import { GUI_TOOL_NAMES, isGuiToolCall } from "./gui-tool-view.ts";
 
 type Text = (en: string, zh: string) => string;
 type Args = Record<string, unknown>;
@@ -47,7 +47,7 @@ export const LINE_DIFF_CAP = 2000;
 type Kind =
   | "command" | "create" | "edit" | "delete" | "read" | "list" | "search"
   | "websearch" | "fetch" | "browser" | "agent" | "imagegen" | "imageanalyze"
-  | "todo" | "ask" | "memory" | "program" | "skill" | "gui" | "other";
+  | "todo" | "ask" | "memory" | "program" | "skill" | "gui" | "computer" | "other";
 
 interface Bucket {
   kind: Kind;
@@ -188,7 +188,7 @@ function blockPaths(b: AssistantBlock): string[] {
   return path ? [path] : [];
 }
 
-function kindOf(tool: string, text: Text): Kind {
+function kindOf(tool: string, text: Text, args: Args = {}): Kind {
   if (COMMAND.has(tool)) return "command";
   if (tool === "read" || tool === "pdf") return "read";
   if (tool === "list") return "list";
@@ -197,7 +197,8 @@ function kindOf(tool: string, text: Text): Kind {
   if (tool === "web_fetch") return "fetch";
   if (BROWSER.has(tool)) return "browser";
   // browser_use is checked above: "operated the browser" says more than "GUI call".
-  if (GUI_TOOL_NAMES.has(tool)) return "gui";
+  // The public computer_use tool shares the GUI Agent capability's name.
+  if (GUI_TOOL_NAMES.has(tool)) return isGuiToolCall(tool, args) ? "gui" : "computer";
   if (AGENT.has(tool)) return "agent";
   if (tool === "image_generate") return "imagegen";
   if (tool === "image_analyze") return "imageanalyze";
@@ -361,6 +362,10 @@ function pastPhrase(bucket: Bucket, text: Text): string {
       return text("operated the browser", "操作了浏览器");
     case "gui":
       return calls === 1 ? text("ran a GUI call", "执行了 1 次 GUI 调用") : text(`ran ${calls} GUI calls`, `执行了 ${calls} 次 GUI 调用`);
+    case "computer":
+      return named ? text(`operated ${named}`, `操作了 ${named}`)
+        : bucket.targets.size > 1 ? text(`operated ${bucket.targets.size} apps`, `操作了 ${bucket.targets.size} 个应用`)
+        : text("operated an app", "操作了应用");
     case "agent":
       return named ? text(`ran sub-agent ${named}`, `运行了子代理 ${named}`)
         : n === 1 ? text("ran a sub-agent", "运行了 1 个子代理") : text(`ran ${n} sub-agents`, `运行了 ${n} 个子代理`);
@@ -404,6 +409,7 @@ function presentPhrase(bucket: Bucket, text: Text): string {
     case "fetch": return t ? text(`fetching ${t}`, `正在抓取 ${t}`) : text("fetching a page", "正在抓取网页");
     case "browser": return text("operating the browser", "正在操作浏览器");
     case "gui": return text("running a GUI call", "正在执行 GUI 调用");
+    case "computer": return t ? text(`operating ${t}`, `正在操作 ${t}`) : text("operating an app", "正在操作应用");
     case "agent": return t ? text(`running sub-agent ${t}`, `正在运行子代理 ${t}`) : text("running a sub-agent", "正在运行子代理");
     case "imagegen": return text("generating an image", "正在生成图片");
     case "imageanalyze": return text("analyzing an image", "正在分析图片");
@@ -425,6 +431,7 @@ function targetOf(kind: Kind, tool: string, args: Args): string {
     case "agent": return "";
     case "program": return pick(args, "name", "program", "path") ?? "";
     case "skill": return pick(args, "name", "skill") ?? "";
+    case "computer": return pick(args, "app") ?? "";
     case "other": return tool;
     default: return "";
   }
@@ -469,11 +476,12 @@ export function summarizeToolGroup(blocks: AssistantBlock[], options: ToolGroupO
       }
       return;
     }
-    const kind = kindOf(tool, text);
+    const args = parseToolArgs(b.input);
+    const kind = kindOf(tool, text, args);
     const target = bucket(kind);
     target.calls++;
     if (kind === "agent") spawnBlocks++;
-    const value = targetOf(kind, tool, parseToolArgs(b.input));
+    const value = targetOf(kind, tool, args);
     if (value) target.targets.add(value);
     else if (kind !== "agent") target.anonymous++;
     if (running) target.running = value;
