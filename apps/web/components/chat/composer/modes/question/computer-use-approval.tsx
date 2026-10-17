@@ -7,7 +7,7 @@ import { useComputerUseApps } from "@/lib/net/computer-use-apps";
 import { useTranslation } from "@/lib/i18n";
 
 import { OperationCode } from "./operation-code";
-import { AUDIO_ACTIONS, computerUseStep, readsWhat, setArgs, str, type Args } from "./computer-use-step";
+import { AUDIO_ACTIONS, computerUseStep, needsForeground, readsWhat, setArgs, str, type Args } from "./computer-use-step";
 import approvalStyles from "../approval/approval-mode.module.css";
 import styles from "./computer-use-approval.module.css";
 
@@ -20,6 +20,7 @@ export function ComputerUseApproval({ args, allowedScopes }: { args: Args; allow
   const step = computerUseStep(args, text);
   const reads = readsWhat(args, text);
   const audio = AUDIO_ACTIONS.has(str(args.action));
+  const forward = app?.platform === "linux" && needsForeground(args);
   const scopes = allowedScopes ?? [];
   const scopeLine = scopes.includes("session")
     ? text(`Only for this app. After "Allow this conversation", using ${name} again in this conversation is not asked.`,
@@ -54,8 +55,14 @@ export function ComputerUseApproval({ args, allowedScopes }: { args: Args; allow
           {audio
             ? text("Only this app's own sound is recorded: not the microphone and not other apps.",
               "只录这个应用自己发出的声音，不录麦克风，也不录其他应用")
-            : text("Runs in the background: your mouse stays put, the keyboard stays yours, and no window comes to the front.",
-              "在后台进行：不移动你的鼠标、不占用键盘，也不会把窗口切到前台")}
+            : forward
+              ? str(args.action) === "hover"
+                ? text("Moves your mouse pointer onto the window and leaves it there.",
+                  "会把你的鼠标指针移到这个窗口上，并停在那里")
+                : text("Brings the window to the front for this step, then gives focus and your mouse pointer back.",
+                  "这一步会把窗口短暂切到前台，完成后把焦点和鼠标指针还给你")
+              : text("Runs in the background: your mouse stays put, the keyboard stays yours, and no window comes to the front.",
+                "在后台进行：不移动你的鼠标、不占用键盘，也不会把窗口切到前台")}
         </li>
         <li><SolarIcon name="shield-check" size={15} aria-hidden="true" />{scopeLine}</li>
       </ul>

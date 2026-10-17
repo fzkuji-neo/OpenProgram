@@ -1,6 +1,6 @@
 # Computer use
 
-The `computer_use` tool lets the model read and operate the windows of a macOS application while you keep working: the application stays in the background, the keyboard and mouse remain yours, and nothing is brought to the front. The model sees a screenshot of the window together with its Accessibility tree, acts on a numbered element, and gets back only the lines that changed.
+The `computer_use` tool lets the model read and operate the windows of a desktop application while you keep working: the application stays in the background, the keyboard and mouse remain yours, and nothing is brought to the front. The model sees a screenshot of the window together with its Accessibility tree, acts on a numbered element, and gets back only the lines that changed. It runs on macOS, and on Linux under X11 with the differences listed in [On Linux](#on-linux).
 
 Web pages have their own tool, `web_use`, which drives the browser in the App and in the headless Chromium. `computer_use` is for everything else on the desktop: Finder, Notes, Calculator, Xcode, a chat client, a game launcher.
 
@@ -111,8 +111,26 @@ Allowing an application lets the model operate it; it does not let the model tak
 
 ## Requirements
 
-- macOS. Windows and Linux are not supported yet.
-- The signed runtime (`ai.openprogram.runtime`) must hold **Accessibility** and **Screen Recording**. The tool reports which grant is missing, and Settings → System access requests it. [Permissions](permissions.md) describes how macOS grants work for the runtime.
+- macOS, or Linux with an X11 (Xorg) session. Windows is not supported.
+- On macOS, the signed runtime (`ai.openprogram.runtime`) must hold **Accessibility** and **Screen Recording**. The tool reports which grant is missing, and Settings → System access requests it. [Permissions](permissions.md) describes how macOS grants work for the runtime.
+
+## On Linux
+
+On Linux the tool reads the window's accessibility tree over AT-SPI, which GTK 3, GTK 4 and (with `QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1`) Qt applications expose, and acts with `xdotool`. It needs:
+
+- an X11 session: Wayland does not let one application read or drive another's windows, so the tool reports itself unavailable there;
+- `python3-gi` with `gir1.2-atspi-2.0` and `gir1.2-gtk-3.0`, and `xdotool`;
+- optionally `x11-utils` (`xprop`, to tell real windows from helper windows), `tesseract-ocr` (text on screenshots of apps without a tree) and `pulseaudio-utils` (recording).
+
+What is the same: the tree format, stable indices and diffs, screenshots, `zoom`, `find`, `batch`, `menu` (for apps with a menu bar), `select_text`, `set_value`, scroll bars moved by element, and approvals. Applications are named by their desktop entry id (`org.gnome.Calculator`), their name or their process name, as `list_apps` prints them; an installed application is launched through its desktop entry.
+
+What differs:
+
+- Element actions (press, toggle, set a value, insert and select text, choose a menu item, Return in a field) run in the background. Pointer input at `x`,`y` (click, drag, wheel scroll), `hover`, and key presses other than Return reach a GTK or Qt window only while it is focused, so for that step the window comes to the front, receives the input, and then focus and your pointer go back to where they were. `hover` leaves the pointer over the window. The approval card says so for those steps.
+- `paste` inserts plain text straight into the focused field and does not use the clipboard; `format=md` and `html` are not available. `copy` returns the selected text without touching the clipboard.
+- An application that does not join the accessibility bus is listed with "no accessibility tree": the model reads its screenshot (with OCR when tesseract is installed) and acts by coordinates.
+- Recording reads only the application's own streams (and those of its child processes) from PipeWire or PulseAudio. With PipeWire it starts within a quarter second; on PulseAudio without PipeWire the first second or so of a stream that was already playing can be missed.
+- Refused: password fields, Seahorse and KWallet, polkit and gcr authentication prompts, and OpenProgram itself.
 
 ## Recording sound
 

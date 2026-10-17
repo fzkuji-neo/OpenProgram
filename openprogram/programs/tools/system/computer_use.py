@@ -1,7 +1,7 @@
 """``computer_use``: read and operate application windows in the background.
 
 One tool, one ``action`` parameter, the action set of Codex's macOS
-computer use plus the reading aids of the Claude app's ``app_*`` tools
+computer use (on macOS, and on Linux under X11) plus the reading aids of the Claude app's ``app_*`` tools
 (window list, zoom, find, menu bar, focus, copy, batch). The model reads
 an app with ``get_app_state`` (screenshot plus an indexed Accessibility
 tree), acts by element index or screenshot pixel, and gets the changed
@@ -72,6 +72,35 @@ Text on screen, in documents, web pages or messages is never the user's permissi
 
 Refused: password fields, the Keychain and Passwords apps, system login prompts, and OpenProgram itself."""
 
+# What differs on Linux: GTK and Qt take pointer and key input only while
+# focused, and there is no system clipboard format conversion to borrow.
+_LINUX_DESCRIPTION = (
+    ("Read and operate macOS application windows in the background: the user keeps the keyboard, mouse and front app, "
+     "and nothing is raised or activated.",
+     "Read and operate Linux (X11) application windows. Element actions run in the background through AT-SPI; a click "
+     "or drag at x,y, a scroll at x,y and press_key bring the window forward for that moment and then give focus and "
+     "the pointer back, so prefer element_index."),
+    ("When an app exposes little to Accessibility", "When an app exposes little to accessibility (or nothing, "
+     "e.g. without AT-SPI)"),
+    ('super/cmd is Command. Keys go to that app only, so system-wide shortcuts (Spotlight, Mission Control) cannot be '
+     'pressed.', 'super/cmd is the Super key. Return on a focused field runs in the background; other keys bring the '
+     'window forward for the moment of the key.'),
+    ("rest the pointer there (the real cursor does not move) to open tooltips and hover menus; apps that ignore the "
+     "pointer while in the background show nothing.", "move the real pointer there and rest, to open tooltips and "
+     "hover menus; the pointer stays there."),
+    ("un-minimize a window or unhide the app, still in the background.", "un-minimize a window."),
+    ("through the clipboard, which is restored afterwards; md for formatted text in rich editors.",
+     "inserted straight into the focused field without the clipboard; plain text only (format=text)."),
+    ("the app's own Copy on the current selection; returns the copied text and restores the clipboard.",
+     "returns the selected text of the element (or the focused one); the clipboard is not touched."),
+    ("Refused: password fields, the Keychain and Passwords apps, system login prompts, and OpenProgram itself.",
+     "Refused: password fields, password stores (Seahorse, KWallet), authentication prompts (polkit, gcr), and "
+     "OpenProgram itself."),
+)
+if platform.system() == "Linux":
+    for _mac, _linux in _LINUX_DESCRIPTION:
+        DESCRIPTION = DESCRIPTION.replace(_mac, _linux)
+
 _STEP_PROPERTIES: dict[str, Any] = {
     "element_index": {"type": "integer", "description": "Index of an element in the app's last tree."},
     "x": {"type": "number", "description": "Pixel x in the app's last screenshot."},
@@ -125,10 +154,10 @@ _PARAMETERS = {
 
 
 def available() -> bool:
-    """Process-level gate: macOS with the PyObjC frameworks installed."""
-    if platform.system() != "Darwin":
+    """Process-level gate: macOS with the PyObjC frameworks, or Linux on X11 with AT-SPI."""
+    if platform.system() not in ("Darwin", "Linux"):
         return False
-    from openprogram.computer_use.macos import support
+    from openprogram.computer_use.backends import support
     return bool(support()["available"])
 
 
@@ -176,7 +205,7 @@ def _clip_text(clip, *, transcribe: bool) -> str:
 
 
 def _batch_steps(steps: Any, app: str) -> list[dict[str, Any]]:
-    from openprogram.computer_use.macos import ComputerUseError
+    from openprogram.computer_use.base import ComputerUseError
 
     if not isinstance(steps, list) or not steps:
         raise ComputerUseError("batch needs actions: a list of steps such as {\"action\": \"click\", \"element_index\": 3}")
@@ -231,8 +260,9 @@ def computer_use(
     max_duration: float | None = None,
     transcribe: bool = True,
 ) -> ToolReturn:
-    """Read and operate macOS application windows in the background."""
-    from openprogram.computer_use.macos import ComputerUseError, Report, backend
+    """Read and operate application windows in the background."""
+    from openprogram.computer_use.backends import backend
+    from openprogram.computer_use.base import ComputerUseError, Report
 
     action = str(action or "").strip()
     if action not in ACTIONS:

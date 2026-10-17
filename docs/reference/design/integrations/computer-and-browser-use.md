@@ -65,12 +65,15 @@ Codex records computer audio with `start_audio_recording` / `stop_audio_recordin
 
 | Module | Role |
 |---|---|
+| `openprogram/computer_use/base.py` | what every backend shares: `ComputerUseError`, `Report`, `Observation`, `AudioClip`, argument checks, recording storage |
+| `openprogram/computer_use/backends.py` | `support()` and `backend()` for the host: `macos` on Darwin, `linux` on Linux |
 | `openprogram/computer_use/keys.py` | xdotool chord parsing to macOS key codes and modifier flags (`super+shift+z`, `ctrl++`, `KP_0`, lone modifiers) |
 | `openprogram/computer_use/tree.py` | `Node`, rendering, signatures, stable numbering (`Snapshot`, `number`) and the diff |
 | `openprogram/computer_use/audio.py` | ScreenCaptureKit audio capture of one application, sample limit, WAV encoding |
-| `openprogram/computer_use/ocr.py` | Vision text recognition, box conversion to screenshot pixels, reading order, language hints |
+| `openprogram/computer_use/ocr.py` | Vision text recognition (tesseract TSV on Linux), box conversion to screenshot pixels, reading order, language hints, contour shapes |
 | `openprogram/computer_use/skylight.py` | ctypes bindings to SkyLight for background pointer and keyboard routing |
 | `openprogram/computer_use/macos.py` | `MacComputer`: app resolution, window selection, capture, tree walk, every action |
+| `openprogram/computer_use/linux.py` | `LinuxComputer`: the same interface over AT-SPI, xdotool, Gdk capture and PipeWire/PulseAudio |
 | `openprogram/programs/tools/system/computer_use.py` | the registered tool: schema, description with the confirmation policy, approval reason, batch, result assembly |
 
 ### Background delivery
@@ -86,6 +89,22 @@ A window is chosen by `window` (title substring or index) or `window_id`; withou
 ### Refusals
 
 The tool never types into `AXSecureTextField` elements or while macOS reports secure keyboard input (`kCGSSessionSecureInputPID`), and refuses to target Keychain Access, Passwords, loginwindow, SecurityAgent and OpenProgram's own bundles. The refusal is returned as an error that asks the user to do the step; no approval scope overrides it.
+
+### Linux backend
+
+`LinuxComputer` keeps `MacComputer`'s interface, so the tool, the server's app lookup and the tests drive either one through `backends.backend()`. It runs only in an X11 session: under Wayland no client may read or inject input into another client's surface, and `support()` says so.
+
+- **Apps.** The AT-SPI desktop's children that own a window, plus top-level X windows whose owner does not join the accessibility bus. The owner of an X window is `_NET_WM_PID`, or, for Xt and Motif clients that do not set it, the newest process whose name or executable starts with the window's WM_CLASS instance. Each app is matched to a desktop entry (`Gio.AppInfo`) by executable or name, which gives the identifier (`org.gnome.Calculator`), the display name, and the icon looked up in the hicolor theme. Launching goes through `Gio.DesktopAppInfo.launch` and then waits for the app's AT-SPI root as well as its window, since GTK 4 apps join the bus after mapping.
+- **Windows.** Top-level windows are the window manager's `_NET_CLIENT_LIST` (read with `xprop`), which leaves out GTK's 10×10 client-leader window; without a client list, windows of 10×10 or smaller are skipped. An AT-SPI frame is paired with its X window by title, then by size. A window missing from the mapped set is reported minimized; `show_window` maps it again.
+- **Tree.** Roles are AT-SPI role names (`push button`, `text`, `check box`), so `role_name` prints them unchanged. A subtree is read when it is on screen: GTK 3 sets SHOWING, GTK 4 sets only VISIBLE below the window, so the walk uses SHOWING when any child of the window reports it and VISIBLE otherwise. A closed combo box's popup items and GTK's tooltip window are skipped. Unnamed fillers, panels and sections are transparent. GTK 4 names unnamed widgets after their class (`AdwGizmo`, `GtkMenuButton`); such names are not labels. Flags come from states (CHECKED or PRESSED, FOCUSED, SELECTED, EXPANDED, not ENABLED/SENSITIVE), `settable` from EditableText or Value, `secure` from the `password text` role. Secondary actions are the element's Action names other than click, press, activate, toggle, jump, open and select.
+- **Element actions in the background.** Click runs the element's primary action; `set_value` uses `EditableText.set_text_contents`, `Value.set_current_value`, or a toggle when a check box's state differs; `type_text` and `paste` insert at the caret with `EditableText.insert_text` (UTF-8 byte length), replacing a selection, and a newline runs the field's `activate` action; `press_key Return` on a field runs `activate`; `select_text` uses `Text.set_selection` or the caret offset (character offsets, not UTF-16); `copy` reads `Text.get_selection` without the clipboard; `scroll` by element moves the nearest scroll bar's Value by 90 % of its length per page; `menu` walks the window's `menu bar` and runs a leaf's action. `Component.grab_focus` makes GTK present the window, so wherever focus has to move, the window that was active gets focus back.
+- **Foreground input.** GTK and Qt read pointer and key input through XInput 2 and ignore core events sent with `XSendEvent` to an unfocused window, so a coordinate click, drag, wheel scroll, hover or key press is sent with XTEST: the window is activated (`windowactivate`, or `windowraise` plus `windowfocus` without an EWMH window manager), the input runs, and the pointer position and previously active window are restored; `hover` leaves the pointer. Chords use xdotool names with `cmd`, `command`, `meta` and `win` mapped to `super` and `option` to `alt`.
+- **Screenshots.** `Gdk.pixbuf_get_from_window` on a foreign X window gives the window's own pixels at X resolution, scaled down to 1568 pixels on the long side; a minimized window has none. Screenshot pixels map to screen pixels through the window's position from `xdotool getwindowgeometry`, the same frame AT-SPI's screen extents use.
+- **OCR.** For sparse windows (and the `find` fallback), `tesseract --psm 11 tsv` with the installed languages among eng, chi_sim, chi_tra, jpn and kor; words with confidence 30 or more are joined into lines. Contour shapes are not detected on Linux.
+- **Audio.** `pactl list sink-inputs` gives each stream's `application.process.id`; the recorder polls until a stream of the app or any of its descendants (re-read on every poll, since players are usually children started after recording began) appears, then reads it with `parec --monitor-stream=<index>` as 16 kHz mono float. Reading continues until parec ends, so the samples it buffers when stop terminates it are kept. Under PipeWire the first samples arrive within a quarter second; under PulseAudio's timer-based scheduling the first monitor of a stream starts 1.2–1.7 s late and that span is lost.
+- **Refusals.** `password text` elements, Seahorse, KWallet, gcr prompts, polkit agents and OpenProgram's own entries.
+
+The tool's description is rewritten for Linux at import (`_LINUX_DESCRIPTION`): which steps bring the window forward, plain-text `paste`, clipboard-free `copy`, the Linux refusals. The `computer_use_apps` WebSocket reply carries the worker's `platform`, and on Linux the approval card states for coordinate input, drags, hovers and keys other than Return (`needsForeground`) that the window comes forward for that step.
 
 ### Permissions and approval
 
@@ -146,7 +165,7 @@ Tabs map onto existing commands: `list_pages` is `listTabs`, a Page alias from i
 
 ## Interface work
 
-A `computer_use` approval card (`computer-use-approval.tsx`) leads with the application itself: its icon, display name and bundle id come from the `computer_use_apps` WebSocket action, which calls `MacComputer.app_info` and launches nothing, and the web caches them per name (`lib/net/computer-use-apps.ts`). Below it a chip names the step in words (`computer-use-step.ts`), two lines state that the step runs in the background (or, for audio, that only that application's sound is recorded) and what the offered scopes cover, and the arguments without empty values fold into "Execution details".
+A `computer_use` approval card (`computer-use-approval.tsx`) leads with the application itself: its icon, display name and bundle id come from the `computer_use_apps` WebSocket action, which calls the backend's `app_info` and launches nothing, and the web caches them per name (`lib/net/computer-use-apps.ts`). Below it a chip names the step in words (`computer-use-step.ts`), two lines state that the step runs in the background (or, for audio, that only that application's sound is recorded) and what the offered scopes cover, and the arguments without empty values fold into "Execution details".
 
 The project's Settings tab has a Computer use section (`computer-use-apps-section.tsx`) between the default settings and the permission rules. It lists the project's `computer_use(<app>)` allow rules as one row per application with icon, name, bundle id and a remove control, and the generic rule list leaves those rules out. Removing a row removes the rule. Conversation-scoped grants are session rules that end with their conversation, so the section does not list them.
 
@@ -155,7 +174,7 @@ The person points the agent at things the way Codex lets them:
 - In a web tab, **Comment on the page…** picks one element and adds its selector, text and the comment to the draft; **Screenshot a region…** lets them drag a rectangle and adds those pixels as a PNG attachment. Both run in one isolated world (`PICKER_WORLD` in `apps/desktop/main/web-views.js`) that shares a cancel hook, so one mode ends the other. The region overlay is removed and two frames are painted before `capturePage` takes the rectangle, scaled by the page zoom. The file reaches the target conversation through `lib/composer-inbox.ts`: the composer showing that conversation takes it as a dropped file, and it waits there until one does.
 - The composer's `@` menu lists open web tabs and running apps above the files (`attach/mention-sources.ts`). A tab is written as a markdown link to its address and an app as its name and bundle id, so "this tab" resolves without the model guessing. Running apps come from `computer_use_apps` with `running: true`, which lists regular apps other than the refused ones and is kept for ten seconds in the page.
 
-Windows and Linux backends (UI Automation; AT-SPI with xdotool) follow the same `MacComputer` interface and are not started.
+A Windows backend (UI Automation) would follow the same interface; it is not started.
 
 ## Relation to the GUI Agent
 
@@ -171,4 +190,5 @@ The GUI Agent workflow (`gui_agent`), its grounding pipeline and its capability 
 - Implemented: recordings as audio input for Gemini and Chat Completions audio models; tool-result screenshots on Chat Completions vision models.
 - Implemented: element comments and region screenshots in web tabs; `@`-mentions of open tabs and running apps.
 - Implemented: outlines of icons and controls without text in sparse windows.
-- Not implemented: audio input over the Responses and Anthropic APIs, whose models take no audio; moving a window from another Space, which since macOS 14.5 only the Dock may do (`SLSMoveWindowsToManagedSpace` from any other process needs System Integrity Protection relaxed, as yabai documents); Windows and Linux backends, which cannot be run or tested on the macOS machines this is built on; naming an icon from its outline (the model reads the screenshot).
+- Implemented: the Linux (X11) backend described above. It is tested in a Debian 12 container with Xvfb, Openbox, the AT-SPI bus and PipeWire against a GTK 3 window (menu bar, entry, password entry, check box, slider, scrolled text view, drawing area, a button that plays sound from a child process), GNOME Calculator (GTK 4 with libadwaita, launched from its desktop entry, 7×6 computed by element clicks) and ImageMagick `display` (an Xt client without AT-SPI, read by OCR). Host-independent parts have unit tests.
+- Not implemented: audio input over the Responses and Anthropic APIs, whose models take no audio; moving a window from another Space, which since macOS 14.5 only the Dock may do (`SLSMoveWindowsToManagedSpace` from any other process needs System Integrity Protection relaxed, as yabai documents); a Windows backend, which cannot be run or tested on the macOS machines this is built on (no Windows guest is available to a container runtime here); naming an icon from its outline (the model reads the screenshot).

@@ -14,6 +14,8 @@ export interface ComputerUseApp {
   bundle_id: string;
   icon: string;
   installed: boolean;
+  /** The worker's platform ("darwin", "linux"): what a step does to the user's own input differs. */
+  platform?: string;
 }
 
 const cache = new Map<string, ComputerUseApp>();
