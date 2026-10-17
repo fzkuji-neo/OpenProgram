@@ -29,6 +29,7 @@ import time
 from typing import Any
 
 from . import keys as keymap
+from . import ocr
 from .skylight import SUBTYPE_DEFAULT, SUBTYPE_TOUCH, skylight
 from .tree import _BIDI_MARKS, Node, Snapshot, TRANSPARENT_ROLES, diff, number, render, role_name, snapshot
 
@@ -64,6 +65,9 @@ SETTLE_MIN = 0.3
 SETTLE_MAX = 1.5
 BUSY_MAX = 5.0
 QUICK_NODES = 400
+# A window whose tree has fewer elements than this shows little beyond its
+# frame and title bar; its screenshot is read with OCR as well.
+OCR_SPARSE_NODES = 12
 _BUSY_ROLES = frozenset({"AXBusyIndicator", "AXProgressIndicator"})
 # Wheel notches per page: ten notches of three lines cover about one window.
 TICKS_PER_PAGE = 10
@@ -163,6 +167,8 @@ class WindowState:
     size: tuple[float, float] = (0.0, 0.0)
     scale: float = 1.0           # screenshot pixels per screen point
     has_screenshot: bool = False
+    sparse: bool = False         # the tree shows little of the window, so reads add OCR text
+    text_boxes: list[ocr.TextBox] = field(default_factory=list)
 
 
 @dataclass
@@ -678,8 +684,10 @@ class MacComputer:
                 previous.origin = (frame[0], frame[1]) if frame else previous.origin
                 previous.size = (frame[2], frame[3]) if frame else previous.size
                 previous.scale, previous.has_screenshot = scale, image is not None
+                previous.text_boxes = self._read_text(image, frame, scale) if previous.sparse else []
                 lines.append("")
                 lines.append("Tree not read (include=screenshot); element indices are those of the last tree.")
+                lines.extend(self._text_section(previous.text_boxes))
                 return Observation(text="\n".join(lines), image=image, app=name)
             nodes, elements, complete = self._read_tree(root, target)
             prior = previous.snapshot if same_window else None
@@ -693,13 +701,32 @@ class MacComputer:
                 size=(frame[2], frame[3]) if frame else (0.0, 0.0), scale=scale, has_screenshot=image is not None)
             if include == "tree" and same_window and previous.has_screenshot:
                 state.scale, state.has_screenshot = previous.scale, True
+            state.sparse = target is not None and _window_node_count(nodes) < OCR_SPARSE_NODES
+            if state.sparse:
+                state.text_boxes = self._read_text(image, frame, scale)
             self._states[key] = state
             if not complete:
                 lines.append(f"The tree was cut at {MAX_NODES} elements.")
             lines.append("")
             lines.append("Accessibility tree changes since the last state:" if is_diff else "Accessibility tree:")
             lines.append(body or "(empty)")
+            lines.extend(self._text_section(state.text_boxes))
             return Observation(text="\n".join(lines), image=image, app=name)
+
+    def _read_text(self, image: bytes | None, frame, scale: float) -> list[ocr.TextBox]:
+        if image is None or frame is None:
+            return []
+        try:
+            return ocr.recognize(image, frame[2] * scale, frame[3] * scale)
+        except Exception:  # OCR only adds to a read; a failure must not fail it
+            return []
+
+    @staticmethod
+    def _text_section(boxes: list[ocr.TextBox]) -> list[str]:
+        if not boxes:
+            return []
+        return ["", "Text on the screenshot (OCR; this app exposes little to Accessibility, so act on it "
+                    "with x,y at a line's centre):", ocr.render(boxes)]
 
     def _state_for(self, session: str, query: str) -> tuple[Any, WindowState]:
         app = self.resolve_app(query, launch=False)
@@ -1453,6 +1480,15 @@ class MacComputer:
                 if needle and needle not in haystack:
                     continue
                 hits.append(f"{node.index} {node.body()}")
+            if not hits and needle and not wanted_role and state.has_screenshot:
+                if not state.text_boxes:
+                    image, scale = self._capture(state.pid, (*state.origin, *state.size), state.window_id)
+                    if image is not None and abs(scale - state.scale) < 1e-3:
+                        state.text_boxes = self._read_text(image, (*state.origin, *state.size), scale)
+                seen = ocr.matching(state.text_boxes, needle)
+                if seen:
+                    return (f"no element matches, but the screenshot shows {len(seen)} line(s) with that text "
+                            "(OCR; act with x,y at the centre):\n" + ocr.render(seen[:60]))
             if not hits:
                 return "no element of the last tree matches; call get_app_state for a fresh tree, or scroll"
             more = f"\n…and {len(hits) - 60} more; narrow the search." if len(hits) > 60 else ""
@@ -1520,6 +1556,11 @@ def _await(start):
     if result[1] is not None or result[0] is None:
         raise ComputerUseError(f"Window capture failed: {result[1]}")
     return result[0]
+
+
+def _window_node_count(nodes: list[Node]) -> int:
+    """Elements of the window itself: the first walk, up to the next top-level node."""
+    return next((i for i, node in enumerate(nodes[1:], 1) if node.depth == 0), len(nodes))
 
 
 def _seconds(value, name: str) -> float:

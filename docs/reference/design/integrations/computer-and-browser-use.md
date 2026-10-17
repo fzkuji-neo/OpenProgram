@@ -53,12 +53,17 @@ After an action the tool polls a cheap fingerprint of the first 400 elements eve
 
 The screenshot is the window's own image captured through ScreenCaptureKit, scaled so the long side is at most 1568 pixels; coordinates the model sends are pixels of that image and are mapped back to screen points with the scale that produced it.
 
+### Text on the screenshot
+
+A window whose own walk yields fewer than 12 elements (frame, title bar buttons and little else) is drawn without Accessibility. For such a window every full or screenshot-only read also runs Vision's accurate text recognizer on the screenshot it just took and lists each line as `"text" at (cx, cy), WxH` in screenshot pixels, top to bottom and left to right, at most 150 lines. The first recognition language picks Vision's model, so the languages are a hint (the user's preferred languages, then Chinese, Japanese, Korean and English) and language detection chooses per image. `find` with `text` falls back to these lines when no element matches; for a window that was not sparse it captures and reads the window once at the same scale, so the positions stay valid for actions. OCR text has no indices and is not part of the tree diff: it is evidence for coordinate actions, and a failure of the recognizer leaves the read without it.
+
 ### Module layout
 
 | Module | Role |
 |---|---|
 | `openprogram/computer_use/keys.py` | xdotool chord parsing to macOS key codes and modifier flags (`super+shift+z`, `ctrl++`, `KP_0`, lone modifiers) |
 | `openprogram/computer_use/tree.py` | `Node`, rendering, signatures, stable numbering (`Snapshot`, `number`) and the diff |
+| `openprogram/computer_use/ocr.py` | Vision text recognition, box conversion to screenshot pixels, reading order, language hints |
 | `openprogram/computer_use/skylight.py` | ctypes bindings to SkyLight for background pointer and keyboard routing |
 | `openprogram/computer_use/macos.py` | `MacComputer`: app resolution, window selection, capture, tree walk, every action |
 | `openprogram/programs/tools/system/computer_use.py` | the registered tool: schema, description with the confirmation policy, approval reason, batch, result assembly |
@@ -146,4 +151,5 @@ The GUI Agent workflow (`gui_agent`), its grounding pipeline and its capability 
 
 - Implemented: `computer_use` on macOS with the reading, acting and batch actions above, stable indices, adaptive settling, background pointer and keyboard delivery, tree diffs, per-app approval with the four scopes, system-access gating, web presentation, unit tests for keys, tree numbering, menu matching, batch, rules and approval wiring.
 - Implemented for `web_use`: every row of the parity table above, on all three backends, with tests that run the page scripts in Chromium.
-- Not implemented: `web_use` tab management, observation diffs and gated evaluation; computer audio recording; moving a window from another Space; the settings page, annotation mode, region screenshot and `@`-mentions; Windows and Linux backends; a perception fallback (object detection and OCR) for applications whose Accessibility tree is empty.
+- Implemented: OCR text for windows with a sparse tree and as the `find` fallback, with a test that reads a rendered image through Vision.
+- Not implemented: `web_use` visible tabs, observation diffs and gated evaluation; computer audio recording; moving a window from another Space; the settings page, annotation mode, region screenshot and `@`-mentions; Windows and Linux backends; object detection for icons and controls that carry no text.
