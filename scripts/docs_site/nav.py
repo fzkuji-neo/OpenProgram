@@ -280,6 +280,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
         ("Asking about OpenProgram", "询问 OpenProgram 自身",
          ["capabilities/docs-question.md"]),
         ("Security review", "安全审查", ["capabilities/security-review.md"]),
+        ("Computer use", "操控电脑", ["capabilities/computer-use.md"]),
         ("Extending", "扩展", [
             "capabilities/installing-harnesses.md", "capabilities/skills.md",
             "capabilities/distill.md",
@@ -583,6 +584,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/integrations/skills-and-plugins.md",
             "reference/design/integrations/web-use-technical-spec.html",
             "reference/design/integrations/web-use.html",
+            "reference/design/integrations/computer-and-browser-use.md",
             "reference/design/extension-gating/README.md",
             "reference/design/extension-gating/future-work.md",
             "reference/design/extension-gating/reference-comparison.md",

@@ -31,6 +31,7 @@ export function AnswerSummary({ decision, answer }: { decision: PendingDecision;
   } else {
     const approval = decision.kind === "approval" && values.answer === "approve"
       ? values.scope === "once" ? text("Allow once", "允许一次")
+        : values.scope === "session" ? text("Allowed for this conversation", "允许此对话")
         : values.scope === "always" ? text("Always allow", "始终允许")
           : values.scope === "always_path" ? text("Always allow this path", "始终允许此路径")
             : text("Approved", "已同意")

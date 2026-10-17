@@ -70,7 +70,7 @@ class CapabilitySpec:
 _CAPABILITY_SPECS = (
     CapabilitySpec(
         'screen_recording', 'Screen recording', '屏幕录制', 'desktop', 'runtime',
-        'native', operations=('gui_agent:desktop',), module='Quartz',
+        'native', operations=('gui_agent:desktop', 'computer_use:desktop'), module='Quartz',
         check_method='CGPreflightScreenCaptureAccess',
         request_method='CGRequestScreenCaptureAccess',
         settings_pane='Privacy_ScreenCapture',
@@ -81,7 +81,7 @@ _CAPABILITY_SPECS = (
     ),
     CapabilitySpec(
         'accessibility', 'Desktop control', '桌面控制', 'desktop', 'runtime', 'native',
-        operations=('gui_agent:desktop',), module='ApplicationServices',
+        operations=('gui_agent:desktop', 'computer_use:desktop'), module='ApplicationServices',
         check_method='AXIsProcessTrusted',
         request_method='AXIsProcessTrustedWithOptions',
         request_style='accessibility_prompt',
@@ -267,8 +267,8 @@ def validate_capability_registry() -> None:
         for operation in spec.operations:
             prefix, separator, action = operation.partition(':')
             if (not operation or not separator or not prefix or not action or
-                    prefix not in {'gui_agent', 'apple_events', 'calendar', 'reminders',
-                                   'file', 'microphone', 'camera'}):
+                    prefix not in {'gui_agent', 'computer_use', 'apple_events', 'calendar',
+                                   'reminders', 'file', 'microphone', 'camera'}):
                 raise RuntimeError(f'Invalid operation mapping for {spec.id}.')
     package_usage_declarations()
 
@@ -673,6 +673,24 @@ def report() -> dict:
     }
 
 
+def _desktop_operation(tool_name: str, args: dict | None) -> str | None:
+    """The registry operation a host-bound tool call needs, or None when it needs no grant."""
+    if not isinstance(args, dict):
+        return None
+    name = str(tool_name)
+    if name == 'gui_agent':
+        surface = str(args.get('surface') or '').strip().lower()
+        if surface != 'desktop' or args.get('vm_url'):
+            return None
+        return 'gui_agent:desktop'
+    if name == 'computer_use':
+        # Listing applications reads nothing from the screen or the windows.
+        if str(args.get('action') or '').strip() == 'list_apps':
+            return None
+        return 'computer_use:desktop'
+    return None
+
+
 def required_access_state(tool_name: str, args: dict | None) -> dict | None:
     """Return one registry-derived preflight result for a host-bound tool.
 
@@ -681,17 +699,15 @@ def required_access_state(tool_name: str, args: dict | None) -> dict | None:
     do not create a wait that can never become granted. Direct function calls
     and the canonical safe point consume this same result.
     """
-    if str(tool_name) != 'gui_agent' or not isinstance(args, dict):
-        return None
-    surface = str(args.get('surface') or '').strip().lower()
-    if surface != 'desktop' or args.get('vm_url'):
+    operation = _desktop_operation(tool_name, args)
+    if operation is None:
         return None
     snapshot = report()
     if snapshot.get('platform') != 'Darwin':
         return None
     required_ids = {
         spec.id for spec in capability_registry()
-        if 'gui_agent:desktop' in spec.operations
+        if operation in spec.operations
     }
     capabilities = [dict(row) for row in snapshot.get('capabilities', ())
                     if isinstance(row, dict) and row.get('id') in required_ids]
@@ -722,10 +738,7 @@ def access_manifest_for_tool(tool_name: str, args: dict | None) -> dict | None:
     Default tasks select their capability before requesting desktop access.
     Explicit macOS desktop entries retain their pre-effect access boundary.
     """
-    if str(tool_name) != 'gui_agent' or not isinstance(args, dict):
-        return None
-    surface = str(args.get('surface') or '').strip().lower()
-    if surface != 'desktop' or args.get('vm_url'):
+    if _desktop_operation(tool_name, args) is None:
         return None
     state = required_access_state(tool_name, args)
     if not state or state.get('state') != 'waiting':

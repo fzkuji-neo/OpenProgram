@@ -503,7 +503,6 @@ def test_internal_capabilities_are_not_registered_as_public_tools(
         for tool in agent_tools(
             names=[
                 "plan_next_capability",
-                "computer_use",
                 "browser_use",
                 "vm_use",
             ],
@@ -511,6 +510,10 @@ def test_internal_capabilities_are_not_registered_as_public_tools(
     }
 
     assert names == set()
+    # The public ``computer_use`` tool is OpenProgram's own desktop tool, not
+    # the harness's internal capability of the same name.
+    (public,) = agent_tools(names=["computer_use"])
+    assert public._source_module == "openprogram.programs.tools.system.computer_use"
 
 
 def test_vm_use_restores_local_input_and_screenshot_backend(

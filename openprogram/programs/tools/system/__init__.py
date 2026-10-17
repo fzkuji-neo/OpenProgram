@@ -1,5 +1,5 @@
-"""System lifecycle functions."""
+"""System lifecycle and host-control functions."""
 
-from . import self_update
+from . import computer_use, self_update
 
-__all__ = ["self_update"]
+__all__ = ["computer_use", "self_update"]

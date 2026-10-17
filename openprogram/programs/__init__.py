@@ -106,6 +106,10 @@ DEFAULT_TOOLS: list[str] = [
     "playwright_browser",
     "browser_agent",
     "web_use",
+    # Background control of a desktop application: Accessibility tree in,
+    # per-app approved clicks / keys / paste out. Deferred below: the
+    # schema is large and most sessions never touch another app.
+    "computer_use",
     # Plan-mode gate — the LLM is allowed to enter plan mode on its
     # own when it judges the task warrants it (mirrors claude-code's
     # EnterPlanMode tool). The "plan" pseudo-channel filter in
@@ -157,6 +161,8 @@ DEFERRED_DEFAULT_TOOLS: set = {
     # "打开网页/截图" 时模型再加载，日常编码会话完全用不到。
     "playwright_browser",
     "browser_agent",
+    # ~1.3k tok 的动作 schema；模型决定去操作某个应用的那一轮再加载。
+    "computer_use",
     # 378 tok。跨 session/branch 通信，多分支协作场景才用得上。
     "send_message",
     # 技能加载动词。<available_skills> 每轮已经列了名字和描述，模型要用
