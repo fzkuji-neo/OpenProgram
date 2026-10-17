@@ -1677,6 +1677,37 @@ async def handle_remove_permission_rule(ws, cmd: dict):
     await _reply_permission_rules(ws, cmd, add=False)
 
 
+_MAX_APP_LOOKUPS = 50
+
+
+def _computer_use_apps(queries: list[str]) -> list[dict]:
+    """Display name, bundle id and icon for the apps computer_use rules and approvals name."""
+    try:
+        from openprogram.computer_use.macos import ComputerUseError, backend
+        computer = backend()
+    except Exception:
+        return [{"query": q, "name": q, "bundle_id": "", "icon": "", "installed": False} for q in queries]
+    out = []
+    for query in queries:
+        try:
+            out.append(computer.app_info(query))
+        except ComputerUseError:
+            out.append({"query": query, "name": query, "bundle_id": "", "icon": "", "installed": False})
+    return out
+
+
+async def handle_computer_use_apps(ws, cmd: dict):
+    """Look up apps by the names the model used; launches nothing."""
+    raw = cmd.get("apps")
+    response = {"request_id": cmd.get("request_id"), "action": cmd.get("action"), "status": "ok"}
+    if not isinstance(raw, list) or not all(isinstance(q, str) for q in raw) or len(raw) > _MAX_APP_LOOKUPS:
+        response.update(status="error", error=f"apps must be a list of at most {_MAX_APP_LOOKUPS} names")
+    else:
+        queries = list(dict.fromkeys(q.strip()[:200] for q in raw if q.strip()))
+        response["apps"] = await asyncio.to_thread(_computer_use_apps, queries)
+    await ws.send_text(json.dumps({"type": "computer_use_apps", "data": response}))
+
+
 # ── 会话额外工作目录（additional-working-directories.md §3.2）──
 # 整表替换语义：前端算好增删后发完整列表，幂等、无"重复添加/删不存在"分支。
 # 校验失败整帧拒绝（error 帧带原因），不做部分写入。
@@ -1930,4 +1961,5 @@ ACTIONS = {
     "list_permission_rules": handle_list_permission_rules,
     "add_permission_rule": handle_add_permission_rule,
     "remove_permission_rule": handle_remove_permission_rule,
+    "computer_use_apps": handle_computer_use_apps,
 }
