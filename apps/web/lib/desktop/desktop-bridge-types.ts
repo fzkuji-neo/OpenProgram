@@ -1,5 +1,6 @@
 import type { ThemeId, ThemeMode, ThemeStyle } from "@/lib/prefs/theme-pref";
 import type { PickedElement } from "@/lib/browser/page-comment";
+import type { PickedRegion } from "@/lib/browser/region-shot";
 
 export interface DesktopThemeChrome {
   theme: ThemeId;
@@ -161,6 +162,8 @@ export interface DesktopWebTabApi {
   stopFind?(id: string, action: "clearSelection" | "keepSelection" | "activateSelection"): void;
   /** Let the user click one element on the page. null when cancelled. */
   pickElement?(id: string): Promise<PickedElement | null>;
+  /** Let the user drag a rectangle over the page; its pixels, or null when cancelled. */
+  pickRegion?(id: string): Promise<PickedRegion | null>;
   cancelPick?(id: string): void;
   zoom?(id: string, action: "in" | "out" | "reset"): Promise<number | null>;
   print?(id: string): Promise<boolean>;

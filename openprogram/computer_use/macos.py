@@ -421,6 +421,22 @@ class MacComputer:
                     refused=bundle_id.lower() in REFUSED_BUNDLES, icon=self._icon(path) if path else "")
         return info
 
+    def running_apps(self) -> list[dict[str, Any]]:
+        """The running apps a person can name in a message: regular apps other than
+        the refused ones (OpenProgram among them), with the same fields as ``app_info``."""
+        appkit = _appkit()
+        rows = []
+        for app in running_applications(appkit):
+            bundle_id = str(app.bundleIdentifier() or "")
+            if (app.isTerminated() or app.activationPolicy() != appkit.NSApplicationActivationPolicyRegular
+                    or not bundle_id or bundle_id.lower() in REFUSED_BUNDLES or int(app.processIdentifier()) == os.getpid()):
+                continue
+            path = str(app.bundleURL().path()) if app.bundleURL() else ""
+            name = str(app.localizedName() or "") or Path(path).stem
+            rows.append({"query": bundle_id, "name": name, "bundle_id": bundle_id, "icon": self._icon(path) if path else "",
+                         "installed": True, "running": True, "refused": False})
+        return sorted(rows, key=lambda row: row["name"].lower())
+
     def _icon(self, path: str, size: int = 64) -> str:
         """The app's icon as a PNG data URL, cached per bundle path."""
         cached = self._icons.get(path)

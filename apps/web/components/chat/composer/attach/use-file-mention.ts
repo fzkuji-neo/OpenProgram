@@ -18,6 +18,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useState } from "react"
 
 import { findAtToken } from "./at-mention";
 import type { FileMatch } from "./file-menu";
+import { matchApps, matchTabs, mentionInsert, type FileMention, type MentionSources } from "./mention-sources";
 
 /** Debounce delay (ms) before firing /api/file-search after the
  *  partial token changes. 100 ms keeps typing-driven flicker low. */
@@ -28,6 +29,8 @@ interface UseFileMentionArgs {
   input: string;
   setInput: (s: string) => void;
   textareaRef: React.RefObject<HTMLTextAreaElement>;
+  /** Open tabs and running apps listed above the files. */
+  sources?: MentionSources;
 }
 
 export interface UseFileMentionResult {
@@ -58,6 +61,7 @@ export function useFileMention({
   input,
   setInput,
   textareaRef,
+  sources,
 }: UseFileMentionArgs): UseFileMentionResult {
   const [caretPos, setCaretPos] = useState(0);
   const atToken = React.useMemo(
@@ -89,21 +93,32 @@ export function useFileMention({
     setResult({ key: tokenKey, matches: [], loading: true });
     let cancelled = false;
     const t = setTimeout(async () => {
-      try {
-        const q = new URLSearchParams({
-          q: atToken.partial,
-          limit: String(SEARCH_LIMIT),
-        });
-        const r = await fetch(`/api/file-search?${q.toString()}`);
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const data = (await r.json()) as { matches: FileMatch[] };
-        if (!cancelled) {
-          setResult({ key: tokenKey, matches: data.matches || [], loading: false });
-          setFileMenuIndex(0);
+      const searchFiles = async (): Promise<FileMention[]> => {
+        try {
+          const q = new URLSearchParams({
+            q: atToken.partial,
+            limit: String(SEARCH_LIMIT),
+          });
+          const r = await fetch(`/api/file-search?${q.toString()}`);
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          const data = (await r.json()) as { matches: FileMention[] };
+          return data.matches || [];
+        } catch {
+          return [];
         }
-      } catch {
-        if (!cancelled) setResult({ key: tokenKey, matches: [], loading: false });
-      }
+      };
+      const [files, apps] = await Promise.all([
+        searchFiles(),
+        sources ? sources.apps().catch(() => []) : Promise.resolve([]),
+      ]);
+      if (cancelled) return;
+      const matches: FileMatch[] = [
+        ...matchTabs(sources?.tabs() ?? [], atToken.partial),
+        ...matchApps(apps, atToken.partial),
+        ...files,
+      ];
+      setResult({ key: tokenKey, matches, loading: false });
+      setFileMenuIndex(0);
     }, SEARCH_DEBOUNCE_MS);
     return () => {
       cancelled = true;
@@ -131,7 +146,7 @@ export function useFileMention({
   const pickFile = useCallback(
     (item: FileMatch) => {
       if (!atToken || !activeToken || result?.key !== tokenKey || result.loading) return;
-      const insert = item.is_dir ? item.path + "/" : item.path + " ";
+      const insert = mentionInsert(item);
       const next =
         input.slice(0, atToken.start)
         + "@" + insert

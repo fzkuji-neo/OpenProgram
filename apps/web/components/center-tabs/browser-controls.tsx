@@ -6,6 +6,7 @@ import {
   Bookmark,
   ArrowRight,
   Clock3,
+  Crop,
   Download,
   House,
   Import,
@@ -63,6 +64,7 @@ type BrowserMenuActions = {
   openExternal(): void;
   find?: () => void;
   comment?: () => void;
+  regionShot?: () => void;
   zoomIn?: () => void;
   zoomOut?: () => void;
   resetZoom?: () => void;
@@ -97,6 +99,9 @@ function runBrowserAction(
       break;
     case "comment":
       actions.comment?.();
+      break;
+    case "region-shot":
+      actions.regionShot?.();
       break;
     case "zoom-in":
       actions.zoomIn?.();
@@ -216,6 +221,7 @@ export function BrowserMenu({
               ...(responsive.openExternal ? [item("open-external", "Open in browser", "在浏览器中打开", { disabled: !canOpenExternal })] : []),
               item("find", "Find in page", "在页面中查找", { separatorBefore: true, disabled: !actions.find }),
               ...(actions.comment ? [item("comment", "Comment on the page…", "评论页面元素…")] : []),
+              ...(actions.regionShot ? [item("region-shot", "Screenshot a region…", "区域截图…")] : []),
               item("zoom-in", "Zoom in", "放大", { disabled: !actions.zoomIn }),
               item("zoom-out", "Zoom out", "缩小", { disabled: !actions.zoomOut }),
               item("reset-zoom", "Reset zoom", "重置缩放", { disabled: !actions.resetZoom }),
@@ -275,6 +281,7 @@ export function BrowserMenu({
         <DropdownMenuSeparator className={MENU_SEPARATOR} />
         {row("find", <Search size={14} />, "Find in page", "在页面中查找", false, !actions.find)}
         {actions.comment ? row("comment", <MessageSquarePlus size={14} />, "Comment on the page…", "评论页面元素…") : null}
+        {actions.regionShot ? row("region-shot", <Crop size={14} />, "Screenshot a region…", "区域截图…") : null}
         {row("zoom-in", <ZoomIn size={14} />, "Zoom in", "放大", false, !actions.zoomIn)}
         {row("zoom-out", <ZoomOut size={14} />, "Zoom out", "缩小", false, !actions.zoomOut)}
         {row("reset-zoom", <RotateCcw size={14} />, "Reset zoom", "重置缩放", false, !actions.resetZoom)}

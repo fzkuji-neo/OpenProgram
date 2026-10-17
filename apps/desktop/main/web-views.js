@@ -776,6 +776,105 @@ function createWebViews({
     return true;
   }
 
+  // Region screenshot: the user drags a rectangle over the page and the
+  // chat gets those pixels. The overlay lives in the picker's isolated world
+  // and shares its cancel hook, so Escape or Cancel ends either mode. It is
+  // removed and two frames painted before the rectangle is returned, so the
+  // capture never contains it.
+  const REGION_SOURCE = `(() => new Promise((resolve) => {
+    window.__openprogramPick?.cancel();
+    const root = document.documentElement;
+    const layer = document.createElement("div");
+    layer.style.cssText = "position:fixed;inset:0;z-index:2147483647;cursor:crosshair;background:transparent";
+    const box = document.createElement("div");
+    box.style.cssText = "position:fixed;display:none;pointer-events:none;border:1.5px solid #3b82f6;"
+      + "background:rgba(59,130,246,.12);border-radius:3px;box-sizing:border-box";
+    const size = document.createElement("div");
+    size.style.cssText = "position:fixed;display:none;pointer-events:none;padding:1px 6px;border-radius:4px;"
+      + "background:#1e293b;color:#fff;font:11px/16px -apple-system,system-ui,sans-serif";
+    layer.append(box, size);
+    root.appendChild(layer);
+    let start = null;
+    let rect = null;
+    const stop = (e) => { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); };
+    const draw = (e) => {
+      const x = Math.max(0, Math.min(start.x, e.clientX));
+      const y = Math.max(0, Math.min(start.y, e.clientY));
+      const right = Math.min(innerWidth, Math.max(start.x, e.clientX));
+      const bottom = Math.min(innerHeight, Math.max(start.y, e.clientY));
+      rect = { x, y, width: right - x, height: bottom - y };
+      Object.assign(box.style, { display: "block", left: x + "px", top: y + "px",
+        width: rect.width + "px", height: rect.height + "px" });
+      size.textContent = Math.round(rect.width) + " × " + Math.round(rect.height);
+      Object.assign(size.style, { display: "block", left: x + "px",
+        top: (bottom + 22 < innerHeight ? bottom + 4 : Math.max(0, y - 20)) + "px" });
+    };
+    const down = (e) => { if (e.button !== 0) return; stop(e); start = { x: e.clientX, y: e.clientY }; draw(e); };
+    const move = (e) => { if (start) { stop(e); draw(e); } };
+    const up = (e) => {
+      if (!start) return;
+      stop(e);
+      // A click without a drag starts over rather than capturing a sliver.
+      if (!rect || rect.width < 8 || rect.height < 8) { start = null; rect = null; box.style.display = "none"; size.style.display = "none"; return; }
+      finish(rect);
+    };
+    const key = (e) => { if (e.key === "Escape") { stop(e); finish(null); } };
+    const finish = (value) => {
+      window.removeEventListener("mousedown", down, true);
+      window.removeEventListener("mousemove", move, true);
+      window.removeEventListener("mouseup", up, true);
+      window.removeEventListener("keydown", key, true);
+      window.removeEventListener("click", stop, true);
+      layer.remove();
+      delete window.__openprogramPick;
+      if (!value) { resolve(null); return; }
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve(value)));
+    };
+    window.addEventListener("mousedown", down, true);
+    window.addEventListener("mousemove", move, true);
+    window.addEventListener("mouseup", up, true);
+    window.addEventListener("keydown", key, true);
+    window.addEventListener("click", stop, true);
+    window.__openprogramPick = { cancel: () => finish(null) };
+  }))()`;
+
+  async function pickRegionInView(ctx, id) {
+    const record = recordFor(ctx, id);
+    if (!record || record.pipLayoutZoom) return null;
+    const contents = record.view.webContents;
+    try {
+      contents.focus();
+      const navigation = record.navigation;
+      const url = contents.getURL();
+      const picked = await contents.executeJavaScriptInIsolatedWorld(
+        PICKER_WORLD, [{ code: REGION_SOURCE }], true,
+      );
+      if (!picked || typeof picked !== "object" || recordFor(ctx, id) !== record || contents.isDestroyed()
+          || record.navigation !== navigation || contents.getURL() !== url) {
+        return null;
+      }
+      const numbers = ["x", "y", "width", "height"].map((key) => Number(picked[key]));
+      if (!numbers.every(Number.isFinite)) return null;
+      // Page CSS pixels are view pixels times the page zoom.
+      const zoom = contents.getZoomFactor() || 1;
+      const [x, y, width, height] = numbers.map((value) => Math.round(value * zoom));
+      if (width < 1 || height < 1) return null;
+      const image = await contents.capturePage({ x, y, width, height }, { stayHidden: true });
+      if (!image || (typeof image.isEmpty === "function" && image.isEmpty())) return null;
+      const pixels = image.getSize();
+      return {
+        id,
+        url,
+        title: contents.getTitle(),
+        width: pixels.width,
+        height: pixels.height,
+        dataUrl: image.toDataURL(),
+      };
+    } catch (_error) {
+      return null;
+    }
+  }
+
   async function capturePipView(ctx, record) {
     if (record.pipCapture) return record.pipCapture;
     const contents = record.view.webContents;
@@ -962,7 +1061,7 @@ function createWebViews({
     }
   }
 
-  return { sendState, forwardFindResult, handleWebTabShortcut, isWebUrl, isTabUrl, sendWebTabPopup, showWebTabContextMenu, loadView, ensureView, navigateView, pipLayoutZoom, rememberUserZoom, setPipZoom, requestPipZoomRestore, restorePendingPipZoom, findView, stopFindView, pickElementInView, cancelPickInView, captureView, zoomView, printPdfDefaultName, printView };
+  return { sendState, forwardFindResult, handleWebTabShortcut, isWebUrl, isTabUrl, sendWebTabPopup, showWebTabContextMenu, loadView, ensureView, navigateView, pipLayoutZoom, rememberUserZoom, setPipZoom, requestPipZoomRestore, restorePendingPipZoom, findView, stopFindView, pickElementInView, pickRegionInView, cancelPickInView, captureView, zoomView, printPdfDefaultName, printView };
 }
 
 module.exports = { createWebViews };

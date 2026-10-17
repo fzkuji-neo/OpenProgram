@@ -34,6 +34,23 @@ async function lookUp(queries: string[]): Promise<void> {
   for (const app of reply?.apps ?? []) cache.set(app.query, app);
 }
 
+let running: { at: number; apps: ComputerUseApp[] } | null = null;
+const RUNNING_FRESH_MS = 10_000;
+
+/** The running apps, as the composer's @ menu offers them; kept for a few
+ *  seconds so typing a name does not ask again on every key. */
+export async function runningApps(): Promise<ComputerUseApp[]> {
+  if (running && Date.now() - running.at < RUNNING_FRESH_MS) return running.apps;
+  const requestId = crypto.randomUUID();
+  const reply = await wsRequest<{ request_id?: string; apps?: ComputerUseApp[] }>(
+    "computer_use_apps", { running: true, request_id: requestId }, "computer_use_apps",
+    (data) => data.request_id === requestId, 8000,
+  );
+  if (!reply?.apps) return running?.apps ?? [];
+  running = { at: Date.now(), apps: reply.apps };
+  return reply.apps;
+}
+
 /** Apps keyed by the name they were asked for; unknown ones show that name. */
 export function useComputerUseApps(queries: string[]): Record<string, ComputerUseApp> {
   const key = Array.from(new Set(queries.map((query) => query.trim()).filter(Boolean))).sort().join("\n");

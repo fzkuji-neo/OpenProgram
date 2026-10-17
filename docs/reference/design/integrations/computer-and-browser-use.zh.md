@@ -150,10 +150,10 @@ Codex 用 `start_audio_recording` / `stop_audio_recording` 录电脑声音（默
 
 项目设置页在默认设置和权限规则之间有一个"操控电脑"分区（`computer-use-apps-section.tsx`）。它把项目的 `computer_use(<app>)` 允许规则列成每个应用一行，带图标、名字、bundle id 和移除按钮，通用规则列表不再重复这些规则。移除一行即删除该规则。对话级授权是随对话结束的会话规则，所以这里不列出。
 
-仍在计划中，先出预览：
+人可以像在 Codex 里那样给 agent 指东西：
 
-- 浏览器标注模式和落到输入框的区域截图；
-- 输入框里 `@` 提及打开的标签页和运行中的应用，让"这个标签页"无需模型猜测。
+- 在网页标签里，**评论页面元素…** 选中一个元素，把它的选择器、文字和评论加进草稿；**区域截图…** 让人拖出一个矩形，把这块像素作为 PNG 附件加入。两者运行在同一个隔离脚本环境里（`apps/desktop/main/web-views.js` 的 `PICKER_WORLD`），共用一个取消钩子，开启一种会结束另一种。区域遮罩先被移除、再画两帧，`capturePage` 才按页面缩放截取那个矩形。文件经 `lib/composer-inbox.ts` 送到目标对话：显示这个对话的输入框把它当作拖进来的文件收下，在那之前它一直在收件箱里等。
+- 输入框的 `@` 菜单在文件之前列出已打开的网页标签和正在运行的应用（`attach/mention-sources.ts`）。标签页写成指向其地址的 markdown 链接，应用写成名称加 bundle id，所以「这个标签页」不用模型去猜。正在运行的应用来自带 `running: true` 的 `computer_use_apps`，它列出被拒应用之外的常规应用，页面里缓存十秒。
 
 Windows 和 Linux 后端（UI Automation；AT-SPI 加 xdotool）沿用同一个 `MacComputer` 接口，尚未开始。
 
@@ -169,4 +169,5 @@ GUI Agent 工作流（`gui_agent`）、它的 grounding 流水线和能力 plann
 - 已实现：按应用录音，输出 WAV，并用语音引擎转写。
 - 已实现：`web_use` 的可见标签页，以及原生后端上的 `changes_only` 观察。
 - 已实现：对 Gemini 和 Chat Completions 的音频模型，把录音作为音频输入；Chat Completions 视觉模型能看到工具结果里的截图。
-- 未实现：经 Responses 和 Anthropic API 的音频输入；把窗口从另一个桌面空间移过来；标注模式、区域截图和 `@` 提及；Windows 与 Linux 后端；对不带文字的图标和控件做目标检测。
+- 已实现：网页标签里的元素评论和区域截图；对已打开标签页和正在运行应用的 `@` 提及。
+- 未实现：经 Responses 和 Anthropic API 的音频输入；把窗口从另一个桌面空间移过来；Windows 与 Linux 后端；对不带文字的图标和控件做目标检测。

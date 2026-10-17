@@ -150,10 +150,10 @@ A `computer_use` approval card (`computer-use-approval.tsx`) leads with the appl
 
 The project's Settings tab has a Computer use section (`computer-use-apps-section.tsx`) between the default settings and the permission rules. It lists the project's `computer_use(<app>)` allow rules as one row per application with icon, name, bundle id and a remove control, and the generic rule list leaves those rules out. Removing a row removes the rule. Conversation-scoped grants are session rules that end with their conversation, so the section does not list them.
 
-Still planned, previews first:
+The person points the agent at things the way Codex lets them:
 
-- a browser annotation mode and a region screenshot that lands in the composer;
-- `@`-mentions of open tabs and running applications in the composer, so "this tab" resolves without the model guessing.
+- In a web tab, **Comment on the page…** picks one element and adds its selector, text and the comment to the draft; **Screenshot a region…** lets them drag a rectangle and adds those pixels as a PNG attachment. Both run in one isolated world (`PICKER_WORLD` in `apps/desktop/main/web-views.js`) that shares a cancel hook, so one mode ends the other. The region overlay is removed and two frames are painted before `capturePage` takes the rectangle, scaled by the page zoom. The file reaches the target conversation through `lib/composer-inbox.ts`: the composer showing that conversation takes it as a dropped file, and it waits there until one does.
+- The composer's `@` menu lists open web tabs and running apps above the files (`attach/mention-sources.ts`). A tab is written as a markdown link to its address and an app as its name and bundle id, so "this tab" resolves without the model guessing. Running apps come from `computer_use_apps` with `running: true`, which lists regular apps other than the refused ones and is kept for ten seconds in the page.
 
 Windows and Linux backends (UI Automation; AT-SPI with xdotool) follow the same `MacComputer` interface and are not started.
 
@@ -169,4 +169,5 @@ The GUI Agent workflow (`gui_agent`), its grounding pipeline and its capability 
 - Implemented: per-application audio recording with WAV output and Voice-engine transcription.
 - Implemented: `web_use` visible tabs and `changes_only` observations on the native backends.
 - Implemented: recordings as audio input for Gemini and Chat Completions audio models; tool-result screenshots on Chat Completions vision models.
-- Not implemented: audio input over the Responses and Anthropic APIs; moving a window from another Space; annotation mode, region screenshot and `@`-mentions; Windows and Linux backends; object detection for icons and controls that carry no text.
+- Implemented: element comments and region screenshots in web tabs; `@`-mentions of open tabs and running apps.
+- Not implemented: audio input over the Responses and Anthropic APIs; moving a window from another Space; Windows and Linux backends; object detection for icons and controls that carry no text.

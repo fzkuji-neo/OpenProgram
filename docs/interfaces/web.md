@@ -133,6 +133,8 @@ The composer shows markdown as you type: bold, italics, strikethrough, `inline c
 
 While an `@file` search is pending, Enter (without Shift) and Tab keep editing instead of selecting an old result or sending. Escape dismisses that query even if its response arrives later. Change the token to search again. After an empty result or a failed search, Enter sends normally and Tab moves focus; Shift+Enter and IME confirmation retain their editing behavior while searching.
 
+Above the files, the `@` menu lists the open web tabs and the running apps whose title, address, name or bundle id contains what you typed; a query containing `/` searches files only. Picking a tab writes its title and address as a link, and picking an app writes its name and bundle id, so the agent works on that exact page or app instead of guessing which one you mean. Apps the agent may never operate, such as Passwords, are not listed.
+
 Access tokens and private keys in a sent message are masked: the message shows the first few characters followed by dots, and the eye button next to it shows or hides the full value. Masking covers tokens with a known prefix, such as GitHub (`github_pat_`, `ghp_`), OpenAI and Anthropic (`sk-`), AWS (`AKIA`), Slack, Stripe, Google, Hugging Face, npm and GitLab, plus JWTs and PEM private-key blocks. It only changes the display: the model still receives the full message, so revoke any token you no longer want shared.
 
 Revealed values are hidden again when the message, conversation, or displayed text changes. Collapsed paste previews mask complete recognized secrets before shortening the preview. Explicit copy and edit actions retain the original text.

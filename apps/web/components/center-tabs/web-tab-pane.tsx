@@ -24,7 +24,7 @@
 import { memo, useEffect, useId, useRef, useState } from "react";
 import { canvasDragging, onCanvasDragChange } from "@/lib/tabs/canvas-drag";
 import type { KeyboardEvent, ReactNode } from "react";
-import { ArrowLeft, ArrowRight, ChevronDown, ChevronUp, ExternalLink, House, MessageSquarePlus, PictureInPicture2, RotateCw, Search, Star, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, ChevronUp, Crop, ExternalLink, House, MessageSquarePlus, PictureInPicture2, RotateCw, Search, Star, X } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 
 import {
@@ -42,6 +42,8 @@ import { showToast } from "@/lib/format-utils/toast";
 import { getLastChatKey, useSessionStore } from "@/lib/session-store";
 import { appendToComposer } from "@/components/chat/messages/quote-to-chat";
 import { commentChatKey, pageCommentText, pickedElementName, type PickedElement } from "@/lib/browser/page-comment";
+import { regionFile } from "@/lib/browser/region-shot";
+import { queueComposerFiles } from "@/lib/composer-inbox";
 import { browserPageShortcut } from "@/lib/browser/browser-layout";
 import {
   isBookmarked,
@@ -361,6 +363,10 @@ function DesktopWebTabPane({
   const [commentDraft, setCommentDraft] = useState("");
   const pickSeq = useRef(0);
   const commentRef = useRef<HTMLInputElement>(null);
+  const canRegion = typeof bridge.webTab.pickRegion === "function"
+    && typeof bridge.webTab.cancelPick === "function";
+  // Region mode: true while the page waits for the user to drag a rectangle.
+  const [regionPicking, setRegionPicking] = useState(false);
   const canZoom = typeof bridge.webTab.zoom === "function";
   const canPrint = typeof bridge.webTab.print === "function";
   const collapseTarget = usePipCollapseTarget(tabId);
@@ -529,10 +535,11 @@ function DesktopWebTabPane({
     bridge.webTab.cancelPick?.(tabId);
   }, [bridge, tabId]);
 
-  // A page that navigates away takes its element picker with it.
+  // A page that navigates away takes its element and region pickers with it.
   useEffect(() => {
     pickSeq.current += 1;
     setComment(null);
+    setRegionPicking(false);
   }, [url]);
 
   // Store url changed by someone else (session restore, future agent
@@ -581,6 +588,7 @@ function DesktopWebTabPane({
 
   function startComment() {
     if (!canComment) return;
+    setRegionPicking(false);
     const seq = ++pickSeq.current;
     setComment({ picking: true });
     setCommentDraft("");
@@ -602,22 +610,60 @@ function DesktopWebTabPane({
     setCommentDraft("");
   }
 
-  function submitComment() {
-    if (!comment || comment.picking || !commentDraft.trim()) return;
+  /** The conversation a comment or screenshot from this page goes to, and its title. */
+  function targetChat(): { key: string; title?: string } | null {
     const state = useSessionStore.getState();
     const tabs = useCenterTabs.getState().tabs;
     const chatTab = (key: string) => tabs.find((tab) => tab.kind === "session" && tab.sessionId === key);
-    const chatKey = commentChatKey([
+    const key = commentChatKey([
       state.activeChatKey ?? state.currentSessionId,
       tabs.find((tab) => tab.id === tabId)?.agentSessionId,
       getLastChatKey(),
-    ], (key) => key === state.activeChatKey || Boolean(chatTab(key)));
-    if (!chatKey) {
+    ], (candidate) => candidate === state.activeChatKey || Boolean(chatTab(candidate)));
+    return key ? { key, title: chatTab(key)?.title } : null;
+  }
+
+  function startRegion() {
+    if (!canRegion) return;
+    if (comment) closeComment();
+    if (!targetChat()) {
+      showToast(text("Open a conversation to add the screenshot to", "先打开一个对话，再添加截图"));
+      return;
+    }
+    const seq = ++pickSeq.current;
+    setRegionPicking(true);
+    void bridge.webTab.pickRegion?.(tabId).then(async (region) => {
+      if (seq !== pickSeq.current) return;
+      setRegionPicking(false);
+      if (!region) return;
+      const chat = targetChat();
+      if (!chat) {
+        showToast(text("Open a conversation to add the screenshot to", "先打开一个对话，再添加截图"));
+        return;
+      }
+      queueComposerFiles(chat.key, [await regionFile(region)]);
+      showToast(chat.title
+        ? text(`Region screenshot added to the message in “${chat.title}”`, `区域截图已加入“${chat.title}”的消息`)
+        : text("Region screenshot added to your message", "区域截图已加入消息"));
+    });
+  }
+
+  function cancelRegion() {
+    pickSeq.current += 1;
+    bridge.webTab.cancelPick?.(tabId);
+    setRegionPicking(false);
+  }
+
+  function submitComment() {
+    if (!comment || comment.picking || !commentDraft.trim()) return;
+    const chat = targetChat();
+    if (!chat) {
       showToast(text("Open a conversation to add the comment to", "先打开一个对话，再添加评论"));
       return;
     }
+    const chatKey = chat.key;
     appendToComposer(chatKey, pageCommentText(comment.element, commentDraft), false);
-    const title = chatTab(chatKey)?.title;
+    const title = chat.title;
     showToast(title
       ? text(`Comment added to the message in “${title}”`, `评论已加入“${title}”的消息`)
       : text("Comment added to your message", "评论已加入消息"));
@@ -751,6 +797,7 @@ function DesktopWebTabPane({
             openExternal: () => bridge.openExternal(viewUrlRef.current),
             find: canFind ? openFind : undefined,
             comment: canComment ? startComment : undefined,
+            regionShot: canRegion ? startRegion : undefined,
             zoomIn: canZoom ? () => { void bridge.webTab.zoom?.(tabId, "in"); } : undefined,
             zoomOut: canZoom ? () => { void bridge.webTab.zoom?.(tabId, "out"); } : undefined,
             resetZoom: canZoom ? () => { void bridge.webTab.zoom?.(tabId, "reset"); } : undefined,
@@ -801,6 +848,19 @@ function DesktopWebTabPane({
           <button type="button" className={findButton()} onClick={closeFind} aria-label={text("Close find", "关闭查找")}>
             <X size={13} />
           </button>
+          </div>
+        </div>
+      ) : null}
+      {regionPicking ? (
+        <div className={styles.webFindBar}>
+          <div className={styles.webFindPill}>
+            <Crop size={12} aria-hidden="true" />
+            <span className={styles.webCommentHint} aria-live="polite">
+              {text("Drag over the area to capture · Esc to cancel", "拖动选出要截的区域 · Esc 取消")}
+            </span>
+            <button type="button" className={findButton()} onClick={cancelRegion} aria-label={text("Cancel region screenshot", "取消区域截图")}>
+              <X size={13} />
+            </button>
           </div>
         </div>
       ) : null}

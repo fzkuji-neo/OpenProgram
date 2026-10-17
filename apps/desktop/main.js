@@ -775,6 +775,7 @@ const {
   findView,
   stopFindView,
   pickElementInView,
+  pickRegionInView,
   cancelPickInView,
   captureView,
   zoomView,
@@ -1092,6 +1093,10 @@ function registerWebTabIpc() {
   ipcMain.handle("webtab:pick-element", (event, id) => {
     const ctx = contextForSender(event);
     return ctx && typeof id === "string" ? pickElementInView(ctx, id) : null;
+  });
+  ipcMain.handle("webtab:pick-region", (event, id) => {
+    const ctx = contextForSender(event);
+    return ctx && typeof id === "string" ? pickRegionInView(ctx, id) : null;
   });
   ipcMain.on("webtab:cancel-pick", (event, id) => {
     const ctx = contextForSender(event);
