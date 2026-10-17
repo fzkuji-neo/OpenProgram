@@ -319,7 +319,7 @@ def test_get_run_state_does_not_change_socket_focus(monkeypatch):
     assert ws._focused_session_id == "visible"
     assert ws.sent == [{
         "type": "run_state",
-        "data": {"session_id": "background", "run_active": True},
+        "data": {"session_id": "background", "run_active": True, "run_task": None},
     }]
 
 

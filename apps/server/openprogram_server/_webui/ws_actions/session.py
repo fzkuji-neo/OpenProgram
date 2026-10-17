@@ -1250,7 +1250,7 @@ async def handle_load_session(ws, cmd: dict):
                     enriched["attach"] = attach_dict
             shown.append(enriched)
 
-        # caller 链执行行：agent 调函数的层级树（gui_agent → gui_step →
+        # caller 链执行行：agent 调函数的层级树（research_agent → 子调用 →
         # … → LLM 叶子）不在线性对话链上，靠 caller 挂在链上的回复。把
         # 这些行补进 payload——前端 conv-mapper 把它们折成调用树喂给时
         # 间线渲染，不作为顶层消息显示。spawn 分支根（role=user）和
@@ -1357,6 +1357,8 @@ async def handle_load_session(ws, cmd: dict):
         _permission_state = permission_state(session_id)
         _effective_permission = permission_from_config(
             run_cfg, default=project_defaults(conv["id"]).get("permission_mode"))
+        _run_active = _s._is_run_active(conv["id"])
+        _run_task = _s._run_identity(conv["id"]) if _run_active else None
         _stats = conv.get("_last_context_stats") or {}
         if _stats.get("context_usage_version") != 2:
             conv.pop("_last_context_stats", None)
@@ -1406,7 +1408,8 @@ async def handle_load_session(ws, cmd: dict):
                     "additional_working_dirs": run_cfg.additional_working_dirs,
                     **_sandbox_ui(run_cfg.sandbox_enabled),
                 },
-                "run_active": _s._is_run_active(conv["id"]),
+                "run_active": _run_active,
+                "run_task": _run_task,
                 "status": (_ddb().get_session(session_id) or {}).get("status", "idle"),
             },
         }, default=str))
@@ -1421,6 +1424,15 @@ async def handle_load_session(ws, cmd: dict):
             task = _s._running_tasks.get(session_id)
             task_info = dict(task) if task else None
         task_info = _s._canonical_foreground_task(session_id) or task_info
+        if _run_task and not task_info:
+            # The turn this load reported ended while the load was in
+            # flight; its broadcast clear may have reached the client before
+            # the running slot did, so close that slot by name here.
+            await ws.send_text(json.dumps({
+                "type": "running_task_clear",
+                "data": {"session_id": session_id, **{
+                    key: value for key, value in _run_task.items() if value}},
+            }))
         if task_info:
             # Live partial-tree dump retired with the tree-Context
             # event system. The DAG nodes the function has produced so
@@ -1572,11 +1584,13 @@ async def handle_get_run_state(ws, cmd: dict):
     """Report run state without changing this socket's focused session."""
     from openprogram.webui import server as _s
     session_id = cmd.get("session_id")
+    run_active = bool(session_id and _s._is_run_active(session_id))
     await ws.send_text(json.dumps({
         "type": "run_state",
         "data": {
             "session_id": session_id,
-            "run_active": bool(session_id and _s._is_run_active(session_id)),
+            "run_active": run_active,
+            "run_task": _s._run_identity(session_id) if run_active else None,
         },
     }))
 

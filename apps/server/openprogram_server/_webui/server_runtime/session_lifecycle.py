@@ -182,6 +182,26 @@ def _is_run_active(session_id: str) -> bool:
     return True
 
 
+def _run_identity(session_id: str) -> dict | None:
+    """The turn that makes a session active, as the ids its clear will name.
+
+    A client that learns ``run_active`` from a load holds a running slot until
+    a ``running_task_clear`` matches it; an anonymous slot matches nothing, so
+    the load hands over the identity together with the flag.
+    """
+    task = state._canonical_foreground_task(session_id)
+    if task is None:
+        with state._running_tasks_lock:
+            current = state._running_tasks.get(session_id)
+            task = dict(current) if current else None
+    if not task:
+        return None
+    return {
+        "msg_id": task.get("msg_id") or "",
+        "execution_id": task.get("execution_id") or "",
+    }
+
+
 def _try_reserve_run(session_id: str, msg_id: str) -> bool:
     from openprogram.store.session.session_lock import session_interprocess_lock
     try:

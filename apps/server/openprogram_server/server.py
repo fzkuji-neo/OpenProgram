@@ -115,6 +115,7 @@ from ._webui.server_runtime.session_lifecycle import (
     _get_or_create_session,
     _canonical_foreground_task,
     _is_run_active,
+    _run_identity,
     _try_reserve_run,
     _try_reserve_run_locked,
     _release_run_reservation,

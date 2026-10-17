@@ -246,6 +246,20 @@ await settle();
 assert.deepEqual(sent.map((m) => m.text), ["after-reconnect"]);
 assert.equal(useSendQueue.getState().queues[A], undefined);
 
+/* --- 9b. a load that lands as a turn ends: its clear idles the slot - */
+sent.length = 0;
+store.setRunningTaskFor(A, null, "never");
+enqueueMessage(A, draft("after-late-load"));
+reconcileAfterSessionLoad(A, true, { msg_id: "late", execution_id: "late_exec" });
+assert.equal(useSessionStore.getState().runningTasks[A]?.execution_id, "late_exec");
+assert.equal(sent.length, 0, "the named turn still holds the session");
+handleRunningTaskClear(A, { msg_id: "late", execution_id: "late_exec" });
+await settle();
+assert.notEqual(useSessionStore.getState().runningTasks[A]?.execution_id, "late_exec",
+  "the clear naming the loaded turn must idle the slot");
+assert.deepEqual(sent.map((m) => m.text), ["after-late-load"]);
+store.setRunningTaskFor(A, null, "never");
+
 /* --- 10. attached drafts are retained, never split into text queue -- */
 const attachedId = enqueueMessage(A, draft("caption with image"), 1);
 assert.equal(attachedId, null, "an attached draft must not enter the text queue");

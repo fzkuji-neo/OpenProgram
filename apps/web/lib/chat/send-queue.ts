@@ -294,10 +294,13 @@ export function queueFor(sessionId: string): QueuedMessage[] {
 
 /** Reconcile one retained queue after a WebSocket reconnect has loaded the
  *  server's authoritative session state. Active sessions wait for their real
- *  running_task_clear; idle sessions may retry the head immediately. */
+ *  running_task_clear, so the slot takes the ids of the turn the server named:
+ *  a clear only idles a slot it names. Idle sessions may retry the head
+ *  immediately. */
 export function reconcileAfterSessionLoad(
   sessionId: string,
   runActive: boolean,
+  runTask?: { msg_id?: string; execution_id?: string } | null,
 ): void {
   // Confirm restored receipts only after authoritative session hydration.
   if (queueFor(sessionId).some(row => row.steerCommand)) {
@@ -313,7 +316,11 @@ export function reconcileAfterSessionLoad(
     // 只能发无 id 的 stop，服务端可能解析不到 execution）。
     const existing = sessions.runningTasks[sessionId];
     if (!existing || (!existing.msg_id && !existing.execution_id)) {
-      sessions.setRunningTaskFor(sessionId, { session_id: sessionId, msg_id: "" });
+      sessions.setRunningTaskFor(sessionId, {
+        session_id: sessionId,
+        msg_id: runTask?.msg_id || "",
+        ...(runTask?.execution_id ? { execution_id: runTask.execution_id } : {}),
+      });
     }
     return;
   }

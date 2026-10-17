@@ -754,6 +754,7 @@ export function useWS(): void {
               messages?: unknown;
               graph?: unknown;
               run_active?: unknown;
+              run_task?: { msg_id?: string; execution_id?: string } | null;
             } | undefined;
             if (typeof dd?.id === "string" && dd.id) {
               const rows = [
@@ -766,7 +767,7 @@ export function useWS(): void {
                 head?.status,
               );
               void import("@/lib/chat/send-queue").then((m) =>
-                m.reconcileAfterSessionLoad(dd.id as string, dd.run_active === true),
+                m.reconcileAfterSessionLoad(dd.id as string, dd.run_active === true, dd.run_task),
               );
             }
           }
@@ -871,13 +872,18 @@ export function useWS(): void {
           return true;
         case "run_state": {
           const dd = d as
-            | { session_id?: unknown; run_active?: unknown }
+            | {
+              session_id?: unknown;
+              run_active?: unknown;
+              run_task?: { msg_id?: string; execution_id?: string } | null;
+            }
             | undefined;
           if (typeof dd?.session_id === "string" && dd.session_id) {
             void import("@/lib/chat/send-queue").then((m) =>
               m.reconcileAfterSessionLoad(
                 dd.session_id as string,
                 dd.run_active === true,
+                dd.run_task,
               ),
             );
           }
