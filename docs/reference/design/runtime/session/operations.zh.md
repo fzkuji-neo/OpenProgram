@@ -144,7 +144,7 @@ relocate_project {session_id, project_id, path}
   → project_relocated {ok, old_path, path, node_id} + 一份新的 projects_list
 ```
 
-它改的是**项目的路径**，而非会话→项目的绑定，所以定格之后依然合法。绑定到该项目的 session 保持同一个稳定 project id 和应用状态目录下的会话仓库。旧工作目录副本通过迁移日志和持久 location index 处理。默认项目拒绝重定位：它的显示路径是家目录，每次 `get_default_project` 读取都会恢复；它没有独立的项目 Git 仓库。每轮文件撤销恢复仍位于目标仓库旁的 `.file-recovery/<session_id>/<turn>/`，在会话 Git 仓库之外。
+它改的是**项目的路径**，而非会话→项目的绑定，所以定格之后依然合法。绑定到该项目的 session 保持同一个稳定 project id 和应用状态目录下的会话仓库。旧工作目录副本通过迁移日志和持久 location index 处理。默认项目拒绝重定位：它的显示路径是家目录，每次 `get_default_project` 读取都会恢复；它没有独立的项目 Git 仓库。每轮文件撤销恢复仍位于目标仓库旁的 `.file-recovery/<session_id>/<turn>/`，在会话 Git 仓库之外。定位到已属于另一个项目的目录会被拒绝，只有一个例外：被定位的项目目录已缺失且没有对话时，它是这个目录过期的第二份登记，于是并入拥有该目录的项目，选择器随即选中那个项目。
 
 ### relocate 记录节点
 

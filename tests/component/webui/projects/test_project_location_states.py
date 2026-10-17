@@ -58,8 +58,25 @@ def test_relocate_rejects_another_projects_folder(tmp_path, monkeypatch):
     }))
     data = next(f["data"] for f in ws.sent if f["type"] == "project_relocated")
     assert data["ok"] is False
-    assert "another project" in (data["error"] or "")
+    assert "already the project" in (data["error"] or "")
     assert projects.get_project(pb.id).path.endswith("b")
+
+
+def test_relocate_folds_a_missing_project_into_the_folders_project(tmp_path, monkeypatch):
+    _store(tmp_path, monkeypatch)
+    gone = tmp_path / "gone"; gone.mkdir()
+    here = tmp_path / "here"; here.mkdir()
+    stale = projects.resolve_project(gone)
+    owner = projects.resolve_project(here)
+    shutil.rmtree(gone)
+    ws = FakeWS()
+    asyncio.run(ws_project.handle_relocate_project(ws, {
+        "project_id": stale.id, "path": str(here), "replace_identity": True,
+    }))
+    data = next(f["data"] for f in ws.sent if f["type"] == "project_relocated")
+    assert data["ok"] is True
+    assert data["project_id"] == owner.id
+    assert projects.get_project(stale.id) is None
 
 
 def test_execute_refuses_bound_missing_project(tmp_path, monkeypatch):

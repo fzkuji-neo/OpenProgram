@@ -139,7 +139,7 @@ export function ProjectMenu({
       );
       if (path) {
         const current = projects?.find((project) => project.id === projectId);
-        const reply = await wsRequest<{ ok: boolean; error?: string | null }>(
+        const reply = await wsRequest<{ ok: boolean; project_id?: string; error?: string | null }>(
           "relocate_project",
           {
             session_id: sessionId ?? "",
@@ -153,6 +153,13 @@ export function ProjectMenu({
         );
         if (reply && !reply.ok) {
           setErr(reply.error ?? text("Relocation failed.", "移动失败。"));
+        } else if (reply?.project_id && reply.project_id !== projectId) {
+          // The folder was already another project: the stale entry folded
+          // into it, so pick that project instead.
+          await refresh();
+          setBusy(false);
+          await switchTo(reply.project_id);
+          return;
         } else {
           await refresh();
           notifyProjectChanged();

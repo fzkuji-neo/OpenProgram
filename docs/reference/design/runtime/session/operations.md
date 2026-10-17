@@ -152,7 +152,7 @@ The project's identity is its stable id; the path is a mutable attribute. Codex 
    through a journaled operation. Per-turn file undo recovery remains in the
    destination's sibling `.file-recovery/<session_id>/<turn>/` tree, outside
    the session Git repository.
-3. **Opening a folder never auto-adopts copies.** Names, Git remotes, Git contents and leftover `.openprogram/sessions` markers do not prove continuity. Manual **Locate folder** may replace identity after showing the expected old path and revision, and it refuses a destination already owned by another project.
+3. **Opening a folder never auto-adopts copies.** Names, Git remotes, Git contents and leftover `.openprogram/sessions` markers do not prove continuity. Manual **Locate folder** may replace identity after showing the expected old path and revision, and it refuses a destination already owned by another project, with one exception: when the project being located is missing and has no conversations, it is a stale second registration of that folder, so it folds into the owning project, which the picker then selects.
 
 Startup cleanup respects the same reality: a project-bound session whose
 recorded location is unreachable, or whose migration journal is not settled,

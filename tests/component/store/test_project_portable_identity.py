@@ -238,3 +238,43 @@ def test_legacy_upgrade_refuses_another_projects_marker(tmp_path, store):
     moved = tmp_path / "moved"
     first.rename(moved)
     assert projects.resolve_project(moved).id == owner.id
+
+
+def _registered_twice(tmp_path):
+    """A folder registered, then moved and opened again as a new project."""
+    gone = tmp_path / "dropbox" / "paper"
+    gone.mkdir(parents=True)
+    stale = projects.resolve_project(gone)
+    current = tmp_path / "projects" / "paper"
+    current.mkdir(parents=True)
+    owner = projects.resolve_project(current)
+    shutil.rmtree(gone)
+    return stale, owner, current
+
+
+def test_locating_a_missing_project_at_another_projects_folder_folds_it(tmp_path, store):
+    stale, owner, current = _registered_twice(tmp_path)
+    result = projects.relocate_project(stale.id, current, replace_identity=True)
+    assert result.id == owner.id
+    assert projects.get_project(stale.id) is None
+    assert projects.get_project(owner.id).path == str(current.resolve())
+
+
+def test_a_missing_project_with_conversations_does_not_fold(tmp_path, store):
+    stale, owner, current = _registered_twice(tmp_path)
+    projects.bind_session("s1", stale.id)
+    with pytest.raises(projects.ProjectStoreError, match="keeps its conversations"):
+        projects.relocate_project(stale.id, current, replace_identity=True)
+    assert projects.get_project(stale.id).session_ids == ["s1"]
+
+
+def test_a_present_project_cannot_move_onto_another_projects_folder(tmp_path, store):
+    first = tmp_path / "a"
+    second = tmp_path / "b"
+    first.mkdir()
+    second.mkdir()
+    one = projects.resolve_project(first)
+    projects.resolve_project(second)
+    with pytest.raises(projects.ProjectStoreError, match="already the project"):
+        projects.relocate_project(one.id, second, replace_identity=True)
+    assert projects.get_project(one.id).path == str(first.resolve())
