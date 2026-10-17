@@ -157,10 +157,11 @@ def _overlaps(a: tuple[float, float, float, float], b: tuple[float, float, float
 
 
 def shapes_from_boxes(boxes: list[tuple[float, float, float, float]], text: list[TextBox],
-                      scale: float) -> list[Shape]:
+                      scale: float, size: tuple[float, float] | None = None) -> list[Shape]:
     """Outline boxes (screenshot pixels) as controls: merge outlines within 3 points
     of each other, then keep the ones that look like a control and cover no line
-    of text."""
+    of text. With the screenshot's ``size``, a shape touching its edge is the
+    window's rounded corner or border, not a control."""
     merged: list[list[float]] = []
     for box in sorted(boxes, key=lambda b: (b[1], b[0])):
         current = [float(v) for v in box]
@@ -186,6 +187,9 @@ def shapes_from_boxes(boxes: list[tuple[float, float, float, float]], text: list
         if short < 8 * scale or long > 80 * scale or long > 4 * short:
             continue
         if any(_overlaps((x, y, w, h), word) for word in words):
+            continue
+        edge = 2 * scale
+        if size and (x <= edge or y <= edge or x + w >= size[0] - edge or y + h >= size[1] - edge):
             continue
         keep.append(Shape(*(round(v, 1) for v in (x, y, w, h))))
     # Rows are 16-point bands of the centre, so a toolbar's icons of slightly
@@ -229,7 +233,7 @@ def detect_shapes(png: bytes, width: float, height: float, text: list[TextBox], 
             for contour in request.results()[0].topLevelContours() or []:
                 (nx, ny), (nw, nh) = Quartz.CGPathGetBoundingBox(contour.normalizedPath())
                 boxes.append((nx * width, (1.0 - ny - nh) * height, nw * width, nh * height))
-            for shape in shapes_from_boxes(boxes, text, scale):
+            for shape in shapes_from_boxes(boxes, text, scale, (width, height)):
                 box = (shape.x, shape.y, shape.width, shape.height)
                 if not any(_overlaps(box, (o.x, o.y, o.width, o.height)) for o in found):
                     found.append(shape)
