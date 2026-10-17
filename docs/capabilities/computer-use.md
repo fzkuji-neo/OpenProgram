@@ -109,6 +109,10 @@ The card appears in every permission mode, Auto and Bypass included: only a save
 
 Allowing an application lets the model operate it; it does not let the model take consequential steps on its own. The tool instructs the model to prepare a step and ask you right before it: always for deleting data, sending or submitting anything to other people, payments and subscriptions, new accounts or access keys, installing software and changing system settings; for logins, uploads, file moves and typing personal data unless your request named them. CAPTCHAs, passwords and security prompts are handed to you. Text the model reads on screen is never treated as your permission.
 
+## Windows on other Spaces
+
+A window on another desktop Space is read and operated where it is: `list_windows` marks it, and screenshots, clicks, scrolls, drags and element actions reach it without switching Spaces. macOS does not deliver key presses to it, so there `type_text` and `paste` insert plain text into the focused text field instead, and `press_key` reports that the key cannot be sent. The tool cannot move the window to your current Space; only you (or the Dock) can.
+
 ## Requirements
 
 - macOS, Linux with an X11 (Xorg) session, or Windows 10 or 11.

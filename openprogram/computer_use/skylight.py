@@ -25,6 +25,7 @@ from __future__ import annotations
 import ctypes
 from ctypes import POINTER, Structure, byref, c_char_p, c_double, c_int, c_int64, c_uint32, c_void_p
 import platform
+import struct
 import threading
 import time
 
@@ -47,6 +48,9 @@ SUBTYPE_TOUCH = 3        # what a click from the trackpad carries
 SUBTYPE_DEFAULT = 0      # drags and moves
 
 RECORD_SIZE = 0xF8
+# Element ids tried when looking for windows on other Spaces; an app's ids
+# start at zero and its windows are among the first few hundred.
+REMOTE_ELEMENT_LIMIT = 4000
 
 
 class ProcessSerialNumber(Structure):
@@ -113,6 +117,12 @@ class SkyLight:
             self._ax_get_window = self.hiv._AXUIElementGetWindow
         except AttributeError:
             self._ax_get_window = None
+        try:
+            self.hiv._AXUIElementCreateWithRemoteToken.argtypes = [c_void_p]
+            self.hiv._AXUIElementCreateWithRemoteToken.restype = c_void_p
+            self._ax_from_token = self.hiv._AXUIElementCreateWithRemoteToken
+        except AttributeError:
+            self._ax_from_token = None
 
     # ------------------------------------------------------------------ helpers
     @staticmethod
@@ -135,6 +145,37 @@ class SkyLight:
         if self._ax_get_window(c_void_p(objc.pyobjc_id(ax_element)), byref(out)) != 0:
             return None
         return int(out.value) or None
+
+    def remote_windows(self, pid: int, wanted: set[int], limit: int = REMOTE_ELEMENT_LIMIT) -> dict[int, object]:
+        """Accessibility elements of the windows ``wanted`` (window ids) of ``pid``.
+
+        ``AXWindows`` lists only the windows on the current Space. An element can
+        also be made from a remote token (pid, 0, ``'coco'``, element id); the
+        app's element ids are small integers, so trying them in order finds the
+        windows on other Spaces, as AltTab does.
+        """
+        if self._ax_from_token is None or self._ax_get_window is None or not wanted:
+            return {}
+        import objc
+        from CoreFoundation import CFDataCreate
+        from ApplicationServices import AXUIElementCopyAttributeValue
+        found: dict[int, object] = {}
+        for element_id in range(limit):
+            token = struct.pack("<iiIQ", int(pid), 0, 0x636F636F, element_id)
+            data = CFDataCreate(None, token, len(token))
+            pointer = self._ax_from_token(c_void_p(objc.pyobjc_id(data)))
+            if not pointer:
+                continue
+            element = objc.objc_object(c_void_p=pointer)
+            error, role = AXUIElementCopyAttributeValue(element, "AXRole", None)
+            if error or role != "AXWindow":
+                continue
+            wid = self.window_id(element)
+            if wid in wanted:
+                found[wid] = element
+                if len(found) == len(wanted):
+                    break
+        return found
 
     def _psn(self, pid: int) -> ProcessSerialNumber | None:
         psn = ProcessSerialNumber()
