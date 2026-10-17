@@ -557,3 +557,27 @@ test("a persisted split member carrying a page route leaves its group", () => {
   assert.deepEqual(payload.tabs.map(tab => tab.id), [a.id, b.id]);
   assert.equal(payload.activeId, b.id);
 });
+
+test("the sidebar opening a conversation whose tab shows Settings returns that tab to the conversation", () => {
+  reset(); state().openSessionTab("A", "Alpha");
+  state().recordRouteNavigation("/settings/memory");
+  assert.equal(state().navigationRoute, "/settings/memory");
+  state().openSessionTab("A", "Alpha");
+  assert.equal(active().sessionId, "A");
+  assert.equal(active().navigationRoute, undefined);
+  assert.equal(state().navigationRoute, undefined);
+  state().navigateHistory(-1);
+  assert.equal(active().navigationRoute, "/settings/memory");
+});
+
+test("the sidebar switching to another tab that shows Settings opens its conversation", () => {
+  reset(); state().openSessionTab("A", "Alpha");
+  state().recordRouteNavigation("/settings/memory");
+  const settingsTab = active().id;
+  state().openDraftSessionTab();
+  assert.notEqual(state().activeId, settingsTab);
+  state().openSessionTab("A", "Alpha");
+  assert.equal(state().activeId, settingsTab);
+  assert.equal(active().navigationRoute, undefined);
+  assert.equal(state().navigationRoute, undefined);
+});

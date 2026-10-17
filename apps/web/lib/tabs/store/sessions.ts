@@ -6,6 +6,14 @@ import { sessionHistory, withSessionHistory } from "../navigation/session-histor
 import { commitCenterTabsState } from "./core";
 import type { CenterTab, CenterTabsState } from "./types";
 
+/** A session tab that shows a page (Settings, History…) opened from it
+ *  goes back to its conversation; the page stays one Back away. */
+function showConversation(tab: CenterTab): CenterTab {
+  if (!tab.navigationRoute) return tab;
+  const { navigationRoute: _route, ...conversation } = tab;
+  return recordTabPage(tab, conversation);
+}
+
 export function sessionsActions(set: StoreApi<CenterTabsState>["setState"], get: StoreApi<CenterTabsState>["getState"], closedSessionAckTombstones: Set<string>): Pick<CenterTabsState, "openSessionTab" | "openDraftSessionTab" | "claimDraftSessionTab" | "markSessionReady" | "renameSessionTab"> {
   return {
     openSessionTab: (sessionId, title) =>
@@ -13,9 +21,19 @@ export function sessionsActions(set: StoreApi<CenterTabsState>["setState"], get:
         closedSessionAckTombstones.delete(sessionId);
         const active = s.tabs.find(tab => tab.id === s.activeId);
         const existing = s.tabs.find(tab => tab.kind === "session" && tab.sessionId === sessionId);
-        if (existing && existing.id !== active?.id) return commitCenterTabsState(s, { activeId: existing.id });
+        if (existing && existing.id !== active?.id) {
+          return commitCenterTabsState(s, {
+            activeId: existing.id,
+            tabs: s.tabs.map(tab => tab.id === existing.id ? showConversation(tab) : tab),
+          });
+        }
         if (active?.kind === "session") {
           if (active.sessionId === sessionId) {
+            if (active.navigationRoute) {
+              return commitCenterTabsState(s, {
+                tabs: s.tabs.map(tab => tab.id === active.id ? showConversation({ ...tab, title: title || tab.title }) : tab),
+              });
+            }
             if (active.title === title) return {};
             const history = sessionHistory(active);
             const entries = history.entries.map((entry, index) => index === history.index
