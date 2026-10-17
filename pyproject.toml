@@ -64,7 +64,7 @@ dependencies = [
     # satisfies httpx's ``auth=`` protocol, which breaks
     # ``PersistentOAuthProvider`` (see openprogram/mcp/token_storage.py).
     # Lift the cap once that module is ported to the 2.x auth API.
-    "mcp>=1.0.0,<2.0.0",
+    "mcp>=1.30.0,<2.0.0",
     # AnyIO is imported by the MCP server and is also the async substrate for
     # FastAPI/provider paths. Keep the transitive dependency on its patched
     # security line instead of relying on a stale lock selection.
