@@ -4,7 +4,8 @@ from __future__ import annotations
 import pytest
 
 from openprogram.computer_use import keys
-from openprogram.computer_use.tree import Node, diff, render, role_name, signature
+from openprogram.computer_use import macos
+from openprogram.computer_use.tree import Node, diff, number, render, role_name, snapshot
 from openprogram.programs.permission_rule import exact_rule_for_call, parse_command, rule_to_string
 from openprogram.programs.tools.system import computer_use as tool
 
@@ -75,18 +76,37 @@ def test_render_shows_index_depth_label_value_flags_and_secondary_actions():
     ]
 
 
+def test_bidirectional_marks_are_dropped_from_values():
+    assert Node(role="AXStaticText", depth=0, value="\u200e42\u200f", index=0).line() == '0 static text value="42"'
+
+
 def test_long_values_are_clipped_and_whitespace_collapsed():
     node = Node(role="AXStaticText", depth=0, value="a  b\n" * 100, index=0)
     line = node.line()
     assert "\n" not in line and line.endswith('…"') and len(line) < 200
 
 
-def test_diff_marks_changed_lines_with_new_indices_and_drops_removed_ones():
-    before = [Node(role="AXStaticText", depth=1, value="0", index=0),
-              Node(role="AXButton", depth=1, label="Delete", index=1)]
-    after = [Node(role="AXStaticText", depth=1, value="7", index=0),
-             Node(role="AXButton", depth=1, label="All Clear", index=1)]
-    text, is_diff = diff(signature(before), after)
+class _Nodes(list):
+    next_index = 0
+
+
+def _snap(nodes):
+    return snapshot(nodes, nodes.next_index)
+
+
+def _numbered(nodes, previous=None):
+    nodes = _Nodes(nodes)
+    nodes.next_index = number(nodes, previous)
+    return nodes
+
+
+def test_diff_marks_changed_lines_and_keeps_the_index_of_an_element_changed_in_place():
+    before = _numbered([Node(role="AXStaticText", depth=1, value="0"),
+                        Node(role="AXButton", depth=1, label="Delete")])
+    after = _numbered([Node(role="AXStaticText", depth=1, value="7"),
+                       Node(role="AXButton", depth=1, label="All Clear")], _snap(before))
+    assert [node.index for node in after] == [0, 1]
+    text, is_diff = diff(_snap(before), after)
     assert is_diff
     assert text.splitlines() == [
         '- static text value="0"', '- button "Delete"',
@@ -94,17 +114,46 @@ def test_diff_marks_changed_lines_with_new_indices_and_drops_removed_ones():
     ]
 
 
+def test_an_insertion_above_does_not_shift_the_indices_the_model_already_has():
+    before = _numbered([Node(role="AXButton", depth=0, label=name) for name in ("A", "B", "C")])
+    after = _numbered([Node(role="AXStaticText", depth=0, value="banner")]
+                      + [Node(role="AXButton", depth=0, label=name) for name in ("A", "B", "C")], _snap(before))
+    assert [(node.label or node.value, node.index) for node in after] == [("banner", 3), ("A", 0), ("B", 1), ("C", 2)]
+    assert diff(_snap(before), after) == ('+ 3 static text value="banner"', True)
+
+
+def test_a_replaced_element_of_another_role_gets_a_new_index_and_freed_ones_are_not_reused():
+    before = _numbered([Node(role="AXButton", depth=0, label="OK"), Node(role="AXButton", depth=0, label="Go")])
+    after = _numbered([Node(role="AXTextField", depth=0, value="hi"), Node(role="AXButton", depth=0, label="Go")],
+                      _snap(before))
+    assert [node.index for node in after] == [2, 1]
+    again = _numbered([Node(role="AXButton", depth=0, label="Go")], _snap(after))
+    assert [node.index for node in again] == [1] and _snap(again).next_index == 3
+
+
 def test_diff_without_previous_or_with_no_change():
-    nodes = [Node(role="AXButton", depth=0, label="OK", index=0)]
+    nodes = _numbered([Node(role="AXButton", depth=0, label="OK")])
     assert diff(None, nodes) == ('0 button "OK"', False)
-    assert diff(signature(nodes), nodes) == ("(no changes in the Accessibility tree)", True)
+    assert diff(_snap(nodes), nodes) == ("(no changes in the Accessibility tree)", True)
 
 
 def test_diff_falls_back_to_the_full_tree_when_most_lines_changed():
-    before = [Node(role="AXButton", depth=0, label=str(i), index=i) for i in range(30)]
-    after = [Node(role="AXButton", depth=0, label=f"x{i}", index=i) for i in range(30)]
-    text, is_diff = diff(signature(before), after)
+    before = _numbered([Node(role="AXButton", depth=0, label=str(i)) for i in range(30)])
+    after = _numbered([Node(role="AXButton", depth=0, label=f"x{i}") for i in range(30)], _snap(before))
+    text, is_diff = diff(_snap(before), after)
     assert not is_diff and text == render(after)
+
+
+def test_menu_titles_match_case_insensitively_without_the_ellipsis():
+    assert macos._menu_key("Export…") == macos._menu_key("export") == macos._menu_key(" EXPORT... ")
+    assert macos._menu_key("Export as PDF…") != macos._menu_key("Export")
+
+
+def test_hold_durations_are_bounded():
+    assert macos._seconds(None, "duration") == 0 and macos._seconds("1.5", "duration") == 1.5
+    for bad in (-1, 11, "soon"):
+        with pytest.raises(macos.ComputerUseError):
+            macos._seconds(bad, "duration")
 
 
 # ----------------------------------------------------------------- rules and approval
@@ -215,3 +264,75 @@ def test_find_text_honours_prefix_and_suffix_and_utf16_offsets():
     assert find_text(value, "the", prefix="on ") == 15
     assert find_text(value, "dog") is None
     assert utf16_len("a😀b") == 4
+
+
+# ----------------------------------------------------------------- tool layer
+
+class _FakeComputer:
+    def __init__(self, results):
+        self.results, self.calls, self.settled = list(results), [], 0
+
+    def act(self, session, action, step):
+        self.calls.append((action, step))
+        result = self.results.pop(0)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    def settle(self, session, app):
+        self.settled += 1
+        return 0.0
+
+    def get_state(self, session, app, **kwargs):
+        assert kwargs == {"as_diff": True}
+        return macos.Observation(text="+ 4 button \"=\"", image=None, app=app)
+
+
+@pytest.fixture
+def fake(monkeypatch):
+    def install(*results):
+        computer = _FakeComputer(results)
+        monkeypatch.setattr(macos, "backend", lambda: computer)
+        return computer
+    return install
+
+
+def test_an_action_settles_once_and_returns_the_changed_tree(fake):
+    computer = fake("pressed button \"7\"")
+    result = tool.computer_use(action="click", app="Calculator", element_index=3)
+    assert not result.is_error and computer.settled == 1
+    assert result.text == 'Done: pressed button "7".\n\n+ 4 button "="'
+    assert computer.calls[0][1]["element_index"] == 3
+
+
+def test_a_read_only_result_comes_back_without_a_new_state(fake):
+    computer = fake(macos.Report("menu bar: File | Edit"))
+    result = tool.computer_use(action="menu", app="Calculator")
+    assert result.text == "menu bar: File | Edit" and computer.settled == 0
+
+
+def test_a_batch_runs_in_order_stops_at_the_first_error_and_reports_the_state_once(fake):
+    computer = fake("typed 3 character(s)", macos.ComputerUseError("element 9 no longer exists"), "unused")
+    result = tool.computer_use(action="batch", app="Notes", actions=[
+        {"action": "type_text", "text": "abc"}, {"action": "click", "element_index": 9}, {"action": "press_key", "key": "Return"}])
+    assert result.is_error and computer.settled == 1 and len(computer.calls) == 2
+    assert result.text.startswith("Done:\n1. typed 3 character(s)\nError: step 2 (click) failed: element 9 no longer exists")
+    assert all(step["app"] == "Notes" for _, step in computer.calls)
+
+
+@pytest.mark.parametrize("steps, message", [
+    ([], "batch needs actions"),
+    ([{"action": "get_app_state"}], "cannot run in a batch"),
+    ([{"action": "click", "app": "Finder", "element_index": 1}], "names another app"),
+    ([{"action": "click"}] * 21, "at most 20"),
+])
+def test_a_batch_is_checked_before_any_step_runs(fake, steps, message):
+    computer = fake()
+    result = tool.computer_use(action="batch", app="Notes", actions=steps)
+    assert result.is_error and message in result.text and computer.calls == []
+
+
+def test_every_action_but_list_apps_needs_an_app(fake):
+    fake()
+    result = tool.computer_use(action="list_windows")
+    assert result.is_error and "list_windows needs app" in result.text

@@ -71,14 +71,28 @@ function computerUsePresentation(args: Args, text: Text): ToolPresentation {
     perform_secondary_action: ["Performed action", "执行动作"],
     select_text: ["Selected text", "选中文字"],
     paste: ["Pasted", "粘贴"],
+    list_windows: ["Listed windows", "列出窗口"],
+    zoom: ["Zoomed", "放大查看"],
+    find: ["Searched", "查找"],
+    copy: ["Copied", "复制"],
+    focus: ["Focused", "聚焦"],
+    menu: ["Used the menu", "使用菜单"],
+    show_window: ["Showed the window", "显示窗口"],
+    batch: ["Ran steps", "执行多步"],
   };
   const [en, zh] = titles[action] ?? ["Computer use", "电脑操作"];
   const title = action === "list_apps" ? text(en, zh) : inApp(en, zh);
+  const menuPath = Array.isArray(args.menu_path) ? args.menu_path.map(str).filter(Boolean).join(" › ")
+    : pick(args, "menu_path");
+  const steps = Array.isArray(args.actions) ? args.actions.length : 0;
   const target = action === "press_key" ? pick(args, "key")
-    : action === "type_text" || action === "paste" || action === "select_text" ? firstLine(pick(args, "text"))
+    : action === "type_text" || action === "paste" || action === "select_text" || action === "find"
+      ? firstLine(pick(args, "text")) ?? pick(args, "role")
     : action === "perform_secondary_action" ? pick(args, "action_name")
     : action === "set_value" ? pick(args, "value")
-    : action === "get_app_state" ? pick(args, "window")
+    : action === "get_app_state" || action === "show_window" ? pick(args, "window")
+    : action === "menu" ? menuPath
+    : action === "batch" && steps ? text(`${steps} steps`, `${steps} 步`)
     : undefined;
   return { icon: "monitor", tone: "system", title, target };
 }

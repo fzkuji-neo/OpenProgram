@@ -59,6 +59,12 @@ test('the public computer_use tool reads as the action in the app; the GUI capab
   assert.equal(click.icon, 'monitor');
   assert.equal(presentTool('computer_use', JSON.stringify({ action: 'press_key', app: 'Notes', key: 'super+c' }), en).target, 'super+c');
   assert.equal(presentTool('computer_use', JSON.stringify({ action: 'list_apps' }), en).title, 'Listed apps');
+  const menu = presentTool('computer_use', JSON.stringify({ action: 'menu', app: 'Notes', menu_path: ['File', 'Export as PDF…'] }), en);
+  assert.equal(menu.title, 'Used the menu in Notes');
+  assert.equal(menu.target, 'File › Export as PDF…');
+  const batch = presentTool('computer_use', JSON.stringify({ action: 'batch', app: 'Notes', actions: [{ action: 'click' }, { action: 'type_text' }] }), en);
+  assert.equal(batch.title, 'Ran steps in Notes');
+  assert.equal(batch.target, '2 steps');
   const capability = presentTool('computer_use', JSON.stringify({ task: 'inspect', app_name: 'TextEdit' }), en);
   assert.equal(capability.title, 'Computer Use');
   assert.equal(capability.target, 'TextEdit');

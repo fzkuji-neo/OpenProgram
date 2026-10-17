@@ -102,7 +102,7 @@ Search keys take effect on subsequent calls without restarting. An unavailable s
 
 | Tool | What it does | Requires |
 |---|---|---|
-| `computer_use` | Read a macOS application's window (screenshot + Accessibility tree) and click, type, scroll, drag or paste into it in the background; one approval per application | macOS; Accessibility and Screen Recording for the runtime |
+| `computer_use` | Read a macOS application's window (screenshot + Accessibility tree) and click, type, scroll, drag, paste, copy or use its menu bar in the background, one step or a batch at a time; one approval per application | macOS; Accessibility and Screen Recording for the runtime |
 
 [Computer use](computer-use.md) lists the actions and the approval scopes.
 
