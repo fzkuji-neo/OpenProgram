@@ -95,7 +95,7 @@ Web UI 地址是 `http://localhost:18100`。runtime 已包含预构建 Web UI，
 
 ## 已包含产品能力与额外扩展
 
-GUI Agent、Research Agent 和 Wiki Agent 属于每个受支持的 release 安装。其 Program package、GPA detector 权重和 Playwright Chromium 已包含。GUI Program 使用不解析依赖的方式安装：product runtime 不含 PyTorch、OpenCV 和 EasyOCR，因此使用这些依赖的 GUI perception 路径需要单独配置 backend 或 development overlay。
+GUI、Research Agent 和 Wiki Agent 三个 Program 属于每个受支持的 release 安装。GUI Program 不注册自己的工具，它为 [`computer_use_agent`](../capabilities/computer-use.zh.md#按描述定位) 的 `describe` 提供视觉定位。其 Program package、GPA detector 权重和 Playwright Chromium 已包含。GUI Program 使用不解析依赖的方式安装：product runtime 不含 PyTorch、OpenCV 和 EasyOCR，因此使用这些依赖的 GUI perception 路径需要单独配置 backend 或 development overlay。
 
 第三方 Program 是用户主动增加的额外功能，存放在只读 product runtime 之外。第一方 Program editable source、诊断工具、本地前端构建，以及 OCR/Browser 后端替换属于开发者附加能力。只有使用 product runtime 未包含依赖的 GUI perception 路径才需要替换 backend 或补充依赖；这些附加项不会改变基础 runtime manifest。
 

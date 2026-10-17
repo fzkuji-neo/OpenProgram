@@ -4,7 +4,7 @@
 
 - [`harness-standard.md`](harness-standard.zh.md)
 - [Web Use——内置浏览器优先的目标设计](web-use.zh.html)
-- [操控电脑与浏览器——`computer_use` 工具与浏览器差距清单](computer-and-browser-use.zh.md)
+- [操控电脑与浏览器——`computer_use_agent` 工具：目标、指南、代码、新 agent 与审批](computer-and-browser-use.zh.md)
 - [`mcp-integration.html`](mcp-integration.zh.html)
 - [MCP 服务端——认证 stdio 设计与实现证据](mcp-server.zh.html)
 - [`skills-and-plugins.md`](skills-and-plugins.zh.md)

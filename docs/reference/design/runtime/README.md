@@ -60,7 +60,7 @@ The framework uses the `has_session` attribute to distinguish the two provider c
 
 **Why not split into two separate Runtime classes?**
 
-When writing `gui_agent`, the author should not care which kind of provider the backend is. Forcing a split would require two
+When writing `research_agent`, the author should not care which kind of provider the backend is. Forcing a split would require two
 implementations per function, violating the layering of "functions describe the task, providers describe the execution channel." The cost of the shared abstraction is
 the single `has_session` conditional branch — worth it.
 

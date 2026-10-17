@@ -6,11 +6,10 @@ This page covers the ready-made agents included in every supported OpenProgram r
 
 An agentic workflow is a finished workflow built with [Agentic Programming](../agentic-programming/README.md) — called a **harness** or **agentic program** in the code: a self-contained git repository holding a set of `Agent` methods. The fixed release versions register into OpenProgram and appear like built-in functions in chat, on the Web UI Programs page, and in `openprogram programs run`.
 
-Three first-party workflows:
+Two first-party workflows:
 
 | Workflow | Release status | In one line |
 |---|---|---|
-| [GUI Agent](gui-agent.md) | Included | Give it a task in one sentence and it operates the desktop autonomously (screenshot, detect, click, verify loop) |
 | [Research Agent](research-agent.md) | Included | From research topic to submission-ready paper, with a deterministic verification layer |
 | [Wiki Agent](wiki-agent.md) | Included | Distills sessions and notes into a templated HTML knowledge base |
 
@@ -34,9 +33,19 @@ First-party Programs are immutable product components. In a mutable extension or
 ## How to trigger them
 
 - **Web parameter form**: click **Use** in Programs or a sidebar favorite. A new-tab page becomes a draft chat; an existing chat keeps its draft and running task. Fill in the task requirements and send explicitly. Opening or closing the form does not run the Workflow.
-- **In chat**: entry functions register as tools (`as_tool=True`). Describe the task in natural language and the model calls them (e.g. `gui_agent`, `research_agent`, `wiki_agent`).
-- **From the command line**: `openprogram programs run gui_agent -a task="Open Firefox"`.
+- **In chat**: entry functions register as tools (`as_tool=True`). Describe the task in natural language and the model calls them (e.g. `research_agent`, `wiki_agent`). Operating apps, built-in browser Pages and a VM is the [`computer_use_agent`](../computer-use.md) tool, not a workflow.
+- **From the command line**: `openprogram programs run wiki_agent -a task="Ingest the notes above into the wiki"`.
 - **From Python**: harness functions are ordinary importable Python functions.
+
+## Model selection
+
+Programs whose bodies do not call a model can execute without a configured model. An unavailable model or credential fails when the body calls the Runtime; it does not prevent model-free steps from running and does not select another provider automatically.
+
+Direct tool runs also need an explicit provider and model for internal model calls. An omitted or incomplete selection does not use global provider detection or a provider's default model.
+
+When run from a chat, internal Workflow model calls inherit the turn's provider and model selection. A per-turn override takes priority over the session selection, followed by the agent profile. The selected provider and model also apply to tool subprocesses. Provider authentication must still be valid for that selected model; setup failures retain the selected model's error instead of silently using another provider.
+
+Browser workflows retain an explicit initial URL when a backend is selected. Official MCP backends support guarded waits and propagate snapshot failures. Page recovery stays within the current window scope and does not replay the failed action. A verified result retains its actual evidence and observed target.
 
 ## Writing your own
 

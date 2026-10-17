@@ -69,7 +69,7 @@ never the checkout it points to.
 |---|---|---|
 | [Research Agent](https://github.com/Fzkuji/Research-Agent-Harness) | Included | The product manifest records the fixed source commit; the builder installs the declared PDF dependencies, and the runtime manifest records the resolved distributions. |
 | [Wiki Agent](https://github.com/Fzkuji/Wiki-Agent-Harness) | Included | The product manifest records the fixed source commit; the builder installs the declared dependencies, and the runtime manifest records the resolved distributions. |
-| [GUI Agent](https://github.com/Fzkuji/GUI-Agent-Harness) | Included | The Program is registered and the GPA detector weight is shipped. PyTorch, OpenCV, and EasyOCR are not in the product runtime. |
+| [GUI](https://github.com/Fzkuji/GUI-Agent-Harness) | Included | A library for [`computer_use_agent`](computer-use.md#pointing-by-description)'s `describe`; it registers no tools. The GPA detector weight is shipped. PyTorch, OpenCV, and EasyOCR are not in the product runtime. |
 
 Release users do not run `programs install all`, a first-run Program wizard,
 or the GUI harness asset installer. Developers may replace a first-party

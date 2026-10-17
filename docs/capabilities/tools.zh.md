@@ -100,9 +100,9 @@ SSH 和 Docker 在后端文件系统中按 POSIX 路径解释显式目录，不�
 
 | 工具 | 做什么 | 需要什么 |
 |---|---|---|
-| `computer_use` | 读取应用窗口（截图 + Accessibility 树），在后台点击、输入、滚动、拖拽、粘贴、拷贝或使用菜单栏，可单步也可批量；每个应用审批一次 | macOS（运行时需有辅助功能与屏幕录制权限），X11 下装有 AT-SPI 和 xdotool 的 Linux，或带 UI Automation 的 Windows |
+| `computer_use_agent` | 操作屏幕：在后台操作应用窗口（截图 + Accessibility 树）、内置浏览器的 Page，或已配置的虚拟机。可单步、批量、写 Python 代码，或交给按简报工作的新 agent；每个应用审批一次 | 应用：macOS（运行时需有辅助功能与屏幕录制权限），X11 下装有 AT-SPI 和 xdotool 的 Linux，或带 UI Automation 的 Windows。虚拟机：`computer_use.vm_url` |
 
-[操控电脑](computer-use.zh.md)列出了全部动作和审批范围。
+[操控电脑](computer-use.zh.md)列出了全部目标、动作和审批范围。
 
 ## 图像与 PDF
 

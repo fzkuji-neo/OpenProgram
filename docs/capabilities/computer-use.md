@@ -1,16 +1,26 @@
 # Computer use
 
-The `computer_use` tool lets the model read and operate the windows of a desktop application while you keep working: the application stays in the background, the keyboard and mouse remain yours, and nothing is brought to the front. The model sees a screenshot of the window together with its Accessibility tree, acts on a numbered element, and gets back only the lines that changed. It runs on macOS, on Linux under X11 and on Windows, with the differences listed in [On Linux](#on-linux) and [On Windows](#on-windows).
+One tool, `computer_use_agent`, lets the model operate a screen: the windows of a desktop application, the Pages of the App's built-in browser, or a virtual machine. Application windows are read and operated while you keep working: the application stays in the background, the keyboard and mouse remain yours, and nothing is brought to the front. The model sees a screenshot of the window together with its Accessibility tree, acts on a numbered element, and gets back only the lines that changed. Applications are supported on macOS, on Linux under X11 and on Windows, with the differences listed in [On Linux](#on-linux) and [On Windows](#on-windows).
 
-Web pages have their own tool, `web_use`, which drives the browser in the App and in the headless Chromium. `computer_use` is for everything else on the desktop: Finder, Notes, Calculator, Xcode, a chat client, a game launcher.
+## Targets and guides
+
+Every call names a `target`:
+
+| Target | What it operates | Needs |
+|---|---|---|
+| `app` | Application windows on this computer, named by `args.app`: Finder, Notes, Calculator, Xcode, a chat client, a game launcher | The desktop grants below |
+| `browser` | Pages of the App's built-in browser: the tabs in the App's windows and tabs it opens in the background. Not your own Chrome | The App |
+| `vm` | A remote machine behind an OSWorld-compatible server | `computer_use.vm_url`, see [Virtual machine](#virtual-machine) |
+
+The tool's description is only this list. The first call to a target in a conversation returns that target's guide, its actions and their arguments, together with the target's current state, so the model learns the actions of the screen it is about to use and nothing else. `action="guide"` shows the guide again.
 
 ## What a step looks like
 
 ```
-computer_use(action="get_app_state", app="Calculator")
+computer_use_agent(target="app", args={"app": "Calculator"})
 ```
 
-returns the window screenshot and a tree such as
+returns the guide, the window screenshot and a tree such as
 
 ```
 0 window "Calculator" actions: AXRaise
@@ -22,7 +32,7 @@ returns the window screenshot and a tree such as
 Each line is one element: its index, its role, its label, its current value, state flags such as `[focused]` or `[checked]`, and any secondary actions it offers. The model then acts on an index:
 
 ```
-computer_use(action="click", app="Calculator", element_index=18)
+computer_use_agent(target="app", action="click", args={"app": "Calculator", "element_index": 18})
 ```
 
 Every action returns `Done: …` followed by a diff of the tree: lines prefixed `-` disappeared, lines prefixed `+` are new or changed. Indices are stable: an element keeps its index while it stays in the window, even when something is inserted above it, and a new element gets a number not used before, so an index read earlier never silently points at something else. Pass `full=true` to `get_app_state` to receive the whole tree again. Trees are capped at 1500 elements and screenshots at 1568 pixels on the long side.
@@ -31,7 +41,7 @@ Some applications draw their content without describing it to Accessibility: gam
 
 After an action the tool waits for the window to settle instead of a fixed pause: at least 0.3 seconds, until the tree stops changing, at most 1.5 seconds — or 5 seconds while a spinner or progress bar is showing.
 
-## Actions
+## Application actions
 
 | Action | Arguments | Effect |
 |---|---|---|
@@ -40,12 +50,12 @@ After an action the tool waits for the window to settle instead of a fixed pause
 | `get_app_state` | `app`, `window?` or `window_id?`, `full?`, `include?` | Screenshot and tree. A closed app is launched in the background. `window` picks one by title substring or index; the window read last stays selected. `include` is `all`, `tree` or `screenshot` |
 | `zoom` | `app`, `x`, `y`, `width`, `height` | A region of the last screenshot at the display's full pixel density, for small text. Action coordinates still refer to the screenshot |
 | `find` | `app`, `text?`, `role?` | Elements of the last tree whose label, value or placeholder contains `text`, optionally of one role (`button`, `text field` …). When no element matches, the lines of the screenshot that show `text`, with their position |
-| `click` | `app`, `element_index` or `x`,`y`, `mouse_button?`, `click_count?`, `key?`, `duration?` | Press an element, or click a point of the last screenshot. `key` holds modifiers such as `cmd` or `shift+alt`; `duration` holds the button down, up to 10 seconds |
+| `click` | `app`, `element_index` or `x`,`y` or `describe`, `mouse_button?`, `click_count?`, `key?`, `duration?` | Press an element, or click a point of the last screenshot. `key` holds modifiers such as `cmd` or `shift+alt`; `duration` holds the button down, up to 10 seconds |
 | `type_text` | `app`, `text`, `element_index?` | Type into the focused element, focusing `element_index` first when given. Refused when the element is a button or another control that cannot take text |
 | `press_key` | `app`, `key`, `element_index?`, `duration?` | One chord in xdotool spelling: `Return`, `Escape`, `super+c`, `ctrl+shift+Tab`, `KP_0`, `F5`. `super` and `cmd` are the Command key |
 | `set_value` | `app`, `element_index`, `value` | Replace a field's value, move a slider, toggle a checkbox |
-| `scroll` | `app`, `element_index` or `x`,`y`, `direction?`, `pages?` or `pixels?` | Scroll by pages (fractions allowed) or by a distance in points |
-| `drag` | `app`, `x`, `y`, `to_x`, `to_y` | Drag between two points of the last screenshot |
+| `scroll` | `app`, `element_index` or `x`,`y` or `describe`, `direction?`, `pages?` or `pixels?` | Scroll by pages (fractions allowed) or by a distance in points |
+| `drag` | `app`, `x`,`y` or `describe`, `to_x`,`to_y` or `to_describe` | Drag between two points of the last screenshot |
 | `perform_secondary_action` | `app`, `element_index`, `action_name` | One of the element's listed actions, e.g. `AXShowMenu`, `AXIncrement` |
 | `select_text` | `app`, `element_index`, `text`, `prefix?`, `suffix?`, `selection_type?` | Select a phrase inside a text element, or place the cursor before or after it |
 | `paste` | `app`, `text`, `format?`, `element_index?` | Insert through the clipboard as `text`, `md` or `html`; the clipboard is restored afterwards |
@@ -53,30 +63,41 @@ After an action the tool waits for the window to settle instead of a fixed pause
 | `focus` | `app`, `element_index` | Move keyboard focus to an element without clicking it |
 | `menu` | `app`, `menu_path?` | Without a path, list the menu bar. With a path such as `["View", "Scientific"]`, list that menu (with shortcuts, checked and disabled items) or choose a leaf item. Titles match without regard to case or a trailing `…`; no menu opens on screen |
 | `show_window` | `app`, `window?` or `window_id?` | Restore a minimised window or unhide the app, without bringing it to the front |
-| `hover` | `app`, `element_index` or `x`,`y`, `duration?` | Rest the pointer over an element for `duration` seconds (default 0.8) so tooltips and hover menus open; your cursor does not move. Apps that ignore the pointer while in the background show nothing |
+| `hover` | `app`, `element_index` or `x`,`y` or `describe`, `duration?` | Rest the pointer over an element for `duration` seconds (default 0.8) so tooltips and hover menus open; your cursor does not move. Apps that ignore the pointer while in the background show nothing |
 | `wait` | `app`, `duration?` | Let up to 10 seconds pass (default 1), then return what changed: a page loading, playback, a reply arriving |
-| `batch` | `app`, `actions` | Up to 20 of the acting steps above, run in order on one app; stops at the first error and returns the state once, at the end |
 | `start_audio_recording` | `app`, `max_duration?` | Record the sound that app plays, for up to `max_duration` seconds (default 60, at most 300). Only that app is recorded and you keep hearing it; other actions run meanwhile |
 | `stop_audio_recording` | `app`, `transcribe?` | Stop, save a 16 kHz WAV and return its path; with a speech engine set up in Settings → Voice, also the transcript |
 
 `app` is a name, bundle id or `.app` path as `list_apps` prints it. `x` and `y` are pixels of that app's most recent screenshot, not screen coordinates.
 
-In a `batch`, every step uses the indices and coordinates of the state read before the batch, and each step names its own `action` but not the app:
+Element actions reach windows that are hidden, minimised or covered by another window. Coordinate clicks, drags and wheel scrolls also run in the background: the pointer does not move and the front application does not change. Coordinates exist for canvases and custom controls that the tree does not describe; prefer an index whenever one is listed.
+
+## Several steps, code and a new agent
+
+Several steps go in `actions`, up to 20, run in order on one app. They stop at the first error and return the state once, at the end; every step uses the indices and coordinates of the state read before them:
 
 ```
-computer_use(action="batch", app="Calculator", actions=[
-  {"action": "click", "element_index": 18},
-  {"action": "press_key", "key": "KP_Multiply"},
-  {"action": "click", "element_index": 18},
-  {"action": "press_key", "key": "KP_Enter"}
+computer_use_agent(target="app", args={"app": "Calculator"}, actions=[
+  {"action": "click", "args": {"element_index": 18}},
+  {"action": "press_key", "args": {"key": "KP_Multiply"}},
+  {"action": "click", "args": {"element_index": 18}},
+  {"action": "press_key", "args": {"key": "KP_Enter"}}
 ])
 ```
 
-Element actions reach windows that are hidden, minimised or covered by another window. Coordinate clicks, drags and wheel scrolls also run in the background: the pointer does not move and the front application does not change. Coordinates exist for canvases and custom controls that the tree does not describe; prefer an index whenever one is listed.
+For loops, conditions and data handling the model sends `code` instead: Python with top-level `await`, run in an isolated interpreter without files, network or processes, whose variables last for the turn. Each target is an object whose methods are its actions: `await cu.app.click(app="Numbers", element_index=3)`, `await cu.browser.observe()`, `await cu.vm.screenshot()`. Code acts only on the app the call names, cannot run page scripts, upload files or open a new website, and runs at most 120 seconds and 100 actions per call. Code runs on macOS only.
+
+`context` says who does the work. `inherit`, the default, means the model operates the screen itself in this conversation and sees every result. `fresh` hands the task to a new agent of the same model and settings: it starts from a `brief` (the task, what is already known, what to report back) and the target's guide, does the work with its own `computer_use_agent` calls, and only its final reply comes back. Use it for long operations whose intermediate screens the conversation does not need. A fresh agent cannot start another one.
+
+## Pointing by description
+
+Wherever an action takes `x`,`y`, the model may give `describe` instead: a short description of the target as it looks, such as "the blue Send button" or "the gear icon top right" (`to_describe` for the end of a drag). The tool takes a fresh screenshot, finds the description with the GUI perception package (an icon detector, OCR and remembered components, checked by the conversation's model) and acts at the centre of what it found. It is slower and costs model calls, so element indices and refs come first; it pairs well with a fresh agent working from a written brief.
+
+The package is the [GUI-Agent-Harness](https://github.com/Fzkuji/GUI-Agent-Harness) Program. Every release includes it with the GPA detector weight, but the libraries its detector runs on (PyTorch, OpenCV, EasyOCR) are not in the product runtime, so `describe` works only where they are installed, such as a development environment. Elsewhere the guide says `describe` is unavailable and the other ways to point remain.
 
 ## Web pages
 
-`web_use` drives pages the same way: `observe` returns refs, and `act` takes one `action` with its arguments. Besides `navigate`, `click`, `type`, `press`, `scroll`, `hover`, `select`, `upload` and `screenshot`, it offers the same vocabulary as `computer_use`:
+The `browser` target drives the Pages of the App's built-in browser: `list_pages` lists them, `observe` returns refs, and every other action acts on a ref. Besides `navigate`, `click`, `type`, `press`, `scroll`, `hover`, `select`, `upload` and `screenshot`, it offers the same vocabulary as application windows:
 
 | Action | Arguments | Effect |
 |---|---|---|
@@ -92,22 +113,96 @@ Element actions reach windows that are hidden, minimised or covered by another w
 | `network_requests` | `pattern?`, `only_errors?`, `limit?` | Requests the page made with method, status and resource type; URLs are shown without query strings, and no bodies |
 | `evaluate` | `script` | Runs a JavaScript expression or function such as `() => document.title` in the page and returns its result as JSON, at most 20,000 characters; password field values in the result are redacted |
 
-A page in the App's browser stays in the background throughout: the events are dispatched inside the page and the tab is not activated. `observe` with a `url` opens its tab behind your work too; `visible: true` brings it to the front instead, for when you asked to watch. `changes_only: true` lists in full only the elements that are new or changed since the previous observation of the same page: an unchanged element is one line with its new ref, an unchanged page text or accessibility snapshot is left out, and elements that disappeared are named. Refs always belong to the latest observation. On the two MCP backends the accessibility snapshot comes from the backend, so `changes_only` has no effect there. On the Playwright and Chrome DevTools MCP backends an option the backend cannot perform, such as a triple click or a held key, fails with `unsupported_option` before anything is sent.
+A page in the App's browser stays in the background throughout: the events are dispatched inside the page and the tab is not activated. `observe` with a `url` opens its tab behind your work too; `visible: true` brings it to the front instead, for when you asked to watch. `changes_only: true` lists in full only the elements that are new or changed since the previous observation of the same page: an unchanged element is one line with its new ref, an unchanged page text or accessibility snapshot is left out, and elements that disappeared are named. Refs always belong to the latest observation.
 
-A script can read and change everything a signed-in page holds, so every `evaluate` call asks you first and shows the whole script, in every permission mode and even when a rule allows `web_use`. The approval covers that one call: there is no "always allow" for it, and scheduled or channel turns that cannot ask are refused.
+The conversation's Pages need no approval. Opening a website outside your computer, and uploading a file, ask first. A script can read and change everything a signed-in page holds, so every `evaluate` call asks you first and shows the whole script, in every permission mode and even when a rule allows `computer_use_agent`. That approval covers the one call: there is no "always allow" for it, and scheduled or channel turns that cannot ask are refused.
+
+## Watching and taking over Pages
+
+In the desktop App, Agent-opened Pages remain in the background. Open **Resources** in the right sidebar to see the current conversation's Pages grouped by branch, including Pages used by its child agents. Continuing a branch keeps its resource group. Distinct Pages stay distinct even when they have the same URL; pages without established branch ownership appear under **Unassigned**.
+
+A popup or new window opened by an Agent's Page loads in the background as a Page of its own and joins the same conversation and branch in **Resources**; it does not take over your view. The Agent's next result for the opening Page names the popup, so the Agent continues there instead of starting the same flow again. A popup from a Page you opened yourself opens in front as an ordinary tab.
+
+Select a resource to inspect its image preview in chat. **Preview in conversation** is the explicit control for the same existing Page: it does not add a top tab and if a webpage currently occupies center, returns to the owning session so the chat preview is visible. The chat preview chrome has a persistent **Pin preview** / **Unpin preview** control: pin holds the current page as Fixed preview; unpin returns to Auto preview of the Page most recently operated on by that branch. Selecting a resource shows it without pinning and does not steal tab focus; in Auto preview, the next Page the Agent reads or operates on replaces it. Opening, reading and acting on a Page all count, not only clicks and typing. These pin controls exist only on the chat preview; Session resources has no pin control. **Hide** stops preview capture and keeps the Page available. Restore a hidden preview with the resource row or **Preview in conversation**; there is no separate Show preview control. **Expand** enlarges the image preview without changing Auto or Fixed preview. **Open page** opens the existing Page as an ordinary top tab and hides the chat preview. Returning to the conversation restores the preview unless it was hidden. These controls keep their selection per conversation and branch. A pin lasts until the app reloads; afterwards the preview is in Auto preview again.
+
+A webpage tab and its preview never display together. The actual webpage remains usable in its own tab. There is no dimming mask. Its toolbar identifies the current controller and provides **Pause Agent to use page**, **Continue Agent**, **Show actions**, and **Operation history**. The chat preview uses a single compact chrome row; Idle and closed pages show **Ready to use** and have no Pause or Continue control. The default overlay is 300×198.75. Drag the header to move it, or resize from any edge or corner; the image aspect stays linked and the page itself is not resized. Action markers are brief and do not intercept input; history contains operation types and results rather than the text entered into a webpage.
+
+Using the real webpage requests a pause: clicking, typing, scrolling, and navigating close later Agent input admission and request execution pause. Merely focusing the page or inspecting its preview does not pause execution. An action already dispatched can still finish. **Pausing…** means stopping is pending; **Paused** requires execution acknowledgement and reconciliation. **Could not pause. Try again** means the App has not confirmed stopping; **Retry pause** repeats the pause request while connected, and the webpage remains usable. **Continue Agent** is explicit and requires a fresh observation and current permission.
+
+Closing a Page affects every branch reference to that same Page. An active Page first requests stopping; it stays available until stopping is confirmed. Closing is separate from hiding the preview. Disconnection or an unavailable target shows the last image as stale. Saved resource metadata does not restore an Agent input lease or recreate a closed Page.
+
+If the App or worker restarts, pages you had not closed come back in the background without extra top tabs. The retained tab, session, and branch stay; the last confirmed title and URL stay. The App creates a new live page for that retained tab. Previous live handles are invalid. Explicitly closed pages stay under **Closed pages**. A hidden preview stays hidden until you select the resource or use **Preview in conversation**. Rows that are restoring, failed to restore, or need a reconnect stay in the original branch and show **Restoring page…**, **Could not restore page**, or **Reconnect**. They do not move to a generic Unavailable group. Restoring a page does not require **Continue Agent**. Idle pages stay **Ready to use**. New task actions still use a fresh observation and current permission on the new page. Restore reloads the last confirmed URL with existing site persistent storage; unsaved DOM and form values from the old process are not restored. An older resource record with no retained tab descriptor cannot be recreated automatically and reports **Could not restore page** in its original group. This bounded restart recovery is implemented.
+
+The chat preview also follows the other things the Agent works on. When it acts on a desktop app window, the preview shows that app with the latest screenshot the Agent took of the window, refreshed after every step. When it takes or types into a Desktop Terminal, the preview shows that terminal's live output, read-only. The same Auto preview, pin and close rules apply; the next Page the Agent works on takes the preview back. Screenshots stay in memory and are not kept after the worker restarts.
+
+These controls operate on exact OpenProgram Pages. Application windows and VM displays keep their own approvals described above.
+
+## Virtual machine
+
+The `vm` target drives a machine behind an [OSWorld](https://os-world.github.io/)-compatible server: the tool takes screenshots with `GET /screenshot` and runs pointer and keyboard input through `POST /execute` with pyautogui on that machine. Set the server's address once:
+
+```bash
+openprogram config set computer_use.vm_url http://192.168.64.2:5000
+```
+
+The VM has no element tree: its actions are `screenshot`, `click`, `move`, `drag`, `scroll`, `type_text`, `press_key` and `wait`, pointed by pixels of the last screenshot or by `describe`. Every acting call returns a new screenshot. The first use of a VM in a conversation asks for approval, which names the endpoint.
 
 ## Approval
 
-The first time a conversation touches an application, an approval card shows that application with its own icon, name and bundle id, says what this step does ("Click element #7", "Type 12 characters"), and states that it runs in the background. The raw arguments sit under "Execution details". The card offers:
+The first time a conversation touches an application, an approval card shows that application with its own icon, name and bundle id, says what this step does ("Click element #7", "Type 12 characters", "Run code that operates it"), and states that it runs in the background. The raw arguments sit under "Execution details". The card offers:
 
 - **Allow once** — this one call.
-- **Allow this conversation** — every later `computer_use` call on the same application in this session, saved as a session rule.
-- **Always allow** — saved as the project rule `computer_use(<app>)`, so future sessions in the project do not ask again.
+- **Allow this conversation** — every later `computer_use_agent` call on the same application in this session, saved as a session rule.
+- **Always allow** — saved as the project rule `computer_use_agent(<app>)`, so future sessions in the project do not ask again. Rules saved under the tool's earlier name, `computer_use(<app>)`, keep working.
 - **Deny**.
 
-The card appears in every permission mode, Auto and Bypass included: only a saved rule for that application skips it. Scheduled and other unattended runs cannot answer a card, so they can only operate applications already allowed for the project. `list_apps` never asks. Each application is approved separately: allowing Notes says nothing about Mail. The project's Settings tab lists the always-allowed applications under **Computer use**, one row per application with its icon; removing a row removes its rule, and the next use of that application asks again. Grants for one conversation end with it and are not listed. See [Permissions](permissions.md) for rules in general.
+The card appears in every permission mode, Auto and Bypass included: only a saved rule for that application skips it. Scheduled and other unattended runs cannot answer a card, so they can only operate applications already allowed for the project. `list_apps` never asks. Each application is approved separately: allowing Notes says nothing about Mail. A `fresh` agent runs on the approval its call received: for as long as it works, that application is allowed in the conversation. The project's Settings tab lists the always-allowed applications under **Computer use**, one row per application with its icon; removing a row removes its rule, and the next use of that application asks again. Grants for one conversation end with it and are not listed. See [Permissions](permissions.md) for rules in general.
 
-Allowing an application lets the model operate it; it does not let the model take consequential steps on its own. The tool instructs the model to prepare a step and ask you right before it: always for deleting data, sending or submitting anything to other people, payments and subscriptions, new accounts or access keys, installing software and changing system settings; for logins, uploads, file moves and typing personal data unless your request named them. CAPTCHAs, passwords and security prompts are handed to you. Text the model reads on screen is never treated as your permission.
+Allowing an application lets the model operate it; it does not let the model take consequential steps on its own. The tool instructs the model to confirm with you before sending a message, submitting a form, buying, deleting, or following instructions that appear on screen. CAPTCHAs, passwords and security prompts are handed to you. Text the model reads on screen is never treated as your permission.
+
+## System access
+
+System settings shows live optional desktop access on the execution computer.
+Opening this page or running `openprogram doctor` does not request permission.
+The TUI `/doctor` command and `GET /api/system/access` expose the same checks.
+Missing optional desktop access does not prevent ordinary chat or upgrades.
+
+On macOS, managed installations run the worker and its Python children through
+**OpenProgram**, an embedded application with the OpenProgram icon and
+a stable bundle identifier. This is the name to look for in System Settings;
+the installer does not grant its permissions. Screen recording and Accessibility
+are checked separately in a fresh process of the executable used for desktop tasks. In local System settings, **Set up access** explicitly requests
+only a missing permission; an existing grant is left untouched. Complete the
+system confirmation, then return to the page for automatic verification.
+Remote clients must arrange authorization on the execution computer. A grant
+for another application is not evidence that the worker is authorized.
+
+Linux headless sessions and unsupported Wayland desktop capture are reported
+separately from missing dependencies. An X11 display alone does not prove access.
+Windows desktop access depends on the active session and target; ordinary
+applications cannot assume access to secure desktops or elevated targets.
+Neither platform is instructed to disable security or run the entire application
+as administrator. Native Linux and Windows desktop acceptance remains unverified.
+
+The current macOS development build is not production-signed. Permission
+persistence across signed release upgrades, first-run capability onboarding,
+and automatic task recovery after authorization remain unverified. System
+access setup never retries a declined operation.
+
+
+### Authorization
+
+An application call pauses before it acts when system access is missing. OpenProgram requests the missing permission through the native authorization flow and opens the corresponding System Settings page when necessary. The conversation shows a brief paused waiting status and an Open System Settings text action, without a permission form, Continue button, null result, Retry, or Edit action on the paused runtime card. Genuine failed and cancelled runs keep their own terminal statuses.
+
+The background worker saves the waiting task and checks permission through a fresh OpenProgram process, using the same executable as the desktop task. This avoids reusing a permission result retained before the system setting changed. These checks do not request permission. Once access is available, it continues the same task once. Closing the page does not stop this check. If an application restart is needed, the saved task is checked again after startup. Cancelling the task prevents later continuation. A failed check keeps the task waiting; it is never treated as permission granted. Viewing an old conversation does not itself start an operation or reopen system prompts. System access does not replace operation approval.
+
+On local ad-hoc macOS builds, an update can invalidate a previously granted recording permission while the system switch remains enabled. OpenProgram remembers successful recording checks for its installed application. If a later application identity changes and recording is denied, the next local authorization action renews only OpenProgram’s obsolete recording registration before opening the native permission flow. This recovery runs at most once per changed identity; status checks and reconnects never reset permissions. Stable Developer ID releases use the normal system authorization flow.
+
+Repeated delivery of the same waiting task does not reopen native authorization when you switch conversations. You can still open System Settings explicitly.
+
+### Automation errors on macOS
+
+Some desktop commands send Apple Events to System Events or a target application. macOS controls Automation separately for each target; screen recording and Accessibility access do not imply Automation access. If an operation reports an Automation denial, open **System Settings → Privacy & Security → Automation** on the execution Mac and inspect the requesting application's access to the named target. The failed operation remains failed; changing the system setting does not approve or repeat it. Other native command failures retain their actual error instead of being reported as success.
 
 ## Windows on other Spaces
 
@@ -126,7 +221,7 @@ On Linux the tool reads the window's accessibility tree over AT-SPI, which GTK 3
 - `python3-gi` with `gir1.2-atspi-2.0` and `gir1.2-gtk-3.0`, and `xdotool`;
 - optionally `x11-utils` (`xprop`, to tell real windows from helper windows), `tesseract-ocr` (text on screenshots of apps without a tree) and `pulseaudio-utils` (recording).
 
-What is the same: the tree format, stable indices and diffs, screenshots, `zoom`, `find`, `batch`, `menu` (for apps with a menu bar), `select_text`, `set_value`, scroll bars moved by element, and approvals. Applications are named by their desktop entry id (`org.gnome.Calculator`), their name or their process name, as `list_apps` prints them; an installed application is launched through its desktop entry.
+What is the same: the tree format, stable indices and diffs, screenshots, `zoom`, `find`, several steps in `actions`, `menu` (for apps with a menu bar), `select_text`, `set_value`, scroll bars moved by element, and approvals. Applications are named by their desktop entry id (`org.gnome.Calculator`), their name or their process name, as `list_apps` prints them; an installed application is launched through its desktop entry.
 
 What differs:
 
@@ -140,7 +235,7 @@ What differs:
 
 On Windows the tool reads the window's UI Automation tree, which Win32, WPF, WinForms, Store (UWP and WinUI) and Chromium-based applications expose, and takes screenshots of the window even while it is covered. It needs the `comtypes` package, which the Windows install includes; `tesseract` on `PATH` adds text read off screenshots of apps without a tree. Windows support is new and has not yet been run on a Windows machine by the project; report problems with the step that failed.
 
-What is the same: the tree format, stable indices and diffs, screenshots, `zoom`, `find`, `batch`, `select_text`, `set_value`, `copy`, `paste` (text, markdown and HTML), scrolling by element, recording and approvals. Applications are named as `list_apps` prints them: the Start menu name (`Calculator`), the executable name (`notepad`) or the process id; an installed application is launched from its Start menu entry.
+What is the same: the tree format, stable indices and diffs, screenshots, `zoom`, `find`, several steps in `actions`, `select_text`, `set_value`, `copy`, `paste` (text, markdown and HTML), scrolling by element, recording and approvals. Applications are named as `list_apps` prints them: the Start menu name (`Calculator`), the executable name (`notepad`) or the process id; an installed application is launched from its Start menu entry.
 
 What differs:
 

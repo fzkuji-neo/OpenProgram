@@ -23,7 +23,7 @@ Web UI surfaces — the surface system, indicator dots, attachment handling, cha
 - [`composer-interaction-modes.md`](composer-interaction-modes.md) — composer interaction modes
 - [`attachment-handling.html`](attachment-handling.html) — complete attachment design: storage, admission, delivery, recovery, and acceptance
 - [`chat-attachments.html`](chat-attachments.html) — chat attachments both ways: what the transcript shows, how the agent hands a file back, how a readable file opens
-- [`gui-agent.html`](gui-agent.html) — GUI agent entry, state machine, result contract, and implementation status
+- [`resource-preview.html`](resource-preview.html) — Resources list, chat operation preview and human takeover of Agent-operated Pages
 - [`agent-control-overlay.html`](agent-control-overlay.html) — status pill and agent pointer drawn over a window or page the agent controls: placement, wording, motion, accent colour, and input safety
 - [`indicator-dots.md`](indicator-dots.md) — indicator dots
 - [`git-folder-pills.md`](git-folder-pills.md) — per-folder git pill in the composer: branch, change counts, branch switch, worktrees, pull requests

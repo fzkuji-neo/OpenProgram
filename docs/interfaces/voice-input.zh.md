@@ -30,7 +30,7 @@
 openprogram config set voice.engine local
 ```
 
-[`computer_use`](../capabilities/computer-use.zh.md#录音) 从应用录下的声音也由同一个引擎转写。
+[`computer_use_agent`](../capabilities/computer-use.zh.md#录音) 从应用录下的声音也由同一个引擎转写。
 
 ## 限制
 

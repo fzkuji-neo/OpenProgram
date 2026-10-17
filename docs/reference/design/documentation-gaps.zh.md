@@ -42,7 +42,7 @@
   上层模型收到错误 → 重试又调自己。
 - **遗留**（待做，见 #2）：各 harness 的 exec 限定工具集 + 跨函数环(A→B→A)识别(当前只防直接自递归)。
 ### 2. Harness 内部工具集是否需要限制
-- 问题：wiki_agent/research_agent/gui_agent 这些 harness 在自己的内部 exec 里,是否应该只看到"做本职工作需要的工具",而不是 full 全集?
+- 问题：wiki_agent/research_agent 这些 harness 在自己的内部 exec 里,是否应该只看到"做本职工作需要的工具",而不是 full 全集?
 - 现状：默认全开(full),self-deny 只挡了自己调自己;一个 harness 仍可调另一个(wiki 调 research、research 调 gui)——可能导致"跑偏"。
 - 决策待定：(a) 框架不管,各 harness 自己在 exec 里传 toolset 限制;(b) 框架自动 deny 所有 harness entry points(wiki/research/gui)当一个 harness 在跑时;(c) 保持现状只防自递归。
 - 参考：Claude Code 的 subagent 用 allowlist 限工具,正是防这种跑偏。

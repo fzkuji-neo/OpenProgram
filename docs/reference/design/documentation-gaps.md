@@ -41,7 +41,7 @@ This file records the divergences between the design docs and the actual code, o
   the upper-level model receives the error → retries and calls itself again.
 - **Remaining** (to do, see #2): scoping the toolset for each harness's exec + detecting cross-function cycles (A→B→A) (currently only direct self-recursion is guarded).
 ### 2. Whether harness-internal toolsets need to be restricted
-- Problem: for harnesses like wiki_agent/research_agent/gui_agent, should their own internal exec see only "the tools needed to do their actual job", rather than the full set?
+- Problem: for harnesses like wiki_agent/research_agent, should their own internal exec see only "the tools needed to do their actual job", rather than the full set?
 - Current state: full set by default (full); self-deny only blocks a harness from calling itself; one harness can still call another (wiki calls research, research calls gui) — which can lead to "going off track".
 - Decision pending: (a) the framework stays out of it, each harness restricts the toolset in its own exec; (b) the framework automatically denies all harness entry points (wiki/research/gui) while a harness is running; (c) keep the status quo and only guard self-recursion.
 - Reference: Claude Code's subagents use an allowlist to restrict tools, precisely to prevent this kind of going off track.

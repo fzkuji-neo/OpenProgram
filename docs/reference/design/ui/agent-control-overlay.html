@@ -145,7 +145,7 @@ th{color:var(--text-muted);font-weight:500}
 <tr><td>Webpage tab in the desktop App</td><td>Agent pointer in a transparent, unfocusable, click-through window above the page.</td><td><a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/desktop/main/action-cues.js">apps/desktop/main/action-cues.js</a> places the window; <a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/app/menu-overlay/action-cue/page.tsx">menu-overlay/action-cue</a> renders it.</td></tr>
 <tr><td>Chat preview (PiP) and the web build</td><td>Agent pointer in a <code>pointer-events: none</code> layer over the preview image.</td><td><code>ActionCueTravel</code> in <a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/center-tabs/browser-control-bar.tsx">browser-control-bar.tsx</a>.</td></tr>
 </table></div>
-<p>All three web surfaces draw the same component, <a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/center-tabs/agent-cursor.tsx">AgentCursor</a>. The webpage status (Active, Pausing…, Paused) stays in the page toolbar and the floating control described in <a href="gui-agent.html">GUI Agent</a>. A webpage gets no second status pill.</p>
+<p>All three web surfaces draw the same component, <a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/center-tabs/agent-cursor.tsx">AgentCursor</a>. The webpage status (Active, Pausing…, Paused) stays in the page toolbar and the floating control described in <a href="resource-preview.html">Resources and operation preview</a>. A webpage gets no second status pill.</p>
 
 <h2>Status pill</h2>
 <ul>
@@ -184,8 +184,9 @@ th{color:var(--text-muted);font-weight:500}
 <li><b>Display only.</b> Drawing failures are logged as warnings. They never change an action's result and never fall back to foreground input.</li>
 </ul>
 
-<h2>Relation to the GUI Agent design</h2>
-<p>The <a href="gui-agent.html#native-control-feedback">GUI Agent design</a> sets the rules this page follows: the indicator is non-activating and ignores the mouse, it follows the window and stays visible under occlusion, clicks show a brief ring, cues belong to the target and never move the user's pointer, and reduced motion uses static marks. The earlier rendering kept those rules but not its look:</p>
+<h2>Rules and the earlier rendering</h2>
+<p>The helper starts after the exact window is validated and the application is under exclusive control. Window visibility is the target rectangle minus covering windows, applied as a layer mask, so an unrelated overlap cannot hide the whole panel. Markers use the successful action's pre-action control bounds, stored relative to the verified window, and are restored before the next step on the same window; they are never an input capability or a success receipt. A normal step ends with brief feedback that is explicitly ended; failure, cancellation or a lost window identity closes it. Helper failures are diagnostic warnings and never fabricate success or fall back to foreground input.</p>
+<p>These rules hold: the indicator is non-activating and ignores the mouse, it follows the window and stays visible under occlusion, clicks show a brief ring, cues belong to the target and never move the user's pointer, and reduced motion uses static marks. The earlier rendering kept those rules but not its look:</p>
 <div class="table-wrap"><table>
 <tr><th>Aspect</th><th>Earlier rendering</th><th>Now</th></tr>
 <tr><td>Position</td><td>Window's upper-left corner, over the window's own controls.</td><td>Top centre of the window, in the title-bar area.</td></tr>

@@ -8,11 +8,10 @@
 
 Agentic Workflow 是用 [Agentic Programming](../agentic-programming/README.zh.md) 写成的成品工作流——代码里叫 **harness** 或 **agentic program**：一个自包含的 git 仓库，里面是一组 `Agent` method。release 中固定的版本会注册进 OpenProgram，像内置函数一样出现在聊天、Web UI 的 Programs 页和 `openprogram programs run` 里。
 
-三个第一方 workflow：
+两个第一方 workflow：
 
 | Workflow | Release 状态 | 一句话 |
 |---|---|---|
-| [GUI Agent](gui-agent.zh.md) | 已包含 | 给一句任务，自主操作桌面（截图 → 识别 → 点击 → 验证循环） |
 | [Research Agent](research-agent.zh.md) | 已包含 | 从研究选题到可提交论文，带确定性核查层 |
 | [Wiki Agent](wiki-agent.zh.md) | 已包含 | 把会话 / 笔记沉淀成模板化 HTML 知识库 |
 
@@ -36,9 +35,19 @@ openprogram programs run <name> -a key=value  # 直接运行一个 program
 ## 用哪种方式触发
 
 - **Web 参数表单**：点击 Programs 中的 **Use** 或侧栏收藏。新标签页变成草稿聊天；已有聊天保留草稿和执行中的任务。填写任务要求后明确发送。打开或关闭表单不会执行 Workflow。
-- **聊天里**：入口函数以 `as_tool=True` 注册为工具，直接用自然语言描述任务，模型会调用它（如 `gui_agent`、`research_agent`、`wiki_agent`）。
-- **命令行**：`openprogram programs run gui_agent -a task="Open Firefox"`。
+- **聊天里**：入口函数以 `as_tool=True` 注册为工具，直接用自然语言描述任务，模型会调用它（如 `research_agent`、`wiki_agent`）。操作应用、内置浏览器 Page 和虚拟机用的是 [`computer_use_agent`](../computer-use.zh.md) 工具，不是 workflow。
+- **命令行**：`openprogram programs run wiki_agent -a task="把上面的笔记整理进知识库"`。
 - **Python 里**：harness 的函数就是普通可 import 的 Python 函数。
+
+## 模型选择
+
+正文不调用模型的 Program 可以在未配置模型时执行。模型或凭据不可用时，在正文调用 Runtime 才报错；不调用模型的步骤可以执行，也不会自动选择其他 provider。
+
+直接运行工具时，内部模型调用同样需要明确的 provider 和 model。缺失或不完整的选择不会使用全局 provider 检测或 provider 的默认模型。
+
+从聊天执行时，Workflow 的内部模型调用继承当前轮次的 provider 和 model。请求 override 优先于会话选择，再使用 agent profile。该选择同样传入工具子进程。所选模型的 provider 认证仍需有效；初始化失败时保留所选模型的错误，不自动改用其他 provider。
+
+浏览器 workflow 在选择 backend 时保留明确传入的初始 URL。官方 MCP backend 支持受取消检查约束的等待，并传递 snapshot 失败。页面恢复保留当前窗口范围，不重复执行失败的动作；确认完成的结果保留实际证据和观察到的目标。
 
 ## 编写你自己的
 

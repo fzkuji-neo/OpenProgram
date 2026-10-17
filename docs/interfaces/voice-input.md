@@ -30,7 +30,7 @@ The same settings can be changed from the command line, for example:
 openprogram config set voice.engine local
 ```
 
-The same engine transcribes the sound [`computer_use`](../capabilities/computer-use.md#recording-sound) records from an application.
+The same engine transcribes the sound [`computer_use_agent`](../capabilities/computer-use.md#recording-sound) records from an application.
 
 ## Limits
 

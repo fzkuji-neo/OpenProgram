@@ -19,60 +19,6 @@ def test_internal_plans_are_not_part_of_the_public_docs_build() -> None:
     assert "reference/design/repository-structure-implementation.html" in paths
 
 
-def test_gui_agent_design_covers_flow_boundaries_and_file_ownership() -> None:
-    source = (ROOT / "docs/reference/design/ui/gui-agent.html").read_text(
-        encoding="utf-8"
-    )
-
-    for section_id in (
-        "scope",
-        "references",
-        "current",
-        "architecture",
-        "comparison",
-        "execution",
-        "surfaces",
-        "macos",
-        "browser",
-        "platforms",
-        "context",
-        "performance",
-        "authority",
-        "recovery",
-        "experience",
-        "verification",
-        "plan",
-        "protocol",
-        "evidence",
-        "status",
-    ):
-        assert f'id="{section_id}"' in source
-    for path in (
-        "openprogram/programs/gui_harness_bridge.py",
-        "openprogram/agent/process_runner.py",
-        "openprogram/agent/surface_context.py",
-        "openprogram/programs/workflow/browser/__init__.py",
-        "apps/server/openprogram_server/_webui/ws_actions/webtab.py",
-        "apps/web/lib/desktop/desktop-bridge.ts",
-        "apps/desktop/main.js",
-    ):
-        assert path in source
-    for contract_term in (
-        "gui_exec",
-        "plan_next_capability",
-        "call_capability",
-        "computer_use",
-        "browser_use",
-        "vm_use",
-        "browser_agent",
-        "web_use",
-        "AgentSession",
-        "effect_uncertain",
-        "background_input",
-    ):
-        assert contract_term in source
-
-
 def test_language_check_uses_the_same_public_docs_boundary(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -133,40 +79,21 @@ def test_editorial_navigation_does_not_list_a_page_twice() -> None:
         assert len(paths) == len(set(paths)), tab.key
 
 
-def test_gui_agent_design_keeps_the_capability_loop_and_context_contract() -> None:
+def test_resource_preview_design_has_both_editions() -> None:
     design_dir = ROOT / "docs/reference/design/ui"
-    english = (design_dir / "gui-agent.html").read_text(encoding="utf-8")
-    chinese = (design_dir / "gui-agent.zh.html").read_text(encoding="utf-8")
+    for name in ("resource-preview.html", "resource-preview.zh.html"):
+        source = (design_dir / name).read_text(encoding="utf-8")
+        for section_id in ("experience", "human-takeover", "desktop-tool-trace"):
+            assert f'id="{section_id}"' in source
+        assert "gui-agent" not in source
 
-    for required in (
-        "computer_use",
-        "browser_use",
-        "vm_use",
-        "plan_next_capability",
-        "call_capability",
-        "capability history",
-        "adapters/mac_indicator.py",
-    ):
-        assert required in english
-    for required in (
-        "computer_use",
-        "browser_use",
-        "vm_use",
-        "plan_next_capability",
-        "call_capability",
-        "上下文如何保证连续",
-        "adapters/mac_indicator.py",
-    ):
-        assert required in chinese
-
-    gui_page = next(
+    page = next(
         page
         for page in discover(ROOT / "docs")
-        if page.rel.as_posix() == "reference/design/ui/gui-agent.html"
+        if page.rel.as_posix() == "reference/design/ui/resource-preview.html"
     )
-    assert gui_page.zh_src == design_dir / "gui-agent.zh.html"
-    assert gui_page.zh_out == Path("reference/design/ui/gui-agent.zh.html")
-
+    assert page.zh_src == design_dir / "resource-preview.zh.html"
+    assert page.zh_out == Path("reference/design/ui/resource-preview.zh.html")
 
 def test_companion_source_links_match_discovered_output_paths(tmp_path, monkeypatch):
     import pytest

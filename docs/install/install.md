@@ -101,7 +101,7 @@ The Web UI is served at `http://localhost:18100`. The runtime contains the prebu
 
 ## Included product and additional extensions
 
-GUI Agent, Research Agent, and Wiki Agent are part of every supported release installation. Their Program packages, the GPA detector weight, and Playwright Chromium are included. The GUI Program is installed without dependency resolution: PyTorch, OpenCV, and EasyOCR are not in the product runtime, so GUI perception paths that use them require a separately configured backend or development overlay.
+The GUI, Research Agent, and Wiki Agent Programs are part of every supported release installation. The GUI Program registers no tools of its own; it supplies the visual grounding behind [`computer_use_agent`](../capabilities/computer-use.md#pointing-by-description)'s `describe`. Their Program packages, the GPA detector weight, and Playwright Chromium are included. The GUI Program is installed without dependency resolution: PyTorch, OpenCV, and EasyOCR are not in the product runtime, so GUI perception paths that use them require a separately configured backend or development overlay.
 
 Third-party Programs are additional user-selected functionality and are stored separately from the read-only product runtime. Editable first-party Program sources, diagnostics, local frontend builds, and replacement OCR/browser backends are developer additions. Replacement backends or dependencies are required only for GUI perception paths that use libraries omitted from the product runtime; they do not change the base runtime manifest.
 

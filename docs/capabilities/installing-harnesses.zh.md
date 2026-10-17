@@ -70,7 +70,7 @@ openprogram programs install <ref> --upgrade    # git pull + 重新解析依赖
 |---|---|---|
 | [Research Agent](https://github.com/Fzkuji/Research-Agent-Harness) | 已包含 | product manifest 记录固定 source commit；builder 安装声明的 PDF 依赖，runtime manifest 记录解析后的 distributions。 |
 | [Wiki Agent](https://github.com/Fzkuji/Wiki-Agent-Harness) | 已包含 | product manifest 记录固定 source commit；builder 安装声明的依赖，runtime manifest 记录解析后的 distributions。 |
-| [GUI Agent](https://github.com/Fzkuji/GUI-Agent-Harness) | 已包含 | Program 会注册，并附带 GPA detector 权重。产品 runtime 不含 PyTorch、OpenCV 或 EasyOCR。 |
+| [GUI](https://github.com/Fzkuji/GUI-Agent-Harness) | 已包含 | 作为 [`computer_use_agent`](computer-use.zh.md#按描述定位) 的 `describe` 所用的库，不注册工具。附带 GPA detector 权重。产品 runtime 不含 PyTorch、OpenCV 或 EasyOCR。 |
 
 release 用户不执行 `programs install all`、首次启动 Program wizard 或 GUI
 harness 资产 installer。开发者可以用 editable checkout 替换第一方 Program，

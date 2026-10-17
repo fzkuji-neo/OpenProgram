@@ -132,7 +132,7 @@ WAL 模式，支持子进程并发追加。SQLite 用 stdlib `sqlite3`，零外�
 
 ## 8. 子进程边界
 
-`Agent` method 在子进程跑函数体，子进程内 LLM 调用（gui_agent 等）的 default_tracker 是进程内单例，主进程收不到。
+`Agent` method 在子进程跑函数体，子进程内 LLM 调用（research_agent 等）的 default_tracker 是进程内单例，主进程收不到。
 
 **子进程直接写共享 SQLite ledger，ledger 即真相来源。**
 - 子进程打开同一 usage.db（WAL 多进程安全），自己 recorder 直接 append，`origin_pid` 标记来源。无需主进程二次入账（避免双计）。

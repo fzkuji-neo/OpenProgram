@@ -60,7 +60,7 @@ ContextVar 按线程 + 协程隔离,天然并发安全。
 
 **为什么不分两套独立的 Runtime 类?**
 
-作者写 `gui_agent` 时不应该关心后端是哪种 provider。强行分开就要每个函数
+作者写 `research_agent` 时不应该关心后端是哪种 provider。强行分开就要每个函数
 两份实现,违背"函数描述任务、provider 描述执行通道"的分层。共用抽象的
 代价是 `has_session` 这点条件分支,值得。
 

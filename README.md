@@ -167,7 +167,7 @@ See [events](docs/reference/design/proactive/event-layer.md), [plugins](docs/cap
 | | |
 |---|---|
 | **[Desktop App and built-in browser](docs/interfaces/desktop.md)** | Split chats, files, terminals and web pages into panes. The agent reads and operates pages in the built-in browser while you watch. |
-| **[GUI agent](docs/capabilities/workflows/gui-agent.md)** | Hand over a task that needs the desktop, a browser page or a remote VM. |
+| **[Computer use](docs/capabilities/computer-use.md)** | Let the agent operate desktop apps, built-in browser pages or a remote VM, step by step or as a task handed to a new agent. |
 | **[Permissions](docs/capabilities/permissions.md)** | Approve, deny or deny with a note before a tool runs; the model reads your note and adjusts. |
 | **[Memory](docs/capabilities/memory.md)** | Stored evidence, retrieval and background writing across conversations. |
 | **[Goals](docs/capabilities/goal.md)** | Keep a long-running objective alive across ordinary conversations. |
