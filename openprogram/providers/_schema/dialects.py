@@ -91,8 +91,26 @@ def gemini_openapi(schema: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def _fold_nullable_union(node: dict[str, Any]) -> None:
+    """``anyOf: [schema, {"type": "null"}]`` becomes ``schema`` with
+    ``nullable: true``, which OpenAPI mode accepts; dropping the union
+    would leave the property without a type."""
+    for key in ("anyOf", "oneOf"):
+        variants = node.get(key)
+        if not isinstance(variants, list):
+            continue
+        rest = [v for v in variants if not (isinstance(v, dict) and v.get("type") == "null")]
+        if len(rest) == 1 and len(rest) < len(variants) and isinstance(rest[0], dict):
+            node.pop(key)
+            for field, value in rest[0].items():
+                node.setdefault(field, value)
+            node["nullable"] = True
+            return
+
+
 def _strip_gemini_in_place(node: Any) -> None:
     if isinstance(node, dict):
+        _fold_nullable_union(node)
         for kw in list(node.keys()):
             if kw in _GEMINI_UNSUPPORTED_KEYWORDS:
                 node.pop(kw, None)
