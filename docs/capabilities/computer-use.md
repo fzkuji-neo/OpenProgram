@@ -68,6 +68,23 @@ computer_use(action="batch", app="Calculator", actions=[
 
 Element actions reach windows that are hidden, minimised or covered by another window. Coordinate clicks, drags and wheel scrolls also run in the background: the pointer does not move and the front application does not change. Coordinates exist for canvases and custom controls that the tree does not describe; prefer an index whenever one is listed.
 
+## Web pages
+
+`web_use` drives pages the same way: `observe` returns refs, and `act` takes one `action` with its arguments. Besides `navigate`, `click`, `type`, `press`, `scroll`, `hover`, `select`, `upload` and `screenshot`, it offers the same vocabulary as `computer_use`:
+
+| Action | Arguments | Effect |
+|---|---|---|
+| `click` | `ref` or `x`,`y`, `mouse_button?`, `click_count?`, `modifiers?` | Right, middle, double and modifier clicks, e.g. `modifiers="cmd"` |
+| `drag` | `ref` and `to_ref`, or `x`,`y` and `to_x`,`to_y` | Press, move in steps, release |
+| `scroll` | `ref?`, `direction?`, `amount?` | With `ref`, the nearest scrollable container of that element scrolls; `amount` is in pixels |
+| `type` / `type_text` | `ref`, `text` / `ref?`, `text` | `type` replaces the field's value; `type_text` inserts at the caret, or at the page's focus without `ref` |
+| `paste` | `text`, `format?`, `ref?` | Offers the text to the page as a paste: `md` and `html` insert formatted text in rich editors, and a page that handles paste itself receives it |
+| `select_text` | `ref`, `text`, `prefix?`, `suffix?`, `selection_type?` | Select text inside an element, or place the caret before or after it |
+| `press` | `key`, `ref?`, `duration?` | Without `ref` the key goes to the page's focus; `duration` holds it |
+| `back` / `forward` / `reload` | — | History navigation; `no_history` when there is nowhere to go |
+
+A page in the App's browser stays in the background throughout: the events are dispatched inside the page and the tab is not activated. On the Playwright and Chrome DevTools MCP backends an option the backend cannot perform, such as a triple click or a held key, fails with `unsupported_option` before anything is sent.
+
 ## Approval
 
 The first time a conversation touches an application, an approval card names it and offers:

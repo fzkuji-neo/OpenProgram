@@ -5,6 +5,8 @@ from importlib import import_module
 # Bind to this workflow package, including an isolated published snapshot.
 state = import_module("..", __package__)
 
+from . import page_actions as pa
+
 
 def _safe_observation_id(candidate: str, secrets, used=()) -> str:
     """Keep generated control IDs usable without echoing a known secret."""
@@ -131,7 +133,7 @@ class BrowserPageController:
         if action == "upload":
             return "Upload the selected local file to the bound website; this can transmit file contents immediately."
         if action not in {
-            "navigate", "click", "type", "press", "scroll", "hover", "select",
+            "navigate", "click", "type", "press", "scroll", "hover", "select", *pa.PARITY_ACTIONS,
         }:
             return False
         if self.binding_id:
@@ -225,24 +227,15 @@ class BrowserPageController:
         if stale is not None:
             return stale
         action = str(arguments.get("action") or "")
+        points = []
         if action == "click" and not arguments.get("ref"):
-            if self._screenshot_frame != frame_id:
-                return {"ok": False, "reason_code": "visual_observation_required"}
-            try:
-                point_x = float(arguments.get("x"))
-                point_y = float(arguments.get("y"))
-            except (TypeError, ValueError):
-                return {"ok": False, "reason_code": "invalid_coordinate"}
-            page = self._page()
-            viewport = self._viewport(page, page.evaluate(state._VIEWPORT_SCRIPT))
-            if viewport != self._screenshot_viewport:
-                return self._invalidate_frame()
-            if (
-                not state.math.isfinite(point_x) or not state.math.isfinite(point_y)
-                or point_x < 0 or point_y < 0
-                or point_x >= viewport["width"] or point_y >= viewport["height"]
-            ):
-                return {"ok": False, "reason_code": "invalid_coordinate"}
+            points.append((arguments.get("x"), arguments.get("y")))
+        if action == "drag" and not arguments.get("ref") and not arguments.get("to_ref"):
+            points += [(arguments.get("x"), arguments.get("y")), (arguments.get("to_x"), arguments.get("to_y"))]
+        for x, y in points:
+            point = self._visual_point(self._page(), frame_id, x, y)
+            if isinstance(point, dict):
+                return point
         return self._write_allowed()
 
     def invalidate_external_frame(self) -> dict[str, state.Any]:
@@ -581,14 +574,19 @@ class BrowserPageController:
         assertion: str = "",
         x: float | None = None,
         y: float | None = None,
-        *, path: str = "", before_dispatch=None,
+        *, path: str = "", before_dispatch=None, **options: state.Any,
     ) -> state.Any:
+        """``options`` carries the parity arguments (mouse_button, to_ref, format …)."""
         def dispatch():
             if before_dispatch is not None:
                 before_dispatch()
             kwargs = {"before_dispatch": before_dispatch} if before_dispatch is not None else {}
-            return self._execute(action, expected_frame_id, ref, url, text, key,
-                                 value, amount, assertion, x, y, path=path, **kwargs)
+            try:
+                return self._execute(action, expected_frame_id, ref, url, text, key,
+                                     value, amount, assertion, x, y, path=path,
+                                     options=options, **kwargs)
+            except pa.ActionError as exc:
+                return exc.result()
         result = self._submit(dispatch)
         self._last_action = action
         self._last_result = result
@@ -655,8 +653,10 @@ class BrowserPageController:
         assertion: str = "",
         x: float | None = None,
         y: float | None = None,
-        *, path: str = "", before_dispatch=None,
+        *, path: str = "", before_dispatch=None, options: dict | None = None,
     ) -> state.Any:
+        options = {**(options or {}), "amount": amount, "text": text, "duration": (options or {}).get("duration")}
+
         def run(fn, *args, **kwargs):
             if before_dispatch is not None:
                 before_dispatch()
@@ -748,39 +748,71 @@ class BrowserPageController:
                 return {"ok": False, "reason_code": "unsupported_url"}
             run(page.goto, url)
             return self._mutated(f"navigated to {url}")
+        if action in ("back", "forward", "reload"):
+            before = page.url
+            if action == "reload":
+                run(page.reload)
+                return self._mutated("reloaded the page")
+            response = run(page.go_back if action == "back" else page.go_forward)
+            if response is None and page.url == before:
+                return {"ok": False, "reason_code": "no_history",
+                        "message": f"The page has no history to go {action} to."}
+            return self._mutated(f"went {action} to {page.url}")
         if action == "scroll":
+            dx, dy = pa.scroll_delta(options)
+            if ref:
+                target, ref_error = self._ref(ref)
+                if target is None:
+                    return self._invalidate_frame() if ref_error == "stale_observation" else {"ok": False, "reason_code": ref_error}
+                moved = run(target.evaluate, pa.SCROLL_SCRIPT, {"dx": dx, "dy": dy})
+                if not (moved or {}).get("moved"):
+                    return {"ok": False, "reason_code": "not_scrollable",
+                            "message": f"Nothing around {ref} can scroll further that way."}
+                return self._mutated(f"scrolled {(moved or {}).get('container', 'page')} by ({dx}, {dy})px")
             scale = self._pointer_scale()
             if scale is None:
                 return self._invalidate_frame()
-            run(page.mouse.wheel, 0, int(amount))
-            return self._mutated(f"scrolled {int(amount)}px")
-        if action == "click":
-            if not ref:
-                if x is None or y is None:
-                    return {"ok": False, "reason_code": "target_required"}
-                if self._screenshot_frame != expected_frame_id:
-                    return {"ok": False, "reason_code": "visual_observation_required"}
+            run(page.mouse.wheel, dx, dy)
+            return self._mutated(f"scrolled ({dx}, {dy})px" if dx else f"scrolled {dy}px")
+        if action == "click" and not ref:
+            click = pa.click_options(options)
+            point = self._visual_point(page, expected_frame_id, x, y)
+            if isinstance(point, dict):
+                return point
+            point_x, point_y = point
+            scale = self._pointer_scale()
+            if scale is None:
+                return self._invalidate_frame()
+
+            def click_point():
+                for held in click["modifiers"]:
+                    page.keyboard.down(held)
                 try:
-                    point_x, point_y = float(x), float(y)
-                except (TypeError, ValueError):
-                    return {"ok": False, "reason_code": "invalid_coordinate"}
-                viewport = self._viewport(page, page.evaluate(state._VIEWPORT_SCRIPT))
-                if viewport != self._screenshot_viewport:
-                    return self._invalidate_frame()
-                if (
-                    not state.math.isfinite(point_x) or not state.math.isfinite(point_y)
-                    or point_x < 0 or point_y < 0
-                    or point_x >= viewport["width"] or point_y >= viewport["height"]
-                ):
-                    return {"ok": False, "reason_code": "invalid_coordinate"}
-                scale = self._pointer_scale()
-                if scale is None:
-                    return self._invalidate_frame()
-                self._agent_click(lambda: run(page.mouse.click, point_x * scale, point_y * scale))
-                return self._mutated(
-                    f"clicked viewport point ({point_x:g}, {point_y:g})",
-                    point={"x": point_x, "y": point_y, "width": 0, "height": 0},
-                )
+                    page.mouse.click(point_x * scale, point_y * scale,
+                                     button=click["button"], click_count=click["count"])
+                finally:
+                    for held in reversed(click["modifiers"]):
+                        page.keyboard.up(held)
+            self._agent_click(lambda: run(click_point))
+            return self._mutated(
+                f"{self._click_words(click)} viewport point ({point_x:g}, {point_y:g})",
+                point={"x": point_x, "y": point_y, "width": 0, "height": 0},
+            )
+        if action == "drag":
+            return self._drag(page, expected_frame_id, ref, options, x, y, run)
+        if action == "press" and not ref:
+            hold = pa.hold_seconds(options)
+            if hold:
+                run(page.keyboard.down, key)
+                try:
+                    page.wait_for_timeout(int(hold * 1000))
+                finally:
+                    page.keyboard.up(key)
+            else:
+                run(page.keyboard.press, key)
+            return self._mutated(f"pressed {key}" + (f" for {hold:g}s" if hold else ""))
+        if action in ("type_text", "paste") and not ref:
+            return self._page_script(page, action, None, options, run)
         target, ref_error = self._ref(ref)
         if target is None:
             if ref_error == "stale_observation":
@@ -789,15 +821,22 @@ class BrowserPageController:
         if action == "click":
             if self._ref_meta.get((ref or "").lstrip("@"), {}).get("disabled"):
                 return {"ok": False, "reason_code": "target_disabled"}
-            if self.binding_id:
+            click = pa.click_options(options)
+            if self.binding_id and pa.is_plain_click(click):
                 self._agent_click(
                     lambda: run(target.evaluate, state._BACKGROUND_REF_CLICK_SCRIPT)
                 )
+            elif self.binding_id:
+                # A bound tab stays in the background: dispatch the events in the page.
+                self._agent_click(lambda: run(target.evaluate, pa.POINTER_SCRIPT, {
+                    "button": click["button"], "count": click["count"], "flags": click["flags"]}))
             else:
-                self._agent_click(lambda: run(target.click))
+                self._agent_click(lambda: run(
+                    target.click, button=click["button"], click_count=click["count"],
+                    modifiers=click["modifiers"]))
             bounds = (self._ref_meta.get((ref or "").lstrip("@")) or {}).get("bounds")
             return self._mutated(
-                f"clicked {ref}",
+                f"{self._click_words(click)} {ref}",
                 point=dict(bounds) if isinstance(bounds, dict) else None,
             )
         if action == "upload":
@@ -848,8 +887,19 @@ class BrowserPageController:
             run(target.fill, text)
             return self._mutated(f"typed {len(text)} character(s) into {ref}")
         if action == "press":
+            hold = pa.hold_seconds(options)
+            if hold:
+                run(target.focus)
+                run(page.keyboard.down, key)
+                try:
+                    page.wait_for_timeout(int(hold * 1000))
+                finally:
+                    page.keyboard.up(key)
+                return self._mutated(f"pressed {key} on {ref} for {hold:g}s")
             run(target.press, key)
             return self._mutated(f"pressed {key} on {ref}")
+        if action in ("type_text", "paste", "select_text"):
+            return self._page_script(page, action, target, options, run, ref=ref)
         if action == "hover":
             scale = self._pointer_scale()
             if scale is None:
@@ -868,6 +918,105 @@ class BrowserPageController:
             run(target.select_option, value)
             return self._mutated(f"selected an option in {ref}")
         return {"ok": False, "reason_code": "unsupported_action"}
+
+    @staticmethod
+    def _click_words(click: dict[str, state.Any]) -> str:
+        words = {1: "clicked", 2: "double-clicked", 3: "triple-clicked"}[click["count"]]
+        if click["button"] != "left":
+            words = f"{click['button']}-{words}"
+        if click["modifiers"]:
+            words += " with " + "+".join(click["modifiers"])
+        return words
+
+    def _visual_point(self, page, expected_frame_id: str, x, y) -> tuple[float, float] | dict:
+        """A point of the last screenshot, or the failure that makes it unusable."""
+        if x is None or y is None:
+            return {"ok": False, "reason_code": "target_required"}
+        if self._screenshot_frame != expected_frame_id:
+            return {"ok": False, "reason_code": "visual_observation_required"}
+        try:
+            point_x, point_y = float(x), float(y)
+        except (TypeError, ValueError):
+            return {"ok": False, "reason_code": "invalid_coordinate"}
+        viewport = self._viewport(page, page.evaluate(state._VIEWPORT_SCRIPT))
+        if viewport != self._screenshot_viewport:
+            return self._invalidate_frame()
+        if (
+            not state.math.isfinite(point_x) or not state.math.isfinite(point_y)
+            or point_x < 0 or point_y < 0
+            or point_x >= viewport["width"] or point_y >= viewport["height"]
+        ):
+            return {"ok": False, "reason_code": "invalid_coordinate"}
+        return point_x, point_y
+
+    def _ref_center(self, ref: str) -> tuple[float, float] | dict:
+        target, ref_error = self._ref(ref)
+        if target is None:
+            return self._invalidate_frame() if ref_error == "stale_observation" else {"ok": False, "reason_code": ref_error}
+        target.scroll_into_view_if_needed()
+        bounds = target.bounding_box()
+        if not bounds:
+            return self._invalidate_frame()
+        return bounds["x"] + bounds["width"] / 2, bounds["y"] + bounds["height"] / 2
+
+    def _drag(self, page, expected_frame_id: str, ref: str, options: dict, x, y, run) -> dict:
+        """Press, move in steps, release: works for pointer-driven and HTML5 drag targets."""
+        start = self._ref_center(ref) if ref else self._visual_point(page, expected_frame_id, x, y)
+        if isinstance(start, dict):
+            return start
+        to_ref = str(options.get("to_ref") or "")
+        end = (self._ref_center(to_ref) if to_ref
+               else self._visual_point(page, expected_frame_id, options.get("to_x"), options.get("to_y")))
+        if isinstance(end, dict):
+            return end
+        scale = self._pointer_scale()
+        if scale is None:
+            return self._invalidate_frame()
+
+        def drag():
+            page.mouse.move(start[0] * scale, start[1] * scale)
+            page.mouse.down()
+            try:
+                page.mouse.move(end[0] * scale, end[1] * scale, steps=12)
+            finally:
+                page.mouse.up()
+        self._agent_click(lambda: run(drag))
+        source = ref or f"({start[0]:g}, {start[1]:g})"
+        destination = to_ref or f"({end[0]:g}, {end[1]:g})"
+        return self._mutated(f"dragged {source} to {destination}")
+
+    def _page_script(self, page, action: str, target, options: dict, run, *, ref: str = "") -> dict:
+        """type_text, paste and select_text, run inside the page on ``target`` or the focus."""
+        if action == "type_text":
+            text = options.get("text")
+            if not isinstance(text, str) or not text:
+                raise pa.ActionError("text_required", "type_text needs text")
+            script, payload = pa.INSERT_TEXT_SCRIPT, {"text": text}
+            detail = f"inserted {len(text)} character(s)"
+        elif action == "paste":
+            payload = pa.paste_payload(options)
+            script = pa.PASTE_SCRIPT
+            detail = f"pasted {len(payload['text'])} character(s)"
+        else:
+            payload = pa.selection_request(options)
+            script = pa.SELECT_TEXT_SCRIPT
+            detail = {"text": "selected", "cursor_before": "placed the caret before",
+                      "cursor_after": "placed the caret after"}[payload["kind"]] + f" {payload['text']!r}"
+        if target is None:
+            result = run(page.evaluate, f"(o) => ({script.strip()})(null, o)", payload)
+        else:
+            result = run(target.evaluate, script, payload)
+        if not isinstance(result, dict) or not result.get("ok"):
+            code = (result or {}).get("reason_code") if isinstance(result, dict) else None
+            return {"ok": False, "reason_code": code or f"{action}_failed",
+                    "message": {"focus_required": "Nothing on the page has keyboard focus; pass ref.",
+                                "not_editable": "The focused element does not take text.",
+                                "text_not_found": "That text is not inside the element."}.get(code or "", "")}
+        if result.get("handled_by_page"):
+            detail += "; the page handled the paste itself"
+        elif action == "paste":
+            detail += " as rich text" if result.get("rich") else " as plain text"
+        return self._mutated(detail + (f" in {ref}" if ref else ""))
 
     def _verify(self, page, frame_id: str, assertion: str, value: str, ref: str = "") -> dict:
         from openprogram.programs.tools.web.browser._privacy import contains_password_value, password_values, redact_password_values

@@ -68,6 +68,23 @@ computer_use(action="batch", app="Calculator", actions=[
 
 元素动作能到达被隐藏、最小化或被其他窗口盖住的窗口。坐标点击、拖拽和滚轮同样在后台进行：指针不动，前台应用不变。坐标只为树描述不了的画布和自绘控件而存在；凡是列出了序号，优先用序号。
 
+## 网页
+
+`web_use` 以同样的方式驱动网页：`observe` 返回 ref，`act` 接受一个 `action` 及其参数。除了 `navigate`、`click`、`type`、`press`、`scroll`、`hover`、`select`、`upload` 和 `screenshot`，它还提供与 `computer_use` 相同的词汇：
+
+| 动作 | 参数 | 效果 |
+|---|---|---|
+| `click` | `ref` 或 `x`,`y`、`mouse_button?`、`click_count?`、`modifiers?` | 右键、中键、双击和带修饰键的点击，如 `modifiers="cmd"` |
+| `drag` | `ref` 和 `to_ref`，或 `x`,`y` 和 `to_x`,`to_y` | 按下、分步移动、松开 |
+| `scroll` | `ref?`、`direction?`、`amount?` | 给了 `ref` 时滚动该元素最近的可滚动容器；`amount` 以像素计 |
+| `type` / `type_text` | `ref`、`text` / `ref?`、`text` | `type` 替换字段的值；`type_text` 在光标处插入，不给 `ref` 时插入到页面当前焦点 |
+| `paste` | `text`、`format?`、`ref?` | 以粘贴的方式把文字交给页面：`md` 和 `html` 在富文本编辑器里插入带格式的文字，自己处理粘贴的页面会收到它 |
+| `select_text` | `ref`、`text`、`prefix?`、`suffix?`、`selection_type?` | 选中元素里的文字，或把光标放到它前后 |
+| `press` | `key`、`ref?`、`duration?` | 不给 `ref` 时按键发给页面当前焦点；`duration` 是按住的秒数 |
+| `back` / `forward` / `reload` | — | 历史导航；无处可去时返回 `no_history` |
+
+App 浏览器里的页面全程留在后台：事件在页面内派发，标签页不会被激活。在 Playwright 和 Chrome DevTools MCP 后端上，后端做不到的选项（例如三击或按住按键）会在发送任何东西之前以 `unsupported_option` 失败。
+
 ## 审批
 
 一个会话第一次触碰某个应用时，审批卡片会写明应用名，并提供：
