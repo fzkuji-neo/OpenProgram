@@ -187,3 +187,16 @@ test('public computer_use calls read as operating the app; the GUI Agent capabil
   assert.equal(summarizeToolGroup(two, { text: en }).label, 'Operated 2 apps');
   assert.equal(summarizeToolGroup([tool('computer_use', { task: 'inspect', app_name: 'TextEdit' })], { text: en }).label, 'Ran a GUI call');
 });
+
+test('computer_use_agent groups by its target: apps, built-in browser Pages, a new agent', () => {
+  const apps = [
+    tool('computer_use_agent', { target: 'app', args: { app: 'Calculator' } }),
+    tool('computer_use_agent', { target: 'app', args: { app: 'Calculator' }, actions: [{ action: 'click', args: { element_index: 3 } }] }),
+  ];
+  assert.equal(summarizeToolGroup(apps, { text: en }).label, 'Operated Calculator');
+  const pages = [tool('computer_use_agent', { target: 'browser', action: 'observe' })];
+  assert.equal(summarizeToolGroup(pages, { text: en }).label, summarizeToolGroup([tool('web_use', {})], { text: en }).label);
+  const fresh = [tool('computer_use_agent', { target: 'app', context: 'fresh', brief: 'Sum column B', args: { app: 'Numbers' } })];
+  assert.equal(summarizeToolGroup(fresh, { text: en }).label,
+    summarizeToolGroup([tool('agent', { prompt: 'x' })], { text: en }).label);
+});

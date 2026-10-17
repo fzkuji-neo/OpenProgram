@@ -50,6 +50,9 @@ export function computerUseStep(args: Args, text: Text): { verb: string; target:
       const steps = Array.isArray(args.actions) ? args.actions.length : 0;
       return { verb: text("Run steps in a row", "连续执行"), target: text(`${steps} steps`, `${steps} 步`) };
     }
+    case "code": return { verb: text("Run code that operates it", "运行操作它的代码"),
+      target: text(`${Array.from(str(args.code)).length} characters`, `${Array.from(str(args.code)).length} 个字符`) };
+    case "fresh": return { verb: text("Hand the task to a new agent", "把任务交给新代理"), target: "" };
     case "wait": return { verb: text("Wait", "等待"), target: text(`${str(args.duration) || "1"} s`, `${str(args.duration) || "1"} 秒`) };
     case "start_audio_recording": return { verb: text("Record its sound", "录下它的声音"), target: "" };
     case "stop_audio_recording": return { verb: text("Stop recording", "停止录音"), target: "" };

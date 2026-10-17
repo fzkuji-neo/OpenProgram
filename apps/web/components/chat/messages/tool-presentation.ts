@@ -8,6 +8,7 @@
 // module without the `@/` alias.
 import type { SolarIconName } from "../../solar-icons/bodies";
 import { guiCapabilityLabel } from "./gui-tool-view.ts";
+import { appStepArgs, computerUseAgentTarget, isFreshCall, screenStep } from "../../../lib/computer-use-agent-call.ts";
 
 export type ToolTone =
   | "shell" | "edit" | "read" | "search" | "web" | "agent"
@@ -111,6 +112,29 @@ export function parseToolArgs(input?: string): Args {
   }
 }
 
+/** computer_use_agent: an app step reads like the app tool's rows; Pages and the VM like their own. */
+function computerUseAgentPresentation(args: Args, text: Text): ToolPresentation {
+  const target = computerUseAgentTarget(args);
+  const app = appStepArgs(args);
+  if (isFreshCall(args)) {
+    return { icon: "bot", tone: "agent", title: text("Handed to a new agent", "交给新代理"),
+      target: firstLine(pick(args, "brief")) };
+  }
+  if (app && app.action === "code") {
+    return { icon: "code-square", tone: "shell", title: pick(app, "app")
+      ? text(`Ran code in ${pick(app, "app")}`, `在 ${pick(app, "app")} 中运行代码`) : text("Ran code", "运行代码"),
+      target: firstLine(pick(app, "code")) };
+  }
+  if (app) return computerUsePresentation(app, text);
+  const { action, steps, url } = screenStep(args);
+  const what = action === "code" ? text("code", "代码") : action || (steps ? text(`${steps} steps`, `${steps} 步`) : "");
+  if (target === "vm") {
+    return { icon: "monitor", tone: "system", title: text("Virtual machine", "虚拟机"), target: what || undefined };
+  }
+  return { icon: "cursor", tone: "web", title: text("Browser", "浏览器"),
+    target: [what, url].filter(Boolean).join(" ") || undefined };
+}
+
 /** Any string-ish argument, for tools without a dedicated rule. */
 function genericTarget(args: Args): string | undefined {
   return pick(args, "command", "action", "path", "file_path", "url", "query",
@@ -122,6 +146,8 @@ export function presentTool(name: string, input: string | undefined, text: Text)
   const args = parseToolArgs(input);
   const path = shortPath(pick(args, "path", "file_path", "filename", "file"));
   switch (name) {
+    case "computer_use_agent":
+      return computerUseAgentPresentation(args, text);
     case "gui_agent":
       return { icon: "monitor", tone: "system", title: guiCapabilityLabel(name, text), target: firstLine(pick(args, "task")) };
     case "computer_use":

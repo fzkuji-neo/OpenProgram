@@ -11,6 +11,7 @@ import { useState } from "react";
 import { SolarIcon } from "@/components/solar-icons";
 import { OperationCode } from "./operation-code";
 import { ComputerUseApproval } from "./computer-use-approval";
+import { appStepArgs } from "@/lib/computer-use-agent-call";
 import { Textarea } from "@/components/ui/textarea";
 import { SimpleSelect } from "@/components/ui/select";
 
@@ -434,9 +435,11 @@ function StepBody({
     );
   }
 
-  if (step.kind === "approval" && step.tool === "computer_use" && !step.escalation
-      && typeof step.args?.action === "string" && typeof step.args?.app === "string") {
-    return <ComputerUseApproval args={step.args} allowedScopes={step.allowedScopes} />;
+  if (step.kind === "approval" && step.tool === "computer_use_agent" && !step.escalation && step.args) {
+    const appStep = appStepArgs(step.args);
+    if (appStep && typeof appStep.app === "string") {
+      return <ComputerUseApproval args={appStep} allowedScopes={step.allowedScopes} />;
+    }
   }
   if (step.kind === "approval") {
     const esc = step.escalation;

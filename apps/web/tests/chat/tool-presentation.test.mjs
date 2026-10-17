@@ -76,3 +76,19 @@ test('web_use shows the nested act action rather than the command', () => {
   assert.equal(presentTool('web_use', JSON.stringify({ command: 'act', arguments: { action: 'drag', ref: 'e1', to_ref: 'e2' } }), en).target, 'drag');
   assert.equal(presentTool('web_use', JSON.stringify({ command: 'observe', arguments: { url: 'https://example.com' } }), en).target, 'observe https://example.com');
 });
+
+test('computer_use_agent reads like the screen it operates', () => {
+  const click = presentTool('computer_use_agent', JSON.stringify({ target: 'app', action: 'click', args: { app: 'Calculator', element_index: 20 } }), en);
+  assert.equal(click.title, 'Clicked in Calculator');
+  const steps = presentTool('computer_use_agent', JSON.stringify({ target: 'app', args: { app: 'Notes' },
+    actions: [{ action: 'click', args: { element_index: 1 } }, { action: 'type_text', args: { text: 'hi' } }] }), en);
+  assert.equal(steps.title, 'Ran steps in Notes');
+  assert.equal(presentTool('computer_use_agent', JSON.stringify({ target: 'app', args: { app: 'Notes' } }), en).title, 'Read in Notes');
+  const code = presentTool('computer_use_agent', JSON.stringify({ target: 'app', args: { app: 'Numbers' }, code: 'for v in x:\n  pass' }), en);
+  assert.deepEqual([code.title, code.target, code.tone], ['Ran code in Numbers', 'for v in x:', 'shell']);
+  const page = presentTool('computer_use_agent', JSON.stringify({ target: 'browser', action: 'navigate', args: { url: 'https://example.com' } }), en);
+  assert.deepEqual([page.title, page.target, page.tone], ['Browser', 'navigate https://example.com', 'web']);
+  assert.equal(presentTool('computer_use_agent', JSON.stringify({ target: 'vm', action: 'click' }), en).title, 'Virtual machine');
+  const fresh = presentTool('computer_use_agent', JSON.stringify({ target: 'browser', context: 'fresh', brief: 'Book a room\nmore' }), en);
+  assert.deepEqual([fresh.title, fresh.target, fresh.tone], ['Handed to a new agent', 'Book a room', 'agent']);
+});

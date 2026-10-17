@@ -7,6 +7,7 @@
 import type { AssistantBlock, TurnFileSummary } from "../../../lib/session-store/types.ts";
 import { parseToolArgs, presentTool } from "./tool-presentation.ts";
 import { GUI_TOOL_NAMES, isGuiToolCall } from "./gui-tool-view.ts";
+import { appStepArgs, computerUseAgentTarget, isFreshCall } from "../../../lib/computer-use-agent-call.ts";
 
 type Text = (en: string, zh: string) => string;
 type Args = Record<string, unknown>;
@@ -196,6 +197,9 @@ function kindOf(tool: string, text: Text, args: Args = {}): Kind {
   if (tool === "web_search") return "websearch";
   if (tool === "web_fetch") return "fetch";
   if (BROWSER.has(tool)) return "browser";
+  if (tool === "computer_use_agent") {
+    return isFreshCall(args) ? "agent" : computerUseAgentTarget(args) === "browser" ? "browser" : "computer";
+  }
   // browser_use is checked above: "operated the browser" says more than "GUI call".
   // The public computer_use tool shares the GUI Agent capability's name.
   if (GUI_TOOL_NAMES.has(tool)) return isGuiToolCall(tool, args) ? "gui" : "computer";
@@ -431,7 +435,11 @@ function targetOf(kind: Kind, tool: string, args: Args): string {
     case "agent": return "";
     case "program": return pick(args, "name", "program", "path") ?? "";
     case "skill": return pick(args, "name", "skill") ?? "";
-    case "computer": return pick(args, "app") ?? "";
+    case "computer":
+      if (tool === "computer_use_agent") {
+        return computerUseAgentTarget(args) === "vm" ? "VM" : pick(appStepArgs(args) ?? {}, "app") ?? "";
+      }
+      return pick(args, "app") ?? "";
     case "other": return tool;
     default: return "";
   }
