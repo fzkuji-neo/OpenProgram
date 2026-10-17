@@ -57,12 +57,17 @@ computer_use(action, app, element_index | x,y, …)
 
 窗口自身遍历出的元素少于 12 个（窗框、标题栏按钮之外几乎没有）时，说明它绕开了辅助功能自行绘制。对这样的窗口，每次完整读取或仅截图读取都会对刚拍下的截图运行 Vision 的精确文字识别，把每行列成 `"text" at (cx, cy), WxH`，单位是截图像素，按从上到下、从左到右排列，最多 150 行。识别语言列表的第一项决定 Vision 用哪个模型，所以语言只作提示（用户首选语言，然后是中文、日文、韩文和英文），由语言检测按每张图选择。`find` 带 `text` 时，若没有元素匹配就退回到这些文字行；对不稀疏的窗口，它会以相同比例重新抓取并识别一次，因此位置对动作仍然有效。OCR 文字没有序号，也不进入树的 diff：它是坐标动作的依据，识别器失败时读取结果里就不带它。
 
+### 音频
+
+Codex 用 `start_audio_recording` / `stop_audio_recording` 录电脑声音（默认 60 秒，最多 300 秒），并把录音作为音频输入交给模型。OpenProgram 保留这两个动作及其上限。它驱动的大多数服务商不接受工具结果里的音频，所以录音落成磁盘上的 WAV，再加上设置 → 语音引擎给出的转写文字，任何模型都能读。`audio.py` 打开一个 `SCStream`，过滤器是只包含目标应用的显示器，要求 16 kHz 单声道 float 采样，排除 OpenProgram 自身进程，并只挂音频输出：2×2、每秒一帧的视频那一侧从不被消费。超过上限的采样被丢弃，计时器在上限后半秒停掉流，所以忘了停止的录音也会释放采集。每个对话同时只有一段录音；停止时转成 16 位 PCM 并保存在状态目录下，保留最新的 20 个。这个动作沿用按应用的审批：录音里只有所指定应用的声音。峰值始终低于 1e-4 的录音报告为静音，不做转写。没有窗口的应用没有 `SCRunningApplication`，无法录音。
+
 ### 模块布局
 
 | 模块 | 职责 |
 |---|---|
 | `openprogram/computer_use/keys.py` | xdotool 组合键解析为 macOS 键码和修饰键标志（`super+shift+z`、`ctrl++`、`KP_0`、单独修饰键） |
 | `openprogram/computer_use/tree.py` | `Node`、渲染、签名、稳定编号（`Snapshot`、`number`）和 diff |
+| `openprogram/computer_use/audio.py` | 单个应用的 ScreenCaptureKit 音频采集、采样上限、WAV 编码 |
 | `openprogram/computer_use/ocr.py` | Vision 文字识别、识别框换算为截图像素、阅读顺序、语言提示 |
 | `openprogram/computer_use/skylight.py` | SkyLight 的 ctypes 绑定，用于后台指针和键盘路由 |
 | `openprogram/computer_use/macos.py` | `MacComputer`：应用解析、窗口选择、抓图、树遍历、全部动作 |
@@ -155,4 +160,5 @@ GUI Agent 工作流（`gui_agent`）、它的 grounding 流水线和能力 plann
 - 已实现：macOS 上 `computer_use` 的上述读取、执行与批量动作，稳定序号，自适应等待，后台指针与键盘投递，树 diff，四个范围的按应用审批，系统访问门控，Web 展示，按键/树编号/菜单匹配/批量/规则/审批接线的单元测试。
 - `web_use` 已实现：上面对照表的每一行，三个后端都支持，并有在 Chromium 里运行页面脚本的测试，以及 `evaluate` 的逐次审批。
 - 已实现：为树稀疏的窗口提供 OCR 文字，并作为 `find` 的回退，附带一个经 Vision 识别渲染图像的测试。
-- 未实现：`web_use` 的可见标签页和观察 diff；电脑音频录制；把窗口从另一个桌面空间移过来；设置页、标注模式、区域截图和 `@` 提及；Windows 与 Linux 后端；对不带文字的图标和控件做目标检测。
+- 已实现：按应用录音，输出 WAV，并用语音引擎转写。
+- 未实现：`web_use` 的可见标签页和观察 diff；对接受音频的服务商把音频作为模型输入；把窗口从另一个桌面空间移过来；设置页、标注模式、区域截图和 `@` 提及；Windows 与 Linux 后端；对不带文字的图标和控件做目标检测。

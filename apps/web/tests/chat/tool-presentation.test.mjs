@@ -65,6 +65,8 @@ test('the public computer_use tool reads as the action in the app; the GUI capab
   const batch = presentTool('computer_use', JSON.stringify({ action: 'batch', app: 'Notes', actions: [{ action: 'click' }, { action: 'type_text' }] }), en);
   assert.equal(batch.title, 'Ran steps in Notes');
   assert.equal(batch.target, '2 steps');
+  assert.equal(presentTool('computer_use', JSON.stringify({ action: 'start_audio_recording', app: 'Music' }), en).title,
+    'Started recording in Music');
   const capability = presentTool('computer_use', JSON.stringify({ task: 'inspect', app_name: 'TextEdit' }), en);
   assert.equal(capability.title, 'Computer Use');
   assert.equal(capability.target, 'TextEdit');

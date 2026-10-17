@@ -29,6 +29,7 @@ import threading
 import time
 from typing import Any
 
+from . import audio
 from . import keys as keymap
 from . import ocr
 from .skylight import SUBTYPE_DEFAULT, SUBTYPE_TOUCH, skylight
@@ -186,6 +187,23 @@ class Report(str):
     """An action result that read something and changed nothing, so no new state follows it."""
 
 
+@dataclass
+class AudioClip:
+    """A finished recording: the WAV on disk and what it holds."""
+    app: str
+    path: Path
+    data: bytes
+    seconds: float
+    peak: float
+
+    @property
+    def silent(self) -> bool:
+        return self.peak < audio.SILENCE_PEAK
+
+
+KEEP_RECORDINGS = 20
+
+
 class MacComputer:
     """One backend per worker; state is kept per (session, pid)."""
 
@@ -193,6 +211,7 @@ class MacComputer:
         self._states: dict[tuple[str, int], WindowState] = {}
         self._lock = threading.RLock()
         self._icons: dict[str, str] = {}
+        self._recordings: dict[str, audio.Recording] = {}
 
     # ------------------------------------------------------------------ AX helpers
     def _attr(self, element, name):
@@ -1511,6 +1530,43 @@ class MacComputer:
             more = f"\n…and {len(hits) - 60} more; narrow the search." if len(hits) > 60 else ""
             return f"{len(hits)} match(es):\n" + "\n".join(hits[:60]) + more
 
+    # ------------------------------------------------------------------ audio
+    def start_audio(self, session: str, query: str, max_duration=None) -> Report:
+        """Record what ``query`` plays until stop_audio or the limit."""
+        try:
+            limit = audio.seconds(max_duration)
+        except ValueError as exc:
+            raise ComputerUseError(str(exc)) from exc
+        with self._lock:
+            _frameworks()
+            running = self._recordings.get(session)
+            if running is not None and not running.stopped:
+                raise ComputerUseError(f"Already recording {running.app}; call stop_audio_recording first.")
+            app = self.resolve_app(query)
+            name = str(app.localizedName() or query)
+            try:
+                recording = audio.start(int(app.processIdentifier()), name, limit)
+            except RuntimeError as exc:
+                raise ComputerUseError(f"Could not record {name}: {exc}") from exc
+            self._recordings[session] = recording
+            return Report(f"Recording the sound {name} plays, for up to {limit:g} seconds; the user still hears it "
+                          "and nothing else is recorded. Act as usual, then call stop_audio_recording.")
+
+    def stop_audio(self, session: str, query: str = "") -> AudioClip:
+        """Stop this session's recording and save it as a WAV."""
+        with self._lock:
+            recording = self._recordings.get(session)
+            if recording is None:
+                raise ComputerUseError("Nothing is being recorded; call start_audio_recording first.")
+            if query:
+                app = self._running_match(query)
+                if app is not None and int(app.processIdentifier()) != recording.pid:
+                    raise ComputerUseError(f"The recording is of {recording.app}, not {query}.")
+            del self._recordings[session]
+        data, peak = audio.finish(recording)
+        return AudioClip(app=recording.app, path=_save_recording(recording.app, data), data=data,
+                         seconds=round(recording.seconds, 2), peak=peak)
+
     def settle(self, session: str, query: str) -> float:
         """Wait for the window to stop changing after an action; returns the seconds waited."""
         _, ax, _, _ = _frameworks()
@@ -1601,6 +1657,24 @@ def _running_apps(appkit) -> list[Any]:
         return list(appkit.NSWorkspace.sharedWorkspace().runningApplications() or [])
     lookup = appkit.NSRunningApplication.runningApplicationWithProcessIdentifier_
     return [app for pid in buffer[:count] if pid > 0 and (app := lookup(pid)) is not None]
+
+
+def _save_recording(app: str, data: bytes) -> Path:
+    """Write a recording under the state directory, keeping the newest KEEP_RECORDINGS."""
+    from openprogram.paths import get_state_dir
+
+    folder = get_state_dir() / "computer-use" / "audio"
+    folder.mkdir(parents=True, exist_ok=True)
+    stem = "".join(c if c.isalnum() else "-" for c in app).strip("-").lower() or "app"
+    path = folder / f"{time.strftime('%Y%m%d-%H%M%S')}-{stem}.wav"
+    suffix = 1
+    while path.exists():
+        suffix += 1
+        path = folder / f"{time.strftime('%Y%m%d-%H%M%S')}-{stem}-{suffix}.wav"
+    path.write_bytes(data)
+    for old in sorted(folder.glob("*.wav"), key=lambda p: p.stat().st_mtime)[:-KEEP_RECORDINGS]:
+        old.unlink(missing_ok=True)
+    return path
 
 
 def _window_node_count(nodes: list[Node]) -> int:
@@ -1700,5 +1774,5 @@ def backend() -> MacComputer:
         return _BACKEND
 
 
-__all__ = ["ComputerUseError", "INCLUDE", "MacComputer", "Observation", "REFUSED_BUNDLES", "Report",
+__all__ = ["AudioClip", "ComputerUseError", "INCLUDE", "MacComputer", "Observation", "REFUSED_BUNDLES", "Report",
            "backend", "find_text", "markdown_to_html", "render", "support", "utf16_len"]

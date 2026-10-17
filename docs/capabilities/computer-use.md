@@ -54,6 +54,8 @@ After an action the tool waits for the window to settle instead of a fixed pause
 | `menu` | `app`, `menu_path?` | Without a path, list the menu bar. With a path such as `["View", "Scientific"]`, list that menu (with shortcuts, checked and disabled items) or choose a leaf item. Titles match without regard to case or a trailing `…`; no menu opens on screen |
 | `show_window` | `app`, `window?` or `window_id?` | Restore a minimised window or unhide the app, without bringing it to the front |
 | `batch` | `app`, `actions` | Up to 20 of the acting steps above, run in order on one app; stops at the first error and returns the state once, at the end |
+| `start_audio_recording` | `app`, `max_duration?` | Record the sound that app plays, for up to `max_duration` seconds (default 60, at most 300). Only that app is recorded and you keep hearing it; other actions run meanwhile |
+| `stop_audio_recording` | `app`, `transcribe?` | Stop, save a 16 kHz WAV and return its path; with a speech engine set up in Settings → Voice, also the transcript |
 
 `app` is a name, bundle id or `.app` path as `list_apps` prints it. `x` and `y` are pixels of that app's most recent screenshot, not screen coordinates.
 
@@ -105,6 +107,10 @@ The card appears in every permission mode, Auto and Bypass included: only a save
 
 - macOS. Windows and Linux are not supported yet.
 - The signed runtime (`ai.openprogram.runtime`) must hold **Accessibility** and **Screen Recording**. The tool reports which grant is missing, and Settings → System access requests it. [Permissions](permissions.md) describes how macOS grants work for the runtime.
+
+## Recording sound
+
+Recording uses the Screen Recording grant the screenshots already need and captures the named application's own output: other apps, the microphone and the system alert sounds are not in it. The recordings are kept in `~/.openprogram/computer-use/audio/`, the newest 20. `stop_audio_recording` transcribes with the engine chosen in Settings → Voice: whisper.cpp keeps the sound on the Mac, while the OpenAI and Groq engines send it to that provider. Pass `transcribe=false` to keep only the file. A silent recording is reported as such and not transcribed.
 
 ## What the tool refuses
 
