@@ -149,10 +149,10 @@ export function useFileMention({
       const insert = mentionInsert(item);
       const next =
         input.slice(0, atToken.start)
-        + "@" + insert
+        + insert
         + input.slice(caretPos);
       setInput(next);
-      const newCaret = atToken.start + 1 + insert.length;
+      const newCaret = atToken.start + insert.length;
       requestAnimationFrame(() => {
         const ta = textareaRef.current;
         if (!ta) return;

@@ -30,8 +30,8 @@ test('a pick writes the exact page or app into the draft', () => {
   assert.equal(mentionInsert(tab), '[Pull requests · OpenProgram](https://github.com/Fzkuji/OpenProgram/pulls) ');
   assert.equal(mentionInsert({ kind: 'tab', tabId: 'x', title: 'a [b] c', url: 'https://x.test/' }), '[a b c](https://x.test/) ');
   assert.equal(mentionInsert(matchApps(apps, 'calc')[0]), 'Calculator (com.apple.calculator) ');
-  assert.equal(mentionInsert({ path: 'src', is_dir: true }), 'src/');
-  assert.equal(mentionInsert({ path: 'a.ts', is_dir: false }), 'a.ts ');
+  assert.equal(mentionInsert({ path: 'src', is_dir: true }), '@src/');
+  assert.equal(mentionInsert({ path: 'a.ts', is_dir: false }), '@a.ts ');
   assert.notEqual(mentionKey(tab), mentionKey({ path: tab.tabId, is_dir: false }));
 });
 
