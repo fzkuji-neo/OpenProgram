@@ -18,7 +18,6 @@ window; they are converted to screen points here.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-import ctypes
 import importlib.util
 import math
 import os
@@ -32,6 +31,7 @@ from typing import Any
 from . import audio
 from . import keys as keymap
 from . import ocr
+from .processes import running_applications
 from .skylight import SUBTYPE_DEFAULT, SUBTYPE_TOUCH, skylight
 from .tree import _BIDI_MARKS, Node, Snapshot, TRANSPARENT_ROLES, diff, number, render, role_name, snapshot
 
@@ -275,7 +275,7 @@ class MacComputer:
                 pid = int(row.get("kCGWindowOwnerPID", -1))
                 windows[pid] = windows.get(pid, 0) + 1
         running = []
-        for app in _running_apps(appkit):
+        for app in running_applications(appkit):
             if app.activationPolicy() != appkit.NSApplicationActivationPolicyRegular:
                 continue
             bundle = str(app.bundleIdentifier() or "")
@@ -340,7 +340,7 @@ class MacComputer:
         appkit = _appkit()
         q = query.strip().lower()
         pid = int(q[4:]) if q.startswith("pid:") and q[4:].isdigit() else None
-        for app in _running_apps(appkit):
+        for app in running_applications(appkit):
             if app.isTerminated():
                 continue
             if pid is not None:
@@ -1667,27 +1667,6 @@ def _await(start):
     if result[1] is not None or result[0] is None:
         raise ComputerUseError(f"Window capture failed: {result[1]}")
     return result[0]
-
-
-def _running_apps(appkit) -> list[Any]:
-    """Every running application as it is now.
-
-    ``NSWorkspace.runningApplications`` changes only while the main run
-    loop runs, which a worker never does: it would keep the apps of the
-    moment it was first read, missing every app launched since, including
-    one this backend just launched. Looking each process up is fresh.
-    """
-    try:
-        libproc = ctypes.CDLL("/usr/lib/libproc.dylib")
-        count = libproc.proc_listallpids(None, 0)
-        buffer = (ctypes.c_int * (max(count, 0) + 256))()
-        count = libproc.proc_listallpids(buffer, ctypes.sizeof(buffer))
-        if count <= 0:
-            raise OSError("proc_listallpids failed")
-    except OSError:
-        return list(appkit.NSWorkspace.sharedWorkspace().runningApplications() or [])
-    lookup = appkit.NSRunningApplication.runningApplicationWithProcessIdentifier_
-    return [app for pid in buffer[:count] if pid > 0 and (app := lookup(pid)) is not None]
 
 
 def _save_recording(app: str, data: bytes) -> Path:

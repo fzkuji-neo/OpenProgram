@@ -145,11 +145,17 @@ def native_processes(monkeypatch, pids, owners, ax_window="exact-main-window"):
         "AppKit",
         NS(
             NSApplication=NS(sharedApplication=lambda: None),
-            NSWorkspace=NS(
-                sharedWorkspace=lambda: NS(runningApplications=lambda: apps)
+            NSWorkspace=NS(sharedWorkspace=lambda: NS(runningApplications=lambda: [])),
+            NSRunningApplication=NS(
+                runningApplicationWithProcessIdentifier_=lambda pid: next(
+                    (a for a in apps if a.processIdentifier() == pid), None
+                )
             ),
         ),
     )
+    from openprogram.computer_use import processes
+
+    monkeypatch.setattr(processes, "all_pids", lambda: [1, *pids, 999])
     monkeypatch.setitem(
         sys.modules,
         "Quartz",
