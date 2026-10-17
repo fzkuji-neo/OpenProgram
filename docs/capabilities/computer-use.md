@@ -1,6 +1,6 @@
 # Computer use
 
-The `computer_use` tool lets the model read and operate the windows of a desktop application while you keep working: the application stays in the background, the keyboard and mouse remain yours, and nothing is brought to the front. The model sees a screenshot of the window together with its Accessibility tree, acts on a numbered element, and gets back only the lines that changed. It runs on macOS, and on Linux under X11 with the differences listed in [On Linux](#on-linux).
+The `computer_use` tool lets the model read and operate the windows of a desktop application while you keep working: the application stays in the background, the keyboard and mouse remain yours, and nothing is brought to the front. The model sees a screenshot of the window together with its Accessibility tree, acts on a numbered element, and gets back only the lines that changed. It runs on macOS, on Linux under X11 and on Windows, with the differences listed in [On Linux](#on-linux) and [On Windows](#on-windows).
 
 Web pages have their own tool, `web_use`, which drives the browser in the App and in the headless Chromium. `computer_use` is for everything else on the desktop: Finder, Notes, Calculator, Xcode, a chat client, a game launcher.
 
@@ -111,7 +111,7 @@ Allowing an application lets the model operate it; it does not let the model tak
 
 ## Requirements
 
-- macOS, or Linux with an X11 (Xorg) session. Windows is not supported.
+- macOS, Linux with an X11 (Xorg) session, or Windows 10 or 11.
 - On macOS, the signed runtime (`ai.openprogram.runtime`) must hold **Accessibility** and **Screen Recording**. The tool reports which grant is missing, and Settings → System access requests it. [Permissions](permissions.md) describes how macOS grants work for the runtime.
 
 ## On Linux
@@ -131,6 +131,21 @@ What differs:
 - An application that does not join the accessibility bus is listed with "no accessibility tree": the model reads its screenshot (with OCR when tesseract is installed) and acts by coordinates.
 - Recording reads only the application's own streams (and those of its child processes) from PipeWire or PulseAudio. With PipeWire it starts within a quarter second; on PulseAudio without PipeWire the first second or so of a stream that was already playing can be missed.
 - Refused: password fields, Seahorse and KWallet, polkit and gcr authentication prompts, and OpenProgram itself.
+
+## On Windows
+
+On Windows the tool reads the window's UI Automation tree, which Win32, WPF, WinForms, Store (UWP and WinUI) and Chromium-based applications expose, and takes screenshots of the window even while it is covered. It needs the `comtypes` package, which the Windows install includes; `tesseract` on `PATH` adds text read off screenshots of apps without a tree. Windows support is new and has not yet been run on a Windows machine by the project; report problems with the step that failed.
+
+What is the same: the tree format, stable indices and diffs, screenshots, `zoom`, `find`, `batch`, `select_text`, `set_value`, `copy`, `paste` (text, markdown and HTML), scrolling by element, recording and approvals. Applications are named as `list_apps` prints them: the Start menu name (`Calculator`), the executable name (`notepad`) or the process id; an installed application is launched from its Start menu entry.
+
+What differs:
+
+- Element actions run in the background through UI Automation. Clicks, scrolls and plain keys at a window are posted to that window without raising it, and `hover` does not move your pointer.
+- A key with modifiers (`ctrl+s`) needs the real keyboard state, and `paste` presses `ctrl+v` in most apps, so for that step the window comes to the front and then focus and your pointer go back. Windows that read only real input (Store app frames, Chromium, Firefox) are handled the same way for pointer input. Use the Windows shortcuts: `ctrl+c`, not `cmd+c`.
+- `menu` works for classic menu bars and for menus exposed through UI Automation; apps with a ribbon keep their commands in the window's tree.
+- `copy` returns the selected text without touching the clipboard. `paste` restores the clipboard's text afterwards, not other formats it held.
+- Recording captures the application's own process tree through Windows' process loopback (Windows 10 version 2004 or later).
+- Refused: password fields, the credential and elevation (UAC) prompts, the lock screen, and OpenProgram itself.
 
 ## Recording sound
 

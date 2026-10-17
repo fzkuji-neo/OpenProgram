@@ -38,6 +38,13 @@ test('on Linux, coordinate input and key presses are the steps that bring the wi
   assert.equal(needsForeground({ action: 'hover', element_index: 2 }), true);
   assert.equal(needsForeground({ action: 'press_key', key: 'Return' }), false);
   assert.equal(needsForeground({ action: 'press_key', key: 'ctrl+a' }), true);
+  // Windows posts plain input to the window; only chords and paste come forward.
+  assert.equal(needsForeground({ action: 'click', x: 10, y: 20 }, 'windows'), false);
+  assert.equal(needsForeground({ action: 'press_key', key: 'Escape' }, 'windows'), false);
+  assert.equal(needsForeground({ action: 'press_key', key: '+' }, 'windows'), false);
+  assert.equal(needsForeground({ action: 'press_key', key: 'ctrl++' }, 'windows'), true);
+  assert.equal(needsForeground({ action: 'batch', actions: [{ action: 'paste', text: 'x' }] }, 'windows'), true);
+  assert.equal(needsForeground({ action: 'click', x: 10, y: 20 }, 'darwin'), false);
   assert.equal(needsForeground({ action: 'type_text', text: 'hi' }), false);
   assert.equal(needsForeground({ action: 'batch', actions: [{ action: 'set_value' }, { action: 'click', x: 1, y: 1 }] }), true);
   assert.equal(needsForeground({ action: 'batch', actions: [{ action: 'set_value' }, null] }), false);
