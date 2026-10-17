@@ -15,6 +15,19 @@ OpenProgram takes Codex's shape and the Claude app's vocabulary:
 - **Everything in the background.** Element actions through the Accessibility API and pointer events routed to a process do not move the user's cursor, change the key window or raise a window. A foreground "full control" tier like the Claude app's is deliberately absent: the background route already covers coordinate clicks, drags and wheel scrolls.
 - **Approval per application.** The unit the user reasons about is "may it touch Notes", not "may it click". The rule is `computer_use(<app>)`, and it can be granted once, for the conversation, or for the project.
 
+Each Claude app tool group and where it lands:
+
+| Claude app | OpenProgram |
+|---|---|
+| list apps and windows, screenshot, zoom | `list_apps`, `list_windows`, `get_app_state`, `zoom` |
+| click (double, triple, right, with modifiers), type, key, hold a key | `click` (`click_count`, `mouse_button`, `key`, `duration`), `type_text`, `press_key` (`duration`) |
+| scroll, drag, hover, wait | `scroll`, `drag`, `hover`, `wait` |
+| menu, AX find, focus, batch | `menu`, `find` (with OCR fallback), `focus`, `batch` |
+| request / release an application | the per-application approval card and its `computer_use(<app>)` rule; nothing to release, since nothing is held |
+| display-scope full control (real pointer and keyboard) | absent by design: background delivery covers coordinate input; on Linux and for Windows chords the window comes forward only for the step, and the approval card says so |
+| browser tools | `web_use` |
+| `framebuffer_*` for virtual machines | absent: a VM's window is an ordinary application window, read by screenshot and OCR and driven by coordinates |
+
 ## `computer_use`
 
 ### Shape
