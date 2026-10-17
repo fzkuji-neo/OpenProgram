@@ -1076,6 +1076,9 @@ class MacComputer:
     def _cue(self, app, state, action: str, args: dict[str, Any]) -> None:
         """Show the user where this step lands: the App draws its agent cursor there."""
         try:
+            # A window on another Space or in the Dock is not where the point is.
+            if state.window_id and state.window_id not in self._onscreen_ids(int(app.processIdentifier())):
+                return
             if args.get("element_index") is not None:
                 point = self._center(self._element(state, args["element_index"]))
             elif args.get("x") is not None and args.get("y") is not None:

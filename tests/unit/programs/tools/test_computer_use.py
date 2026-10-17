@@ -798,3 +798,26 @@ def test_windows_on_other_spaces_are_found_once_per_set_of_window_ids(monkeypatc
                  "kCGWindowBounds": {"Width": 300, "Height": 200}})
     assert computer._other_space_windows("root", []) == ["window 11"]
     assert sky.searches == [{11}, {11, 99}]
+
+
+def test_a_step_reports_its_screen_point_for_the_agent_cursor(monkeypatch):
+    from types import SimpleNamespace
+    import openprogram.native_window_resources as nw
+    computer = macos.MacComputer()
+    state = macos.WindowState(pid=1, window_title="Calc", window_id=70, has_screenshot=True, scale=2.0,
+                              origin=(800.0, 400.0), size=(500, 300))
+    app = SimpleNamespace(processIdentifier=lambda: 1, localizedName=lambda: "Calculator")
+    points = []
+    monkeypatch.setattr(nw, "note_action_point", lambda name, point, action: points.append((name, point, action)))
+    monkeypatch.setattr(macos, "CUE_LEAD_SECONDS", 0)
+    monkeypatch.setattr(computer, "_onscreen_ids", lambda pid: {70})
+
+    computer._cue(app, state, "click", {"x": 100, "y": 60})
+    assert points == [("Calculator", (850.0, 430.0), "click")]
+
+    computer._cue(app, state, "press_key", {"key": "return"})
+    assert len(points) == 1, "a step without a target shows no cursor"
+
+    monkeypatch.setattr(computer, "_onscreen_ids", lambda pid: set())
+    computer._cue(app, state, "click", {"x": 100, "y": 60})
+    assert len(points) == 1, "a window on another Space shows no cursor here"
