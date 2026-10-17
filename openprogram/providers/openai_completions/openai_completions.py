@@ -23,6 +23,7 @@ except ImportError:  # pragma: no cover — base dep, normally present
 from ..types import (
     AssistantMessage,
     AssistantMessageEvent,
+    AudioContent,
     Context,
     EventDone,
     EventError,
@@ -133,7 +134,20 @@ def _build_messages(context: Context, model: Model) -> list[dict[str, Any]]:
         role = "developer" if _uses_developer_role(model) else "system"
         result.append({"role": role, "content": context.system_prompt})
 
+    # Tool messages carry text only, so a run's images and audio follow it as
+    # one user message, each kind only when the model accepts it.
+    accepts = set(model.input or ["text"])
+    attached: list[dict[str, Any]] = []
+
+    def flush() -> None:
+        if attached:
+            result.append({"role": "user", "content": [
+                {"type": "text", "text": "Attached media from tool results:"}, *attached]})
+            attached.clear()
+
     for msg in context.messages:
+        if not isinstance(msg, ToolResultMessage):
+            flush()
         if isinstance(msg, UserMessage):
             if isinstance(msg.content, str):
                 if msg.content.strip():
@@ -187,8 +201,22 @@ def _build_messages(context: Context, model: Model) -> list[dict[str, Any]]:
                 "tool_call_id": _completions_tool_call_id(msg.tool_call_id),
                 "content": content_text,
             })
+            for block in msg.content:
+                if isinstance(block, ImageContent) and "image" in accepts:
+                    attached.append({"type": "image_url",
+                                     "image_url": {"url": f"data:{block.mime_type};base64,{block.data}"}})
+                elif isinstance(block, AudioContent) and "audio" in accepts:
+                    attached.append({"type": "input_audio",
+                                     "input_audio": {"data": block.data, "format": _audio_format(block.mime_type)}})
 
+    flush()
     return result
+
+
+def _audio_format(mime_type: str) -> str:
+    """The ``input_audio`` format name for a MIME type: audio/wav -> wav."""
+    sub = (mime_type or "").split("/")[-1].lower()
+    return {"mpeg": "mp3", "x-wav": "wav", "wave": "wav"}.get(sub, sub or "wav")
 
 
 def _build_tools(context: Context, model: Model) -> list[dict[str, Any]] | None:

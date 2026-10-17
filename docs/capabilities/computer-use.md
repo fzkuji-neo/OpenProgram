@@ -116,7 +116,7 @@ Allowing an application lets the model operate it; it does not let the model tak
 
 ## Recording sound
 
-Recording uses the Screen Recording grant the screenshots already need and captures the named application's own output: other apps, the microphone and the system alert sounds are not in it. The recordings are kept in `~/.openprogram/computer-use/audio/`, the newest 20. `stop_audio_recording` transcribes with the engine chosen in Settings → Voice: whisper.cpp keeps the sound on the Mac, while the OpenAI and Groq engines send it to that provider. Pass `transcribe=false` to keep only the file. A silent recording is reported as such and not transcribed. When the chat model accepts audio input, as Gemini models do, it also receives the recording itself and can hear music, tone and other sounds a transcript leaves out.
+Recording uses the Screen Recording grant the screenshots already need and captures the named application's own output: other apps, the microphone and the system alert sounds are not in it. The recordings are kept in `~/.openprogram/computer-use/audio/`, the newest 20. `stop_audio_recording` transcribes with the engine chosen in Settings → Voice: whisper.cpp keeps the sound on the Mac, while the OpenAI and Groq engines send it to that provider. Pass `transcribe=false` to keep only the file. A silent recording is reported as such and not transcribed. When the chat model accepts audio input, as Gemini and OpenAI's gpt-audio models do, it also receives the recording itself and can hear music, tone and other sounds a transcript leaves out.
 
 ## What the tool refuses
 
