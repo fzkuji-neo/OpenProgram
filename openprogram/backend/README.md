@@ -7,17 +7,16 @@
 The ``bash`` tool (and any future sibling that wants to) routes
 command execution through ``get_active_backend().run(...)`` instead
 of calling ``subprocess`` directly. That keeps the tool code
-backend-agnostic and lets ``openprogram setup backend`` actually
-reroute where commands execute.
+backend-agnostic.
 
 Three backends ship out of the box:
     local    — subprocess.run on the host (default, unchanged behavior)
-    docker   — ``docker run --rm -i <image> sh -c "..."`` per call
-    ssh      — ``ssh <target> "..."`` per call
+    docker   — a long-lived container per session (``docker exec``)
+    ssh      — ``ssh <target> "..."`` per call, one shared connection
 
-Selection is read lazily from ``~/.openprogram/config.json`` (via
-``setup._read_config``) so ``--profile`` and live config
-edits take effect without restarting anything.
+Which one runs is decided by the session's environment
+(``openprogram.environments``): every conversation picks one when it
+is created, and the backend follows it.
 
 ## Files in this directory
 
