@@ -2,7 +2,7 @@
 paths themselves run against real apps in an X11 container (see the design record)."""
 from __future__ import annotations
 
-import subprocess
+from types import SimpleNamespace
 
 import pytest
 
@@ -89,7 +89,7 @@ Sink Input #13
 \t\tapplication.process.id = "999"
 """
     monkeypatch.setattr(linux.subprocess, "run",
-                        lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout=listed, stderr=""))
+                        lambda *a, **k: SimpleNamespace(returncode=0, stdout=listed, stderr=""))
     assert linux.LinuxComputer._streams({300, 301}) == [12]
     assert linux.LinuxComputer._streams({5}) == []
 
