@@ -253,6 +253,9 @@ def test_embedding_status_checks_local_snapshot_without_loading_encoder(monkeypa
     )
 
     loaded = []
+    # The status check itself is under test, not this machine's packages.
+    monkeypatch.setattr(embedding_model, "platform_unavailable_reason", lambda: None)
+    monkeypatch.setattr(embedding_model, "packages_available", lambda: True)
     monkeypatch.setattr(
         embedding_model, "default_model_is_cached", lambda: True,
     )
