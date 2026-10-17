@@ -98,6 +98,14 @@ Search keys take effect on subsequent calls without restarting. An unavailable s
 
 `combine="race"` returns the first nonempty successful response. Named `providers` that cannot run are skipped; if none can run, the error lists each one with its reason. `combine="rrf"` retains results completed before the deadline. Total failure is reported as an error, distinct from a successful empty search. Already running requests finish under their transport timeouts.
 
+## Desktop
+
+| Tool | What it does | Requires |
+|---|---|---|
+| `computer_use` | Read a macOS application's window (screenshot + Accessibility tree) and click, type, scroll, drag or paste into it in the background; one approval per application | macOS; Accessibility and Screen Recording for the runtime |
+
+[Computer use](computer-use.md) lists the actions and the approval scopes.
+
 ## Images and PDF
 
 | Tool | What it does | Requires |

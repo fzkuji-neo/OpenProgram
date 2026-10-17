@@ -53,6 +53,36 @@ function shortPath(p: string | undefined): string | undefined {
   return parts.length > 3 ? "…/" + parts.slice(-3).join("/") : p;
 }
 
+/** "Clicked in Calculator", "Typed in Notes": the action and the app, never the raw args. */
+function computerUsePresentation(args: Args, text: Text): ToolPresentation {
+  const action = pick(args, "action") ?? "";
+  const app = pick(args, "app");
+  const inApp = (en: string, zh: string) =>
+    app ? text(`${en} in ${app}`, `在 ${app} 中${zh}`) : text(en, zh);
+  const titles: Record<string, [string, string]> = {
+    list_apps: ["Listed apps", "列出应用"],
+    get_app_state: ["Read", "读取"],
+    click: ["Clicked", "点击"],
+    type_text: ["Typed", "输入"],
+    press_key: ["Pressed key", "按键"],
+    set_value: ["Set value", "设值"],
+    scroll: ["Scrolled", "滚动"],
+    drag: ["Dragged", "拖拽"],
+    perform_secondary_action: ["Performed action", "执行动作"],
+    select_text: ["Selected text", "选中文字"],
+    paste: ["Pasted", "粘贴"],
+  };
+  const [en, zh] = titles[action] ?? ["Computer use", "电脑操作"];
+  const title = action === "list_apps" ? text(en, zh) : inApp(en, zh);
+  const target = action === "press_key" ? pick(args, "key")
+    : action === "type_text" || action === "paste" || action === "select_text" ? firstLine(pick(args, "text"))
+    : action === "perform_secondary_action" ? pick(args, "action_name")
+    : action === "set_value" ? pick(args, "value")
+    : action === "get_app_state" ? pick(args, "window")
+    : undefined;
+  return { icon: "monitor", tone: "system", title, target };
+}
+
 export function parseToolArgs(input?: string): Args {
   if (!input) return {};
   try {
@@ -126,6 +156,8 @@ export function presentTool(name: string, input: string | undefined, text: Text)
     case "web_use":
       return { icon: "cursor", tone: "web", title: text("Browser", "浏览器"),
         target: [pick(args, "command", "action"), pick(args, "url")].filter(Boolean).join(" ") || undefined };
+    case "computer_use":
+      return computerUsePresentation(args, text);
     case "image_generate":
       return { icon: "gallery-add", tone: "media", title: text("Generated image", "生成图片"),
         target: firstLine(pick(args, "prompt")) };

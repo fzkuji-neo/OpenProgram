@@ -52,6 +52,41 @@ def _persist_always_allow_rule(session_id: str, tool_name: str, args: dict) -> b
         return False
 
 
+# Tools whose approval card offers "allow for this conversation": the grant
+# is written as a session-layer rule, so it ends with the conversation.
+_SESSION_SCOPE_TOOLS = {"computer_use"}
+
+
+def _persist_session_allow_rule(session_id: str, tool_name: str, args: dict) -> bool:
+    """Write "allow for this conversation" as an exact rule in the session layer."""
+    if not session_id:
+        return False
+    try:
+        from openprogram.agent.session_config import load_session_run_config, save_session_run_config
+        from openprogram.programs.permission_rule import exact_rule_for_call, rule_to_string
+        value = exact_rule_for_call(tool_name, args)
+        if value is None:
+            return False
+        serialized = rule_to_string(value)
+        from openprogram.agent.session_db import default_db
+        row = default_db().get_session(session_id)
+        if row is None:
+            return False
+        rules = load_session_run_config(session_id).permission_rules
+        allow = list(rules.allow) if rules is not None else []
+        if serialized not in allow:
+            allow.append(serialized)
+        save_session_run_config(session_id, agent_id=row.get("agent_id"), permission_rules={
+            "allow": allow,
+            "deny": list(rules.deny) if rules is not None else [],
+            "ask": list(rules.ask) if rules is not None else [],
+        })
+        saved = load_session_run_config(session_id).permission_rules
+        return saved is not None and serialized in saved.allow
+    except Exception:
+        return False
+
+
 
 def wrap_with_approval(
     agent_tool,
@@ -114,6 +149,8 @@ def wrap_with_approval(
         from openprogram.programs.permission_rule import exact_rule_for_call
         scopes = ["once"]
         if reason not in {"AUTO_REFUSAL_FALLBACK", "RECOVERY_EFFECT_UNCERTAIN"} and name not in _ONE_SHOT_FORCE_APPROVAL_TOOLS and exact_rule_for_call(name, args) is not None:
+            if name in _SESSION_SCOPE_TOOLS:
+                scopes.append("session")
             scopes.append("always")
         from .recovery import approval_context
         recovery = approval_context(agent_tool, req)
@@ -326,6 +363,9 @@ def wrap_with_approval(
         if scope == "always" and not recovery and name not in _ONE_SHOT_FORCE_APPROVAL_TOOLS:
             if not _persist_always_allow_rule(req.session_id, name, args):
                 return _denied("[denied] could not save the project approval rule; operation was not executed", "APPROVAL_RULE_SAVE_FAILED")
+        if scope == "session" and not recovery and name in _SESSION_SCOPE_TOOLS:
+            if not _persist_session_allow_rule(req.session_id, name, args):
+                return _denied("[denied] could not save the conversation approval rule; operation was not executed", "APPROVAL_RULE_SAVE_FAILED")
         if _fallback(call_id, args) and prepared.history is not None:
             prepared.history.record(blocked=False, reason="owner approved operation",
                                code="AUTO_OWNER_APPROVED", approved=True)
@@ -482,7 +522,7 @@ async def await_user_approval(
                 if isinstance(answer, str) else bool(answer)
             )
             return allowed, None, (
-                scope if scope in ("once", "always", "always_path") else "once"
+                scope if scope in ("once", "session", "always", "always_path") else "once"
             )
         if wait.status is WaitStatus.DECLINED and isinstance(wait.answer, str) and wait.answer.strip():
             return False, UserDeclineReason(wait.answer.strip()), "once"

@@ -35,7 +35,7 @@ _WAIT_KINDS = frozenset({"ask", "confirm", "approval", "form", "ask_many", "syst
 _MAX_WAIT_REQUEST_BYTES = 256 * 1024
 _MAX_WAIT_ANSWER_BYTES = 64 * 1024
 _APPROVAL_ANSWERS = frozenset({"approve", "allow", "允许", "yes", "是"})
-_APPROVAL_SCOPES = frozenset({"once", "always", "always_path"})
+_APPROVAL_SCOPES = frozenset({"once", "session", "always", "always_path"})
 _CONFIRM_ANSWERS = frozenset({"确认", "取消", "yes", "no", "y", "n", "true", "false", "ok" , "是", "否"})
 
 

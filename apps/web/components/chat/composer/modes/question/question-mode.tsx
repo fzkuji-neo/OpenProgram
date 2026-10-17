@@ -33,8 +33,8 @@ interface QuestionModeProps {
   onResolve: (id: string) => void;
 }
 
-/** Wire pick for an approval card. ``always_path`` is sandbox-escalation only. */
-type ApprovalPick = "once" | "always" | "always_path" | "deny";
+/** Wire pick for an approval card. ``session`` lasts this conversation; ``always_path`` is sandbox-escalation only. */
+type ApprovalPick = "once" | "session" | "always" | "always_path" | "deny";
 
 /** 一步（一道题）的统一形状。kind 决定 body 怎么渲染、答案怎么收集。 */
 type Step =
@@ -187,6 +187,7 @@ export function QuestionMode({ decision: q, onResolve }: QuestionModeProps) {
       // it verbatim; a localized string would fail the comparison in every
       // language it doesn't happen to list.
       if (pick === "once") void sendAnswer("execution.wait.answer", { answer: APPROVE_ANSWER, scope: "once" });
+      else if (pick === "session") void sendAnswer("execution.wait.answer", { answer: APPROVE_ANSWER, scope: "session" });
       else if (pick === "always") void sendAnswer("execution.wait.answer", { answer: APPROVE_ANSWER, scope: "always" });
       else if (pick === "always_path") void sendAnswer("execution.wait.answer", { answer: APPROVE_ANSWER, scope: "always_path" });
       else if (pick === "deny") void sendAnswer("execution.wait.decline");
@@ -309,11 +310,12 @@ export function QuestionMode({ decision: q, onResolve }: QuestionModeProps) {
                 onClick={() => { patch(0, { pick: "deny" }); void sendAnswer("execution.wait.decline"); }}>
                 {text("Deny", "拒绝")}
               </button>
-              {(["always", "always_path"] as const).filter(scope => cur.allowedScopes?.includes(scope)).map(scope => (
+              {(["session", "always", "always_path"] as const).filter(scope => cur.allowedScopes?.includes(scope)).map(scope => (
                 <button key={scope} type="button" className={styles.navBtn}
                   disabled={answerLocked}
                   onClick={() => { patch(0, { pick: scope }); void sendAnswer("execution.wait.answer", { answer: APPROVE_ANSWER, scope }); }}>
-                  {scope === "always" ? text("Always allow", "始终允许") : text("Always allow this path", "始终允许此路径")}
+                  {scope === "session" ? text("Allow this conversation", "允许此对话")
+                    : scope === "always" ? text("Always allow", "始终允许") : text("Always allow this path", "始终允许此路径")}
                 </button>
               ))}
               <button type="button" className={`${styles.navBtn} ${styles.navBtnPrimary}`}

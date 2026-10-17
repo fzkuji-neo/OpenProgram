@@ -305,6 +305,11 @@ def parse_command(tool_name: str, args: dict) -> Optional[str]:
         p = args.get("path") or args.get("file_path")
         if p is not None:
             return _canon_path(p)
+    if low == "computer_use":
+        # One approval covers an application, not one click in it: the rule
+        # names the app the model addressed (``computer_use(calculator)``).
+        app = " ".join(str(args.get("app") or "").split()).lower()
+        return app or None
     try:
         return json.dumps(
             _normalize_json(args), ensure_ascii=False, sort_keys=True,

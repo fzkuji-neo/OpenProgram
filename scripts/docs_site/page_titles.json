@@ -107,6 +107,10 @@
     "en": "Skills",
     "zh": "技能"
   },
+  "capabilities/computer-use.md": {
+    "en": "Computer use",
+    "zh": "操控电脑"
+  },
   "capabilities/tools.md": {
     "en": "Built-in tools",
     "zh": "内置工具"
@@ -466,6 +470,10 @@
   "reference/design/integrations/web-use.html": {
     "en": "Web automation",
     "zh": "网页自动化"
+  },
+  "reference/design/integrations/computer-and-browser-use.md": {
+    "en": "Computer and browser use",
+    "zh": "操控电脑与浏览器"
   },
   "reference/design/memory/README.md": {
     "en": "Reading guide",

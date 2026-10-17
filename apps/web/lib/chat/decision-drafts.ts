@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 export type DecisionAnswer =
   | { picked: Set<string>; custom: string }
-  | { pick: "once" | "always" | "always_path" | "deny" | null }
+  | { pick: "once" | "session" | "always" | "always_path" | "deny" | null }
   | { fields: Record<string, string | number | boolean> };
 
 export interface DecisionDraft {
