@@ -15,17 +15,18 @@ their provider packages (e.g. ``openprogram.providers.openai_codex``).
 - **`_config_read.py`** — Raw, migration-free read of the ``providers`` section of
 - **`_provider_meta.py`** — Provider-level api/base_url from providers/<p>/provider.json
 - **`api_registry.py`** — API provider registration system
+- **`background_llm.py`** — A plain text-in/text-out callable on the last used model
 - **`budget.py`** — Budget enforcement for one provider request
 - **`cache_policy.py`** — Prompt-cache breakpoint policy
 - **`cache_spec.py`** — Load and query per-provider cache.json specs
 - **`callable_model.py`** — CallableModel
 - **`cli.py`** — OAuth login CLI for pi-ai
 - **`configuration.py`** — Shared provider configuration framework
-- **`default_llm.py`** — Build a plain text-in/text-out callable on the default agent's model
 - **`enabled_models.py`** — Runtime model registry
 - **`env_api_keys.py`** — Provider API-key resolution
 - **`fast.py`** — Route-aware Fast capabilities shared by UI projection and dispatch
 - **`initialization.py`** — Explicit, process-wide provider runtime initialization
+- **`last_used.py`** — The model the user ran last
 - **`local.py`** — Explicit local-server identity; unrelated cloud providers retain auth requirements
 - **`metadata.py`** — Provider-level metadata: display labels, env-var mappings, default
 - **`models.py`** — Model registry and utilities
