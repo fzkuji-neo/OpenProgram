@@ -176,3 +176,17 @@ def test_settings_validate_the_vm_url():
     spec = next(item for item in SETTINGS if item.key == "computer_use.vm_url")
     assert spec.validate("") is None and spec.validate("http://10.0.0.2:5000") is None
     assert spec.validate("10.0.0.2:5000") and json.dumps(spec.default) == '""'
+
+
+def test_the_guides_ship_in_the_wheel():
+    import fnmatch
+    import tomllib
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[4]
+    patterns = tomllib.loads((root / "pyproject.toml").read_text())["tool"]["setuptools"]["package-data"]["openprogram"]
+    guides = sorted((root / "openprogram/programs/tools/system/computer_use_agent/guides").glob("*.md"))
+    assert guides
+    for path in guides:
+        rel = path.relative_to(root / "openprogram").as_posix()
+        assert any(fnmatch.fnmatch(rel, pattern) for pattern in patterns), rel
