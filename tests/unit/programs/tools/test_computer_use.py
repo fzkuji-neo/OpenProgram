@@ -179,6 +179,8 @@ def test_touching_outlines_merge_into_one_control_and_text_or_odd_sizes_are_drop
                                            ocr.TextBox("前", 300, 100, 40, 40)], scale=2.0)  # a misread icon
     assert shapes == [ocr.Shape(100, 100, 42, 30), ocr.Shape(300, 100, 40, 40)]
     assert ocr.render_shapes(shapes).splitlines() == ["(121, 115), 42x30", "(320, 120), 40x40"]
+    corners = [(0, 0, 36, 36), (1964, 1064, 36, 36), (900, 500, 40, 40)]   # two window corners and an icon
+    assert ocr.shapes_from_boxes(corners, [], scale=2.0, size=(2000, 1100)) == [ocr.Shape(900, 500, 40, 40)]
     many = [ocr.Shape(n * 40, 0, 20, 20) for n in range(ocr.MAX_SHAPES + 2)]
     assert ocr.render_shapes(many).splitlines()[-1].startswith("…and 2 more")
 
