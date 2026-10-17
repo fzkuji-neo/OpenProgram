@@ -175,3 +175,15 @@ test('the line diff finds the changed lines and falls back to plain counts above
   const result = lineDiff(big, bigger);
   assert.equal(result.removed, LINE_DIFF_CAP + 1);
 });
+
+test('public computer_use calls read as operating the app; the GUI Agent capability stays a GUI call', () => {
+  const calls = [
+    tool('computer_use', { action: 'get_app_state', app: 'Calculator' }),
+    tool('computer_use', { action: 'click', app: 'Calculator', element_index: 20 }),
+  ];
+  assert.equal(summarizeToolGroup(calls, { text: en }).label, 'Operated Calculator');
+  assert.equal(summarizeToolGroup(calls, { text: zh }).label, '操作了 Calculator');
+  const two = [...calls, tool('computer_use', { action: 'get_app_state', app: 'Notes' })];
+  assert.equal(summarizeToolGroup(two, { text: en }).label, 'Operated 2 apps');
+  assert.equal(summarizeToolGroup([tool('computer_use', { task: 'inspect', app_name: 'TextEdit' })], { text: en }).label, 'Ran a GUI call');
+});
