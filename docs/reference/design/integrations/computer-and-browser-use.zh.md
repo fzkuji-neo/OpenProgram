@@ -138,7 +138,7 @@ Codex 用 `start_audio_recording` / `stop_audio_recording` 录电脑声音（默
 - Playwright MCP 用原生的 `browser_click` 选项、`browser_drag`、`browser_mouse_drag_xy`、双轴的 `browser_mouse_wheel` 和 `browser_navigate_back`；Chrome DevTools MCP 用 `click(dblClick)`、`drag` 和 `navigate_page(back|forward|reload)`。后端做不到的选项在发送任何东西之前抛出 `unsupported_option`，而不是退而执行一个更弱的动作。
 - `paste` 派发一个携带 `DataTransfer` 的 `ClipboardEvent`；页面不处理时，用 `insertHTML`（富文本编辑器，`md`/`html`）或 `insertText` 插入。系统剪贴板从不被触碰。
 
-标签页对应已有命令：`list_pages` 即 `listTabs`，从它拿到的 Page 别名即 `getTab`，带 `url` 的 `observe` 会打开一个隐藏的后台标签页（即隐藏的 `createBrowserTab`），除非已绑定的 Page 正显示同一来源；`close` 结束会话。相对 Codex 仍缺：打开会抢焦点的可见标签页、以 diff 形式观察。可见标签页会挪走用户的焦点，而后台操作正是要避免这一点。一次观察最多 120 个可见元素，ref 只属于它所在的那一帧，过期 ref 正是靠这一点被拒绝；diff 省不了多少，还需要跨帧存活的 ref，所以观察保持完整返回。
+标签页对应已有命令：`list_pages` 即 `listTabs`，从它拿到的 Page 别名即 `getTab`，带 `url` 的 `observe` 会打开一个隐藏的后台标签页（即隐藏的 `createBrowserTab`），除非已绑定的 Page 正显示同一来源；`close` 结束会话。带 `visible: true` 的 `observe` 在前台打开标签页；它会挪走用户的焦点，所以 schema 只允许在用户要求看着操作时使用。带 `changes_only: true` 的 `observe`（`observe_diff.py`）就是 diff 形式：它按角色、名字、标签、值、禁用状态和输入类型，把新一帧与同一 URL 的上一次观察比较，完整列出新增和变化的元素，没变的元素各占一行并带上新 ref，省略没变的文字和 ARIA 快照，并列出消失的元素。每次观察仍为全部元素签发 ref，ref 只属于它所在的那一帧，过期 ref 正是靠这一点被拒绝；diff 只缩短展示的内容，没有 ref 需要跨帧存活。MCP 后端用自己的 ARIA 快照替换，元素里只列文件输入，所以这个选项对它们不适用。
 
 `evaluate` 能读到已登录页面持有的一切，包括观察结果里被脱敏的内容，所以它的门控放在权限策略里而不是工具里：`action`（顶层或嵌套）为 `evaluate` 的 `web_use` 调用由 `force_approval` 在任何模式下都询问，先于允许规则、bypass 和绑定页面授权；`one_shot_approval` 让卡片只有“本次”范围，从不保存规则，并完整展示参数。非交互来源直接拒绝。脚本在每个后端上都经由控制器运行，MCP 后端也一样，因为控制器持有同一个标签页及其字段的密码值：结果经过与观察相同的脱敏，并经过 `_mutated`，因此当前帧失效，下一步重新观察。表达式被包成 `() => (expr)`；脚本最多 8000 个字符，结果最多 20,000 个字符。
 
@@ -164,4 +164,5 @@ GUI Agent 工作流（`gui_agent`）、它的 grounding 流水线和能力 plann
 - `web_use` 已实现：上面对照表的每一行，三个后端都支持，并有在 Chromium 里运行页面脚本的测试，以及 `evaluate` 的逐次审批。
 - 已实现：为树稀疏的窗口提供 OCR 文字，并作为 `find` 的回退，附带一个经 Vision 识别渲染图像的测试。
 - 已实现：按应用录音，输出 WAV，并用语音引擎转写。
-- 未实现：`web_use` 的可见标签页和观察 diff；对接受音频的服务商把音频作为模型输入；把窗口从另一个桌面空间移过来；设置页、标注模式、区域截图和 `@` 提及；Windows 与 Linux 后端；对不带文字的图标和控件做目标检测。
+- 已实现：`web_use` 的可见标签页，以及原生后端上的 `changes_only` 观察。
+- 未实现：对接受音频的服务商把音频作为模型输入；把窗口从另一个桌面空间移过来；设置页、标注模式、区域截图和 `@` 提及；Windows 与 Linux 后端；对不带文字的图标和控件做目标检测。

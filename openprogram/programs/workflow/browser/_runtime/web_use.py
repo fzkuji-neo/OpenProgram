@@ -60,7 +60,8 @@ def _execute_web_use(
         and not state._has_usable_page(None, web_session_id, page_context_token)
         and not state._bound_page_shows_origin(context, url)
     ):
-        opened = surface_context.open_page(url, background=True)
+        # A tab opens behind the user's work unless they asked to watch it.
+        opened = surface_context.open_page(url, background=not bool(arguments.get("visible")))
         if "surfaces" not in opened:
             return state._open_page_error(opened)
         context = opened
@@ -242,7 +243,7 @@ def execute_direct_web_use(arguments: dict, *, owner_id: str):
     if command in {"observe", "act"} and url and not state._has_usable_page(
         None, web_session_id, page_context_token,
     ):
-        opened = surface_context.open_page(url, background=True)
+        opened = surface_context.open_page(url, background=not bool(nested.get("visible")))
         if "surfaces" not in opened:
             return state._open_page_error(opened)
         try:

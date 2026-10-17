@@ -264,8 +264,9 @@ class ControllerBackend:
         return session.controller
 
     def observe(self, session: WebUseSession, arguments: Mapping[str, Any], *, before_dispatch=None):
-        del arguments
-        return self._controller(session).execute(action="observe", **({"before_dispatch": before_dispatch} if before_dispatch is not None else {}))
+        return self._controller(session).execute(
+            action="observe", changes_only=bool(arguments.get("changes_only")),
+            **({"before_dispatch": before_dispatch} if before_dispatch is not None else {}))
 
     def act(self, session: WebUseSession, arguments: Mapping[str, Any], *, before_dispatch=None):
         return self._controller(session).execute(**dict(arguments), **({"before_dispatch": before_dispatch} if before_dispatch is not None else {}))

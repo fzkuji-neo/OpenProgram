@@ -92,7 +92,7 @@ computer_use(action="batch", app="Calculator", actions=[
 | `network_requests` | `pattern?`、`only_errors?`、`limit?` | 页面发出的请求及其方法、状态码和资源类型；URL 不带查询参数，也不含请求体 |
 | `evaluate` | `script` | 在页面里运行一个 JavaScript 表达式或函数（如 `() => document.title`），以 JSON 返回结果，最多 20,000 个字符；结果里的密码字段值会被脱敏 |
 
-App 浏览器里的页面全程留在后台：事件在页面内派发，标签页不会被激活。在 Playwright 和 Chrome DevTools MCP 后端上，后端做不到的选项（例如三击或按住按键）会在发送任何东西之前以 `unsupported_option` 失败。
+App 浏览器里的页面全程留在后台：事件在页面内派发，标签页不会被激活。带 `url` 的 `observe` 打开的标签页同样在你的工作后面；`visible: true` 则把它放到前台，用于你要求看着它操作的时候。`changes_only: true` 只完整列出相对同一页面上一次观察新增或变化的元素：没变的元素只占一行并带上新 ref，没变的页面文字和无障碍快照会省略，消失的元素会列出名字。ref 始终属于最新一次观察。在两个 MCP 后端上无障碍快照来自后端本身，所以 `changes_only` 在那里不起作用。在 Playwright 和 Chrome DevTools MCP 后端上，后端做不到的选项（例如三击或按住按键）会在发送任何东西之前以 `unsupported_option` 失败。
 
 脚本能读取和修改已登录页面持有的一切，所以每次 `evaluate` 调用都会先问你并展示完整脚本，任何权限模式下都如此，即使有规则允许 `web_use` 也一样。批准只覆盖这一次调用：它没有“总是允许”，无法询问的定时任务或频道轮次会被拒绝。
 
