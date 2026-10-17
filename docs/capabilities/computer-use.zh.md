@@ -84,8 +84,11 @@ computer_use(action="batch", app="Calculator", actions=[
 | `select_text` | `ref`、`text`、`prefix?`、`suffix?`、`selection_type?` | 选中元素里的文字，或把光标放到它前后 |
 | `press` | `key`、`ref?`、`duration?` | 不给 `ref` 时按键发给页面当前焦点；`duration` 是按住的秒数 |
 | `back` / `forward` / `reload` | — | 历史导航；无处可去时返回 `no_history` |
+| `evaluate` | `script` | 在页面里运行一个 JavaScript 表达式或函数（如 `() => document.title`），以 JSON 返回结果，最多 20,000 个字符；结果里的密码字段值会被脱敏 |
 
 App 浏览器里的页面全程留在后台：事件在页面内派发，标签页不会被激活。在 Playwright 和 Chrome DevTools MCP 后端上，后端做不到的选项（例如三击或按住按键）会在发送任何东西之前以 `unsupported_option` 失败。
+
+脚本能读取和修改已登录页面持有的一切，所以每次 `evaluate` 调用都会先问你并展示完整脚本，任何权限模式下都如此，即使有规则允许 `web_use` 也一样。批准只覆盖这一次调用：它没有“总是允许”，无法询问的定时任务或频道轮次会被拒绝。
 
 ## 审批
 

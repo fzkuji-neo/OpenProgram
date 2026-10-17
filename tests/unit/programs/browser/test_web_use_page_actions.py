@@ -183,3 +183,85 @@ def test_select_text_spans_inline_elements_and_honours_prefix(fresh):
     assert fresh.evaluate("[field.selectionStart, field.selectionEnd]") == [8, 8]
     assert field.evaluate(pa.SELECT_TEXT_SCRIPT, {"text": "zzz", "prefix": "", "suffix": "", "kind": "text"}) == {
         "ok": False, "reason_code": "text_not_found"}
+
+
+# ----------------------------------------------------------------- evaluate
+
+@pytest.mark.parametrize("script, source", [
+    ("document.title", "() => (document.title)"),
+    ("({a: 1})", "() => (({a: 1}))"),
+    ("() => location.href", "() => location.href"),
+    ("async () => 2", "async () => 2"),
+    ("function () { return 3 }", "function () { return 3 }"),
+])
+def test_evaluate_takes_an_expression_or_a_function(script, source):
+    assert pa.evaluate_source({"script": script}) == source
+
+
+def test_evaluate_needs_a_bounded_script_and_bounds_its_result():
+    for script, code in (("", "script_required"), ("x" * (pa.MAX_SCRIPT_CHARS + 1), "script_too_long")):
+        with pytest.raises(pa.ActionError) as error:
+            pa.evaluate_source({"script": script})
+        assert error.value.reason_code == code
+    assert pa.evaluation_text({"k": "值"}) == '{"k": "值"}' and pa.evaluation_text(None) == "undefined"
+    assert pa.evaluation_text("x" * (pa.MAX_RESULT_CHARS + 5)).endswith("[truncated, 5 more characters]")
+
+
+def test_evaluate_is_in_the_schema_and_its_script_is_lifted():
+    act = web_use_parameters()["allOf"][0]["then"]["properties"]["arguments"]["properties"]
+    assert "evaluate" in act["action"]["enum"] and act["script"]["maxLength"] == pa.MAX_SCRIPT_CHARS
+    lifted = normalize_web_use_arguments({"command": "act", "action": "evaluate", "script": "1 + 1"})
+    assert lifted["arguments"] == {"action": "evaluate", "script": "1 + 1"}
+
+
+def test_mcp_backends_evaluate_through_the_controller_so_the_result_is_redacted():
+    adapter, session = _adapter("playwright_mcp")
+    calls = []
+
+    class Controller:
+        def execute(self, **kwargs):
+            calls.append(kwargs)
+            return {"ok": True, "result": "2"}
+
+    adapter._controller = lambda _session: Controller()
+    assert adapter.act(session, {"action": "evaluate", "script": "1 + 1", "expected_frame_id": "f1"}) == {
+        "ok": True, "result": "2"}
+    assert calls == [{"action": "evaluate", "expected_frame_id": "f1", "script": "1 + 1"}]
+
+
+@pytest.fixture
+def decide(monkeypatch):
+    """permission_decision for web_use with authority and recovery stubbed out."""
+    from openprogram.agent import authority
+    from openprogram.agent.permissions import policy, recovery
+    from openprogram.programs._runtime import get
+
+    monkeypatch.setattr(policy, "_hard_constraint_violation", lambda *a, **k: None)
+    monkeypatch.setattr(authority, "decide_tool_authority",
+                        lambda *a, **k: SimpleNamespace(allowed=True, reason_code="", capability=""))
+    monkeypatch.setattr(recovery, "approval_context", lambda *a, **k: None)
+    agent_tool = get("web_use")
+
+    def run(args, *, mode="bypass", allow=(), source="web"):
+        rules = SimpleNamespace(allow=list(allow), ask=[], deny=[])
+        req = SimpleNamespace(permission_mode=mode, permission_rules=rules, session_id="s-test",
+                              source=source, surface_context=None)
+        return policy.permission_decision(agent_tool, req, args)[:2]
+    return run
+
+
+@pytest.mark.parametrize("args", [
+    {"command": "act", "arguments": {"action": "evaluate", "script": "document.cookie"}},
+    {"command": "act", "action": "Evaluate", "script": "document.cookie"},
+])
+def test_every_evaluate_asks_even_in_bypass_mode_with_an_allow_rule(decide, args):
+    assert decide(args, allow=["web_use"]) == ("ask", "MANDATORY_APPROVAL")
+    assert decide(args, source="cron")[0] == "deny"
+    assert decide({"command": "act", "arguments": {"action": "click", "ref": "e1"}}, allow=["web_use"])[0] == "allow"
+
+
+def test_an_evaluate_approval_covers_that_call_only():
+    from openprogram.agent.permissions.policy import one_shot_approval
+    assert one_shot_approval("web_use", {"command": "act", "arguments": {"action": "evaluate"}})
+    assert not one_shot_approval("web_use", {"command": "act", "arguments": {"action": "click"}})
+    assert one_shot_approval("self_update_prepare", {})

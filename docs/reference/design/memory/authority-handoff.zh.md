@@ -41,7 +41,7 @@
 安装的 agentic 函数和挂载的 MCP 工具可以叫任何名字；把未分类的名字当作可执行代码处理，
 意味着 `paired` 发言人够不到它，因为只有 `owner` 持有 `process.exec`。
 
-门口位于 `_gated_execute` 中规则层**之前**、`_FORCE_APPROVAL_TOOLS` 之前、
+门口位于 `_gated_execute` 中规则层**之前**、强制审批（`force_approval`）之前、
 `bypass` 短路之前，所以任何 permission mode 和任何持久化的 allow 规则都跳不过它。
 每次判定返回一条 `AuthorityDecision` 记录 —— 是否放行、决定性检查、稳定原因码、档位、能力 ——
 并写进日志，所以一次拒绝是可审计的，而不是一个裸布尔值。

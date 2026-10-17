@@ -16,8 +16,8 @@ from typing import Callable
 from .file_state import capture as capture_file_state
 
 from .policy import (
-    _ONE_SHOT_FORCE_APPROVAL_TOOLS, _RISKY_TOOLS,
-    _hard_constraint_violation, permission_decision,
+    _RISKY_TOOLS,
+    _hard_constraint_violation, one_shot_approval, permission_decision,
 )
 
 EventCallback = Callable[[dict], None]
@@ -148,7 +148,7 @@ def wrap_with_approval(
         import os
         from openprogram.programs.permission_rule import exact_rule_for_call
         scopes = ["once"]
-        if reason not in {"AUTO_REFUSAL_FALLBACK", "RECOVERY_EFFECT_UNCERTAIN"} and name not in _ONE_SHOT_FORCE_APPROVAL_TOOLS and exact_rule_for_call(name, args) is not None:
+        if reason not in {"AUTO_REFUSAL_FALLBACK", "RECOVERY_EFFECT_UNCERTAIN"} and not one_shot_approval(name, args) and exact_rule_for_call(name, args) is not None:
             if name in _SESSION_SCOPE_TOOLS:
                 scopes.append("session")
             scopes.append("always")
@@ -360,7 +360,7 @@ def wrap_with_approval(
         if recovery and scope != "once":
             return _denied("[denied] uncertain operations require one-shot approval", "RECOVERY_APPROVAL_SCOPE")
         approved_recovery = recovery
-        if scope == "always" and not recovery and name not in _ONE_SHOT_FORCE_APPROVAL_TOOLS:
+        if scope == "always" and not recovery and not one_shot_approval(name, args):
             if not _persist_always_allow_rule(req.session_id, name, args):
                 return _denied("[denied] could not save the project approval rule; operation was not executed", "APPROVAL_RULE_SAVE_FAILED")
         if scope == "session" and not recovery and name in _SESSION_SCOPE_TOOLS:
@@ -444,7 +444,7 @@ def _approval_detail(tool_name: str, args: dict) -> str:
         body = json.dumps(args, ensure_ascii=False, indent=2) if args else ""
     except Exception:
         body = str(args)
-    if len(body) > 2000 and tool_name not in _ONE_SHOT_FORCE_APPROVAL_TOOLS:
+    if len(body) > 2000 and not one_shot_approval(tool_name, args):
         body = body[:1200] + "\n…（已截断）…\n" + body[-600:]
     return f"{tool_name}\n{body}".rstrip()
 

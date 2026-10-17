@@ -49,7 +49,7 @@ tool can carry any name; treating an unclassified name as executable code means
 a `paired` speaker cannot reach it, because only `owner` holds `process.exec`.
 
 The gate sits in `_gated_execute` **before** the rule layer, before
-`_FORCE_APPROVAL_TOOLS` and before the `bypass` short-circuit, so no permission
+the forced approvals (`force_approval`) and before the `bypass` short-circuit, so no permission
 mode and no persisted allow rule can skip it. Every decision returns an
 `AuthorityDecision` record — allowed, decisive check, stable reason code, tier,
 capability — which is logged, so a denial is auditable rather than a bare

@@ -17,6 +17,11 @@ MOUSE_BUTTONS = ("left", "right", "middle")
 DIRECTIONS = ("down", "up", "right", "left")
 PASTE_FORMATS = ("text", "md", "html")
 SELECTION_TYPES = ("text", "cursor_before", "cursor_after")
+# Arbitrary JavaScript reads everything a signed-in page holds, so it is
+# approved per call and never by a standing rule (see permissions.policy).
+EVALUATE_ACTION = "evaluate"
+MAX_SCRIPT_CHARS = 8000
+MAX_RESULT_CHARS = 20_000
 MAX_HOLD_SECONDS = 10.0
 
 _MODIFIERS = {
@@ -122,6 +127,37 @@ def selection_request(arguments: dict[str, Any]) -> dict[str, str]:
         raise ActionError("invalid_selection_type", "selection_type must be text, cursor_before or cursor_after")
     return {"text": text, "prefix": str(arguments.get("prefix") or ""),
             "suffix": str(arguments.get("suffix") or ""), "kind": kind}
+
+
+_FUNCTION_START = None
+
+
+def evaluate_source(arguments: dict[str, Any]) -> str:
+    """``script`` as a function the page can call: a function stays one, an expression is wrapped."""
+    import re
+    global _FUNCTION_START
+    script = arguments.get("script")
+    if not isinstance(script, str) or not script.strip():
+        raise ActionError("script_required", "evaluate needs script: an expression or a function such as () => document.title")
+    script = script.strip()
+    if len(script) > MAX_SCRIPT_CHARS:
+        raise ActionError("script_too_long", f"script is limited to {MAX_SCRIPT_CHARS} characters")
+    if _FUNCTION_START is None:
+        _FUNCTION_START = re.compile(r"^(async\s+)?(function\b|\([^()]*\)\s*=>|[A-Za-z_$][\w$]*\s*=>)")
+    return script if _FUNCTION_START.match(script) else f"() => ({script})"
+
+
+def evaluation_text(result: Any) -> str:
+    """The script's result as JSON text, cut at MAX_RESULT_CHARS."""
+    if result is None:
+        text = "undefined"
+    elif isinstance(result, str):
+        text = result
+    else:
+        text = json.dumps(result, ensure_ascii=False, default=str)
+    if len(text) > MAX_RESULT_CHARS:
+        text = text[:MAX_RESULT_CHARS] + f"\n[truncated, {len(text) - MAX_RESULT_CHARS} more characters]"
+    return text
 
 
 def _strip_tags(html: str) -> str:
@@ -278,7 +314,8 @@ def bound_call(script: str, options: dict[str, Any], *, with_element: bool = Tru
 
 
 __all__ = [
-    "ActionError", "INSERT_TEXT_SCRIPT", "PARITY_ACTIONS", "PASTE_SCRIPT", "POINTER_SCRIPT",
-    "SCROLL_SCRIPT", "SELECT_TEXT_SCRIPT", "bound_call", "click_options", "hold_seconds",
+    "ActionError", "EVALUATE_ACTION", "INSERT_TEXT_SCRIPT", "MAX_RESULT_CHARS", "MAX_SCRIPT_CHARS", "PARITY_ACTIONS", "PASTE_SCRIPT", "POINTER_SCRIPT",
+    "SCROLL_SCRIPT", "SELECT_TEXT_SCRIPT", "bound_call", "click_options", "evaluate_source", "evaluation_text",
+    "hold_seconds",
     "is_plain_click", "modifiers", "paste_payload", "scroll_delta", "selection_request",
 ]

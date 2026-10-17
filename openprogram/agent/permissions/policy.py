@@ -12,6 +12,31 @@ _FORCE_APPROVAL_TOOLS = {"exit_plan_mode", "self_update_prepare", "self_update_r
 # These approvals bind one exact request and must never become a project-wide
 # allow rule. A later candidate always needs its own owner decision.
 _ONE_SHOT_FORCE_APPROVAL_TOOLS = {"self_update_prepare", "self_update_retry"}
+
+
+def _web_use_evaluates(args: dict | None) -> bool:
+    """A web_use call that runs arbitrary JavaScript in a page, in any argument spelling."""
+    if not isinstance(args, dict):
+        return False
+    nested = args.get("arguments") if isinstance(args.get("arguments"), dict) else {}
+    return any(str(value or "").strip().lower() == "evaluate"
+               for value in (args.get("action"), nested.get("action")))
+
+
+def force_approval(name: str, args: dict | None) -> bool:
+    """Calls that ask in every mode, whatever the rules say."""
+    return name in _FORCE_APPROVAL_TOOLS or (name == "web_use" and _web_use_evaluates(args))
+
+
+def one_shot_approval(name: str, args: dict | None) -> bool:
+    """Calls whose approval covers this request only and never becomes an allow rule.
+
+    A page script reads everything a signed-in page holds, including what
+    observations redact, so each one is shown to the user and approved alone.
+    """
+    return name in _ONE_SHOT_FORCE_APPROVAL_TOOLS or (name == "web_use" and _web_use_evaluates(args))
+
+
 # Desktop control is granted per application: in every permission mode the
 # first touch of an app asks until an allow rule (this conversation or the
 # project) names it. Calls the tool marks approval-free (list_apps) skip this.
@@ -226,7 +251,7 @@ def permission_decision(agent_tool, req, args: dict) -> tuple[str, str, str, obj
         return "deny", "RECOVERY_STATE_UNAVAILABLE", "cannot verify unresolved prior operations", None
     if recovery:
         reason = "RECOVERY_EFFECT_UNCERTAIN"
-    elif verdict == "ask" or name in _FORCE_APPROVAL_TOOLS:
+    elif verdict == "ask" or force_approval(name, args):
         reason = "PERMISSION_RULE_ASK" if verdict == "ask" else "MANDATORY_APPROVAL"
     elif name in _APP_GRANT_TOOLS and verdict != "allow" and _app_grant_needed(agent_tool, args):
         reason = "APP_GRANT_REQUIRED"

@@ -121,6 +121,7 @@ Against the Codex target API, `web_use` now covers:
 | Select text or place the cursor | `selectText` | `select_text` |
 | Key with duration, key without a target | `pressKey(key, {durationMs})` | `press` with `duration`, `ref` optional |
 | Back / forward / reload | tab methods | `back`, `forward`, `reload` |
+| Run JavaScript in the page | `evaluate` | `evaluate` with `script`, approved per call |
 
 The argument names are `computer_use`'s (`mouse_button`, `click_count`, `direction`, `format`, `prefix`, `suffix`, `selection_type`, `duration`), so the two tools read alike; only the held keys of a click are `modifiers`, because `key` already names the key of `press`.
 
@@ -131,7 +132,9 @@ The argument names are `computer_use`'s (`mouse_button`, `click_count`, `directi
 - Playwright MCP uses its native `browser_click` options, `browser_drag`, `browser_mouse_drag_xy`, `browser_mouse_wheel` with both axes and `browser_navigate_back`; Chrome DevTools MCP uses `click(dblClick)`, `drag`, and `navigate_page(back|forward|reload)`. An option a backend cannot perform raises `unsupported_option` before anything is sent, rather than performing a weaker action.
 - `paste` dispatches a `ClipboardEvent` carrying a `DataTransfer`; when the page does not handle it, the text is inserted with `insertHTML` (rich editors, `md`/`html`) or `insertText`. The system clipboard is never touched.
 
-Tabs map onto existing commands: `list_pages` is `listTabs`, a Page alias from it is `getTab`, `observe` with a `url` opens a hidden background tab (`createBrowserTab` hidden) unless a bound Page already shows that origin, and `close` ends the session. Still missing against Codex: opening a visible tab that takes focus, observation as a diff, and gated JavaScript `evaluate`. A visible tab would move the user's focus, which background operation deliberately avoids. An observation is capped at 120 visible elements and its refs belong to one frame, which is how a stale ref is refused; a diff would save little and would need refs that outlive their frame, so observations stay whole. Arbitrary evaluation reads everything a signed-in page holds, including what the observation redacts, so it is left out until it can carry its own per-call approval.
+Tabs map onto existing commands: `list_pages` is `listTabs`, a Page alias from it is `getTab`, `observe` with a `url` opens a hidden background tab (`createBrowserTab` hidden) unless a bound Page already shows that origin, and `close` ends the session. Still missing against Codex: opening a visible tab that takes focus, and observation as a diff. A visible tab would move the user's focus, which background operation deliberately avoids. An observation is capped at 120 visible elements and its refs belong to one frame, which is how a stale ref is refused; a diff would save little and would need refs that outlive their frame, so observations stay whole.
+
+`evaluate` reads everything a signed-in page holds, including what observations redact, so it is gated in the permission policy rather than by the tool: `force_approval` makes a `web_use` call whose `action` (top-level or nested) is `evaluate` ask in every mode, before allow rules, bypass and the bound-surface grant are consulted, and `one_shot_approval` keeps the card to the "once" scope, never saves a rule, and shows the arguments untruncated. Non-interactive sources are refused. The script runs through the controller on every backend, the MCP ones included, because the controller holds the same tab and the password values of its fields: the result passes through the same redaction as an observation and through `_mutated`, so the frame is invalidated and the next step observes again. An expression is wrapped as `() => (expr)`; scripts are capped at 8000 characters and results at 20,000.
 
 ## Interface work
 
@@ -150,6 +153,6 @@ The GUI Agent workflow (`gui_agent`), its grounding pipeline and its capability 
 ## Implementation status
 
 - Implemented: `computer_use` on macOS with the reading, acting and batch actions above, stable indices, adaptive settling, background pointer and keyboard delivery, tree diffs, per-app approval with the four scopes, system-access gating, web presentation, unit tests for keys, tree numbering, menu matching, batch, rules and approval wiring.
-- Implemented for `web_use`: every row of the parity table above, on all three backends, with tests that run the page scripts in Chromium.
+- Implemented for `web_use`: every row of the parity table above, on all three backends, with tests that run the page scripts in Chromium, and the per-call approval of `evaluate`.
 - Implemented: OCR text for windows with a sparse tree and as the `find` fallback, with a test that reads a rendered image through Vision.
-- Not implemented: `web_use` visible tabs, observation diffs and gated evaluation; computer audio recording; moving a window from another Space; the settings page, annotation mode, region screenshot and `@`-mentions; Windows and Linux backends; object detection for icons and controls that carry no text.
+- Not implemented: `web_use` visible tabs and observation diffs; computer audio recording; moving a window from another Space; the settings page, annotation mode, region screenshot and `@`-mentions; Windows and Linux backends; object detection for icons and controls that carry no text.

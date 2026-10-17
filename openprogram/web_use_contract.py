@@ -36,6 +36,7 @@ _ACTION_FIELD_NAMES = (
     "suffix",
     "selection_type",
     "duration",
+    "script",
 )
 _VERIFY_LIFT_FIELDS = (
     "ref",
@@ -78,6 +79,7 @@ _ACT_ACTION_ENUM = (
     "back",
     "forward",
     "reload",
+    "evaluate",
 )
 
 
@@ -139,6 +141,14 @@ def _action_properties() -> dict[str, Any]:
         "suffix": {"type": "string", "description": "select_text: text that must follow the match."},
         "selection_type": {"type": "string", "enum": ["text", "cursor_before", "cursor_after"], "description": "select_text: select the text or place the caret."},
         "duration": {"type": "number", "minimum": 0, "maximum": 10, "description": "press: seconds to hold the key."},
+        "script": {
+            "type": "string",
+            "maxLength": 8000,
+            "description": (
+                "evaluate: a JavaScript expression or function, e.g. () => document.title. "
+                "The user approves every evaluate call; prefer observe and the other actions."
+            ),
+        },
     }
 
 
