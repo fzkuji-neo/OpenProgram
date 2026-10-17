@@ -141,6 +141,14 @@ def _frameworks_cached():
     return _Frameworks.get()
 
 
+def _appkit():
+    """AppKit alone, for finding applications: that needs no Accessibility grant."""
+    state = support()
+    if not state["available"]:
+        raise ComputerUseError(state["reason"])
+    return _Frameworks.get()[0]
+
+
 @dataclass
 class WindowState:
     """What the model last saw of one application window."""
@@ -177,6 +185,7 @@ class MacComputer:
     def __init__(self) -> None:
         self._states: dict[tuple[str, int], WindowState] = {}
         self._lock = threading.RLock()
+        self._icons: dict[str, str] = {}
 
     # ------------------------------------------------------------------ AX helpers
     def _attr(self, element, name):
@@ -253,7 +262,7 @@ class MacComputer:
         return running
 
     def _installed(self) -> list[dict[str, str]]:
-        appkit, _, _, _ = _frameworks()
+        appkit = _appkit()
         manager = appkit.NSFileManager.defaultManager()
         seen, rows = set(), []
         for directory in APP_DIRECTORIES:
@@ -301,7 +310,7 @@ class MacComputer:
         return "\n".join(lines)
 
     def _running_match(self, query: str):
-        appkit, _, _, _ = _frameworks()
+        appkit = _appkit()
         q = query.strip().lower()
         pid = int(q[4:]) if q.startswith("pid:") and q[4:].isdigit() else None
         for app in appkit.NSWorkspace.sharedWorkspace().runningApplications():
@@ -352,7 +361,7 @@ class MacComputer:
     def _installed_match(self, query: str) -> dict[str, str] | None:
         q = query.strip().lower()
         if q.endswith(".app") and os.path.isdir(query):
-            appkit, _, _, _ = _frameworks()
+            appkit = _appkit()
             bundle = appkit.NSBundle.bundleWithPath_(query)
             if bundle and bundle.bundleIdentifier():
                 return {"bundle_id": str(bundle.bundleIdentifier()), "display_name": Path(query).stem, "path": query}
@@ -360,6 +369,52 @@ class MacComputer:
             if q in {row["bundle_id"].lower(), row["name"].lower(), row["display_name"].lower(), row["path"].lower()}:
                 return row
         return None
+
+    def app_info(self, query: str) -> dict[str, Any]:
+        """What the interface shows for an app a rule or an approval names: its own
+        display name, bundle id and icon. Never launches anything."""
+        info: dict[str, Any] = {"query": query, "name": query, "bundle_id": "", "icon": "",
+                                "installed": False, "running": False, "refused": False}
+        if not isinstance(query, str) or not query.strip():
+            return info
+        appkit = _appkit()
+        running = self._running_match(query)
+        if running is not None:
+            path = str(running.bundleURL().path()) if running.bundleURL() else ""
+            bundle_id = str(running.bundleIdentifier() or "")
+            info.update(running=True, installed=True)
+        else:
+            row = self._installed_match(query)
+            if row is None:
+                return info
+            path, bundle_id = row.get("path", ""), row["bundle_id"]
+            info["installed"] = True
+        name = str(appkit.NSFileManager.defaultManager().displayNameAtPath_(path) or "") if path else ""
+        info.update(name=(name[:-4] if name.endswith(".app") else name) or query, bundle_id=bundle_id,
+                    refused=bundle_id.lower() in REFUSED_BUNDLES, icon=self._icon(path) if path else "")
+        return info
+
+    def _icon(self, path: str, size: int = 64) -> str:
+        """The app's icon as a PNG data URL, cached per bundle path."""
+        cached = self._icons.get(path)
+        if cached is not None:
+            return cached
+        import base64
+        appkit = _appkit()
+        image = appkit.NSWorkspace.sharedWorkspace().iconForFile_(path)
+        rep = appkit.NSBitmapImageRep.alloc().initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bytesPerRow_bitsPerPixel_(
+            None, size, size, 8, 4, True, False, appkit.NSDeviceRGBColorSpace, 0, 0)
+        appkit.NSGraphicsContext.saveGraphicsState()
+        try:
+            appkit.NSGraphicsContext.setCurrentContext_(appkit.NSGraphicsContext.graphicsContextWithBitmapImageRep_(rep))
+            image.drawInRect_fromRect_operation_fraction_(
+                ((0, 0), (size, size)), ((0, 0), (0, 0)), appkit.NSCompositingOperationCopy, 1.0)
+        finally:
+            appkit.NSGraphicsContext.restoreGraphicsState()
+        data = rep.representationUsingType_properties_(appkit.NSBitmapImageFileTypePNG, {})
+        url = "data:image/png;base64," + base64.b64encode(bytes(data)).decode() if data else ""
+        self._icons[path] = url
+        return url
 
     def _refuse(self, bundle_id: str, name: str) -> None:
         if bundle_id.lower() in REFUSED_BUNDLES:

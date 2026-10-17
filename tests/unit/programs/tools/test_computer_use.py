@@ -336,3 +336,39 @@ def test_every_action_but_list_apps_needs_an_app(fake):
     fake()
     result = tool.computer_use(action="list_windows")
     assert result.is_error and "list_windows needs app" in result.text
+
+
+# ----------------------------------------------------------------- app lookup for the interface
+
+def _ws_reply(cmd):
+    import asyncio
+    import json as _json
+    from openprogram.webui.ws_actions import session
+
+    sent = []
+
+    class _WS:
+        async def send_text(self, text):
+            sent.append(_json.loads(text))
+
+    asyncio.run(session.handle_computer_use_apps(_WS(), cmd))
+    return sent[0]
+
+
+def test_app_lookup_dedupes_names_and_launches_nothing(monkeypatch):
+    seen = []
+
+    class _Lookup:
+        def app_info(self, query):
+            seen.append(query)
+            return {"query": query, "name": query.title(), "bundle_id": f"com.example.{query}", "icon": ""}
+
+    monkeypatch.setattr(macos, "backend", lambda: _Lookup())
+    reply = _ws_reply({"apps": ["notes", " notes ", "mail"], "request_id": "r1"})
+    assert reply["type"] == "computer_use_apps" and reply["data"]["request_id"] == "r1"
+    assert [app["name"] for app in reply["data"]["apps"]] == ["Notes", "Mail"] and seen == ["notes", "mail"]
+
+
+def test_app_lookup_rejects_anything_but_a_short_list_of_names():
+    assert _ws_reply({"apps": "notes"})["data"]["status"] == "error"
+    assert _ws_reply({"apps": ["x"] * 51})["data"]["status"] == "error"
