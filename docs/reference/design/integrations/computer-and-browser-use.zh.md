@@ -15,6 +15,19 @@ OpenProgram 取 Codex 的形态、Claude App 的词汇：
 - **一切在后台。**经 Accessibility API 的元素动作和路由到进程的指针事件不移动用户的光标、不改 key window、不把窗口提到前面。像 Claude App 那样的前台"完全控制"档位有意不做：后台通道已经覆盖了坐标点击、拖拽和滚轮。
 - **按应用审批。**用户心里的单位是"能不能碰备忘录"，不是"能不能点击"。规则是 `computer_use(<app>)`，可以授予一次、授予本对话或授予本项目。
 
+Claude App 各组工具在这里的对应：
+
+| Claude App | OpenProgram |
+|---|---|
+| 列应用和窗口、截图、放大 | `list_apps`、`list_windows`、`get_app_state`、`zoom` |
+| 点击（双击、三击、右键、带修饰键）、输入、按键、按住键 | `click`（`click_count`、`mouse_button`、`key`、`duration`）、`type_text`、`press_key`（`duration`） |
+| 滚动、拖拽、悬停、等待 | `scroll`、`drag`、`hover`、`wait` |
+| 菜单、AX 查找、聚焦、批量 | `menu`、`find`（带 OCR 回退）、`focus`、`batch` |
+| 申请 / 释放一个应用 | 按应用的审批卡片和 `computer_use(<app>)` 规则；没有占用，所以不需要释放 |
+| 显示器级完全控制（真实指针和键盘） | 有意不做：后台投递已覆盖坐标输入；在 Linux 上以及 Windows 的组合键，窗口只在这一步切到前台，审批卡片会说明 |
+| 浏览器工具 | `web_use` |
+| 虚拟机用的 `framebuffer_*` | 不做：虚拟机的窗口就是普通应用窗口，靠截图和 OCR 读取、按坐标操作 |
+
 ## `computer_use`
 
 ### 形态
