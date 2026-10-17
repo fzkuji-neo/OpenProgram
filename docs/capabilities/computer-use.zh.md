@@ -54,6 +54,8 @@ computer_use(action="click", app="Calculator", element_index=18)
 | `menu` | `app`、`menu_path?` | 不给路径时列出菜单栏。给出 `["View", "Scientific"]` 这样的路径时，列出那个菜单（带快捷键、勾选和禁用项），或选中末端菜单项。标题匹配不分大小写，末尾的 `…` 可省略；屏幕上不会弹出菜单 |
 | `show_window` | `app`、`window?` 或 `window_id?` | 恢复最小化的窗口或取消隐藏应用，不把它带到前台 |
 | `batch` | `app`、`actions` | 至多 20 个上面的执行类步骤，按顺序作用于同一个应用；遇到第一个错误即停止，最后只返回一次状态 |
+| `start_audio_recording` | `app`、`max_duration?` | 录下该应用播放的声音，最长 `max_duration` 秒（默认 60，最多 300）。只录这个应用，你照常听得到；录音期间可以继续执行其他动作 |
+| `stop_audio_recording` | `app`、`transcribe?` | 停止录音，保存 16 kHz WAV 并返回路径；在设置 → 语音里配置了语音引擎时还返回转写文字 |
 
 `app` 是 `list_apps` 打印的名称、bundle id 或 `.app` 路径。`x`、`y` 是该应用最近一张截图上的像素，不是屏幕坐标。
 
@@ -105,6 +107,10 @@ App 浏览器里的页面全程留在后台：事件在页面内派发，标签�
 
 - macOS。Windows 和 Linux 暂不支持。
 - 签名的运行时（`ai.openprogram.runtime`）必须持有**辅助功能**和**屏幕录制**权限。工具会报告缺哪一项，设置 → 系统访问可以发起请求。[权限](permissions.zh.md)描述了运行时的 macOS 授权方式。
+
+## 录音
+
+录音使用截图本来就需要的屏幕录制权限，只采集所指定应用自己的输出：其他应用、麦克风和系统提示音都不在里面。录音保存在 `~/.openprogram/computer-use/audio/`，保留最新的 20 个。`stop_audio_recording` 用设置 → 语音里选的引擎转写：whisper.cpp 让声音留在本机，OpenAI 和 Groq 引擎则会把声音发给对应的服务商。传 `transcribe=false` 只保留文件。静音的录音会如实报告，不做转写。
 
 ## 工具拒绝做的事
 

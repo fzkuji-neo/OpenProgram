@@ -475,3 +475,68 @@ def test_app_lookup_rejects_anything_but_a_short_list_of_names():
     assert _ws_reply({"apps": "notes"})["data"]["status"] == "error"
     assert _ws_reply({"apps": ["x"] * 51})["data"]["status"] == "error"
 
+
+# ----------------------------------------------------------------- audio
+
+def test_recording_limits_default_to_a_minute_and_stop_at_five():
+    from openprogram.computer_use import audio
+    assert audio.seconds(None) == 60 and audio.seconds("12.5") == 12.5
+    for bad in (0, -1, 301, "long"):
+        with pytest.raises(ValueError):
+            audio.seconds(bad)
+
+
+def test_float_samples_become_a_16_bit_mono_wav_with_their_peak():
+    import io
+    import wave
+    from array import array
+    from openprogram.computer_use import audio
+    data, peak = audio.wav(array("f", [0.0, 0.5, -1.5, 0.25]).tobytes())
+    clip = wave.open(io.BytesIO(data))
+    assert (clip.getnchannels(), clip.getsampwidth(), clip.getframerate(), clip.getnframes()) == (1, 2, 16000, 4)
+    assert array("h", clip.readframes(4)).tolist() == [0, 16383, -32767, 8191] and peak == 1.0
+
+
+def test_a_recording_keeps_samples_only_up_to_its_limit():
+    from openprogram.computer_use import audio
+    recording = audio.Recording(app="Music", pid=1, limit=1.0)
+    recording.take(b"\0" * 4 * 12_000)
+    recording.take(b"\0" * 4 * 12_000)
+    assert recording.frames == audio.SAMPLE_RATE and recording.seconds == 1.0
+
+
+def _clip(peak, tmp_path):
+    return macos.AudioClip(app="Music", path=tmp_path / "a.wav", data=b"RIFF", seconds=2.0, peak=peak)
+
+
+def test_a_stopped_recording_reports_its_file_and_transcript(monkeypatch, tmp_path):
+    from openprogram import voice
+    monkeypatch.setattr(voice, "transcribe", lambda data: {"text": " 你好 ", "engine": "local", "model": "m"})
+    text = tool._clip_text(_clip(0.3, tmp_path), transcribe=True)
+    assert text == f"Recorded 2 seconds of Music, saved to {tmp_path / 'a.wav'}.\nTranscript (local, m):\n你好"
+    assert "silent" in tool._clip_text(_clip(0.0, tmp_path), transcribe=True)
+    assert "Transcript" not in tool._clip_text(_clip(0.3, tmp_path), transcribe=False)
+
+    def broken(data):
+        raise voice.VoiceError("No speech engine is set up.")
+    monkeypatch.setattr(voice, "transcribe", broken)
+    assert tool._clip_text(_clip(0.3, tmp_path), transcribe=True).endswith("Not transcribed: No speech engine is set up.")
+
+
+def test_audio_actions_reach_the_backend_without_a_state_read(fake):
+    computer = fake()
+    started = []
+    computer.start_audio = lambda session, app, limit: started.append((app, limit)) or macos.Report("Recording Music")
+    assert tool.computer_use(action="start_audio_recording", app="Music", max_duration=30).text == "Recording Music"
+    assert started == [("Music", 30)] and computer.settled == 0
+    assert tool.computer_use(action="stop_audio_recording").is_error  # the approval names the app
+    assert tool.requires_approval(action="start_audio_recording", app="Music") == "computer_use controls music"
+
+
+def test_recordings_are_saved_under_the_state_directory_and_pruned(monkeypatch, tmp_path):
+    import openprogram.paths as paths
+    monkeypatch.setattr(paths, "get_state_dir", lambda: tmp_path)
+    monkeypatch.setattr(macos, "KEEP_RECORDINGS", 2)
+    saved = [macos._save_recording("Quick Time", b"x") for _ in range(3)]
+    left = sorted(p.name for p in (tmp_path / "computer-use" / "audio").iterdir())
+    assert len(left) == 2 and saved[-1].name in left and saved[0].name.endswith("quick-time.wav")

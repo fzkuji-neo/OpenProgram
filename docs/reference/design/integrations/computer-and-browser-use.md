@@ -57,12 +57,17 @@ The screenshot is the window's own image captured through ScreenCaptureKit, scal
 
 A window whose own walk yields fewer than 12 elements (frame, title bar buttons and little else) is drawn without Accessibility. For such a window every full or screenshot-only read also runs Vision's accurate text recognizer on the screenshot it just took and lists each line as `"text" at (cx, cy), WxH` in screenshot pixels, top to bottom and left to right, at most 150 lines. The first recognition language picks Vision's model, so the languages are a hint (the user's preferred languages, then Chinese, Japanese, Korean and English) and language detection chooses per image. `find` with `text` falls back to these lines when no element matches; for a window that was not sparse it captures and reads the window once at the same scale, so the positions stay valid for actions. OCR text has no indices and is not part of the tree diff: it is evidence for coordinate actions, and a failure of the recognizer leaves the read without it.
 
+### Audio
+
+Codex records computer audio with `start_audio_recording` / `stop_audio_recording` (60 seconds by default, 300 at most) and hands the clip to the model as audio input. OpenProgram keeps the two actions and their limits. Most providers it drives take no audio in a tool result, so the clip becomes a WAV on disk plus a transcript from the Settings → Voice engine, which every model can read. `audio.py` opens an `SCStream` whose filter is the display with only the target application included, asks for 16 kHz mono float samples, excludes the OpenProgram process, and attaches only an audio output: the 2×2, one-frame-a-second video side is never consumed. Samples past the limit are dropped and a timer stops the stream half a second after it, so a forgotten recording releases the capture. One recording runs per conversation; it is converted to 16-bit PCM on stop and saved under the state directory, keeping the newest 20. The action keeps the per-application approval: only the named app's sound is in the clip. A clip whose peak stays under 1e-4 is reported silent and not transcribed. An application without a window has no `SCRunningApplication` and cannot be recorded.
+
 ### Module layout
 
 | Module | Role |
 |---|---|
 | `openprogram/computer_use/keys.py` | xdotool chord parsing to macOS key codes and modifier flags (`super+shift+z`, `ctrl++`, `KP_0`, lone modifiers) |
 | `openprogram/computer_use/tree.py` | `Node`, rendering, signatures, stable numbering (`Snapshot`, `number`) and the diff |
+| `openprogram/computer_use/audio.py` | ScreenCaptureKit audio capture of one application, sample limit, WAV encoding |
 | `openprogram/computer_use/ocr.py` | Vision text recognition, box conversion to screenshot pixels, reading order, language hints |
 | `openprogram/computer_use/skylight.py` | ctypes bindings to SkyLight for background pointer and keyboard routing |
 | `openprogram/computer_use/macos.py` | `MacComputer`: app resolution, window selection, capture, tree walk, every action |
@@ -155,4 +160,5 @@ The GUI Agent workflow (`gui_agent`), its grounding pipeline and its capability 
 - Implemented: `computer_use` on macOS with the reading, acting and batch actions above, stable indices, adaptive settling, background pointer and keyboard delivery, tree diffs, per-app approval with the four scopes, system-access gating, web presentation, unit tests for keys, tree numbering, menu matching, batch, rules and approval wiring.
 - Implemented for `web_use`: every row of the parity table above, on all three backends, with tests that run the page scripts in Chromium, and the per-call approval of `evaluate`.
 - Implemented: OCR text for windows with a sparse tree and as the `find` fallback, with a test that reads a rendered image through Vision.
-- Not implemented: `web_use` visible tabs and observation diffs; computer audio recording; moving a window from another Space; the settings page, annotation mode, region screenshot and `@`-mentions; Windows and Linux backends; object detection for icons and controls that carry no text.
+- Implemented: per-application audio recording with WAV output and Voice-engine transcription.
+- Not implemented: `web_use` visible tabs and observation diffs; audio as model input for providers that accept it; moving a window from another Space; the settings page, annotation mode, region screenshot and `@`-mentions; Windows and Linux backends; object detection for icons and controls that carry no text.

@@ -30,6 +30,8 @@ The same settings can be changed from the command line, for example:
 openprogram config set voice.engine local
 ```
 
+The same engine transcribes the sound [`computer_use`](../capabilities/computer-use.md#recording-sound) records from an application.
+
 ## Limits
 
 - Audio is recorded as 16 kHz mono and sent one phrase at a time; a phrase longer than 25 seconds without a pause is cut there.
