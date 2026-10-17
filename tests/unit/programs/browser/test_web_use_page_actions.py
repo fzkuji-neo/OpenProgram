@@ -67,7 +67,8 @@ def test_playwright_maps_clicks_drags_and_history_to_native_tools():
     adapter, session = _adapter("playwright_mcp")
     assert adapter._action_call(session, {"action": "click", "ref": "e4", "mouse_button": "right",
                                           "modifiers": "shift"}) == (
-        "browser_click", {"target": "e4", "doubleClick": False, "button": "right", "modifiers": ["Shift"]})
+        "browser_click", {"target": "e4", "button": "right", "modifiers": ["Shift"]})
+    assert adapter._action_call(session, {"action": "click", "ref": "e4"}) == ("browser_click", {"target": "e4"})
     assert adapter._action_call(session, {"action": "drag", "ref": "e1", "to_ref": "e2"}) == (
         "browser_drag", {"startTarget": "e1", "endTarget": "e2"})
     assert adapter._action_call(session, {"action": "back"}) == ("browser_navigate_back", {})

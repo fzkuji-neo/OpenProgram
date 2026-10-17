@@ -352,9 +352,12 @@ class OfficialMCPPageBackend:
                 if playwright:
                     if click["count"] == 3:
                         unsupported("a triple click")
+                    # Only what differs from a plain click, so a plain one stays the minimal call.
                     return "browser_click", {
-                        "target": ref, "doubleClick": click["count"] == 2,
-                        "button": click["button"], "modifiers": click["modifiers"]}
+                        "target": ref,
+                        **({"doubleClick": True} if click["count"] == 2 else {}),
+                        **({"button": click["button"]} if click["button"] != "left" else {}),
+                        **({"modifiers": click["modifiers"]} if click["modifiers"] else {})}
                 if pa.is_plain_click(click) or (click["count"] == 2 and click["button"] == "left"
                                                 and not click["modifiers"]):
                     return "click", {"uid": ref, "pageId": page_id, "dblClick": click["count"] == 2}
