@@ -37,6 +37,9 @@ _ACTION_FIELD_NAMES = (
     "selection_type",
     "duration",
     "script",
+    "pattern",
+    "only_errors",
+    "limit",
 )
 _VERIFY_LIFT_FIELDS = (
     "ref",
@@ -80,6 +83,8 @@ _ACT_ACTION_ENUM = (
     "forward",
     "reload",
     "evaluate",
+    "console_messages",
+    "network_requests",
 )
 
 
@@ -149,6 +154,9 @@ def _action_properties() -> dict[str, Any]:
                 "The user approves every evaluate call; prefer observe and the other actions."
             ),
         },
+        "pattern": {"type": "string", "description": "console_messages / network_requests: keep entries whose text or URL contains this."},
+        "only_errors": {"type": "boolean", "description": "console_messages: errors and uncaught exceptions only; network_requests: failures and status 400+ only."},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 200, "description": "console_messages / network_requests: newest entries to return (default 50)."},
     }
 
 

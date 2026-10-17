@@ -6,6 +6,7 @@ from importlib import import_module
 state = import_module("..", __package__)
 
 from . import page_actions as pa
+from . import page_logs
 
 
 def _safe_observation_id(candidate: str, secrets, used=()) -> str:
@@ -556,6 +557,21 @@ class BrowserPageController:
         payload.update(extra or {})
         return redact_password_values(payload, secrets)
 
+    def _read_logs(self, action: str, options: dict) -> dict[str, state.Any]:
+        """Console messages or requests of the page; read-only, so the frame stays valid."""
+        from openprogram.programs.tools.web.browser._privacy import password_values, redact_password_values
+        try:
+            pattern, only_errors, limit = page_logs.options(options)
+            page = self._page()
+            if action == "console_messages":
+                text = page_logs.render_console(page_logs.console_rows(page), pattern, only_errors, limit)
+            else:
+                text = page_logs.render_requests(page_logs.request_rows(page), pattern, only_errors, limit)
+        except page_logs.LogError as exc:
+            return {"ok": False, "reason_code": exc.reason_code, "message": str(exc)}
+        secrets = self._frame_passwords + password_values(page)
+        return redact_password_values({"ok": True, "result": text}, secrets)
+
     def _write_allowed(self) -> dict[str, state.Any] | None:
         if self._terminal_reason == "file_selection_unconfirmed":
             return {"ok": False, "reason_code": self._terminal_reason, "message": "File selection has an uncertain outcome; automatic replay is disabled."}
@@ -673,6 +689,8 @@ class BrowserPageController:
                     "message": text or "The planner cannot complete the task with the available actions."}
         if action == "observe":
             return run(self._observe)
+        if action in page_logs.LOG_ACTIONS:
+            return run(self._read_logs, action, options)
         if action in {"screenshot", "verify"} and not expected_frame_id and self._frame:
             expected_frame_id = self._frame["frame_id"]
         if action == "verify":

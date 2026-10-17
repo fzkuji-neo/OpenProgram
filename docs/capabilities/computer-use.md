@@ -88,6 +88,8 @@ Element actions reach windows that are hidden, minimised or covered by another w
 | `select_text` | `ref`, `text`, `prefix?`, `suffix?`, `selection_type?` | Select text inside an element, or place the caret before or after it |
 | `press` | `key`, `ref?`, `duration?` | Without `ref` the key goes to the page's focus; `duration` holds it |
 | `back` / `forward` / `reload` | — | History navigation; `no_history` when there is nowhere to go |
+| `console_messages` | `pattern?`, `only_errors?`, `limit?` | The page's console output and uncaught errors, oldest first, newest 50 by default; password field values are redacted |
+| `network_requests` | `pattern?`, `only_errors?`, `limit?` | Requests the page made with method, status and resource type; URLs are shown without query strings, and no bodies |
 | `evaluate` | `script` | Runs a JavaScript expression or function such as `() => document.title` in the page and returns its result as JSON, at most 20,000 characters; password field values in the result are redacted |
 
 A page in the App's browser stays in the background throughout: the events are dispatched inside the page and the tab is not activated. On the Playwright and Chrome DevTools MCP backends an option the backend cannot perform, such as a triple click or a held key, fails with `unsupported_option` before anything is sent.
