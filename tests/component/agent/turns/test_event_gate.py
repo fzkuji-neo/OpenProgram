@@ -234,6 +234,7 @@ def test_event_log_falls_back_when_session_dir_missing(_home):
 def test_event_log_routes_to_existing_session_dir(_home):
     sess = _home / ".openprogram" / "projects" / "default" / "chats" / "s1"
     sess.mkdir(parents=True)
+    (sess / "meta.json").write_text("{}", encoding="utf-8")  # a session, not a bare folder
     bus = create_event_bus()
     bus.log_events = True
     bus.emit(make_event("turn.end", "system", {}, {"session": "s1"}))
@@ -243,6 +244,7 @@ def test_event_log_routes_to_existing_session_dir(_home):
 def test_observed_gate_event_logs_once_after_verdict(_home):
     session = _home / ".openprogram" / "projects" / "default" / "chats" / "s1"
     session.mkdir(parents=True)
+    (session / "meta.json").write_text("{}", encoding="utf-8")
     bus = create_event_bus()
     bus.log_events = True
     observed = []
