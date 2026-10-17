@@ -172,15 +172,18 @@ def _transcribe_http(engine: str, audio: bytes, *, model: str, language: str) ->
         data["language"] = language
     if language in _LANGUAGE_PROMPTS:
         data["prompt"] = _LANGUAGE_PROMPTS[language]
+    from openprogram.security.safe_http import safe_client
+    from openprogram.security.url_policy import URLPolicyError
+
     try:
-        response = httpx.post(
-            f"{_API_BASES[engine]}/audio/transcriptions",
-            headers={"Authorization": f"Bearer {key}"},
-            data=data,
-            files={"file": ("phrase.wav", audio, "audio/wav")},
-            timeout=120,
-        )
-    except httpx.HTTPError as exc:
+        with safe_client("tool.voice_api.fixed", timeout=120) as client:
+            response = client.post(
+                f"{_API_BASES[engine]}/audio/transcriptions",
+                headers={"Authorization": f"Bearer {key}"},
+                data=data,
+                files={"file": ("phrase.wav", audio, "audio/wav")},
+            )
+    except (httpx.HTTPError, URLPolicyError) as exc:
         raise VoiceError(f"Transcription request failed: {exc}") from exc
     if response.status_code != 200:
         try:
