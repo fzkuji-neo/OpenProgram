@@ -581,3 +581,33 @@ def test_a_recording_reaches_models_that_hear_audio_and_only_them():
     assert [p.get("inlineData", {}).get("mimeType") for p in heard[-1]["parts"]] == [None, "audio/wav", None, "audio/wav"]
     deaf = contents(["text", "image"])
     assert not any("inlineData" in p for turn in deaf for p in turn["parts"])
+
+
+def test_chat_completions_models_see_tool_result_screenshots_and_hear_recordings():
+    import base64
+    from openprogram.programs._execution_common import ToolReturn, _normalize_result
+    from openprogram.providers.openai_completions.openai_completions import _build_messages
+    from openprogram.providers.types import (AssistantMessage, Context, ImageContent, Model, TextContent, ToolCall,
+                                             ToolResultMessage, UserMessage)
+
+    clip = _normalize_result(ToolReturn(text="Recorded 1 seconds of Chess.", audio=[b"RIFFwav"]), call_id="c1",
+                             max_chars=10_000, persist_full=False, head_ratio=0.5).content
+    shot = [TextContent(text="Calculator."), ImageContent(data=base64.b64encode(b"png").decode(), mime_type="image/png")]
+
+    def messages(inputs):
+        model = Model(id="m", name="m", api="openai-completions", provider="openrouter", base_url="", input=inputs)
+        calls = [ToolCall(id=f"c{i}", name="computer_use", arguments={}) for i in (1, 2)]
+        return _build_messages(Context(messages=[
+            UserMessage(content="look and listen", timestamp=0),
+            AssistantMessage(content=calls, api=model.api, provider=model.provider, model=model.id, timestamp=0),
+            ToolResultMessage(tool_call_id="c1", tool_name="computer_use", content=clip, timestamp=0),
+            ToolResultMessage(tool_call_id="c2", tool_name="computer_use", content=shot, timestamp=0),
+            UserMessage(content="next", timestamp=0)]), model)
+
+    both = messages(["text", "image", "audio"])
+    # The tool messages stay together after the calls; the media follow as one user turn.
+    assert [m["role"] for m in both] == ["user", "assistant", "tool", "tool", "user", "user"]
+    assert [p["type"] for p in both[4]["content"]] == ["text", "input_audio", "image_url"]
+    assert both[4]["content"][1]["input_audio"]["format"] == "wav"
+    assert [p["type"] for p in messages(["text", "image"])[4]["content"]] == ["text", "image_url"]
+    assert [m["role"] for m in messages(["text"])] == ["user", "assistant", "tool", "tool", "user"]
