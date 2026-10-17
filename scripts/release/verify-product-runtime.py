@@ -242,15 +242,17 @@ def _probe(
     from openprogram.programs._programs import import_installed_programs
 
     registered = set(import_installed_programs())
+    # The GUI Program registers no entries: computer_use_agent imports it
+    # as a library for describe grounding.
     expected_programs = {
-        "gui": "gui_agent",
+        "gui": None,
         "research": "research_agent",
         "wiki": "wiki_agent",
     }
     for name, function in expected_programs.items():
         program = product["programs"][name]
         importlib.import_module(program["import"])
-        if function not in registered:
+        if function is not None and function not in registered:
             raise RuntimeError(f"first-party Program did not register: {function}")
 
     result = {capability: {"present": True, "verified": browser or capability != "browser.playwright"}

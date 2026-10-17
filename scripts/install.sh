@@ -275,7 +275,8 @@ from openprogram.programs._programs import import_installed_programs
 
 if not any(Path(easyocr.config.MODULE_PATH).rglob("*.pth")):
     raise SystemExit("default EasyOCR model data is missing")
-required = {"gui_agent", "research_agent", "wiki_agent"}
+import gui_harness  # a library for computer_use_agent; it registers no entries
+required = {"research_agent", "wiki_agent"}
 registered = set(import_installed_programs())
 missing = required - registered
 if missing:
