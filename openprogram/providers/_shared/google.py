@@ -89,8 +89,12 @@ def convert_messages(model: "Model", context: "Context") -> list[dict[str, Any]]
     contents: list[dict[str, Any]] = []
     transformed = transform_messages(context.messages, model, normalize_tool_call_id)
 
+    pending_audio: list[dict[str, Any]] = []
     for msg in transformed:
         role = getattr(msg, "role", None)
+        if pending_audio and role != "toolResult":
+            contents.append({"role": "user", "parts": pending_audio})
+            pending_audio = []
 
         if role == "user":
             content_val = msg.content
@@ -211,6 +215,18 @@ def convert_messages(model: "Model", context: "Context") -> list[dict[str, Any]]
                     "parts": [{"text": "Tool result image:"}, *image_inline],
                 })
 
+            # A recording a tool returned, heard by models that accept audio.
+            audio_inline = [
+                {"inlineData": {"mimeType": clip.mime_type, "data": clip.data}}
+                for clip in msg.content
+                if getattr(clip, "type", None) == "audio" and "audio" in (model.input or [])
+            ]
+            if audio_inline:
+                # Held until the run of function responses ends, which must stay together.
+                pending_audio += [{"text": f"Audio returned by {msg.tool_name}:"}, *audio_inline]
+
+    if pending_audio:
+        contents.append({"role": "user", "parts": pending_audio})
     return contents
 
 

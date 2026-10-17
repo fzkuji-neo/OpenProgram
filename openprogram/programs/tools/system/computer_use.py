@@ -61,7 +61,7 @@ Actions
 - menu(app, menu_path?): no path lists the menu bar; a path such as ["File", "Export"] lists that menu (shortcuts, disabled items) or chooses a leaf item. Titles match case-insensitively, a trailing "…" optional.
 - show_window(app, window? | window_id?): un-minimize a window or unhide the app, still in the background.
 - batch(app, actions=[{action, …}, …]): up to 20 acting steps on one app; stops at the first error. Indices and coordinates in every step refer to the state before the batch.
-- start_audio_recording(app, max_duration=60): record the sound that app plays (only that app; the user still hears it), up to 300 seconds; act meanwhile. stop_audio_recording(app, transcribe=true) stops, saves a WAV and returns its path and, when a speech engine is set up in Settings > Voice, a transcript.
+- start_audio_recording(app, max_duration=60): record the sound that app plays (only that app; the user still hears it), up to 300 seconds; act meanwhile. stop_audio_recording(app, transcribe=true) stops, saves a WAV and returns its path and, when a speech engine is set up in Settings > Voice, a transcript; a model that accepts audio input also receives the recording itself.
 
 Confirmations. Prepare everything first and ask right before the step that has the effect, saying what will happen and how.
 - Always confirm, even if the request seemed to cover it: deleting data; sending, posting, reacting or submitting anything to other people, and creating or changing appointments; purchases, subscriptions and any money movement; creating accounts, API keys or other lasting access, changing sharing or permissions, saving passwords or cards; installing or running newly downloaded software; changing system, VPN or security settings; medical actions.
@@ -258,7 +258,10 @@ def computer_use(
         if action == "start_audio_recording":
             return ToolReturn(text=computer.start_audio(session, app, max_duration))
         if action == "stop_audio_recording":
-            return ToolReturn(text=_clip_text(computer.stop_audio(session, app), transcribe=bool(transcribe)))
+            clip = computer.stop_audio(session, app)
+            # Models that accept audio input hear the recording itself; others get the text.
+            return ToolReturn(text=_clip_text(clip, transcribe=bool(transcribe)),
+                              audio=[] if clip.silent else [clip.data])
         if action == "batch":
             steps = _batch_steps(actions, app)
         else:
