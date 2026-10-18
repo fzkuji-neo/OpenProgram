@@ -1,5 +1,3 @@
-import { GLASS_MATERIAL } from "@/lib/glass";
-
 /**
  * Canonical Tailwind class strings for ALL popover selection menus — the
  * single source of truth so every dropdown / context menu / Select in the
@@ -12,17 +10,16 @@ import { GLASS_MATERIAL } from "@/lib/glass";
  *  the docs' scale on this app's 14px root (text-sm = 14px, a row 28px)
  *  instead of 7/8 of it.
  *  Panel (MENU_PANEL): rounded-lg · p-1 · width hugs content,
- *    min-w-32 up to 320px · scrolls past 60vh. Material is the app's
- *    own glass (lib/glass.ts GLASS_MATERIAL: translucent fill, blur,
- *    hairline ring, shadow) in place of Nova's solid bg-popover + ring —
- *    Nova's translucent-menu option, with the app's shadow.
+ *    min-w-32 up to 320px · scrolls past 60vh. Material is Nova's own:
+ *    solid bg-popover, ring-1 ring-foreground/10, shadow-md — the same
+ *    surface as the Select popup.
  *  Row (itemCls): min-h-7 · rounded-md · px-1.5 py-1 · text-sm ·
- *    gap-1.5 · icons size-4; a leading glyph is pulled 3px left (Solar
- *    glyphs carry their own margin) ·
- *    hover = `--bg-hover` fill, the ONLY row tint (a selected row shows
- *    a right-aligned accent check, never a fill). danger = red text +
- *    faint red hover. Radix items add MENU_ITEM_STATES so keyboard
- *    highlight and the disabled look follow the same rule.
+ *    gap-1.5 · icons size-4 ·
+ *    hover = `--accent` fill (the ink at 9%), the ONLY row tint (a
+ *    selected row shows a right-aligned accent check, never a fill).
+ *    danger = red text + faint red hover. Radix items add
+ *    MENU_ITEM_STATES so keyboard highlight and the disabled look
+ *    follow the same rule.
  *  Two-line row (ITEM_TWO_LINE): title over a text-xs description.
  *  Section label (GROUP_LABEL): px-1.5 py-1 · text-xs font-medium ·
  *    `--text-muted`.
@@ -41,7 +38,8 @@ import { GLASS_MATERIAL } from "@/lib/glass";
 
 export const MENU_PANEL =
   // 只有内容本身需要固定宽度的菜单（git 的分支列表 + 搜索框）才自带 w-[…]。
-  "shadcn-scale flex max-h-[60vh] min-w-32 max-w-[320px] flex-col overflow-y-auto rounded-lg p-1 " + GLASS_MATERIAL;
+  "shadcn-scale flex max-h-[60vh] min-w-32 max-w-[320px] flex-col overflow-y-auto rounded-lg p-1 " +
+  "bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10";
 
 export const GROUP_LABEL =
   "flex items-center gap-1.5 px-1.5 py-1 text-xs font-medium text-text-muted";
@@ -91,22 +89,19 @@ export const MENU_TAG = "menu-tag";
  *  pointer events so its `title` can still explain why. */
 export const MENU_ITEM_STATES =
   "select-none outline-none " +
-  "data-[highlighted]:bg-bg-hover data-[highlighted]:text-text-bright " +
-  "data-[state=open]:bg-bg-hover data-[state=open]:text-text-bright " +
+  "data-[highlighted]:bg-accent data-[highlighted]:text-text-bright " +
+  "data-[state=open]:bg-accent data-[state=open]:text-text-bright " +
   "data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50";
 
 /** A selectable menu row — `active` swaps the resting / hover colours;
  *  `danger` makes it a destructive (red) action. */
 export function itemCls(active: boolean, danger = false): string {
   const base =
-    // Nova 的行：min-h-7、rounded-md、px-1.5 py-1、text-sm、gap-1.5，图标
-    // size-4。行首图标左移 3px：Solar 图标字形四周自带留白，不收的话
-    // 看起来比文字行缩进得多（用户反馈）。只认纯图标——svg 本身、只包
-    // 一个 svg 的 SolarIcon、或只包一个 SolarIcon 的槽；含文字的首段
-    // （模型名 + 能力图标）不动，否则正文会比分组标题更靠左。
+    // Nova 的行：min-h-7、rounded-md、px-1.5 py-1、text-sm、gap-1.5，行首
+    // 图标 size-4（纯 svg、只包一个 svg 的 SolarIcon、或只包一个 SolarIcon
+    // 的槽），不再左移——图标和文字一样留官方的 6px 行内边距。
     "flex min-h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-md " +
     "px-1.5 py-1 text-sm transition-colors duration-75 " +
-    "[&>:first-child:is(svg,:has(>svg:only-child),:has(>:only-child>svg:only-child))]:-ms-[3px] " +
     "[&>svg:first-child]:size-4 [&>:first-child:has(>svg:only-child)>svg]:size-4 " +
     "[&>:first-child:has(>:only-child>svg:only-child)>*>svg]:size-4 ";
   if (danger) {
@@ -119,7 +114,7 @@ export function itemCls(active: boolean, danger = false): string {
   return (
     base +
     (active
-      ? "bg-bg-hover text-text-bright"
-      : "text-text-primary hover:bg-bg-hover hover:text-text-bright")
+      ? "bg-accent text-text-bright"
+      : "text-text-primary hover:bg-accent hover:text-text-bright")
   );
 }

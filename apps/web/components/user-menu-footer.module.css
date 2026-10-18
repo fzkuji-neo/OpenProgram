@@ -127,11 +127,11 @@
   z-index: 50;
 }
 
-/* Rows are links and buttons: full width, no underline. */
+/* Rows are links and buttons: full width, no underline. Border and
+   fill come from Tailwind's preflight (layered), so itemCls's hover
+   fill still wins — an unlayered `background` here would hide it. */
 .item {
   width: 100%;
-  border: none;
-  background: transparent;
   text-align: left;
   text-decoration: none;
   font-family: inherit;

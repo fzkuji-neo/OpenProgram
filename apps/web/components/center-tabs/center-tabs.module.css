@@ -555,15 +555,15 @@
   box-sizing: border-box;
   -webkit-app-region: no-drag;
 }
+/* No border / background here: preflight resets them in a layer, so
+   itemCls's hover fill still wins over this unlayered rule. */
 .tabMenuItem {
   width: 100%;
-  border: 0;
-  background: transparent;
   font: inherit;
   text-align: left;
 }
 .tabMenuItem:focus-visible {
-  background: var(--bg-hover);
+  background: var(--accent);
   outline: none;
 }
 .tabMenuItem:disabled {

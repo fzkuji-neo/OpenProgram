@@ -114,15 +114,13 @@ icon-sm     24.5 px                输入框周围的图标按钮
 其余所有菜单弹层——Radix `DropdownMenu`、各种弹出选择器、侧栏底部菜单、标签页右键菜单、函数右键菜单——共用一个外框和一种行，都取自 `apps/web/components/chat/top-bar/menu-styles.ts` 里的 `MENU_PANEL`、`itemCls`、`GROUP_LABEL` 和 `MENU_SEPARATOR`。用 CSS module 写的菜单在 module 里只留位置（定位、层级、宽度），外框和行直接用这些类，不再自己抄一遍数值。
 
 ```
-部分        几何（Nova，文档站尺寸）               材质（我们自己的）
+部分        Nova，文档站尺寸
 ─────────────────────────────────────────────────────────────────
-面板        rounded-lg · p-1 · min-w-32 ·          --glass-surface、
-            .shadcn-scale                          模糊、0.5px
-                                                   --glass-ring、
-                                                   --glass-shadow
-行          min-h-7（28px）· rounded-md ·
-            px-1.5 py-1 · text-sm（14px）·
-            gap-1.5 · size-4 图标
+面板        rounded-lg · p-1 · min-w-32 · .shadcn-scale ·
+            实色 bg-popover · ring-1 ring-foreground/10 · shadow-md
+行          min-h-7（28px）· rounded-md · px-1.5 py-1 ·
+            text-sm（14px）· gap-1.5 · size-4 图标，不左移
+悬停        bg-accent（墨色 9%）· text-bright
 分组标题    px-1.5 py-1 · text-xs · font-medium · 弱化色
 分隔线      -mx-1 my-1 · 1px · --border
 快捷键      text-xs · tracking-widest · 弱化色
@@ -130,7 +128,7 @@ icon-sm     24.5 px                输入框周围的图标按钮
 ─────────────────────────────────────────────────────────────────
 ```
 
-几何来自 Nova；玻璃材质和强调色对勾是应用自己的。
+菜单和 Select 弹层是同一种表面：同样的实色弹层、同样的 `--accent` 悬停底色。`app/globals.css` 把 `--accent` 定义为墨色 9%，所以在每套主题里都看得出鼠标停在哪一行。只有强调色对勾是应用自己的。
 
 ## 输入框与边框
 
@@ -217,5 +215,5 @@ link         primary 字                           下划线
 
 ## 实现状态
 
-- 已完成：`Button`、`Select`、`Input`、`Textarea`、`Switch`、`Slider`、`Card`、`Badge`、`Label`、`Separator`（radix-nova，包括替换所有原生 `<select>` 和自制下拉），以及 `Checkbox`、`RadioGroup`、`Field`、`Toggle`、`ToggleGroup`；菜单面板和菜单行（Nova 几何 + 玻璃材质）；设置的通用页和桌面提醒一节换成设置积木；输入框上方的环境标签、底部控制栏、发送和语音按钮、输入框本体、网页预览小窗（外框、标题栏、图标按钮）、浏览器工具栏的图标按钮。
+- 已完成：`Button`、`Select`、`Input`、`Textarea`、`Switch`、`Slider`、`Card`、`Badge`、`Label`、`Separator`（radix-nova，包括替换所有原生 `<select>` 和自制下拉），以及 `Checkbox`、`RadioGroup`、`Field`、`Toggle`、`ToggleGroup`；菜单面板和菜单行（Nova 几何和材质）；设置的通用页和桌面提醒一节换成设置积木；输入框上方的环境标签、底部控制栏、发送和语音按钮、输入框本体、网页预览小窗（外框、标题栏、图标按钮）、浏览器工具栏的图标按钮。
 - 尚未迁移：其余设置页（仍用 `settings-page.module.css` 的行）和提示框。设置页以外的表单输入框在换成 shadcn input 之前继续遵守上面的 1px 边规则。侧栏列表行继续用上面的列表尺寸。

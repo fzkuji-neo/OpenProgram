@@ -273,7 +273,10 @@
   --secondary-foreground: var(--text-primary);
   --muted: var(--bg-tertiary);
   --muted-foreground: var(--text-muted);
-  --accent: var(--bg-hover);
+  /* The highlighted row of every menu and Select (shadcn focus:bg-accent):
+     the ink at 9%, so it shows on the solid popover in every theme
+     (--bg-hover is too faint there). */
+  --accent: color-mix(in oklab, var(--foreground) 9%, transparent);
   --accent-foreground: var(--text-bright);
   --destructive: var(--accent-red);
   --destructive-foreground: #ffffff;

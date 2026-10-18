@@ -227,15 +227,13 @@ module and takes the frame and rows from those classes; it never
 restates their values.
 
 ```
-part        geometry (Nova, docs scale)           material (ours)
+part        Nova, at the docs' scale
 ─────────────────────────────────────────────────────────────────
-panel       rounded-lg · p-1 · min-w-32 ·          --glass-surface,
-            .shadcn-scale                          blur, 0.5px
-                                                   --glass-ring,
-                                                   --glass-shadow
-row         min-h-7 (28px) · rounded-md ·
-            px-1.5 py-1 · text-sm (14px) ·
-            gap-1.5 · size-4 icons
+panel       rounded-lg · p-1 · min-w-32 · .shadcn-scale ·
+            solid bg-popover · ring-1 ring-foreground/10 · shadow-md
+row         min-h-7 (28px) · rounded-md · px-1.5 py-1 ·
+            text-sm (14px) · gap-1.5 · size-4 icons, not shifted
+hover       bg-accent (the ink at 9%) · text-bright
 label       px-1.5 py-1 · text-xs · font-medium · muted
 separator   -mx-1 my-1 · 1px · --border
 shortcut    text-xs · tracking-widest · muted
@@ -243,8 +241,10 @@ chosen      accent check (MenuCheck), never a fill
 ─────────────────────────────────────────────────────────────────
 ```
 
-The geometry is Nova's; the glass material and the accent check
-are the app's own.
+Menus and the Select popup are one surface: the same solid popover
+and the same `--accent` highlight, which `app/globals.css` defines as
+the ink at 9% so a hovered row reads in every theme. Only the accent
+check is the app's own.
 
 ## Inputs and borders
 
@@ -423,7 +423,7 @@ carries geometry only, so the 40px row keeps its rhythm.
   `Slider`, `Card`, `Badge`, `Label`, `Separator` (radix-nova, every
   former `<select>` and custom dropdown included), plus `Checkbox`,
   `RadioGroup`, `Field`, `Toggle` and `ToggleGroup`; menu panels and
-  rows in Nova geometry on the glass material; the Settings General
+  rows in Nova geometry and material; the Settings General
   page and desktop attention section on the Settings blocks; the
   composer environment chips, bottom-row controls, send and mic
   buttons, input box, the web page preview (frame, header, icon
