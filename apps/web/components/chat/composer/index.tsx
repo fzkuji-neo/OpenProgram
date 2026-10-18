@@ -70,6 +70,7 @@ import { useHistoryRecall } from "./input/use-history-recall";
 import { useChatSubmit } from "./submit/use-chat-submit";
 import "./submit/send-chat-message";
 import { useComposerKeyDown } from "./input/use-composer-keydown";
+import { useNextPrompt } from "./input/use-next-prompt";
 import { useComposerInputEffects } from "./input/use-composer-input-effects";
 import { EnvironmentRow } from "./environment-row/environment-row";
 import { ScopedDropOverlay } from "./attach/scoped-drop-overlay";
@@ -151,6 +152,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
     addImagesForOwner,
     addFiles,
     removeImage,
+    replaceImage,
     setImageError,
     removeDoc,
     onPickImages,
@@ -411,7 +413,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
     }
   }
 
-  const onKeyDown = useComposerKeyDown({
+  const composerKeyDown = useComposerKeyDown({
     input,
     setInput,
     fileMention,
@@ -420,6 +422,17 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
     selectSlashCommand,
     submit,
   });
+  const nextPrompt = useNextPrompt(currentSessionId, isRunning, input);
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Tab takes the suggested next message as a draft; it is not sent.
+    if (e.key === "Tab" && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && nextPrompt.suggestion) {
+      e.preventDefault();
+      setInput(nextPrompt.suggestion);
+      nextPrompt.clear();
+      return;
+    }
+    composerKeyDown(e);
+  };
 
   function onMenuItemClick(cmd: SlashCommand) {
     selectSlashCommand(cmd);
@@ -606,6 +619,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
           fileInputRef={fileInputRef}
           onFileInputChange={onFileInputChange}
           onRemoveImage={removeImage}
+          onReplaceImage={replaceImage}
           onRemoveDoc={removeDoc}
           onDismissError={() => setImageError(null)}
         />
@@ -626,6 +640,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
             `Enter adds to this turn · ${modKey}Enter queues`,
             `回车插入当前轮 · ${modKey}回车排到下一轮`,
           )}
+          suggestion={nextPrompt.suggestion}
           onKeyDown={onKeyDown}
           onPaste={onPaste}
           slash={slash}

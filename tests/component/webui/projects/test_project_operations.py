@@ -112,3 +112,44 @@ def test_subfolder_project_worktree_cannot_modify_containing_checkout(tmp_path, 
     assert not (repo / "new-worktree").exists()
     assert not git("branch", "--list", "codex/nested")
     assert git("status","--porcelain")==before
+
+
+def _repo_with_files(root):
+    root.mkdir()
+    def git(*args):
+        return subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True, text=True).stdout.strip()
+    git("init")
+    for i in range(20):
+        (root / f"f{i}").write_text(str(i))
+    git("add", ".")
+    git("-c", "user.name=Test", "-c", "user.email=test@example.test", "commit", "-m", "initial")
+    return git
+
+
+def test_worktree_reports_its_stages(tmp_path, monkeypatch):
+    monkeypatch.setattr(store, "_registry_path", lambda: tmp_path / "registry.json")
+    _repo_with_files(tmp_path / "source")
+    p = store.resolve_project(tmp_path / "source")
+    seen = []
+    store.create_project_worktree(p.id, str(tmp_path / "copy"), "op/copy", progress=lambda stage, pct: seen.append((stage, pct)))
+    assert seen[0] == ("branch", None) and seen[-1] == ("open", None)
+    assert ("checkout", 0) in seen and ("checkout", 100) in seen
+    assert (tmp_path / "copy" / "f19").read_text() == "19"
+
+
+def test_stopping_a_worktree_removes_the_folder_and_branch(tmp_path, monkeypatch):
+    import threading
+    monkeypatch.setattr(store, "_registry_path", lambda: tmp_path / "registry.json")
+    git = _repo_with_files(tmp_path / "source")
+    p = store.resolve_project(tmp_path / "source")
+    cancel = threading.Event()
+
+    def progress(stage, pct):
+        if stage == "checkout":
+            cancel.set()
+
+    with pytest.raises(store.WorktreeStopped):
+        store.create_project_worktree(p.id, str(tmp_path / "copy"), "op/stopped", progress=progress, cancel=cancel)
+    assert not (tmp_path / "copy").exists()
+    assert not git("branch", "--list", "op/stopped")
+    assert "copy" not in git("worktree", "list")

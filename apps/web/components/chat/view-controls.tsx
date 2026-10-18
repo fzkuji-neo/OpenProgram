@@ -33,6 +33,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { HoverTip } from "@/components/ui/tooltip";
 import {
+  CHECK_SLOT_PAD,
+  GROUP_LABEL,
   MENU_PANEL,
   MENU_SEPARATOR,
   SHORTCUT,
@@ -52,6 +54,14 @@ import { runtimeState } from "@/lib/runtime-bridge/state";
 import { newSession } from "@/lib/runtime-bridge/conversations";
 import { wsSend } from "@/components/sidebar/sessions-list/helpers";
 import { showToast } from "@/lib/format-utils/toast";
+import { MenuCheck } from "@/components/chat/top-bar/menu-check";
+import {
+  setDefaultTranscriptView,
+  setSessionTranscriptView,
+  useDefaultTranscriptView,
+  useTranscriptView,
+  type TranscriptView,
+} from "@/lib/prefs/transcript-view";
 
 export function ViewControls() {
   const { t, text, locale } = useTranslation();
@@ -63,6 +73,8 @@ export function ViewControls() {
   const removeConversation = useSessionStore((s) => s.removeConversation);
   const [renaming, setRenaming] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const transcriptView = useTranscriptView(tab?.kind === "session" ? tab.sessionId : null);
+  const defaultView = useDefaultTranscriptView();
 
   // Only session tabs have a perspective / session actions. File, web
   // and new-tab panes render their own chrome.
@@ -159,6 +171,29 @@ export function ViewControls() {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className={MENU_PANEL}>
+            <div className={GROUP_LABEL}>{text("View", "显示方式")}</div>
+            {([
+              ["normal", text("Normal", "普通")],
+              ["thinking", text("Thinking", "显示思考")],
+              ["verbose", text("Verbose", "详细")],
+            ] as [TranscriptView, string][]).map(([view, label]) => (
+              <DropdownMenuItem
+                key={view}
+                className={itemCls(false)}
+                onSelect={() => { if (sessionId) setSessionTranscriptView(sessionId, view); }}
+              >
+                <span className="flex-1">{label}</span>
+                {transcriptView === view ? <MenuCheck /> : <span className={CHECK_SLOT_PAD} />}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuItem
+              className={itemCls(false)}
+              disabled={transcriptView === defaultView}
+              onSelect={() => setDefaultTranscriptView(transcriptView)}
+            >
+              <span className="flex-1">{text("Use this view by default", "设为默认显示方式")}</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className={MENU_SEPARATOR} />
             <DropdownMenuItem
               className={itemCls(false)}
               onSelect={() => setRenaming(true)}

@@ -36,6 +36,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import subprocess
 import tempfile
 import threading
@@ -1031,8 +1032,14 @@ def set_project_hidden(project_id: str, hidden: bool) -> Project:
         return Project.from_dict(reg[project_id])
 
 
-def create_project_worktree(project_id: str, path: str, branch: str) -> Project:
-    """Create a persistent worktree from HEAD without changing the source checkout."""
+def create_project_worktree(project_id: str, path: str, branch: str, *, progress=None,
+                            cancel: threading.Event | None = None) -> Project:
+    """Create a persistent worktree from HEAD without changing the source checkout.
+
+    ``progress(stage, percent)`` hears the stages (branch, checkout with git's
+    percentage, open); setting ``cancel`` during the checkout stops it and
+    removes the half-made worktree and its branch (WorktreeStopped).
+    """
     project = get_project(project_id)
     if not project:
         raise ValueError("unknown project")
@@ -1067,5 +1074,66 @@ def create_project_worktree(project_id: str, path: str, branch: str) -> Project:
             if not any(expected.issubset(set(record.splitlines())) for record in records):
                 raise ValueError("destination already exists")
         else:
-            git("worktree", "add", "-b", branch, "--", str(target), "HEAD")
+            _report(progress, "branch")
+            git("worktree", "add", "--no-checkout", "-b", branch, "--", str(target), "HEAD")
+            try:
+                _checkout_files(target, progress, cancel)
+            except BaseException:
+                # A stopped or failed checkout leaves neither the folder nor the branch.
+                subprocess.run(["git", "-C", str(source), "worktree", "remove", "--force", "--", str(target)],
+                               capture_output=True, timeout=120)
+                subprocess.run(["git", "-C", str(source), "branch", "-D", branch], capture_output=True, timeout=60)
+                raise
+        _report(progress, "open")
         return resolve_project(target)
+
+
+class WorktreeStopped(Exception):
+    """The user stopped a worktree while its files were being checked out."""
+
+
+def _report(progress, stage: str, percent: int | None = None) -> None:
+    if progress is not None:
+        try:
+            progress(stage, percent)
+        except Exception:
+            _log.debug("worktree progress callback failed", exc_info=True)
+
+
+def _checkout_files(target: Path, progress, cancel) -> None:
+    """Fill a --no-checkout worktree, reporting git's percentage and stopping on ``cancel``."""
+    _report(progress, "checkout", 0)
+    proc = subprocess.Popen(["git", "-C", str(target), "checkout", "-f", "--progress"],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    stderr: list[bytes] = []
+    reader = threading.Thread(target=_read_progress, args=(proc, progress, stderr), daemon=True)
+    reader.start()
+    while proc.poll() is None:
+        if cancel is not None and cancel.wait(0.1):
+            proc.kill()
+            proc.wait()
+            raise WorktreeStopped("stopped")
+        if cancel is None:
+            time.sleep(0.1)
+    reader.join(timeout=2)
+    tail = b"".join(stderr)[-2000:]
+    if proc.returncode:
+        raise ValueError(tail.decode("utf-8", "replace").strip() or "git checkout failed")
+    _report(progress, "checkout", 100)
+
+
+_CHECKOUT_PERCENT = re.compile(rb"Updating files:\s+(\d+)%")
+
+
+def _read_progress(proc, progress, sink: list[bytes]) -> None:
+    pattern = _CHECKOUT_PERCENT
+    buffer = b""
+    while True:
+        chunk = proc.stderr.read1(4096) if hasattr(proc.stderr, "read1") else proc.stderr.read(4096)
+        if not chunk:
+            break
+        sink.append(chunk)
+        buffer = (buffer + chunk)[-256:]
+        found = pattern.findall(buffer)
+        if found:
+            _report(progress, "checkout", int(found[-1]))

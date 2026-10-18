@@ -20,6 +20,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 
 import { useTranslation } from "@/lib/i18n";
 import {
+  GROUP_LABEL,
   MENU_PANEL,
   MENU_SEPARATOR,
   SHORTCUT,
@@ -208,6 +209,73 @@ export function ConvMenu({
         danger
         onClick={() => run(onDelete)}
       />
+    </div>
+  );
+}
+
+/** The menu of a row inside a multi-chat selection: what applies to all
+ *  of them at once. */
+export function BulkConvMenu({
+  count,
+  groups,
+  projects,
+  onMoveToProject,
+  onMoveToGroup,
+  onArchive,
+  onClear,
+  onClose,
+}: {
+  count: number;
+  groups: string[];
+  projects?: ConvMenuProject[];
+  onMoveToProject?: (projectId: string) => void;
+  onMoveToGroup: (group: string) => void;
+  onArchive: () => void;
+  onClear: () => void;
+  onClose: () => void;
+}) {
+  const { t, text } = useTranslation();
+  const [groupOpen, setGroupOpen] = useState(false);
+  const [projectOpen, setProjectOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { rootRef.current?.focus(); }, []);
+  const run = (fn: () => void) => { fn(); onClose(); };
+  return (
+    <div
+      ref={rootRef}
+      tabIndex={-1}
+      onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); onClose(); } }}
+      className={`${MENU_PANEL} min-w-[200px] outline-none`}
+    >
+      <div className={GROUP_LABEL}>{text(`${count} chats selected`, `已选 ${count} 个聊天`)}</div>
+      {projects && onMoveToProject && projects.length > 0 && <>
+        <button type="button" className={itemCls(false)} onClick={() => setProjectOpen((v) => !v)} aria-expanded={projectOpen}>
+          <span className="flex-1 text-left">{t("sidebar.move_to_project")}</span>
+          <span className="flex w-[16px] shrink-0 items-center justify-center text-text-muted">{projectOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
+        </button>
+        {projectOpen && (
+          <div className="flex flex-col border-l border-[var(--border)] ml-3 my-0.5">
+            {projects.map((project) => (
+              <SubItem key={project.id} label={project.name} onClick={() => run(() => onMoveToProject(project.id))} />
+            ))}
+          </div>
+        )}
+      </>}
+      <button type="button" className={itemCls(false)} onClick={() => setGroupOpen((v) => !v)} aria-expanded={groupOpen}>
+        <span className="flex-1 text-left">{t("sidebar.move_to_group")}</span>
+        <span className="flex w-[16px] shrink-0 items-center justify-center text-text-muted">{groupOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
+      </button>
+      {groupOpen && (
+        <div className="flex flex-col border-l border-[var(--border)] ml-3 my-0.5">
+          <SubItem label={t("sidebar.remove_from_group")} onClick={() => run(() => onMoveToGroup(""))} />
+          {groups.filter(Boolean).map((g) => (
+            <SubItem key={g} label={g} onClick={() => run(() => onMoveToGroup(g))} />
+          ))}
+        </div>
+      )}
+      <MenuItem label={t("sidebar.archive")} onClick={() => run(onArchive)} />
+      <div className={MENU_SEPARATOR} />
+      <MenuItem label={text("Clear selection", "取消选择")} onClick={() => run(onClear)} />
     </div>
   );
 }

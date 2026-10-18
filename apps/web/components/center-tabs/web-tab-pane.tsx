@@ -39,11 +39,11 @@ import {
 } from "@/lib/desktop/desktop-bridge";
 import { useTranslation } from "@/lib/i18n";
 import { showToast } from "@/lib/format-utils/toast";
-import { getLastChatKey, useSessionStore } from "@/lib/session-store";
 import { appendToComposer } from "@/components/chat/messages/quote-to-chat";
-import { commentChatKey, pageCommentText, pickedElementName, type PickedElement } from "@/lib/browser/page-comment";
+import { pageCommentText, pickedElementName, type PickedElement } from "@/lib/browser/page-comment";
 import { regionFile } from "@/lib/browser/region-shot";
 import { queueComposerFiles } from "@/lib/composer-inbox";
+import { targetChat as targetChatFor } from "@/lib/chat/target-chat";
 import { browserPageShortcut } from "@/lib/browser/browser-layout";
 import {
   isBookmarked,
@@ -611,17 +611,7 @@ function DesktopWebTabPane({
   }
 
   /** The conversation a comment or screenshot from this page goes to, and its title. */
-  function targetChat(): { key: string; title?: string } | null {
-    const state = useSessionStore.getState();
-    const tabs = useCenterTabs.getState().tabs;
-    const chatTab = (key: string) => tabs.find((tab) => tab.kind === "session" && tab.sessionId === key);
-    const key = commentChatKey([
-      state.activeChatKey ?? state.currentSessionId,
-      tabs.find((tab) => tab.id === tabId)?.agentSessionId,
-      getLastChatKey(),
-    ], (candidate) => candidate === state.activeChatKey || Boolean(chatTab(candidate)));
-    return key ? { key, title: chatTab(key)?.title } : null;
-  }
+  const targetChat = () => targetChatFor(tabId);
 
   function startRegion() {
     if (!canRegion) return;

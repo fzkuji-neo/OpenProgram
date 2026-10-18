@@ -530,6 +530,17 @@ ACTIONS = {
 }
 
 
+# A worktree being checked out, by project, so Stop can reach it.
+_worktree_cancels: dict = {}
+
+
+async def handle_cancel_project_worktree(ws, cmd: dict):
+    """Stop a create_project_worktree whose files are still being checked out."""
+    cancel = _worktree_cancels.get(cmd.get("project_id"))
+    if cancel is not None:
+        cancel.set()
+
+
 async def handle_project_operation(ws, cmd: dict):
     """Project menu mutations, with persisted results before success events."""
     import asyncio
@@ -545,7 +556,25 @@ async def handle_project_operation(ws, cmd: dict):
             project = projects.set_project_hidden(project_id, action == "remove_project")
             result.update(ok=True, project=_project_dict(project))
         elif action == "create_project_worktree":
-            project = await asyncio.to_thread(projects.create_project_worktree, project_id, cmd.get("path"), cmd.get("branch"))
+            import threading
+            loop = asyncio.get_running_loop()
+            cancel = _worktree_cancels.setdefault(project_id, threading.Event())
+            cancel.clear()
+
+            def progress(stage, percent):
+                event = {"type": "create_project_worktree_progress",
+                         "data": {"project_id": project_id, "stage": stage, "percent": percent}}
+                asyncio.run_coroutine_threadsafe(ws.send_text(json.dumps(event)), loop)
+
+            try:
+                project = await asyncio.to_thread(
+                    projects.create_project_worktree, project_id, cmd.get("path"), cmd.get("branch"),
+                    progress=progress, cancel=cancel)
+            except projects.WorktreeStopped:
+                result["stopped"] = True
+                raise
+            finally:
+                _worktree_cancels.pop(project_id, None)
             result.update(ok=True, project=_project_dict(project))
         elif action == "archive_project_chats":
             from openprogram.agent.session_db import default_db
@@ -580,3 +609,4 @@ async def handle_project_operation(ws, cmd: dict):
 ACTIONS.update({name: handle_project_operation for name in (
     "remove_project", "restore_project", "create_project_worktree", "archive_project_chats",
 )})
+ACTIONS["cancel_project_worktree"] = handle_cancel_project_worktree

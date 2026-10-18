@@ -36,6 +36,8 @@ export interface ComposerBodyProps {
   setInput(next: string): void;
   isRunning: boolean;
   runningPlaceholder: string;
+  /** Suggested next message, taken with Tab (use-next-prompt.ts). */
+  suggestion?: string | null;
   onKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement>;
   onPaste: ReturnType<typeof usePasteTokens>["onPaste"];
   slash: ReturnType<typeof useSlashMenu>;
@@ -55,6 +57,7 @@ export function ComposerBody({
   setInput,
   isRunning,
   runningPlaceholder,
+  suggestion,
   onKeyDown,
   onPaste,
   slash,
@@ -84,6 +87,7 @@ export function ComposerBody({
             setInput={setInput}
             inputId={bound ? `composer-chat-input-${bound}` : undefined}
             placeholder={isRunning ? runningPlaceholder : undefined}
+            suggestion={isRunning ? null : suggestion}
             onKeyDown={onKeyDown}
             onPaste={onPaste}
             onFocus={() => slash.setFocused(true)}

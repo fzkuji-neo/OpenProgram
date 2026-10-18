@@ -14,7 +14,7 @@ const {
   shell,
   nativeTheme,
 } = require("electron");
-const { execFileSync, spawn } = require("child_process");
+const { execFile, execFileSync, spawn } = require("child_process");
 const crypto = require("crypto");
 const fs = require("fs");
 const http = require("http");
@@ -80,6 +80,7 @@ const {
   createMainWindowGate,
   registerSingleMainWindow,
 } = require("./window-lifecycle");
+const sessionWindows = require("./session-windows");
 const themeChrome = require("./theme-chrome");
 const {
   browserWindowChromeOptions,
@@ -209,6 +210,9 @@ function registerAttentionIpc() {
   const attention = new DesktopAttentionService({
     statePath: path.join(app.getPath("userData"), "attention-prefs.json"),
     createNotification: (options) => new Notification(options),
+    listSystemSounds: () => process.platform !== "darwin" ? [] : fs.readdirSync("/System/Library/Sounds")
+      .filter((file) => file.endsWith(".aiff")).map((file) => file.slice(0, -".aiff".length)),
+    playSound: (name) => execFile("/usr/bin/afplay", [path.join("/System/Library/Sounds", `${name}.aiff`)], () => {}),
     notificationsSupported: () => Notification.isSupported(),
     powerSaveBlocker,
     isAppFocused: () => Boolean(BrowserWindow.getFocusedWindow()),
@@ -239,6 +243,11 @@ function registerAttentionIpc() {
     });
   };
   ipcMain.handle("attention:get-prefs", () => attention.getPrefs());
+  ipcMain.handle("attention:sounds", () => attention.getSounds());
+  ipcMain.handle("attention:preview-sound", (event, sound) => {
+    if (!appDocumentWindow(event.sender)) return false;
+    return attention.previewSound(sound);
+  });
   ipcMain.handle("attention:set-prefs", (event, patch) => {
     if (!appDocumentWindow(event.sender)) return attention.getPrefs();
     return attention.setPrefs(patch);
@@ -1791,10 +1800,44 @@ ${themeChrome.directoryListingCss(currentChrome)}
   session.fromPartition("persist:webtabs").protocol.handle("file", handler);
 }
 
+// Torn-off windows open at quit come back on the next launch, with their
+// tabs (each window's tabs persist under its id in the renderer).
+const sessionWindowsFile = () => path.join(app.getPath("userData"), sessionWindows.FILE_NAME);
+app.on("before-quit", () => {
+  try {
+    sessionWindows.recordOpenWindows(sessionWindowsFile(), [...windows.values()]
+      .filter((ctx) => ctx.id !== "main" && !ctx.pendingTransferToken && !ctx.win.isDestroyed())
+      .map((ctx) => ({ windowId: ctx.id, bounds: ctx.win.getBounds() })));
+  } catch (error) {
+    console.error(`[desktop] could not record open windows: ${error.message}`);
+  }
+});
+
+function boundsOnScreen(bounds) {
+  return !!bounds && currentDisplays().some(({ workArea: area }) =>
+    Math.min(bounds.x + bounds.width, area.x + area.width) - Math.max(bounds.x, area.x) >= 100
+    && Math.min(bounds.y + bounds.height, area.y + area.height) - Math.max(bounds.y, area.y) >= 100);
+}
+
+async function reopenSessionWindows() {
+  for (const entry of sessionWindows.takeOpenWindows(sessionWindowsFile())) {
+    if (windows.has(entry.windowId)) continue;
+    try {
+      const ctx = await createWindow({ windowId: entry.windowId, detached: true, show: false });
+      if (boundsOnScreen(entry.bounds)) ctx.win.setBounds(entry.bounds);
+      const reveal = () => { if (!ctx.win.isDestroyed()) ctx.win.showInactive(); };
+      if (ctx.readyToShow) reveal(); else ctx.win.once("ready-to-show", reveal);
+    } catch (error) {
+      console.error(`[desktop] could not reopen window ${entry.windowId}: ${error.message}`);
+    }
+  }
+}
+
 registerSingleMainWindow({
   app,
   BrowserWindow,
   ensureMainWindow,
+  afterFirstWindow: reopenSessionWindows,
   recoverErroredWindows,
   async onReady() {
     resolveStartupChrome();

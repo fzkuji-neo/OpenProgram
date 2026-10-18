@@ -31,6 +31,7 @@ CALL_KIND_MEMORY = "memory"
 CALL_KIND_SUBAGENT = "subagent"
 CALL_KIND_TOOL = "tool"            # LLM call from inside a tool (e.g. moa)
 CALL_KIND_TITLE = "title"
+CALL_KIND_PREDICTION = "prediction"  # suggested next message in the composer
 CALL_KIND_UNKNOWN = "unknown"
 
 

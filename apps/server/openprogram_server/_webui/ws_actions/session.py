@@ -775,6 +775,38 @@ async def handle_rename_session(ws, cmd: dict):
     return task
 
 
+async def handle_predict_next_prompt(ws, cmd: dict):
+    """Suggest the user's next message once a turn has ended (Codex composer predictions).
+
+    Answers ``next_prompt_prediction`` with ``text`` (None when there is no
+    suggestion). Runs in the background so the socket stays free.
+    """
+    from openprogram.webui import server as _s
+    from openprogram.agent.turn_runtime.next_prompt import predict_next_prompt
+
+    session_id = cmd.get("session_id")
+
+    async def run():
+        text = None
+        if isinstance(session_id, str) and session_id:
+            try:
+                text = await asyncio.wait_for(asyncio.to_thread(predict_next_prompt, session_id), 30)
+            except Exception as exc:
+                _s._log(f"[predict_next_prompt] {session_id}: {type(exc).__name__}")
+        try:
+            await ws.send_text(json.dumps({
+                "type": "next_prompt_prediction",
+                "data": {"session_id": session_id, "request_id": cmd.get("request_id"), "text": text},
+            }))
+        except Exception:
+            pass
+
+    task = asyncio.create_task(run())
+    _rename_tasks.add(task)
+    task.add_done_callback(_rename_tasks.discard)
+    return task
+
+
 def _llm_rename(session_id: str) -> str | None:
     """Generate a title via LLM from the session's conversation history."""
     from openprogram.agent.session_db import default_db
@@ -1980,6 +2012,7 @@ ACTIONS = {
     "delete_session": handle_delete_session,
     "mark_session_read": handle_mark_session_read,
     "rename_session": handle_rename_session,
+    "predict_next_prompt": handle_predict_next_prompt,
     "update_session_flags": handle_update_session_flags,
     "clear_sessions": handle_clear_sessions,
     "load_session": handle_load_session,

@@ -17,7 +17,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "@/lib/i18n";
+import { Pencil } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { formatAttachmentSize, imagePreviewDataUrl, type PendingImage } from "./image-attach";
+import { ImageAnnotator } from "./image-annotator";
 
 export interface PendingDoc {
   id: string;
@@ -296,20 +299,23 @@ function FileTile({ doc, onRemove }: { doc: PendingDoc; onRemove: () => void }) 
   );
 }
 
-export function FilePreviewModal(props: { doc?: PendingDoc; image?: PendingImage; sessionId?: string | null; onClose: () => void }) {
+export function FilePreviewModal(props: { doc?: PendingDoc; image?: PendingImage; sessionId?: string | null; onClose: () => void; onReplaceImage?: (file: File) => Promise<void> | void }) {
   // A selected native file can be outside the session file-access scope.
   // Preview its captured content without requesting backend path access.
   return <LocalFilePreviewModal {...props} />;
 }
 
 function LocalFilePreviewModal({
-  doc, image, onClose,
+  doc, image, onClose, onReplaceImage,
 }: {
   doc?: PendingDoc;
   image?: PendingImage;
   onClose: () => void;
+  onReplaceImage?: (file: File) => Promise<void> | void;
 }) {
   const { text } = useTranslation();
+  const [annotating, setAnnotating] = useState(false);
+  const imageSrc = image ? imagePreviewDataUrl(image.attachment) || image.previewUrl || "" : "";
   const dialogRef = useRef<HTMLDivElement>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   useEffect(() => {
@@ -323,16 +329,22 @@ function LocalFilePreviewModal({
     const previous = document.activeElement as HTMLElement | null;
     dialogRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
     function onKey(e: KeyboardEvent) {
+      if (annotating) return;
       if (e.key === "Escape") { e.stopPropagation(); onClose(); }
-      // The preview currently has one action: close. Keep keyboard focus inside it.
-      if (e.key === "Tab") { e.preventDefault(); dialogRef.current?.querySelector<HTMLButtonElement>("button")?.focus(); }
+      // Keep keyboard focus on the preview's own buttons.
+      if (e.key === "Tab") {
+        e.preventDefault();
+        const buttons = Array.from(dialogRef.current?.querySelectorAll<HTMLButtonElement>("button") ?? []);
+        const at = buttons.indexOf(document.activeElement as HTMLButtonElement);
+        buttons[(at + (e.shiftKey ? buttons.length - 1 : 1)) % buttons.length]?.focus();
+      }
     }
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
       if (previous?.isConnected) previous.focus();
     };
-  }, [onClose]);
+  }, [onClose, annotating]);
   if (typeof document === "undefined") return null;
   return createPortal(
     <div
@@ -386,6 +398,11 @@ function LocalFilePreviewModal({
           }}>
             {image?.attachment.filename || doc?.filename || ""}
           </span>
+          {onReplaceImage && imageSrc ? (
+            <Button variant="ghost" size="icon-sm" onClick={() => setAnnotating(true)} aria-label={text("Annotate", "标注")}>
+              <Pencil />
+            </Button>
+          ) : null}
           <button
             type="button"
             onClick={onClose}
@@ -449,6 +466,14 @@ function LocalFilePreviewModal({
           )}
         </div>
       </div>
+      {annotating && image && onReplaceImage ? (
+        <ImageAnnotator
+          src={imageSrc}
+          filename={image.attachment.filename || "image.png"}
+          onCancel={() => setAnnotating(false)}
+          onSave={(file) => { setAnnotating(false); void Promise.resolve(onReplaceImage(file)).then(onClose); }}
+        />
+      ) : null}
     </div>,
     document.body,
   );

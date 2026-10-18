@@ -133,3 +133,18 @@
 :global([data-voice]) .inputTopRow {
   padding-right: calc(var(--composer-action-inset) + var(--composer-action-size) + 2 * var(--composer-action-gap) + 98px);
 }
+
+/* A suggested next message sits where the placeholder does: same muted
+   line, with the key that takes it. */
+.chatSuggestion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chatSuggestionText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

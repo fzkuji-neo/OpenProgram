@@ -255,12 +255,17 @@ export interface DesktopUpdateState {
 export interface DesktopAttentionPrefs {
   notifications: boolean;
   keepAwake: boolean;
+  /** "default", "none", or "system:<name>" for a sound macOS ships. */
+  sound: string;
 }
 
 /** Desktop notifications and keep-awake (desktop/attention-service.js). */
 export interface DesktopAttentionApi {
   getPrefs(): Promise<DesktopAttentionPrefs>;
   setPrefs(patch: Partial<DesktopAttentionPrefs>): Promise<DesktopAttentionPrefs>;
+  /** Sound names offered besides Default and None; empty off macOS. Older shells lack it. */
+  sounds?(): Promise<string[]>;
+  previewSound?(sound: string): Promise<boolean>;
   onPrefs(cb: (prefs: DesktopAttentionPrefs) => void): () => void;
   notify(request: { key: string; title: string; body: string; sessionId: string }): void;
   reportBusy(busy: boolean): void;

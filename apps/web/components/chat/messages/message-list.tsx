@@ -1,4 +1,5 @@
 "use client";
+import { TranscriptSessionContext } from "./transcript-view-scope";
 import { TranscriptReadStatus } from "./transcript-read-status";
 import { ActivityIndicator } from "./activity-indicator";
 
@@ -429,7 +430,11 @@ export const MessageRow = memo(function MessageRow({
 }) {
   const msg = useMessageById(id);
   if (!msg || msg.steeringReplyId) return null;
-  return dispatch(msg, sessionIdOverride);
+  return (
+    <TranscriptSessionContext.Provider value={sessionIdOverride}>
+      {dispatch(msg, sessionIdOverride)}
+    </TranscriptSessionContext.Provider>
+  );
 });
 
 /** A row outside the recycling window (short transcripts). Like a slot, it

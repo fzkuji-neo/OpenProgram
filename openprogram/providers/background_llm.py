@@ -23,7 +23,7 @@ def background_model() -> tuple[str, str] | None:
         return None
 
 
-def build_background_llm() -> Callable[[str, str], str] | None:
+def build_background_llm(call_kind: str = "memory", max_tokens: int = 2000) -> Callable[[str, str], str] | None:
     """Return a synchronous ``(system_prompt, user_text) -> str`` callable.
 
     Returns ``None`` if no model has been used yet or it cannot be
@@ -64,11 +64,11 @@ def build_background_llm() -> Callable[[str, str], str] | None:
             ],
             tools=[],
         )
-        opts = SimpleStreamOptions(temperature=0.2, max_tokens=2000)
+        opts = SimpleStreamOptions(temperature=0.2, max_tokens=max_tokens)
 
         async def _drive() -> str:
             chunks: list[str] = []
-            with usage_scope(call_kind="memory"):
+            with usage_scope(call_kind=call_kind):
                 async for ev in _stream_simple(model, ctx, opts):
                     t = getattr(ev, "type", None)
                     if t == "text_delta":

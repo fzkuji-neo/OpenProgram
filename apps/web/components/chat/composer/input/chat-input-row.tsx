@@ -12,6 +12,7 @@
  * Pure presentation — every piece of state (input, caret, paste store,
  * file menu) comes through props, owned by the composer.
  */
+import { Kbd } from "@/components/ui/kbd";
 import type React from "react";
 
 import { FileMenu, type FileMatch } from "../attach/file-menu";
@@ -31,6 +32,8 @@ interface ChatInputRowProps {
   setCaretPos: (n: number) => void;
   /** Placeholder hint (e.g. "type to steer the running task…" while busy). */
   placeholder?: string;
+  /** A suggested next message shown in the empty field; Tab takes it. */
+  suggestion?: string | null;
   /** DOM id for the textarea. Defaults to the singleton
    *  "composer-chat-input"; a split-view pane passes a per-session id so
    *  two mounted composers don't collide on one id. */
@@ -57,6 +60,7 @@ export function ChatInputRow({
   onBlur,
   setCaretPos,
   placeholder,
+  suggestion,
   inputId = "composer-chat-input",
   autoFocus,
   atToken,
@@ -71,16 +75,21 @@ export function ChatInputRow({
     <>
       <div key="top-half" className={styles.inputTopRow}>
         <div className={styles.inputField}>
-          {input.length === 0 && (
+          {input.length === 0 && (suggestion ? (
+            <span className={`${styles.chatPlaceholder} ${styles.chatSuggestion}`} aria-hidden="true">
+              <span className={styles.chatSuggestionText}>{suggestion}</span>
+              <Kbd>Tab</Kbd>
+            </span>
+          ) : (
             <span className={styles.chatPlaceholder} aria-hidden="true">
               {placeholder || "create / run / edit or ask anything... (type / for commands)"}
             </span>
-          )}
+          ))}
           <MarkdownEditor
             textareaRef={textareaRef}
             id={inputId}
             autoFocus={autoFocus}
-            ariaLabel={placeholder || "create / run / edit or ask anything... (type / for commands)"}
+            ariaLabel={suggestion ? `Suggested: ${suggestion}. Press Tab to use it.` : placeholder || "create / run / edit or ask anything... (type / for commands)"}
             className={styles.chatInput}
             value={input}
             onChange={(next, caret) => {

@@ -23,6 +23,8 @@ interface AttachmentStripProps {
   fileInputRef: React.RefObject<HTMLInputElement>;
   onFileInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemoveImage: (id: string) => void;
+  /** Present when a staged image can be annotated and replaced. */
+  onReplaceImage?: (id: string, file: File) => Promise<void> | void;
   onRemoveDoc: (id: string) => void;
   onDismissError: () => void;
 }
@@ -67,6 +69,7 @@ export function AttachmentStrip({
   fileInputRef,
   onFileInputChange,
   onRemoveImage,
+  onReplaceImage,
   onRemoveDoc,
   onDismissError,
 }: AttachmentStripProps) {
@@ -252,6 +255,8 @@ export function AttachmentStrip({
           sessionId={sessionId}
           image={preview.item}
           onClose={() => setPreview(null)}
+          onReplaceImage={!readOnly && onReplaceImage && !preview.item.loading && !preview.item.error
+            ? (file) => onReplaceImage(preview.item.id, file) : undefined}
         />
       )}
       {preview?.kind === "doc" && (

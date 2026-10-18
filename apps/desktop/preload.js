@@ -187,6 +187,8 @@ contextBridge.exposeInMainWorld("openprogramDesktop", {
   attention: {
     getPrefs: () => ipcRenderer.invoke("attention:get-prefs"),
     setPrefs: (patch) => ipcRenderer.invoke("attention:set-prefs", patch),
+    sounds: () => ipcRenderer.invoke("attention:sounds"),
+    previewSound: (sound) => ipcRenderer.invoke("attention:preview-sound", sound),
     onPrefs: (cb) => fanOut("attention:prefs", cb),
     notify: (request) => ipcRenderer.send("attention:notify", request),
     reportBusy: (busy) => ipcRenderer.send("attention:busy", Boolean(busy)),

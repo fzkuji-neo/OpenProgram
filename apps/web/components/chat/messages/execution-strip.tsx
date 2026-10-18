@@ -13,6 +13,8 @@
  * 图标绝对定位在标题行内部，与文字共用同一垂直中心。流式进行中的一轮
  * 不走这里（assistant-bubble 平铺实时块），落定后切到本组件。
  */
+import { stepOpenByDefault } from "@/lib/prefs/transcript-view";
+import { useTranscriptViewHere } from "./transcript-view-scope";
 import type { ExecutionCommand } from "@/lib/execution/execution-debugger";
 import { memo, useEffect, useState } from "react";
 import { ChevronRight } from "lucide-react";
@@ -72,8 +74,9 @@ function Collapse({ open, children }: {
 
 /** 时间线外壳：一行淡文字摘要 ›，点击展开竖线时间线。
  *
- *  流式与历史消息都默认收起。流式摘要仍以 shimmer 表示进行中；用户手动
- *  展开或收起后，本轮后续步骤和终态更新不覆盖该选择。
+ *  是否默认展开取决于对话的显示方式（lib/prefs/transcript-view.ts）：普通
+ *  视图收起，思考和详细视图展开。流式摘要仍以 shimmer 表示进行中；用户手动
+ *  展开或收起后，本轮后续步骤、终态更新和显示方式都不覆盖该选择。
  *
  *  `label` is either a plain string or a tool-group summary
  *  (tool-group-summary.ts), which adds the red failure note and the
@@ -93,7 +96,10 @@ export function ExecutionStrip({
   /** Branch heads owned by this strip, used to reopen the exact row on return. */
   subagentHeads?: Array<string | undefined>;
 }) {
-  const [open, setOpen] = useState(false);
+  // The reader's own click wins over the conversation's view.
+  const view = useTranscriptViewHere();
+  const [chosen, setOpen] = useState<boolean | null>(null);
+  const open = chosen ?? view !== "normal";
   const { text } = useTranslation();
   const summary: ToolGroupSummary = typeof label === "string"
     ? { label, failed: 0, added: null, removed: null }
@@ -114,7 +120,7 @@ export function ExecutionStrip({
         type="button"
         className="tl-toggle"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen(!open)}
       >
         <span className={"tl-label" + (streaming ? " tl-label-shimmer" : "")}>{summary.label}</span>
         {failedNote ? <span className="tl-fail">{failedNote}</span> : null}
@@ -229,7 +235,9 @@ export function StepRow({
   dataMsgId?: string;
   dataHeadId?: string;
 }) {
-  const [open, setOpen] = useState(false);
+  const view = useTranscriptViewHere();
+  const [chosen, setOpen] = useState<boolean | null>(null);
+  const open = chosen ?? stepOpenByDefault(view, icon);
   const [kidsOpen, setKidsOpen] = useState(!!defaultKidsOpen);
   const [copied, setCopied] = useState(false);
   const { text } = useTranslation();
@@ -239,7 +247,7 @@ export function StepRow({
   const setPersistedOpen = useSessionStore((state) => state.setLlmContentOpen);
   const toggleable = !!subSteps || !!inlineBody;
   const expanded = subSteps ? kidsOpen : stateKey
-    ? (persistedOpen ?? false)
+    ? (persistedOpen ?? stepOpenByDefault(view, icon))
     : open;
   const copyValue = copyText ?? [title, target, note].filter(Boolean).join(" · ");
   useEffect(() => {

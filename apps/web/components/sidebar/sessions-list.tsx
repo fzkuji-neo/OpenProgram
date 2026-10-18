@@ -49,7 +49,8 @@ import {
   FoldersIcon,
   type AnimatedNavIconHandle,
 } from "@/components/animated-icons";
-import { ConvMenu } from "./conv-menu";
+import { BulkConvMenu, ConvMenu } from "./conv-menu";
+import { EMPTY_SELECTION, pickChat, type ChatSelection } from "@/lib/sidebar/chat-selection";
 import { useSidebarMenu } from "./use-sidebar-menu";
 import { RecentsFilter } from "./recents-filter";
 import { SectionHeader } from "./section-header";
@@ -127,6 +128,17 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
 
   const projectMode = view.groupBy === "project";
   const [orderNotice, setOrderNotice] = useState("");
+  const [selection, setSelection] = useState<ChatSelection>(EMPTY_SELECTION);
+  // Rows in the order this render lays them out, for Shift-click runs.
+  const rowOrder: string[] = [];
+  const lastRowOrder = useRef<string[]>([]);
+  useEffect(() => { lastRowOrder.current = rowOrder; });
+  useEffect(() => {
+    if (!selection.ids.length) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setSelection(EMPTY_SELECTION); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selection.ids.length]);
   const { draggingProject, projectOffset, headerProps } = useProjectDrag(projectMode, reorderProject);
   const { dropProject, dropGrow, rowProps, headerOffset: chatHeaderOffset } = useChatDrag(projectMode, view.sort === "recency",
     (sessionId, projectId, prevId, nextId) => void dropChat(sessionId, projectId, prevId, nextId));
@@ -460,6 +472,12 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
       : text("Could not move the chat.", "没能移动这个聊天。"));
     return false;
   }
+  async function moveChats(ids: string[], projectId: string) {
+    const target = projects.find((p) => p.id === projectId);
+    let moved = 0;
+    for (const id of ids) if (await moveChat(id, projectId)) moved += 1;
+    if (target && moved > 1) setOrderNotice(text(`Moved ${moved} chats to ${target.name}`, `已把 ${moved} 个聊天移到“${target.name}”`));
+  }
   // A dropped chat: into the other project first, then at the place it
   // was let go.
   async function dropChat(sessionId: string, projectId: string, prevId: string | null, nextId: string | null) {
@@ -494,18 +512,38 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
   const renderRow = (c: LegacyConv) => {
     const label = labelFor(c, t("sidebar.untitled"));
     const home = projectOf(c.id);
+    rowOrder.push(c.id);
+    const inSelection = selection.ids.includes(c.id);
+    const bulkIds = inSelection && selection.ids.length > 1 ? selection.ids : null;
+    const visibleProjects = projects.filter((p) => !p.hidden).map((p) => ({ id: p.id, name: p.name }));
     return (
       <ConvItem
         key={c.id}
         conv={c}
         label={label}
         active={c.id === currentId}
+        selected={inSelection}
+        bulk={bulkIds ? {
+          count: bulkIds.length,
+          projects: projects.length > 1 ? visibleProjects : undefined,
+          onMoveToProject: (projectId) => { setSelection(EMPTY_SELECTION); void moveChats(bulkIds, projectId); },
+          onMoveToGroup: (group) => { for (const id of bulkIds) setFlags(id, { group }); setSelection(EMPTY_SELECTION); },
+          onArchive: () => { for (const id of bulkIds) setFlags(id, { archived: true }); setSelection(EMPTY_SELECTION); },
+          onClear: () => setSelection(EMPTY_SELECTION),
+        } : undefined}
         running={!!runningTasks[c.id]}
         groups={allGroups}
         projects={projects.length > 1 ? projects.filter((p) => p.id !== home && !p.hidden).map((p) => ({ id: p.id, name: p.name })) : undefined}
         onMoveToProject={(projectId) => void moveChat(c.id, projectId)}
         dragProps={projectMode ? rowProps(c.id, home) : undefined}
-        onClick={() => switchTo(c.id, label)}
+        onClick={(event) => {
+          if (event && (event.metaKey || event.ctrlKey || event.shiftKey)) {
+            setSelection(pickChat(lastRowOrder.current, selection, currentId, c.id, event.shiftKey ? "range" : "toggle"));
+            return;
+          }
+          if (selection.ids.length) setSelection(EMPTY_SELECTION);
+          switchTo(c.id, label);
+        }}
         onRename={(title) => renameSession(c.id, title)}
         onAutoRename={() => void autoRenameSession(c.id)}
         onTogglePin={() => setFlags(c.id, { pinned: !c.pinned })}
@@ -994,6 +1032,8 @@ function ConvItem({
   conv,
   label,
   active,
+  selected,
+  bulk,
   running,
   groups,
   onClick,
@@ -1012,9 +1052,13 @@ function ConvItem({
   conv: LegacyConv;
   label: string;
   active: boolean;
+  /** Part of a multi-chat selection. */
+  selected?: boolean;
+  /** Set while this row belongs to a selection of several chats: its menu acts on all of them. */
+  bulk?: Omit<React.ComponentProps<typeof BulkConvMenu>, "groups" | "onClose">;
   running: boolean;
   groups: string[];
-  onClick: () => void;
+  onClick: (event?: React.MouseEvent<HTMLElement>) => void;
   onRename: (title: string) => void;
   onAutoRename: () => void;
   onTogglePin: () => void;
@@ -1052,7 +1096,8 @@ function ConvItem({
   // Selected row: a background highlight marks it; the text steps down
   // from pure white to the warm off-white (--text-primary) so it isn't
   // glaringly bright.
-  const colorCls = active || menuOpen ? "bg-bg-hover text-text-primary" : "text-text-primary";
+  const colorCls = selected ? "bg-[var(--bg-selected)] text-text-primary"
+    : active || menuOpen ? "bg-bg-hover text-text-primary" : "text-text-primary";
   // 右缘渐隐的三个状态（静止约 8px / 悬停 70%→92% / 滚动中）都在
   // base.css 的 .title-fade 里，过渡也在那儿——渐变值本身不可插值，
   // 靠注册过的 --fade-a / --fade-b 百分比属性做动画。
@@ -1158,12 +1203,13 @@ function ConvItem({
         role={renaming ? undefined : "button"}
         tabIndex={renaming ? undefined : 0}
         aria-current={active ? "true" : undefined}
+        data-selected={selected ? "true" : undefined}
         onKeyDown={renaming ? undefined : event => { if (event.target === event.currentTarget) activateOnKey(onClick)(event); }}
         {...(renaming ? {} : dragProps)}
         onClick={renaming ? undefined : (event) => {
           // A release that ended a drag is not a click on the chat.
           dragProps?.onClick?.(event);
-          if (!event.defaultPrevented) onClick();
+          if (!event.defaultPrevented) onClick(event);
         }}
         onMouseEnter={renaming ? undefined : measureMarquee}
         onMouseLeave={stopMarquee}
@@ -1280,7 +1326,7 @@ function ConvItem({
         className="w-auto border-0 bg-transparent p-0 text-[var(--text-primary)] shadow-none"
         onClick={(e) => e.stopPropagation()}
       >
-        <ConvMenu
+        {bulk ? <BulkConvMenu {...bulk} groups={groups} onClose={menu.close} /> : <ConvMenu
           conv={conv}
           groups={groups}
           onRename={startRename}
@@ -1295,7 +1341,7 @@ function ConvItem({
           onExport={onExport}
           onDelete={onDelete}
           onClose={menu.close}
-        />
+        />}
       </PopoverContent>
     </Popover>
   );

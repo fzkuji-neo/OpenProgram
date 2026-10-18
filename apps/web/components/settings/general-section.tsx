@@ -38,6 +38,8 @@ import { DRAG_SURFACE_STYLE, VISUAL_EFFECTS_LIMITS, type VisualEffectKey } from 
 import styles from "./settings-page.module.css";
 import { DesktopAttentionSection } from "./desktop-attention-section";
 import { SimpleSelect } from "@/components/ui/select";
+import { setDefaultTranscriptView, useDefaultTranscriptView } from "@/lib/prefs/transcript-view";
+import { setComposerPredictions, useComposerPredictions } from "@/lib/prefs/composer-predictions";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
@@ -383,6 +385,8 @@ function ApplicationSection() {
 export function GeneralSection() {
   const { t, text, locale, setLocale } = useTranslation();
   const { font, setFont } = useFontPref();
+  const transcriptView = useDefaultTranscriptView();
+  const predictions = useComposerPredictions();
   const {
     style,
     mode,
@@ -603,6 +607,27 @@ export function GeneralSection() {
             onChange={setLocale}
             label={t("general.language")}
           />
+        </SettingsRow>
+
+        <SettingsRow label={text("Conversation view", "对话显示方式")}>
+          <SettingsDropdown
+            value={transcriptView}
+            options={[
+              { value: "normal", label: text("Normal", "普通") },
+              { value: "thinking", label: text("Thinking", "显示思考") },
+              { value: "verbose", label: text("Verbose", "详细") },
+            ]}
+            onChange={setDefaultTranscriptView}
+            label={text("Conversation view", "对话显示方式")}
+          />
+        </SettingsRow>
+
+        <SettingsRow
+          label={text("Suggest your next message after each reply (Tab to use it; one extra model call per turn)",
+            "每次回复后建议下一句（按 Tab 采用；每轮多一次模型调用）")}
+          htmlFor="composer-predictions"
+        >
+          <Switch id="composer-predictions" checked={predictions} onCheckedChange={setComposerPredictions} />
         </SettingsRow>
       </SettingsSection>
 

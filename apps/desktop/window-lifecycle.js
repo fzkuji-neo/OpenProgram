@@ -52,6 +52,8 @@ function focusExistingWindow(win) {
  * Wire the Electron app so every "open a window" path shares one gate.
  * `onReady` runs once, after the process is the primary instance and
  * before the first ensureMainWindow().
+ * `afterFirstWindow` runs once the launch's main window exists (it reopens
+ * the torn-off windows that were open at quit).
  *
  * @returns {{ primary: boolean }}
  */
@@ -61,6 +63,7 @@ function registerSingleMainWindow({
   ensureMainWindow,
   recoverErroredWindows,
   onReady,
+  afterFirstWindow,
   platform = process.platform,
 }) {
   if (!app || typeof app.on !== "function") {
@@ -91,7 +94,10 @@ function registerSingleMainWindow({
       app.setAccessibilitySupportEnabled(true);
     }
     if (typeof onReady === "function") await onReady();
-    void ensureMainWindow();
+    void Promise.resolve(ensureMainWindow()).then(() => {
+      if (typeof afterFirstWindow === "function") return afterFirstWindow();
+      return undefined;
+    }).catch(() => {});
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) {
         void ensureMainWindow();

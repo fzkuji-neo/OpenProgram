@@ -59,6 +59,8 @@ export interface UseComposerAttachmentsResult {
   composerRootRef: React.MutableRefObject<HTMLDivElement | null>;
   addImagesForOwner: (ownerKey: string | null, imgs: PendingImage[]) => void;
   removeImage: (id: string) => void;
+  /** Put an edited copy (an annotated screenshot) in place of a staged image. */
+  replaceImage: (id: string, file: File) => Promise<void>;
   setImageError: (s: string | null) => void;
   addDocs: (docs: PendingDoc[]) => void;
   removeDoc: (id: string) => void;
@@ -385,6 +387,25 @@ export function useComposerAttachments(
     },
     [publishAttachments],
   );
+
+  /** Put an edited copy (an annotated screenshot) in place of a staged image. */
+  const replaceImage = useCallback(async (id: string, file: File) => {
+    const ownerKey = activeChatKeyRef.current;
+    const real = await readImageFile(file, file.name);
+    const previous = (ownerKey ? attachmentsByChatRef.current.get(ownerKey)?.images : pendingImagesRef.current)
+      ?.find((image) => image.id === id)?.previewUrl;
+    if (previous?.startsWith("blob:")) {
+      try { URL.revokeObjectURL(previous); } catch { /* already released */ }
+    }
+    updateImageForOwner(ownerKey, id, {
+      previewUrl: real.previewUrl,
+      attachment: real.attachment,
+      sizeBytes: file.size,
+      sourcePath: undefined,
+      loading: false,
+      error: undefined,
+    });
+  }, [updateImageForOwner]);
 
   const addDocsForOwner = useCallback((ownerKey: string | null, docs: PendingDoc[]) => {
     if (docs.length === 0) return;
@@ -798,6 +819,7 @@ export function useComposerAttachments(
     composerRootRef,
     addImagesForOwner,
     removeImage,
+    replaceImage,
     setImageError,
     addDocs,
     removeDoc,

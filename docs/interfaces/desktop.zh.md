@@ -17,7 +17,7 @@ macOS 与 Windows Desktop App 将 OpenProgram 显示为多 Pane 工作区。每�
 
 macOS 从 [GitHub Releases](https://github.com/fzkuji-neo/OpenProgram/releases) 下载对应架构的 DMG，把 `OpenProgram.app` 复制到 `/Applications`；当前 macOS 发行版使用 Developer ID 签名和 Apple 公证。Windows 只安装已发布 release 附带的带签名 `win-x64.exe` 或 `win-arm64.exe`；某个版本没有带签名 Windows EXE 时，使用该版本的 CLI/server 与浏览器 UI。完整步骤见[安装](../install/install.zh.md)。
 
-Terminal Pane 在 macOS 使用 login shell，在 Windows 通过 ConPTY 使用 Windows PowerShell。两个平台的封装 App 都从内置 managed Python 启动 worker，不依赖系统 Python 或 Node.js。启动时连不上 worker，App 会把它拉起来并显示 **Waiting for backend to start...**，每秒探测一次直到它应答。安装程序（更新或本地刷新）正在替换 App 和 runtime 期间，页面改为显示 **Updating OpenProgram...**；这时 App 不拉起 worker，安装结束后自动重连。
+Terminal Pane 在 macOS 使用 login shell，在 Windows 通过 ConPTY 使用 Windows PowerShell。在终端里右键可以 **复制**、**粘贴** 和 **把选中内容加入对话**，最后一项会把选中的输出以代码块形式加入当前对话的草稿。两个平台的封装 App 都从内置 managed Python 启动 worker，不依赖系统 Python 或 Node.js。启动时连不上 worker，App 会把它拉起来并显示 **Waiting for backend to start...**，每秒探测一次直到它应答。安装程序（更新或本地刷新）正在替换 App 和 runtime 期间，页面改为显示 **Updating OpenProgram...**；这时 App 不拉起 worker，安装结束后自动重连。
 
 在 Linux 从源码运行 Desktop 时，终端优先使用已安装且为绝对路径的 `SHELL`，否则依次回退到 `/bin/bash`、`/bin/sh`，不要求安装 zsh。若没有可用 shell，终端会在启动进程前明确提示缺失项。
 
@@ -115,11 +115,17 @@ worker 重启后，可恢复的运行中会话会使用正常执行时已经记�
 
 会话显示正常消息和工具结果，包括你要求执行的软件更新结果。聊天中不另设软件更新历史、更新操作按钮或更新恢复提示，打开会话也不会启动软件更新历史轮询。
 
+## 退出后重新打开窗口
+
+从主窗口拖出来的窗口，下次启动 App 时会回到上次在屏幕上的位置，标签页也都还在。退出前已经关掉的窗口不会再打开。上次的位置不在任何显示器上时，窗口在默认位置打开。
+
 ## 通知与防休眠
 
 OpenProgram 在后台时，会话的一轮执行完成、出错停止、向你提问或请求批准、或等待系统权限，桌面 App 会发系统通知。任何一个 OpenProgram 窗口在前台时不发通知。同一事件只通知一次，打开多个窗口也一样。你自己停止的执行不通知。点击通知会把对应窗口调到前台并打开该会话。
 
 有会话在运行时，App 会阻止电脑空闲休眠，屏幕仍可以关闭。没有会话运行后即解除。
+
+**通知声音** 选择提示音：系统默认、无，或 macOS 上的某个系统声音（选中时会播放一次）。
 
 在**设置 → 通用 → 通知**中可以分别关闭这两项。设置只对这台电脑生效，重启后保留。浏览器访问 http://localhost:18100 时不发通知，也不阻止休眠。
 

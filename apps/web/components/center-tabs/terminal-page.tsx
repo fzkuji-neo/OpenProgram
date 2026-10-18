@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import * as Menu from "@radix-ui/react-dropdown-menu";
 import {
   ClipboardPaste,
   Copy,
   Eraser,
+  MessageSquarePlus,
   RotateCcw,
   Square,
   TerminalSquare,
@@ -18,9 +20,16 @@ import {
 } from "@/lib/desktop/desktop-bridge";
 import { useTranslation } from "@/lib/i18n";
 import { useCurrentProject } from "@/lib/files/files-shared";
+import { appendToComposer } from "@/components/chat/messages/quote-to-chat";
+import { MENU_ITEM_STATES, MENU_PANEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
+import { useSidebarMenu } from "@/components/sidebar/use-sidebar-menu";
+import { targetChat } from "@/lib/chat/target-chat";
+import { terminalSelectionText } from "@/lib/chat/terminal-selection";
+import { showToast } from "@/lib/format-utils/toast";
 import styles from "./center-tabs.module.css";
 
 const PROJECT_RESOLVE_GRACE_MS = 500;
+const MENU_ITEM = `${itemCls(false)} ${MENU_ITEM_STATES}`;
 
 type TerminalStatus = "waiting" | "starting" | "running" | "exited" | "error";
 
@@ -94,6 +103,7 @@ export function TerminalPage({ preset }: { preset: "shell" | "claude" }) {
   const [hasSelection, setHasSelection] = useState(false);
   const [restartNonce, setRestartNonce] = useState(0);
   const [startCwd, setStartCwd] = useState<string | null | undefined>(undefined);
+  const menu = useSidebarMenu();
 
   useEffect(() => {
     if (startCwd !== undefined) return;
@@ -272,6 +282,19 @@ export function TerminalPage({ preset }: { preset: "shell" | "claude" }) {
       .catch(() => setError("clipboard_read_failed"))
       .finally(focusTerminal);
   };
+  const addSelectionToChat = () => {
+    const selection = terminalRef.current?.getSelection() ?? "";
+    if (!selection.trim()) return;
+    const chat = targetChat();
+    if (!chat) {
+      showToast(text("Open a conversation to add the selection to", "先打开一个对话，再加入选中内容"));
+      return;
+    }
+    appendToComposer(chat.key, terminalSelectionText(selection), false);
+    showToast(chat.title
+      ? text(`Selection added to the message in “${chat.title}”`, `选中内容已加入“${chat.title}”的消息`)
+      : text("Selection added to your message", "选中内容已加入消息"));
+  };
   const restartTerminal = () => {
     if (!api || startCwd === undefined) return;
     api.stop(id);
@@ -351,12 +374,32 @@ export function TerminalPage({ preset }: { preset: "shell" | "claude" }) {
           </button>
         </div>
       </div>
-      <div
-        ref={hostRef}
-        className={styles.terminalHost}
-        aria-label={preset === "claude" ? "Claude Code terminal" : text("Terminal", "终端")}
-        onPointerDown={focusTerminal}
-      />
+      <Menu.Root open={menu.open} onOpenChange={menu.onOpenChange}>
+        <Menu.Trigger asChild>
+          <span aria-hidden="true" style={{ position: "fixed", left: menu.point.x, top: menu.point.y, width: 0, height: 0, pointerEvents: "none" }} />
+        </Menu.Trigger>
+        <div
+          ref={hostRef}
+          className={styles.terminalHost}
+          aria-label={preset === "claude" ? "Claude Code terminal" : text("Terminal", "终端")}
+          onPointerDown={focusTerminal}
+          onContextMenu={(event) => menu.show(event, [])}
+        />
+        <Menu.Portal>
+          <Menu.Content side="bottom" align="start" sideOffset={2} onCloseAutoFocus={(event) => { event.preventDefault(); focusTerminal(); }} className={`${MENU_PANEL} min-w-[200px]`}>
+            <Menu.Item className={MENU_ITEM} disabled={!hasSelection} onSelect={copyTerminal}>
+              <Copy size={14} aria-hidden="true" />{text("Copy", "复制")}
+            </Menu.Item>
+            <Menu.Item className={MENU_ITEM} disabled={status !== "running"} onSelect={pasteTerminal}>
+              <ClipboardPaste size={14} aria-hidden="true" />{text("Paste", "粘贴")}
+            </Menu.Item>
+            <Menu.Separator className={MENU_SEPARATOR} />
+            <Menu.Item className={MENU_ITEM} disabled={!hasSelection} onSelect={addSelectionToChat}>
+              <MessageSquarePlus size={14} aria-hidden="true" />{text("Add selection to chat", "把选中内容加入对话")}
+            </Menu.Item>
+          </Menu.Content>
+        </Menu.Portal>
+      </Menu.Root>
     </div>
   );
 }

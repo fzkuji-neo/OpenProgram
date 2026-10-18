@@ -17,7 +17,7 @@ The Back and Forward buttons also include the initial New tab page. After openin
 
 On macOS, install the architecture-matched DMG and copy `OpenProgram.app` to `/Applications`; current macOS releases are Developer ID signed and Apple notarized. On Windows, install only the signed `win-x64.exe` or `win-arm64.exe` attached to a published [GitHub Release](https://github.com/fzkuji-neo/OpenProgram/releases). If a release has no signed Windows EXE, use the CLI/server and browser UI for that version. The complete steps are in [Installation](../install/install.md).
 
-Terminal panes use the login shell on macOS and Windows PowerShell through ConPTY on Windows. Packaged apps on both platforms start the worker from their embedded managed Python and do not depend on a system Python or Node.js. When the worker is not reachable at startup, the App starts it and shows **Waiting for backend to start...** until it answers, checking every second. While an installer is replacing the App and its runtime (an update, or a local refresh) the page shows **Updating OpenProgram...** instead; the App starts no worker then and reconnects on its own once the installer is done.
+Terminal panes use the login shell on macOS and Windows PowerShell through ConPTY on Windows. Right-click a terminal for **Copy**, **Paste** and **Add selection to chat**, which adds the selected output to the focused conversation's draft as a code block. Packaged apps on both platforms start the worker from their embedded managed Python and do not depend on a system Python or Node.js. When the worker is not reachable at startup, the App starts it and shows **Waiting for backend to start...** until it answers, checking every second. While an installer is replacing the App and its runtime (an update, or a local refresh) the page shows **Updating OpenProgram...** instead; the App starts no worker then and reconnects on its own once the installer is done.
 
 When running Desktop from source on Linux, terminal panes use an installed absolute `SHELL` path, then fall back to `/bin/bash` or `/bin/sh`. They do not require zsh. If no shell is available, the terminal reports the missing prerequisite before starting a process.
 
@@ -115,11 +115,17 @@ Recoverable running conversations continue automatically in the same conversatio
 
 Conversations show normal messages and tool results, including results of an update you requested. They do not contain a separate software-update history, update controls, or update recovery notices. Opening a conversation does not start software-update history polling.
 
+## Windows reopen after quitting
+
+Windows you tore off the main window come back when the App starts again, at their last place on screen and with their tabs. A window you closed before quitting stays closed. A window whose last place is off every display opens at its default place.
+
 ## Notifications and keep-awake
 
 When OpenProgram is in the background, the desktop App sends a system notification when a session's turn finishes, stops with an error, asks you a question or for approval, or waits for system access. No notification appears while any OpenProgram window is in front. Each event notifies once, even with several windows open. Stopping a turn yourself does not notify. Click a notification to bring its window forward and open that session.
 
 While any session is running, the App keeps the computer from idle-sleeping. The display can still turn off. The hold ends when no session is running.
+
+**Notification sound** picks the sound: the system default, none, or on macOS one of the system sounds, which plays once when chosen.
 
 Turn either behavior off in **Settings → General → Notifications**. The choices apply to this computer and persist across restarts. The browser interface at http://localhost:18100 sends no notifications and does not keep the computer awake.
 

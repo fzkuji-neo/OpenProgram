@@ -14,8 +14,12 @@ const DEDUPE_MS = 10 * 60 * 1000;
 const MAX_TITLE = 120;
 const MAX_BODY = 240;
 
+// "default" leaves the system's notification sound, "none" mutes it, and
+// "system:<name>" picks one of the sounds macOS ships (/System/Library/Sounds).
+const SOUND_PATTERN = /^(default|none|system:[A-Za-z0-9 _-]{1,64})$/;
+
 function defaultPrefs() {
-  return { schema: 1, notifications: true, keepAwake: true };
+  return { schema: 1, notifications: true, keepAwake: true, sound: "default" };
 }
 
 function normalizePrefs(value) {
@@ -25,6 +29,7 @@ function normalizePrefs(value) {
     schema: 1,
     notifications: typeof value.notifications === "boolean" ? value.notifications : defaults.notifications,
     keepAwake: typeof value.keepAwake === "boolean" ? value.keepAwake : defaults.keepAwake,
+    sound: typeof value.sound === "string" && SOUND_PATTERN.test(value.sound) ? value.sound : defaults.sound,
   };
 }
 
@@ -75,6 +80,8 @@ class DesktopAttentionService {
     createNotification,
     notificationsSupported = () => true,
     powerSaveBlocker,
+    listSystemSounds = () => [],
+    playSound = () => {},
     isAppFocused,
     openSession,
     emit = () => {},
@@ -84,6 +91,8 @@ class DesktopAttentionService {
     this.createNotification = createNotification;
     this.notificationsSupported = notificationsSupported;
     this.powerSaveBlocker = powerSaveBlocker;
+    this.listSystemSounds = listSystemSounds;
+    this.playSound = playSound;
     this.isAppFocused = isAppFocused;
     this.openSession = openSession;
     this.emit = emit;
@@ -98,7 +107,32 @@ class DesktopAttentionService {
   }
 
   getPrefs() {
-    return { notifications: this.prefs.notifications, keepAwake: this.prefs.keepAwake };
+    return { notifications: this.prefs.notifications, keepAwake: this.prefs.keepAwake, sound: this.prefs.sound };
+  }
+
+  /** The sounds the picker offers besides Default and None. */
+  getSounds() {
+    try {
+      const names = this.listSystemSounds();
+      return Array.isArray(names) ? names.filter((name) => SOUND_PATTERN.test(`system:${name}`)).sort() : [];
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  /** Play a sound the user is choosing, so the picker can be heard. */
+  previewSound(sound) {
+    if (typeof sound !== "string" || !sound.startsWith("system:")) return false;
+    const name = sound.slice("system:".length);
+    if (!this.getSounds().includes(name)) return false;
+    this.playSound(name);
+    return true;
+  }
+
+  soundOptions() {
+    if (this.prefs.sound === "none") return { silent: true };
+    if (this.prefs.sound.startsWith("system:")) return { sound: this.prefs.sound.slice("system:".length) };
+    return {};
   }
 
   setPrefs(patch) {
@@ -123,6 +157,7 @@ class DesktopAttentionService {
     const notification = this.createNotification({
       title: normalized.title,
       body: normalized.body,
+      ...this.soundOptions(),
     });
     const release = () => this.live.delete(notification);
     this.live.add(notification);

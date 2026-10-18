@@ -57,9 +57,9 @@ function harness(overrides = {}) {
 
 function checkDefaultsAndPersistence() {
   const h = harness();
-  assert.deepEqual(h.service.getPrefs(), { notifications: true, keepAwake: true });
+  assert.deepEqual(h.service.getPrefs(), { notifications: true, keepAwake: true, sound: "default" });
   h.service.setPrefs({ notifications: false });
-  assert.deepEqual(h.emitted.at(-1), { notifications: false, keepAwake: true });
+  assert.deepEqual(h.emitted.at(-1), { notifications: false, keepAwake: true, sound: "default" });
   const reloaded = new DesktopAttentionService({
     statePath: path.join(h.dir, "attention.json"),
     createNotification: () => { throw new Error("unused"); },
@@ -76,7 +76,7 @@ function checkDefaultsAndPersistence() {
     isAppFocused: () => false,
     openSession: () => {},
   });
-  assert.deepEqual(repaired.getPrefs(), { notifications: true, keepAwake: true }, "a broken file falls back to defaults");
+  assert.deepEqual(repaired.getPrefs(), { notifications: true, keepAwake: true, sound: "default" }, "a broken file falls back to defaults");
 }
 
 function checkOneNotificationPerKey() {
@@ -115,6 +115,25 @@ function checkDisabledAndMalformed() {
   assert.ok(!long.shown[0].options.body.includes("\n"));
 }
 
+function checkSounds() {
+  const played = [];
+  const h = harness({ listSystemSounds: () => ["Ping", "Glass", "bad/name"], playSound: (name) => played.push(name) });
+  assert.deepEqual(h.service.getSounds(), ["Glass", "Ping"], "only safe names are offered");
+  h.service.notify(1, { key: "a", title: "Done" });
+  assert.equal(h.shown.at(-1).options.sound, undefined, "default keeps the system sound");
+  h.service.setPrefs({ sound: "system:Glass" });
+  h.service.notify(1, { key: "b", title: "Done" });
+  assert.equal(h.shown.at(-1).options.sound, "Glass");
+  h.service.setPrefs({ sound: "none" });
+  h.service.notify(1, { key: "c", title: "Done" });
+  assert.equal(h.shown.at(-1).options.silent, true);
+  h.service.setPrefs({ sound: "system:../../etc" });
+  assert.equal(h.service.getPrefs().sound, "default", "an unknown value falls back to default");
+  assert.equal(h.service.previewSound("system:Ping"), true);
+  assert.equal(h.service.previewSound("system:Missing"), false);
+  assert.deepEqual(played, ["Ping"]);
+}
+
 function checkKeepAwake() {
   const h = harness();
   h.service.reportBusy(1, true);
@@ -137,4 +156,5 @@ checkOneNotificationPerKey();
 checkFocusedAppStaysQuiet();
 checkDisabledAndMalformed();
 checkKeepAwake();
+checkSounds();
 console.log("attention service checks passed");

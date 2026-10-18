@@ -237,7 +237,7 @@ assert.deepEqual(plain(setBoundsCalls), [
 
 assert.match(
   paneSource,
-  /window\.addEventListener\("resize", report\)/,
+  /window\.addEventListener\("resize", report(AndFollow)?\)/,
   "shell zoom and window resize must trigger a fresh DOM bounds report",
 );
 

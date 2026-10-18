@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "@/lib/i18n";
 import { Switch } from "@/components/ui/switch";
+import { SimpleSelect } from "@/components/ui/select";
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";
 import type { DesktopAttentionApi, DesktopAttentionPrefs } from "@/lib/desktop/desktop-bridge-types";
 import { FieldError } from "@/components/ui/field";
@@ -14,6 +15,7 @@ export function DesktopAttentionSection() {
   const [attention, setAttention] = useState<DesktopAttentionApi | null>(null);
   const [prefs, setPrefs] = useState<DesktopAttentionPrefs | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sounds, setSounds] = useState<string[]>([]);
 
   useEffect(() => {
     const api = desktopBridge()?.attention ?? null;
@@ -22,6 +24,7 @@ export function DesktopAttentionSection() {
     let active = true;
     void api.getPrefs().then((next) => { if (active) setPrefs(next); })
       .catch((reason: unknown) => { if (active) setError(reason instanceof Error ? reason.message : String(reason)); });
+    void api.sounds?.().then((names) => { if (active) setSounds(names); }).catch(() => {});
     const unsubscribe = api.onPrefs((next) => { if (active) setPrefs(next); });
     return () => { active = false; unsubscribe(); };
   }, []);
@@ -47,6 +50,26 @@ export function DesktopAttentionSection() {
           checked={prefs?.notifications ?? true}
           disabled={!prefs}
           onCheckedChange={(checked) => update({ notifications: checked })}
+        />
+      </SettingsRow>
+      <SettingsRow label={text("Notification sound", "通知声音")} htmlFor="desktop-notification-sound">
+        <SimpleSelect
+          id="desktop-notification-sound"
+          value={prefs?.sound ?? "default"}
+          disabled={!prefs || !prefs.notifications}
+          aria-label={text("Notification sound", "通知声音")}
+          onValueChange={(sound) => {
+            update({ sound });
+            void attention.previewSound?.(sound);
+          }}
+          options={[
+            { value: "default", label: text("Default", "默认") },
+            { value: "none", label: text("None", "无") },
+            ...(sounds.length ? [{
+              label: text("System sounds", "系统声音"),
+              options: sounds.map((name) => ({ value: `system:${name}`, label: name })),
+            }] : []),
+          ]}
         />
       </SettingsRow>
       <SettingsRow

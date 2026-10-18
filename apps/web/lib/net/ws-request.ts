@@ -662,3 +662,29 @@ export function wsRequest<T = unknown>(
     unrefTimer(timeout);
   });
 }
+
+/** Hear every frame of one type on the shared socket (progress events and the like). */
+export function wsListen<T = unknown>(type: string, handler: (data: T) => void): () => void {
+  const ws = getSocket();
+  if (!ws) return () => {};
+  const onMsg = (event: MessageEvent) => {
+    try {
+      const msg = JSON.parse(String(event.data));
+      if (msg?.type === type) handler(msg.data as T);
+    } catch { /* not JSON */ }
+  };
+  ws.addEventListener("message", onMsg);
+  return () => ws.removeEventListener("message", onMsg);
+}
+
+/** Send an action that has no reply. False when the socket is not open. */
+export function wsFire(action: string, payload: Record<string, unknown>): boolean {
+  const ws = getSocket();
+  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  try {
+    ws.send(JSON.stringify({ action, ...payload }));
+    return true;
+  } catch {
+    return false;
+  }
+}
