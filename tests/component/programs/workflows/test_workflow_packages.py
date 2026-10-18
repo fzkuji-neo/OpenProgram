@@ -182,3 +182,26 @@ def test_check_commits_only_when_tests_pass(tmp_path):
     log = subprocess.run(["git", "-C", str(package), "log", "--format=%s"],
                          capture_output=True, text=True).stdout
     assert log.strip() == "First version"
+
+
+def test_resumable_entries_are_synchronous_subprocess_tools():
+    import types
+
+    from openprogram.programs._workflow_packages import entry_problems
+
+    async def later(x: str) -> str:
+        """Async entry."""
+        return x
+
+    def here(x: str) -> str:
+        """Worker entry."""
+        return x
+
+    module = types.SimpleNamespace(
+        PROGRAM_ENTRIES=[later, here],
+        ENTRY_OPTIONS={"later": {"resumable": True},
+                       "here": {"resumable": True, "run_in_worker": True}},
+    )
+    problems = entry_problems(module)
+    assert any("later: a resumable entry must be synchronous" in p for p in problems)
+    assert any("here: a resumable entry cannot run in the worker" in p for p in problems)

@@ -132,6 +132,30 @@ ENTRY_OPTIONS = {
 
 `"run_in_worker": True` runs the tool in the worker process instead of a forked subprocess, for entries that use worker-owned state such as browser sessions.
 
+### Resume after a restart
+
+Set `"resumable": True` on an entry to let a run continue after a worker restart or a pause. Inside a resumable entry, wrap each piece of work in `step(name, fn, *args)`:
+
+```python
+from openprogram.agentic_programming.continuation import step
+
+
+def project_report(notes: str) -> str:
+    """Turn this week's project notes into a report."""
+    draft = step("draft", write_draft, notes)
+    return step("check", check, notes, draft)
+
+
+ENTRY_OPTIONS = {"project_report": {"resumable": True}}
+```
+
+- A step runs once and its result is saved. When the run continues, the entry runs again from the top; a completed step returns its saved result without running, so its role calls are not repeated.
+- Code outside steps runs again. Keep it deterministic and free of side effects, and keep step names and order stable.
+- Step arguments and results must be JSON values. A `Context` does not survive a restart; build it inside the step that uses it.
+- A run interrupted by a worker restart continues automatically within the `execution.auto_resume_window_seconds` window; a paused run continues from the chat.
+- A run is tied to the Workflow's commit. If the Workflow changed in the meantime, `execution.code_change_policy` decides: `keep_original` (the default) stops the run with "Workflow code changed", and `use_latest` continues with the new code. With the new code, a removed or reordered completed step also stops the run.
+- A resumable entry must be synchronous and cannot use `run_in_worker`.
+
 ## The Workflow owns execution parameters
 
 Users describe the task, its evidence and the deliverable. They do not configure model IDs, reasoning effort, iteration counts, timeouts, token budgets or retry counts, and the Workflow does not ask for them. Fixed values belong on the role (`Agent(model=..., effort=...)`) or in code.

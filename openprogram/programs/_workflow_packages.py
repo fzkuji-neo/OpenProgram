@@ -5,8 +5,9 @@ A workflow is a Python package. User workflows live in
 name; built-in workflows import as ``openprogram.programs.workflow.<name>``.
 ``PROGRAM_ENTRIES`` lists the functions exposed as tools. An optional
 ``ENTRY_OPTIONS`` dict maps an entry name to tool options (timeout,
-toolset, ..., and ``run_in_worker`` for a tool that must run in the
-worker process instead of a forked subprocess).
+toolset, ..., ``run_in_worker`` for a tool that must run in the
+worker process instead of a forked subprocess, and ``resumable`` for an
+entry whose ``continuation.step`` results survive a restart).
 
 Each user workflow is its own Git repository. ``openprogram workflows
 check`` validates the package, runs its tests and commits; only a clean,
@@ -17,6 +18,7 @@ loaded last.
 from __future__ import annotations
 
 import functools
+import hashlib
 import importlib
 import importlib.machinery
 import importlib.util
@@ -88,6 +90,24 @@ def _bound_entry(entry, fn):
     return bound
 
 
+def _revision(owner: str, fn) -> str:
+    """The code identity a resumable entry is admitted and resumed under.
+
+    A user workflow is its loaded Git commit. A built-in workflow is the
+    content of its package's Python files.
+    """
+    status = _status.get(owner)
+    if status is not None and status.revision:
+        return f"{owner}@{status.revision}"
+    module = sys.modules.get(fn.__module__)
+    package = Path(getattr(module, "__file__", "") or ".").resolve().parent
+    digest = hashlib.sha256()
+    for path in sorted(package.rglob("*.py")):
+        if "__pycache__" not in path.parts and "tests" not in path.relative_to(package).parts:
+            digest.update(str(path.relative_to(package)).encode() + b"\0" + path.read_bytes())
+    return f"{owner}#{digest.hexdigest()}"
+
+
 def entry_problems(module) -> list[str]:
     """Contract problems in a workflow module's ``PROGRAM_ENTRIES``."""
     entries = getattr(module, "PROGRAM_ENTRIES", None)
@@ -106,6 +126,12 @@ def entry_problems(module) -> list[str]:
             problems.append(f"{fn.__name__}: entries cannot be generators.")
         if not (inspect.getdoc(fn) or "").strip():
             problems.append(f"{fn.__name__}: an entry needs a docstring; it is the tool description.")
+        entry_options = options.get(fn.__name__, {}) if isinstance(options, dict) else {}
+        if entry_options.get("resumable"):
+            if inspect.iscoroutinefunction(fn):
+                problems.append(f"{fn.__name__}: a resumable entry must be synchronous.")
+            if entry_options.get("run_in_worker"):
+                problems.append(f"{fn.__name__}: a resumable entry cannot run in the worker.")
         for parameter in inspect.signature(fn).parameters.values():
             if parameter.kind in (parameter.VAR_POSITIONAL, parameter.VAR_KEYWORD):
                 problems.append(f"{fn.__name__}: *{parameter.name} cannot be a tool parameter.")
@@ -142,7 +168,10 @@ def register_workflow_entries(module, *, owner: str = "") -> list[str]:
         # Runs in the worker process instead of a forked subprocess, for
         # tools that use worker-owned registries.
         run_in_worker = bool(options.pop("run_in_worker", False))
-        wrapper = wrap_agent_method(_bound_entry(entry, fn), options)
+        bound = _bound_entry(entry, fn)
+        if options.get("resumable"):
+            bound._workflow_revision = functools.partial(_revision, owner, fn)
+        wrapper = wrap_agent_method(bound, options)
         tool = register_agent_method(wrapper, options)
         wrapper._workflow_entry = True
         wrapper._workflow_owner = owner

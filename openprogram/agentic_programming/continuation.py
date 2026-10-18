@@ -729,6 +729,11 @@ def function_execution(
 
 
 def invoke(fn, name, args, kwargs):
+    revision = getattr(fn, "_workflow_revision", None)
+    if revision is not None:
+        # A workflow entry is identified by its package revision, not by a
+        # source snapshot: it runs the loaded package code, roles included.
+        return _invoke(fn, name, args, kwargs, revision=revision())
     fn = _source_callable(fn)
     if inspect.isfunction(fn) and args:
         from openprogram.agentic_programming.agent_class import Agent
@@ -743,7 +748,7 @@ def invoke(fn, name, args, kwargs):
     return _invoke(fn, name, args, kwargs)
 
 
-def _invoke(fn, name, args, kwargs, *, runtime=None):
+def _invoke(fn, name, args, kwargs, *, runtime=None, revision=None):
     context = _current.get()
     if context is None:
         return fn(*args, **kwargs, **({"runtime": runtime} if runtime is not None else {}))
@@ -756,8 +761,11 @@ def _invoke(fn, name, args, kwargs, *, runtime=None):
                          **({"receiver": _receiver_state(fn.__self__)} if inspect.ismethod(fn) else {})})
     saved = context.load("function.admitted", key)
     if saved is None:
-        _validate_orchestration(fn)
-        snapshot = _snapshot(fn)
+        if revision is not None:
+            snapshot = {"workflow": revision}
+        else:
+            _validate_orchestration(fn)
+            snapshot = _snapshot(fn)
         context.save(
             "function.admitted",
             key,
@@ -776,7 +784,14 @@ def _invoke(fn, name, args, kwargs, *, runtime=None):
             context.boundary()
             return result["result"]
         active_version = context.load("function.version_active", key)
-        if context.policy == "keep_original":
+        if revision is not None:
+            retained = active_version["code"] if active_version is not None else saved["code"]
+            snapshot = {"workflow": revision}
+            if retained != snapshot and context.policy == "keep_original":
+                raise FunctionCompatibilityError(
+                    "Workflow code changed since this run started; continue with the latest code"
+                )
+        elif context.policy == "keep_original":
             snapshot = (
                 active_version["code"] if active_version is not None else saved["code"]
             )

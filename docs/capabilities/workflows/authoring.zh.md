@@ -132,6 +132,30 @@ ENTRY_OPTIONS = {
 
 `"run_in_worker": True` 让工具在 worker 进程内运行而不是 fork 子进程，适用于使用 worker 持有的状态（如浏览器会话）的入口。
 
+### 重启后恢复
+
+在入口上设置 `"resumable": True`，运行就能在 worker 重启或暂停后继续。可恢复入口内，每一段工作都用 `step(name, fn, *args)` 包起来：
+
+```python
+from openprogram.agentic_programming.continuation import step
+
+
+def project_report(notes: str) -> str:
+    """Turn this week's project notes into a report."""
+    draft = step("draft", write_draft, notes)
+    return step("check", check, notes, draft)
+
+
+ENTRY_OPTIONS = {"project_report": {"resumable": True}}
+```
+
+- 每个 step 只运行一次，结果会保存。运行继续时，入口从头再执行；已完成的 step 直接返回保存的结果而不再运行，其中的角色调用不会重复。
+- step 之外的代码会再次运行。它必须是确定性的、没有副作用，step 的名字和顺序要保持稳定。
+- step 的参数和结果必须是 JSON 值。`Context` 不会跨重启保留，请在用到它的 step 内构造。
+- 因 worker 重启而中断的运行，会在 `execution.auto_resume_window_seconds` 时间窗内自动继续；暂停的运行在聊天中继续。
+- 一次运行绑定 Workflow 的提交。如果期间 Workflow 有改动，由 `execution.code_change_policy` 决定：`keep_original`（默认）以 "Workflow code changed" 停止运行，`use_latest` 用新代码继续。用新代码时，删掉或调换已完成的 step 也会停止运行。
+- 可恢复入口必须是同步函数，且不能使用 `run_in_worker`。
+
 ## 执行参数由 Workflow 负责
 
 用户描述任务、证据和交付物，不配置模型 ID、推理强度、迭代次数、超时、token 预算或重试次数，Workflow 也不向用户索要这些值。固定值写在角色上（`Agent(model=..., effort=...)`）或代码里。
