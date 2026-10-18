@@ -39,6 +39,9 @@ test("confirmations go through the shared ConfirmDialog, never the native confir
   assert.match(read("app/providers.tsx"), /<ConfirmDialogHost \/>/);
   const confirm = read("components/ui/confirm-dialog.tsx");
   assert.match(confirm, /variant=\{destructive \? "destructive" : "default"\}/);
+  // A click outside cancels, like every Dialog; Radix's AlertDialog alone would ignore it.
+  assert.match(confirm, /<AlertDialogContent onOverlayClick=\{onCancel\}>/);
+  assert.match(read("components/ui/alert-dialog.tsx"), /<AlertDialogOverlay onClick=\{onOverlayClick\} \/>/);
   for (const file of all) {
     if (file === "components/ui/confirm-dialog.tsx") continue;
     const source = read(file);

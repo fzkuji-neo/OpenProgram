@@ -158,7 +158,7 @@ icon-sm     24.5 px                输入框周围的图标按钮
 ─────────────────────────────────────────────────────────────────
 ```
 
-- 所有"确定吗？"都走 `ConfirmDialog`（`components/ui/confirm-dialog.tsx`）：标题、可选说明、`outline` 的取消，以及确认按钮——一般是 `default`，删除或降低安全保护时（删除聊天、绕过权限）用 `destructive`。命令式调用写 `await confirmAction({...})`，由 `app/providers.tsx` 里唯一的 `<ConfirmDialogHost />` 渲染。
+- 所有"确定吗？"都走 `ConfirmDialog`（`components/ui/confirm-dialog.tsx`）：标题、可选说明、`outline` 的取消，以及确认按钮——一般是 `default`，删除或降低安全保护时（删除聊天、绕过权限）用 `destructive`。按 Esc、点框外、点取消都是取消。命令式调用写 `await confirmAction({...})`，由 `app/providers.tsx` 里唯一的 `<ConfirmDialogHost />` 渲染。
 - 表单和多操作的对话框用 `Dialog`，配 `DialogHeader` 和 `DialogFooter`。底栏只放 `Button`：取消 / 关闭用 `outline`，主操作用 `default`。
 - 加在 `DialogContent` 上的 module 类只管尺寸（宽度、`max-width: none`、最大高度、滚动），不重写表面：不写背景、边框、圆角、内边距、阴影。
 - 内容铺满边缘的对话框（源码查看、函数运行、Provider 设置）传 `p-0 gap-0`，自己给标题栏和正文加内边距，并给 `DialogFooter` 加 `m-0`。

@@ -5,8 +5,8 @@
 // renders through it so they share one look — the confirm button is the
 // default Button, or the destructive one when the action deletes or
 // lowers a safeguard. Callers mount it while the question is pending
-// (open defaults to true) and get onCancel for Escape, the overlay and
-// the Cancel button alike — never after onConfirm, although Radix also
+// (open defaults to true) and get onCancel for Escape, a click outside
+// the dialog and the Cancel button alike — never after onConfirm, although Radix also
 // reports the confirm button's close through onOpenChange.
 
 import * as React from "react"
@@ -54,7 +54,7 @@ export function ConfirmDialog({
         if (!next && !confirmed.current) onCancel()
       }}
     >
-      <AlertDialogContent>
+      <AlertDialogContent onOverlayClick={onCancel}>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           {description ? <AlertDialogDescription>{description}</AlertDialogDescription> : null}

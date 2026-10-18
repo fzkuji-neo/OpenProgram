@@ -289,7 +289,8 @@ motion      100ms fade + zoom-in-95; no slide
   (`components/ui/confirm-dialog.tsx`): title, optional description,
   an `outline` Cancel and a confirm button that is `default`, or
   `destructive` when the action deletes or lowers a safeguard
-  (delete chat, Bypass Permissions). Imperative callers use
+  (delete chat, Bypass Permissions). Escape, a click outside and
+  Cancel all cancel it. Imperative callers use
   `await confirmAction({...})`, served by the one
   `<ConfirmDialogHost />` in `app/providers.tsx`.
 - Forms and multi-action dialogs use `Dialog` with `DialogHeader` and

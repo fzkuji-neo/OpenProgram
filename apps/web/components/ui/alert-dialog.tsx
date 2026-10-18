@@ -6,6 +6,9 @@
 // components/ui/dialog.tsx: package imports, forwarded refs (React 18),
 // overlay z-[110] marked data-native-view-occluder, content z-[120] with
 // .shadcn-scale so it renders at the docs' size on the 14px root.
+// Radix keeps an alert open on an outside click; AlertDialogContent's
+// onOverlayClick lets a caller treat a click on the overlay as Cancel,
+// the way every Dialog closes.
 
 import * as React from "react"
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
@@ -50,10 +53,11 @@ const AlertDialogContent = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content> & {
     size?: "default" | "sm"
+    onOverlayClick?: () => void
   }
->(({ className, size = "default", ...props }, ref) => (
+>(({ className, size = "default", onOverlayClick, ...props }, ref) => (
   <AlertDialogPortal>
-    <AlertDialogOverlay />
+    <AlertDialogOverlay onClick={onOverlayClick} />
     <AlertDialogPrimitive.Content
       ref={ref}
       data-slot="alert-dialog-content"
