@@ -25,7 +25,7 @@
 
 先阅读函数调用、工作流组成与应用执行，再查看报告场景。
 
-[函数调用](function/calling-unification.zh.md) · [程序模型](function/agentic-program.zh.html) · [应用运行](runtime/application-runtime.zh.html) · [报告工作流](runtime/report-suite.zh.html)
+[函数调用](function/calling-unification.zh.md) · [Workflow](runtime/workflow.zh.md) · [程序模型](function/agentic-program.zh.html) · [应用运行](runtime/application-runtime.zh.html) · [报告工作流](runtime/report-suite.zh.html)
 
 先阅读事件约定，再阅读规则、主动执行与调度。
 

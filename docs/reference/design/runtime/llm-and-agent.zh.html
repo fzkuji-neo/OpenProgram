@@ -99,7 +99,7 @@
         <h2>1. 结论与边界</h2>
         <p>这次重构不新增第三个 Agent 抽象，也不把 session Job API 包装成另一个公共函数。公共语义保持在 <code>agent()</code>；持久化和分支属于运行环境，不属于 Workflow 编写接口。</p>
         <div class="decision">
-          <div class="card decision-main"><h3>共用执行入口</h3><p class="big"><code>agent()</code> 与配置化 <code>Agent</code> 调用使用同一自主工具循环。</p><p>普通 Agentic Function 不调用它，只允许一次 <code>llm()</code>；完整分类合同见<a href="self-programming-workflow-model.zh.html">编程模型与分类</a>。Workflow 内的 <code>agent()</code> 在当前 Runtime 中运行并形成父子 Call 关系。</p></div>
+          <div class="card decision-main"><h3>共用执行入口</h3><p class="big"><code>agent()</code> 与配置化 <code>Agent</code> 调用使用同一自主工具循环。</p><p>普通 Agentic Function 不调用它，只允许一次 <code>llm()</code>；完整分类合同见<a href="workflow.zh.md">Workflow 设计</a>。Workflow 内的 <code>agent()</code> 在当前 Runtime 中运行并形成父子 Call 关系。</p></div>
           <div class="card"><h3>内部 session 适配</h3><p><code>run_agent_turn()</code> 只服务于 Chat、CLI、后台 Job 和真正独立的 sub-agent。它负责创建会话分支、抢占 worker、恢复 Job 和移动 session head，不得被 Programs 直接导入。</p></div>
         </div>
         <div class="scope-list"><div class="card"><strong class="check">纳入本次重构</strong><span>Agent loop 统一、Workflow 选择/创建/修复、DAG 归属、结构化输出、错误传播、迁移测试和 UI 展示合同。</span></div><div class="card"><strong class="cross">不在本次重构中新增</strong><span>新的 Workflow DSL、新的图执行引擎、第二套 Agent profile、额外的持久化数据库、隐藏 chain-of-thought 展示。</span></div></div>
@@ -176,7 +176,7 @@
 
       <section id="workflow">
         <h2>5. Self Programming Workflow 的目标流程</h2>
-        <p>公共行为已经拆为 <code>search_workflows</code>、<code>create_workflow</code>、<code>revise_workflow</code> 和用户手动入口 <code>auto_workflow(task)</code>。Chat Agent按需直接调用前三类能力或具体Workflow；只有用户手动运行完整流程时才进入 <code>auto_workflow</code>。本节只描述它们如何使用公共 <code>agent()</code>；完整合同以<a href="self-programming-workflow-authoring.zh.html">发现、创建与自动执行</a>为准。</p>
+        <p>Workflow 由聊天 Agent 直接编写成普通 Python 包：<code>Agent</code> 实例作为角色，显式的 <code>Context</code> 对象，加上普通函数。不另设搜索、创建、修订 workflow 的工具。完整合同以 <a href="workflow.zh.md">Workflow 设计</a>为准。</p>
         <div class="diagram"><svg viewBox="0 0 1120 660" role="img" aria-label="auto_workflow 的用户手动流程：输入任务后搜索现有 Workflow，由一个可见 Agent 决定复用或创建；创建路径执行确定性验证和有界 author retry；发布后执行选定 Workflow。">
           <defs><marker id="arrow3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#747981"/></marker></defs>
           <rect x="430" y="18" width="260" height="58" rx="11" fill="#17191c" stroke="#454b54"/><text x="560" y="52" text-anchor="middle" fill="#e8e9eb" font-size="16">auto_workflow(task)</text><path d="M560 76V112" stroke="#747981" stroke-width="2" marker-end="url(#arrow3)"/>
@@ -314,7 +314,7 @@ git diff --check</code></pre>
           <div class="card status"><span class="tag target">待实现</span><strong>统一 DAG 与 App 可视验收尚未完成</strong><p>组件测试已覆盖 reuse/create/revise/pin/resume；默认 App 中 selection Agent 节点、Conclusion 与 reload 行为仍待验收。</p></div>
           <div class="card status"><span class="tag keep">已验证的现状</span><strong>公开 <code>agent()</code> 结构化输出透传</strong><p>公共 <code>agent()</code> 已接受裸 JSON Schema 或 <code>JsonSchemaOutput</code>，并原样返回 Runtime 验证后的 object、array、scalar 或 null。未请求结构化输出时继续保留文本和 legacy <code>{"text": ...}</code> 兼容行为；Workflow 规划器迁移不属于这项实现。</p></div>
         </div>
-        <div class="footer">文档定位：本页是Agent执行语义的权威合同。Workflow发现、创建、修订、自动入口与源码分类以 <a href="self-programming-workflow-authoring.zh.html">authoring设计页</a> 为权威来源，其他页面不得复制出第二套入口合同。</div>
+        <div class="footer">文档定位：本页是 Agent 执行语义的权威合同。Workflow 的形式、上下文规则与加载以 <a href="workflow.zh.md">Workflow 设计</a>为权威来源，其他页面不得复制出第二套合同。</div>
       </section>
     </div>
   </main>

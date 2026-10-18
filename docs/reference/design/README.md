@@ -25,7 +25,7 @@ Follow execution, session persistence, branching and recovery in that order.
 
 Understand function calls, workflow composition and application execution before the report examples.
 
-[Function calling](function/calling-unification.md) · [Program model](function/agentic-program.html) · [Application runtime](runtime/application-runtime.html) · [Report workflows](runtime/report-suite.html)
+[Function calling](function/calling-unification.md) · [Workflows](runtime/workflow.md) · [Program model](function/agentic-program.html) · [Application runtime](runtime/application-runtime.html) · [Report workflows](runtime/report-suite.html)
 
 Read the event contract before policies, proactive actions and scheduling.
 
