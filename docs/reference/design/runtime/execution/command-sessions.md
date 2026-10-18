@@ -61,7 +61,7 @@ At most 64 live sessions per conversation (Codex `MAX_UNIFIED_EXEC_PROCESSES`). 
 ## Approvals
 
 - `write_stdin` with empty chars or `"\x03"` is allowed without asking (`SESSION_POLL`); `bash` already approved the command. Other input follows the mode, as `bash`.
-- `terminal_use` `input`, `interrupt` or `close` on a tab the user opened (`terminal_id` not starting with `terminal-resource:`) is `force_approval` and `one_shot_approval`: it asks in every mode including Auto and Bypass, and the approval is never saved as a rule. The card (`TerminalApproval`) names the tab, its current directory from shell integration, whether a command is running, unfinished human input, and the exact input with control characters spelled out.
+- `terminal_use` `input`, `interrupt` or `close` follows the permission mode, on the user's tabs and the agent's alike. When it asks, the card (`TerminalApproval`) names the tab, its current directory from shell integration, whether a command is running, unfinished human input, and the exact input with control characters spelled out.
 - `write_stdin` is a risky tool wherever `process` was (Auto risk set, MCP/delegated hard constraints, dangerous allow rules).
 
 ## Interface

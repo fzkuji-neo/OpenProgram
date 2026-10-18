@@ -2,7 +2,7 @@
 
 /** The body of a terminal_use approval: which terminal tab, what state it is
  *  in, and exactly what the agent would type, laid out like every other
- *  approval. A tab the user opened is approved one input at a time. */
+ *  approval. */
 import { SolarIcon } from "@/components/solar-icons";
 import { Badge } from "@/components/ui/badge";
 import { useTerminalResources } from "@/lib/desktop/terminal-resources";
@@ -44,8 +44,8 @@ export function TerminalApproval({ args }: { args: Args }) {
         : integration?.status === "ready" ? text("Waiting at the prompt", "停在提示符")
           : text("Running", "运行中");
   const effect = yours
-    ? text("You opened this tab, so it may hold your sign-ins and work in progress. Each input is approved on its own, in every mode.",
-      "这个标签页是你开的，里面可能有你的登录状态和正在做的事。每次输入都要单独批准，任何模式下都一样")
+    ? text("You opened this tab, so it may hold your sign-ins and work in progress.",
+      "这个标签页是你开的，里面可能有你的登录状态和正在做的事")
     : text("The agent opened this tab for its own work.", "这个标签页是 agent 自己开的");
   return (
     <>

@@ -159,7 +159,7 @@ Self-update continuation, replanning after a changed runtime contract, and origi
 
 Select a Terminal resource to attach its interactive view beside the conversation. The Agent and the user share the same shell, working directory, environment and output. Hiding the view or switching sessions does not terminate the shell. **Terminate terminal** explicitly requests process termination and requires confirmation; an acknowledged request is not evidence that the process has exited. **Share terminal** makes it discoverable to other sessions on that Desktop host; making it private revokes the current Agent binding.
 
-Typing into, interrupting or closing a terminal tab you opened yourself asks for approval every time, in every permission mode including Auto and Bypass, and the approval is never remembered. The card names the tab, its current directory and whether a command is running in it, and shows exactly what would be typed. Terminals the Agent opened for its own work follow the permission mode.
+Typing into, interrupting or closing a terminal tab follows the permission mode, whether you opened the tab or the Agent did. When approval is asked, the card names the tab, its current directory and whether a command is running in it, and shows exactly what would be typed.
 
 Commands the Agent left running with `bash` are listed in the same Terminal group as **Background terminal**. Selecting one shows its output read-only, with **Stop**; the Agent types into it with `write_stdin`, not through this view.
 

@@ -61,7 +61,7 @@ Codex 和 Claude Code 也是这样分：Codex 用 `exec_command`/`write_stdin` �
 ## 审批
 
 - `write_stdin` 的 chars 为空或 `"\x03"` 时不询问直接放行（`SESSION_POLL`），因为 `bash` 已经批准过这条命令。其他输入按模式处理，和 `bash` 一样。
-- 对用户开的标签页（`terminal_id` 不以 `terminal-resource:` 开头）做 `terminal_use` 的 `input`、`interrupt` 或 `close`，属于 `force_approval` 和 `one_shot_approval`：任何模式下都询问，包括 Auto 和 Bypass，批准也不会保存成规则。卡片（`TerminalApproval`）写明标签页、shell 集成报告的当前目录、有没有命令在运行、有没有用户没输完的内容，并把要输入的内容连同控制字符原样显示出来。
+- `terminal_use` 的 `input`、`interrupt` 或 `close` 按权限模式处理，用户开的标签页和 agent 开的一样。需要询问时，卡片（`TerminalApproval`）写明标签页、shell 集成报告的当前目录、有没有命令在运行、有没有用户没输完的内容，并把要输入的内容连同控制字符原样显示出来。
 - 原来 `process` 所在的风险名单里都换成了 `write_stdin`（Auto 风险集、MCP/委派硬约束、危险允许规则）。
 
 ## 界面

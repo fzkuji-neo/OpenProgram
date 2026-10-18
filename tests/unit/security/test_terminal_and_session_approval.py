@@ -1,4 +1,4 @@
-"""Typing into the user's own terminal asks every time; polling a command session never asks."""
+"""Terminal input follows the permission mode; polling a command session never asks."""
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -25,24 +25,12 @@ def decide(monkeypatch):
     return run
 
 
-@pytest.mark.parametrize("mode", ["bypass", "auto", "default"])
-@pytest.mark.parametrize("action", ["input", "interrupt", "close"])
-def test_writing_to_a_users_terminal_asks_in_every_mode(decide, mode, action):
-    args = {"action": action, "terminal_id": "terminal:desktop:shell", "data": "ls\r"}
-    assert decide("terminal_use", args, mode=mode, allow=["terminal_use"]) == ("ask", "MANDATORY_APPROVAL")
-
-
-def test_the_agents_own_terminal_and_reading_follow_the_mode(decide):
-    own = {"action": "input", "terminal_id": "terminal-resource:" + "0" * 32, "data": "ls\r"}
-    assert decide("terminal_use", own) == ("allow", "BYPASS")
-    assert decide("terminal_use", {"action": "observe", "terminal_id": "terminal:desktop:shell"}) == ("allow", "BYPASS")
-
-
-def test_a_users_terminal_approval_is_never_remembered():
-    from openprogram.agent.permissions.policy import one_shot_approval
-
-    assert one_shot_approval("terminal_use", {"action": "input", "terminal_id": "terminal:desktop:shell"})
-    assert not one_shot_approval("terminal_use", {"action": "input", "terminal_id": "terminal-resource:" + "0" * 32})
+@pytest.mark.parametrize("terminal_id", ["terminal:desktop:shell", "terminal-resource:" + "0" * 32])
+def test_terminal_input_follows_the_permission_mode(decide, terminal_id):
+    args = {"action": "input", "terminal_id": terminal_id, "data": "ls\r"}
+    assert decide("terminal_use", args) == ("allow", "BYPASS")
+    assert decide("terminal_use", args, mode="auto") == ("auto", "AUTO_CLASSIFY")
+    assert decide("terminal_use", args, mode="default") == ("ask", "MODE_APPROVAL")
 
 
 @pytest.mark.parametrize("chars", ["", "\x03"])

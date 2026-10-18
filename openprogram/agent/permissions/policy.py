@@ -31,23 +31,6 @@ def _page_script(name: str, args: dict | None) -> bool:
     return name == "web_use" and _web_use_evaluates(args)
 
 
-# Terminals the agent opened itself carry this prefix; every other terminal
-# tab is one the user opened.
-AGENT_TERMINAL_PREFIX = "terminal-resource:"
-
-
-def user_terminal_write(name: str, args: dict | None) -> bool:
-    """A terminal_use call that types into, interrupts or closes a terminal tab the user opened.
-
-    That shell holds whatever the user has signed in to and left running, so
-    each such call is shown with its tab and approved alone, in every mode.
-    """
-    if name != "terminal_use" or not isinstance(args, dict):
-        return False
-    return (str(args.get("action") or "") in {"input", "interrupt", "close"}
-            and not str(args.get("terminal_id") or "").startswith(AGENT_TERMINAL_PREFIX))
-
-
 def _session_poll(name: str, args: dict | None) -> bool:
     """write_stdin that only waits for output or sends Ctrl-C to the agent's own command."""
     if name != "write_stdin" or not isinstance(args, dict):
@@ -57,7 +40,7 @@ def _session_poll(name: str, args: dict | None) -> bool:
 
 def force_approval(name: str, args: dict | None) -> bool:
     """Calls that ask in every mode, whatever the rules say."""
-    return name in _FORCE_APPROVAL_TOOLS or _page_script(name, args) or user_terminal_write(name, args)
+    return name in _FORCE_APPROVAL_TOOLS or _page_script(name, args)
 
 
 def one_shot_approval(name: str, args: dict | None) -> bool:
@@ -66,8 +49,7 @@ def one_shot_approval(name: str, args: dict | None) -> bool:
     A page script reads everything a signed-in page holds, including what
     observations redact, so each one is shown to the user and approved alone.
     """
-    return (name in _ONE_SHOT_FORCE_APPROVAL_TOOLS or _page_script(name, args)
-            or user_terminal_write(name, args))
+    return name in _ONE_SHOT_FORCE_APPROVAL_TOOLS or _page_script(name, args)
 
 
 # Desktop control is granted per application (and a VM per endpoint): in the
