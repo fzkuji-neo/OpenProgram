@@ -1,6 +1,6 @@
 # Computer use
 
-One tool, `computer_use_agent`, lets the model operate a screen: the windows of a desktop application, the Pages of the App's built-in browser, or a virtual machine. Application windows are read and operated while you keep working: the application stays in the background, the keyboard and mouse remain yours, and nothing is brought to the front. The model sees a screenshot of the window together with its Accessibility tree, acts on a numbered element, and gets back only the lines that changed. Applications are supported on macOS, on Linux under X11 and on Windows, with the differences listed in [On Linux](#on-linux) and [On Windows](#on-windows).
+One tool, `computer_use_agent`, lets the model operate a screen: the windows of a desktop application, the Pages of the App's built-in browser, your own Chrome, or a virtual machine. Application windows are read and operated while you keep working: the application stays in the background, the keyboard and mouse remain yours, and nothing is brought to the front. The model sees a screenshot of the window together with its Accessibility tree, acts on a numbered element, and gets back only the lines that changed. Applications are supported on macOS, on Linux under X11 and on Windows, with the differences listed in [On Linux](#on-linux) and [On Windows](#on-windows).
 
 ## Targets and guides
 
@@ -10,6 +10,7 @@ Every call names a `target`:
 |---|---|---|
 | `app` | Application windows on this computer, named by `args.app`: Finder, Notes, Calculator, Xcode, a chat client, a game launcher | The desktop grants below |
 | `browser` | Pages of the App's built-in browser: the tabs in the App's windows and tabs it opens in the background. Not your own Chrome | The App |
+| `chrome` | Your own Chrome or Edge: its tabs, with your sign-ins, through the Playwright Extension | Node.js and the extension, see [Your own Chrome](#your-own-chrome) |
 | `vm` | A remote machine behind an OSWorld-compatible server | `computer_use.vm_url`, see [Virtual machine](#virtual-machine) |
 
 The tool's description is only this list. The first call to a target in a conversation returns that target's guide, its actions and their arguments, together with the target's current state, so the model learns the actions of the screen it is about to use and nothing else. `action="guide"` shows the guide again.
@@ -138,6 +139,20 @@ If the App or worker restarts, pages you had not closed come back in the backgro
 The chat preview also follows the other things the Agent works on. When it acts on a desktop app window, the preview shows that app with the latest screenshot the Agent took of the window, refreshed after every step. When it takes or types into a Desktop Terminal, the preview shows that terminal's live output, read-only. The same Auto preview, pin and close rules apply; the next Page the Agent works on takes the preview back. Screenshots stay in memory and are not kept after the worker restarts.
 
 These controls operate on exact OpenProgram Pages. Application windows and VM displays keep their own approvals described above.
+
+## Your own Chrome
+
+The `chrome` target drives the Chrome (or Edge) you browse with, so pages open with your sign-ins and cookies. It runs Microsoft's Playwright MCP server in extension mode (`@playwright/mcp --extension`), and the [Playwright Extension](https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm) in your browser connects to it. Install the extension once from the Chrome Web Store; the server itself is fetched with `npx`, so Node.js must be installed.
+
+The actions are Playwright MCP's own tools without the `browser_` prefix and with the same arguments: `tabs`, `navigate`, `snapshot`, `click`, `type`, `fill_form`, `select_option`, `press_key`, `take_screenshot` and the rest. `snapshot` lists the page's elements with refs, and an action points at one with `target` set to its ref. The guide sent with the first result lists every action as the installed server describes it. `run_code_unsafe`, which runs Node code outside the page, is not offered.
+
+On the first action the extension asks which tab to share. To connect without that prompt, copy the token the extension shows and set it:
+
+```bash
+openprogram config set computer_use.chrome_extension_token <token>
+```
+
+One approval covers Chrome for the conversation; `evaluate` (page JavaScript) asks every time, and `file_upload` names the upload. Code mode does not reach this target.
 
 ## Virtual machine
 

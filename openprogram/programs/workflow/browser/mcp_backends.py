@@ -60,7 +60,8 @@ async def _cancel_pending_tasks(timeout: float = 6.0) -> None:
 class _SyncMCPClient:
     """Keep the async MCP supervisor alive on one private event loop."""
 
-    def __init__(self, command: list[str], *, timeout: float = 30.0) -> None:
+    def __init__(self, command: list[str], *, timeout: float = 30.0,
+                 env: dict[str, str] | None = None) -> None:
         self._loop = asyncio.new_event_loop()
         self._client = None
         self._thread = threading.Thread(
@@ -71,6 +72,7 @@ class _SyncMCPClient:
             self._client = MCPClient(MCPServerConfig(
                 name="web-use-private",
                 command=command,
+                env=dict(env or {}),
                 timeout_seconds=timeout,
             ))
             self._submit(self._client.start(), timeout + 5)

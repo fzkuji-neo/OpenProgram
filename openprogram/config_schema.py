@@ -644,6 +644,13 @@ SETTINGS: list[SettingSpec] = [
              "e.g. http://192.168.64.2:5000. Set it to give computer_use_agent its vm target; empty turns it off.",
     ),
     SettingSpec(
+        key="computer_use.chrome_extension_token", path=("computer_use", "chrome_extension_token"),
+        group="Computer use", label="Chrome extension token", widget="text",
+        apply=APPLY_LIVE, default="", secret=True,
+        help="The token shown by the Playwright Extension in your Chrome. With it, the chrome target of "
+             "computer_use_agent connects without asking which tab to share; empty asks each time.",
+    ),
+    SettingSpec(
         key="search.default_provider", path=("search", "default_provider"),
         group="Search", label="Default web-search provider", widget="enum",
         apply=APPLY_LIVE, default="auto", choices=_search_choices,

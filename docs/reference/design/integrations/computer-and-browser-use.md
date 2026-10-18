@@ -42,11 +42,12 @@ computer_use_agent(target, action?, args?, actions?, code?, timeout?, context?, 
 |---|---|---|
 | `app` | `openprogram/computer_use/` (macOS, Linux X11, Windows) | `args.app` given: its state (tree and screenshot); otherwise the app list |
 | `browser` | the `web_use` runtime (App Pages, headless Chromium) | the page list |
+| `chrome` | Playwright MCP in extension mode, connected to the user's Chrome | the tab list |
 | `vm` | an OSWorld-compatible server at `computer_use.vm_url` | a screenshot |
 
 Each target has a guide (`guides/<target>.md`; the app guide has macOS, Linux and Windows variants): its actions, their arguments, how results look, and the confirmation policy. The tool remembers which guides it has sent per conversation and per agent generation, and attaches a guide to the first result for its target; `action: "guide"` returns it again, for instance after compaction dropped it. Starting a fresh agent forgets that agent generation's guides, because the new agent begins with only its prompt.
 
-The `app` actions are those of the application backend below, with the same arguments; the `browser` actions are the `web_use` runtime's commands: `list_pages`, `observe`, `verify` and `close` keep their names, and each `act` action (`navigate`, `click`, `type`, …) is an action of its own. The user's own Chrome is not a target: no backend reaches it (all three `web_use` backends drive the App's Pages or the headless Chromium).
+The `app` actions are those of the application backend below, with the same arguments; the `browser` actions are the `web_use` runtime's commands: `list_pages`, `observe`, `verify` and `close` keep their names, and each `act` action (`navigate`, `click`, `type`, …) is an action of its own. None of the `web_use` backends reaches the user's own Chrome (they drive the App's Pages or the headless Chromium); the `chrome` target does. `targets/chrome.py` runs `@playwright/mcp --extension` (the version pinned for `web_use`) through `_SyncMCPClient`, one server per conversation kept between calls. The server opens `chrome-extension://<id>/connect.html` in the user's Chrome with the address of its relay, and the Playwright Extension connects back and relays CDP for the tab the user shares; with `computer_use.chrome_extension_token` set, the server passes `PLAYWRIGHT_MCP_EXTENSION_TOKEN` and the extension connects without asking. The target's actions are the server's tools with `browser_` dropped and arguments passed unchanged, its guide lists them from the server's own tool descriptions, and `run_code_unsafe` is withheld. The approval rule subject is `chrome`, so one grant covers the conversation; `evaluate` is approved per call as on the `browser` target. Code mode registers no `chrome` resource.
 
 ### Grounding
 
@@ -76,6 +77,7 @@ A spawned agent cannot ask for approval, so the `fresh` call carries it: it name
 |---|---|
 | `app` (except `list_apps`) | per application, as before: rule `computer_use_agent(<app>)`, asked in the modes that ask; former `computer_use(<app>)` rules still match |
 | `browser` | the turn's Page grant when the conversation has Pages; otherwise the permission mode; `evaluate` is approved per call, once |
+| `chrome` | once per conversation: rule `computer_use_agent(chrome)`; `evaluate` is approved per call |
 | `vm` | per endpoint: rule `computer_use_agent(vm:<url>)` |
 | `fresh` | as the target it names |
 
@@ -297,5 +299,6 @@ The person points the agent at things the way Codex lets them:
 - Implemented: windows on other Spaces, tested from Desktop 1 against Calculator on Desktop 2 (listing, screenshot, element presses computing 7×6, a coordinate click, a scroll, the key errors), with the pointer and the front app unchanged and the window left on its Space; inserting text there is not covered, since Calculator has no text field.
 - Implemented, not yet run on Windows: the Windows backend described above. The macOS machines it is built on have no Windows guest, so only its host-independent parts (PNG encoding, key mapping, the HTML clipboard payload, Start menu parsing, the control-type table, refusals, the recording format) have unit tests.
 - Implemented on macOS: the agent cursor over desktop apps, with unit tests for the step point frames and the desktop cue window. Not implemented: the Linux and Windows backends emit no step points, so no cursor shows there.
+- Implemented: the `chrome` target over Playwright MCP's extension mode, with unit tests for forwarding, withheld tools, stopping on failure and the approval subject. Not yet run against the Playwright Extension in a live Chrome.
 - Implemented on macOS: the window marker, with unit tests for watching, switching and idle release. Not implemented on Linux and Windows.
 - Not implemented: audio input over the Responses and Anthropic APIs, whose models take no audio; moving a window from another Space, and typing into it with keys (see above); naming an icon from its outline (the model reads the screenshot).

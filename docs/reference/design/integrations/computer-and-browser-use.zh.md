@@ -42,11 +42,12 @@ computer_use_agent(target, action?, args?, actions?, code?, timeout?, context?, 
 |---|---|---|
 | `app` | `openprogram/computer_use/`（macOS、Linux X11、Windows） | 给了 `args.app`：它的状态（树和截图）；否则应用列表 |
 | `browser` | `web_use` 运行时（App 的 Page、无头 Chromium） | 网页列表 |
+| `chrome` | 扩展模式的 Playwright MCP，连接到用户的 Chrome | 标签页列表 |
 | `vm` | `computer_use.vm_url` 指向的 OSWorld 兼容服务 | 一张截图 |
 
 每个目标有一份指南（`guides/<target>.md`；app 指南按 macOS、Linux、Windows 改写）：它的动作、参数、结果长什么样，以及确认策略。工具按对话和 agent 代记住已经发过哪些指南，把指南附在该目标的第一次结果上；`action: "guide"` 再次返回它，例如上下文压缩丢掉它之后。启动 fresh agent 时会忘掉那一代 agent 的指南记录，因为新 agent 只从自己的提示开始。
 
-`app` 的动作就是下文应用后端的动作，参数相同；`browser` 的动作是 `web_use` 运行时的命令：`list_pages`、`observe`、`verify` 和 `close` 保持原名，每个 `act` 动作（`navigate`、`click`、`type`……）各自成为一个动作。用户自己的 Chrome 不是目标：没有后端能到达它（`web_use` 的三个后端都驱动 App 的 Page 或无头 Chromium）。
+`app` 的动作就是下文应用后端的动作，参数相同；`browser` 的动作是 `web_use` 运行时的命令：`list_pages`、`observe`、`verify` 和 `close` 保持原名，每个 `act` 动作（`navigate`、`click`、`type`……）各自成为一个动作。`web_use` 的后端都到达不了用户自己的 Chrome（它们驱动 App 的 Page 或无头 Chromium）；`chrome` 目标可以。`targets/chrome.py` 通过 `_SyncMCPClient` 运行 `@playwright/mcp --extension`（与 `web_use` 固定的版本相同），每个会话一个服务器，在调用之间保持。服务器在用户的 Chrome 里打开带有其中继地址的 `chrome-extension://<id>/connect.html`，Playwright Extension 回连，并为用户共享的标签页中继 CDP；设置了 `computer_use.chrome_extension_token` 时，服务器传入 `PLAYWRIGHT_MCP_EXTENSION_TOKEN`，扩展不再询问直接连接。这个目标的动作是服务器的工具去掉 `browser_`、参数原样传递，指南按服务器自己的工具描述列出它们，`run_code_unsafe` 不提供。审批规则主体是 `chrome`，一次授权覆盖整个会话；`evaluate` 与 `browser` 目标一样逐次审批。代码模式不注册 `chrome` 资源。
 
 ### 定位
 
@@ -76,6 +77,7 @@ computer_use_agent(target, action?, args?, actions?, code?, timeout?, context?, 
 |---|---|
 | `app`（`list_apps` 除外） | 按应用：规则 `computer_use_agent(<app>)`，在会询问的模式下必须；旧的 `computer_use(<app>)` 规则仍然匹配 |
 | `browser` | 对话有 Page 时用本轮的 Page 授权；否则按权限模式；`evaluate` 每次调用单独审批一次 |
+| `chrome` | 每个会话一次：规则 `computer_use_agent(chrome)`；`evaluate` 每次调用单独审批 |
 | `vm` | 按服务地址：规则 `computer_use_agent(vm:<url>)` |
 | `fresh` | 与它指定的目标相同 |
 
@@ -297,5 +299,6 @@ app 指南在发送时按 Windows 改写（`_WINDOWS_GUIDE`）；对组合键和
 - 已实现：另一个桌面空间里的窗口。测试时从桌面 1 操作桌面 2 上的计算器（列出窗口、截图、按元素算出 7×6、坐标点击、滚动、按键报错），鼠标指针和前台应用都没变，窗口留在原桌面空间；向那里的输入框插入文字没有测到，因为计算器没有输入框。
 - 已实现、尚未在 Windows 上运行：上文所述的 Windows 后端。构建它的 macOS 机器没有 Windows 客户机，所以只有与主机无关的部分（PNG 编码、按键映射、HTML 剪贴板内容、开始菜单解析、控件类型表、拒绝列表、录音格式）有单元测试。
 - macOS 上已实现：桌面应用上的 agent 光标，步骤坐标帧和桌面光标窗口有单元测试。未实现：Linux 和 Windows 后端不发出步骤坐标，那里不会显示光标。
+- 已实现：基于 Playwright MCP 扩展模式的 `chrome` 目标，转发、不提供的工具、遇错停止和审批主体有单元测试。尚未在真实 Chrome 中配合 Playwright Extension 运行过。
 - macOS 上已实现：窗口标识，监视、切换和空闲释放有单元测试。Linux 和 Windows 上未实现。
 - 未实现：经 Responses 和 Anthropic API 的音频输入（这两个接口的模型不收音频）；把窗口从另一个桌面空间移过来，以及用按键向它输入（见上文）；从轮廓直接认出图标的名字（模型看截图分辨）。

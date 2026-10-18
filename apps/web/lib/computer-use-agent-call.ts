@@ -6,7 +6,7 @@ function record(value: unknown): Args {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Args : {};
 }
 
-/** "app" | "browser" | "vm", or "" when the call names none. */
+/** "app" | "browser" | "chrome" | "vm", or "" when the call names none. */
 export function computerUseAgentTarget(args: Args): string {
   return typeof args.target === "string" ? args.target : "";
 }

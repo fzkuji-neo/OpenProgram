@@ -437,7 +437,10 @@ function targetOf(kind: Kind, tool: string, args: Args): string {
     case "skill": return pick(args, "name", "skill") ?? "";
     case "computer":
       if (tool === "computer_use_agent") {
-        return computerUseAgentTarget(args) === "vm" ? "VM" : pick(appStepArgs(args) ?? {}, "app") ?? "";
+        const target = computerUseAgentTarget(args);
+        if (target === "vm") return "VM";
+        if (target === "chrome") return "Chrome";
+        return pick(appStepArgs(args) ?? {}, "app") ?? "";
       }
       return pick(args, "app") ?? "";
     case "other": return tool;
