@@ -31,6 +31,7 @@ from typing import Any
 from . import audio
 from . import keys as keymap
 from . import ocr
+from . import window_watch
 from .base import (CUE_LEAD_SECONDS, HOVER_SECONDS, INCLUDE, MAX_COPY_CHARS, MAX_TEXT_CHARS, OCR_SPARSE_NODES,
                    AudioClip, ComputerUseError, Observation, Report, check_cancelled as _check_cancelled,
                    click_args, click_words as _click_words, find_text, menu_key as _menu_key, menu_path,
@@ -169,6 +170,8 @@ class MacComputer:
         self._lock = threading.RLock()
         self._icons: dict[str, str] = {}
         self._recordings: dict[str, audio.Recording] = {}
+        # Keeps the operated window under a live capture so macOS marks it.
+        self._watch = window_watch.WindowWatch()
         # pid -> (window ids searched for, the elements found for them)
         self._remote: dict[int, tuple[frozenset[int], dict[int, Any]]] = {}
 
@@ -697,6 +700,7 @@ class MacComputer:
             minimized = bool(self._attr(target, "AXMinimized")) if target is not None else False
             wid = self._window_id(target, pid, frame) if target is not None else 0
             same_window = bool(previous) and (previous.window_id == wid if wid else previous.window_title == title)
+            self._watch.touch(session, wid)
             if include == "screenshot" and not same_window:
                 raise ComputerUseError("Read this window with include=all first; a screenshot-only read keeps the "
                                        "tree of the window the model already has.")
@@ -1070,6 +1074,7 @@ class MacComputer:
                 return handler(app, int(app.processIdentifier()), self._states.get(
                     (session, int(app.processIdentifier()))), args)
             app, state = self._state_for(session, args.get("app") or "")
+            self._watch.touch(session, state.window_id)
             self._cue(app, state, action, args)
             return handler(app, int(app.processIdentifier()), state, args)
 

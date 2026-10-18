@@ -173,6 +173,10 @@ Codex 用 `start_audio_recording` / `stop_audio_recording` 录电脑声音（默
 
 在一个点名元素或坐标的步骤执行前，`MacOSComputer.act` 先算出它落在哪里（元素的中心取自它的 `AXFrame`，截图坐标则按窗口原点和缩放换算），调用 `native_window_resources.note_action_point`，再等待 `CUE_LEAD_SECONDS`（0.15 秒），让光标先到。这个点以屏幕点为单位、原点在主显示器左上角，与 Electron 的坐标空间相同。worker 把它作为 `native.action` 帧广播（`session_id`、`x`、`y`、`sequence`、`at`、`action`、`app_name`）；agentic 子进程通过与被操作窗口相同的父进程通道转发（`kind: "action"`）。Web 客户端里 `native-window-store.ts` 在**显示操作**没有关闭时把帧交给 `openprogramDesktop.nativeActionCue`。桌面主进程（`main/action-cues.js` 里的 `showNativeActionCue`）维护一个透明、点击穿透、不可聚焦、置顶的窗口，加载与网页光标相同的 `/menu-overlay/action-cue` 页面，从上一个点滑过去、播放点击，并在 `ACTION_CUE_MS` 后隐藏。每个 App 窗口都会收到这一帧，所以主进程按 `session_id`、`sequence` 和 `at` 丢掉已显示过的步骤。Linux 和 Windows 还不发出这些点。
 
+### 窗口标识
+
+被操作的窗口带有 macOS 的屏幕共享标识，与 Codex Computer Use 下一样：标题栏按钮上盖一个紫色徽标，菜单栏出现共享图标。macOS 会给任何处在 ScreenCaptureKit 实时流下的窗口画这两样，所以 `window_watch.WindowWatch` 在它上面保持一个流，做法与 Codex 保持画中画流相同。`MacOSComputer` 在每次 `act` 和每次指明窗口的 `get_state` 时用窗口 id 触碰它。流只过滤这一个窗口（`SCContentFilter.initWithDesktopIndependentWindow`），请求每秒一帧的 2x2 画面且不挂任何输出，因此不录下任何内容。每个会话最多监视一个窗口：转到另一个窗口会释放前一个，`IDLE_SECONDS`（20 秒）内没有步骤的窗口由清理定时器释放。打开流在单独线程上进行，失败被忽略，所以步骤不会因标识而等待或失败。
+
 ### 拒绝
 
 工具从不向 `AXSecureTextField` 元素输入，macOS 报告安全键盘输入（`kCGSSessionSecureInputPID`）期间也不输入，并拒绝以钥匙串访问、密码、loginwindow、SecurityAgent 和 OpenProgram 自身的 bundle 为目标。拒绝以错误返回并请用户来做这一步；任何审批范围都不能覆盖它。
@@ -293,4 +297,5 @@ app 指南在发送时按 Windows 改写（`_WINDOWS_GUIDE`）；对组合键和
 - 已实现：另一个桌面空间里的窗口。测试时从桌面 1 操作桌面 2 上的计算器（列出窗口、截图、按元素算出 7×6、坐标点击、滚动、按键报错），鼠标指针和前台应用都没变，窗口留在原桌面空间；向那里的输入框插入文字没有测到，因为计算器没有输入框。
 - 已实现、尚未在 Windows 上运行：上文所述的 Windows 后端。构建它的 macOS 机器没有 Windows 客户机，所以只有与主机无关的部分（PNG 编码、按键映射、HTML 剪贴板内容、开始菜单解析、控件类型表、拒绝列表、录音格式）有单元测试。
 - macOS 上已实现：桌面应用上的 agent 光标，步骤坐标帧和桌面光标窗口有单元测试。未实现：Linux 和 Windows 后端不发出步骤坐标，那里不会显示光标。
+- macOS 上已实现：窗口标识，监视、切换和空闲释放有单元测试。Linux 和 Windows 上未实现。
 - 未实现：经 Responses 和 Anthropic API 的音频输入（这两个接口的模型不收音频）；把窗口从另一个桌面空间移过来，以及用按键向它输入（见上文）；从轮廓直接认出图标的名字（模型看截图分辨）。
