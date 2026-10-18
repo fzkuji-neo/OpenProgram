@@ -7,7 +7,7 @@
 import type { AssistantBlock, TurnFileSummary } from "../../../lib/session-store/types.ts";
 import { parseToolArgs, presentTool } from "./tool-presentation.ts";
 import { GUI_TOOL_NAMES, isGuiToolCall } from "./gui-tool-view.ts";
-import { appStepArgs, computerUseAgentTarget, isFreshCall } from "../../../lib/computer-use-agent-call.ts";
+import { appStepArgs, computerUseAgentTarget, isFreshCall, userBrowser } from "../../../lib/computer-use-agent-call.ts";
 
 type Text = (en: string, zh: string) => string;
 type Args = Record<string, unknown>;
@@ -439,7 +439,7 @@ function targetOf(kind: Kind, tool: string, args: Args): string {
       if (tool === "computer_use_agent") {
         const target = computerUseAgentTarget(args);
         if (target === "vm") return "VM";
-        if (target === "chrome") return "Chrome";
+        if (target === "browser") return userBrowser(args) ?? "";
         return pick(appStepArgs(args) ?? {}, "app") ?? "";
       }
       return pick(args, "app") ?? "";

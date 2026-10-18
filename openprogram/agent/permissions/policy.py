@@ -226,6 +226,13 @@ def _audit_delegated_risky(tool_name: str, req: "TurnRequest") -> None:
         )
 
 
+def _user_browser(args: dict) -> str:
+    """The user's own Chrome or Edge, which the conversation's Page grant does not cover."""
+    from openprogram.programs.workflow.browser.extension_browser import browser_of
+    nested = args.get("args") if isinstance(args.get("args"), dict) else {}
+    return browser_of(nested)
+
+
 def _app_grant_needed(agent_tool, args: dict) -> bool:
     from openprogram.programs import tool_requires_approval
     try:
@@ -271,7 +278,7 @@ def permission_decision(agent_tool, req, args: dict) -> tuple[str, str, str, obj
         reason = "APP_GRANT_REQUIRED"
     else:
         if name == "web_use" or (name == "computer_use_agent" and isinstance(args, dict)
-                                 and args.get("target") == "browser"):
+                                 and args.get("target") == "browser" and not _user_browser(args)):
             from openprogram.agent.surface_context import web_use_available
             if web_use_available(getattr(req, "surface_context", None)):
                 return "allow", "SURFACE_GRANT", "", None

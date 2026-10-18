@@ -17,24 +17,23 @@ from openprogram.programs._runtime import function
 
 from . import code as code_mode
 from . import fresh, grounding
-from .targets import app, browser, chrome, vm
+from .targets import app, browser, vm
 
 NAME = "computer_use_agent"
-TARGETS = {"app": app, "browser": browser, "chrome": chrome, "vm": vm}
+TARGETS = {"app": app, "browser": browser, "vm": vm}
 MAX_STEPS = 20
 
-DESCRIPTION = """Operate a screen: application windows, Pages of the built-in browser, the user's own Chrome, or a virtual machine. One tool for all of them.
+DESCRIPTION = """Operate a screen: application windows, a web browser (the built-in one, or the user's own Chrome or Edge), or a virtual machine. One tool for all of them.
 
 Targets
 - app: application windows on this computer, read and operated in the background; args.app names the app.
-- browser: web pages in OpenProgram's built-in browser (the conversation's Pages and tabs it opens). Not the user's own Chrome.
-- chrome: the user's own Chrome tabs, with their sign-ins, through the Playwright Extension.
+- browser: web pages. By default OpenProgram's built-in browser (the conversation's Pages and tabs it opens); args.browser="chrome" or "edge" operates the user's own browser, with their sign-ins, through the same actions. Use the user's browser only when the user names it or the task needs their signed-in state.
 - vm: a remote machine behind an OSWorld-compatible server, when one is configured.
 
 Calling
 1. The first call to a target returns its guide (actions and their arguments) with the target's current state: call with target (and args.app) alone to start. action="guide" shows the guide again.
 2. Then act with action + args, or actions=[{"action": …, "args": {…}}, …] (up to 20, in order, stopping at the first failure), or code: Python that loops and decides (see the guide).
-3. Point at things by element_index (app), ref (browser), target ref (chrome), or x,y pixels of the last screenshot; when there is none of these, describe="what it looks like and where" finds it by vision.
+3. Point at things by element_index (app), ref (browser), or x,y pixels of the last screenshot; when there is none of these, describe="what it looks like and where" finds it by vision.
 
 context="inherit" (default): you operate it here and see every result. context="fresh": a new agent of this model does the task from brief alone (the task, what is already known, what to report) and only its reply comes back; good for long operations whose intermediate screens you do not need, and it pairs well with describe.
 
@@ -104,7 +103,7 @@ def guide(target: str) -> str:
     """The full guide of one target: its actions, then code and description grounding."""
     module = TARGETS[target]
     parts = [module.guide().strip(), code_mode.guide().strip()]
-    if target not in {"browser", "chrome"}:
+    if target != "browser":
         parts.append((grounding.GUIDE if grounding.describe_available() else grounding.GUIDE_UNAVAILABLE).strip())
     return "\n\n".join(parts)
 
@@ -150,20 +149,18 @@ def requires_approval(target: str = "", action: str = "", args: Any = None, acti
             steps = [("get_app_state", {})] if call_args.get("app") or code or context == "fresh" else [("list_apps", {})]
         elif module is browser:
             steps = [("list_pages", {})]
-        elif module is chrome:
-            steps = [("tabs", {"action": "list"})]
     return module.approval(steps, call_args)
 
 
 def evaluates(args: dict | None) -> bool:
     """A call that runs page JavaScript; approved alone, every time."""
-    if not isinstance(args, dict) or args.get("target") not in {"browser", "chrome"}:
+    if not isinstance(args, dict) or args.get("target") != "browser":
         return False
     try:
         steps = _steps(str(args.get("action") or ""), _call_args(args.get("args")), args.get("actions"))
     except ValueError:
         return False
-    return TARGETS[args["target"]].evaluates(steps)
+    return browser.evaluates(steps)
 
 
 def _unavailable(target: str) -> str:
@@ -178,8 +175,10 @@ def _in_use(target: str, call_args: dict):
 
     if target == "vm":
         return resource_use("vm", "VM", vm.url())
-    if target == "chrome":
-        return resource_use("desktop", "Google Chrome", "Google Chrome")
+    chosen = browser.user_browser(call_args) if target == "browser" else ""
+    if chosen:
+        name = {"chrome": "Google Chrome", "edge": "Microsoft Edge"}[chosen]
+        return resource_use("desktop", name, name)
     name = str(call_args.get("app") or "").strip()
     if target == "app" and name:
         return resource_use("desktop", name, name)
@@ -205,7 +204,7 @@ def computer_use_agent(
     context: str = "inherit",
     brief: str = "",
 ) -> ToolReturn:
-    """Operate a screen: application windows, built-in browser Pages, the user's Chrome, or a virtual machine."""
+    """Operate a screen: application windows, a web browser, or a virtual machine."""
     target = str(target or "").strip()
     module = TARGETS.get(target)
     if module is None:
@@ -221,7 +220,7 @@ def computer_use_agent(
         with _shown_lock:
             _shown.add((session, _generation() + 1, target))
         return fresh.run(target, call_args, str(brief or ""), guide(target), session,
-                         needs_grant=module is not browser, describe=target not in {"browser", "chrome"}
+                         needs_grant=module is not browser or bool(browser.user_browser(call_args)), describe=target != "browser"
                          and grounding.describe_available())
     if action == "guide":
         with _shown_lock:

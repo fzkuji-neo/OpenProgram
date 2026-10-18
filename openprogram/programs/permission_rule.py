@@ -309,18 +309,19 @@ def parse_command(tool_name: str, args: dict) -> Optional[str]:
         # One approval covers an application, not one click in it: the rule
         # names the app the model addressed (``computer_use_agent(calculator)``),
         # the VM endpoint (``computer_use_agent(vm:http://host:5000)``), or
-        # the user's Chrome (``computer_use_agent(chrome)``).
-        # Built-in browser Pages ask per call, so they have no rule.
+        # the user's own browser (``computer_use_agent(browser:chrome)``).
         target = args.get("target", "app")
         if target == "vm":
             from openprogram.programs.tools.system.computer_use_agent.targets import vm
             return f"vm:{vm.url()}" if vm.url() else None
-        if target == "chrome":
-            # The user's own Chrome, through the Playwright extension.
-            return "chrome"
+        nested = args.get("args") if isinstance(args.get("args"), dict) else args
+        if target == "browser":
+            # The user's own Chrome or Edge is one grant; built-in Pages have no rule.
+            from openprogram.programs.workflow.browser.extension_browser import browser_of
+            chosen = browser_of(nested)
+            return f"browser:{chosen}" if chosen else None
         if target != "app":
             return None
-        nested = args.get("args") if isinstance(args.get("args"), dict) else args
         app = " ".join(str(nested.get("app") or "").split()).lower()
         return app or None
     try:

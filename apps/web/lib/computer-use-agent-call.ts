@@ -6,9 +6,19 @@ function record(value: unknown): Args {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Args : {};
 }
 
-/** "app" | "browser" | "chrome" | "vm", or "" when the call names none. */
+/** "app" | "browser" | "vm", or "" when the call names none. */
 export function computerUseAgentTarget(args: Args): string {
   return typeof args.target === "string" ? args.target : "";
+}
+
+/** "Chrome" or "Edge" when a browser call operates the user's own browser, else null. */
+export function userBrowser(args: Args): string | null {
+  if (computerUseAgentTarget(args) !== "browser") return null;
+  const chosen = record(args.args).browser;
+  const name = typeof chosen === "string" ? chosen.trim().toLowerCase() : "";
+  if (name === "chrome" || name === "google chrome") return "Chrome";
+  if (name === "edge" || name === "msedge" || name === "microsoft edge") return "Edge";
+  return null;
 }
 
 export function isFreshCall(args: Args): boolean {

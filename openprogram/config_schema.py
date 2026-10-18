@@ -647,8 +647,8 @@ SETTINGS: list[SettingSpec] = [
         key="computer_use.chrome_extension_token", path=("computer_use", "chrome_extension_token"),
         group="Computer use", label="Chrome extension token", widget="text",
         apply=APPLY_LIVE, default="", secret=True,
-        help="The token shown by the Playwright Extension in your Chrome. With it, the chrome target of "
-             "computer_use_agent connects without asking which tab to share; empty asks each time.",
+        help="The token shown by the Playwright Extension in your Chrome or Edge. With it, computer_use_agent's "
+             "browser target connects to your own browser without asking which tab to share; empty asks each time.",
     ),
     SettingSpec(
         key="search.default_provider", path=("search", "default_provider"),

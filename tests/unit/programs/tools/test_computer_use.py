@@ -331,7 +331,7 @@ def test_tool_is_a_resident_default_hidden_from_chat_channels():
     assert "computer_use_agent" in DEFAULT_TOOLS and "computer_use_agent" not in DEFERRED_DEFAULT_TOOLS
     assert "computer_use_agent" in RESIDENT_TOOLS
     assert {"wechat", "telegram", "plan"} <= set(_unsafe_in_for("computer_use_agent"))
-    assert registered.parameters["properties"]["target"]["enum"] == ["app", "browser", "chrome", "vm"]
+    assert registered.parameters["properties"]["target"]["enum"] == ["app", "browser", "vm"]
     for gone in ("computer_use", "gui_agent", "web_use"):
         assert gone not in DEFAULT_TOOLS and gone not in RESIDENT_TOOLS
 

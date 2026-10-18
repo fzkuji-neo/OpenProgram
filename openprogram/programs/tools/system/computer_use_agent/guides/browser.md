@@ -1,4 +1,6 @@
-Guide: target "browser". Read and operate web pages ("Pages") in OpenProgram's built-in browser: tabs in the App's windows, and tabs it opens in the background. It is not the user's own Chrome.
+Guide: target "browser". Read and operate web pages. Choose the browser first with args.browser; every action below is the same in each:
+- omitted: OpenProgram's built-in browser ("Pages"): tabs in the App's windows, and tabs it opens in the background.
+- "chrome" or "edge": the user's own browser, with their tabs and sign-ins, through the Playwright Extension. Use it only when the user names it or the task needs their signed-in state, and keep to the browser the user named. On the first call the extension may ask the user which tab to share. There, list_pages lists tabs by index, observe(page=index) switches to one and observe(url) opens a new tab; refs come from that observation's snapshot.
 
 Each action below is written action(arguments). Send one as computer_use_agent(target="browser", action="click", args={"ref": "e12"}), several as actions=[{"action": "type", "args": {"ref": "e3", "text": "hello"}}, {"action": "press", "args": {"key": "Enter"}}] (up to 20; they stop at the first error).
 

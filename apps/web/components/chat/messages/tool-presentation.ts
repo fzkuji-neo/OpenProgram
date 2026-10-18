@@ -8,7 +8,7 @@
 // module without the `@/` alias.
 import type { SolarIconName } from "../../solar-icons/bodies";
 import { guiCapabilityLabel } from "./gui-tool-view.ts";
-import { appStepArgs, computerUseAgentTarget, isFreshCall, screenStep } from "../../../lib/computer-use-agent-call.ts";
+import { appStepArgs, computerUseAgentTarget, isFreshCall, screenStep, userBrowser } from "../../../lib/computer-use-agent-call.ts";
 
 export type ToolTone =
   | "shell" | "edit" | "read" | "search" | "web" | "agent"
@@ -131,10 +131,8 @@ function computerUseAgentPresentation(args: Args, text: Text): ToolPresentation 
   if (target === "vm") {
     return { icon: "monitor", tone: "system", title: text("Virtual machine", "虚拟机"), target: what || undefined };
   }
-  if (target === "chrome") {
-    return { icon: "cursor", tone: "web", title: "Chrome", target: [what, url].filter(Boolean).join(" ") || undefined };
-  }
-  return { icon: "cursor", tone: "web", title: text("Browser", "浏览器"),
+  const chosen = userBrowser(args);
+  return { icon: "cursor", tone: "web", title: chosen ?? text("Browser", "浏览器"),
     target: [what, url].filter(Boolean).join(" ") || undefined };
 }
 

@@ -1,6 +1,6 @@
 # 操控电脑
 
-一个工具 `computer_use_agent` 让模型操作屏幕：桌面应用的窗口、App 内置浏览器的 Page、你自己的 Chrome，或一台虚拟机。应用窗口在你继续工作的同时被读取和操作：应用留在后台，键盘和鼠标仍归你，不会有窗口被带到前台。模型看到的是窗口截图加上它的 Accessibility 树，对编号元素执行动作，然后只拿回发生变化的那几行。应用操作支持 macOS、X11 下的 Linux 和 Windows，差异见[在 Linux 上](#在-linux-上)和[在 Windows 上](#在-windows-上)。
+一个工具 `computer_use_agent` 让模型操作屏幕：桌面应用的窗口、一个网页浏览器（App 内置的，或你自己的 Chrome、Edge），或一台虚拟机。应用窗口在你继续工作的同时被读取和操作：应用留在后台，键盘和鼠标仍归你，不会有窗口被带到前台。模型看到的是窗口截图加上它的 Accessibility 树，对编号元素执行动作，然后只拿回发生变化的那几行。应用操作支持 macOS、X11 下的 Linux 和 Windows，差异见[在 Linux 上](#在-linux-上)和[在 Windows 上](#在-windows-上)。
 
 ## 目标与指南
 
@@ -9,8 +9,7 @@
 | 目标 | 操作什么 | 需要什么 |
 |---|---|---|
 | `app` | 本机的应用窗口，由 `args.app` 指定：Finder、备忘录、计算器、Xcode、聊天客户端、游戏启动器 | 下文的桌面权限 |
-| `browser` | App 内置浏览器的 Page：App 窗口里的标签页，以及它在后台打开的标签页。不是你自己的 Chrome | App |
-| `chrome` | 你自己的 Chrome 或 Edge：它的标签页，带着你的登录状态，经由 Playwright Extension | Node.js 和该扩展，见[你自己的 Chrome](#你自己的-chrome) |
+| `browser` | 网页，在 `args.browser` 指定的浏览器里：默认是 App 内置浏览器（App 窗口里的标签页，以及它在后台打开的标签页），也可以是你自己的 Chrome 或 Edge | App；Chrome 或 Edge 见[你自己的 Chrome 或 Edge](#你自己的-chrome-或-edge) |
 | `vm` | 一台运行 OSWorld 兼容服务的远程机器 | `computer_use.vm_url`，见[虚拟机](#虚拟机) |
 
 工具说明里只有这张清单。一个对话第一次调用某个目标时，返回该目标的指南（它的动作及参数）和目标当前的状态，所以模型只学它马上要用的那块屏幕的动作。`action="guide"` 可以再次查看指南。
@@ -140,19 +139,17 @@ Agent 的网页打开的弹窗或新窗口会作为独立的 Page 在后台加�
 
 这些控制作用于 OpenProgram 中确切的 Page。应用窗口和虚拟机显示仍按上文各自的审批进行。
 
-## 你自己的 Chrome
+## 你自己的 Chrome 或 Edge
 
-`chrome` 目标驱动你平时浏览用的 Chrome（或 Edge），页面带着你的登录状态和 Cookie 打开。它以扩展模式运行微软的 Playwright MCP 服务器（`@playwright/mcp --extension`），由你浏览器里的 [Playwright Extension](https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm) 连接过来。从 Chrome 应用商店安装一次该扩展即可；服务器本身通过 `npx` 获取，所以需要装有 Node.js。
+调用把 `args.browser` 设为 `chrome` 或 `edge` 时，`browser` 目标就在你平时浏览用的浏览器里工作，页面带着你的登录状态和 Cookie 打开。动作与内置浏览器相同：`list_pages` 按序号列出你的标签页，`observe(page=<序号>)` 切到其中一个，`observe(url=…)` 打开新标签页，`click`、`type`、`press`、`scroll`、`screenshot`、`verify` 等作用在那次观察给出的 ref 上。模型被要求只在你点名或任务需要你的登录状态时才用你的浏览器，并且只用你点名的那一个。
 
-动作就是 Playwright MCP 自己的工具去掉 `browser_` 前缀，参数相同：`tabs`、`navigate`、`snapshot`、`click`、`type`、`fill_form`、`select_option`、`press_key`、`take_screenshot` 等。`snapshot` 列出页面元素和它们的 ref，动作用 `target` 设为某个 ref 来指向它。随第一次结果发送的指南按已安装服务器的描述列出全部动作。在页面之外运行 Node 代码的 `run_code_unsafe` 不提供。
-
-第一次动作时扩展会询问共享哪个标签页。要免去这一步，复制扩展里显示的令牌并设置：
+它以扩展模式运行微软的 Playwright MCP 服务器（`@playwright/mcp --extension`），由你浏览器里的 [Playwright Extension](https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm) 连接过来；Edge 也从 Chrome 应用商店安装同一个扩展。安装一次即可；服务器本身通过 `npx` 获取，所以需要装有 Node.js。第一次动作时扩展会询问共享哪个标签页。要免去这一步，复制扩展里显示的令牌并设置：
 
 ```bash
 openprogram config set computer_use.chrome_extension_token <token>
 ```
 
-一次批准覆盖本会话的 Chrome；`evaluate`（页面 JavaScript）每次都询问，`file_upload` 会写明上传。代码模式不覆盖这个目标。
+一次批准覆盖本会话的 Chrome（或 Edge）；`evaluate`（页面 JavaScript）每次都询问，`upload` 会写明上传。代码模式不覆盖你的浏览器。
 
 ## 虚拟机
 
