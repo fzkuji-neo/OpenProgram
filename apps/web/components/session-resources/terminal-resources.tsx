@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ITheme, Terminal } from "@xterm/xterm";
 import { TerminalSquare, X } from "lucide-react";
+import { TerminalContextMenu } from "@/components/center-tabs/terminal-context-menu";
 import { useTranslation } from "@/lib/i18n";
 import { terminalResourceApi,
   type TerminalResource, type TerminalReply } from "@/lib/desktop/terminal-resources";
@@ -40,6 +41,7 @@ export function TerminalResourceView({ resource, sessionId, onHide }: {
   const queue = useRef<Promise<unknown>>(Promise.resolve());
   const inputUnconfirmed = useRef(false);
   const [error, setError] = useState("");
+  const xterm = useRef<Terminal | null>(null);
   const api = terminalResourceApi();
   const identity = { terminal_id: resource.terminal_id, generation: resource.generation };
   const send = (action: string, extra: Record<string, unknown> = {}, admitted: () => boolean = () => true): Promise<TerminalReply> => {
@@ -89,6 +91,7 @@ export function TerminalResourceView({ resource, sessionId, onHide }: {
       terminal = new XTerm({ allowProposedApi: false, disableStdin: true, cursorBlink: true,
         fontSize: 13, scrollback: 5000, theme: terminalTheme() });
       const fit = new FitAddon(); terminal.loadAddon(fit); terminal.open(host.current); fit.fit();
+      xterm.current = terminal;
       terminal.onData(input);
       terminal.focus();
       const fitView = () => {
@@ -122,6 +125,7 @@ export function TerminalResourceView({ resource, sessionId, onHide }: {
     })().catch(() => { if (!disposed) setError("terminal_view_unavailable"); });
     return () => {
       disposed = true; clearTimeout(timer); resize?.disconnect(); theme?.disconnect(); terminal?.dispose();
+      xterm.current = null;
       // Hide only detaches this viewer, never closes/releases the native terminal.
     };
     // Metadata updates must not detach/replay the existing terminal view.
@@ -134,7 +138,11 @@ export function TerminalResourceView({ resource, sessionId, onHide }: {
       <button type="button" onClick={onHide} aria-label={text("Hide terminal view", "隐藏终端视图")}><X size={16} /></button>
     </header>
     <p className={styles.location}>{text("Starting directory", "起始目录")}: {resource.start_cwd}</p>
-    <div className={styles.screen} ref={host} />
+    <TerminalContextMenu terminal={() => xterm.current} onClose={() => xterm.current?.focus()}
+      canPaste={resource.status === "running" && viewReady && !error}
+      onPaste={() => void navigator.clipboard.readText().then(data => { if (data) void control("input", { data }); })}>
+      <div className={styles.screen} ref={host} />
+    </TerminalContextMenu>
     {error && <div role="alert"><p>{error} · {text("Input was not retried.", "没有自动重发输入。")}</p>
       <button type="button" onClick={() => setRetry(value => value + 1)}>{text("Reconnect view", "重新连接视图")}</button></div>}
     <footer>
@@ -159,6 +167,7 @@ export function TerminalMirror({ resource }: { resource: TerminalResource }) {
   const { text } = useTranslation();
   const host = useRef<HTMLDivElement>(null);
   const [error, setError] = useState("");
+  const xterm = useRef<Terminal | null>(null);
   const api = terminalResourceApi();
 
   useEffect(() => {
@@ -175,6 +184,7 @@ export function TerminalMirror({ resource }: { resource: TerminalResource }) {
         fontSize: 11, scrollback: 1000, theme: terminalTheme() });
       const fit = new FitAddon(); terminal.loadAddon(fit); terminal.open(host.current); fit.fit();
       resize = new ResizeObserver(() => { if (!disposed) fit.fit(); }); resize.observe(host.current);
+      xterm.current = terminal;
       const poll = async () => {
         if (disposed || !terminal) return;
         try {
@@ -193,12 +203,14 @@ export function TerminalMirror({ resource }: { resource: TerminalResource }) {
       };
       void poll();
     })().catch(() => { if (!disposed) setError("terminal_view_unavailable"); });
-    return () => { disposed = true; clearTimeout(timer); resize?.disconnect(); terminal?.dispose(); };
+    return () => { disposed = true; clearTimeout(timer); resize?.disconnect(); terminal?.dispose(); xterm.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, resource.terminal_id, resource.generation]);
 
   return <div className={styles.mirror}>
-    <div className={styles.mirrorScreen} ref={host} />
+    <TerminalContextMenu terminal={() => xterm.current}>
+      <div className={styles.mirrorScreen} ref={host} />
+    </TerminalContextMenu>
     {error && <p className={styles.mirrorError} role="status">{text("Terminal output is unavailable", "终端输出不可用")}</p>}
   </div>;
 }
@@ -252,7 +264,9 @@ export function BackgroundTerminalView({ process, output, onStop, onHide }: {
     </header>
     <p className={styles.location}>{process.command}</p>
     {process.cwd && <p className={styles.location}>{text("Starting directory", "起始目录")}: {process.cwd}</p>}
-    <div className={styles.screen} ref={host} />
+    <TerminalContextMenu terminal={() => view.current?.terminal}>
+      <div className={styles.screen} ref={host} />
+    </TerminalContextMenu>
     {error && <div role="alert"><p>{error}</p></div>}
     <footer>
       <span>{text("The agent started this command and reads its output.", "这条命令是 agent 启动的，它会读取输出。")}</span>

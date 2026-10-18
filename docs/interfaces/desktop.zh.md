@@ -17,7 +17,7 @@ macOS 与 Windows Desktop App 将 OpenProgram 显示为多 Pane 工作区。每�
 
 macOS 从 [GitHub Releases](https://github.com/fzkuji-neo/OpenProgram/releases) 下载对应架构的 DMG，把 `OpenProgram.app` 复制到 `/Applications`；当前 macOS 发行版使用 Developer ID 签名和 Apple 公证。Windows 只安装已发布 release 附带的带签名 `win-x64.exe` 或 `win-arm64.exe`；某个版本没有带签名 Windows EXE 时，使用该版本的 CLI/server 与浏览器 UI。完整步骤见[安装](../install/install.zh.md)。
 
-Terminal Pane 在 macOS 使用 login shell，在 Windows 通过 ConPTY 使用 Windows PowerShell。在终端里右键可以 **复制**、**粘贴** 和 **把选中内容加入对话**，最后一项会把选中的输出以代码块形式加入当前对话的草稿。两个平台的封装 App 都从内置 managed Python 启动 worker，不依赖系统 Python 或 Node.js。启动时连不上 worker，App 会把它拉起来并显示 **Waiting for backend to start...**，每秒探测一次直到它应答。安装程序（更新或本地刷新）正在替换 App 和 runtime 期间，页面改为显示 **Updating OpenProgram...**；这时 App 不拉起 worker，安装结束后自动重连。
+Terminal Pane 在 macOS 使用 login shell，在 Windows 通过 ConPTY 使用 Windows PowerShell。在任何终端视图里（终端或 Claude Code 标签页、Resources 里 agent 的终端和后台终端、终端预览）右键可以 **复制**、**粘贴**（只在能输入的视图里）和 **把选中内容加入对话**，最后一项会把选中的输出以代码块形式加入当前对话的草稿。两个平台的封装 App 都从内置 managed Python 启动 worker，不依赖系统 Python 或 Node.js。启动时连不上 worker，App 会把它拉起来并显示 **Waiting for backend to start...**，每秒探测一次直到它应答。安装程序（更新或本地刷新）正在替换 App 和 runtime 期间，页面改为显示 **Updating OpenProgram...**；这时 App 不拉起 worker，安装结束后自动重连。
 
 在 Linux 从源码运行 Desktop 时，终端优先使用已安装且为绝对路径的 `SHELL`，否则依次回退到 `/bin/bash`、`/bin/sh`，不要求安装 zsh。若没有可用 shell，终端会在启动进程前明确提示缺失项。
 
