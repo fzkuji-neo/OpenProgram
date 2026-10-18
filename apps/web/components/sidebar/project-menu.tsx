@@ -2,10 +2,10 @@
 import { useRef, useState, type ReactNode, type MouseEvent } from "react";
 import * as Menu from "@radix-ui/react-dropdown-menu";
 import { MoreHorizontal, ChevronRight, MessageSquarePlus, FolderOpen, Pencil, PanelsTopLeft, FolderSearch, GitBranch, Archive, FolderMinus } from "lucide-react";
-import { CHECK_SLOT_PAD, MENU_PANEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
+import { CHECK_SLOT_PAD, MENU_ITEM_STATES, MENU_PANEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
 import { useTranslation } from "@/lib/i18n";
 import { useRecentsView, setRecentsView } from "@/lib/prefs/recents-view";
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { PinIcon, type AnimatedNavIconHandle } from "@/components/animated-icons";
 import { ProjectEditor, type EditableProject } from "./project-editor";
@@ -20,7 +20,7 @@ import { wsRequest } from "@/lib/net/ws-request";
 import { ProjectOperationDialog, type ProjectOperation } from "./project-operation-dialog";
 import { MenuCheck } from "@/components/chat/top-bar/menu-check";
 
-const item = itemCls(false) + " outline-none " + styles.menuItem;
+const item = itemCls(false) + " " + MENU_ITEM_STATES;
 export function ProjectMenu({project, children, onOpen, onNewSession, onSaved}: {
   project: EditableProject;
   children: (trigger: ReactNode) => ReactNode;
@@ -87,7 +87,7 @@ export function ProjectMenu({project, children, onOpen, onNewSession, onSaved}: 
       </Menu.Content></Menu.Portal>
     </Menu.Root>
     {operation&&<ProjectOperationDialog project={project} operation={operation} onClose={()=>setOperation(null)} onSaved={onSaved}/>}
-    {error&&<Dialog open onOpenChange={open=>{if(!open)setError("");}}><DialogContent className={styles.dialog}><DialogTitle>{text("Project action failed", "项目操作失败")}</DialogTitle><DialogDescription>{error}</DialogDescription><Button onClick={()=>setError("")}>{text("Close", "关闭")}</Button></DialogContent></Dialog>}
+    {error&&<Dialog open onOpenChange={open=>{if(!open)setError("");}}><DialogContent className={styles.dialog}><DialogHeader><DialogTitle>{text("Project action failed", "项目操作失败")}</DialogTitle><DialogDescription>{error}</DialogDescription></DialogHeader><DialogFooter showCloseButton/></DialogContent></Dialog>}
     {addingSection&&<SectionNameDialog onClose={()=>setAddingSection(false)} onSave={name=>setRecentsView({projectSectionNames:[...view.projectSectionNames,name],projectSections:{...view.projectSections,[project.id]:name}})}/>}
     {editing&&<ProjectEditor project={project} onClose={()=>setEditing(false)} onSaved={onSaved}/>}
   </>;
@@ -121,12 +121,12 @@ function SectionNameDialog({initialName="",onSave,onClose}:{initialName?:string;
   const [name,setName] = useState(initialName);
   const [error,setError] = useState("");
   return <Dialog open onOpenChange={open=>{if(!open)onClose();}}><DialogContent className={styles.dialog}>
-    <DialogTitle>{initialName?text("Rename section", "重命名分区"):text("New section", "新建分区")}</DialogTitle>
-    <DialogDescription>{text("Organize projects under a named section.", "使用命名分区整理项目。")}</DialogDescription>
+    <DialogHeader><DialogTitle>{initialName?text("Rename section", "重命名分区"):text("New section", "新建分区")}</DialogTitle>
+    <DialogDescription>{text("Organize projects under a named section.", "使用命名分区整理项目。")}</DialogDescription></DialogHeader>
     <form className="grid gap-3" onSubmit={event=>{event.preventDefault();const value=name.trim();if(!value||value==="__pinned__"||(value!==initialName&&view.projectSectionNames.includes(value))){setError(text("Choose a unique section name.", "请输入不重复的分区名称。"));return;}try{onSave(value);onClose();}catch{setError(text("Could not save this section.", "无法保存分区。"));}}}>
       <label className="grid gap-1 text-sm">{text("Section name", "分区名称")}<Input value={name} maxLength={80} onChange={event=>setName(event.target.value)} className={styles.field} required/></label>
       {error&&<p role="alert" className="text-sm text-red-500">{error}</p>}
-      <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>{text("Cancel", "取消")}</Button><Button type="submit">{text("Save", "保存")}</Button></div>
+      <DialogFooter><Button type="button" variant="outline" onClick={onClose}>{text("Cancel", "取消")}</Button><Button type="submit">{text("Save", "保存")}</Button></DialogFooter>
     </form>
   </DialogContent></Dialog>;
 }

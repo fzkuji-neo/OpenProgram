@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Check, AlertCircle, HelpCircle, ArrowRight, Loader2 } from "lucide-react";
+import { Check, AlertCircle, HelpCircle, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
 interface StepResult {
@@ -106,35 +107,14 @@ export function SetupWizard({ providerId, onClose }: Props) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.5)" }}
-      onClick={onClose}
-    >
-      <div
-        className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-lg border"
-        style={{
-          background: "var(--bg-secondary)",
-          borderColor: "var(--border)",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          className="flex items-center justify-between border-b px-5 py-3"
-          style={{ borderColor: "var(--border)" }}
-        >
-          <h2
-            className="text-[15px] font-semibold"
-            style={{ color: "var(--text-bright)" }}
-          >
-            Setup: {schema?.label ?? providerId}
-          </h2>
-          <button onClick={onClose}>
-            <X className="h-4 w-4" style={{ color: "var(--text-muted)" }} />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+        <DialogHeader className="border-b px-4 py-3 pr-12">
+          <DialogTitle>Setup: {schema?.label ?? providerId}</DialogTitle>
+          <DialogDescription className="sr-only">Provider setup steps</DialogDescription>
+        </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto p-4">
           {error ? (
             <div className="text-[13px]" style={{ color: "var(--accent-red)" }}>
               {error}
@@ -186,16 +166,13 @@ export function SetupWizard({ providerId, onClose }: Props) {
           )}
         </div>
 
-        <div
-          className="flex justify-end border-t px-5 py-3"
-          style={{ borderColor: "var(--border)" }}
-        >
-          <Button variant="outline" size="sm" onClick={onClose}>
+        <DialogFooter className="m-0">
+          <Button variant="outline" onClick={onClose}>
             {idx >= (schema?.steps.length ?? 0) ? "Done" : "Cancel"}
           </Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

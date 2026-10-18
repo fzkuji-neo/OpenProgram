@@ -10,6 +10,7 @@ import { useTranslation, type Locale } from "@/lib/i18n";
 import { useSessionStore } from "@/lib/session-store";
 import styles from "./skills-page.module.css";
 import { pushPath } from "@/lib/shallow-nav";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 type Tab = "skill" | "files" | "versions";
 
@@ -178,7 +179,11 @@ export function SkillDetailPage({ name }: { name: string }) {
   };
 
   const doDelete = async () => {
-    if (!confirm(text(`Delete skill "${detail.name}"?`, `删除技能“${detail.name}”？`))) return;
+    if (!(await confirmAction({
+      title: text(`Delete skill "${detail.name}"?`, `删除技能“${detail.name}”？`),
+      confirmLabel: text("Delete", "删除"),
+      destructive: true,
+    }))) return;
     await fetch(`/api/skills/${encodePath(detail.name)}`, { method: "DELETE" });
     router.push("/skills");
   };

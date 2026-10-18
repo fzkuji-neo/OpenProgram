@@ -8,6 +8,7 @@ import { useTranslation } from "@/lib/i18n";
 import { AddBindingDialog } from "./add-binding-dialog";
 import { PLATFORM_LABEL } from "./types";
 import type { ChannelAccount, ChannelBinding } from "./types";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 interface Props {
   bindings: ChannelBinding[];
@@ -21,7 +22,11 @@ export function BindingsList({ bindings, accounts, onChange }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const handleDelete = async (binding_id: string) => {
-    if (!confirm(text("Delete this dispatch rule?", "删除这条分发规则？"))) return;
+    if (!(await confirmAction({
+      title: text("Delete this dispatch rule?", "删除这条分发规则？"),
+      confirmLabel: text("Delete", "删除"),
+      destructive: true,
+    }))) return;
     setBusyId(binding_id);
     try {
       const r = await fetch(

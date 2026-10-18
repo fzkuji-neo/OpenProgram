@@ -30,6 +30,7 @@ import type { CatalogState, Source } from "./types";
 import { activateOnKey } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 import { managePageStyles as shared } from "@/components/ui/manage-page";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 export function DiscoverySources({ query }: { query?: string } = {}) {
   const { text } = useTranslation();
@@ -253,18 +254,19 @@ export function DiscoverySources({ query }: { query?: string } = {}) {
 
   // -- Bulk install ----------------------------------------------------
   // Confirm + sequentially install every catalog entry not already in
-  // the user's skills list. We hand the count to ``window.confirm``
+  // the user's skills list. We put the count in the confirmation
   // explicitly because some catalogs are huge (Reza's Mega Pack ships
   // ~300 skills) and an accidental click would otherwise queue a
   // 30-minute background download with no undo affordance.
   async function handleBulkInstall(source: Source, toInstall: string[]) {
     if (toInstall.length === 0) return;
-    const ok = window.confirm(
-      `Install all ${toInstall.length} skill${toInstall.length === 1 ? "" : "s"} ` +
-        `from ${source.label} into the “${source.slug}/” namespace?\n\n` +
-        `Each entry is downloaded sequentially — large catalogs can take a while. ` +
+    const ok = await confirmAction({
+      title: `Install all ${toInstall.length} skill${toInstall.length === 1 ? "" : "s"} ` +
+        `from ${source.label} into the “${source.slug}/” namespace?`,
+      description: `Each entry is downloaded sequentially — large catalogs can take a while. ` +
         `You can cancel by closing the tab; partial installs are kept.`,
-    );
+      confirmLabel: "Install",
+    });
     if (!ok) return;
     setBulkUrl(source.url);
     setStatus(`Installing 0/${toInstall.length} from ${source.label}…`);
@@ -305,12 +307,14 @@ export function DiscoverySources({ query }: { query?: string } = {}) {
       .filter((sk) => sk.name.startsWith(prefix))
       .map((sk) => sk.name);
     if (toRemove.length === 0) return;
-    const ok = window.confirm(
-      `Uninstall all ${toRemove.length} skill${toRemove.length === 1 ? "" : "s"} ` +
-        `currently installed under “${source.slug}/”?\n\n` +
-        `This deletes them from disk. You can reinstall any of them from ` +
+    const ok = await confirmAction({
+      title: `Uninstall all ${toRemove.length} skill${toRemove.length === 1 ? "" : "s"} ` +
+        `currently installed under “${source.slug}/”?`,
+      description: `This deletes them from disk. You can reinstall any of them from ` +
         `this catalog later.`,
-    );
+      confirmLabel: "Uninstall",
+      destructive: true,
+    });
     if (!ok) return;
     setBulkUrl(source.url);
     setStatus(`Uninstalling 0/${toRemove.length} from ${source.label}…`);

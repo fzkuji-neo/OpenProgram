@@ -261,7 +261,9 @@
   --foreground: var(--text-primary);
   --card: var(--bg-secondary);
   --card-foreground: var(--text-primary);
-  --popover: var(--bg-tertiary);
+  /* Menus, Selects and dialogs float on the input surface: white in the
+     light themes, one step above the page in the dark ones. */
+  --popover: var(--bg-input);
   --popover-foreground: var(--text-primary);
   --primary: var(--accent-blue);
   /* Defined per theme block in app/styles/base.css. Dark mode

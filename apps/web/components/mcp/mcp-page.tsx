@@ -31,6 +31,7 @@ import {
 } from "./mcp-detail-view";
 import { EditDialog, type EditTarget } from "./mcp-edit-dialog";
 import styles from "./mcp-page.module.css";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 export function McpPage({
   embedded,
@@ -186,10 +187,12 @@ export function McpPage({
     });
   }
   async function doDelete(name: string) {
-    if (!confirm(text(
-      `Remove MCP server "${name}"? Config will be deleted.`,
-      `移除 MCP 服务器“${name}”？配置会被删除。`,
-    ))) return;
+    if (!(await confirmAction({
+      title: text(`Remove MCP server "${name}"?`, `移除 MCP 服务器“${name}”？`),
+      description: text("Config will be deleted.", "配置会被删除。"),
+      confirmLabel: text("Remove", "移除"),
+      destructive: true,
+    }))) return;
     await runAction("delete", async () => {
       await jsonFetch(`/api/mcp/servers/${encodeURIComponent(name)}`, { method: "DELETE" });
       setServers((prev) => prev.filter((p) => p.name !== name));

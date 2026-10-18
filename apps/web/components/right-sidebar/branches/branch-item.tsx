@@ -14,6 +14,7 @@ import {
   wsSend,
   type BranchRow,
 } from "./types";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 /**
  * Single row in the branches panel — checkbox, dot, name (rename in
@@ -139,10 +140,14 @@ export function BranchItem({
     wsSend({ action: "load_session", session_id: sessionId });
   }
 
-  function del(e: React.MouseEvent) {
+  async function del(e: React.MouseEvent) {
     e.stopPropagation();
     if (isPending) return;
-    if (!window.confirm(t("right.delete_branch_confirm"))) return;
+    if (!(await confirmAction({
+      title: t("right.delete_branch_confirm"),
+      confirmLabel: t("sidebar.delete"),
+      destructive: true,
+    }))) return;
     wsSend({
       action: "delete_branch",
       session_id: sessionId,

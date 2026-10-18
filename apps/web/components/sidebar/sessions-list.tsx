@@ -66,7 +66,7 @@ import type { EditableProject } from "./project-editor";
 import { useProjectDrag } from "./sessions-list/use-project-drag";
 import { useChatDrag } from "./sessions-list/use-chat-drag";
 import type { ChatRowProps } from "./sessions-list/use-chat-drag";
-import { ConfirmDialog } from "./sessions-list/confirm-dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { pushPath } from "@/lib/shallow-nav";
 import { runtimeState } from "@/lib/runtime-bridge/state";
 import { newSession } from "@/lib/runtime-bridge/conversations";
@@ -717,7 +717,9 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
       {confirm ? (
         <ConfirmDialog
           title={confirm.title}
-          message={confirm.message}
+          description={confirm.message}
+          confirmLabel={t("sidebar.delete")}
+          destructive
           onCancel={() => setConfirm(null)}
           onConfirm={() => {
             confirm.run();

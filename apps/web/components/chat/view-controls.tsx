@@ -38,7 +38,7 @@ import {
   SHORTCUT,
   itemCls,
 } from "@/components/chat/top-bar/menu-styles";
-import { ConfirmDialog } from "@/components/sidebar/sessions-list/confirm-dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { RenameDialog } from "@/components/chat/rename-dialog";
 import {
   GitGraphIcon,
@@ -219,7 +219,9 @@ export function ViewControls() {
       {confirmDelete ? (
         <ConfirmDialog
           title={t("sidebar.delete_chat")}
-          message={
+          confirmLabel={t("sidebar.delete")}
+          destructive
+          description={
             locale === "zh"
               ? `确定要删除「${title}」吗？`
               : `Are you sure you want to delete "${title}"?`

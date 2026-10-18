@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import styles from "../plugins.module.css";
 import { usePluginsStore } from "@/lib/abilities/plugins-store";
 import { useTranslation } from "@/lib/i18n";
-import { useModalA11y } from "@/lib/hooks/use-modal-a11y";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { SimpleSelect } from "@/components/ui/select";
 
 interface Props {
@@ -169,26 +170,15 @@ export function PluginOptionsDialog({ name, onClose }: Props) {
     }
   };
 
-  // Escape / Tab-trap / focus restore for this hand-rolled panel.
-  const modal = useModalA11y(onClose, text(`${name} options`, `${name} 选项`));
-
   return (
-    <div className={styles.dialogBackdrop} onClick={onClose}>
-      <div
-        {...modal}
-        className={styles.dialog}
-        onClick={(e) => e.stopPropagation()}
-        style={{ width: "min(560px, 90vw)" }}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div className={styles.dialogTitle}>{text(`${name} options`, `${name} 选项`)}</div>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className={styles.dialog} aria-describedby={undefined}>
+        <div className="flex items-center justify-between gap-3 pr-8">
+          <DialogHeader><DialogTitle>{text(`${name} options`, `${name} 选项`)}</DialogTitle></DialogHeader>
           {hasSchema && (
-            <button
-              onClick={() => setRawMode((v) => !v)}
-              className="text-xs text-[var(--text-secondary)] hover:text-nav-color-hover"
-            >
+            <Button variant="ghost" size="xs" onClick={() => setRawMode((v) => !v)}>
               {rawMode ? text("Form", "表单") : "Raw JSON"}
-            </button>
+            </Button>
           )}
         </div>
         <div className={styles.dialogBody}>
@@ -242,13 +232,13 @@ export function PluginOptionsDialog({ name, onClose }: Props) {
           )}
           {err && <div style={{ color: "#ef4444", fontSize: 12, marginTop: 10 }}>{err}</div>}
         </div>
-        <div className={styles.dialogActions}>
-          <button className={styles.btn} onClick={onClose} disabled={busy}>{t("sidebar.cancel")}</button>
-          <button className={styles.btnPrimary} onClick={save} disabled={busy}>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={busy}>{t("sidebar.cancel")}</Button>
+          <Button onClick={save} disabled={busy}>
             {busy ? text("Saving...", "保存中...") : text("Save", "保存")}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

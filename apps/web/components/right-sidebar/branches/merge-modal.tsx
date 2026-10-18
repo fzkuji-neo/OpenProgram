@@ -11,7 +11,8 @@
 import type React from "react";
 
 import { useTranslation } from "@/lib/i18n";
-import { useModalA11y } from "@/lib/hooks/use-modal-a11y";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface MergeModalProps {
   /** Selected branch head ids (≥2 when this modal is open). */
@@ -41,17 +42,12 @@ export function MergeModal({
     locale === "zh"
       ? `合并 ${selected.length} 个分支`
       : `Merge ${selected.length} branches`;
-  // Escape / Tab-trap / focus restore — the panel had none, so the only
-  // way out was clicking the backdrop.
-  const modal = useModalA11y(onCancel, title);
   return (
-    <div className="branches-merge-modal-backdrop" onClick={onCancel}>
-      <div
-        {...modal}
-        className="branches-merge-modal"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="branches-merge-modal-title">{title}</div>
+    <Dialog open onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <DialogContent className="branches-merge-modal" aria-describedby={undefined}>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
         <div className="branches-merge-mode">
           <label className="branches-merge-mode-row">
             <input
@@ -104,23 +100,15 @@ export function MergeModal({
         <div className="branches-merge-modal-hint">
           {t("right.merge_shortcut_hint")}
         </div>
-        <div className="branches-merge-modal-actions">
-          <button
-            type="button"
-            className="branches-merge-cancel"
-            onClick={onCancel}
-          >
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onCancel}>
             {t("sidebar.cancel")}
-          </button>
-          <button
-            type="button"
-            className="branches-merge-go"
-            onClick={onMerge}
-          >
+          </Button>
+          <Button type="button" onClick={onMerge}>
             {t("right.merge")}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -14,10 +14,7 @@
  * `./tab-items`. This file wires them together and owns the strip layout.
  *
  * Closing a tab with unsaved edits (dirty=true, set by the file
- * editor) asks for confirmation first and, on discard, drops the
- * surviving fileDrafts buffer so reopening starts clean.
- * ponytail: window.confirm — the strip has no dialog host; swap for
- * ConfirmDialog if one ever lands at this level.
+ * editor) saves the document first; a failed save keeps the tab open.
  */
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";

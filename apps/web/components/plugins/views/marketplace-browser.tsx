@@ -10,6 +10,7 @@ import { SimpleSelect } from "@/components/ui/select";
 import { AddMarketplaceDialog } from "../dialogs/add-marketplace-dialog";
 import { ManageCatalogCard, managePageStyles as shared } from "@/components/ui/manage-page";
 import { PlusIcon } from "@/components/animated-icons";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 interface IndexItem {
   name?: string;
@@ -193,7 +194,11 @@ export function MarketplaceBrowser({ externalFilter }: { externalFilter?: string
               size="sm"
               variant="destructive"
               onClick={async () => {
-                if (!confirm(text("Remove this marketplace?", "移除这个 Marketplace？"))) return;
+                if (!(await confirmAction({
+                  title: text("Remove this marketplace?", "移除这个 Marketplace？"),
+                  confirmLabel: text("Remove", "移除"),
+                  destructive: true,
+                }))) return;
                 await removeMarketplace(selectedId);
                 setSelectedId("");
                 setItems([]);

@@ -19,10 +19,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { SimpleSelect } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/lib/i18n";
 
-import styles from "./mcp-page.module.css";
 
 export interface EditTarget {
   mode: "add" | "edit";
@@ -470,23 +469,15 @@ export function EditDialog({
         </div>
 
         <DialogFooter>
-          <button
-            className={styles.actionBtn}
-            onClick={() => void testRun()}
-            disabled={saving}
-          >
+          <Button variant="outline" className="sm:mr-auto" onClick={() => void testRun()} disabled={saving}>
             {busy === "test" ? text("Testing...", "测试中...") : text("Test", "测试")}
-          </button>
-          <button className={styles.actionBtn} onClick={onClose} disabled={saving}>
+          </Button>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
             {t("sidebar.cancel")}
-          </button>
-          <button
-            className={cn(styles.actionBtn, styles.actionBtnPrimary)}
-            onClick={() => void save()}
-            disabled={saving}
-          >
+          </Button>
+          <Button onClick={() => void save()} disabled={saving}>
             {busy === "save" ? text("Saving...", "保存中...") : isAdd ? text("Add", "添加") : text("Save", "保存")}
-          </button>
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

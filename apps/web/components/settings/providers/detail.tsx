@@ -17,6 +17,7 @@ import { CliInfo, SetupHint } from "./setup-hint";
 import styles from "../settings-page.module.css";
 import type { Model, Provider } from "./types";
 import { useTranslation } from "@/lib/i18n";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 /** Right-pane detail view for one selected provider. Header + enable
  *  toggle, then a stack of sections: setup hint (optional), API key
@@ -36,12 +37,12 @@ export function Detail({
   const { text } = useTranslation();
 
   async function deleteProvider() {
-    if (!window.confirm(
-      text(
-        `Delete custom provider "${provider.label}"? Its models are removed; any saved API key is kept.`,
-        `删除自定义 Provider “${provider.label}”？其模型将被移除；已保存的 API key 会保留。`,
-      ),
-    )) return;
+    if (!(await confirmAction({
+      title: text(`Delete custom provider "${provider.label}"?`, `删除自定义 Provider “${provider.label}”？`),
+      description: text("Its models are removed; any saved API key is kept.", "其模型将被移除；已保存的 API key 会保留。"),
+      confirmLabel: text("Delete", "删除"),
+      destructive: true,
+    }))) return;
     try {
       await fetch(`/api/providers/custom/${encodeURIComponent(provider.id)}`, { method: "DELETE" });
     } catch { /* ignore */ }

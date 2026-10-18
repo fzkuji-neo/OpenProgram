@@ -4,6 +4,7 @@ import { useSkills } from "@/lib/abilities/skills-store";
 import { Markdown } from "@/lib/format-utils/markdown";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/lib/i18n";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 export function SkillDetail() {
   const { t, text } = useTranslation();
@@ -32,8 +33,12 @@ export function SkillDetail() {
           <Button
             variant="destructive"
             size="sm"
-            onClick={() => {
-              if (confirm(text(`Delete skill "${detail.name}"?`, `删除技能“${detail.name}”？`))) deleteSkill(detail.name);
+            onClick={async () => {
+              if (await confirmAction({
+                title: text(`Delete skill "${detail.name}"?`, `删除技能“${detail.name}”？`),
+                confirmLabel: t("sidebar.delete"),
+                destructive: true,
+              })) deleteSkill(detail.name);
             }}
           >
             {t("sidebar.delete")}

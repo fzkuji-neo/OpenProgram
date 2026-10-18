@@ -4,7 +4,8 @@ import { useState } from "react";
 import styles from "../plugins.module.css";
 import { usePluginsStore } from "@/lib/abilities/plugins-store";
 import { useTranslation } from "@/lib/i18n";
-import { useModalA11y } from "@/lib/hooks/use-modal-a11y";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   onClose: () => void;
@@ -35,17 +36,10 @@ export function AddMarketplaceDialog({ onClose }: Props) {
     }
   };
 
-  // Escape / Tab-trap / focus restore for this hand-rolled panel.
-  const modal = useModalA11y(onClose, text("Add Marketplace", "添加 Marketplace"));
-
   return (
-    <div className={styles.dialogBackdrop} onClick={onClose}>
-      <div
-        {...modal}
-        className={styles.dialog}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className={styles.dialogTitle}>{text("Add Marketplace", "添加 Marketplace")}</div>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className={styles.dialog} aria-describedby={undefined}>
+        <DialogHeader><DialogTitle>{text("Add Marketplace", "添加 Marketplace")}</DialogTitle></DialogHeader>
         <div className={styles.dialogBody}>
           <div style={{ marginBottom: 8 }}>
             <div style={{ fontSize: 12, marginBottom: 4, color: "var(--text-dim)" }}>{text("Index URL", "索引 URL")}</div>
@@ -66,13 +60,13 @@ export function AddMarketplaceDialog({ onClose }: Props) {
           </div>
           {err && <div style={{ color: "#ef4444", fontSize: 12 }}>{err}</div>}
         </div>
-        <div className={styles.dialogActions}>
-          <button className={styles.btn} onClick={onClose} disabled={busy}>{t("sidebar.cancel")}</button>
-          <button className={styles.btnPrimary} onClick={submit} disabled={busy}>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={busy}>{t("sidebar.cancel")}</Button>
+          <Button onClick={submit} disabled={busy}>
             {busy ? text("Adding...", "添加中...") : text("Add", "添加")}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

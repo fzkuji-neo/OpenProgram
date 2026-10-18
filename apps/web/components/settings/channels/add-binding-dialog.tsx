@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import styles from "./channels.module.css";
 import { SimpleSelect } from "@/components/ui/select";
 import { useTranslation } from "@/lib/i18n";
-import { useModalA11y } from "@/lib/hooks/use-modal-a11y";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { PLATFORM_LABEL } from "./types";
 import type { ChannelAccount } from "./types";
 
@@ -84,27 +85,12 @@ export function AddBindingDialog({ accounts, onClose, onAdded }: Props) {
     }
   };
 
-  // Escape / Tab-trap / focus restore for this hand-rolled panel.
-  const modal = useModalA11y(onClose, text("Add a dispatch rule", "添加分发规则"));
-
   return (
-    <div className={styles.modalBackdrop} onClick={onClose}>
-      <div
-        {...modal}
-        className={styles.modal}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className={styles.modalHeader}>
-          <span className={styles.modalTitle}>{text("Add a dispatch rule", "添加分发规则")}</span>
-          <button
-            className={styles.iconBtn}
-            onClick={onClose}
-            type="button"
-            aria-label={text("Close", "关闭")}
-          >
-            ×
-          </button>
-        </div>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className={styles.modal} aria-describedby={undefined}>
+        <DialogHeader>
+          <DialogTitle>{text("Add a dispatch rule", "添加分发规则")}</DialogTitle>
+        </DialogHeader>
 
         <div className={styles.modalBody}>
           <div className={styles.formHelp}>
@@ -206,24 +192,23 @@ export function AddBindingDialog({ accounts, onClose, onAdded }: Props) {
           {error && <div className={styles.formError}>{error}</div>}
         </div>
 
-        <div className={styles.modalFooter}>
-          <button
-            className={styles.secondaryBtn}
+        <DialogFooter>
+          <Button
+            variant="outline"
             onClick={onClose}
             type="button"
           >
             {t("sidebar.cancel")}
-          </button>
-          <button
-            className={styles.primaryBtn}
+          </Button>
+          <Button
             onClick={submit}
             disabled={submitting}
             type="button"
           >
             {submitting ? text("Adding...", "添加中...") : text("Add rule", "添加规则")}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

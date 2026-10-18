@@ -125,7 +125,7 @@ export function useFolderPicker(): {
             <p className="text-sm text-destructive" role="alert">{manualError}</p>
           ) : null}
           <DialogFooter>
-            <Button type="button" variant="ghost" disabled={validating} onClick={() => finishManual(null)}>
+            <Button type="button" variant="outline" disabled={validating} onClick={() => finishManual(null)}>
               {text("Cancel", "取消")}
             </Button>
             <Button type="submit" disabled={validating || !manualPath.trim()}>

@@ -29,7 +29,7 @@ const mocks = {
     const item=items.find(x=>x.id===globalThis.host.menu); globalThis.host.menuDisabled=item?.disabled;
     if(item && !item.disabled)item.onSelect?.();
   }});`,
-  '@/components/sidebar/sessions-list/confirm-dialog': `import React from 'react';
+  '@/components/ui/confirm-dialog': `import React from 'react';
     export const ConfirmDialog=({onConfirm})=><button data-confirm onClick={onConfirm}>Confirm</button>;`,
   './pierre-file-tree': `import React,{forwardRef,useImperativeHandle} from 'react';
     const Tree=forwardRef(({entries=[],matches=[],onContextMenu},ref)=>{

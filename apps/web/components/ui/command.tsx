@@ -43,7 +43,7 @@ function CommandDialog({
   return (
     <DialogPrimitive.Root {...props}>
       <DialogPrimitive.Portal>
-        <DialogOverlay className="bg-black/30" />
+        <DialogOverlay />
         <DialogPrimitive.Content
           data-slot="dialog-content"
           className={cn(

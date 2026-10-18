@@ -648,7 +648,7 @@
 
 .treeRowWithSize { grid-template-columns: 17px minmax(0, 1fr) auto; }
 .folderSize { font-size: var(--right-panel-meta-size, 10px); font-variant-numeric: tabular-nums; color: var(--text-dim); padding-left: 8px; white-space: nowrap; }
-.fileDetails { background: var(--bg-primary); color: var(--text-primary); width: min(520px, calc(100vw - 24px)); max-height: calc(100vh - 40px); overflow-y: auto; border-radius: 12px; }
+.fileDetails { width: min(520px, calc(100vw - 24px)); max-width: none; max-height: calc(100vh - 40px); overflow-y: auto; }
 .fileDetails dl { display: grid; gap: 10px; font-size: var(--right-panel-meta-size, 12px); }
 .fileDetails dl > div { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 12px; }
 .fileDetails dt { color: var(--text-dim); }

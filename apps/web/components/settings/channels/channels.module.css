@@ -262,68 +262,20 @@
   cursor: not-allowed;
 }
 
-.iconBtn {
-  cursor: pointer;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 18px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: background 0.15s, color 0.15s;
-}
-.iconBtn:hover {
-  background: var(--bg-hover);
-  color: var(--text-bright);
-}
-
 /* ----- Modal --------------------------------------------------------- */
-.modalBackdrop {
-  position: fixed;
-  inset: 0;
-  background: var(--scrim);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
 .modal {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  min-width: 440px;
-  max-width: 560px;
+  width: min(560px, calc(100vw - 32px));
+  max-width: none;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: var(--shadow-dialog);
-}
-.modalHeader {
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.modalTitle {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-bright);
-  font-family: var(--font-sans);
 }
 .modalBody {
-  padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-height: 0;
   overflow-y: auto;
-}
-.modalFooter {
-  padding: 12px 18px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
 }
 
 /* ----- Form --------------------------------------------------------- */

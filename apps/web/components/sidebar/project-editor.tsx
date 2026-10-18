@@ -59,7 +59,7 @@ export function ProjectEditor({ project, onClose, onSaved }: {
             <p className={styles.hint}>{text("Additional folders are defaults for chats without their own folder settings. Removing one here does not delete files.", "额外文件夹用于尚未单独设置目录的会话。从此处移除不会删除文件。")}</p>
           </fieldset>
           {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
-          <DialogFooter className={styles.footer}><Button type="button" variant="secondary" disabled={saving} onClick={onClose}>{text("Cancel", "取消")}</Button><Button type="submit" disabled={saving || !name.trim()}>{saving ? text("Saving…", "保存中…") : text("Save", "保存")}</Button></DialogFooter>
+          <DialogFooter><Button type="button" variant="outline" disabled={saving} onClick={onClose}>{text("Cancel", "取消")}</Button><Button type="submit" disabled={saving || !name.trim()}>{saving ? text("Saving…", "保存中…") : text("Save", "保存")}</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

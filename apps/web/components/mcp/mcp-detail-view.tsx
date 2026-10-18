@@ -21,6 +21,7 @@ import { useTranslation } from "@/lib/i18n";
 import { PlugZapIcon } from "@/components/animated-icons";
 
 import styles from "./mcp-page.module.css";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 /**
  * A stored `env` / `header` value as the API returns it: presence and
@@ -370,12 +371,14 @@ function ReauthButton({ name, onDone }: { name: string; onDone: () => void }) {
   const { text } = useTranslation();
   const [busy, setBusy] = useState(false);
   async function go() {
-    if (!confirm(
-      text(
-        `Re-authenticate "${name}"? This wipes stored tokens and re-opens the browser to complete a fresh OAuth flow.`,
-        `重新认证“${name}”？这会清除已存 token，并重新打开浏览器完成新的 OAuth 流程。`,
+    if (!(await confirmAction({
+      title: text(`Re-authenticate "${name}"?`, `重新认证“${name}”？`),
+      description: text(
+        "This wipes stored tokens and re-opens the browser to complete a fresh OAuth flow.",
+        "这会清除已存 token，并重新打开浏览器完成新的 OAuth 流程。",
       ),
-    )) return;
+      confirmLabel: text("Re-authenticate", "重新认证"),
+    }))) return;
     setBusy(true);
     try {
       const r = await fetch(`/api/mcp/servers/${encodeURIComponent(name)}/auth/reauth`,

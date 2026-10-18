@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import styles from "./project-settings.module.css";
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { wsRequest } from "@/lib/net/ws-request";
 import { useTranslation } from "@/lib/i18n";
@@ -17,8 +17,8 @@ export function ProjectOperationDialog({project,operation,onClose,onSaved}:{proj
   const worktree=operation==="create_project_worktree";
   const title=worktree?text("Create permanent worktree", "创建持久 worktree"):operation==="remove_project"?text("Remove project", "移除项目"):text("Archive chats", "归档聊天");
   return <Dialog open onOpenChange={open=>{if(!open&&!busy)onClose();}}><DialogContent className={styles.dialog}>
-    <DialogTitle>{title}</DialogTitle>
-    <DialogDescription>{worktree?text("Create a new branch from the project's current commit in a separate folder. Uncommitted changes stay in the original folder.", "从项目当前提交创建新分支，使用独立文件夹。未提交的改动保留在原文件夹。"):operation==="remove_project"?text("Hide this project from the sidebar. Files and chats are preserved. Restore it from Projects or reopen its folder.", "从侧边栏隐藏该项目，保留文件和聊天。可从项目页面恢复，或重新打开其文件夹。"):text("Archive all chats in this project. They remain available under the Archived filter, where you can unarchive them.", "归档该项目的所有聊天。可在“已归档”筛选中查看并取消归档。")}</DialogDescription>
+    <DialogHeader><DialogTitle>{title}</DialogTitle>
+    <DialogDescription>{worktree?text("Create a new branch from the project's current commit in a separate folder. Uncommitted changes stay in the original folder.", "从项目当前提交创建新分支，使用独立文件夹。未提交的改动保留在原文件夹。"):operation==="remove_project"?text("Hide this project from the sidebar. Files and chats are preserved. Restore it from Projects or reopen its folder.", "从侧边栏隐藏该项目，保留文件和聊天。可从项目页面恢复，或重新打开其文件夹。"):text("Archive all chats in this project. They remain available under the Archived filter, where you can unarchive them.", "归档该项目的所有聊天。可在“已归档”筛选中查看并取消归档。")}</DialogDescription></DialogHeader>
     <form className="grid gap-3" onSubmit={async event=>{event.preventDefault();setBusy(true);setError("");try {
       const result=await wsRequest<{ok:boolean;project_id:string;project?:EditableProject;error?:string}>(operation,{project_id:project.id,...(worktree?{path:path.trim(),branch:branch.trim()}:{})},operation+"_result",data=>data.project_id===project.id,130000);
       if(!result?.ok)throw new Error(result?.error||text("No confirmation received. Retry to check the operation.", "未收到确认，请重试以核实操作。"));
@@ -30,7 +30,7 @@ export function ProjectOperationDialog({project,operation,onClose,onSaved}:{proj
         <label className="grid gap-1 text-sm">{text("New branch", "新分支")}<Input className={styles.field} value={branch} onChange={e=>setBranch(e.target.value)} disabled={busy} required/></label>
       </>}
       {error&&<p role="alert" className="text-sm text-red-500">{error}</p>}
-      <div className="flex justify-end gap-2"><Button type="button" variant="secondary" disabled={busy} onClick={onClose}>{text("Cancel", "取消")}</Button><Button type="submit" disabled={busy}>{busy?text("Working…", "处理中…"):title}</Button></div>
+      <DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={onClose}>{text("Cancel", "取消")}</Button><Button type="submit" disabled={busy}>{busy?text("Working…", "处理中…"):title}</Button></DialogFooter>
     </form>
   </DialogContent></Dialog>;
 }

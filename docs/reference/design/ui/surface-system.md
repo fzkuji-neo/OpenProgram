@@ -241,10 +241,12 @@ chosen      accent check (MenuCheck), never a fill
 ─────────────────────────────────────────────────────────────────
 ```
 
-Menus and the Select popup are one surface: the same solid popover
-and the same `--accent` highlight, which `app/globals.css` defines as
-the ink at 9% so a hovered row reads in every theme. Only the accent
-check is the app's own.
+Menus, the Select popup and dialogs are one surface: the same solid
+popover and the same `--accent` highlight, which `app/globals.css`
+defines as the ink at 9% so a hovered row reads in every theme.
+`--popover` is `--bg-input`: white in the light themes, one step
+above the page in the dark ones. Only the accent check is the app's
+own.
 
 ## Inputs and borders
 
@@ -262,8 +264,43 @@ Inputs share **one single-layer 1px** edge
 
 ## Dialogs
 
-Dialogs **fade** in and out only (about 300ms). No slide from
-the top, no snap-close. Motion is opacity, not translate.
+Every modal is the radix-nova `Dialog` (`components/ui/dialog.tsx`)
+or `AlertDialog` (`components/ui/alert-dialog.tsx`), copied from the
+registry. There are no hand-rolled backdrops and no browser
+`confirm()`.
+
+```
+part        Nova, at the docs' scale
+─────────────────────────────────────────────────────────────────
+overlay     bg-black/10 · backdrop-blur-xs · z-[110] ·
+            data-native-view-occluder (native web views hide)
+content     rounded-xl · bg-popover · ring-1 ring-foreground/10 ·
+            p-4 · gap-4 · max-w-sm · .shadcn-scale · z-[120]
+title       text-base · font-medium
+description text-sm · muted
+footer      -mx-4 -mb-4 · border-t · bg-muted/50 · p-4 ·
+            buttons right-aligned, Cancel first
+close       ghost icon-sm Button, top-2 right-2 (Dialog only)
+motion      100ms fade + zoom-in-95; no slide
+─────────────────────────────────────────────────────────────────
+```
+
+- Every "are you sure?" goes through `ConfirmDialog`
+  (`components/ui/confirm-dialog.tsx`): title, optional description,
+  an `outline` Cancel and a confirm button that is `default`, or
+  `destructive` when the action deletes or lowers a safeguard
+  (delete chat, Bypass Permissions). Imperative callers use
+  `await confirmAction({...})`, served by the one
+  `<ConfirmDialogHost />` in `app/providers.tsx`.
+- Forms and multi-action dialogs use `Dialog` with `DialogHeader` and
+  `DialogFooter`. The footer holds `Button`s only: `outline` for
+  Cancel / Close, `default` for the main action.
+- A module class on `DialogContent` only sizes the dialog (width,
+  `max-width: none`, max-height, overflow). It never restates the
+  surface: no background, border, radius, padding or shadow.
+- Dialogs that run edge to edge (source viewer, function runner,
+  provider setup) pass `p-0 gap-0`, pad their own header and body,
+  and give `DialogFooter` `m-0`.
 
 ## Settings rows
 
@@ -413,7 +450,7 @@ carries geometry only, so the 40px row keeps its rhythm.
   hand it back with `revert-layer`.
 - Don't stack a 2px focus glow on a 1px input/select edge.
 - Don't drop a control's 1px border on hover.
-- Don't slide dialogs. Fade only.
+- Don't slide dialogs; they fade and zoom in from 95%.
 - Don't let a settings description overflow into the right-hand
   control column, or stack label above control.
 
@@ -428,6 +465,11 @@ carries geometry only, so the 40px row keeps its rhythm.
   composer environment chips, bottom-row controls, send and mic
   buttons, input box, the web page preview (frame, header, icon
   buttons), and the browser toolbar's icon buttons.
+- Done: every modal on `Dialog` / `AlertDialog`, every confirmation
+  on `ConfirmDialog` (the former `window.confirm` calls, the
+  delete-chat and Bypass Permissions prompts, the plugin, channel,
+  branch-merge, icon-picker, function and provider-setup panels).
+  The attachment lightbox keeps its own full-screen viewer.
 - Not yet migrated: the other Settings pages (still on
   `settings-page.module.css` rows) and tooltips. Form inputs outside
   Settings keep the 1px-edge rule above until they move to the

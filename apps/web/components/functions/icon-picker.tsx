@@ -3,7 +3,8 @@
 import { useRef } from "react";
 import styles from "./icon-picker.module.css";
 import { useTranslation } from "@/lib/i18n";
-import { useModalA11y } from "@/lib/hooks/use-modal-a11y";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   type AnimatedNavIconHandle,
   AtomIcon,
@@ -88,43 +89,14 @@ export function IconPicker({
   onClose: () => void;
 }) {
   const { text } = useTranslation();
-  // Replaces the old document-level Escape listener: same Escape, plus
-  // the Tab trap and focus restore it was missing.
-  const modal = useModalA11y(
-    onClose,
-    text("Pick an icon", "选择图标"),
-  );
-
   return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div
-        {...modal}
-        className={styles.picker}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className={styles.head}>
-          <span className={styles.title}>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent aria-describedby={undefined}>
+        <DialogHeader>
+          <DialogTitle className={styles.title}>
             {text("Pick an icon for", "为以下函数选择图标")} <code>{name}</code>
-          </span>
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.btnGhost}
-              onClick={() => onPick(null)}
-              title={text("Reset to default", "恢复默认")}
-            >
-              {text("Reset", "重置")}
-            </button>
-            <button
-              type="button"
-              className={styles.btnGhost}
-              onClick={onClose}
-              title={text("Close", "关闭")}
-            >
-              {text("Close", "关闭")}
-            </button>
-          </div>
-        </div>
+          </DialogTitle>
+        </DialogHeader>
         <div className={styles.grid}>
           {(Object.keys(FUNCTION_ICONS) as FunctionIconSlug[]).map((slug) => (
             <IconCell
@@ -135,8 +107,16 @@ export function IconPicker({
             />
           ))}
         </div>
-      </div>
-    </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onPick(null)}>
+            {text("Reset to default", "恢复默认")}
+          </Button>
+          <DialogClose asChild>
+            <Button type="button" variant="outline">{text("Close", "关闭")}</Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

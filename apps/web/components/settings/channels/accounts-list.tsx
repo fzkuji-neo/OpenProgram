@@ -8,6 +8,7 @@ import { useTranslation } from "@/lib/i18n";
 import { AddAccountDialog } from "./add-account-dialog";
 import { PLATFORMS, PLATFORM_LABEL } from "./types";
 import type { ChannelAccount, StatusMap } from "./types";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 interface Props {
   accounts: ChannelAccount[];
@@ -21,12 +22,12 @@ export function AccountsList({ accounts, statuses, onChange }: Props) {
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
   const handleDelete = async (channel: string, account_id: string) => {
-    if (!confirm(text(
-      `Delete ${channel}:${account_id}? Any rules using this bot will also be removed.`,
-      `删除 ${channel}:${account_id}？使用这个 bot 的规则也会被移除。`,
-    ))) {
-      return;
-    }
+    if (!(await confirmAction({
+      title: text(`Delete ${channel}:${account_id}?`, `删除 ${channel}:${account_id}？`),
+      description: text("Any rules using this bot will also be removed.", "使用这个 bot 的规则也会被移除。"),
+      confirmLabel: text("Delete", "删除"),
+      destructive: true,
+    }))) return;
     const key = `${channel}:${account_id}`;
     setBusyKey(key);
     try {

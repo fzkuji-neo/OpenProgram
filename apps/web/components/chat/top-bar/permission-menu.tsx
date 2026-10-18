@@ -16,15 +16,13 @@
  * lines up with the single-line rows of the other menus. The
  * danger-tier colour lives on the topbar chip, not in the menu rows.
  * Picking a tier switches to it and closes the menu. Picking `bypass`
- * (when not already bypass) opens a confirmation overlay inside
- * `#chatView` / `.peer-session-pane` — the switch only lands after
- * the user confirms.
+ * (when not already bypass) opens the shared ConfirmDialog — the
+ * switch only lands after the user confirms.
  *
  * State comes from usePermissionMode() (the same per-session store the
  * old composer plus-menu item read/wrote), so switching here is picked
  * up everywhere immediately.
  */
-import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
 
 import { useTranslation } from "@/lib/i18n";
@@ -38,6 +36,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { HoverTip, TipBody } from "@/components/ui/tooltip";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -65,12 +64,6 @@ export function PermissionBadge() {
   const [open, setOpen] = useState(false);
   const [bypassConfirm, setBypassConfirm] = useState(false);
   const iconRef = useRef<AnimatedNavIconHandle>(null);
-  const hostRef = useRef<HTMLSpanElement>(null);
-  // #chatView (main shell) and .peer-session-pane (split) already
-  // position:relative — overlay is absolute inside that box, not body.
-  const chatPanel = hostRef.current?.closest<HTMLElement>(
-    "#chatView, .peer-session-pane",
-  ) ?? null;
 
   // A `topbar-close-menus` event (fired by another top-bar dropdown)
   // closes this menu, so only one is ever open.
@@ -116,7 +109,6 @@ export function PermissionBadge() {
         >
           <PopoverTrigger asChild>
             <span
-              ref={hostRef}
               id="permissionBadge"
               className={`${cn(buttonVariants({ variant: "elevated", size: "sm" }))} runtime-badge permission-badge`}
               onMouseEnter={() => iconRef.current?.startAnimation?.()}
@@ -182,95 +174,23 @@ export function PermissionBadge() {
       </Popover>
 
       {error ? <span role="alert" className="text-xs text-danger">{error}</span> : null}
-      {bypassConfirm && chatPanel
-        ? createPortal(
-            <div
-              data-native-view-occluder="true"
-              onClick={() => setBypassConfirm(false)}
-              style={{
-                position: "absolute",
-                inset: 0,
-                zIndex: 300,
-                background: "rgba(0,0,0,0.45)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <div
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  width: "min(440px, 92%)",
-                  background: "var(--bg-secondary)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 14,
-                  padding: "20px 24px",
-                  boxShadow: "var(--shadow-popover)",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 600,
-                    color: "var(--danger, #d72518)",
-                    marginBottom: 8,
-                  }}
-                >
-                  {text("Enable Bypass Permissions?", "启用绕过权限？")}
-                </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: "var(--text-muted)",
-                    marginBottom: 20,
-                  }}
-                >
-                  {text(
-                    "Ordinary tools run without approval. Explicit rules, mandatory approvals, and sandbox restrictions still apply.",
-                    "普通工具不经审批直接执行。显式规则、强制审批和沙箱限制仍然生效。",
-                  )}
-                </div>
-                <div
-                  style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setBypassConfirm(false)}
-                    style={{
-                      padding: "6px 14px",
-                      borderRadius: 8,
-                      border: "1px solid var(--border)",
-                      background: "none",
-                      color: "var(--text-primary)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {text("Cancel", "取消")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      set("bypass");
-                      setBypassConfirm(false);
-                      setOpen(false);
-                    }}
-                    style={{
-                      padding: "6px 14px",
-                      borderRadius: 8,
-                      border: "none",
-                      background: "var(--danger, #d72518)",
-                      color: "#fff",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {text("Enable", "启用")}
-                  </button>
-                </div>
-              </div>
-            </div>,
-            chatPanel,
-          )
-        : null}
+      {bypassConfirm ? (
+        <ConfirmDialog
+          title={text("Enable Bypass Permissions?", "启用绕过权限？")}
+          description={text(
+            "Ordinary tools run without approval. Explicit rules, mandatory approvals, and sandbox restrictions still apply.",
+            "普通工具不经审批直接执行。显式规则、强制审批和沙箱限制仍然生效。",
+          )}
+          confirmLabel={text("Enable", "启用")}
+          destructive
+          onCancel={() => setBypassConfirm(false)}
+          onConfirm={() => {
+            set("bypass");
+            setBypassConfirm(false);
+            setOpen(false);
+          }}
+        />
+      ) : null}
     </>
   );
 }

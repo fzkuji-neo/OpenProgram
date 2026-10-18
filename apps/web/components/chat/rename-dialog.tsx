@@ -55,7 +55,7 @@ export function RenameDialog({
         if (!o) onCancel();
       }}
     >
-      <DialogContent {...(id ? { id } : {})} className="max-w-[400px] border-0"
+      <DialogContent {...(id ? { id } : {})}
         onCloseAutoFocus={preserveFocus ? (event) => event.preventDefault() : undefined}>
         <DialogHeader>
           <DialogTitle>{t("sidebar.rename")}</DialogTitle>
@@ -73,12 +73,7 @@ export function RenameDialog({
           aria-label={t("sidebar.rename")}
         />
         <DialogFooter>
-          <Button
-            variant="secondary"
-            data-rename-action="cancel"
-            onClick={onCancel}
-            className="bg-[var(--bg-selected)] text-[var(--text-bright)] transition-[filter] hover:bg-[var(--bg-selected)] hover:brightness-125"
-          >
+          <Button variant="outline" data-rename-action="cancel" onClick={onCancel}>
             {t("sidebar.cancel")}
           </Button>
           <Button onClick={submit} data-rename-action="save">

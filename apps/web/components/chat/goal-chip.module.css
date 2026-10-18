@@ -12,8 +12,8 @@
 .dialog {
   max-height: min(760px, 88vh);
   overflow-y: auto;
-  border: 0;
   width: min(620px, calc(100vw - 24px));
+  max-width: none;
 }
 
 .field {

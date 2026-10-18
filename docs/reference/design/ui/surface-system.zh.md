@@ -128,7 +128,7 @@ icon-sm     24.5 px                输入框周围的图标按钮
 ─────────────────────────────────────────────────────────────────
 ```
 
-菜单和 Select 弹层是同一种表面：同样的实色弹层、同样的 `--accent` 悬停底色。`app/globals.css` 把 `--accent` 定义为墨色 9%，所以在每套主题里都看得出鼠标停在哪一行。只有强调色对勾是应用自己的。
+菜单、Select 弹层和对话框是同一种表面：同样的实色弹层、同样的 `--accent` 悬停底色。`app/globals.css` 把 `--accent` 定义为墨色 9%，所以在每套主题里都看得出鼠标停在哪一行。`--popover` 取 `--bg-input`：浅色主题里是白色，深色主题里比页面高一级。只有强调色对勾是应用自己的。
 
 ## 输入框与边框
 
@@ -140,7 +140,28 @@ icon-sm     24.5 px                输入框周围的图标按钮
 
 ## 对话框
 
-对话框只做**淡入淡出**（大约 300ms）。不要从上往下滑动，不要突然消失。动的是透明度，不是位移。
+所有模态框都是 radix-nova 的 `Dialog`（`components/ui/dialog.tsx`）或 `AlertDialog`（`components/ui/alert-dialog.tsx`），从 registry 原样复制。没有手写的遮罩层，也没有浏览器的 `confirm()`。
+
+```
+部分        Nova，文档站尺寸
+─────────────────────────────────────────────────────────────────
+遮罩        bg-black/10 · backdrop-blur-xs · z-[110] ·
+            data-native-view-occluder（原生网页视图让开）
+内容        rounded-xl · bg-popover · ring-1 ring-foreground/10 ·
+            p-4 · gap-4 · max-w-sm · .shadcn-scale · z-[120]
+标题        text-base · font-medium
+说明        text-sm · 弱化色
+底栏        -mx-4 -mb-4 · border-t · bg-muted/50 · p-4 ·
+            按钮靠右，取消在前
+关闭        ghost icon-sm Button，top-2 right-2（仅 Dialog）
+动效        100ms 淡入 + zoom-in-95；不滑动
+─────────────────────────────────────────────────────────────────
+```
+
+- 所有"确定吗？"都走 `ConfirmDialog`（`components/ui/confirm-dialog.tsx`）：标题、可选说明、`outline` 的取消，以及确认按钮——一般是 `default`，删除或降低安全保护时（删除聊天、绕过权限）用 `destructive`。命令式调用写 `await confirmAction({...})`，由 `app/providers.tsx` 里唯一的 `<ConfirmDialogHost />` 渲染。
+- 表单和多操作的对话框用 `Dialog`，配 `DialogHeader` 和 `DialogFooter`。底栏只放 `Button`：取消 / 关闭用 `outline`，主操作用 `default`。
+- 加在 `DialogContent` 上的 module 类只管尺寸（宽度、`max-width: none`、最大高度、滚动），不重写表面：不写背景、边框、圆角、内边距、阴影。
+- 内容铺满边缘的对话框（源码查看、函数运行、Provider 设置）传 `p-0 gap-0`，自己给标题栏和正文加内边距，并给 `DialogFooter` 加 `m-0`。
 
 ## 设置行
 
@@ -210,10 +231,11 @@ link         primary 字                           下划线
 - 不要改 `components/ui/button.tsx` 里的官方样式类（`elevated` 是唯一的自有变体），也不要在 CSS 里再写一份仿 Button 的样式。挑一个 `variant` / `size`；旧规则还压着 Button 时，删掉它或用 `revert-layer` 让回去。
 - 不要在 1px 输入/下拉边上再叠 2px 聚焦光晕。
 - 不要在悬停时丢掉控件的 1px 边。
-- 不要让对话框滑动。只淡入淡出。
+- 不要让对话框滑动；只淡入并从 95% 放大。
 - 不要让设置说明伸进右侧控件列，也不要把标签堆在控件上面。
 
 ## 实现状态
 
 - 已完成：`Button`、`Select`、`Input`、`Textarea`、`Switch`、`Slider`、`Card`、`Badge`、`Label`、`Separator`（radix-nova，包括替换所有原生 `<select>` 和自制下拉），以及 `Checkbox`、`RadioGroup`、`Field`、`Toggle`、`ToggleGroup`；菜单面板和菜单行（Nova 几何和材质）；设置的通用页和桌面提醒一节换成设置积木；输入框上方的环境标签、底部控制栏、发送和语音按钮、输入框本体、网页预览小窗（外框、标题栏、图标按钮）、浏览器工具栏的图标按钮。
+- 已完成：所有模态框换成 `Dialog` / `AlertDialog`，所有确认换成 `ConfirmDialog`（原来的 `window.confirm`、删除聊天和绕过权限的确认、插件、频道、分支合并、图标选择、函数和 Provider 设置面板）。附件灯箱保留自己的全屏查看器。
 - 尚未迁移：其余设置页（仍用 `settings-page.module.css` 的行）和提示框。设置页以外的表单输入框在换成 shadcn input 之前继续遵守上面的 1px 边规则。侧栏列表行继续用上面的列表尺寸。

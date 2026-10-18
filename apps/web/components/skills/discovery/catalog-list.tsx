@@ -16,6 +16,7 @@ import type { Source, SortKey } from "./types";
 import { SimpleSelect } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { ManageCatalogCard, managePageStyles as shared } from "@/components/ui/manage-page";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 // Pill-shaped action buttons. Design philosophy: every button looks
 // the same in its idle state — a subtle ``bg-tertiary`` chip that sits
@@ -187,8 +188,12 @@ export function CatalogList({
                       title={text(`Uninstall ${fullName}`, `卸载 ${fullName}`)}
                       aria-label={text(`Uninstall ${fullName}`, `卸载 ${fullName}`)}
                       disabled={bulkBusy}
-                      onClick={() => {
-                        if (confirm(text(`Delete skill "${fullName}"?`, `删除技能“${fullName}”？`))) {
+                      onClick={async () => {
+                        if (await confirmAction({
+                          title: text(`Delete skill "${fullName}"?`, `删除技能“${fullName}”？`),
+                          confirmLabel: text("Delete", "删除"),
+                          destructive: true,
+                        })) {
                           void deleteSkill(fullName);
                         }
                       }}

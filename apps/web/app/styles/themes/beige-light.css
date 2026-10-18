@@ -104,7 +104,7 @@
   --bg-secondary: #fbfaf8;
   --bg-tertiary: #f3f1ec;
   --card: var(--bg-secondary);
-  --popover: var(--bg-tertiary);
+  --popover: var(--bg-input);
   --secondary: var(--bg-tertiary);
   --muted: var(--bg-tertiary);
   --effort-off-bg: var(--bg-tertiary);

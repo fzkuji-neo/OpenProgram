@@ -21,6 +21,7 @@ import { convertRasterToPng } from "@/lib/documents/raster-format";
 import { PdfSurface } from "./pdf-surface";
 import { RasterSurface } from "./raster-surface";
 import type { RasterEditorInstance } from "@/lib/documents/raster-editor";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 interface VersionPreview { blob: Blob; content?: string; version?: string; side?: "before" | "after"; disk?: boolean; }
 
@@ -208,7 +209,10 @@ export function DocumentWindow({ projectId, path, sessionId, readOnly = false, s
     });
   }
   async function restore(version: string, side: "before" | "after" = "after") {
-    if (!window.confirm(text("Restore this version?", "恢复此版本？"))) return;
+    if (!(await confirmAction({
+      title: text("Restore this version?", "恢复此版本？"),
+      confirmLabel: text("Restore", "恢复"),
+    }))) return;
     await perform(async () => { await controller.restore(version, side); showCurrent(); await openHistory(); });
   }
   async function showDisk() {
@@ -226,7 +230,12 @@ export function DocumentWindow({ projectId, path, sessionId, readOnly = false, s
     setTimeout(() => URL.revokeObjectURL(url), 0);
   }
   async function discard() {
-    if (!window.confirm(text("Discard your local changes and read the file from disk?", "丢弃本地修改并重新读取磁盘文件？"))) return;
+    if (!(await confirmAction({
+      title: text("Discard your local changes?", "丢弃本地修改？"),
+      description: text("The file is read again from disk.", "将重新读取磁盘文件。"),
+      confirmLabel: text("Discard", "丢弃"),
+      destructive: true,
+    }))) return;
     await perform(async () => { await controller.discardDraft(); showCurrent(); });
   }
   const snapshot = state.snapshot ? { project_id: projectId, path,

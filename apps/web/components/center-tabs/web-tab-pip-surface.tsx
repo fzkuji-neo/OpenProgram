@@ -78,7 +78,7 @@ export function WebTabPipSurface({ tabId, url, native }: {
       if (disposed) return;
       const bounds = measureWebTabBounds(body);
       const occluded = isWebTabOccluded(bounds, document.querySelectorAll(
-        '[role="dialog"], [role="menu"], [role="listbox"], .branches-merge-modal-backdrop, [data-native-view-occluder="true"]',
+        '[role="dialog"], [role="menu"], [role="listbox"], [data-native-view-occluder="true"]',
       ));
       if (occluded || bounds.width <= 0 || bounds.height <= 0) {
         const image = gestureFrameRef.current;

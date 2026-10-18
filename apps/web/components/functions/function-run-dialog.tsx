@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { X, Play, Eye, Loader2, Folder } from "lucide-react";
+import { Play, Eye, Loader2, Folder } from "lucide-react";
 import type { AgenticFunction, FunctionParamDetail } from "@/lib/types";
 import { api } from "@/lib/net/api";
 import { useTranslation } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { SimpleSelect } from "@/components/ui/select";
 import { useFolderPicker } from "@/components/ui/folder-picker";
@@ -93,40 +94,14 @@ export function FunctionRunDialog({ fn, onClose }: Props) {
 
   return (
     <>
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.5)" }}
-      onClick={onClose}
-    >
-      <div
-        className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border"
-        style={{
-          background: "var(--bg-secondary)",
-          borderColor: "var(--border)",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          className="flex items-center justify-between border-b px-5 py-3"
-          style={{ borderColor: "var(--border)" }}
-        >
-          <div>
-            <h2
-              className="font-mono text-[15px] font-semibold"
-              style={{ color: "var(--text-bright)" }}
-            >
-              {fn.name}
-            </h2>
-            <p className="mt-0.5 text-[11px]" style={{ color: "var(--text-muted)" }}>
-              {fn.description}
-            </p>
-          </div>
-          <button onClick={onClose}>
-            <X className="h-4 w-4" style={{ color: "var(--text-muted)" }} />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+        <DialogHeader className="border-b px-4 py-3 pr-12">
+          <DialogTitle className="font-mono">{fn.name}</DialogTitle>
+          <DialogDescription className="text-xs">{fn.description}</DialogDescription>
+        </DialogHeader>
 
-        <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
+        <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
           <p className="text-[12px]" style={{ color: "var(--text-muted)" }}>
             {fn.continuation?.supported
               ? text("Declares durable steps. State and dependencies are checked before execution.", "已声明可恢复步骤，执行前会检查状态和依赖是否兼容。")
@@ -170,29 +145,21 @@ export function FunctionRunDialog({ fn, onClose }: Props) {
           )}
         </div>
 
-        <div
-          className="flex justify-end gap-2 border-t px-5 py-3"
-          style={{ borderColor: "var(--border)" }}
-        >
-          <Button variant="outline" size="sm" onClick={onClose}>
+        <DialogFooter className="m-0">
+          <Button variant="outline" onClick={onClose}>
             {t("sidebar.cancel")}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={runInline}
-            disabled={running}
-          >
+          <Button variant="outline" onClick={runInline} disabled={running}>
             {running ? <Loader2 className="animate-spin" /> : <Eye />}
             {text("Run inline", "直接运行")}
           </Button>
-          <Button size="sm" onClick={runInChat}>
+          <Button onClick={runInChat}>
             <Play />
             {text("Run in chat", "在对话中运行")}
           </Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     {folderPickerDialog}
     </>
   );

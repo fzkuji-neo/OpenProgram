@@ -52,6 +52,7 @@ import { sidebarToggleClass } from "@/components/sidebar/nav-classes";
 import { MemorySourcePreview } from "./source-preview";
 import { MemoryDocument } from "./document";
 import { MemoryProjectContext, memoryUrl } from "./api";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 export function MemoryPage({
   embedded,
@@ -183,10 +184,12 @@ export function MemoryPage({
 
   async function deleteTopic() {
     if (!selectedTopic) return;
-    if (!confirm(text(
-      `Delete "${selectedTopic.title || selectedTopic.path}"? This cannot be undone.`,
-      `删除“${selectedTopic.title || selectedTopic.path}”？此操作无法撤销。`,
-    ))) return;
+    if (!(await confirmAction({
+      title: text(`Delete "${selectedTopic.title || selectedTopic.path}"?`, `删除“${selectedTopic.title || selectedTopic.path}”？`),
+      description: text("This cannot be undone.", "此操作无法撤销。"),
+      confirmLabel: text("Delete", "删除"),
+      destructive: true,
+    }))) return;
     const r = await fetch(api(`/api/memory/topics/${selectedTopic.path}`), { method: "DELETE" });
     if (r.ok) {
       setSelectedTopic(null);

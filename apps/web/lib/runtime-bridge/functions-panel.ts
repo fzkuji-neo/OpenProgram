@@ -13,6 +13,7 @@ import { runtimeState } from "./state";
 import { navigate } from "@/lib/navigate";
 import { openFunctionForm, refreshFunctionsList } from "@/lib/abilities/functions-actions";
 import { setPendingRunFunction } from "@/lib/execution/use-pending-run-function";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 interface FnDef {
   name: string;
@@ -36,7 +37,11 @@ export async function loadProgramsMeta(): Promise<void> {
 export function renderFunctions(): void {}
 
 export async function deleteFunction(name: string): Promise<void> {
-  if (!confirm('Delete function "' + name + '"?')) return;
+  if (!(await confirmAction({
+    title: 'Delete function "' + name + '"?',
+    confirmLabel: "Delete",
+    destructive: true,
+  }))) return;
   try {
     const resp = await fetch("/api/function/" + encodeURIComponent(name), {
       method: "DELETE",

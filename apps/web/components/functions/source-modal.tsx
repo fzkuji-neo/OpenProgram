@@ -7,7 +7,7 @@ import type { AgenticFunction } from "@/lib/types";
 import { api } from "@/lib/net/api";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/lib/i18n";
-import { useModalA11y } from "@/lib/hooks/use-modal-a11y";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 interface Props {
   fn: AgenticFunction;
@@ -19,7 +19,6 @@ export function SourceModal({ fn, onClose }: Props) {
   const qc = useQueryClient();
   const [edited, setEdited] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const modal = useModalA11y(onClose, text("Source of ", "源码：") + fn.name);
 
   const { data } = useQuery({
     queryKey: ["source", fn.name],
@@ -53,60 +52,31 @@ export function SourceModal({ fn, onClose }: Props) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.5)" }}
-      onClick={onClose}
-    >
-      <div
-        {...modal}
-        className="flex h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border"
-        style={{
-          background: "var(--bg-secondary)",
-          borderColor: "var(--border)",
-        }}
-        onClick={(e) => e.stopPropagation()}
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent
+        showCloseButton={false}
+        className="flex h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl"
       >
-        <div
-          className="flex items-center justify-between border-b px-5 py-3"
-          style={{ borderColor: "var(--border)" }}
-        >
-          <div className="flex items-center gap-2">
-            <FileCode
-              className="h-4 w-4"
-              style={{ color: "var(--text-muted)" }}
-            />
-            <h2
-              className="font-mono text-[14px] font-semibold"
-              style={{ color: "var(--text-bright)" }}
-            >
-              {fn.name}
-            </h2>
+        <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <FileCode className="size-4 shrink-0 text-muted-foreground" />
+            <DialogTitle className="font-mono text-sm">{fn.name}</DialogTitle>
             {data?.filepath && (
-              <span
-                className="font-mono text-[10px]"
-                style={{ color: "var(--text-muted)" }}
-              >
+              <DialogDescription className="truncate font-mono text-xs">
                 {data.filepath.replace(/^.*\/openprogram\//, "openprogram/")}
-              </span>
+              </DialogDescription>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <Button size="sm" onClick={save} disabled={!dirty || saving}>
               {saving ? <Loader2 className="animate-spin" /> : <Save />}
               {text("Save", "保存")}
             </Button>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label={text("Close", "关闭")}
-            >
-              <X
-                className="h-4 w-4"
-                style={{ color: "var(--text-muted)" }}
-                aria-hidden="true"
-              />
-            </button>
+            <DialogClose asChild>
+              <Button variant="ghost" size="icon-sm" aria-label={text("Close", "关闭")}>
+                <X />
+              </Button>
+            </DialogClose>
           </div>
         </div>
 
@@ -114,14 +84,10 @@ export function SourceModal({ fn, onClose }: Props) {
           value={display}
           onChange={(e) => setEdited(e.target.value)}
           spellCheck={false}
-          className="flex-1 resize-none p-4 font-mono text-[12px] outline-none"
-          style={{
-            background: "var(--bg-input)",
-            color: "var(--text-primary)",
-            lineHeight: 1.55,
-          }}
+          aria-label={text("Source of ", "源码：") + fn.name}
+          className="flex-1 resize-none bg-[var(--bg-input)] p-4 font-mono text-xs leading-[1.55] text-[var(--text-primary)] outline-none"
         />
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -11,6 +11,7 @@ import { PluginTrustWarning } from "../dialogs/plugin-trust-warning";
 import { PluginOptionsDialog } from "../dialogs/plugin-options-dialog";
 import { ValidatePluginDialog } from "../dialogs/validate-plugin";
 import { PluginDetailDialog } from "../dialogs/plugin-detail";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 function TrustBadge({ level }: { level: string }) {
   const { text } = useTranslation();
@@ -152,7 +153,11 @@ export function InstalledList({ externalFilter }: { externalFilter?: string } = 
             try { await reload(detailDialog.name); } finally { setBusy(""); }
           }}
           onUninstall={async () => {
-            if (!window.confirm(text("Uninstall this plugin?", "卸载这个插件？"))) return;
+            if (!(await confirmAction({
+              title: text("Uninstall this plugin?", "卸载这个插件？"),
+              confirmLabel: text("Uninstall", "卸载"),
+              destructive: true,
+            }))) return;
             const target = detailDialog;
             setDetailDialog(null);
             setBusy(target.name);

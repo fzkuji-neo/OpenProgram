@@ -35,7 +35,7 @@ import {
   PopoverAnchor,
   PopoverContent,
 } from "@/components/ui/popover";
-import { ConfirmDialog } from "@/components/sidebar/sessions-list/confirm-dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useSidebarMenu } from "@/components/sidebar/use-sidebar-menu";
 import { TreeContextMenu, treeClipboard } from "./tree-context-menu";
 import {
@@ -1075,7 +1075,9 @@ export function FileTree({
             `Delete "${baseOf(confirmDelete)}"?`,
             `删除“${baseOf(confirmDelete)}”？`,
           )}
-          message={text(
+          confirmLabel={text("Delete", "删除")}
+          destructive
+          description={text(
             "It will be moved to recoverable storage. Use openprogram trash list and openprogram trash restore to recover it.",
             "文件将移入可恢复存储。可通过 openprogram trash list 和 openprogram trash restore 恢复。",
           )}

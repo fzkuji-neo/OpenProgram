@@ -3,6 +3,7 @@
 import type { AgentConfigDTO } from "@/components/agents/agent-types";
 import { jsonFetch } from "@/lib/net/fetch-client";
 import { useSessionStore } from "@/lib/session-store";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 export interface AgentConversationIntent {
   agentId: string;
@@ -85,7 +86,11 @@ export async function updatePendingAgentModel(key: string, model: { provider: st
   if (settings.thinking && !details.thinkingLevels.includes(settings.thinking)) {
     // The picker is an explicit user action; do not silently rewrite effort.
     const zh = document.documentElement.lang.startsWith("zh");
-    if (!window.confirm(zh ? "此模型不支持当前思考强度。恢复为模型默认值？" : "This model does not support the current reasoning effort. Use its default?")) return true;
+    if (!(await confirmAction({
+      title: zh ? "此模型不支持当前思考强度。恢复为模型默认值？" : "This model does not support the current reasoning effort. Use its default?",
+      confirmLabel: zh ? "使用默认值" : "Use default",
+      cancelLabel: zh ? "取消" : "Cancel",
+    }))) return true;
   }
   const thinking = details.thinkingLevels.includes(settings.thinking) ? settings.thinking : "";
   store.setComposerSettings({ agentInvocation: { ...before, model, resolvedModel: model, thinkingEffort: thinking, ...details }, thinking }, key);

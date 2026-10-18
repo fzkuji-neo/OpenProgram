@@ -549,7 +549,7 @@ export function DebuggerPanel({
               <Textarea maxLength={4096} value={draftText ?? selectedDraft?.editor?.instructions ?? ""} onChange={(event) => setDraftText(event.target.value)} disabled={draftPending} readOnly={Boolean(selectedDraft && ["published", "discarded"].includes(selectedDraft.status))} />
             </label> : <p className={styles.muted}>{text("This revision was prepared by another client.", "此修订由其他客户端准备。")}</p>}
             {selectedDraft && <p className={styles.muted}>{({ draft: "Draft", validated: "Validated", approved: "Approved", published: "Ready to create branch", discarded: "Discarded", rejected: "Needs changes" })[selectedDraft.status]}</p>}
-            <DialogFooter className={styles.revisionActions}>
+            <DialogFooter>
               {selectedDraft?.editor && ["published", "discarded"].includes(selectedDraft.status) && snapshot.checkpoint_head_id && <Button variant="ghost" disabled={draftPending || !onCreateDraft} onClick={async () => {
                 setDraftError(null); setDraftPending(true);
                 try { await onCreateDraft?.({ execution_id: snapshot.execution_id, source_checkpoint_id: snapshot.checkpoint_head_id!, preparation: { instructions: selectedDraft.editor!.instructions } }); }
