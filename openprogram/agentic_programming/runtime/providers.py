@@ -31,7 +31,6 @@ from .shared import (
     _current_tools,
     _exec_system_prompt,
     _run_async,
-    _situational_prefix,
 )
 
 class ProvidersOperations:
@@ -241,37 +240,19 @@ class ProvidersOperations:
 
         request_context = Context.current()
         request_context = request_context.derive() if request_context is not None else Context()
+        from openprogram.agentic_programming.workflow_site import request_doc, request_history
+        # The docstring of the function that made this call, for this
+        # request only. Read before the tool loop repoints the call frame.
+        request_doc_text = request_doc()
         dag_messages = self._render_history_messages(content, request_context)
         if dag_messages is not None:
             history = dag_messages[:-1]
             current = dag_messages[-1]
         else:
-            # Standalone / no-store fallback: there is no DAG to read the
-            # current frame's name+doc from, but exec() is still running
-            # inside some agentic function body. Recover that function's
-            # name from the recursion-depth tracker (innermost = deepest)
-            # so the situational/self-recursion guidance is injected here
-            # too — otherwise standalone calls receive no situational guidance.
-            standalone_prefix: list = []
-            try:
-                from openprogram.agentic_programming.call_state import (
-                    _recursion_depth,
-                )
-
-                _depths = _recursion_depth.get(None) or {}
-                if _depths:
-                    _cur_fn = max(_depths, key=_depths.get)
-                    standalone_prefix = [
-                        {
-                            "type": "text",
-                            "text": _situational_prefix(getattr(_cur_fn, "__name__", str(_cur_fn)), ""),
-                        }
-                    ]
-            except Exception:
-                standalone_prefix = []
-            ctx, _sp_unused = _build_pi_context(standalone_prefix + (content or []))
+            ctx, _sp_unused = _build_pi_context(content or [])
             history = []
             current = ctx.messages[0]
+        history = request_history(request_context, history)
         # One assembler (dag/overview.md §7): a model call inside a function
         # body gets the same project background as the chat model, so the
         # provider prefix cache is shared. ``self.system`` — the per-runtime
@@ -279,18 +260,25 @@ class ProvidersOperations:
         # block stays appended here because it is exec's *own* skill dirs
         # (``Runtime(skills=...)``), which the agent-level skills_index
         # component doesn't know about.
-        system_prompt = _exec_system_prompt(
-            getattr(self, "system", "") or "",
-            agent_tools,
-        )
-
-        skills_block = self._skills_block()
-        if skills_block:
-            system_prompt = (
-                (system_prompt + skills_block)
-                if system_prompt
-                else skills_block.lstrip("\n")
+        from openprogram.agentic_programming.workflow_site import in_role_call
+        workflow_role = in_role_call() is not None
+        if workflow_role:
+            # A workflow role sees its own instructions and nothing else.
+            from openprogram.agentic_programming.runtime.shared import _current_instructions
+            system_prompt = _current_instructions.get() or ""
+        else:
+            system_prompt = _exec_system_prompt(
+                getattr(self, "system", "") or "",
+                agent_tools,
             )
+
+            skills_block = self._skills_block()
+            if skills_block:
+                system_prompt = (
+                    (system_prompt + skills_block)
+                    if system_prompt
+                    else skills_block.lstrip("\n")
+                )
 
         structured_format = _current_response_format.get(None)
         if structured_format is None and response_format is not None:
@@ -409,6 +397,9 @@ class ProvidersOperations:
             # Resolve on each provider request, before its budget checks.
             rendered_blocks = request_context.render_blocks()
             named_blocks = [block.model_dump() for block in rendered_blocks]
+            if request_doc_text:
+                from openprogram.providers.types import TextContent
+                rendered_blocks = [TextContent(text=request_doc_text), *rendered_blocks]
             result = request_context.add_to_messages(messages, blocks=rendered_blocks)
             if previous_transform is not None:
                 result = await previous_transform(result, cancel_event)
@@ -721,10 +712,17 @@ class ProvidersOperations:
             except Exception:
                 _frame_token = None
 
+        _memory_token = None
+        if workflow_role:
+            from openprogram.agent.agent_loop import memory_prefetch_enabled
+            _memory_token = memory_prefetch_enabled.set(False)
         try:
             session.replace_messages(history)
             final = await session.run(current)
         finally:
+            if _memory_token is not None:
+                from openprogram.agent.agent_loop import memory_prefetch_enabled
+                memory_prefetch_enabled.reset(_memory_token)
             if _frame_token is not None:
                 try:
                     from openprogram.agentic_programming.call_state import _call_id

@@ -1,0 +1,184 @@
+"""Workflow form: what a role call sends, loading by Git state, and check."""
+from __future__ import annotations
+
+import importlib.util
+import subprocess
+import sys
+import textwrap
+import uuid
+
+import pytest
+
+from openprogram.context import Context
+from openprogram.testing import script_roles
+
+WORKFLOW = '''
+"""Probe workflow."""
+from openprogram import Agent, Context
+from openprogram.context import call_path
+
+writer = Agent(instructions="You write reports.", tools=[])
+reviewer = Agent(instructions="You check facts.", tools=[])
+
+
+def report(notes: str) -> str:
+    """Turn notes into a report."""
+    ctx = Context({"notes": notes})
+    draft = write_draft(ctx)
+    return check(draft, ctx)
+
+
+def write_draft(ctx):
+    """Write three sections at most."""
+    return writer("Write the report", context=ctx)
+
+
+def check(draft, ctx):
+    """Only check facts. Keep the style."""
+    return reviewer("Return the final text", context=ctx.derive({"draft": draft}))
+
+
+def two_turns(notes: str) -> str:
+    ctx = Context({"notes": notes}, history="thread")
+    writer("First pass", context=ctx)
+    return writer("Second pass", context=ctx)
+
+
+def located(notes: str) -> str:
+    return writer("Go", context=Context({"notes": notes}, providers={"call path": call_path}))
+
+
+PROGRAM_ENTRIES = [report]
+'''
+
+
+def _write_package(root, name, *, test_body=None):
+    package = root / name
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text(
+        f"from .workflow import PROGRAM_ENTRIES, report\n", encoding="utf-8")
+    (package / "workflow.py").write_text(WORKFLOW, encoding="utf-8")
+    if test_body is not None:
+        (package / "tests").mkdir()
+        (package / "tests" / "__init__.py").write_text("", encoding="utf-8")
+        (package / "tests" / "test_probe.py").write_text(textwrap.dedent(test_body), encoding="utf-8")
+    return package
+
+
+def _git(directory, *args):
+    subprocess.run(["git", "-C", str(directory), *args], check=True, capture_output=True,
+                   env={"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
+                        "GIT_COMMITTER_EMAIL": "t@t", "PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin"})
+
+
+@pytest.fixture
+def workflow_module(tmp_path):
+    from openprogram.agentic_programming.workflow_site import add_workflow_root
+
+    name = f"wf_probe_{uuid.uuid4().hex[:8]}"
+    package = _write_package(tmp_path, name)
+    add_workflow_root(tmp_path)
+    spec = importlib.util.spec_from_file_location(f"{name}.workflow", package / "workflow.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    try:
+        yield module
+    finally:
+        sys.modules.pop(spec.name, None)
+
+
+def test_each_call_carries_only_its_own_function_docstring(workflow_module):
+    wf = workflow_module
+    with script_roles({wf.writer: ["Draft"], wf.reviewer: ["Final"]}) as calls:
+        assert wf.report("Shipped the parser.") == "Final"
+
+    written, checked = calls[wf.writer][0], calls[wf.reviewer][0]
+    assert "Write three sections at most." in written.text
+    assert "Only check facts" not in written.text
+    assert "Only check facts. Keep the style." in checked.text
+    assert "Write three sections at most." not in checked.text
+    assert "Shipped the parser." in checked.text and "Draft" in checked.text
+    assert "Write the report" not in checked.text
+    assert checked.system.startswith("You check facts.")
+    assert written.history_text == "" and checked.history_text == ""
+
+
+def test_thread_history_carries_earlier_calls_on_the_same_context(workflow_module):
+    wf = workflow_module
+    with script_roles({wf.writer: ["One", "Two"]}) as calls:
+        assert wf.two_turns("notes") == "Two"
+
+    first, second = calls[wf.writer]
+    assert first.history_text == ""
+    assert "First pass" in second.history_text and "One" in second.history_text
+    assert second.prompt == "Second pass" or "Second pass" in second.text
+
+
+def test_call_path_provider_lists_workflow_functions(workflow_module):
+    wf = workflow_module
+    with script_roles({wf.writer: ["ok"]}) as calls:
+        wf.located("n")
+    assert "located" in calls[wf.writer][0].text
+
+
+def test_context_rejects_unknown_history_values():
+    with pytest.raises(TypeError):
+        Context(history="dag")
+    assert Context(history=None).history is None
+    assert Context().history == "chat"
+
+
+def test_only_a_clean_committed_package_loads(tmp_path):
+    from openprogram.programs import _workflow_packages as packages
+
+    name = f"wf_load_{uuid.uuid4().hex[:8]}"
+    package = _write_package(tmp_path, name)
+    # A unique tool name: other tests may have registered a ``report`` tool.
+    with open(package / "__init__.py", "a", encoding="utf-8") as handle:
+        handle.write(f"ENTRY_OPTIONS = {{'report': {{'name': '{name}_report'}}}}\n")
+    _git(package, "init", "-q")
+    try:
+        status = packages.load_user_workflows(tmp_path)[name]
+        assert status.state == "pending" and status.entries == []
+
+        _git(package, "add", "-A")
+        _git(package, "commit", "-qm", "first")
+        status = packages.load_user_workflows(tmp_path)[name]
+        assert status.state == "loaded", status.error
+        assert status.entries == [f"{name}_report"]
+
+        with open(package / "workflow.py", "a", encoding="utf-8") as handle:
+            handle.write("\nBROKEN = (\n")
+        status = packages.load_user_workflows(tmp_path)[name]
+        assert status.state == "loaded"
+        assert "Uncommitted" in status.note
+    finally:
+        packages._unregister(name)
+        packages._evict(name)
+        packages._status.pop(name, None)
+        packages._fingerprints.pop(name, None)
+        packages._finder.packages.pop(name, None)
+
+
+def test_check_commits_only_when_tests_pass(tmp_path):
+    from openprogram.programs._workflow_check import CheckFailed, check_workflow
+
+    name = f"wf_check_{uuid.uuid4().hex[:8]}"
+    package = _write_package(tmp_path, name, test_body="""
+        def test_fails():
+            assert False, "scripted failure"
+    """)
+    _git(package, "init", "-q")
+    with pytest.raises(CheckFailed) as failed:
+        check_workflow(package)
+    assert failed.value.report["tests"]["passed"] is False
+    assert subprocess.run(["git", "-C", str(package), "rev-parse", "-q", "--verify", "HEAD"],
+                          capture_output=True).returncode != 0
+
+    (package / "tests" / "test_probe.py").write_text("def test_passes():\n    assert True\n", encoding="utf-8")
+    report = check_workflow(package, message="First version")
+    assert report["ok"] and report["entries"] == ["report"]
+    log = subprocess.run(["git", "-C", str(package), "log", "--format=%s"],
+                         capture_output=True, text=True).stdout
+    assert log.strip() == "First version"

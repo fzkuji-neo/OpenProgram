@@ -53,8 +53,60 @@ _WORKFLOW_INTERNAL_NAMES = {
     "ask_user",
     "errors",
     "json_parsing",
-    "resume_workflow",
+    "roles",
 }
+
+
+@request_memo
+def _user_workflow_root() -> Path:
+    """``~/.openprogram/workflows``: user workflows appear as ``workflow/<name>``."""
+    from openprogram.programs._workflow_packages import workflows_root
+
+    return workflows_root().resolve()
+
+
+def _user_workflow_path(relative: str) -> Path | None:
+    """The user-workflow file or directory for a ``workflow/<name>/...`` path."""
+    parts = Path(relative).parts
+    if len(parts) < 2 or parts[0] != "workflow":
+        return None
+    root = _user_workflow_root()
+    candidate = root.joinpath(*parts[1:])
+    if not (root / parts[1] / "__init__.py").is_file():
+        return None
+    return candidate
+
+
+def _catalog_relative(source: Path) -> Path | None:
+    """The catalog path of an absolute source path, or None outside the catalog."""
+    for root in _catalog_roots():
+        try:
+            return source.relative_to(root)
+        except ValueError:
+            continue
+    try:
+        return Path("workflow") / source.relative_to(_user_workflow_root())
+    except ValueError:
+        return None
+
+
+@request_memo
+def _workflow_states() -> dict[str, dict]:
+    """Load state of each user workflow, keyed by name."""
+    from openprogram.programs._workflow_packages import workflow_statuses
+
+    return {row["name"]: row for row in workflow_statuses()}
+
+
+def _with_workflow_state(entry: dict) -> dict:
+    parts = Path(entry.get("path") or "").parts
+    if len(parts) == 2 and parts[0] == "workflow":
+        state = _workflow_states().get(parts[1])
+        if state is not None:
+            entry = {**entry, "workflow_state": state["state"],
+                     "workflow_error": state["error"], "workflow_note": state["note"],
+                     "source_path": state["path"]}
+    return entry
 
 
 def _inside_programs(path: Path) -> bool:
@@ -65,7 +117,7 @@ def _inside_programs(path: Path) -> bool:
         return False
     return any(
         resolved == root or root in resolved.parents
-        for root in _catalog_roots()
+        for root in (*_catalog_roots(), _user_workflow_root())
     )
 
 
@@ -89,6 +141,9 @@ def _safe_directory(relative: str) -> Path:
         candidate = (root / relative).resolve()
         if candidate.is_dir() and _inside_programs(candidate):
             return candidate
+    user = _user_workflow_path(relative)
+    if user is not None and user.is_dir():
+        return user.resolve()
     raise FileNotFoundError(relative)
 
 
@@ -115,6 +170,9 @@ def _workflow_package_directory(relative: str) -> Path | None:
     for root in _catalog_roots():
         watch(root / relative)
     candidates = [root / relative for root in _catalog_roots() if (root / relative).is_dir()]
+    user = _user_workflow_path(relative)
+    if user is not None and user.is_dir():
+        candidates.append(user)
     return next((path for path in candidates if (path / ".git").exists()), candidates[0] if candidates else None)
 
 
@@ -212,6 +270,12 @@ def _entity_paths() -> dict[str, Path]:
         for root in _catalog_roots()
         for parent in (Path("workflow"), Path("packages"), Path("applications"))
     )
+    user_root = _user_workflow_root()
+    watch(user_root)
+    if user_root.is_dir():
+        for child in _visible_children(user_root):
+            if child.is_dir() and (child / "__init__.py").is_file() and not child.name.startswith("_"):
+                entities.setdefault(f"workflow/{child.name}", child)
     for root, parent in scan_roots:
         directory = root / parent
         watch(directory)
@@ -339,7 +403,8 @@ def _registered_agent_methods() -> dict[str, list[dict]]:
     for name, registered in _registry.copy().items():
         fn = inspect.unwrap(getattr(registered, "_python_callable", None) or registered)
         module = str(getattr(fn, "__module__", ""))
-        if not module.startswith(_AGENTIC_MODULE_PREFIX):
+        if not module.startswith(_AGENTIC_MODULE_PREFIX) and not getattr(
+                registered, "_workflow_owner", "").isidentifier():
             continue
         try:
             raw_source = inspect.getsourcefile(fn)
@@ -350,13 +415,7 @@ def _registered_agent_methods() -> dict[str, list[dict]]:
             watch(source)
         if source is None or not source.is_file() or not _inside_programs(source):
             continue
-        relative_source = None
-        for root in _catalog_roots():
-            try:
-                relative_source = source.relative_to(root.resolve())
-                break
-            except ValueError:
-                continue
+        relative_source = _catalog_relative(source)
         if relative_source is None:
             continue
         source_path = (
@@ -583,6 +642,8 @@ def _list_entries(relative: str) -> dict:
         ]
     else:
         raise FileNotFoundError(relative)
+    if relative == "workflow":
+        entries = [_with_workflow_state(entry) for entry in entries]
     payload = {"path": relative, "entries": entries}
     if not relative:
         payload["default_selection"] = _default_selection()
@@ -594,6 +655,8 @@ def _module_prefix(relative: str) -> str:
     parts = list(path.with_suffix("").parts)
     if parts[-1] == "__init__":
         parts.pop()
+    if _user_workflow_path(relative) is not None:
+        return ".".join(parts[1:])
     return "openprogram.programs." + ".".join(parts)
 
 
@@ -643,11 +706,9 @@ def _imported_modules(path: Path) -> tuple[set[str], set[str]]:
             elif isinstance(node, ast.ImportFrom):
                 module = node.module or ""
                 if node.level:
-                    source_relative = next(
-                        source.relative_to(root)
-                        for root in _catalog_roots()
-                        if source == root or root in source.parents
-                    )
+                    source_relative = _catalog_relative(source)
+                    if source_relative is None:
+                        continue
                     source_module = _module_prefix(source_relative.as_posix())
                     package = (
                         source_module
@@ -764,15 +825,6 @@ def _direct_calls(
         key=lambda item: len(item[0]),
         reverse=True,
     )
-    # Published workflows have import identities independent of catalog folders.
-    for path, rows in _registered_agent_methods().items():
-        if path in entities:
-            for row in rows:
-                prefixes.extend((
-                    (f"workflows.{row['name']}", path),
-                    (f"openprogram.programs.workflow.{row['name']}", path),
-                ))
-    prefixes.sort(key=lambda item: len(item[0]), reverse=True)
     if symbols is None:
         symbols = _package_symbol_index(entities)
     if entry_name is _UNSET:
@@ -914,9 +966,9 @@ def _called_import_modules(
         module = node.module or ""
         if node.level:
             try:
-                relative = path.resolve().relative_to(
-                    PROGRAMS_ROOT.resolve(),
-                )
+                relative = _catalog_relative(path.resolve())
+                if relative is None:
+                    return
                 source_module = _module_prefix(relative.as_posix())
                 package = (
                     source_module
@@ -988,10 +1040,23 @@ def _called_agentic_primitives(
                     if alias.name == "openprogram.agentic_programming":
                         modules[alias.asname or "openprogram"] = alias.name
 
+    # Roles: module-level ``name = Agent(...)``. ``role(...)`` runs a tool
+    # loop (agent); ``role.choose(...)`` is one model call (llm).
+    roles: set[str] = set()
+    for tree in trees:
+        for node in tree.body:
+            if (isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)
+                    and isinstance(node.value.func, ast.Name) and node.value.func.id == "Agent"):
+                roles.update(target.id for target in node.targets if isinstance(target, ast.Name))
     for root in nodes:
         for node in ast.walk(root):
             if not isinstance(node, ast.Call):
                 continue
+            if isinstance(node.func, ast.Name) and node.func.id in roles:
+                called.add("agent")
+            elif (isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id in roles):
+                called.add("llm" if node.func.attr == "choose" else "agent")
             if isinstance(node.func, ast.Name):
                 primitive = direct.get(node.func.id)
                 if primitive:
@@ -1121,9 +1186,11 @@ def _canonical_catalog_path(path: str) -> str:
 def _cache_identity() -> tuple:
     from openprogram.programs._runtime import _registry as tools
     from openprogram.programs._programs import owner_controlled_program_sources
+    from openprogram.programs._workflow_packages import workflow_statuses
     return (
         tuple(str(root) for root in _catalog_roots()),
         repr(owner_controlled_program_sources()),
+        repr(workflow_statuses()),
         tuple((name, id(tool), getattr(tool, "description", "")) for name, tool in tools.copy().items()),
     )
 

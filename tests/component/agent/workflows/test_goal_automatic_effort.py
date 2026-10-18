@@ -45,7 +45,8 @@ def test_selects_supported_effort_and_reuses_saved_roles(monkeypatch):
     saved, _ = configure(current, judge_effort="low")
     assert saved["work"]["effort"] == "high"
     assert saved["judge"]["effort"] == "low"
-    assert calls[0] == {"choices": ["low", "medium", "high"], "timeout_s": 30}
+    assert set(calls[0]["choices"]) == {"low", "medium", "high"}
+    assert calls[0]["timeout_s"] == 30
     again, _ = prepare_roles(
         saved,
         current,

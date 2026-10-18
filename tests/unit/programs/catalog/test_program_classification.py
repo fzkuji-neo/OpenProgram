@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import openprogram
-from openprogram.programs._registry import PROGRAM_MODULES, BUILTIN_PROGRAM_MODULES
+from openprogram.programs._registry import PROGRAM_MODULES
 from openprogram.webui.routes.catalog.programs import _called_agentic_primitives
 
 
@@ -21,12 +21,12 @@ WORKFLOW_PLACEMENTS = {
     "research": WORKFLOW / "research",
 }
 
-WORKFLOW_ENTRY_FILES = {
-    "search_workflows": WORKFLOW / "search_workflows.py",
-    "create_workflow": WORKFLOW / "create_workflow.py",
-    "revise_workflow": WORKFLOW / "revise_workflow.py",
-    "resume_workflow": WORKFLOW / "resume_workflow.py",
-}
+# The former authoring tools are gone: workflows are written as files and
+# checked with `openprogram workflows check`.
+REMOVED_WORKFLOW_ENTRIES = (
+    "search_workflows", "create_workflow", "revise_workflow",
+    "resume_workflow", "auto_workflow",
+)
 
 FORBIDDEN_PRODUCT_DIRS = (
     "browser_agent",
@@ -58,8 +58,9 @@ def _module_path(mod_name: str) -> Path:
 def test_complex_capabilities_live_under_workflow_not_agentic_root():
     for name, path in WORKFLOW_PLACEMENTS.items():
         assert path.is_dir(), f"{name} must live under workflow/"
-    for name, path in WORKFLOW_ENTRY_FILES.items():
-        assert path.is_file(), f"{name} must be a top-level workflow callable"
+    for name in REMOVED_WORKFLOW_ENTRIES:
+        assert not (WORKFLOW / f"{name}.py").exists(), name
+        assert name not in PROGRAM_MODULES, name
     assert not (WORKFLOW / "authoring").exists()
     for name in FORBIDDEN_PRODUCT_DIRS:
         leftover = WORKFLOW / name
@@ -67,10 +68,13 @@ def test_complex_capabilities_live_under_workflow_not_agentic_root():
             assert not leftover.exists(), f"{name} must not remain as a duplicate"
 
 
-def test_auto_workflow_is_a_builtin_workflow_not_an_agentic_helper():
-    assert (PROGRAMS / "workflow" / "auto_workflow.py").is_file()
-    assert "auto_workflow" in PROGRAM_MODULES
-    assert BUILTIN_PROGRAM_MODULES == []
+def test_builtin_workflows_declare_program_entries():
+    import importlib
+
+    for name in PROGRAM_MODULES:
+        module = importlib.import_module(f"openprogram.programs.workflow.{name}")
+        if name not in INFRASTRUCTURE:
+            assert getattr(module, "PROGRAM_ENTRIES", None), name
 
 
 def test_agentic_modules_do_not_register_demos():

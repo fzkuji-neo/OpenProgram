@@ -80,17 +80,10 @@ def _catalog_fingerprint(base: str) -> tuple:
 
 
 def _workflow_fingerprint() -> tuple:
-    """Each published Workflow package and the stamp of its Git index, which
-    changes when a package is created or a revision is published."""
+    """The files and Git state of every user workflow package."""
     try:
-        from openprogram.programs.workflow._project import catalog
-        rows = []
-        for project in catalog._project_directories():
-            try:
-                rows.append((str(project), (project / ".git" / "index").stat().st_mtime_ns))
-            except OSError:
-                continue
-        return tuple(rows)
+        from openprogram.programs._workflow_packages import root_fingerprint
+        return root_fingerprint()
     except Exception:
         return ()
 
@@ -127,9 +120,8 @@ def start_in_worker(
                 prev = cur
                 result = rescan(applications)
                 added = result.get("added") or []
-                if added:
-                    logger.info("programs watcher: detected %s", added)
-                    _emit_changed(added)
+                logger.info("programs watcher: catalog changed, added %s", added)
+                _emit_changed(added)
             except Exception as e:  # noqa: BLE001
                 logger.debug("programs watcher pass failed: %s", e)
 

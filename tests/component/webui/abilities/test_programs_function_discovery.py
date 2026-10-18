@@ -35,31 +35,16 @@ def test_goal_source_endpoint_returns_goal_instead_of_ownership_wrapper(monkeypa
     assert "def run(" not in data["source"]
 
 
-def test_workflow_category_exports_only_named_public_entries() -> None:
+def test_workflow_category_has_no_authoring_entries() -> None:
     workflow_dir = Path(__file__).parents[4] / "openprogram" / "programs" / "workflow"
-    names = set()
     for filename in (
         "search_workflows.py",
         "create_workflow.py",
         "revise_workflow.py",
+        "auto_workflow.py",
+        "resume_workflow.py",
     ):
-        programs = _extract_all_functions(str(workflow_dir / filename), "agentic")
-        names.update(program["name"] for program in programs)
-    auto_source = (
-        Path(__file__).parents[4] / "openprogram/programs/workflow/auto_workflow.py"
-    )
-    names.update(
-        program["name"]
-        for program in _extract_all_functions(str(auto_source), "workflow")
-    )
-
-    assert "agentic_workflow" not in names
-    assert {
-        "search_workflows",
-        "create_workflow",
-        "revise_workflow",
-        "auto_workflow",
-    } <= names
+        assert not (workflow_dir / filename).exists()
 
 
 def test_programs_treats_workflow_as_category_not_program() -> None:
@@ -77,10 +62,8 @@ def test_programs_treats_workflow_as_category_not_program() -> None:
     )
 
     children = {entry["path"]: entry for entry in _list_entries("workflow")["entries"]}
-    assert children["workflow/search_workflows"]["has_children"] is False
-    assert children["workflow/create_workflow"]["callable_name"] == "create_workflow"
-    assert children["workflow/revise_workflow"]["program_kind"] == "workflow"
-    assert "workflow/auto_workflow" in children
+    for removed in ("search_workflows", "create_workflow", "revise_workflow", "auto_workflow"):
+        assert f"workflow/{removed}" not in children
     assert "workflow/authoring" not in children
     assert "workflow/errors" not in children
     assert "workflow/json_parsing" not in children
@@ -148,47 +131,6 @@ def test_programs_treats_workflow_as_category_not_program() -> None:
     assert [(entry["callable_name"], entry["logic_path"]) for entry in docs_entry] == [
         ("run_docs_question", "workflow/docs_question")
     ]
-
-    management_entries = [
-        children[path]
-        for path in (
-            "workflow/search_workflows",
-            "workflow/create_workflow",
-            "workflow/revise_workflow",
-        )
-    ]
-    workflow_entries = {
-        entry["path"]: entry for entry in _list_entries("workflow")["entries"]
-    }
-    auto_entry = workflow_entries["workflow/auto_workflow"]
-    entries = [*management_entries, auto_entry]
-    assert {
-        (entry["name"], entry["callable_name"], entry["program_kind"])
-        for entry in entries
-    } == {
-        ("search_workflows", "search_workflows", "workflow"),
-        ("create_workflow", "create_workflow", "workflow"),
-        ("revise_workflow", "revise_workflow", "workflow"),
-        ("auto_workflow", "auto_workflow", "workflow"),
-    }
-    for entry in entries:
-        assert entry["logic_path"] == entry["path"]
-        logic = _program_logic(entry["logic_path"])
-        assert logic["root"] == entry["path"]
-        root = next(node for node in logic["nodes"] if node["id"] == logic["root"])
-        assert root["name"] == entry["name"]
-
-    search_logic = _program_logic("workflow/search_workflows")
-    assert search_logic["edges"] == []
-    auto_logic = _program_logic("workflow/auto_workflow")
-    assert {
-        edge["target"]
-        for edge in auto_logic["edges"]
-        if edge["source"] == auto_logic["root"]
-    } >= {
-        "workflow/search_workflows",
-        "workflow/create_workflow",
-    }
 
     old_source = (
         Path(__file__).parents[4] / "openprogram/programs/workflow/agentic_workflow"
@@ -328,8 +270,8 @@ def test_agentic_registry_discovery_uses_a_stable_snapshot(monkeypatch) -> None:
 
     indexed = _registered_agent_methods()
 
-    assert "workflow/search_workflows" in indexed
-    assert "workflow/auto_workflow" in indexed
+    assert "workflow/goal" in indexed
+    assert "workflow/docs_question" in indexed
 
 
 def test_multi_entry_call_graph_scopes_imports_to_selected_function(

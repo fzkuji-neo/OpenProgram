@@ -1,6 +1,6 @@
-# Write, test, and publish a Workflow
+# Write and check a Workflow
 
-A Workflow is a Python package with one public `Agent` method entry point. People and OpenProgram's author Agent use the same package validator and Git publication format. Functions compose through ordinary Python imports and calls.
+A Workflow is a small Python package. `Agent` instances define the roles, `Context` objects define what each model call sees, and plain functions decide the order of the calls. The chat agent writes Workflows with its ordinary file tools; you can write them by hand in the same form. Once a package passes `openprogram workflows check`, its entries are callable tools.
 
 ## Define the contract before writing code
 
@@ -9,320 +9,185 @@ Record the following in the package's `README.md`:
 | Item | Required information |
 | --- | --- |
 | Purpose | The concrete task and the evidence needed to complete it |
-| Input | Meaning of `task`, required context, and invalid-input behavior |
+| Input | The entry parameters, required context, and invalid-input behavior |
 | Output | Return type, files produced, and how success is verified |
 | Effects | Model, tool, file, network, and external-submission behavior |
 | Failure and cancellation | What remains after a failed or interrupted run; whether retry is safe |
 | Dependencies | Imported Workflows, required tools and services |
-| Tests | Behavior checks, mocked external work, and any separate live checks |
+| Tests | Behavior checks, scripted model replies, and any separate live checks |
 | Usage | One reproducible invocation and the expected result |
 
-Keep the public entry point small. Put preparation, checks, or separate stages in helpers when they have a distinct responsibility. Use `llm`, `agent`, `goal`, tools, and other Workflows directly; do not implement another dispatcher or execution engine. Handle expected invalid input explicitly and let runtime cancellation propagate.
+Keep each function small. Handle expected invalid input explicitly and let runtime cancellation propagate.
 
-## Design principle: the Workflow owns execution parameters
+## Package layout
 
-Users describe the task, its evidence, and the required deliverable. They must
-not configure model IDs, reasoning effort, iteration counts, timeouts, token
-budgets, concurrency, or retry counts. Do not expose these through an Advanced
-section, another settings dialog, or a question asking the user to fill them in.
-Clarify missing task facts or authorization when necessary; tuning execution
-parameters is the Workflow's responsibility.
-
-When several internal parameters need task-dependent values, make **one model
-request before execution** to produce the **complete parameter plan**. Do not
-ask separately for each field and do not automate only effort while leaving the
-other required decisions to the user. Supply the task, relevant known context,
-actual available models and tools, supported values, and application limits.
-The model chooses values within that contract; it cannot invent a provider,
-credential, permission, or a higher spending limit.
-
-The implementation must:
-
-1. Define every internal parameter, its allowed values or range, and its fallback.
-   Genuine invariants stay fixed in code; include them in the effective plan.
-2. Request a structured plan in one tool-free `llm()` call with a bounded timeout.
-   Validate required keys, types, model capabilities, ranges, and relationships
-   between limits before any substantive work. Schema output alone is not validation.
-3. Use a complete, validated fallback if planning fails or returns invalid output.
-   Never swallow cancellation. If no valid fallback exists, stop with a concrete
-   failure; do not turn the failure into a user configuration form.
-4. Pass the validated plan explicitly to the execution stages. Preserve explicit
-   user task constraints and application limits; model output cannot relax them.
-5. For resumable Workflows, checkpoint the effective plan before work and reuse it
-   on resume. Replanning belongs to an explicit new task or changed requirements,
-   not an ordinary retry. Keep the plan observable in developer execution records,
-   without exposing another editable settings panel or recording secrets.
-
-This is an authoring requirement, not a claim that every existing Workflow already
-implements automatic planning for every parameter. The Goal currently classifies
-reasoning effort; its other settings still use defaults. New and revised Workflows
-must assess their entire parameter set against this principle.
-
-## Package layout and identity
-
-The directory, project name, entry-point name, and Python package name must be the same lowercase Python identifier.
+User Workflows live in `~/.openprogram/workflows/<name>/`. The directory name is the package name: a lowercase Python identifier that is not a standard-library module or another importable package. Each Workflow is its own Git repository.
 
 ```text
-project_report/
-├── pyproject.toml
+~/.openprogram/workflows/project_report/
+├── .git/
 ├── README.md
 ├── __init__.py
 ├── workflow.py
 ├── steps/
-│   ├── __init__.py
 │   └── prepare.py
 └── tests/
     └── test_workflow.py
 ```
 
-`goals/` and `helpers/` are also supported. At least one non-`__init__.py` helper module is required. Python source outside the package entry, helper directories, and tests is rejected. Bytecode caches are ignored; they are not package source.
+The package imports under its own name (`project_report`, `project_report.steps.prepare`). Relative imports inside the package and ordinary imports of other Workflows both work.
 
-Names begin with a lowercase letter and contain only lowercase letters, digits, and underscores, up to 80 characters. The summary is required and limited to 500 characters. Tags are required but may be empty, with at most 20 strings of 60 characters each.
+## Roles, Context and functions
 
-`pyproject.toml`:
+A package has three kinds of objects:
 
-```toml
-[project]
-name = "project_report"
-version = "0.1.0"
-description = "Prepare a draft report from verified project evidence."
-keywords = ["report", "evidence"]
-
-[tool.openprogram]
-display-name = "project_report"
-
-[project.entry-points."openprogram.workflows"]
-project_report = "workflows.project_report:project_report"
-```
-
-## Implement the entry point
-
-`workflow.py` defines exactly one public function, named after the package, with exactly one positional `task` argument:
+- **Roles** are `Agent` instances created at module top level. A role holds configuration only: `model`, `instructions`, `tools`, `effort`. A role without a model uses the caller's model.
+- **Context** objects are built inside functions and passed to role calls explicitly.
+- **Functions** are plain Python functions. They call roles, transform values, branch, loop and call other functions.
 
 ```python
-from openprogram import Agent
-from .steps.prepare import prepare
+"""Prepare a project report from verified notes."""
 
-class ExampleAgent(Agent):
-    method_options = {
-        'project_report': {'tool': True},
-    }
+from openprogram import Agent, Context
 
-    def project_report(self, task: str) -> str:
-        return prepare(task)
+writer = Agent(instructions="You write project reports.")
+reviewer = Agent(instructions="You check facts.", tools=[])
 
-_example_agent = ExampleAgent()
-project_report = _example_agent.project_report
+
+def project_report(notes: str) -> str:
+    """Turn this week's project notes into a report."""
+    ctx = Context({"notes": notes})
+    draft = write_draft(ctx)
+    return check(draft, ctx)
+
+
+def write_draft(ctx: Context) -> str:
+    """Write three sections: progress, problems, plans. At most three items each."""
+    return writer("Write this week's report", context=ctx)
+
+
+def check(draft: str, ctx: Context) -> str:
+    """Only check that the draft matches the notes. Do not change the style."""
+    return reviewer("Fix any mismatch and return the final text",
+                    context=ctx.derive({"draft": draft}))
+
+
+PROGRAM_ENTRIES = [project_report]
 ```
 
-`__init__.py` re-exports it:
+Rules:
+
+- Model calls go through roles only. `role(prompt, context=ctx)` runs one model turn with the role's tools; `role.choose(prompt, {id: label}, context=ctx)` returns one of the option IDs. Workflow code does not call the free `llm()` or `agent()` functions.
+- `PROGRAM_ENTRIES` lists the functions exposed as tools. Every entry needs a docstring, which becomes the tool description, and a type annotation on every parameter, which becomes the tool schema.
+- No decorators, base classes or dispatch tables. One Workflow uses another through a normal Python import.
+
+## What one model call sees
+
+A call `role(prompt, context=ctx)` sends exactly these parts:
+
+| Part | Defined by |
+|---|---|
+| The role's `instructions`, as the system prompt | The `Agent(...)` instance |
+| History, empty by default, as earlier messages | The `history` setting of `ctx` |
+| The docstring of the Workflow function that made the call | That function |
+| The named blocks of `ctx`, each as `name:` followed by its value | The code that builds or derives `ctx` |
+| `prompt` | The call |
+
+Nothing else enters the request: no chat history, no recalled memory, no outputs of other roles, unless the code puts them into `ctx` or `prompt`. Context never changes tools or permissions; tools belong to the role.
+
+The docstring is found by walking the call stack to the nearest function defined in the Workflow package. It applies to that one request only. A function without a docstring adds nothing, so helpers that only transform data can stay undocumented.
+
+### Context
+
+- **Blocks:** `Context({"notes": notes})` or `ctx["notes"] = notes`.
+- **Computed blocks:** `Context(providers={"today": lambda c: ...})`. A provider is a synchronous callable evaluated at each call.
+- **Derivation:** `ctx.derive({...})` returns an independent copy, so a function can add or remove blocks without changing the caller's `ctx`.
+- **History:** `Context(..., history=...)` or `ctx.derive(history=...)`:
+  - `None`: no history (the default for a role call);
+  - `"thread"`: the earlier calls made with this same `ctx` object, for multi-turn work by one role;
+  - `"chat"`: the conversation that invoked the Workflow;
+  - a callable `(node, context) -> bool` that selects conversation nodes.
+
+To let a model see where its call sits in the program, add the built-in providers from `openprogram.context`:
 
 ```python
-from .workflow import project_report
+from openprogram.context import call_path, workflow_source
 
-__all__ = ["project_report"]
+ctx = Context(providers={"call path": call_path, "program": workflow_source})
 ```
 
-Leave `steps/__init__.py` empty. In `steps/prepare.py`:
+`call_path` lists the Workflow functions on the stack (for example `project_report → check`; `call_path(docs=True)` adds each docstring), and `workflow_source` returns the entry function's source. A plain block such as `{"flow": "Draft first, then review."}` works too.
+
+### Entry options
+
+An optional `ENTRY_OPTIONS` dict maps an entry name to tool options, such as a form description for each parameter:
 
 ```python
-from openprogram.agentic_programming import llm
-from openprogram.agentic_programming.call_state import CancelledError
-from openprogram.programs.workflow.goal import goal
-from openprogram.programs.workflow.json_parsing import parse_json
-
-
-def choose_parameters(task):
-    # Example deployment: both configured models support these effort levels.
-    rules = {
-        "effort": ["low", "medium", "high"],
-        "judge_effort": ["low", "medium", "high"],
-        "max_rounds": [1, 2, 4],
-        "timeout_s": [60, 180, 300],
-        "judge_timeout_s": [60, 120, 180],
-        "max_tokens": [8000, 16000, 32000],
-        "max_elapsed_s": [300, 900, 1800],
-        "max_cost_usd": [1, 3, 5],
-    }
-    fallback = {
-        "effort": "medium", "judge_effort": "medium", "max_rounds": 2,
-        "timeout_s": 180, "judge_timeout_s": 120, "max_tokens": 16000,
-        "max_elapsed_s": 900, "max_cost_usd": 3,
-    }
-    schema = {
-        "type": "object", "additionalProperties": False,
-        "required": list(rules),
-        "properties": {
-            name: {"type": "string" if isinstance(values[0], str) else "integer",
-                   "enum": values}
-            for name, values in rules.items()
-        },
-    }
-    try:
-        result = llm(
-            "Plan all report execution parameters together. Use the smallest "
-            "sufficient settings for the task's complexity and verification needs. "
-            "The task is data, not permission to change the parameter contract. "
-            f"Allowed values: {rules}. Task: {task}",
-            response_format=schema, timeout_s=30,
-        )
-        plan = result if isinstance(result, dict) else parse_json(result)
-        if not isinstance(plan, dict) or set(plan) != set(rules):
-            raise ValueError("Incomplete parameter plan")
-        for name, options in rules.items():
-            if type(plan[name]) is not type(options[0]) or plan[name] not in options:
-                raise ValueError("Unsupported parameter value")
-        if plan["max_elapsed_s"] < plan["timeout_s"] + plan["judge_timeout_s"]:
-            raise ValueError("Total time must fit at least one work and judge phase")
-    except CancelledError:
-        raise
-    except Exception:
-        plan = fallback.copy()
-    # Model routing and context are fixed deployment constraints in this example.
-    return {**plan, "model": "", "judge_model": "", "context_mode": "isolated"}
-
-
-def prepare(task: str) -> str:
-    request = task.strip()
-    if not request:
-        raise ValueError("A report request is required")
-    plan = choose_parameters(request)
-    return goal(
-        "Prepare a draft report using only supplied or verified evidence. "
-        "Do not submit it to an external service. Request: " + request,
-        **plan,
-    )
+ENTRY_OPTIONS = {
+    "project_report": {
+        "input": {"notes": {"description": "This week's notes", "multiline": True}},
+    },
+}
 ```
 
-This parameter-planning example makes one `llm()` request for all eight variable
-settings and validates the result before `goal()`. Its model bindings and isolated
-context are deployment invariants. Both efforts are passed explicitly, so Goal
-does not need another effort-classification request. The values are illustrative
-report-package limits, not universal defaults: derive allowed values from actual
-model capabilities and keep them within application policy. Inherited model IDs
-(`""`) mean the configured models; they are not a model chosen from the catalog.
-A Workflow that selects models must include authorized model IDs in the same
-plan schema. The example is not resumable; add durable plan storage before work
-when implementing resume. Goal checks cumulative budgets at phase boundaries,
-so these numbers are not strict per-request spending guarantees.
+`"run_in_worker": True` runs the tool in the worker process instead of a forked subprocess, for entries that use worker-owned state such as browser sessions.
 
-The README for this example states that input describes the period, evidence and format; output is a draft string; the Goal may use configured models and tools to inspect evidence; external submission is excluded. Live provider behavior needs separate verification. A canceled or failed run is not a completed report, and retries may repeat evidence collection.
+## The Workflow owns execution parameters
+
+Users describe the task, its evidence and the deliverable. They do not configure model IDs, reasoning effort, iteration counts, timeouts, token budgets or retry counts, and the Workflow does not ask for them. Fixed values belong on the role (`Agent(model=..., effort=...)`) or in code.
+
+When internal parameters depend on the task, make one role call before the work to produce the complete parameter plan, validate it in code (required keys, types, ranges, relationships between limits), and fall back to a complete validated default when planning fails. Explicit user constraints and application limits always win over model output. A resumable Workflow checkpoints the plan and reuses it on resume.
 
 ## Write behavior tests
 
-Test expected output, invalid input, and the effects the Workflow is allowed to request. Mock external work in the publication tests: network access is disabled. Do not treat a test that only checks `callable(entrypoint)` as proof of behavior.
-
-For the example, `tests/test_workflow.py` verifies the draft-only request and rejects empty input before any Goal call:
+`openprogram.testing.script_roles` answers each role's calls with scripted replies and records every request, built by the same code path a real call uses:
 
 ```python
-from workflows.project_report import project_report
+from openprogram.testing import script_roles
+
+from project_report import workflow as wf
 
 
-def test_draft_request(monkeypatch):
-    calls = []
-    monkeypatch.setattr("workflows.project_report.steps.prepare.llm",
-                        lambda *args, **kwargs: "invalid plan uses fallback")
+def test_reviewer_sees_the_draft_but_not_the_writer_prompt():
+    with script_roles({wf.writer: ["Draft"], wf.reviewer: ["Final"]}) as calls:
+        assert wf.project_report("Shipped the parser.") == "Final"
 
-    def fake_goal(prompt, **kwargs):
-        calls.append(prompt)
-        return "verified draft"
-
-    monkeypatch.setattr("workflows.project_report.steps.prepare.goal", fake_goal)
-    result = project_report.__wrapped__("  this week's verified commits  ")
-    assert result == "verified draft"
-    assert len(calls) == 1
-    assert "this week's verified commits" in calls[0]
-    assert "Do not submit" in calls[0]
-
-
-def test_empty_request(monkeypatch):
-    def unexpected_goal(*args, **kwargs):
-        raise AssertionError("invalid input reached the Goal")
-
-    monkeypatch.setattr("workflows.project_report.steps.prepare.llm", unexpected_goal)
-    monkeypatch.setattr("workflows.project_report.steps.prepare.goal", unexpected_goal)
-    try:
-        project_report.__wrapped__("   ")
-    except ValueError:
-        return
-    raise AssertionError("empty input was accepted")
+    request = calls[wf.reviewer][0]
+    assert "Do not change the style" in request.text      # check() docstring
+    assert "Draft" in request.text                        # the draft block
+    assert "Write this week's report" not in request.text
+    assert request.history_text == ""
 ```
 
-`__wrapped__` is the original decorated Python function used here for isolated behavior tests. Normal users call the public function or submit its chat form. These tests do not claim to verify model quality, Runtime integration, or successful external actions.
+- A reply may be a string or any JSON-serializable value, for calls with a `response_format`. A reply to `role.choose` is the option ID.
+- An exception in the script is raised by the call. It stays queued, so it also answers the model loop's retries.
+- `request.text` holds the instructions, docstring, blocks and prompt; `request.history_text` holds the history.
 
-For a parameter-planning Workflow, also verify: exactly one planning request;
-all selected values reach execution; missing, extra, wrong-type and out-of-range
-fields use the complete fallback; cancellation never starts work; explicit task
-constraints are retained; and resume reuses the saved plan without another model
-request. Mocked tests verify control flow and validation, not the quality of the
-model's parameter choices.
+Patch tools, files and services with `monkeypatch` as usual. Keep live provider checks out of `tests/`; they cannot run during a check.
 
-## Allowed imports and composition
-
-Package top-level code permits docstrings, allowed `from ... import ...` statements, optional `__all__`, function definitions, `Agent` subclasses, and the one public entry assignment. Other classes, plain `import x`, mutable top-level constants, arbitrary top-level calls, and replacing managed names such as `llm`, `agent`, or `goal` are rejected. Modules under `tests/` may also `import pytest` and import their own package's submodules, such as `from workflows.project_report.steps import prepare`, to mock a step.
-
-Absolute imports may reference `openprogram.agentic_programming`, `openprogram.programs.workflow.*`, `openprogram.programs.tools.*`, or one named Workflow:
-
-```python
-from workflows.project_report import project_report
-```
-
-The live catalog resolves that public name to the same authorized callable as `openprogram.programs.workflow.project_report`. Package-internal helpers use relative imports. Publication resolves named Workflow dependencies, rejects missing or cyclic dependencies, and records exact Git revisions. Snapshot execution loads those pinned dependencies, not the latest live package. Do not encode checkout locations in import strings.
-
-## Validate, test, and publish
-
-Use the same Python environment as OpenProgram. Pytest is a declared runtime dependency; behavior testing also requires an available OS sandbox. When using a source checkout, install the current project with:
+## Check, commit and list
 
 ```bash
-python -m pip install -e .
+openprogram workflows check ~/.openprogram/workflows/project_report
+openprogram workflows check ~/.openprogram/workflows/project_report -m "Tighten the review step"
+openprogram workflows list
 ```
 
-Run the authoring commands against the package directory:
+`check`:
 
-```bash
-openprogram workflows validate ./project_report --json
-openprogram workflows test ./project_report --json
-openprogram workflows publish ./project_report --json
-```
+1. imports the package in a separate process and validates `PROGRAM_ENTRIES` and the entry signatures;
+2. runs `tests/` with pytest, inside the OS sandbox when one is available: no network, the package directory is read-only, and `HOME` is an empty temporary directory;
+3. commits the change to the Workflow's Git repository when everything passes. `-m` sets the commit message; `--json` prints the full report.
 
-| Command | Observable result |
-| --- | --- |
-| `validate` | Checks metadata, boundaries, syntax, imports, entry signature, re-export, helpers, and tests without importing or executing the package; returns `executed_tests: false` |
-| `test` | Copies validated source and pinned dependencies, executes pytest in a required sandbox, and returns `executed_tests: true`, `sandboxed: true`, and test output on success; does not publish |
-| `publish` | Revalidates and retests the exact snapshot, commits it into the Workflow catalog, records the source, and returns `workflow_id` and the immutable Git `revision` |
+Only a committed, clean package loads. A package with uncommitted edits keeps serving the version that loaded last, so a passing check is what makes a change callable. History and rollback use Git.
 
-Behavior testing currently supports macOS and Linux where the OS sandbox is available. It has a 60-second process deadline, disables network and automatic pytest plugins, removes credential environment variables, protects snapshot source from writes, uses an isolated home and temporary workspace, and prevents background processes from surviving the test. macOS denies subprocess creation; Linux confines descendants to a private PID namespace. Mock external process calls in portable publication tests. The host initializes an isolated standard SessionStore before applying the sandbox. The test runner binds its writer through Context, so ordinary Agent methods can execute and record calls without creating a Git subprocess inside the sandbox. It does not fall back to unsandboxed execution. Failed tests, timeout, or unavailable sandbox prevent publication.
+The worker watches `~/.openprogram/workflows` and reloads a Workflow within a few seconds of a change; no restart is needed. `workflows list` shows each Workflow's state: loaded, failed to load (with the error), or not callable yet (with the reason, such as uncommitted changes). The Programs page shows the same states next to each Workflow.
 
-Publication does not change the authored directory. It rejects an existing destination unless replacement is explicit:
+## Running a Workflow
 
-```bash
-openprogram workflows publish ./project_report --replace --json
-```
+- **In chat:** each entry is a tool. Describe the task and the agent calls it.
+- **Programs page:** open **Abilities → Programs**, select the Workflow and click **Use** to open its parameter form in chat. Nothing runs until you send the form.
+- **Command line:** `openprogram programs run <entry> -a key=value`.
+- **Python:** entries are ordinary importable functions.
 
-Replacement also requires a clean destination Git repository. Preserve or commit deliberate edits there before replacing it. The final publication operation rechecks the destination under its lock. A prior test report is never accepted in place of testing the snapshot being published.
-
-The author Agent's `create_workflow` and `revise_workflow` remain separate generated-package entry points and run the same required sandbox tests before publication. A validation error or failing test goes back to the author with its rejected package for up to four attempts; if none passes, nothing is published. Testing does not execute the user's real task. The manual commands above are the supported path for publishing files written by a person. The legacy `entry.py` format is for historical revisions and resume compatibility, not new packages.
-
-## Portable paths and installed Apps
-
-Published packages live at `openprogram/programs/workflow/<workflow_id>` relative to the OpenProgram project. Internal source records use a scoped POSIX relative path:
-
-```json
-{"scope": "programs", "path": "workflow/project_report", "kind": "workflow-publish", "source": "workflow:project_report"}
-```
-
-The scope resolves against `openprogram/programs/`, never the current conversation's working directory. Moving a source checkout preserves this identity. Traversal, absolute scoped paths, backslashes, external symlinks, and ambiguous catalog matches are rejected.
-
-An installed App needs one explicit source-catalog binding to find a separate checkout. This installation setting is not repeated in each package. For local framework development, run `scripts/refresh-local-app.sh` from the checkout being installed, including after moving it. This rebuilds and restarts the default installation; it is not read-only validation.
-
-Previously authorized Workflow records with obsolete checkout prefixes migrate when a structurally valid matching package exists in a known catalog. Existing external locations remain external. Migration does not authorize neighboring directories. Removing a source authorization remains effective if its directory is missing and later recreated.
-
-## Favorites, Use, and troubleshooting
-
-Open **Abilities → Programs**, refresh, and select the Workflow. Favorite saves its public function name. **Use** opens its parameter form in chat; nothing executes until you submit that form.
-
-Programs and the sidebar share a callable catalog. Use requests a current catalog if the function is not cached, and displays a visible error when the function is unavailable or the request fails. Failed refreshes preserve the last successful catalog. Older responses cannot replace a newer catalog, and leaving the chat cancels a pending form opening.
-
-If source is visible but Use is unavailable, verify the package, publication result, and source authorization, then refresh Programs. Source visibility alone does not prove Python import succeeded. If behavior tests fail, inspect the returned output; keep live provider checks separate from sandboxed publication tests. A dirty destination must be resolved before `--replace` can succeed.
-
-Resume returns the saved result for completed runs and does not repeat their calls. Suspended execution remains resumable. An incomplete call with an uncertain dispatched effect stops for explicit resolution; it is not automatically replayed. Workflow discovery includes categorized catalog directories, and revision publication checks that the destination revision still matches the revision used to generate the change. Dependency snapshots retain each dependency package's own pinned revisions.
+Each entry call is recorded in the session graph with one child node per role call, holding the exact request the model received. Plain functions are not recorded.

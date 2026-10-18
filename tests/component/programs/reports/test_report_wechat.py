@@ -1,6 +1,6 @@
 """Native reader trust boundaries with controlled accessibility trees."""
 
-from openprogram.programs.workflow import report_wechat
+from openprogram.programs.workflow._reports import wechat as report_wechat
 
 
 def node(handle=1, role="AXGroup", title="", subrole="", value="", description=""):

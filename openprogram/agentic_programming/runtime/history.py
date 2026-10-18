@@ -14,11 +14,7 @@ import time
 from typing import Optional
 
 
-from .shared import (
-    _build_pi_context,
-    _compute_call_path,
-    _situational_prefix,
-)
+from .shared import _build_pi_context
 
 class HistoryOperations:
     def _ensure_nested_tool_node(
@@ -283,27 +279,6 @@ class HistoryOperations:
                 history_dir = None
             history = render_dag_messages(graph, read_ids, history_dir)
 
-            # Inject current-frame identity so the inner model knows
-            # which function it is executing (prevents self-recursion
-            # and gives the model its role context).
-            frame_prefix_blocks: list[dict] = []
-            if frame_node_id and frame_node_id in graph.nodes:
-                fn_name = frame_node.name
-                fn_doc = (frame_node.metadata or {}).get("doc") or ""
-                if fn_name:
-                    call_path = _compute_call_path(graph, frame_node_id)
-                    text = _situational_prefix(
-                        fn_name,
-                        fn_doc,
-                        call_path=call_path,
-                    )
-                    frame_prefix_blocks.append(
-                        {
-                            "type": "text",
-                            "text": text,
-                        }
-                    )
-
             # Synthesize the current turn from ``content`` blocks via
             # the same helper the no-store fallback uses, so image /
             # video / audio blocks survive the DAG render path. The old
@@ -312,7 +287,7 @@ class HistoryOperations:
             # sub-calls do this) was silently dropped, so the LLM
             # ended up reasoning over the accompanying text alone and
             # missed the current frame.
-            ctx, _sp = _build_pi_context(frame_prefix_blocks + (content or []))
+            ctx, _sp = _build_pi_context(content or [])
             return history + [ctx.messages[0]]
         except Exception as exc:
             raise RuntimeError("Cannot construct context from the session DAG.") from exc

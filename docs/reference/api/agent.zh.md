@@ -51,11 +51,11 @@ context = Context(
 researcher = Agent(context=context, tools=[])
 ```
 
-`Context(blocks=None, *, parent=None, providers=None, history_filter=..., call_id=..., store=None, head_id=None)` 是命名内容的可变映射。`derive()` 创建具有独立内容的子上下文。`Context.current()` 返回当前任务绑定，无绑定时返回 `None`。`merge(other)` 覆盖命名内容和显式选择规则，不替换作用域调用身份。宿主集成可使用 `bind()` 显式绑定。
+`Context(blocks=None, *, parent=None, providers=None, history=..., call_id=..., store=None, head_id=None)` 是命名内容的可变映射。`derive()` 创建具有独立内容的子上下文。`Context.current()` 返回当前任务绑定，无绑定时返回 `None`。`merge(other)` 覆盖命名内容和显式选择规则，不替换作用域调用身份。宿主集成可使用 `bind()` 显式绑定。
 
 提供函数是接收当前 Context 的同步 Python callable，在每次模型请求时运行。提供函数失败会终止该请求。框架不执行表达式字符串。
 
-`history_filter` 默认为 `"dag"`。`"current_call"` 从已可见的 DAG 节点中选择当前作用域与其后代调用，`False` 禁用历史。callable 接收 `(node, context)`，在已有 DAG 可见性检查之后过滤节点。这些设置不能扩大工具权限。
+`history` 选择模型请求看到的历史。`None` 不发送历史。`"thread"` 只发送之前用同一个 Context 对象发起的请求。`"chat"`（Context 的默认值）发送可见的对话。callable 接收 `(node, context)`，在现有可见性检查之后筛选对话节点。没有显式设置 `history` 的 Workflow 角色调用不发送历史。这些设置不能扩大工具权限。
 
 Context 使用同一模型：父继承、命名内容、请求时求值和历史可见性。Agent 实例内容是该模型的实例绑定。模型交互仍归执行会话保存。内容与系统指令、工具权限分别处理。
 

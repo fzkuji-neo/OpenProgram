@@ -594,7 +594,7 @@ assert.doesNotMatch(
 );
 assert.match(controlsCluster, /styles\.effortText\}`\}\s*aria-expanded=\{thinkingMenuOpen\}/);
 
-const { runtimeConclusion, runtimeSummaryLabel } = await import(
+const { runtimeSummaryLabel } = await import(
   "../../components/chat/messages/runtime-summary.ts"
 );
 const { convToChatMsgs } = await import("../../lib/chat/conv-mapper.ts");
@@ -605,7 +605,7 @@ const directRunAfterAssistant = convToChatMsgs([
     role: "assistant",
     type: "status",
     display: "runtime",
-    function: "auto_workflow",
+    function: "report_workflow",
     status: "completed",
     caller: "",
     predecessor: "assistant-1",
@@ -643,68 +643,47 @@ assert.equal(assistantOwnedRun[0].runtimeChildren?.[0].calledBy, "assistant-1");
 const startedAt = 1_700_000_000;
 assert.equal(
   runtimeSummaryLabel({
-    fnName: "auto_workflow",
+    fnName: "report_workflow",
     status: "running",
     timestamp: startedAt,
     now: (startedAt + 130) * 1000,
     tree: { name: "root", children: [{ name: "read_file" }] },
   }),
-  "auto_workflow · Running… · 02:10 · 2 steps",
+  "report_workflow · Running… · 02:10 · 2 steps",
 );
 assert.equal(
   runtimeSummaryLabel({
-    fnName: "auto_workflow",
+    fnName: "report_workflow",
     status: "completed",
     tree: { duration_ms: 166_000, output: " 2 files\nprocessed " },
   }),
-  "auto_workflow · Completed · 02:46 · 2 files processed",
+  "report_workflow · Completed · 02:46 · 2 files processed",
 );
 assert.equal(
   runtimeSummaryLabel({
-    fnName: "auto_workflow",
+    fnName: "report_workflow",
     status: "error",
     tree: { duration_ms: 82_000, error: "Permission denied" },
   }),
-  "auto_workflow · Error · 01:22 · Permission denied",
+  "report_workflow · Error · 01:22 · Permission denied",
 );
 assert.equal(
   runtimeSummaryLabel({
-    fnName: "auto_workflow",
+    fnName: "report_workflow",
     status: "cancelled",
     tree: { duration_ms: 42_000, error: "cancelled by user", children: [{}, {}] },
   }),
-  "auto_workflow · Cancelled · 00:42 · 3 steps",
+  "report_workflow · Cancelled · 00:42 · 3 steps",
 );
-for (const [payloadStatus, expectedStatus] of [
-  ["capped", "Stopped"],
-  ["interrupted", "Interrupted"],
-  ["cancelled", "Cancelled"],
-  ["failed", "Error"],
-]) {
-  for (const outerStatus of ["completed", "done"]) {
-    assert.match(
-      runtimeSummaryLabel({
-        fnName: "auto_workflow",
-        status: outerStatus,
-        tree: {
-          duration_ms: 42_000,
-          output: JSON.stringify({ status: payloadStatus, summary: "Partial result" }),
-        },
-      }),
-      new RegExp(`^auto_workflow · ${expectedStatus} · 00:42 ·`),
-      `workflow payload status ${payloadStatus} must override generic outer status ${outerStatus}`,
-    );
-  }
-}
 assert.match(
   runtimeSummaryLabel({
-    fnName: "auto_workflow",
+    fnName: "report_workflow",
     status: "running",
     tree: {
       output: JSON.stringify({ status: "failed", summary: "stale terminal payload" }),
     },
   }),
-  /^auto_workflow · Running… ·/,
+  /^report_workflow · Running… ·/,
   "the live outer status must take precedence over a stale terminal payload",
 );
 
@@ -820,7 +799,7 @@ assert.match(
   /^status_probe · Completed ·/,
   "an arbitrary function's status field is data unless that function declares the outcome contract",
 );
-for (const fnName of ["status_probe", "auto_workflow"]) {
+for (const fnName of ["status_probe", "report_workflow"]) {
   for (const outerStatus of ["succeeded", "infeasible"]) {
     assert.match(
       runtimeSummaryLabel({
@@ -834,186 +813,9 @@ for (const fnName of ["status_probe", "auto_workflow"]) {
   }
 }
 
-assert.deepEqual(
-  runtimeConclusion({
-    fnName: "auto_workflow",
-    status: "completed",
-    tree: {
-      output: JSON.stringify({
-        status: "completed",
-        task: "Review two papers",
-        items: [
-          { status: "completed" },
-          { status: "completed" },
-          { status: "failed" },
-        ],
-        revisions: [{}, {}],
-        summary_kind: "workflow_handoff_v1",
-        summary: "Produced the final survey.",
-        return_result: false,
-      }),
-    },
-  }),
-  {
-    label: "Conclusion",
-    meta: "Completed 3 calls: 2 succeeded, 1 failed, with 2 automatic repairs.",
-    summary: "Produced the final survey.",
-    tone: "success",
-  },
-);
-assert.deepEqual(
-  runtimeConclusion({
-    fnName: "auto_workflow",
-    status: "interrupted",
-    tree: { error: "Worker restarted" },
-  }),
-  {
-    label: "Conclusion",
-    meta: "Workflow was interrupted.",
-    summary: "Worker restarted",
-    tone: "error",
-  },
-);
-assert.deepEqual(
-  runtimeConclusion({
-    fnName: "auto_workflow",
-    status: "completed",
-    tree: {
-      output: JSON.stringify({
-        status: "interrupted",
-        summary_kind: "workflow_handoff_v1",
-        summary: "Partial result",
-      }),
-    },
-  }),
-  {
-    label: "Conclusion",
-    meta: "Workflow was interrupted.",
-    summary: "Partial result",
-    tone: "error",
-  },
-);
-const fullWorkflowSummary = "第一部分已完成并生成研究综述。".repeat(100);
-const fullConclusion = runtimeConclusion({
-  fnName: "auto_workflow",
-  status: "completed",
-  tree: {
-    output: JSON.stringify({
-      status: "completed",
-      summary: fullWorkflowSummary,
-    }),
-  },
-});
-assert.ok(fullConclusion);
-assert.equal(
-  fullConclusion.summary,
-  "",
-  "legacy workflow payloads must not expose the raw task result as a handoff",
-);
-assert.deepEqual(
-  runtimeConclusion({
-    fnName: "auto_workflow",
-    status: "completed",
-    tree: {
-      output: JSON.stringify({
-        status: "completed",
-        summary_kind: "workflow_handoff_v1",
-        summary: "完成文件分析并保存到 report.md。",
-        return_result: true,
-        result: "用户明确要求直接返回的完整正文",
-      }),
-    },
-  }),
-  {
-    label: "Conclusion",
-    meta: "Workflow completed.",
-    summary: "完成文件分析并保存到 report.md。",
-    result: "用户明确要求直接返回的完整正文",
-    tone: "success",
-  },
-);
-assert.deepEqual(
-  runtimeConclusion({
-    fnName: "auto_workflow",
-    status: "error",
-    tree: { error: "Permission denied" },
-  }),
-  {
-    label: "Conclusion",
-    meta: "Workflow failed.",
-    summary: "Permission denied",
-    tone: "error",
-  },
-);
-assert.deepEqual(
-  runtimeConclusion({
-    fnName: "auto_workflow",
-    status: "cancelled",
-    tree: { output: JSON.stringify({ items: [{ status: "completed" }] }) },
-  }),
-  {
-    label: "Conclusion",
-    meta: "Workflow was cancelled after 1 recorded call.",
-    summary: "",
-    tone: "cancelled",
-  },
-);
-assert.deepEqual(
-  runtimeConclusion({
-    fnName: "auto_workflow",
-    status: "completed",
-    tree: {
-      output: JSON.stringify({
-        status: "cancelled",
-        items: [{ status: "completed" }],
-        summary: "Partial result",
-      }),
-    },
-  }),
-  {
-    label: "Conclusion",
-    meta: "Workflow was cancelled after 1 recorded call.",
-    summary: "",
-    tone: "cancelled",
-  },
-);
-assert.deepEqual(
-  runtimeConclusion({
-    fnName: "auto_workflow",
-    status: "completed",
-    tree: { output: "Legacy workflow result" },
-  }),
-  {
-    label: "Conclusion",
-    meta: "Workflow completed.",
-    summary: "",
-    tone: "success",
-  },
-);
-assert.equal(runtimeConclusion({
-  fnName: "auto_workflow",
-  status: "running",
-  tree: { output: "partial" },
-}), null);
-assert.equal(runtimeConclusion({
-  fnName: "extract_pdf_tables",
-  status: "completed",
-  tree: { output: "done" },
-}), null);
-
 assert.match(
   runtimeBlock,
   /<ExecutionStrip[\s\S]*label=\{summaryLabel\}[\s\S]*streaming=\{streaming\}[\s\S]*after=\{runtimeAfter\}/,
-);
-assert.match(
-  runtimeBlock,
-  /<\/ExecutionStrip>[\s\S]*conclusion \? \([\s\S]*className=\{`runtime-program-conclusion is-\$\{conclusion\.tone\}`\}/,
-  "workflow conclusion must remain outside the collapsible execution trace",
-);
-assert.match(
-  runtimeBlock,
-  /conclusion\.result \? \([\s\S]*runtime-program-conclusion-result/,
-  "an explicitly requested direct result must render separately from the workflow handoff",
 );
 assert.match(
   runtimeBlock,
@@ -1033,11 +835,11 @@ const topLevelProgram = runtimeBlock.slice(
   runtimeBlock.indexOf("// The function marker identifies"),
 );
 const topExecution = topLevelProgram.indexOf("<ExecutionStrip");
-const topConclusion = topLevelProgram.indexOf("conclusion ? (");
+const topAnswer = topLevelProgram.indexOf("answer && !needsAccess ? (");
 const topFooter = topLevelProgram.indexOf("{footer}");
 assert.ok(
-  topExecution >= 0 && topConclusion > topExecution && topFooter > topConclusion,
-  "the top-level footer must remain visible at the message bottom, after Conclusion",
+  topExecution >= 0 && topAnswer > topExecution && topFooter > topAnswer,
+  "the top-level footer must remain visible at the message bottom, after the function reply",
 );
 assert.match(
   chatCss,
@@ -1401,7 +1203,7 @@ assert.match(
 );
 assert.match(
   chatVisualSpec,
-  /subagentLabel\.textContent='auto_workflow · 已完成';\s*setSubagentOpen\(false\)/,
+  /subagentLabel\.textContent='report_workflow · 已完成';\s*setSubagentOpen\(false\)/,
   "the slow replay must demonstrate the execution trace remaining collapsed at terminal state",
 );
 assert.match(
@@ -1723,23 +1525,23 @@ assertNoSummaryVerticalOffset(chatVisualSpec, "interactive design sample");
 const zh = (en, cn) => cn;
 assert.equal(
   runtimeSummaryLabel({
-    fnName: "auto_workflow",
+    fnName: "report_workflow",
     status: "running",
     timestamp: startedAt,
     now: (startedAt + 8) * 1000,
     tree: { name: "root", children: [{ name: "read_file" }] },
     text: zh,
   }),
-  "auto_workflow · 运行中… · 00:08 · 2 步",
+  "report_workflow · 运行中… · 00:08 · 2 步",
 );
 assert.equal(
   runtimeSummaryLabel({
-    fnName: "auto_workflow",
+    fnName: "report_workflow",
     status: "completed",
     tree: { duration_ms: 12_000 },
     text: zh,
   }),
-  "auto_workflow · 已完成 · 00:12 · 1 步",
+  "report_workflow · 已完成 · 00:12 · 1 步",
 );
 for (const [status, summary, expected] of [
   ["succeeded", "已确认页面标题。", "gui_agent · 成功 · 00:00 · 已确认页面标题。"],

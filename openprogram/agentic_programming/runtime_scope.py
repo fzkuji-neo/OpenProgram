@@ -173,7 +173,8 @@ def agent_scope(owner, *, request=False):
         link = None
         if isolate and isinstance(parent_writer, SessionNodeWriter):
             owner_type = owner if isinstance(owner, type) else type(owner)
-            label = f"agent/{owner_type.__module__}.{owner_type.__qualname__}"
+            role = getattr(owner, "_role_name", "") if not isinstance(owner, type) else ""
+            label = role or f"agent/{owner_type.__module__}.{owner_type.__qualname__}"
             link = stack.enter_context(CallScope(label, capture_io=True))
             child_id = uuid.uuid4().hex
             parent_writer.store.create_session(

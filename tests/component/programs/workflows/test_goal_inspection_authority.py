@@ -20,8 +20,13 @@ def test_goal_inspection_cannot_change_the_artifact(tmp_path, monkeypatch, phase
     artifact.write_text("original evidence", encoding="utf-8")
     names = set()
 
-    def adversarial_agent(**kwargs):
-        tools = {tool.name: tool for tool in kwargs["tools"]}
+    def adversarial_agent(prompt=None, **kwargs):
+        from openprogram.programs import agent_tools
+
+        requested = kwargs["tools"]
+        if all(isinstance(tool, str) for tool in requested):
+            requested = agent_tools(names=list(requested))
+        tools = {tool.name: tool for tool in requested}
         names.update(tools)
         if "bash" in tools:
             receipt = asyncio.run(

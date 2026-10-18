@@ -9,28 +9,37 @@ import openprogram.paths as paths
 from openprogram.programs import _programs
 
 
-@pytest.mark.parametrize("category", ["", "reports"])
-def test_recorded_workflow_survives_checkout_relocation(tmp_path, monkeypatch, category):
+def test_recorded_package_survives_checkout_relocation(tmp_path, monkeypatch):
     state = tmp_path / 'state'
     checkout = tmp_path / 'original'
     package = checkout / 'openprogram'
-    workflow = package / 'programs' / 'workflow' / category / 'weekly_report'
-    workflow.mkdir(parents=True)
+    harness = package / 'programs' / 'packages' / 'demo_harness'
+    harness.mkdir(parents=True)
     monkeypatch.setattr(paths, 'get_state_dir', lambda: state)
     monkeypatch.setattr(openprogram, '__file__', str(package / '__init__.py'))
-    _programs.record_program_source(workflow, source='workflow:weekly_report',
-                                    kind='workflow-publish', base=str(workflow.parent))
+    _programs.record_program_source(harness, source='fixture', base=str(harness.parent))
     saved = json.loads((state / 'program-sources.json').read_text())['programs'][0]
     assert saved['scope'] == 'programs'
-    assert saved['path'] == '/'.join(part for part in ('workflow', category, 'weekly_report') if part)
+    assert saved['path'] == 'packages/demo_harness'
 
     moved = tmp_path / 'moved'
     checkout.rename(moved)
     monkeypatch.setattr(openprogram, '__file__', str(moved / 'openprogram' / '__init__.py'))
-    relocated = moved / 'openprogram' / 'programs' / 'workflow' / category / 'weekly_report'
+    relocated = moved / 'openprogram' / 'programs' / 'packages' / 'demo_harness'
     assert [row['path'] for row in _programs.owner_controlled_program_sources(str(relocated.parent))] == [str(relocated)]
     _programs.remove_program_source(relocated)
     assert _programs.owner_controlled_program_sources(str(relocated.parent)) == []
+
+
+def test_workflow_records_are_dropped(tmp_path, monkeypatch):
+    state = tmp_path / 'state'
+    state.mkdir()
+    monkeypatch.setattr(paths, 'get_state_dir', lambda: state)
+    (state / 'program-sources.json').write_text(json.dumps({
+        'version': 2, 'workflow_projects_migrated': True,
+        'programs': [{'scope': 'programs', 'path': 'workflow/demo', 'kind': 'workflow-publish'}],
+    }))
+    assert _programs._read_program_sources() == []
 
 
 @pytest.mark.parametrize('relative', ['../outside', '/tmp/outside', 'workflow/../../outside', 'workflow\\outside'])
@@ -64,59 +73,35 @@ def test_scoped_source_rejects_symlinked_category(tmp_path, monkeypatch):
 def test_installed_runtime_uses_explicit_catalog_binding(tmp_path, monkeypatch):
     state = tmp_path / 'state'
     source = tmp_path / 'source' / 'openprogram' / 'programs'
-    workflow = source / 'workflow' / 'demo'
-    workflow.mkdir(parents=True)
+    harness = source / 'packages' / 'demo'
+    harness.mkdir(parents=True)
     (source / '__init__.py').write_text('')
     monkeypatch.setattr(paths, 'get_state_dir', lambda: state)
     monkeypatch.setattr(openprogram, '__file__', str(tmp_path / 'installed' / 'openprogram' / '__init__.py'))
     _programs.bind_program_catalog(source)
-    _programs.record_program_source(workflow, source='workflow:demo',
-                                    kind='workflow-publish', base=str(workflow.parent))
+    _programs.record_program_source(harness, source='fixture', base=str(harness.parent))
     saved = json.loads((state / 'program-sources.json').read_text())
-    assert saved['programs'][0]['path'] == 'workflow/demo'
+    assert saved['programs'][0]['path'] == 'packages/demo'
     assert _programs.owner_programs_roots() == [source]
-    assert _programs.owner_controlled_program_sources()[0]['path'] == str(workflow)
+    assert _programs.owner_controlled_program_sources()[0]['path'] == str(harness)
     moved = source.parent.parent.with_name('moved')
     source.parent.parent.rename(moved)
     _programs.bind_program_catalog(moved / 'openprogram' / 'programs')
-    assert _programs.owner_controlled_program_sources()[0]['path'] == str(moved / 'openprogram' / 'programs' / 'workflow' / 'demo')
+    assert _programs.owner_controlled_program_sources()[0]['path'] == str(moved / 'openprogram' / 'programs' / 'packages' / 'demo')
 
 
 def test_removal_revokes_a_missing_portable_source(tmp_path, monkeypatch):
     state = tmp_path / 'state'
     package = tmp_path / 'openprogram'
-    workflow = package / 'programs' / 'workflow' / 'demo'
-    workflow.mkdir(parents=True)
+    harness = package / 'programs' / 'packages' / 'demo'
+    harness.mkdir(parents=True)
     monkeypatch.setattr(paths, 'get_state_dir', lambda: state)
     monkeypatch.setattr(openprogram, '__file__', str(package / '__init__.py'))
-    _programs.record_program_source(workflow, source='workflow:demo',
-                                    kind='workflow-publish', base=str(workflow.parent))
-    workflow.rmdir()
-    _programs.remove_program_source(workflow)
-    workflow.mkdir()
+    _programs.record_program_source(harness, source='fixture', base=str(harness.parent))
+    harness.rmdir()
+    _programs.remove_program_source(harness)
+    harness.mkdir()
     assert _programs.owner_controlled_program_sources() == []
-
-
-@pytest.mark.parametrize('installed_git', [False, True])
-def test_bundled_workflow_copy_does_not_ambiguate_owned_git_source(tmp_path, monkeypatch, installed_git):
-    state = tmp_path / 'state'
-    source = tmp_path / 'source' / 'openprogram' / 'programs'
-    workflow = source / 'workflow' / 'demo'
-    workflow.mkdir(parents=True)
-    (workflow / '.git').mkdir()
-    (source / '__init__.py').write_text('')
-    installed = tmp_path / 'installed' / 'openprogram'
-    bundled = installed / 'programs' / 'workflow' / 'demo'
-    bundled.mkdir(parents=True)
-    if installed_git:
-        (bundled / '.git').mkdir()
-    monkeypatch.setattr(paths, 'get_state_dir', lambda: state)
-    monkeypatch.setattr(openprogram, '__file__', str(installed / '__init__.py'))
-    _programs.bind_program_catalog(source)
-    _programs.record_program_source(workflow, source='workflow:demo',
-                                    kind='workflow-publish', base=str(workflow.parent))
-    actual = _programs.owner_controlled_program_sources()
-    assert [row['path'] for row in actual] == ([] if installed_git else [str(workflow)])
 
 
 def test_package_install_location_preserves_legacy_owner_source(tmp_path, monkeypatch):
@@ -167,14 +152,14 @@ def test_refresh_preserves_explicit_owner_catalog(tmp_path, monkeypatch):
     for root in (owner, build):
         root.mkdir(parents=True)
         (root / '__init__.py').write_text('')
-    workflow = owner / 'workflow' / 'weekly_report'
-    workflow.mkdir(parents=True)
+    harness = owner / 'packages' / 'demo'
+    harness.mkdir(parents=True)
     monkeypatch.setattr(paths, 'get_state_dir', lambda: state)
     monkeypatch.setattr(openprogram, '__file__', str(tmp_path / 'installed' / '__init__.py'))
     _programs.bind_program_catalog(owner)
-    _programs.record_program_source(workflow, source='workflow:weekly_report', kind='workflow-publish', base=str(workflow.parent))
+    _programs.record_program_source(harness, source='fixture', base=str(harness.parent))
     _programs.bind_program_catalog(build, preserve_existing=True)
-    assert _programs.owner_controlled_program_sources()[0]['path'] == str(workflow)
+    assert _programs.owner_controlled_program_sources()[0]['path'] == str(harness)
     assert json.loads((state / 'program-sources.json').read_text())['catalog_root'] == str(owner)
 
 

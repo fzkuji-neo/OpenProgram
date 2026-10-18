@@ -18,25 +18,17 @@ gitignored build output, so a fresh clone has none of them. The listing
 simply reflects what is on disk; nothing here errors when they are
 absent.
 
-The single LLM round goes through a module-level ``_run_docs_turn``
-seam, so tests stub one function instead of the network. Same shape as
-``goal`` and the Workflow management functions.
-
-Registration: PROGRAM_MODULES.
+One role, ``reader``, makes the single model call; tests script it with
+``openprogram.testing.script_roles``.
 """
 
 from __future__ import annotations
 
-from openprogram.agentic_programming import Agent
-
-import inspect
 import logging
 from pathlib import Path
 from typing import Optional
 
-from openprogram.agentic_programming.call_state import (
-    current_session_id,
-)
+from openprogram import Agent, Context
 from openprogram.programs.workflow.json_parsing import parse_json
 
 _log = logging.getLogger(__name__)
@@ -142,55 +134,13 @@ def normalize_source(raw: str, root: Optional[Path] = None) -> str:
     return posix if candidate.is_file() and candidate.suffix == ".md" else ""
 
 
-def _prompt(question: str, root: Path) -> str:
-    listing = (
+def _listing(root: Path) -> str:
+    return (
         "\n".join(
             f"{rel} — {title}" if title else rel for rel, title in list_pages(root)
         )
         or "(no pages found)"
     )
-    return (
-        f"{inspect.getdoc(run_docs_question)}\n\n"
-        f"<docs_root>\n{root}\n</docs_root>\n\n"
-        f"<pages>\n{listing}\n</pages>\n\n"
-        f"<question>\n{question}\n</question>"
-    )
-
-
-def _run_docs_turn(
-    session_id: str, prompt: str, *, agent_id: str, spawn_caller: Optional[str]
-) -> str:
-    """One read-only documentation-reading turn. Module-level so tests
-    stub it."""
-    from openprogram.agentic_programming.call_state import _current_runtime
-
-    if _current_runtime.get(None) is not None or not session_id:
-        from openprogram.agentic_programming.agent import agent
-        from openprogram.programs import agent_tools
-
-        return agent(
-            prompt=prompt,
-            tools=agent_tools(names=list(DOCS_TOOLS)),
-            execution_kind="docs_question",
-        )
-    from openprogram.agent.sub_agent_run import run_agent_turn
-
-    res = run_agent_turn(
-        session_id=session_id,
-        prompt=prompt,
-        agent_id=agent_id,
-        branch_from=None,
-        label="文档查询",
-        spawn_caller=spawn_caller,
-        advance_head=False,
-        tools_override=list(DOCS_TOOLS),
-        # The question is the whole brief: the answer must come from the
-        # docs, not from whatever the session was talking about.
-        render_range={"callers": 0, "subcalls": 0},
-    )
-    if res.failed:
-        raise RuntimeError(res.error or "docs question turn failed")
-    return res.final_text or ""
 
 
 def _parse_answer(raw: str, root: Optional[Path] = None) -> dict:
@@ -226,96 +176,89 @@ def _parse_answer(raw: str, root: Optional[Path] = None) -> dict:
     return {"answer": answer, "sources": sources, "covered": data["covered"]}
 
 
-class RunDocsQuestionAgent(Agent):
-    method_options = {
-        "run_docs_question": {
-            "render_range": {"callers": 0, "subcalls": 0},
-            "input": {
-                "question": {
-                    "description": "A question about OpenProgram itself",
-                    "multiline": True,
-                },
-                "session_id": {"hidden": True},
-                "spawn_caller": {"hidden": True},
-                "agent_id": {"hidden": True},
+reader = Agent(
+    instructions='''You answer a question about OpenProgram itself, using ONLY its
+product documentation. The documentation tree is given as
+the "docs root" block, and every page in it is listed under "pages" with its
+path and title.
+
+Work in this order:
+
+1. Pick candidate pages from the "pages" listing by path and title.
+   The question names a topic; the listing tells you which pages
+   could hold it. Do not open pages at random.
+2. Read those pages. Use your read, grep, glob and list tools, and
+   stay inside the docs root — nothing outside that directory is
+   part of your answer, and you have no tools that change files.
+3. Answer from what the pages actually say.
+
+The English page (``xxx.md``) is authoritative. ``xxx.zh.md`` beside
+it is a translation; consult it when the question is in Chinese or
+when the English page is ambiguous, but when the two disagree the
+English page is what you report.
+
+Every claim in your answer must come from a page you read, and you
+must name those pages. An answer with no page behind it is a
+fabrication — never fill a gap with what you know about other agent
+products, and never infer a feature from a page that does not
+mention it.
+
+Distinguish three outcomes, and say which one you are giving:
+
+* The documentation answers the question — answer it, cite the
+  pages, covered=true.
+* The documentation says the thing is NOT supported, or documents a
+  different behaviour than the question assumes — report that as the
+  answer with its page, covered=true. This is a documented fact.
+* The documentation does not mention it at all — say plainly that
+  the documentation does not cover it, covered=false, and point at
+  the closest related pages you did find so the reader knows where
+  the topic would live. Do not guess whether the feature exists.
+
+Some listed pages may be missing on disk (generated reference pages
+are build output). A page you cannot open is simply not a source;
+carry on with the others.
+
+Keep the answer concrete: the command, the setting key, the file
+path, as the page writes it. Answer in the SAME LANGUAGE as the
+question.
+
+End your reply with STRICT JSON only, no markdown fence, no prose
+after it:
+{"answer": "<the answer, in the question's language>",
+ "sources": ["capabilities/goal.md", …],
+ "covered": true|false}
+Source paths are relative to the docs root.''',
+    tools=list(DOCS_TOOLS),
+)
+
+
+def run_docs_question(question: str) -> dict:
+    """Answer a question about OpenProgram itself from its product
+    documentation. Returns ``{"answer", "sources", "covered"}``; the
+    sources are the documentation pages the answer came from."""
+    text = (question or "").strip()
+    if not text:
+        raise ValueError("question must not be empty")
+    root = docs_root()
+    context = Context({"docs root": str(root), "pages": _listing(root)})
+    raw = reader(text, context=context, execution_kind="docs_question")
+    return _parse_answer(str(raw or ""), root)
+
+
+PROGRAM_ENTRIES = [run_docs_question]
+
+ENTRY_OPTIONS = {
+    "run_docs_question": {
+        "render_range": {"callers": 0, "subcalls": 0},
+        "input": {
+            "question": {
+                "description": "A question about OpenProgram itself",
+                "multiline": True,
             },
-            "name": "run_docs_question",
-            "tool": True,
         },
-    }
-
-    def run_docs_question(
-        self,
-        question: str,
-        session_id: str = "",
-        spawn_caller: Optional[str] = None,
-        agent_id: str = "main",
-    ) -> dict:
-        """You answer a question about OpenProgram itself, using ONLY its
-        product documentation. The documentation tree is given below as
-        <docs_root>, and every page in it is listed under <pages> with its
-        path and title.
-
-        Work in this order:
-
-        1. Pick candidate pages from the <pages> listing by path and title.
-           The question names a topic; the listing tells you which pages
-           could hold it. Do not open pages at random.
-        2. Read those pages. Use your read, grep, glob and list tools, and
-           stay inside <docs_root> — nothing outside that directory is
-           part of your answer, and you have no tools that change files.
-        3. Answer from what the pages actually say.
-
-        The English page (``xxx.md``) is authoritative. ``xxx.zh.md`` beside
-        it is a translation; consult it when the question is in Chinese or
-        when the English page is ambiguous, but when the two disagree the
-        English page is what you report.
-
-        Every claim in your answer must come from a page you read, and you
-        must name those pages. An answer with no page behind it is a
-        fabrication — never fill a gap with what you know about other agent
-        products, and never infer a feature from a page that does not
-        mention it.
-
-        Distinguish three outcomes, and say which one you are giving:
-
-        * The documentation answers the question — answer it, cite the
-          pages, covered=true.
-        * The documentation says the thing is NOT supported, or documents a
-          different behaviour than the question assumes — report that as the
-          answer with its page, covered=true. This is a documented fact.
-        * The documentation does not mention it at all — say plainly that
-          the documentation does not cover it, covered=false, and point at
-          the closest related pages you did find so the reader knows where
-          the topic would live. Do not guess whether the feature exists.
-
-        Some listed pages may be missing on disk (generated reference pages
-        are build output). A page you cannot open is simply not a source;
-        carry on with the others.
-
-        Keep the answer concrete: the command, the setting key, the file
-        path, as the page writes it. Answer in the SAME LANGUAGE as the
-        question.
-
-        End your reply with STRICT JSON only, no markdown fence, no prose
-        after it:
-        {"answer": "<the answer, in the question's language>",
-         "sources": ["capabilities/goal.md", …],
-         "covered": true|false}
-        Source paths are relative to <docs_root>.
-        """
-        text = (question or "").strip()
-        if not text:
-            raise ValueError("question must not be empty")
-        sid = session_id or current_session_id()
-        root = docs_root()
-        raw = _run_docs_turn(
-            sid, _prompt(text, root), agent_id=agent_id, spawn_caller=spawn_caller
-        )
-        return _parse_answer(raw, root)
-
-
-run_docs_question = RunDocsQuestionAgent().run_docs_question
+    },
+}
 
 
 __all__ = [

@@ -29,6 +29,8 @@ from openprogram.providers.types import (
 from openprogram.providers.utils.event_stream import EventStream
 from openprogram.providers.utils.validation import validate_tool_arguments
 
+from contextvars import ContextVar
+
 from openprogram.events import emit_safe, get_event_bus, make_event
 from openprogram.events import ToolGateDenied, decide_tool_gate
 from .types import (
@@ -211,6 +213,11 @@ def _latest_user_text(messages: list) -> str:
                 return joined.strip()
         return ""
     return ""
+
+
+# A workflow role call turns recalled memory off: its request holds only
+# what the workflow put there.
+memory_prefetch_enabled: ContextVar[bool] = ContextVar("memory_prefetch_enabled", default=True)
 
 
 def _inject_memory_prefetch(llm_messages: list, block: str) -> bool:
@@ -1164,6 +1171,8 @@ async def _stream_assistant_response(
     # turn — the single largest source of avoidable input cost. In the user
     # turn it only ever invalidates the tail it sits in.
     prefetch_block = context.memory_prefetch
+    if prefetch_block is None and not memory_prefetch_enabled.get():
+        prefetch_block = ""
     if prefetch_block is None:
         prefetch_block = ""
         latest_user_text = _latest_user_text(messages)

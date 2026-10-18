@@ -2,7 +2,7 @@
 
 A workflow is a small Python package. Agent instances define the roles. Context objects define what each model call sees. Plain functions decide the order of the calls. The chat agent writes and changes workflows directly; there are no separate tools for searching, creating or revising them. To run a workflow, the agent calls it as an ordinary tool.
 
-This document is the only design record for workflows. Product usage lives in [Self-programming Workflows](../../../capabilities/agentic-workflow.md) and [Write, test, and publish a Workflow](../../../capabilities/workflows/authoring.md).
+This document is the only design record for workflows. Product usage lives in [Self-programming Workflows](../../../capabilities/agentic-workflow.md) and [Write and check a Workflow](../../../capabilities/workflows/authoring.md).
 
 ## Workflow form
 
@@ -40,6 +40,7 @@ Rules:
 
 - Model calls go through roles only: `role(prompt, context=...)` runs a tool loop, `role.choose(prompt, {id: label})` picks one option. Workflow code does not call the free `llm()` or `agent()` primitives.
 - `PROGRAM_ENTRIES` lists the functions exposed as tools. An entry's type annotations become the tool parameters and its docstring becomes the tool description.
+- An optional `ENTRY_OPTIONS` dict maps an entry name to tool options, such as per-parameter form descriptions under `input`, or `run_in_worker` (see Running).
 - No decorators, base classes, DSL or string dispatch. One workflow uses another through a normal Python import.
 
 ## What one model call sees
@@ -49,10 +50,12 @@ A call `role(prompt, context=ctx)` sends exactly five parts, in this order:
 | Order | Part | Defined by |
 |---|---|---|
 | 1 | The role's `instructions` (system prompt) | The `Agent(...)` instance |
-| 2 | The docstring of the function that made the call, for this call only | The function |
-| 3 | The named blocks of `ctx` | The code that builds or derives `ctx` |
-| 4 | History, empty by default | The history setting of `ctx` |
+| 2 | History, empty by default, as earlier messages | The history setting of `ctx` |
+| 3 | The docstring of the function that made the call, for this call only | The function |
+| 4 | The named blocks of `ctx` | The code that builds or derives `ctx` |
 | 5 | `prompt` | The call |
+
+Parts 3 to 5 form the current user message; history precedes it as earlier turns.
 
 Nothing else enters the request. Chat history, the outputs of other roles and the steps of earlier functions reach the model only when the code puts them into `ctx` or `prompt`. `ctx` never changes tools or permissions; tools belong to the role.
 
@@ -68,8 +71,6 @@ Workflows use the existing `openprogram.context.Context`:
   - `"thread"`: the earlier calls made with this same `ctx` object, with their prompts and replies, for multi-turn work by one role;
   - `"chat"`: the chat that invoked the workflow;
   - a callable that selects history items.
-
-  These four values replace the graph-shaped `history_filter` values `"dag"` and `"current_call"`.
 
 ### Function docstrings
 
@@ -103,27 +104,28 @@ Plain functions are not recorded and do not appear in any call path stored in th
 
 ## Authoring
 
-- The chat agent writes workflow packages with its normal file tools, guided by a workflow-authoring skill.
+- The chat agent writes workflow packages with its normal file tools, guided by the product page [Write and check a Workflow](../../../capabilities/workflows/authoring.md). OpenProgram ships no first-party skills, so there is no separate authoring skill.
 - `openprogram.testing.script_roles` replaces role calls with scripted replies and captures each request. A captured request exposes `text` (instructions, docstring, blocks and prompt) and `history_text`, so tests can assert exactly what a role saw.
-- `openprogram workflows check <dir>` imports the package, validates `PROGRAM_ENTRIES` and the entry signatures, and runs the package tests.
+- `openprogram workflows check <dir> [-m MESSAGE] [--json]` imports the package in a subprocess, validates `PROGRAM_ENTRIES` and the entry signatures, and runs the package tests under the OS sandbox: no network, the package directory read-only, an empty `HOME`.
+- `openprogram workflows list [--json]` lists user workflows with their load state.
 
 ## Storage and loading
 
-- User workflows live in `~/.openprogram/workflows/<name>/`. Each workflow is its own Git repository.
-- A passing `check` commits the change and makes the workflow callable; there is no separate enable step. History and rollback use Git.
+- User workflows live in `~/.openprogram/workflows/<name>/`. Each workflow is its own Git repository and imports under its own top-level name.
+- Built-in workflows live in `openprogram/programs/workflow/<name>/`, import as `openprogram.programs.workflow.<name>` and use the same form.
+- A passing `check` commits the change and makes the workflow callable; there is no separate enable step. Only a clean, committed package loads; a package with uncommitted edits keeps serving the version that loaded last. History and rollback use Git.
 - The watcher reloads a workflow when its files change. Load and check errors appear on the Programs page next to the workflow.
 - Workflows ship as source and run in process. Imports are unrestricted, as with any other Python code the user installs.
 
 ## Running
 
-- The chat agent calls a workflow entry as a tool. The call runs in the worker process and records the nodes described above.
+- The chat agent calls a workflow entry as a tool. The call runs in a forked subprocess and records the nodes described above. An entry with `run_in_worker` runs in the worker process instead, for tools that use worker-owned state such as browser sessions.
 - `openprogram programs run <name> -p <provider> -m <model>` runs an entry from the command line.
-- Agent-method tools without a timeout run on the event-loop thread. Whether a long workflow blocks the worker this way is measured before the run path is finalized.
-- Resume across restarts uses `openprogram.agentic_programming.continuation.step` and is not part of the first version.
+- Resume across restarts uses `openprogram.agentic_programming.continuation.step`.
 
 ## Example: `llm_knowledge_research`
 
-The user's paper-research workflow, rewritten in this form. Today it is an `Agent` subclass with free `llm()` calls spread over five files and 399 lines.
+The user's paper-research workflow, condensed to one file to show the form end to end.
 
 ```
 ~/.openprogram/workflows/llm_knowledge_research/
@@ -316,20 +318,27 @@ The following stay: the forced token refresh on a Codex 401, `programs run -p/-m
 
 ## Migration
 
-- The user's `weekly_report` family and `llm_knowledge_research` move to `~/.openprogram/workflows/` in the new form.
-- Built-in workflows keep their current form until a later pass.
-- Product docs and the README describe the new form once it ships.
+- The user's `weekly_report` family and `llm_knowledge_research` live in `~/.openprogram/workflows/` in this form; the shared report helpers stay in `openprogram.programs.workflow._reports`.
+- Every built-in workflow uses this form: module-level roles, explicit `Context`, plain functions and `PROGRAM_ENTRIES`.
+- Product docs describe this form.
 
 ## Phases
 
 1. Role calls: docstring injection, the four history settings, `call_path` and `workflow_source`, role nodes under the entry node, and removal of `<situation>`.
 2. Loading and storage: `~/.openprogram/workflows`, Git commits on check, the watcher and the Programs page errors.
-3. Authoring: the skill, the test helper and `workflows check`, then removal of the old tools and code.
-4. Migration of the user's workflows, plus product docs.
+3. Authoring: the authoring docs, the test helper and `workflows check`, then removal of the old tools and code.
+4. Migration of the user's workflows and the built-in workflows, plus product docs.
 
 ## Implementation status
 
 | Item | Status |
 |---|---|
+| Role calls: the request parts, docstring lookup, the four history settings, `call_path`, `workflow_source`, no `<situation>` | Implemented |
+| Recording: entry node with role-call children; plain functions unrecorded | Implemented |
+| `~/.openprogram/workflows` loading, Git-clean loading, watcher reload, load states on the Programs page | Implemented |
+| `script_roles`, `workflows check`, `workflows list` | Implemented |
+| Removal of the old authoring tools, code and UI | Implemented |
+| User workflows and built-in workflows in this form | Implemented |
 | Codex 401 refresh, `programs run -p/-m`, tool-name resolution | Implemented |
-| Everything else in this document | Designed, not implemented |
+| The example's single-file layout and the broaden-once step | Designed, not implemented: the migrated `llm_knowledge_research` keeps its `steps/` modules with the same `planner` and `selector` roles and does not broaden |
+| Resume across restarts for workflow entries | Designed, not implemented |

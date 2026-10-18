@@ -79,18 +79,14 @@ def test_migrated_functions_do_not_thread_runtime(module_name, function_name):
     assert "runtime" not in inspect.signature(function).parameters
 
 
-def test_migrated_summary_uses_agent_without_tools(monkeypatch):
-    calls = []
-
-    def fake_agent(prompt, **kwargs):
-        calls.append((prompt, kwargs))
-        return "summary"
+def test_migrated_summary_uses_a_tool_free_role():
+    from openprogram.testing import script_roles
 
     module = importlib.import_module("openprogram.programs.workflow.text")
-    monkeypatch.setattr(module, "agent", fake_agent)
-
-    assert module.summarize_text("source text") == "summary"
-    assert calls == [("Please summarize:\n\nsource text", {"tools": []})]
+    assert module.editor.tools == []
+    with script_roles({module.editor: ["summary"]}) as calls:
+        assert module.summarize_text("source text") == "summary"
+    assert calls[module.editor][0].prompt == "Please summarize:\n\nsource text"
 
 
 def test_programs_do_not_call_runtime_exec():
@@ -114,113 +110,71 @@ def test_programs_do_not_call_runtime_exec():
     assert remaining == []
 
 
-def test_program_agent_methods_do_not_take_a_runtime():
-    """Methods run on their Agent's Runtime (or the caller's), never a parameter."""
-    root = Path(__file__).parents[3] / "openprogram" / "programs"
-    threaded = {"runtime", "exec_runtime", "review_runtime"}
-    methods = 0
-    remaining = []
+def test_builtin_workflows_use_roles_not_agent_subclasses():
+    """Built-in workflows define module-level roles and plain functions."""
+    root = Path(__file__).parents[3] / "openprogram" / "programs" / "workflow"
+    subclasses = []
     for path in tracked_python_files(root):
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
-            if not isinstance(node, ast.ClassDef) or not any(
+            if isinstance(node, ast.ClassDef) and any(
                 getattr(base, "id", getattr(base, "attr", None)) == "Agent"
                 for base in node.bases
             ):
-                continue
-            for item in node.body:
-                if not isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    continue
-                methods += 1
-                arguments = item.args
-                names = {
-                    arg.arg
-                    for arg in [*arguments.posonlyargs, *arguments.args, *arguments.kwonlyargs]
-                }
-                if names & threaded:
-                    remaining.append((path.relative_to(root).as_posix(), item.name))
-
-    assert methods > 20
-    assert remaining == []
+                subclasses.append((path.relative_to(root).as_posix(), node.name))
+    assert subclasses == []
 
 
-def _paper_runtime(replies, calls, name):
-    from openprogram.agentic_programming.runtime import Runtime
-
-    def call(content, model="default", response_format=None):
-        calls.append(name)
-        return replies.pop(0)
-
-    return Runtime(call=call, model=name)
-
-
-def test_review_loop_reviews_on_the_reviewer_and_fixes_on_the_caller(tmp_path, monkeypatch):
-    from openprogram import Agent
+def test_review_loop_reviews_on_the_reviewer_and_fixes_on_the_author(tmp_path, monkeypatch):
+    from openprogram.testing import script_roles
+    from openprogram.programs.workflow.research import roles
     from openprogram.programs.workflow.research.stages import review as module
-    from openprogram.programs.workflow.research.stages.review import (
-        ReviewPaperAgent,
-        review_loop,
-    )
 
-    # Runtime routing is under test here, not the sandboxed artifact writer.
+    # Role routing is under test here, not the sandboxed artifact writer.
     monkeypatch.setattr(module, "write_artifact", lambda path, text: Path(path).write_text(text))
     paper = tmp_path / "paper"
     paper.mkdir()
     (paper / "main.tex").write_text("Draft.\n")
-    calls = []
-    reviewer = ReviewPaperAgent(runtime=_paper_runtime(
-        ['{"score": 5, "verdict": "revise"}', '{"score": 8, "verdict": "accept"}'],
-        calls, "reviewer",
-    ))
-    executor_runtime = _paper_runtime(["% === main.tex ===\nRevised.\n"], calls, "executor")
+    with script_roles({
+        roles.reviewer: ['{"score": 5, "verdict": "revise"}', '{"score": 8, "verdict": "accept"}'],
+        roles.author: ["% === main.tex ===\nRevised.\n"],
+    }) as calls:
+        result = module.review_loop(str(paper), max_rounds=2)
 
-    class Executor(Agent):
-        def run(self):
-            return review_loop(str(paper), reviewer=reviewer, max_rounds=2)
-
-    result = Executor(runtime=executor_runtime).run()
-
-    assert calls == ["reviewer", "executor", "reviewer"]
+    assert len(calls[roles.reviewer]) == 2 and len(calls[roles.author]) == 1
     assert result["passed"] and result["rounds"] == 2
     assert (paper / "main.tex").read_text() == "Revised.\n"
 
 
 def test_compete_judges_on_the_evaluator():
-    from openprogram import Agent
-    from openprogram.programs.workflow.research.evaluate import (
-        EvaluateCandidatesAgent,
-        compete,
-    )
+    from openprogram.testing import script_roles
+    from openprogram.programs.workflow.research import roles
+    from openprogram.programs.workflow.research.evaluate import compete
 
-    calls = []
+    def first(text: str) -> str:
+        return "first " + text
 
-    class Drafts(Agent):
-        def first(self, text: str) -> str:
-            return "first " + text
+    def second(text: str) -> str:
+        return "second " + text
 
-        def second(self, text: str) -> str:
-            return "second " + text
+    with script_roles({
+        roles.evaluator: ['{"winner": 2, "scores": [4, 9], "reasoning": "clearer"}'],
+    }) as calls:
+        result = compete([first, second], {"text": "draft"})
 
-    evaluator = EvaluateCandidatesAgent(runtime=_paper_runtime(
-        ['{"winner": 2, "scores": [4, 9], "reasoning": "clearer"}'], calls, "evaluator",
-    ))
-    drafts = Drafts()
-    result = compete([drafts.first, drafts.second], {"text": "draft"}, evaluator=evaluator)
-
-    assert calls == ["evaluator"]
+    assert len(calls[roles.evaluator]) == 1
     assert result["winner_name"] == "second"
     assert result["winner_output"] == "second draft"
 
 
-def test_polish_chooses_style_without_a_user_setting(monkeypatch):
+def test_polish_chooses_style_without_a_user_setting():
+    from openprogram.testing import script_roles
+
     module = importlib.import_module("openprogram.programs.workflow.text")
-    calls = []
-    monkeypatch.setattr(
-        module, "llm", lambda prompt, **kwargs: calls.append(prompt) or "polished"
-    )
-    assert module.polish_text("A research abstract") == "polished"
-    assert len(calls) == 1
-    assert "Choose an appropriate style" in calls[0][0]["text"]
+    with script_roles({module.editor: ["polished", "polished"]}) as calls:
+        assert module.polish_text("A research abstract") == "polished"
+        module.polish_text("A note", style="concise")
+    first, second = calls[module.editor]
+    assert "Choose an appropriate style" in first.prompt
     assert module.polish_text.input_meta["style"]["hidden"]
     assert inspect.signature(module.polish_text).parameters["style"].default == "auto"
-    module.polish_text("A note", style="concise")
-    assert "in concise style" in calls[1][0]["text"]
+    assert "in concise style" in second.prompt

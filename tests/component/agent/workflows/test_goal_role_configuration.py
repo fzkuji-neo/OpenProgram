@@ -227,14 +227,16 @@ def test_initial_failure_binds_bare_model_to_original_provider(role_goal):
     assert ("worker", "writer2", "test-key-for-worker") in calls
 
 
-def test_cross_provider_role_retains_callers_system_constraints(role_goal):
+def test_cross_provider_roles_send_only_their_own_instructions(role_goal):
     package, factory, _calls, _unavailable = role_goal
     runtime = factory("worker", "writer")
     runtime.system = "CALLER_CONSTRAINT_828_DO_NOT_PUBLISH"
     run_on(runtime, package.goal,
         "write the article", judge_model="judge:reviewer", max_rounds=1
     )
+    # Workflow role requests carry the role's instructions only; the
+    # caller's runtime system prompt is not part of them.
     assert len(factory.prompts) >= 3
-    assert all(
+    assert not any(
         "CALLER_CONSTRAINT_828_DO_NOT_PUBLISH" in text for text in factory.prompts
     )

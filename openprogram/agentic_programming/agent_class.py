@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import inspect
+import sys
 from functools import wraps
 from contextlib import contextmanager
 from typing import Any
@@ -98,18 +99,34 @@ class Agent(TurnOperations):
             options["tools"] = resolve_tools(self._spec.to_dict(), override=options.get("tools"))
         return options
 
+    def _role_site(self, frame):
+        from openprogram.agentic_programming.workflow_site import capture_site, role_name
+        site = capture_site(frame)
+        if site is not None:
+            role_name(self, site)
+        return site
+
+    def _record_turn(self, context, prompt, reply):
+        target = self.context if context is _UNSET else context
+        if isinstance(target, Context):
+            target.record_turn(prompt, reply)
+
     def __call__(self, prompt: str | list[dict], **overrides) -> Any:
         """Run one synchronous agent call with explicit option overrides."""
         from openprogram.agentic_programming.agent import agent
         from openprogram.agentic_programming.runtime_scope import prepared_agent_call
+        from openprogram.agentic_programming.workflow_site import bind_site
+        site = self._role_site(sys._getframe(1))
         context = overrides.pop("context", _UNSET)
         instructions = overrides.pop("instructions", self.instructions)
         with _configuration_scope(self, context=context, instructions=instructions,
-                                  runtime=overrides.get("runtime", _UNSET), request=True) as link, prepared_agent_call():
-            result = agent(prompt, **self._call_options(overrides))
+                                  runtime=overrides.get("runtime", _UNSET), request=True) as link, \
+                prepared_agent_call(), bind_site(site):
+            result = agent(prompt=prompt, **self._call_options(overrides))
             if link is not None:
                 link.output = result
-            return result
+        self._record_turn(context, prompt, result)
+        return result
 
     def choose(self, prompt: str, options: dict[str, str], *, context=_UNSET,
                model: str = "", effort: str = "", timeout_s: float | None = None) -> str:
@@ -124,6 +141,13 @@ class Agent(TurnOperations):
         from openprogram.agentic_programming.runtime.shared import (
             _current_agent_options, _current_response_format, _current_model_call_budget,
         )
+        from openprogram.agentic_programming.workflow_site import bind_site
+        site = self._role_site(sys._getframe(1))
+
+        def choose(prompt, **options):
+            with bind_site(site):
+                return llm(prompt, **options)
+
         with _configuration_scope(self, context=context, request=True) as link:
             # A selection has its own output contract, independent of any
             # surrounding tool loop or structured-output repair defaults.
@@ -134,30 +158,35 @@ class Agent(TurnOperations):
             format_token = _current_response_format.set(None)
             budget_token = _current_model_call_budget.set(None)
             try:
-                result = managed_function(llm)(
+                result = managed_function(choose, name="choose")(
                     prompt, choices={key: (key, label) for key, label in options.items()},
                     model=model, effort=effort, timeout_s=timeout_s,
                 )
                 if link is not None:
                     link.output = result
-                return result
             finally:
                 _current_model_call_budget.reset(budget_token)
                 _current_response_format.reset(format_token)
                 _current_agent_options.reset(token)
+        self._record_turn(context, prompt, result)
+        return result
 
     async def arun(self, prompt: str | list[dict], **overrides) -> Any:
         """Run one asynchronous agent call with explicit option overrides."""
         from openprogram.agentic_programming.agent import agent_async
         from openprogram.agentic_programming.runtime_scope import prepared_agent_call
+        from openprogram.agentic_programming.workflow_site import bind_site
+        site = self._role_site(sys._getframe(1))
         context = overrides.pop("context", _UNSET)
         instructions = overrides.pop("instructions", self.instructions)
         with _configuration_scope(self, context=context, instructions=instructions,
-                                  runtime=overrides.get("runtime", _UNSET), request=True) as link, prepared_agent_call():
+                                  runtime=overrides.get("runtime", _UNSET), request=True) as link, \
+                prepared_agent_call(), bind_site(site):
             result = await agent_async(prompt, **self._call_options(overrides))
             if link is not None:
                 link.output = result
-            return result
+        self._record_turn(context, prompt, result)
+        return result
 
     @classmethod
     def from_spec(cls, spec, **overrides):

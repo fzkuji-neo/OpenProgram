@@ -1,80 +1,58 @@
 """
-evaluate — prompt competition via competing Agent methods.
+evaluate — prompt competition between functions.
 
-Instead of external prompt files, each competing approach is an
-Agent method whose docstring IS the prompt. The evaluator
-runs each function on the same input, then uses a (potentially
-different) LLM to pick the best output.
+Each competing approach is a function whose docstring is its prompt.
+``compete`` runs each one on the same input, then the ``evaluator`` role
+(configure ``roles.evaluator.model`` for a different model) picks the
+best output.
 
 Usage:
-    from openprogram.programs.workflow.research.evaluate import (
-        EvaluateCandidatesAgent, compete,
-    )
+    from openprogram.programs.workflow.research.evaluate import compete
 
     best = compete(
-        functions=[PolishAgent(runtime=claude_runtime).polish_v1,
-                   PolishAgent(runtime=claude_runtime).polish_v2],
+        functions=[polish_rigorous, polish_natural],
         kwargs={"text": "We propose ..."},
-        evaluator=EvaluateCandidatesAgent(runtime=gpt_runtime),
         task="Polish academic LaTeX for NeurIPS",
     )
 """
 
 from __future__ import annotations
 
-from openprogram.agentic_programming import Agent
-
-from typing import Optional
-
-from openprogram.agentic_programming import llm
+from .roles import evaluator
 from openprogram.programs.workflow.json_parsing import parse_json
 
 
-class EvaluateCandidatesAgent(Agent):
-    method_options = {
-        "_evaluate_candidates": {
-            "render_range": {"callers": 0},
-            "name": "_evaluate_candidates",
-            "tool": True,
-        },
-    }
+def _evaluate_candidates(task: str, candidates: list[dict]) -> dict:
+    """Pick the best candidate output for an academic writing task.
+    Score each on: accuracy, quality, academic rigor, naturalness.
+    Return JSON: {"winner": <1-based>, "scores": [...], "reasoning": "..."}"""
+    parts = [f"Task: {task}\n"]
+    for i, c in enumerate(candidates):
+        parts.append(f"--- Candidate {i + 1} ({c['name']}) ---")
+        parts.append(c["output"][:3000])
 
-    def _evaluate_candidates(self, task: str, candidates: list[dict]) -> dict:
-        """Pick the best candidate output for an academic writing task.
-        Score each on: accuracy, quality, academic rigor, naturalness.
-        Return JSON: {"winner": <1-based>, "scores": [...], "reasoning": "..."}"""
-        parts = [f"Task: {task}\n"]
-        for i, c in enumerate(candidates):
-            parts.append(f"--- Candidate {i + 1} ({c['name']}) ---")
-            parts.append(c["output"][:3000])
-
-        return llm(
-            [
-                {"type": "text", "text": "\n".join(parts)},
-            ]
-        )
+    return evaluator(
+        [
+            {"type": "text", "text": "\n".join(parts)},
+        ]
+    )
 
 
-_evaluate_candidates = EvaluateCandidatesAgent()._evaluate_candidates
 
 
 def compete(
     functions: list[callable],
     kwargs: dict,
-    evaluator: Optional[EvaluateCandidatesAgent] = None,
     task: str = "Pick the best academic writing output",
 ) -> dict:
-    """Run prompt competition between Agent methods.
+    """Run prompt competition between functions.
 
-    Each function is called with the same kwargs on its own Agent's
-    Runtime. Their outputs are judged by the evaluator Agent (ideally
-    configured with a different model).
+    Each function is called with the same kwargs. Their outputs are
+    judged by the ``evaluator`` role.
 
     Args:
-        functions:  List of Agent method callables to compete.
+        functions:  List of functions to compete.
         kwargs:     Keyword arguments to pass to each function.
-        evaluator:  A configured EvaluateCandidatesAgent. Defaults to
-                    the ambient Runtime.
         task:       Description of what we're evaluating.
 
     Returns:
@@ -103,8 +81,7 @@ def compete(
         candidates.append({"name": fn.__name__, "output": str(output)})
 
     # Evaluate
-    evaluate = evaluator._evaluate_candidates if evaluator is not None else _evaluate_candidates
-    reply = evaluate(task=task, candidates=candidates)
+    reply = _evaluate_candidates(task=task, candidates=candidates)
 
     result = reply if isinstance(reply, dict) else parse_json(reply)
     if not isinstance(result, dict):

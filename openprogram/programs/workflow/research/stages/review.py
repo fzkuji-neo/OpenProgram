@@ -1,111 +1,88 @@
 """
 review — cross-model review and iterative improvement.
 
-The reviewer Agent can run on a different model from the executor to avoid
-self-play blind spots. The loop: review → fix → re-review → until pass.
+The ``reviewer`` role can run on a different model from the author
+(set ``roles.reviewer.model``) to avoid self-review blind spots.
 """
 
 from __future__ import annotations
-
-from openprogram.agentic_programming import Agent
 
 import os
 import re
 import math
 from typing import Optional
 
-from openprogram.agentic_programming import llm
+from ..roles import author, reviewer
 from openprogram.agentic_programming.call_state import check_cancelled
 from .._paths import expanded_project_dir, read_artifact, write_artifact
 from openprogram.programs.workflow.json_parsing import parse_json
 
 
-class ReviewPaperAgent(Agent):
-    method_options = {
-        "review_paper": {
-            "render_range": {"depth": 0, "siblings": 0},
-            "name": "review_paper",
-            "tool": True,
-        },
-    }
+def review_paper(paper_content: str, venue: str) -> str:
+    """Review a paper at the level expected by top CS conferences.
 
-    def review_paper(self, paper_content: str, venue: str) -> str:
-        """Review a paper at the level expected by top CS conferences.
+    Evaluate the paper objectively: identify weaknesses AND acknowledge
+    strengths. Be rigorous and precise.
 
-        Evaluate the paper objectively: identify weaknesses AND acknowledge
-        strengths. Be rigorous and precise.
+    Review dimensions:
+    - Community contribution: does this advance the field substantively?
+    - Rigor: are claims supported by experiments? Fair baselines? Ablations?
+    - Consistency: do intro claims match experimental validation?
 
-        Review dimensions:
-        - Community contribution: does this advance the field substantively?
-        - Rigor: are claims supported by experiments? Fair baselines? Ablations?
-        - Consistency: do intro claims match experimental validation?
+    Distinguish fatal flaws from fixable issues — they carry different weight.
+    Be specific: not "experiments insufficient" but "missing comparison with
+    [specific method] on [specific dataset]".
 
-        Distinguish fatal flaws from fixable issues — they carry different weight.
-        Be specific: not "experiments insufficient" but "missing comparison with
-        [specific method] on [specific dataset]".
+    Score faithfully: if the paper is solid, give it a high score.
+    Skip pleasantries, cut to core judgments.
 
-        Score faithfully: if the paper is solid, give it a high score.
-        Skip pleasantries, cut to core judgments.
-
-        After your review, append a JSON block:
-        ```json
-        {"score": <1-10>, "passed": <true if score>=7>,
-         "weaknesses": ["specific issues"],
-         "strengths": ["specific strengths"],
-         "verdict": "one-line summary"}
-        ```
-        """
-        return llm(
-            [
-                {
-                    "type": "text",
-                    "text": (f"Target venue: {venue}\n\nPaper:\n{paper_content}"),
-                },
-            ]
-        )
+    After your review, append a JSON block:
+    ```json
+    {"score": <1-10>, "passed": <true if score>=7>,
+     "weaknesses": ["specific issues"],
+     "strengths": ["specific strengths"],
+     "verdict": "one-line summary"}
+    ```
+    """
+    return reviewer(
+        [
+            {
+                "type": "text",
+                "text": (f"Target venue: {venue}\n\nPaper:\n{paper_content}"),
+            },
+        ]
+    )
 
 
-review_paper = ReviewPaperAgent().review_paper
 
 
-class FixPaperAgent(Agent):
-    method_options = {
-        "fix_paper": {
-            "render_range": {"siblings": -1},
-            "name": "fix_paper",
-            "tool": True,
-        },
-    }
+def fix_paper(paper_content: str, review_feedback: str, round_num: int
+) -> str:
+    """Fix the paper based on reviewer feedback.
 
-    def fix_paper(
-        self, paper_content: str, review_feedback: str, round_num: int
-    ) -> str:
-        """Fix the paper based on reviewer feedback.
+    Address EVERY weakness mentioned. Do NOT weaken existing strengths.
+    Rewrite actual paragraphs — don't just describe what should change.
+    Maintain LaTeX formatting.
 
-        Address EVERY weakness mentioned. Do NOT weaken existing strengths.
-        Rewrite actual paragraphs — don't just describe what should change.
-        Maintain LaTeX formatting.
-
-        Output the COMPLETE fixed paper content. Preserve every file boundary
-        marker exactly as "% === filename.tex ==="; include all original files
-        once, with no markdown fences or added files. Never invent experiment
-        results or citations to satisfy review feedback.
-        """
-        return llm(
-            [
-                {
-                    "type": "text",
-                    "text": (
-                        f"Round {round_num}\n\n"
-                        f"Reviewer feedback:\n{review_feedback}\n\n"
-                        f"Current paper:\n{paper_content}"
-                    ),
-                },
-            ]
-        )
+    Output the COMPLETE fixed paper content. Preserve every file boundary
+    marker exactly as "% === filename.tex ==="; include all original files
+    once, with no markdown fences or added files. Never invent experiment
+    results or citations to satisfy review feedback.
+    """
+    return author(
+        [
+            {
+                "type": "text",
+                "text": (
+                    f"Round {round_num}\n\n"
+                    f"Reviewer feedback:\n{review_feedback}\n\n"
+                    f"Current paper:\n{paper_content}"
+                ),
+            },
+        ]
+    )
 
 
-fix_paper = FixPaperAgent().fix_paper
 
 
 def _read_paper(paper_dir: str) -> str:
@@ -139,7 +116,6 @@ def _save_review_log(log_path: str, rounds: list):
 def review_loop(
     paper_dir: str,
     venue: str = "NeurIPS",
-    reviewer: Optional[ReviewPaperAgent] = None,
     max_rounds: int = 4,
     pass_threshold: int = 7,
     callback: Optional[callable] = None,
@@ -149,9 +125,6 @@ def review_loop(
     Args:
         paper_dir:       Path to paper/ directory with .tex files.
         venue:           Target venue.
-        reviewer:        A configured ReviewPaperAgent (a different model is
-                         recommended). Defaults to the ambient Runtime, which
-                         also runs the fixes.
         max_rounds:      Max review-fix cycles.
         pass_threshold:  Min score to pass (default: 7/10).
         callback:        Called after each round.
@@ -159,8 +132,6 @@ def review_loop(
     Returns:
         dict with: passed, rounds, final_score, reviews
     """
-    run_review = reviewer.review_paper if reviewer is not None else review_paper
-
     paper_dir = str(expanded_project_dir(paper_dir))
     paper_content = _read_paper(paper_dir)
     log_path = os.path.join(os.path.dirname(paper_dir), "AUTO_REVIEW.md")
@@ -179,7 +150,7 @@ def review_loop(
 
     for round_num in range(1, max_rounds + 1):
         check_cancelled()
-        reply = run_review(paper_content=paper_content, venue=venue)
+        reply = review_paper(paper_content=paper_content, venue=venue)
         review = reply if isinstance(reply, dict) else parse_json(reply)
         if not isinstance(review, dict):
             raise ValueError("Paper review must return an object")

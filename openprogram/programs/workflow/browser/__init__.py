@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from openprogram.agentic_programming import Agent
+from openprogram import Agent
 
 import asyncio
 import base64
@@ -18,7 +18,6 @@ import uuid
 from typing import Any, Mapping
 from urllib.parse import urlparse
 
-from openprogram.agentic_programming import agent
 from openprogram.agentic_programming.call_state import CancelledError
 from openprogram.programs import ToolReturn
 from openprogram.programs._runtime import function
@@ -409,6 +408,10 @@ _GUI_TOOL_PARAMETERS = {
 }
 
 
+
+# Plans one browser action per step from the page observation.
+planner = Agent()
+
 def _origin(url: str) -> str:
     parsed = urlparse(url or "")
     if not parsed.scheme or not parsed.hostname:
@@ -540,68 +543,29 @@ def _with_current_pages(failure: dict) -> dict:
     }
 
 
-class BrowserTaskAgent(Agent):
-    method_options = {
-        "browser_agent": {
-            "name": "browser_agent",
-            "toolset": ("browser",),
-            "unsafe_in": ("wechat", "telegram", "plan"),
-            "requires_approval": _browser_agent_requires_approval,
-            "defer": False,
-            "input": {
-                "task": {"description": "Browser task", "multiline": True},
-                "url": {"description": "Optional initial http(s) URL"},
-                "max_steps": {
-                    "description": "Maximum state-changing actions",
-                    "hidden": True,
-                    "advanced": True,
-                },
-                "max_seconds": {
-                    "description": "Wall-clock limit in seconds",
-                    "hidden": True,
-                    "advanced": True,
-                },
-                "backend": {
-                    "description": "Optional web_use backend for GUI Agent Harness",
-                    "hidden": True,
-                    "advanced": True,
-                    "options": [
-                        "playwright_mcp",
-                        "chrome_devtools_mcp",
-                        "open_claude_chrome",
-                    ],
-                },
-            },
-            "tool": True,
-        },
-    }
-
-    def browser_agent(
-        self,
-        task: str,
-        url: str = "",
-        max_steps: int = 20,
-        max_seconds: int = 300,
-        backend: str = "",
-    ) -> dict:
-        """Complete a task in one exact OpenProgram built-in browser Page."""
-        if backend:
-            return _run_browser_task_commands(
-                task=task,
-                url=url,
-                backend=backend,
-                max_steps=max_steps,
-                max_seconds=max_seconds,
-            )
-        return _run_browser_task(
+def browser_agent(task: str,
+    url: str = "",
+    max_steps: int = 20,
+    max_seconds: int = 300,
+    backend: str = "",
+) -> dict:
+    """Complete a task in one exact OpenProgram built-in browser Page."""
+    if backend:
+        return _run_browser_task_commands(
             task=task,
             url=url,
+            backend=backend,
             max_steps=max_steps,
             max_seconds=max_seconds,
         )
+    return _run_browser_task(
+        task=task,
+        url=url,
+        max_steps=max_steps,
+        max_seconds=max_seconds,
+    )
 
 
-browser_agent = BrowserTaskAgent().browser_agent
 
 
 DEFAULT_GUI_BROWSER_START_URL = "https://www.google.com/"
@@ -691,76 +655,99 @@ def run_web_use(
     return result
 
 
-class WebUseAgent(Agent):
-    method_options = {
-        "web_use": {
-            "name": "web_use",
-            "toolset": ("browser",),
-            "unsafe_in": ("wechat", "telegram", "plan"),
-            "requires_approval": _browser_agent_requires_approval,
-            "defer": True,
-            "timeout": 120,
-            "parameters": web_use_parameters(),
-            "input": {
-                "command": {
-                    "description": (
-                        "Call list_pages first; then observe, act, verify, or close. "
-                        "observe or act with url opens a desktop web tab when no Page exists. "
-                        "close closes the observed Page's tab and ends its session."
-                    ),
-                },
-                "backend": {
-                    "description": "Backend used when observe creates a session",
-                    "hidden": True,
-                    "advanced": True,
-                },
-                "page": {"description": "Turn Page alias used by observe; never a URL"},
-                "web_session_id": {
-                    "description": "Session returned by observe",
-                    "hidden": True,
-                    "advanced": True,
-                },
-                "page_context_token": {"hidden": True, "advanced": True},
-                "arguments": {
-                    "description": (
-                        "Command-specific arguments. act needs action; expected_frame_id "
-                        "is filled from the last observe when omitted. action, url, text, "
-                        "and ref may also be passed at the top level."
-                    ),
-                },
+def web_use(command: str,
+    backend: str = "",
+    page: str = "",
+    page_context_token: str = "",
+    web_session_id: str = "",
+    arguments: dict | None = None,
+) -> dict | ToolReturn:
+    """List, observe, or control exact Pages in OpenProgram's built-in browser.
+
+    Start with ``list_pages``. Select a returned ``page_context_token`` for
+    ``observe``; do not pass a URL as ``page``. ``observe`` or ``act`` with
+    ``url`` opens a desktop web tab when no Page is available. ``close``
+    closes the observed Page's tab.
+    """
+    return run_web_use(command, backend, page, page_context_token, web_session_id, arguments)
+
+
+
+
+PROGRAM_ENTRIES = [browser_agent, web_use]
+
+ENTRY_OPTIONS = {
+    "browser_agent": {
+        "toolset": ("browser",),
+        "unsafe_in": ("wechat", "telegram", "plan"),
+        "requires_approval": _browser_agent_requires_approval,
+        "defer": False,
+        "input": {
+            "task": {"description": "Browser task", "multiline": True},
+            "url": {"description": "Optional initial http(s) URL"},
+            "max_steps": {
+                "description": "Maximum state-changing actions",
+                "hidden": True,
+                "advanced": True,
             },
-            "tool": True,
+            "max_seconds": {
+                "description": "Wall-clock limit in seconds",
+                "hidden": True,
+                "advanced": True,
+            },
+            "backend": {
+                "description": "Optional web_use backend for GUI Agent Harness",
+                "hidden": True,
+                "advanced": True,
+                "options": [
+                    "playwright_mcp",
+                    "chrome_devtools_mcp",
+                    "open_claude_chrome",
+                ],
+            },
         },
-    }
-
-    def web_use(
-        self,
-        command: str,
-        backend: str = "",
-        page: str = "",
-        page_context_token: str = "",
-        web_session_id: str = "",
-        arguments: dict | None = None,
-    ) -> dict | ToolReturn:
-        """List, observe, or control exact Pages in OpenProgram's built-in browser.
-
-        Start with ``list_pages``. Select a returned ``page_context_token`` for
-        ``observe``; do not pass a URL as ``page``. ``observe`` or ``act`` with
-        ``url`` opens a desktop web tab when no Page is available. ``close``
-        closes the observed Page's tab.
-        """
-        return run_web_use(command, backend, page, page_context_token, web_session_id, arguments)
-
-
-web_use = WebUseAgent().web_use
-
-
-# The Page inventory, WebSession registry, and renderer WebSocket registry are
-# worker-owned. Keep the agentic runtime-card UI, but execute this bounded tool
-# in the worker instead of copying those registries into an isolated process.
-if getattr(web_use, "_agent_tool", None) is not None:
-    setattr(web_use._agent_tool, "_run_in_worker", True)
-
+    },
+    "web_use": {
+        "toolset": ("browser",),
+        "unsafe_in": ("wechat", "telegram", "plan"),
+        "requires_approval": _browser_agent_requires_approval,
+        "defer": True,
+        "timeout": 120,
+        # The Page inventory, WebSession registry, and renderer WebSocket
+        # registry are worker-owned: run in the worker instead of copying
+        # those registries into an isolated process.
+        "run_in_worker": True,
+        "parameters": web_use_parameters(),
+        "input": {
+            "command": {
+                "description": (
+                    "Call list_pages first; then observe, act, verify, or close. "
+                    "observe or act with url opens a desktop web tab when no Page exists. "
+                    "close closes the observed Page's tab and ends its session."
+                ),
+            },
+            "backend": {
+                "description": "Backend used when observe creates a session",
+                "hidden": True,
+                "advanced": True,
+            },
+            "page": {"description": "Turn Page alias used by observe; never a URL"},
+            "web_session_id": {
+                "description": "Session returned by observe",
+                "hidden": True,
+                "advanced": True,
+            },
+            "page_context_token": {"hidden": True, "advanced": True},
+            "arguments": {
+                "description": (
+                    "Command-specific arguments. act needs action; expected_frame_id "
+                    "is filled from the last observe when omitted. action, url, text, "
+                    "and ref may also be passed at the top level."
+                ),
+            },
+        },
+    },
+}
 
 __all__ = [
     "browser_agent",
@@ -769,3 +756,4 @@ __all__ = [
     "execute_direct_web_use",
     "BrowserPageController",
 ]
+

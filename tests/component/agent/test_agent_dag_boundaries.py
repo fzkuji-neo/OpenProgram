@@ -80,21 +80,21 @@ def test_child_failure_restores_parent(chat):
     assert _call_id.get() == 'request'
 
 
-@pytest.mark.parametrize('history_filter', [False, 'current_call'])
-def test_child_preserves_explicit_context_policy_without_parent_history(chat, history_filter):
+@pytest.mark.parametrize('history', [None, 'thread'])
+def test_child_preserves_explicit_context_policy_without_parent_history(chat, history):
     from openprogram import Context, Runtime
     observed = []
     def provider(content, **kwargs):
         context = Context.current()
-        observed.append((context.history_filter, context.store.session_id,
+        observed.append((context.history, context.store.session_id,
                          set(context.store.load().nodes)))
         return 'answer'
     runtime = Runtime(call=provider)
     try:
-        with Context(history_filter=history_filter).bind():
+        with Context(history=history).bind():
             assert Agent(runtime=runtime, tools=[])('child request') == 'answer'
         policy, session, ids = observed[0]
-        assert policy == history_filter
+        assert policy == history
         assert session != 'chat'
         assert 'request' not in ids
     finally:
@@ -229,7 +229,7 @@ def test_explicit_parent_context_preserves_content_not_graph(chat, entry):
             return parent_id, result
     runtime = Runtime(call=provider)
     try:
-        with Context({'facts': 'payload'}, history_filter=False).bind():
+        with Context({'facts': 'payload'}, history=None).bind():
             parent_id, result = Parent().run()
         assert result == 'done'
         blocks, child_id, ids = observed[0]

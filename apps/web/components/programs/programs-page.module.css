@@ -168,6 +168,39 @@
   font-size: var(--fs-sm);
 }
 
+.workflowState {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 18px;
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--accent-yellow) 35%, var(--border));
+  border-radius: 7px;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--accent-yellow) 7%, transparent);
+  font-size: var(--fs-sm);
+}
+
+.workflowState strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.workflowState p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.workflowState small {
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.workflowStateError {
+  border-color: color-mix(in srgb, var(--accent-red) 40%, var(--border));
+  background: color-mix(in srgb, var(--accent-red) 7%, transparent);
+}
+
 .logicToolbar {
   min-height: 48px;
   padding: 8px 10px 8px 13px;

@@ -3,8 +3,8 @@
 Personal-chat and Feishu draft requests return the full Markdown body by default. They do not need a successful local file write. An explicitly requested Markdown output path retains file delivery; existing file-delivery resume requests remain supported. Returning text does not submit or send anything externally.
 
 The report suite consists of four independently versioned Workflow packages and
-one coordinating `weekly_report` package. They must be installed in the Programs catalog;
-this source checkout alone does not install them. The suite supports independent execution and composition through the `weekly_report` entry.
+one coordinating `weekly_report` package. They live in `~/.openprogram/workflows`;
+this source checkout does not include them. The suite supports independent execution and composition through the `weekly_report` entry.
 Native WeChat collection depends on accessible search and conversation controls;
 the group Workflow records unavailable controls and continues with local evidence, producing an explicitly partial draft.
 
@@ -100,7 +100,7 @@ material source must be configured separately before enabling a scheduled run.
 
 ## Source organization
 
-The five independent report Workflow packages are grouped under `openprogram/programs/workflow/weekly_report/`: `personal_weekly_report` (Feishu), `personal_chat_weekly_report` (owner's WeChat-group copy), `group_weekly_report` (group collection), `tencent_weekly_report` (Tencent), and `weekly_report` (routing). Shared internal helpers live in `workflow/_reports/`. The coordinator is named `weekly_report`. Configured output paths are unchanged. A category directory organizes sources; it is not an additional Workflow.
+The five independent report Workflow packages live side by side in `~/.openprogram/workflows/`: `personal_weekly_report` (Feishu), `personal_chat_weekly_report` (owner's WeChat-group copy), `group_weekly_report` (group collection), `tencent_weekly_report` (Tencent), and `weekly_report` (routing). Shared helpers come from `openprogram.programs.workflow._reports`. The coordinator `weekly_report` imports the other four packages directly. Configured output paths are unchanged.
 
 Personal field generation uses a read-only Agent with `list_agents(scope="all")` and
 `read_conversation` to retrieve work from other sessions, alongside memory and

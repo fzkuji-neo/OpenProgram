@@ -51,11 +51,11 @@ context = Context(
 researcher = Agent(context=context, tools=[])
 ```
 
-`Context(blocks=None, *, parent=None, providers=None, history_filter=..., call_id=..., store=None, head_id=None)` implements a mutable mapping of named content. `derive()` creates a child with independent content. `Context.current()` returns the task binding, or `None`. `merge(other)` overlays named content and explicit selection without replacing the scope call identity. `bind()` is available for host integrations that need an explicit binding.
+`Context(blocks=None, *, parent=None, providers=None, history=..., call_id=..., store=None, head_id=None)` implements a mutable mapping of named content. `derive()` creates a child with independent content. `Context.current()` returns the task binding, or `None`. `merge(other)` overlays named content and explicit selection without replacing the scope call identity. `bind()` is available for host integrations that need an explicit binding.
 
 Providers are synchronous Python callables that accept the current Context. They run for each model request. A provider failure aborts that request. The framework does not execute expression strings.
 
-`history_filter` defaults to `"dag"`. `"current_call"` retains the current scope and its descendants within the already visible DAG selection. `False` disables history. A callable receives `(node, context)` and filters nodes after existing DAG visibility checks. These settings cannot expand tool permissions.
+`history` selects the history a model request sees. `None` sends none. `"thread"` sends only the earlier requests made with this same Context object. `"chat"` (the default for a Context) sends the visible conversation. A callable receives `(node, context)` and filters conversation nodes after the existing visibility checks. A Workflow role call that does not set `history` explicitly sends no history. These settings cannot expand tool permissions.
 
 Context has one model: parent inheritance, named content, request-time evaluation, and history visibility. Agent instance content is an instance binding of that model. Model interactions remain in the execution session. Content is separate from system instructions and tool authority.
 

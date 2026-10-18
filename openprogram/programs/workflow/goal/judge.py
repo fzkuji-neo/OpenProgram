@@ -1,16 +1,16 @@
 """Completion judgment for the Goal Workflow.
 
-``evaluate_goal`` is the session-loop seam. ``judge_goal`` is the
-decision agent — its docstring is the prompt. Accounting, stop rules
+``evaluate_goal`` is the session-loop seam. ``judge_goal`` calls the
+``judge`` role, and its docstring is the judge's brief. Accounting, stop rules
 and state writes stay in ``loop`` / ``state``.
 """
 from __future__ import annotations
 
-import inspect
 import json
 import logging
 from typing import Optional
 
+from openprogram import Agent, Context
 from openprogram.agentic_programming.call_state import current_session_id
 from openprogram.programs.workflow.json_parsing import parse_json
 
@@ -78,52 +78,6 @@ def render_session_view(session_id: str, *,
     return tail_text
 
 
-def _run_decision_turn(session_id: str, prompt: str, *, agent_id: str,
-                       spawn_caller: Optional[str]) -> str:
-    """Inspect within the Goal runtime; standalone session helpers may spawn."""
-    from openprogram.agentic_programming.call_state import _current_runtime
-
-    # A Goal already owns a Runtime and its canonical execution. Starting a
-    # JobRunner here can run startup recovery against that still-live owner.
-    # The current frame supplies caller/profile; explicit branch selection is
-    # only used by the standalone helper path below.
-    if _current_runtime.get(None) is not None or not session_id:
-        from openprogram.agentic_programming.agent import agent
-        from openprogram.programs import agent_tools
-        from .roles import inspection_options
-
-        text = agent(
-            prompt=prompt,
-            tools=agent_tools(names=list(DECISION_TOOLS)),
-            **inspection_options(default_model=_goal.judge_model(),
-                                 default_timeout=_goal.DEFAULT_PHASE_TIMEOUT_S),
-            execution_kind="goal_judge",
-        )
-        blocks = getattr(_current_runtime.get(None), "last_blocks", []) or []
-        return _check_inspection_errors(text, blocks)
-    from openprogram.agent.sub_agent_run import run_agent_turn
-    res = run_agent_turn(
-        session_id=session_id,
-        prompt=prompt,
-        agent_id=agent_id,
-        branch_from=None,
-        label="goal 判定",
-        spawn_caller=spawn_caller,
-        advance_head=False,
-        tools_override=list(DECISION_TOOLS),
-        model_override=_goal.judge_model() or None,
-    )
-    if res.failed:
-        raise RuntimeError(res.error or "goal decision turn failed")
-    blocks = []
-    if res.head_id:
-        from openprogram.agent.session_db import default_db
-        row = next((row for row in default_db().get_messages(session_id)
-                    if row.get("id") == res.head_id), {})
-        blocks = _message_blocks(row)
-    return _check_inspection_errors(res.final_text or "", blocks)
-
-
 def _check_inspection_errors(text: str, blocks: list[dict]) -> str:
     failed = [str(block.get("tool") or "unknown") for block in blocks
               if isinstance(block, dict) and block.get("type") == "tool"
@@ -187,28 +141,15 @@ def _parse_decision(raw: str, checklist_len: int = 0) -> dict:
     }
 
 
-def _decision_prompt(goal_text: str, session_view: str, attended: bool,
-                     checklist: Optional[list[str]] = None) -> str:
-    checklist_block = ""
-    if checklist:
-        numbered = "\n".join(f"{i}. {t}" for i, t in enumerate(checklist, 1))
-        checklist_block = f"<checklist>\n{numbered}\n</checklist>\n\n"
-    return (
-        f"{inspect.getdoc(judge_goal)}\n\n"
-        f"<mode>\n{'attended' if attended else 'unattended'}\n</mode>\n\n"
-        f"<goal>\n{goal_text}\n</goal>\n\n"
-        f"{checklist_block}"
-        f"<session_context>\n{session_view}\n</session_context>"
-    )
+judge = Agent(tools=list(DECISION_TOOLS))
 
 
 def judge_goal(goal: str, session_id: str = "", attended: bool = True,
                checklist: Optional[list[str]] = None,
-               spawn_caller: Optional[str] = None,
-               agent_id: str = "main",
-               session_view: Optional[str] = None) -> dict:
+               session_view: Optional[str] = None,
+               pending_questions: Optional[list[dict]] = None) -> dict:
     """You are the completion judge for an agent session goal. Read the
-    session context below and decide whether the goal is ALREADY
+    session context and decide whether the goal is ALREADY
     satisfied. The judgment is yours: you have inspection tools (read,
     grep, glob, list, web_fetch, web_search) and may check the working directory when
     that helps you decide, but you are not required to. When the
@@ -235,7 +176,7 @@ def judge_goal(goal: str, session_id: str = "", attended: bool = True,
     sampled items fail (nonexistent work, mismatched numbering, a
     fabricated name) is false no matter what the transcript claims.
 
-    When a <checklist> block is present below, it is the goal's fixed
+    When a checklist block is present, it is the goal's fixed
     acceptance checklist. You MUST verify every item with your tools
     and output a "checklist" field in the JSON: a list of true|false,
     one per item, in the SAME ORDER as the numbering and with the SAME
@@ -261,9 +202,9 @@ def judge_goal(goal: str, session_id: str = "", attended: bool = True,
     answer. Set can_continue=false only when every remaining required action
     depends on an unanswered question. Never guess or execute the dependent
     action while the question is pending. Whether a question is justified
-    depends on the <mode> below:
+    depends on the mode block:
 
-    Existing pending questions are listed in <pending_user_questions>.
+    Existing pending questions are listed in the pending user questions block.
     Do not create another question for the same unresolved dependency or
     rephrase it as a new question. If that dependency still determines the
     verdict, reuse its exact existing question text. A new question requires
@@ -323,18 +264,33 @@ def judge_goal(goal: str, session_id: str = "", attended: bool = True,
      "options": [{"label": "<short choice>", "description": "<what it means>"}, …],
      "checklist": [true|false, …]}
     """
+    from openprogram.agentic_programming.call_state import _current_runtime
+    from .roles import inspection_options
+
     sid = session_id or current_session_id()
     view = render_session_view(sid) if session_view is None else session_view
-    prompt = _decision_prompt(goal, view, attended,
-                              checklist=checklist)
-    raw = _run_decision_turn(sid, prompt, agent_id=agent_id,
-                             spawn_caller=spawn_caller)
+    context = Context({
+        "mode": "attended" if attended else "unattended",
+        "goal": goal,
+        "checklist": "\n".join(f"{i}. {t}" for i, t in enumerate(checklist or [], 1)),
+        "session context": view,
+        "pending user questions": (json.dumps(pending_questions, ensure_ascii=False)
+                                   if pending_questions else ""),
+    })
+    text = judge(
+        "Decide whether the goal is met.",
+        context=context,
+        **inspection_options(default_model=_goal.judge_model(),
+                             default_timeout=_goal.DEFAULT_PHASE_TIMEOUT_S),
+        execution_kind="goal_judge",
+    )
+    blocks = getattr(_current_runtime.get(None), "last_blocks", []) or []
+    raw = _check_inspection_errors(str(text or ""), blocks)
     return _parse_decision(raw, checklist_len=len(checklist or []))
 
 
 def evaluate_goal(
-    session_id: str, goal: dict, *, agent_id: str,
-    spawn_caller: Optional[str] = None,
+    session_id: str, goal: dict, *,
     session_view: Optional[str] = None,
 ) -> tuple[str, str, str, list[dict], bool]:
     """Typed verdict, reason, question, options, and independent-work flag.
@@ -356,14 +312,6 @@ def evaluate_goal(
         for item in (goal.get("questions") or [])
         if isinstance(item, dict) and item.get("status") == "pending"
     ]
-    if pending_questions:
-        if session_view is None:
-            session_view = render_session_view(session_id)
-        session_view += (
-            "\n\n<pending_user_questions>\n"
-            + json.dumps(pending_questions, ensure_ascii=False)
-            + "\n</pending_user_questions>"
-        )
     last_error = "goal decision reply was not valid JSON"
     for _attempt in range(2):
         try:
@@ -372,8 +320,7 @@ def evaluate_goal(
                 "session_id": session_id,
                 "attended": attended,
                 "checklist": [str(it.get("text") or "") for it in items] or None,
-                "spawn_caller": spawn_caller,
-                "agent_id": agent_id,
+                "pending_questions": pending_questions or None,
             }
             if session_view is not None:
                 kwargs["session_view"] = session_view

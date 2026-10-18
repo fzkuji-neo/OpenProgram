@@ -11,6 +11,10 @@ export type ProgramExplorerEntry = {
   logic_path?: string | null;
   description?: string;
   callable_name?: string;
+  /** User workflows: load state, error, and what to do next. */
+  workflow_state?: "loaded" | "pending" | "error";
+  workflow_error?: string;
+  workflow_note?: string;
 };
 
 export function programInvocationName(

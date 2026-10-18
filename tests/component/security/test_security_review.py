@@ -4,9 +4,8 @@ selection, diff collection over a real git repository, the short-circuit
 that returns no findings without spawning an agent, and the shape of
 what comes back.
 
-The review turn goes through the module-level ``_run_review_turn`` seam
-(the same shape ``goal`` and ``agentic_workflow`` use), so these tests stub it
-and never reach a provider. Git is real — baseline selection is exactly
+The review is one ``reviewer`` role call, answered here by
+``script_roles``, so these tests never reach a provider. Git is real — baseline selection is exactly
 the part that is worth testing against git rather than against a mock of
 it."""
 from __future__ import annotations
@@ -15,6 +14,8 @@ import json
 import subprocess
 
 import pytest
+
+from openprogram.testing import script_roles
 
 import openprogram.programs.workflow.security_review as SR
 
@@ -45,10 +46,10 @@ def repo(tmp_path, monkeypatch):
 
 @pytest.fixture
 def no_agent(monkeypatch):
-    """Fails the test if a review turn is spawned."""
-    def _boom(*a, **k):
-        raise AssertionError("a review agent was spawned")
-    monkeypatch.setattr(SR, "_run_review_turn", _boom)
+    """Fails the test if the reviewer role is called."""
+    with script_roles({SR.reviewer: []}) as calls:
+        yield
+    assert calls[SR.reviewer] == []
 
 
 def _reply(*findings):
@@ -177,7 +178,7 @@ def test_oversized_diff_is_cut_and_says_so() -> None:
 
 def test_empty_diff_returns_no_findings_without_an_agent(repo,
                                                          no_agent) -> None:
-    out = SR.run_security_review(base="", session_id="s1")
+    out = SR.run_security_review(base="")
 
     assert out["findings"] == []
     assert out["files_reviewed"] == 0
@@ -188,20 +189,16 @@ def test_explicit_base_skips_baseline_selection(repo, monkeypatch) -> None:
     def _no_resolve(*a, **k):
         raise AssertionError("resolve_base ran despite an explicit base")
     monkeypatch.setattr(SR, "resolve_base", _no_resolve)
-    monkeypatch.setattr(SR, "_run_review_turn", lambda *a, **k: _reply())
     (repo / "new.py").write_text("n = 1\n")
 
-    out = SR.run_security_review(base="main", session_id="s1")
+    with script_roles({SR.reviewer: [_reply()]}):
+        out = SR.run_security_review(base="main")
 
     assert out["base"] == "main"
 
 
 def test_findings_come_back_structured_and_ordered(repo, monkeypatch) -> None:
-    prompts = []
-
-    def _turn(sid, prompt, *, agent_id, spawn_caller):
-        prompts.append(prompt)
-        return "Here is what I found.\n" + _reply(
+    reply = "Here is what I found.\n" + _reply(
             {"severity": "low", "file": "a.py", "line": 3, "title": "verbose error",
              "scenario": "any caller sees the stack trace",
              "recommendation": "log it, return a generic message"},
@@ -209,12 +206,11 @@ def test_findings_come_back_structured_and_ordered(repo, monkeypatch) -> None:
              "title": "shell injection",
              "scenario": "a caller passes `; rm -rf /` as name",
              "recommendation": "pass a list to subprocess, no shell=True"},
-        )
-
-    monkeypatch.setattr(SR, "_run_review_turn", _turn)
+    )
     (repo / "b.py").write_text("import os\nos.system(name)\n")
 
-    out = SR.run_security_review(session_id="s1")
+    with script_roles({SR.reviewer: [reply]}) as calls:
+        out = SR.run_security_review()
 
     assert out["files_reviewed"] == 1
     assert [f["severity"] for f in out["findings"]] == ["critical", "low"]
@@ -222,10 +218,11 @@ def test_findings_come_back_structured_and_ordered(repo, monkeypatch) -> None:
     assert set(first) == {"severity", "file", "line", "title", "scenario",
                           "recommendation"}
     assert first["line"] == 12                      # coerced from the string
-    # the prompt carries the scope rules and the payload
-    assert "introduces or makes worse" in prompts[0]
-    assert "<changed_files>\nb.py\n</changed_files>" in prompts[0]
-    assert "os.system(name)" in prompts[0]
+    # the request carries the scope rules (review_diff docstring) and the payload
+    request = calls[SR.reviewer][0].text
+    assert "introduces or makes worse" in request
+    assert "changed files:\nb.py" in request
+    assert "os.system(name)" in request
 
 
 def test_unnamed_finding_is_dropped_and_bad_severity_normalised() -> None:
@@ -241,12 +238,11 @@ def test_unnamed_finding_is_dropped_and_bad_severity_normalised() -> None:
 
 
 def test_reply_without_json_is_an_error(repo, monkeypatch) -> None:
-    monkeypatch.setattr(SR, "_run_review_turn",
-                        lambda *a, **k: "looks fine to me")
     (repo / "new.py").write_text("n = 1\n")
 
-    with pytest.raises(ValueError):
-        SR.run_security_review(session_id="s1")
+    with script_roles({SR.reviewer: ["looks fine to me"]}):
+        with pytest.raises(ValueError):
+            SR.run_security_review()
 
 
 def test_reviewer_gets_no_write_tools() -> None:

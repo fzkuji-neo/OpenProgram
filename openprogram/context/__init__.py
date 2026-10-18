@@ -19,6 +19,7 @@ Public API:
 from __future__ import annotations
 
 from openprogram.context.model import Context, DELETE
+from openprogram.context.workflow_blocks import call_path, workflow_source
 
 from openprogram.context.engine import (
     CONTEXT_ENGINE_REGISTRY,
@@ -50,6 +51,8 @@ __all__ = [
     "CONTEXT_ENGINE_REGISTRY",
     "Context",
     "DELETE",
+    "call_path",
+    "workflow_source",
     "ContextEngine",
     "DefaultContextEngine",
     "ReferenceMap",

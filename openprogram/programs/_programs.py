@@ -97,9 +97,6 @@ def _program_sources_path() -> Path:
     return Path(program_sources_path())
 
 
-_WORKFLOW_PROJECTS_MIGRATED = "workflow_projects_migrated"
-
-
 def _read_program_sources_document() -> dict:
     try:
         payload = json.loads(_program_sources_path().read_text(encoding="utf-8"))
@@ -109,10 +106,19 @@ def _read_program_sources_document() -> dict:
         payload = {}
     rows = payload.get("programs", [])
     payload["version"] = 2
-    payload["programs"] = (
-        [row for row in rows if isinstance(row, dict)] if isinstance(rows, list) else []
-    )
+    # Workflows load from ~/.openprogram/workflows by Git state; records
+    # of the former published-Workflow trust model are dropped.
+    payload.pop("workflow_projects_migrated", None)
+    payload["programs"] = [
+        row for row in (rows if isinstance(rows, list) else [])
+        if isinstance(row, dict) and not _is_workflow_record(row)
+    ]
     return payload
+
+
+def _is_workflow_record(row: dict) -> bool:
+    return (row.get("kind") in {"workflow-publish", "workflow-migration"}
+            or str(row.get("path", "")).startswith("workflow/"))
 
 
 def _read_program_sources() -> list[dict]:
@@ -176,7 +182,7 @@ def _portable_source_path(root: str) -> str | None:
         except ValueError:
             continue
         parts = relative.split("/")
-        if (len(parts) == 2 and parts[0] in {"workflow", "packages", "applications"}) or (len(parts) == 3 and parts[0] == "workflow"):
+        if len(parts) == 2 and parts[0] in {"packages", "applications"}:
             return relative
     return None
 
@@ -190,8 +196,8 @@ def _recorded_root(row: dict) -> str | None:
         parts = raw.split("/")
         if (
             scope != "programs" or "\\" in raw
-            or not (len(parts) == 2 or (len(parts) == 3 and parts[0] == "workflow"))
-            or parts[0] not in {"workflow", "packages", "applications"}
+            or len(parts) != 2
+            or parts[0] not in {"packages", "applications"}
             or any(part in {"", ".", ".."} for part in parts[1:])
         ):
             return None
@@ -204,11 +210,6 @@ def _recorded_root(row: dict) -> str | None:
             if (catalog_root / parts[0]).is_symlink() or candidate.resolve() != catalog_root.resolve().joinpath(*parts):
                 continue
             matches.append(str(candidate))
-        if len(matches) > 1 and parts[0] == "workflow":
-            # Wheels can contain source copies without the independent Git
-            # repository required by published Workflows. Only actual projects
-            # compete for a recorded identity; two Git projects remain ambiguous.
-            matches = [path for path in matches if (Path(path) / ".git").exists()]
         return matches[0] if len(matches) == 1 else None
     expanded = os.path.expanduser(raw)
     if not os.path.isabs(expanded):
@@ -318,7 +319,7 @@ def remove_program_source(path) -> None:
 
 
 def migrate_program_source_paths() -> None:
-    """Relocate authorized legacy Workflow records, never discover new ones."""
+    """Relocate authorized legacy package records, never discover new ones."""
     def _mutate(rows: list[dict]) -> None:
         changed = False
         migrated = []
@@ -339,53 +340,18 @@ def migrate_program_source_paths() -> None:
                 continue
             raw = str(row.get("path", ""))
             relative = _portable_source_path(raw) if os.path.isabs(raw) else None
-            if (
-                relative is None and not os.path.lexists(raw)
-                and row.get("kind") in {"workflow-publish", "workflow-migration"}
-            ):
-                # Recover only the canonical suffix of an already-authorized
-                # record. Arbitrary directory names and external paths do not
-                # establish a new authorization.
-                parts = raw.replace("\\", "/").split("/")
-                if len(parts) >= 4 and parts[-4:-1] == ["openprogram", "programs", "workflow"]:
-                    relative = "workflow/" + parts[-1]
             if relative is None or os.path.islink(raw):
                 migrated.append(row)
                 continue
             portable = {**row, "scope": "programs", "path": relative}
-            resolved = _recorded_root(portable)
-            if resolved is None:
+            if _recorded_root(portable) is None:
                 migrated.append(row)
                 continue
-            if relative.startswith("workflow/"):
-                try:
-                    from openprogram.programs.workflow._project import catalog
-                    index = catalog._read_project_index(Path(resolved))
-                    if index["project_metadata"].get("entrypoint") != Path(resolved).name:
-                        raise ValueError("workflow entry point does not match its location")
-                except Exception:
-                    migrated.append(row)
-                    continue
             migrated.append(portable)
             changed = True
         if changed:
             document["programs"] = migrated
             _write_program_sources_document(document)
-
-    _update_program_sources(_mutate)
-
-
-def workflow_projects_migrated() -> bool:
-    return bool(_read_program_sources_document().get(_WORKFLOW_PROJECTS_MIGRATED))
-
-
-def mark_workflow_projects_migrated() -> None:
-    def _mutate(rows: list[dict]) -> None:
-        payload = _read_program_sources_document()
-        payload["version"] = 2
-        payload["programs"] = rows
-        payload[_WORKFLOW_PROJECTS_MIGRATED] = True
-        _write_program_sources_document(payload)
 
     _update_program_sources(_mutate)
 

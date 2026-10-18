@@ -6,23 +6,22 @@ analysis → writing → review → submission.
 
 Each stage can run independently. Supports starting from any stage.
 
-Every stage runs on the Runtime of the Agent that runs the pipeline. A
-separately configured reviewer Agent runs the review rounds.
+The stages run on the caller's model. The ``reviewer`` role runs the
+review rounds; set ``roles.reviewer.model`` to review with a different
+model.
 
 Usage:
-    from openprogram.programs.workflow.research.pipeline import ResearchPipelineAgent
-    from openprogram.programs.workflow.research.stages.review import ReviewPaperAgent
+    from openprogram.programs.workflow.research import roles
+    from openprogram.programs.workflow.research.pipeline import research_pipeline
 
-    # Full pipeline: Claude executes, GPT reviews
-    result = ResearchPipelineAgent(runtime=claude_runtime).research_pipeline(
+    roles.reviewer.model = "openai:gpt-5"
+    result = research_pipeline(
         project_dir="~/research/LLM Uncertainty",
         topic="Uncertainty quantification in LLMs",
         venue="NeurIPS",
-        reviewer=ReviewPaperAgent(runtime=gpt_runtime),
     )
 
-    # Just writing + review on the ambient Runtime
-    from openprogram.programs.workflow.research.pipeline import research_pipeline
+    # Just writing + review
     result = research_pipeline(
         project_dir="~/research/LLM Uncertainty",
         stages=["writing", "review"],
@@ -34,7 +33,6 @@ from __future__ import annotations
 import os
 from typing import Optional
 
-from openprogram.agentic_programming import Agent
 from openprogram.agentic_programming.call_state import check_cancelled
 from ._paths import expanded_project_dir, read_artifact, write_artifact
 
@@ -45,78 +43,73 @@ STAGES = [
 ]
 
 
-class ResearchPipelineAgent(Agent):
-    def research_pipeline(
-        self,
-        project_dir: str,
-        topic: str = None,
-        venue: str = None,
-        stages: list[str] = None,
-        start_from: str = None,
-        reviewer: Optional[Agent] = None,
-        callback: Optional[callable] = None,
-    ) -> dict:
-        """Run the research pipeline.
+def research_pipeline(project_dir: str,
+    topic: str = None,
+    venue: str = None,
+    stages: list[str] = None,
+    start_from: str = None,
+    callback: Optional[callable] = None,
+) -> dict:
+    """Run the research pipeline.
 
-        Args:
-            project_dir:  Path to research project directory.
-            topic:        Research topic (needed for literature/idea stages).
-            venue:        Target venue (e.g. "NeurIPS").
-            stages:       Specific stages to run (default: all).
-            start_from:   Start from this stage.
-            reviewer:     A configured ReviewPaperAgent for the review rounds
-                          (a different model is recommended). Defaults to
-                          this Agent's Runtime.
-            callback:     Progress callback.
+    Args:
+        project_dir:  Path to research project directory.
+        topic:        Research topic (needed for literature/idea stages).
+        venue:        Target venue (e.g. "NeurIPS").
+        stages:       Specific stages to run (default: all).
+        start_from:   Start from this stage.
+        reviewer:     A configured ReviewPaperAgent for the review rounds
+                      (a different model is recommended). Defaults to
+                      this Agent's Runtime.
+        callback:     Progress callback.
 
-        Returns:
-            dict with results from each completed stage.
-        """
-        project_dir = str(expanded_project_dir(project_dir))
+    Returns:
+        dict with results from each completed stage.
+    """
+    project_dir = str(expanded_project_dir(project_dir))
 
-        # Determine stages to run
-        if stages is not None:
-            unknown = [s for s in stages if s not in STAGES]
-            if unknown:
-                raise ValueError(f"Unknown research stages: {unknown}")
-            run_stages = list(stages)
-        elif start_from is not None:
-            idx = STAGES.index(start_from)
-            run_stages = STAGES[idx:]
-        else:
-            run_stages = STAGES
+    # Determine stages to run
+    if stages is not None:
+        unknown = [s for s in stages if s not in STAGES]
+        if unknown:
+            raise ValueError(f"Unknown research stages: {unknown}")
+        run_stages = list(stages)
+    elif start_from is not None:
+        idx = STAGES.index(start_from)
+        run_stages = STAGES[idx:]
+    else:
+        run_stages = STAGES
 
-        results = {}
-        handlers = {
-            "init": lambda: _stage_init(project_dir, venue),
-            "literature": lambda: _stage_literature(project_dir, topic),
-            "idea": lambda: _stage_idea(project_dir, topic),
-            "experiment": lambda: _stage_experiment(project_dir),
-            "analysis": lambda: _stage_analysis(project_dir),
-            "writing": lambda: _stage_writing(project_dir),
-            "review": lambda: _stage_review(project_dir, venue, reviewer, callback),
-            "submission": lambda: _stage_submission(project_dir, venue),
-        }
+    results = {}
+    handlers = {
+        "init": lambda: _stage_init(project_dir, venue),
+        "literature": lambda: _stage_literature(project_dir, topic),
+        "idea": lambda: _stage_idea(project_dir, topic),
+        "experiment": lambda: _stage_experiment(project_dir),
+        "analysis": lambda: _stage_analysis(project_dir),
+        "writing": lambda: _stage_writing(project_dir),
+        "review": lambda: _stage_review(project_dir, venue, callback),
+        "submission": lambda: _stage_submission(project_dir, venue),
+    }
 
-        for stage in run_stages:
-            check_cancelled()
-            if callback:
-                callback({"type": "stage_start", "stage": stage})
+    for stage in run_stages:
+        check_cancelled()
+        if callback:
+            callback({"type": "stage_start", "stage": stage})
 
-            handler = handlers.get(stage)
-            if handler:
-                results[stage] = handler()
+        handler = handlers.get(stage)
+        if handler:
+            results[stage] = handler()
 
-            if callback:
-                callback({"type": "stage_done", "stage": stage, "result": results.get(stage)})
-            # A generated experiment plan is not executed experimental evidence.
-            if stage == "experiment" and results[stage].get("status") == "planned":
-                break
+        if callback:
+            callback({"type": "stage_done", "stage": stage, "result": results.get(stage)})
+        # A generated experiment plan is not executed experimental evidence.
+        if stage == "experiment" and results[stage].get("status") == "planned":
+            break
 
-        return results
+    return results
 
 
-research_pipeline = ResearchPipelineAgent().research_pipeline
 
 
 # ---------------------------------------------------------------------------
@@ -204,12 +197,12 @@ def _stage_writing(project_dir):
     return results
 
 
-def _stage_review(project_dir, venue, reviewer, callback):
+def _stage_review(project_dir, venue, callback):
     from openprogram.programs.workflow.research.stages.review import review_loop
     paper_dir = os.path.join(project_dir, "paper")
     return review_loop(
         paper_dir=paper_dir, venue=venue or "NeurIPS",
-        reviewer=reviewer, callback=callback,
+        callback=callback,
     )
 
 

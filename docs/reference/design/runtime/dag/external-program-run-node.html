@@ -387,12 +387,12 @@
   <h2>End-to-end flow: execution, handoff, and chat projection</h2>
   <div class="flow-wrap">
     <div class="flow-head">
-      <strong>One external auto_workflow invocation</strong>
+      <strong>One external report_workflow invocation</strong>
       <span>DEFAULT: FILE ARTIFACTS + SHORT HANDOFF</span>
     </div>
     <div class="flow-canvas">
       <svg class="flow-diagram" viewBox="0 0 1040 760" role="img" aria-labelledby="workflow-flow-title workflow-flow-desc">
-        <title id="workflow-flow-title">Complete flow from external auto_workflow invocation to chat Conclusion</title>
+        <title id="workflow-flow-title">Complete flow from external report_workflow invocation to chat Conclusion</title>
         <desc id="workflow-flow-desc">The flow has three layers: execution and artifacts, the summary trust boundary, and chat projection. Complete result bodies and their copies in subsequent call arguments remain only in files and workflow state by default, excluded from summary inputs and public payloads. They are shown separately only when the original task explicitly requests a direct body return.</desc>
         <defs>
           <marker id="flow-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -411,7 +411,7 @@
         <text x="333" y="125" fill="#9a988e" font-size="11" text-anchor="middle">Empty caller · code square</text>
         <path d="M415 111 H465" fill="none" stroke="#6b6a63" stroke-width="1.5" marker-end="url(#flow-arrow)"/>
         <rect x="466" y="69" width="190" height="84" rx="7" fill="#232321" stroke="#4f8ef7"/>
-        <text x="561" y="96" fill="#f0eee6" font-size="13" text-anchor="middle">Execute auto_workflow</text>
+        <text x="561" y="96" fill="#f0eee6" font-size="13" text-anchor="middle">Execute report_workflow</text>
         <text x="561" y="117" fill="#9a988e" font-size="11" text-anchor="middle">search → select → reuse/create → execute</text>
         <text x="561" y="136" fill="#9a988e" font-size="11" text-anchor="middle">Use current session provider / model</text>
         <path d="M656 95 H710" fill="none" stroke="#6b6a63" stroke-width="1.5" marker-end="url(#flow-arrow)"/>
@@ -515,12 +515,12 @@
         <span class="scene-kicker">ROOT → PROGRAM</span>
       </div>
       <div class="canvas">
-        <svg viewBox="0 0 500 280" role="img" aria-label="ROOT directly connects to an auto_workflow square node">
+        <svg viewBox="0 0 500 280" role="img" aria-label="ROOT directly connects to an report_workflow square node">
           <path d="M90 72 V184 H194" fill="none" stroke="#4f8ef7" stroke-width="2"/>
           <rect x="78" y="60" width="24" height="24" rx="3" transform="rotate(45 90 72)" fill="#141413" stroke="#4f8ef7" stroke-width="2.4"/>
           <text x="118" y="77" fill="#4f8ef7" font-size="13">ROOT</text>
           <rect x="198" y="172" width="24" height="24" rx="4" fill="#141413" stroke="#4f8ef7" stroke-width="2.4" stroke-dasharray="5 4"/>
-          <text x="238" y="181" fill="#d8d6cc" font-size="14">auto_workflow</text>
+          <text x="238" y="181" fill="#d8d6cc" font-size="14">report_workflow</text>
           <text x="238" y="201" fill="#9a988e" font-size="12">Running...</text>
         </svg>
       </div>
@@ -533,7 +533,7 @@
         <span class="scene-kicker">ONE ROOT · TWO ACTIONS</span>
       </div>
       <div class="canvas">
-        <svg viewBox="0 0 500 360" role="img" aria-label="ROOT connects to a normal user and LLM pair and separately to auto_workflow">
+        <svg viewBox="0 0 500 360" role="img" aria-label="ROOT connects to a normal user and LLM pair and separately to report_workflow">
           <path d="M72 54 V162 H156" fill="none" stroke="#4f8ef7" stroke-width="2"/>
           <path d="M168 174 V244 H252" fill="none" stroke="#4f8ef7" stroke-width="2"/>
           <path d="M72 54 V310 H156" fill="none" stroke="#4f8ef7" stroke-width="2"/>
@@ -544,7 +544,7 @@
           <polygon points="264,232 252,256 276,256" fill="#141413" stroke="#4f8ef7" stroke-width="2.4"/>
           <text x="292" y="250" fill="#d8d6cc" font-size="13">LLM response</text>
           <rect x="156" y="298" width="24" height="24" rx="4" fill="#141413" stroke="#4f8ef7" stroke-width="2.4" stroke-dasharray="5 4"/>
-          <text x="196" y="307" fill="#d8d6cc" font-size="14">auto_workflow</text>
+          <text x="196" y="307" fill="#d8d6cc" font-size="14">report_workflow</text>
           <text x="196" y="327" fill="#9a988e" font-size="12">Running...</text>
         </svg>
       </div>
@@ -559,8 +559,8 @@
       <div class="mock-chat">
         <div class="program-record">
           <div class="program-avatar" aria-hidden="true">ƒ</div>
-          <button class="program-summary" type="button" aria-expanded="false" title="auto_workflow · Running... · 02:14 · 4 steps">
-            <span class="summary-text"><span class="name">auto_workflow</span> · <span class="running" role="status" aria-live="polite">Running...</span> · 02:14 · 4 steps</span>
+          <button class="program-summary" type="button" aria-expanded="false" title="report_workflow · Running... · 02:14 · 4 steps">
+            <span class="summary-text"><span class="name">report_workflow</span> · <span class="running" role="status" aria-live="polite">Running...</span> · 02:14 · 4 steps</span>
             <span class="summary-chevron" aria-hidden="true">›</span>
           </button>
         </div>
@@ -582,8 +582,8 @@
       <small>RUNNING</small>
       <div class="program-record">
         <div class="program-avatar" aria-hidden="true">ƒ</div>
-        <button class="program-summary" type="button" aria-expanded="false" title="auto_workflow · Running... · 02:14 · 4 steps">
-          <span class="summary-text"><span class="name">auto_workflow</span> · <span class="running">Running...</span> · 02:14 · 4 steps</span>
+        <button class="program-summary" type="button" aria-expanded="false" title="report_workflow · Running... · 02:14 · 4 steps">
+          <span class="summary-text"><span class="name">report_workflow</span> · <span class="running">Running...</span> · 02:14 · 4 steps</span>
           <span class="summary-chevron" aria-hidden="true">›</span>
         </button>
       </div>
@@ -593,8 +593,8 @@
       <small>COMPLETED</small>
       <div class="program-record">
         <div class="program-avatar" aria-hidden="true">ƒ</div>
-        <button class="program-summary" type="button" aria-expanded="false" title="auto_workflow · Completed · 02:46 · 2 files processed">
-          <span class="summary-text"><span class="name">auto_workflow</span> · Completed · 02:46 · 2 files processed</span>
+        <button class="program-summary" type="button" aria-expanded="false" title="report_workflow · Completed · 02:46 · 2 files processed">
+          <span class="summary-text"><span class="name">report_workflow</span> · Completed · 02:46 · 2 files processed</span>
           <span class="summary-chevron" aria-hidden="true">›</span>
         </button>
         <div class="program-conclusion">
@@ -614,8 +614,8 @@
       <small>ERROR</small>
       <div class="program-record">
         <div class="program-avatar" aria-hidden="true">ƒ</div>
-        <button class="program-summary" type="button" aria-expanded="false" title="auto_workflow · Error · 01:22 · Permission denied">
-          <span class="summary-text"><span class="name">auto_workflow</span> · <span class="error">Error</span> · 01:22 · Permission denied</span>
+        <button class="program-summary" type="button" aria-expanded="false" title="report_workflow · Error · 01:22 · Permission denied">
+          <span class="summary-text"><span class="name">report_workflow</span> · <span class="error">Error</span> · 01:22 · Permission denied</span>
           <span class="summary-chevron" aria-hidden="true">›</span>
         </button>
         <div class="program-conclusion">
@@ -629,8 +629,8 @@
       <small>CANCELLED</small>
       <div class="program-record">
         <div class="program-avatar" aria-hidden="true">ƒ</div>
-        <button class="program-summary" type="button" aria-expanded="false" title="auto_workflow · Cancelled · 00:42 · 3 steps">
-          <span class="summary-text"><span class="name">auto_workflow</span> · Cancelled · 00:42 · 3 steps</span>
+        <button class="program-summary" type="button" aria-expanded="false" title="report_workflow · Cancelled · 00:42 · 3 steps">
+          <span class="summary-text"><span class="name">report_workflow</span> · Cancelled · 00:42 · 3 steps</span>
           <span class="summary-chevron" aria-hidden="true">›</span>
         </button>
         <div class="program-conclusion">
@@ -700,7 +700,7 @@
   <strong>Adapt: </strong>Add a dedicated top-level Program avatar; make the compact title more detailed than Thinking/Functions with function name, status, duration, and result preview.<br>
   <strong>Reject: </strong>Fabricated User/LLM nodes, a new lane, large cards, percentage progress, a workflow-specific internal timeline, and complete artifact bodies presented as work summaries.</p>
 
-  <div class="not-decided"><strong>Page scope: </strong>This page designs the avatar, top-level collapse title, and terminal <code>Conclusion</code>. Root-function, nested-function, argument, output, and error rendering after expansion all follow the current <code>RuntimeBlock</code>; no dedicated internal process design is added for <code>auto_workflow</code>.</div>
+  <div class="not-decided"><strong>Page scope: </strong>This page designs the avatar, top-level collapse title, and terminal <code>Conclusion</code>. Root-function, nested-function, argument, output, and error rendering after expansion all follow the current <code>RuntimeBlock</code>; no dedicated internal process design is added for <code>report_workflow</code>.</div>
 
   <h2>Implemented acceptance criteria: summary and chat UI</h2>
   <table>
@@ -726,7 +726,7 @@
   <table>
     <thead><tr><th>Entry point</th><th>Observable result</th></tr></thead>
     <tbody>
-      <tr><td>From Programs in an empty session, run <code>auto_workflow</code></td><td>Immediately show exactly one rounded-square ROOT child in the DAG, labeled <code>auto_workflow</code> from <code>Running...</code>.</td></tr>
+      <tr><td>From Programs in an empty session, run <code>report_workflow</code></td><td>Immediately show exactly one rounded-square ROOT child in the DAG, labeled <code>report_workflow</code> from <code>Running...</code>.</td></tr>
       <tr><td>Run from Programs in a session with existing chat</td><td>Preserve the existing User → LLM structure; add a Program node directly under ROOT in the same conversation layer.</td></tr>
       <tr><td>Overview projection handles existing predecessor</td><td>Persisted <code>predecessor</code> remains the current HEAD; the overview renderer derives ROOT → Program layout edges from empty <code>caller</code>, without incorrectly treating the Program as an assistant’s internal call.</td></tr>
       <tr><td>Run completes, fails, or is cancelled</td><td>Update the same Program node’s outline and status without moving it or creating a second result node.</td></tr>
@@ -738,7 +738,7 @@
     <thead><tr><th>Scope</th><th>Contract</th></tr></thead>
     <tbody>
       <tr><td>Production files</td><td><code>workflow/__init__.py</code> run-summary logic produces a structured handoff; <code>runtime-summary.ts</code> treats only version-marked handoffs as Conclusion and exposes raw results only when <code>return_result=true</code>; <code>runtime-block.tsx</code> separately renders the work summary and explicitly requested direct result within the same Conclusion.</td></tr>
-      <tr><td>Public entry point</td><td>Directly run a user-level <code>auto_workflow</code> from Programs or fn-form in a session; refreshing history must yield the same conclusion.</td></tr>
+      <tr><td>Public entry point</td><td>Directly run a user-level <code>report_workflow</code> from Programs or fn-form in a session; refreshing history must yield the same conclusion.</td></tr>
       <tr><td>Compatibility and failure</td><td>Non-workflow Function rows, running workflows, and nested LLM tool calls remain unchanged. Incomplete JSON, failure, and cancellation must not cause rendering exceptions or fabricated success counts.</td></tr>
       <tr><td>Explicit exclusions</td><td>No new dependencies, DAG changes, button content/order/behavior changes, or changes to ordinary assistant messages and nested functions. The summary function must not use tools or execute the task again.</td></tr>
       <tr><td>RED / GREEN</td><td>Python public-entry tests verify that the current package Workflow’s independent summary receives no complete results, call arguments, or non-agent step results, only short agent operational handoffs. Intermediate results remain internal state even when referenced by later call arguments. Explicit legacy-resume tests separately preserve SINGLE/code.py file-delivery compatibility and must not create new legacy runs.<code>npm run check:chat-ui</code> covers new handoffs, explicit results, and suppression of complete bodies from old payloads; then run Web typecheck, full Web checks, documentation links, and diff checks.</td></tr>

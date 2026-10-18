@@ -11,49 +11,42 @@ import sys
 import pytest
 
 
+def _workflow(state: Path, name: str, source: str) -> Path:
+    """A committed user workflow in ``<state>/workflows/<name>``."""
+    project = state / "workflows" / name
+    project.mkdir(parents=True)
+    (project / "__init__.py").write_text(
+        f"from .workflow import {name}\nPROGRAM_ENTRIES = [{name}]\n"
+    )
+    (project / "workflow.py").write_text(source)
+    for command in (
+        ["git", "init", "-b", "main"],
+        ["git", "add", "--all"],
+        ["git", "-c", "user.name=Test", "-c", "user.email=test@example.com",
+         "commit", "-m", "Fixture"],
+    ):
+        subprocess.run(command, cwd=project, check=True, capture_output=True)
+    return project
+
+
 @pytest.mark.parametrize("use_model", [False, True])
 @pytest.mark.parametrize("selection", ["missing", "without_credentials"])
 def test_no_model_workflow_reaches_child_without_default_provider(
     tmp_path, use_model, selection
 ):
-    from openprogram.programs.workflow._project import catalog
-
-    root = tmp_path / "catalog"
-    project = root / "workflow" / "no_model_probe"
-    project.mkdir(parents=True)
-    (root / "__init__.py").write_text("")
-    (project / "pyproject.toml").write_text(
-        catalog._project_pyproject(
-            "no_model_probe",
-            {
-                "name": "no_model_probe",
-                "summary": "No-model execution",
-                "tags": [],
-                "entrypoint": "no_model_probe",
-            },
-        )
-    )
-    (project / "__init__.py").write_text("from .workflow import no_model_probe\n")
-    (project / "workflow.py").write_text(
-        "from pathlib import Path\nfrom openprogram import Agent\nclass NoModelProbeAgent(Agent):\n    method_options = {\n        'no_model_probe': {\n            'name': 'no_model_probe',\n            'tool': True\n        },\n    }\n\n    def no_model_probe(self, use_model: bool, runtime=None):\n        Path(__file__).with_name(\"entered.flag\").touch()\n        assert runtime.api_model is None\n        assert runtime.api_key is None\n        if use_model:\n            return runtime.exec(\"No configured model\", tools=[])\n        return \"plain result\"\n\n\nno_model_probe = NoModelProbeAgent().no_model_probe\n"
-    )
-    for command in (
-        ["git", "init", "-b", "main"],
-        ["git", "add", "--all"],
-        [
-            "git",
-            "-c",
-            "user.name=Test",
-            "-c",
-            "user.email=test@example.com",
-            "commit",
-            "-m",
-            "Fixture",
-        ],
-    ):
-        subprocess.run(command, cwd=project, check=True, capture_output=True)
     state = tmp_path / ".openprogram"
     state.mkdir()
+    project = _workflow(state, "no_model_probe", (
+        "from pathlib import Path\n\n\n"
+        "def no_model_probe(use_model: bool, runtime=None):\n"
+        '    """No-model execution."""\n'
+        "    Path(__file__).with_name('entered.flag').touch()\n"
+        "    assert runtime.api_model is None\n"
+        "    assert runtime.api_key is None\n"
+        "    if use_model:\n"
+        "        return runtime.exec('No configured model', tools=[])\n"
+        "    return 'plain result'\n"
+    ))
     if selection == "without_credentials":
         (state / "config.json").write_text(
             json.dumps(
@@ -67,23 +60,6 @@ def test_no_model_workflow_reaches_child_without_default_provider(
                 }
             )
         )
-    (state / "program-sources.json").write_text(
-        json.dumps(
-            {
-                "version": 2,
-                "catalog_root": str(root),
-                "workflow_projects_migrated": True,
-                "programs": [
-                    {
-                        "scope": "programs",
-                        "path": "workflow/no_model_probe",
-                        "kind": "workflow-publish",
-                        "source": "workflow:no_model_probe",
-                    }
-                ],
-            }
-        )
-    )
     script = """import asyncio, json, sys
 from openprogram.agent.session_db import default_db
 from openprogram.agent.dispatcher import TurnRequest, _wrap_agentic_runtime_block
@@ -132,61 +108,28 @@ print(json.dumps({"failed":result.is_error,"text":"".join(c.text for c in result
 def test_forced_workflow_never_detects_an_unselected_provider(
     tmp_path, use_model, selection
 ):
-    from openprogram.programs.workflow._project import catalog
-
-    root = tmp_path / "catalog"
-    project = root / "workflow" / "forced_probe"
-    project.mkdir(parents=True)
-    (root / "__init__.py").write_text("")
-    (project / "pyproject.toml").write_text(
-        catalog._project_pyproject(
-            "forced_probe",
-            {
-                "name": "forced_probe",
-                "summary": "Forced model selection",
-                "tags": [],
-                "entrypoint": "forced_probe",
-            },
-        )
-    )
-    (project / "__init__.py").write_text("from .workflow import forced_probe\n")
-    (project / "workflow.py").write_text(
-        'from pathlib import Path\nfrom openprogram import Agent\nfrom openprogram.agentic_programming.runtime import Runtime\nfrom openprogram.providers import registry\n\ndef detect():\n    Path(__file__).with_name("auto-detect.flag").touch()\n    return "unselected-fixture", "fixture-model"\n\ndef fake_call(*args, **kwargs):\n    Path(__file__).with_name("model-call.flag").touch()\n    return "selected model result"\n\ndef fake_runtime(provider, model, **kwargs):\n    Path(__file__).with_name("selected.txt").write_text(f"{provider}/{model}")\n    return Runtime(call=fake_call, model="fixture")\n\nregistry.detect_provider = detect\nregistry._api_routed_runtime = fake_runtime\n\nclass ForcedProbeAgent(Agent):\n    method_options = {\n        \'forced_probe\': {\n            \'name\': \'forced_probe\',\n            \'tool\': True\n        },\n    }\n\n    def forced_probe(self, use_model: bool, runtime=None):\n        Path(__file__).with_name("entered.flag").touch()\n        return runtime.exec("fixture", tools=[]) if use_model else "plain result"\n\n\nforced_probe = ForcedProbeAgent().forced_probe\n'
-    )
-    for command in (
-        ["git", "init", "-b", "main"],
-        ["git", "add", "--all"],
-        [
-            "git",
-            "-c",
-            "user.name=Test",
-            "-c",
-            "user.email=test@example.com",
-            "commit",
-            "-m",
-            "Fixture",
-        ],
-    ):
-        subprocess.run(command, cwd=project, check=True, capture_output=True)
     state = tmp_path / ".openprogram"
     state.mkdir()
-    (state / "program-sources.json").write_text(
-        json.dumps(
-            {
-                "version": 2,
-                "catalog_root": str(root),
-                "workflow_projects_migrated": True,
-                "programs": [
-                    {
-                        "scope": "programs",
-                        "path": "workflow/forced_probe",
-                        "kind": "workflow-publish",
-                        "source": "workflow:forced_probe",
-                    }
-                ],
-            }
-        )
-    )
+    project = _workflow(state, "forced_probe", (
+        "from pathlib import Path\n"
+        "from openprogram.agentic_programming.runtime import Runtime\n"
+        "from openprogram.providers import registry\n\n"
+        "def detect():\n"
+        "    Path(__file__).with_name('auto-detect.flag').touch()\n"
+        "    return 'unselected-fixture', 'fixture-model'\n\n"
+        "def fake_call(*args, **kwargs):\n"
+        "    Path(__file__).with_name('model-call.flag').touch()\n"
+        "    return 'selected model result'\n\n"
+        "def fake_runtime(provider, model, **kwargs):\n"
+        "    Path(__file__).with_name('selected.txt').write_text(f'{provider}/{model}')\n"
+        "    return Runtime(call=fake_call, model='fixture')\n\n"
+        "registry.detect_provider = detect\n"
+        "registry._api_routed_runtime = fake_runtime\n\n\n"
+        "def forced_probe(use_model: bool, runtime=None):\n"
+        '    """Forced model selection."""\n'
+        "    Path(__file__).with_name('entered.flag').touch()\n"
+        "    return runtime.exec('fixture', tools=[]) if use_model else 'plain result'\n"
+    ))
     script = """import json, sys
 from openprogram.agent.session_db import default_db
 from openprogram.agent.dispatcher import dispatch_forced_tool_call

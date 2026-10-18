@@ -14,28 +14,21 @@ review before committing sees the same thing a review after committing
 does. A branch with no changes returns "no findings" without spending
 an agent turn.
 
-The reviewer is a spawned same-session agent turn whose prompt is the
-docstring of :func:`review_diff`, given read-only tools: it reads the
-diff plus whatever surrounding source it needs to tell a real
-vulnerability from a shape that merely looks like one, and it cannot
-edit, run a build, or spawn further agents.
-
-Registration: PROGRAM_MODULES.
+The ``reviewer`` role has read-only tools, and the docstring of
+:func:`review_diff` is its brief: it reads the diff plus whatever
+surrounding source it needs to tell a real vulnerability from a shape
+that merely looks like one, and it cannot edit, run a build, or spawn
+further agents.
 """
 
 from __future__ import annotations
 
-from openprogram.agentic_programming import Agent
-
-import inspect
 import logging
 import os
 import subprocess
 from typing import Optional
 
-from openprogram.agentic_programming.call_state import (
-    current_session_id,
-)
+from openprogram import Agent, Context
 from openprogram.programs.workflow.json_parsing import parse_json
 
 _log = logging.getLogger(__name__)
@@ -203,44 +196,6 @@ def clip_diff(diff: str) -> str:
     )
 
 
-# ---------------------------------------------------------------------------
-# Review turn — the seam tests stub
-# ---------------------------------------------------------------------------
-
-
-def _run_review_turn(
-    session_id: str, prompt: str, *, agent_id: str, spawn_caller: Optional[str]
-) -> str:
-    """One read-only review turn. Module-level so tests stub it."""
-    from openprogram.agentic_programming.call_state import _current_runtime
-
-    if _current_runtime.get(None) is not None or not session_id:
-        from openprogram.agentic_programming.agent import agent
-        from openprogram.programs import agent_tools
-
-        return agent(
-            prompt=prompt,
-            tools=agent_tools(names=list(REVIEW_TOOLS)),
-            execution_kind="security_review",
-        )
-    from openprogram.agent.sub_agent_run import run_agent_turn
-
-    res = run_agent_turn(
-        session_id=session_id,
-        prompt=prompt,
-        agent_id=agent_id,
-        branch_from=None,
-        label="安全审查",
-        spawn_caller=spawn_caller,
-        advance_head=False,
-        tools_override=list(REVIEW_TOOLS),
-        render_range={"callers": 0},
-    )
-    if res.failed:
-        raise RuntimeError(res.error or "security review turn failed")
-    return res.final_text or ""
-
-
 def _clean_findings(raw: object) -> list[dict]:
     """Findings from a review reply, one dict per usable entry.
 
@@ -276,27 +231,12 @@ def _clean_findings(raw: object) -> list[dict]:
     return out
 
 
-def _review_prompt(base: str, diff: str, files: list[str]) -> str:
-    listing = "\n".join(files) or "(none)"
-    return (
-        f"{inspect.getdoc(review_diff)}\n\n"
-        f"<baseline>\n{base}\n</baseline>\n\n"
-        f"<changed_files>\n{listing}\n</changed_files>\n\n"
-        f"<diff>\n{clip_diff(diff)}\n</diff>"
-    )
+reviewer = Agent(tools=list(REVIEW_TOOLS))
 
 
-def review_diff(
-    base: str,
-    diff: str,
-    files: list[str],
-    session_id: str = "",
-    *,
-    agent_id: str = "main",
-    spawn_caller: Optional[str] = None,
-) -> list[dict]:
+def review_diff(base: str, diff: str, files: list[str]) -> list[dict]:
     """You are performing a security review of one change. The diff
-    below is the entire scope of the review.
+    given here is the entire scope of the review.
 
     Report ONLY vulnerabilities this diff introduces or makes worse. A
     weakness that already existed and that this change merely moves,
@@ -394,14 +334,14 @@ def review_diff(
                    "recommendation": "<the specific fix>"}, …]}
     Use {"findings": []} when there is nothing to report.
     """
-    sid = session_id or current_session_id()
-    raw = _run_review_turn(
-        sid,
-        _review_prompt(base, diff, files),
-        agent_id=agent_id,
-        spawn_caller=spawn_caller,
-    )
-    data = parse_json(raw or "")
+    context = Context({
+        "baseline": base,
+        "changed files": "\n".join(files) or "(none)",
+        "diff": clip_diff(diff),
+    })
+    raw = reviewer("Review this change for security vulnerabilities.",
+                   context=context, execution_kind="security_review")
+    data = parse_json(str(raw or ""))
     if not isinstance(data, dict) or not isinstance(data.get("findings"), list):
         raise ValueError("security review reply was not valid JSON")
     return _clean_findings(data["findings"])
@@ -412,79 +352,57 @@ def review_diff(
 # ---------------------------------------------------------------------------
 
 
-class RunSecurityReviewAgent(Agent):
-    method_options = {
-        "run_security_review": {
-            "render_range": {"callers": 0},
-            "input": {
-                "base": {
-                    "description": "Commit or branch to review against "
-                    "(empty: pick the branch's baseline automatically)"
-                },
-                "session_id": {"hidden": True},
-                "spawn_caller": {"hidden": True},
-                "agent_id": {"hidden": True},
+def run_security_review(base: str = "") -> dict:
+    """Review this branch's changes for security vulnerabilities.
+
+    Collects everything that changed since the baseline — commits,
+    staged changes, unstaged edits, and newly added files — and has a
+    read-only agent audit it for injection, broken authentication and
+    authorization, leaked secrets, unsafe deserialization and dynamic
+    execution, concurrency and TOCTOU bugs, resource exhaustion, risky
+    dependencies, and information disclosure through errors.
+
+    Only what this change introduced or made worse is reported. A
+    weakness the branch did not touch is left alone, so the result is a
+    list the author can act on now.
+
+    ``base`` empty picks the baseline automatically: the merge base
+    with the branch's upstream, or with the repository's default branch
+    when there is no upstream. A repository with neither raises
+    ``NoBaselineError`` naming what was missing rather than guessing a
+    range.
+
+    A branch with no changes returns no findings immediately, without
+    a model call.
+
+    Returns ``{"findings", "base", "files_reviewed"}``, findings
+    ordered critical first, each carrying ``severity``, ``file``,
+    ``line``, ``title``, ``scenario`` and ``recommendation``.
+    """
+    from openprogram.worktree.context import current_worktree_path
+
+    cwd = current_worktree_path()
+    base = (base or "").strip() or resolve_base(cwd)
+    diff, files = collect_diff(base, cwd)
+    if not diff.strip():
+        return {"findings": [], "base": base, "files_reviewed": 0}
+    findings = review_diff(base=base, diff=diff, files=files)
+    return {"findings": findings, "base": base, "files_reviewed": len(files)}
+
+
+PROGRAM_ENTRIES = [run_security_review]
+
+ENTRY_OPTIONS = {
+    "run_security_review": {
+        "render_range": {"callers": 0},
+        "input": {
+            "base": {
+                "description": "Commit or branch to review against "
+                "(empty: pick the branch's baseline automatically)"
             },
-            "name": "run_security_review",
-            "tool": True,
         },
-    }
-
-    def run_security_review(
-        self,
-        base: str = "",
-        session_id: str = "",
-        spawn_caller: Optional[str] = None,
-        agent_id: str = "main",
-    ) -> dict:
-        """Review this branch's changes for security vulnerabilities.
-
-        Collects everything that changed since the baseline — commits,
-        staged changes, unstaged edits, and newly added files — and has a
-        read-only agent audit it for injection, broken authentication and
-        authorization, leaked secrets, unsafe deserialization and dynamic
-        execution, concurrency and TOCTOU bugs, resource exhaustion, risky
-        dependencies, and information disclosure through errors.
-
-        Only what this change introduced or made worse is reported. A
-        weakness the branch did not touch is left alone, so the result is a
-        list the author can act on now.
-
-        ``base`` empty picks the baseline automatically: the merge base
-        with the branch's upstream, or with the repository's default branch
-        when there is no upstream. A repository with neither raises
-        ``NoBaselineError`` naming what was missing rather than guessing a
-        range.
-
-        A branch with no changes returns no findings immediately, without
-        spawning a review agent.
-
-        Returns ``{"findings", "base", "files_reviewed"}``, findings
-        ordered critical first, each carrying ``severity``, ``file``,
-        ``line``, ``title``, ``scenario`` and ``recommendation``.
-        """
-        from openprogram.worktree.context import current_worktree_path
-
-        sid = session_id or current_session_id()
-        cwd = current_worktree_path()
-
-        base = (base or "").strip() or resolve_base(cwd)
-        diff, files = collect_diff(base, cwd)
-        if not diff.strip():
-            return {"findings": [], "base": base, "files_reviewed": 0}
-
-        findings = review_diff(
-            diff=diff,
-            base=base,
-            files=files,
-            session_id=sid,
-            agent_id=agent_id,
-            spawn_caller=spawn_caller,
-        )
-        return {"findings": findings, "base": base, "files_reviewed": len(files)}
-
-
-run_security_review = RunSecurityReviewAgent().run_security_review
+    },
+}
 
 
 __all__ = [

@@ -8,7 +8,6 @@ from .shared import (
     _assistant_text,
     _build_llm_error,
     _build_pi_context,
-    _compute_call_path,
     _current_call_model,
     _current_direct_content,
     _current_effort,
@@ -31,5 +30,4 @@ from .shared import (
     _retry_sleep_seconds,
     _run_and_reap,
     _run_async,
-    _situational_prefix,
 )

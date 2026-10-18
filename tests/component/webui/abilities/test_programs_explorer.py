@@ -454,12 +454,12 @@ def test_packages_replace_legacy_application_category(tmp_path, monkeypatch):
     assert "applications" not in paths
 
 
-def test_owned_weekly_folder_exposes_five_callable_children(tmp_path, monkeypatch):
+def test_user_workflows_are_listed_with_state_and_import_edges(tmp_path, monkeypatch):
     import types
     from openprogram.webui.routes.catalog import programs
 
     client = _client(tmp_path, monkeypatch)
-    external = tmp_path / "owned" / "programs"
+    user_root = tmp_path / "user-workflows"
     names = (
         "weekly_report",
         "personal_weekly_report",
@@ -467,26 +467,31 @@ def test_owned_weekly_folder_exposes_five_callable_children(tmp_path, monkeypatc
         "group_weekly_report",
         "tencent_weekly_report",
     )
+    monkeypatch.setattr(programs, "_user_workflow_root", lambda: user_root)
     monkeypatch.setattr(
-        programs, "_catalog_roots", lambda: [programs.PROGRAMS_ROOT.resolve(), external]
+        "openprogram.programs._workflow_packages.workflow_statuses",
+        lambda: [{"name": name, "path": str(user_root / name), "state": "loaded",
+                  "error": "", "note": "", "entries": [name], "revision": "abc"}
+                 for name in names],
     )
     monkeypatch.setattr("openprogram.programs._runtime._registry", registered := {})
     for name in names:
-        directory = external / "workflow" / "weekly_report" / name
+        directory = user_root / name
         source = directory / "workflow.py"
-        code = f"def {name}(task):\n    return task\n"
+        code = f"def {name}(task: str):\n    return task\n"
         if name == "weekly_report":
             code = (
-                "from workflows.personal_weekly_report import personal_weekly_report\n"
-                "from workflows.personal_chat_weekly_report import personal_chat_weekly_report\n"
-                "from workflows.group_weekly_report import group_weekly_report\n"
-                "from workflows.tencent_weekly_report import tencent_weekly_report\n"
-                "def invoke(task):\n    personal_weekly_report(task)\n    personal_chat_weekly_report(task)\n    group_weekly_report(task)\n    tencent_weekly_report(task)\n"
-                "def weekly_report(task):\n    invoke(task)\n"
+                "from personal_weekly_report import personal_weekly_report\n"
+                "from personal_chat_weekly_report import personal_chat_weekly_report\n"
+                "from group_weekly_report import group_weekly_report\n"
+                "from tencent_weekly_report import tencent_weekly_report\n"
+                "def weekly_report(task: str):\n    personal_weekly_report(task)\n"
+                "    personal_chat_weekly_report(task)\n    group_weekly_report(task)\n"
+                "    tencent_weekly_report(task)\n"
             )
+        _write(directory / "__init__.py", f"from .workflow import {name}\nPROGRAM_ENTRIES = [{name}]\n")
         _write(source, code)
-        (directory / ".git").mkdir()
-        namespace = {"__name__": f"openprogram.programs.workflow.{name}"}
+        namespace = {"__name__": f"{name}.workflow"}
         exec(
             compile(f"def {name}(task):\n    return task\n", str(source), "exec"),
             namespace,
@@ -496,31 +501,24 @@ def test_owned_weekly_folder_exposes_five_callable_children(tmp_path, monkeypatc
             _is_agent_method=True,
             _python_callable=namespace[name],
             _source_module=namespace["__name__"],
+            _workflow_owner=name,
             description=name,
         )
-    root = client.get("/api/programs/explorer", params={"path": "workflow"}).json()
-    folder = next(row for row in root["entries"] if row["name"] == "weekly_report")
-    assert (
-        folder["kind"] == "folder"
-        and folder["has_children"]
-        and folder["program_kind"] is None
-    )
-    result = client.get(
-        "/api/programs/explorer", params={"path": "workflow/weekly_report"}
-    )
-    assert result.status_code == 200
-    entries = result.json()["entries"]
-    assert {row["callable_name"] for row in entries} == set(names)
-    assert all(
-        row["program_kind"] == "workflow" and not row["has_children"] for row in entries
-    )
+
+    entries = {
+        row["name"]: row
+        for row in client.get("/api/programs/explorer", params={"path": "workflow"}).json()["entries"]
+    }
+    for name in names:
+        assert entries[name]["workflow_state"] == "loaded"
+        assert entries[name]["source_path"] == str(user_root / name)
 
     logic = client.get(
-        "/api/programs/logic", params={"path": "workflow/weekly_report/weekly_report"}
+        "/api/programs/logic", params={"path": "workflow/weekly_report"}
     ).json()
     assert {
         edge["target"] for edge in logic["edges"] if edge["source"] == logic["root"]
-    } == {"workflow/weekly_report/" + name for name in names if name != "weekly_report"}
+    } == {"workflow/" + name for name in names if name != "weekly_report"}
 
 
 def test_unregistered_workflow_folder_is_not_a_callable_leaf(tmp_path, monkeypatch):

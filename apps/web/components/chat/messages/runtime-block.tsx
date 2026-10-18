@@ -38,7 +38,7 @@ import type { TNode } from "./tree-types";
 import { ExecutionStrip, StepRow, TreeStep, decodeEscapes } from "./execution-strip";
 import { ActionButton, MessageTimestamp, NavButton, SVG } from "./message-actions";
 import { renderMarkdown, useMarkdownReady } from "./markdown";
-import { runtimeAnswer, runtimeConclusion, runtimeSummaryLabel } from "./runtime-summary";
+import { runtimeAnswer, runtimeSummaryLabel } from "./runtime-summary";
 
 /** Commands go out as they are; a `load_session` goes through the managed
  *  session read, since the transcript applies only the reply to a read it
@@ -190,12 +190,6 @@ export function RuntimeBlock({
     status: msg.status,
     timestamp: msg.timestamp,
     now,
-    tree,
-    text,
-  });
-  const conclusion = runtimeConclusion({
-    fnName: fnName || headerLabel,
-    status: msg.status,
     tree,
     text,
   });
@@ -408,33 +402,6 @@ export function RuntimeBlock({
           <section className="runtime-program-conclusion" aria-label={text("Function reply", "函数答复")} data-function-answer>
             <div className="runtime-program-conclusion-summary message-content chat-text"
               dangerouslySetInnerHTML={{ __html: renderMarkdown(answer) }} />
-          </section>
-        ) : null}
-        {conclusion ? (
-          <section
-            className={`runtime-program-conclusion is-${conclusion.tone}`}
-            aria-label={conclusion.label}
-          >
-            <div className="runtime-program-conclusion-label">
-              {conclusion.label}
-            </div>
-            <p className="runtime-program-conclusion-meta">{conclusion.meta}</p>
-            {conclusion.summary ? (
-              <div
-                className="runtime-program-conclusion-summary message-content"
-                dangerouslySetInnerHTML={{
-                  __html: renderMarkdown(conclusion.summary),
-                }}
-              />
-            ) : null}
-            {conclusion.result ? (
-              <div
-                className="runtime-program-conclusion-result message-content"
-                dangerouslySetInnerHTML={{
-                  __html: renderMarkdown(conclusion.result),
-                }}
-              />
-            ) : null}
           </section>
         ) : null}
         {footer}

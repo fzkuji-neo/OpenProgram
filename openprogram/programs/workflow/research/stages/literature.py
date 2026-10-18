@@ -7,12 +7,10 @@ categorized survey notes organized by topic.
 
 from __future__ import annotations
 
-from openprogram.agentic_programming import Agent
-
 import os
 import json
 
-from openprogram.agentic_programming import llm
+from ..roles import author
 from .._paths import expanded_project_dir, write_artifact
 
 
@@ -36,80 +34,60 @@ def retrieve_sources(topic: str) -> str:
     return json.dumps(sources, ensure_ascii=False)
 
 
-class SurveyTopicAgent(Agent):
-    method_options = {
-        "survey_topic": {
-            "render_range": {"depth": 0, "siblings": 0},
-            "name": "survey_topic",
-            "tool": True,
-        },
-    }
+def survey_topic(topic: str) -> str:
+    """Survey the literature for a given research topic.
 
-    def survey_topic(self, topic: str) -> str:
-        """Survey the literature for a given research topic.
+    Search for and organize the most relevant and recent papers on this
+    topic.
 
-        Search for and organize the most relevant and recent papers on this
-        topic.
+    For each paper found:
+    - Title, authors, venue, year
+    - Core contribution (1-2 sentences)
+    - Methodology summary
+    - Limitations / gaps
 
-        For each paper found:
-        - Title, authors, venue, year
-        - Core contribution (1-2 sentences)
-        - Methodology summary
-        - Limitations / gaps
+    Organize papers into logical categories/subtopics.
+    Prioritize recent work (within 2 years) and top venues.
+    Use published versions over arXiv when available.
+    Cite only the supplied retrieved records and include their exact URLs.
+    Abstract excerpts are incomplete: do not assert numerical results or
+    PDF verification. Missing source evidence must remain explicitly unknown.
 
-        Organize papers into logical categories/subtopics.
-        Prioritize recent work (within 2 years) and top venues.
-        Use published versions over arXiv when available.
-        Cite only the supplied retrieved records and include their exact URLs.
-        Abstract excerpts are incomplete: do not assert numerical results or
-        PDF verification. Missing source evidence must remain explicitly unknown.
-
-        Output: A structured markdown survey organized by subtopic.
-        """
-        sources = retrieve_sources(topic)
-        return llm(
-            [
-                {
-                    "type": "text",
-                    "text": f"Research topic: {topic}\n\nRetrieved source records:\n{sources}",
-                },
-            ]
-        )
+    Output: A structured markdown survey organized by subtopic.
+    """
+    sources = retrieve_sources(topic)
+    return author(
+        [
+            {
+                "type": "text",
+                "text": f"Research topic: {topic}\n\nRetrieved source records:\n{sources}",
+            },
+        ]
+    )
 
 
-survey_topic = SurveyTopicAgent().survey_topic
 
 
-class IdentifyGapsAgent(Agent):
-    method_options = {
-        "identify_gaps": {
-            "render_range": {"depth": 0, "siblings": 0},
-            "name": "identify_gaps",
-            "tool": True,
-        },
-    }
+def identify_gaps(survey: str) -> str:
+    """Identify research gaps from a literature survey.
 
-    def identify_gaps(self, survey: str) -> str:
-        """Identify research gaps from a literature survey.
+    Analyze the survey and identify:
+    1. What problems remain unsolved or underexplored?
+    2. What assumptions in existing work are questionable?
+    3. Where do methods fail or underperform?
+    4. What combinations of approaches haven't been tried?
 
-        Analyze the survey and identify:
-        1. What problems remain unsolved or underexplored?
-        2. What assumptions in existing work are questionable?
-        3. Where do methods fail or underperform?
-        4. What combinations of approaches haven't been tried?
+    Be specific: don't say "more research needed", say exactly what's missing.
 
-        Be specific: don't say "more research needed", say exactly what's missing.
-
-        Output: Numbered list of specific, actionable research gaps.
-        """
-        return llm(
-            [
-                {"type": "text", "text": survey},
-            ]
-        )
+    Output: Numbered list of specific, actionable research gaps.
+    """
+    return author(
+        [
+            {"type": "text", "text": survey},
+        ]
+    )
 
 
-identify_gaps = IdentifyGapsAgent().identify_gaps
 
 
 def run_literature(

@@ -16,14 +16,19 @@ instead of matching a fixed template set.
 
 from __future__ import annotations
 
-from openprogram.agentic_programming import Agent
-
 import tempfile
 from pathlib import Path
 
-from openprogram.agentic_programming import llm
+from openprogram import Agent
 
 from ..pdf_layout import pdf_pages, render_page_png, _parse_page_spec, _readable_pdf
+
+reader = Agent(tools=[])
+
+
+def _read_page(content):
+    # No docstring: the request carries only the page and its instructions.
+    return reader(content)
 
 _PROMPT = (
     "You are given ONE page of a PDF. Extract EVERY table on this page "
@@ -47,87 +52,82 @@ def _parse_pages(spec: str, n_pages: int) -> tuple[int, int]:
     return _parse_page_spec(spec, n_pages)
 
 
-class ExtractPdfTablesAgent(Agent):
-    method_options = {
-        "extract_pdf_tables": {
-            "input": {
-                "pdf_path": {
-                    "description": "Absolute path to the .pdf file to extract tables from.",
-                    "placeholder": "/Users/me/papers/example.pdf",
-                },
-                "pages": {
-                    "description": "Optional 1-based page range, e.g. '3' or '2-7'. "
-                    "Empty means the whole document.",
-                    "placeholder": "2-7",
-                },
+def extract_pdf_tables(pdf_path: str,
+    pages: str = "",
+) -> list[dict]:
+    """Extract every table from a PDF as Markdown, one LLM pass per page.
+
+    Works on any layout — ruled or borderless tables, single- or
+    multi-column pages, scanned pages (rendered to an image for the
+    LLM). The fixed-width positioned text (or page image) is handed to
+    the model, which decides what is a table and reconstructs it. Each
+    result dict is ``{"page", "markdown"}``, one per page that held at
+    least one table, ``markdown`` being GitHub-flavoured Markdown.
+    """
+    try:
+        import pymupdf as fitz
+    except ImportError as exc:
+        raise ImportError(
+            "pymupdf is unavailable in this installation; "
+            "reinstall the complete OpenProgram release"
+        ) from exc
+
+    src = _readable_pdf(pdf_path)
+
+    with fitz.open(str(src)) as doc:
+        n_pages = len(doc)
+        lo, hi = _parse_pages(pages, n_pages)
+        layouts = pdf_pages(src, pages=(lo, hi))
+
+        results: list[dict] = []
+        with tempfile.TemporaryDirectory(prefix="pdf-tables-") as tmp:
+            for pl in layouts:
+                if pl.scanned:
+                    # No text layer — hand the LLM a rendered page image.
+                    img = render_page_png(
+                        doc[pl.page - 1], Path(tmp) / f"p{pl.page}.png"
+                    )
+                    content = [
+                        {"type": "text", "text": _PROMPT},
+                        {"type": "image", "path": str(img)},
+                    ]
+                else:
+                    content = [
+                        {
+                            "type": "text",
+                            "text": (
+                                f"{_PROMPT}\n"
+                                f"Page {pl.page} (fixed-width positioned text — every "
+                                f"word sits at its real position, so columns align):\n\n"
+                                f"{pl.text}"
+                            ),
+                        }
+                    ]
+                reply = str(_read_page(content)).strip()
+                if not reply:
+                    raise ValueError(
+                        f"Table extraction returned no response for page {pl.page}"
+                    )
+                if reply and reply.upper() != "NONE":
+                    results.append({"page": pl.page, "markdown": reply})
+
+    return results
+
+
+PROGRAM_ENTRIES = [extract_pdf_tables]
+
+ENTRY_OPTIONS = {
+    "extract_pdf_tables": {
+        "input": {
+            "pdf_path": {
+                "description": "Absolute path to the .pdf file to extract tables from.",
+                "placeholder": "/Users/me/papers/example.pdf",
             },
-            "name": "extract_pdf_tables",
-            "tool": True,
+            "pages": {
+                "description": "Optional 1-based page range, e.g. '3' or '2-7'. "
+                "Empty means the whole document.",
+                "placeholder": "2-7",
+            },
         },
-    }
-
-    def extract_pdf_tables(
-        self,
-        pdf_path: str,
-        pages: str = "",
-    ) -> list[dict]:
-        """Extract every table from a PDF as Markdown, one LLM pass per page.
-
-        Works on any layout — ruled or borderless tables, single- or
-        multi-column pages, scanned pages (rendered to an image for the
-        LLM). The fixed-width positioned text (or page image) is handed to
-        the model, which decides what is a table and reconstructs it. Each
-        result dict is ``{"page", "markdown"}``, one per page that held at
-        least one table, ``markdown`` being GitHub-flavoured Markdown.
-        """
-        try:
-            import pymupdf as fitz
-        except ImportError as exc:
-            raise ImportError(
-                "pymupdf is unavailable in this installation; "
-                "reinstall the complete OpenProgram release"
-            ) from exc
-
-        src = _readable_pdf(pdf_path)
-
-        with fitz.open(str(src)) as doc:
-            n_pages = len(doc)
-            lo, hi = _parse_pages(pages, n_pages)
-            layouts = pdf_pages(src, pages=(lo, hi))
-
-            results: list[dict] = []
-            with tempfile.TemporaryDirectory(prefix="pdf-tables-") as tmp:
-                for pl in layouts:
-                    if pl.scanned:
-                        # No text layer — hand the LLM a rendered page image.
-                        img = render_page_png(
-                            doc[pl.page - 1], Path(tmp) / f"p{pl.page}.png"
-                        )
-                        content = [
-                            {"type": "text", "text": _PROMPT},
-                            {"type": "image", "path": str(img)},
-                        ]
-                    else:
-                        content = [
-                            {
-                                "type": "text",
-                                "text": (
-                                    f"{_PROMPT}\n"
-                                    f"Page {pl.page} (fixed-width positioned text — every "
-                                    f"word sits at its real position, so columns align):\n\n"
-                                    f"{pl.text}"
-                                ),
-                            }
-                        ]
-                    reply = str(llm(content)).strip()
-                    if not reply:
-                        raise ValueError(
-                            f"Table extraction returned no response for page {pl.page}"
-                        )
-                    if reply and reply.upper() != "NONE":
-                        results.append({"page": pl.page, "markdown": reply})
-
-        return results
-
-
-extract_pdf_tables = ExtractPdfTablesAgent().extract_pdf_tables
+    },
+}

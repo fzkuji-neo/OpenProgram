@@ -41,14 +41,15 @@ def read(gate, **args):
 
 
 def accept(monkeypatch, claims):
-    import openprogram.agentic_programming as ap
+    from openprogram.programs.workflow._reports import evidence_gate
     calls=[]
     def verify(prompt, **kwargs):
-        calls.append(prompt)
+        context=kwargs.get('context')
+        calls.append('\n'.join([prompt,*(f'{k}: {v}' for k,v in (context.items() if context is not None else ()))]))
         return {'supported':True,'issues':[],'items':[
             {'field':field,'index':i,'text':text,'supported':True}
             for field,items in claims.items() for i,text in enumerate(items)]}
-    monkeypatch.setattr(ap,'llm',verify)
+    monkeypatch.setattr(evidence_gate,'verifier',verify)
     return calls
 
 
@@ -95,12 +96,12 @@ def test_failed_and_pending_operational_results_keep_status_and_semantic_gate(re
     pending=next(row for row in gate.rows.values() if row['status']=='running')
     assert failed['is_error'] is True and failed['status']=='failed'
     assert pending['kind']=='tool_result' and pending['text']=='Script running with job ID pending'
-    import openprogram.agentic_programming as ap
+    from openprogram.programs.workflow._reports import evidence_gate
     calls=[]
     def reject(prompt,**kwargs):
         calls.append(prompt)
         return {'supported':False,'issues':['only launch/failure, no completion'],'items':[]}
-    monkeypatch.setattr(ap,'llm',reject)
+    monkeypatch.setattr(evidence_gate,'verifier',reject)
     with pytest.raises(UnsupportedReport,match='semantic'):
         gate.verify({'progress_items':['实验已全部完成']},[{'field':'progress_items','index':0,'source':pending['id'],'quote':pending['text']}])
     assert len(calls)==1 and 'running/job-ID' in calls[0]
@@ -111,8 +112,8 @@ def test_owner_request_is_not_completed_and_each_item_is_checked(records, monkey
     gate=EvidenceGate('2026-W40','personal_chat')
     read(gate)
     row=next(r for r in gate.rows.values() if r['source'].endswith('#request'))
-    import openprogram.agentic_programming as ap
-    monkeypatch.setattr(ap,'llm',lambda *a,**k:{'supported':False,'issues':['request is not completion'],'items':[]})
+    from openprogram.programs.workflow._reports import evidence_gate
+    monkeypatch.setattr(evidence_gate,'verifier',lambda *a,**k:{'supported':False,'issues':['request is not completion'],'items':[]})
     with pytest.raises(UnsupportedReport):
         gate.verify({'progress_items':['全部实验已完成']},[{'field':'progress_items','index':0,'source':row['id'],'quote':row['text']}])
 

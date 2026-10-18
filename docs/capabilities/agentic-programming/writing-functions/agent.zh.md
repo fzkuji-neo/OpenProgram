@@ -96,7 +96,7 @@ result = worker.run_turn(
 print(result.final_text)
 ```
 
-后续轮次使用同一个 session ID。`Context.for_session` 选择存储，不创建模型客户端。可选的 `head_id` 指定分支前驱；`Context(history_filter=False)` 排除历史图内容，保留当前输入。具名内容和 provider 以用户内容参与请求，不改变系统指令或工具权限。
+后续轮次使用同一个 session ID。`Context.for_session` 选择存储，不创建模型客户端。可选的 `head_id` 指定分支前驱；`Context(history=None)` 排除历史图内容，保留当前输入。具名内容和 provider 以用户内容参与请求，不改变系统指令或工具权限。
 
 `arun_turn()` 和 `aresume_turn()` 是异步入口。事件回调在执行线程运行，与 asyncio 消费者通信时使用线程安全的传递方式。取消等待任务会通知执行轮次，并等待协作式清理；同步调用可通过 `cancel_event` 传入 `threading.Event`。
 

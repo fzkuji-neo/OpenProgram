@@ -1,39 +1,41 @@
 # Self-Programming AI Agents
 
 A self-programming AI agent can create or revise executable workflows while it
-works. In OpenProgram, those workflows use the Agent method execution:
-the agent edits a source file with normal tools, the runtime validates and loads the
-function, and later turns can call it from the same registry as existing tools.
+works. In OpenProgram, the agent writes a Workflow package in
+`~/.openprogram/workflows/<name>/` with its normal file tools, runs
+`openprogram workflows check` to test and commit it, and later turns call its
+entries from the same registry as existing tools.
 
 This is narrower than unrestricted self-modification. OpenProgram does not let a
-model silently replace the runtime or bypass validation. The editable unit is a
-reviewable function with a declared interface, explicit tool access, recorded
-execution, and normal source control.
+model silently replace the runtime or bypass the check. The editable unit is a
+reviewable package with declared entries, explicit tool access per role,
+recorded execution, and its own Git history.
 
 ## What the agent programs
 
-An agentic function combines deterministic control flow with model decisions:
+A Workflow combines deterministic control flow with model decisions:
 
 ```python
-from openprogram import Agent
+from openprogram import Agent, Context
 
-class ExampleAgent(Agent):
-    tools = []
-    method_options = {
-        'review_then_revise': {'tool': True},
-    }
+reviewer = Agent(instructions="You find concrete defects.", tools=[])
+editor = Agent(instructions="You revise drafts.", tools=[])
 
-    def review_then_revise(self, draft: str) -> str:
-        """Review a draft, then revise it against the review."""
-        review = self(f"Identify concrete defects in this draft:\n\n{draft}")
-        return self(f"Revise the draft using this review:\n\n{review}\n\n{draft}")
 
-_example_agent = ExampleAgent()
-review_then_revise = _example_agent.review_then_revise
+def review_then_revise(draft: str) -> str:
+    """Review a draft, then revise it against the review."""
+    ctx = Context({"draft": draft})
+    review = reviewer("Identify concrete defects in this draft", context=ctx)
+    return editor("Revise the draft using the review",
+                  context=ctx.derive({"review": review}))
+
+
+PROGRAM_ENTRIES = [review_then_revise]
 ```
 
-The Python body fixes the required order. The model handles the two semantic
-steps. Each call remains visible in OpenProgram's execution context.
+The Python body fixes the required order. The two roles handle the semantic
+steps, and each sees only the blocks its Context holds. Each role call is
+recorded in the session graph.
 
 ## How an agent creates one
 
@@ -47,26 +49,23 @@ openprogram
 Then ask the agent for a bounded workflow, for example:
 
 ```text
-Create an agentic function named review_then_revise. It must review a draft,
-revise it against the review, expose only its final output, and include a smoke
-test. Show me the diff before committing it.
+Create a Workflow named review_then_revise. It must review a draft, revise it
+against the review, return only the final text, and include a behavior test.
 ```
 
-The bundled
-[Agentic function API](../../reference/api/agent.md)
-defines the file layout, decorator contract, validation steps, and smoke tests.
-A watcher can load an approved function without restarting the worker.
+[Write and check a Workflow](../workflows/authoring.md) defines the package
+layout, the rules for roles and Context, the test helper and the check. The
+worker loads a checked Workflow without restarting.
 
 ## Runtime controls that still apply
 
-- Tool access comes from the function's explicit runtime call and configured
-  approval policy.
-- Function calls, model calls, and their context relationships are recorded in
-  the session DAG.
+- Tool access comes from each role's `tools` and the configured approval policy.
+- Each role call and the exact request it sent are recorded in the session
+  graph.
 - Resource limits, cancellation, structured output validation, and provider
   accounting remain runtime responsibilities.
-- Source changes remain ordinary files: they can be inspected, tested,
-  reverted, and reviewed before publication.
+- Source changes remain ordinary files: they can be inspected, tested and
+  reverted, and only a checked, committed version loads.
 
 ## When to use it
 

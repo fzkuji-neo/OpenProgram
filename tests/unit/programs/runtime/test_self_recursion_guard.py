@@ -7,20 +7,13 @@ research_agent / wiki_agent). The inner
 model could in principle call ``wiki_agent`` from inside ``wiki_agent``
 → unbounded nesting (the "7-layer nesting" root cause).
 
-The guard is now two-layer (the old tool-policy *deny* that hid the
-function from its own toolset was removed):
+The guard is a recursion depth cap: the wrapper bumps a per-method
+callable identity depth counter and raises ``RecursionError`` if the SAME
+function re-enters itself past ``_MAX_AGENTIC_RECURSION_DEPTH``. The
+function's own tool stays visible.
 
-  1. Primary — situational steering: a prompt prefix injected by
-     ``runtime._situational_prefix`` tells the inner model it is already
-     running inside the function and must not call it. The function's
-     own tool stays VISIBLE; the model is steered away.
-  2. Backstop — recursion depth cap: the wrapper bumps a per-method
-     callable identity depth counter and raises ``RecursionError`` if the SAME
-     function re-enters itself past ``_MAX_AGENTIC_RECURSION_DEPTH``.
+These tests assert the guard directly (no live LLM):
 
-These tests assert both layers directly (no live LLM):
-
-  * the situational prefix carries the recursion warning + function name;
   * the depth backstop raises past the limit;
   * legitimate distinct sub-calls (A→B) are NOT collateral damage;
   * the depth contextvar is restored after return / raise;
@@ -42,7 +35,6 @@ from openprogram.agentic_programming.call_state import (
 from openprogram.agentic_programming.runtime import (
     Runtime,
     _current_tool_policy,
-    _situational_prefix,
 )
 
 
@@ -61,41 +53,6 @@ def _depth(method) -> int:
         source = source.__func__
     return (_recursion_depth.get(None) or {}).get(source, 0)
 
-
-# --- Layer 1: situational steering prompt ---------------------------------
-
-def test_situational_prefix_warns_against_self_call():
-    text = _situational_prefix("wiki_agent", "Answer wiki questions.")
-    # Names the function and warns about recursion.
-    assert "wiki_agent" in text
-    assert "do NOT call it" in text
-    assert "recursion" in text.lower()
-    # Job is stated up front (main situational info); recursion warning after.
-    assert "Job: Answer wiki questions." in text
-    assert text.index("Answer wiki questions.") < text.index("recursion")
-    # Wrapped in a <situation> tag.
-    assert text.startswith("<situation>") and text.rstrip().endswith("</situation>")
-
-
-def test_situational_prefix_handles_empty_doc():
-    text = _situational_prefix("gui_agent", "")
-    assert "gui_agent" in text
-    assert "Job:" not in text
-
-
-def test_situational_prefix_optional_fields():
-    text = _situational_prefix(
-        "idea", "Generate ideas.",
-        call_path="research_agent → _pick_stage → idea",
-        position="idea stage, generate step",
-        output_contract="parsed as the idea list",
-    )
-    assert "Call path: research_agent → _pick_stage → idea" in text
-    assert "Position: idea stage, generate step" in text
-    assert "Your output: parsed as the idea list" in text
-
-
-# --- Self-deny removed: the tool stays visible ---------------------------
 
 def test_self_name_NOT_denied_during_call(runtime):
     """The old deny mechanism is gone: a function's own name must no

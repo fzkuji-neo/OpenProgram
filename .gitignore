@@ -120,14 +120,9 @@ apps/desktop/build/.runtime-prepare.lock
 apps/desktop/build/.runtime-stage-*/
 
 references/codex-cli/
-openprogram/programs/workflow/llm_knowledge_research/
-openprogram/programs/workflow/group_weekly_report/
 
 # Pinned document decoder assets generated from package-lock before Web builds.
 apps/web/public/document-assets/
-
-# Independent report Workflow repositories
-openprogram/programs/workflow/weekly_report/*/
 
 # Local verification evidence; authoritative design lives under docs/reference/design.
 /reports/durable-tool-results.md

@@ -30,7 +30,7 @@ openprogram programs run <name> -a key=value  # 直接运行一个 program
 
 第一方 Programs 是 immutable 产品组件。在可变扩展或开发环境中，`programs install` 会克隆额外第三方 harness、安装其声明的依赖并登记批准的来源。
 
-`openprogram programs list` 包含 owner 已授权发布的 Workflow 注册入口，包括 `workflow/weekly_report/` 这类分类目录中的项目。列出条目不会执行 Workflow，也不会导入未登记的项目。
+`openprogram programs list` 包含从 `~/.openprogram/workflows` 加载的 Workflow 入口。`openprogram workflows list` 显示其中每个 Workflow 及其加载状态。
 
 ## 用哪种方式触发
 
@@ -53,7 +53,7 @@ openprogram programs run <name> -a key=value  # 直接运行一个 program
 
 任何满足目录契约（`<package>/agentics/__init__.py` 暴露 `PROGRAM_ENTRIES`）的仓库都能被同一条 `programs install` 命令安装。契约、最小模板和发布流程见[安装与编写 Harness](../installing-harnesses.zh.md)。
 
-Harness 契约与单个 Workflow 包不同。包合同、完整测试示例、相对路径以及 `workflows validate/test/publish` 命令见[编写、测试和发布 Workflow](authoring.zh.md)。生成式 `create_workflow` 和 `revise_workflow` 也使用同一强制行为测试要求。
+Harness 契约与 `~/.openprogram/workflows` 中的单个 Workflow 包不同。包结构、完整测试示例和 `workflows check` 命令见[编写和检查 Workflow](authoring.zh.md)。聊天 Agent 编写的 Workflow 经过同样的检查。
 
 Workflow 表单只询问任务信息，不要求配置执行设置。文本润色在同一次模型请求中根据文本判断风格，不强制用户选择。浏览器 backend 和会话标识保留为内部参数。文档页码和输出位置属于可选的任务要求。显式 Python 调用仍支持受支持的覆盖值。
 

@@ -143,18 +143,18 @@ def test_web_use_close_closes_the_observed_page_tab(monkeypatch):
     replies = iter([{'ok': True}, {'ok': False, 'error': 'desktop_unavailable'}])
     monkeypatch.setattr(webtab, 'request_close_tab', lambda binding: calls.append(('close', binding)) or next(replies))
     monkeypatch.setattr(browser, '_execute_web_use', lambda *a, **kw: calls.append(('dispatched', a)))
-    web_use = browser.WebUseAgent.__dict__['web_use'].__wrapped__
-    agent = browser.WebUseAgent()
+    import inspect
+    web_use = inspect.unwrap(browser.web_use)
 
     # A successful close is the tab closing, then the session ending with it.
-    assert web_use(agent, 'close', web_session_id='observed') == {
+    assert web_use('close', web_session_id='observed') == {
         'ok': True, 'closed': True, 'page_closed': True, 'web_session_id': 'observed'}
     assert [call[0] for call in calls] == ['close', 'release']
 
     # A tab that did not close is an error, never "closed".
-    failed = web_use(agent, 'close', arguments={'web_session_id': 'observed'})
+    failed = web_use('close', arguments={'web_session_id': 'observed'})
     assert failed.is_error and failed.json_data['page_closed'] is False
     assert failed.json_data['reason_code'] == 'desktop_unavailable'
-    missing = web_use(agent, 'close')
+    missing = web_use('close')
     assert missing.is_error and missing.json_data['reason_code'] == 'web_session_required'
     assert not any(call[0] == 'dispatched' for call in calls)

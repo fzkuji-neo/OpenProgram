@@ -32,9 +32,11 @@ relies on.
 - **`_helpers.py`** — Small helpers shared by tool `execute` implementations
 - **`_programs.py`** — First-party *programs*
 - **`_providers.py`** — Shared provider-registry scaffolding for tools with pluggable backends
-- **`_registry.py`** — Load explicit shipped Programs and owner-authorized external sources
+- **`_registry.py`** — Load built-in workflows, user workflows and owner-authorized harnesses
 - **`_runtime.py`** — @function decorator + runtime layer
 - **`_source_loader.py`** — Definition-time call scopes for explicitly authorized Program sources
+- **`_workflow_check.py`** — ``openprogram workflows check``: validate, test and commit a workflow
+- **`_workflow_packages.py`** — Workflow packages: loading, registration and checks
 - **`application_client.py`** — Use installed application operations from Programs and local CLI clients
 - **`meta_storage.py`** — Profile-scoped persistence for tool profiles and Functions UI metadata
 - **`permission_rule.py`** — 权限规则字符串的解析、序列化、匹配。
@@ -46,6 +48,6 @@ relies on.
 - **`applications/`** — Complete programs installed and loaded through their package entry points
 - **`packages/`** — Owner-installed Program packages; unregistered directories are not imported
 - **`tools/`** — Deterministic LLM-callable functions, grouped by source purpose
-- **`workflow/`** — All model-aware Programs and complete Workflows
+- **`workflow/`** — Built-in workflows and Programs
 
 _Auto-generated from `__init__.py` docstring — keep that as the source of truth; re-run `python scripts/gen_dir_readmes.py` from the repo root to refresh._

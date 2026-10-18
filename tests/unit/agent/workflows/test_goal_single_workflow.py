@@ -100,8 +100,7 @@ def test_one_goal_function_selects_only_the_initial_context(
         work_prompts.append(kwargs["prompt"])
         return "finished"
 
-    def fake_evaluate(_sid, _goal, *, agent_id, spawn_caller=None,
-                      session_view=None):
+    def fake_evaluate(_sid, _goal, *, session_view=None):
         judge_views.append(session_view)
         return "met", "done", "", []
 

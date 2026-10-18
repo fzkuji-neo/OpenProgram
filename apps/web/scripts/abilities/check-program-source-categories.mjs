@@ -6,7 +6,6 @@ const route = readFileSync(new URL("app/(shell)/programs/page.tsx", root), "utf8
 const page = readFileSync(new URL("components/programs/programs-page.tsx", root), "utf8");
 const logic = readFileSync(new URL("components/programs/programs-logic.ts", root), "utf8");
 const catalog = readFileSync(new URL("components/programs/programs-catalog.ts", root), "utf8");
-const source = readFileSync(new URL("components/programs/programs-source.ts", root), "utf8");
 const css = readFileSync(new URL("components/programs/programs-page.module.css", root), "utf8");
 
 assert.match(route, /@\/components\/capabilities\/capabilities-page/);
@@ -74,17 +73,6 @@ assert.match(
   /\"render\" in icon/,
 );
 assert.doesNotMatch(catalog, /buildRuntimeProgramDirectories|functions\/connected|tool\.source/);
-assert.match(source, /search_workflows/);
-assert.match(source, /create_workflow/);
-assert.match(source, /revise_workflow/);
-assert.match(source, /auto_workflow/);
-assert.match(source, /workflow_capability|isWorkflowCapability/);
-assert.match(page, /from "\.\/programs-source"/);
-assert.match(page, /isWorkflowCapability/);
-assert.match(page, /isUserManualWorkflowEntry/);
-assert.match(page, /Auto entry · user only/);
-assert.match(page, /自动入口 · 仅用户手动/);
-assert.match(page, /Workflow capability/);
-assert.match(page, /Workflow 管理能力/);
+assert.doesNotMatch(page, /programs-source|isWorkflowCapability|Auto entry/);
 
 console.log("program workspace checks passed");

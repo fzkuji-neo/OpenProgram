@@ -22,9 +22,6 @@ const sessionsList = source("components/sidebar/sessions-list.tsx");
 const functionDispatch = source(
   "components/chat/composer/modes/fn-form/use-function-dispatch.ts",
 );
-const workflowSource = source(
-  "../../openprogram/programs/workflow/auto_workflow.py",
-);
 const chatCss = readChatCss(root);
 
 assert.doesNotMatch(projectMenu, /project-caret/);
@@ -69,11 +66,6 @@ assert.match(
   functionDispatch,
   /surfaceOriginForChat\(dispatchSessionId, true\)[\s\S]*?body\.surface_ref = surface/,
   "the Function form must submit the same exact Page descriptor as chat",
-);
-assert.match(
-  workflowSource,
-  /method_options\s*=\s*\{[\s\S]*?"input"\s*:[\s\S]*?"task"[\s\S]*?def auto_workflow\(self, task: str\)/,
-  "auto_workflow must expose only its task parameter",
 );
 assert.match(explorerHeader, /className=\{styles\.treeRootPath\}/);
 assert.match(explorerHeader, /styles\.treeToolbar\b/);

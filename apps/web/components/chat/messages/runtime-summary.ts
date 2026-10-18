@@ -17,21 +17,8 @@ type RuntimeSummaryInput = {
   text?: (en: string, zh: string) => string;
 };
 
-export type RuntimeConclusion = {
-  label: string;
-  meta: string;
-  summary: string;
-  result?: string;
-  tone: "success" | "error" | "cancelled";
-};
-
 const RUNNING = new Set(["pending", "running", "streaming", "cancelling"]);
-const WORKFLOW_FNS = new Set(["auto_workflow", "agentic_workflow"]);
 const GUI_OUTCOMES = new Set(["succeeded", "failed", "infeasible", "cancelled"]);
-
-function isWorkflowName(fnName: string): boolean {
-  return WORKFLOW_FNS.has(fnName);
-}
 
 function epochMs(value: number): number {
   return value > 1e12 ? value : value * 1000;
@@ -101,14 +88,7 @@ function resolvedStatus(input: RuntimeSummaryInput): string {
   if (outerIsGeneric && input.fnName === "gui_agent") {
     return GUI_OUTCOMES.has(inner) ? inner : "error";
   }
-  if (!isWorkflowName(input.fnName)) return outer;
-  if (
-    outerIsGeneric
-    && ["capped", "interrupted", "cancelled", "canceled", "failed", "error"].includes(inner)
-  ) {
-    return inner;
-  }
-  return outer || inner;
+  return outer;
 }
 
 function counted(noun: string, count: number): string {
@@ -117,8 +97,7 @@ function counted(noun: string, count: number): string {
 
 /** Render the persisted backend handoff; this layer never starts a model call. */
 export function runtimeAnswer(input: RuntimeSummaryInput): string | null {
-  if (isWorkflowName(input.fnName)
-    || RUNNING.has(resolvedStatus(input))
+  if (RUNNING.has(resolvedStatus(input))
     || resolvedStatus(input) === "paused") return null;
   const output = input.tree?.output;
   if (input.fnName === "gui_agent" && resolvedStatus(input) === "cancelled"
@@ -132,105 +111,6 @@ export function runtimeAnswer(input: RuntimeSummaryInput): string | null {
   if (typeof output === "string" && !payload) return output;
   if (typeof output === "number" || typeof output === "boolean") return String(output);
   return "```json\n" + JSON.stringify(payload ?? output, null, 2) + "\n```";
-}
-
-export function runtimeConclusion(input: RuntimeSummaryInput): RuntimeConclusion | null {
-  if (!isWorkflowName(input.fnName)) return null;
-  const text = input.text ?? ((en: string) => en);
-  const rawStatus = resolvedStatus(input);
-  if (RUNNING.has(rawStatus)) return null;
-
-  const payload = workflowPayload(input.tree?.output);
-  const items = Array.isArray(payload?.items) ? payload.items : [];
-  const revisions = Array.isArray(payload?.revisions) ? payload.revisions.length : 0;
-  const succeeded = items.filter((item) =>
-    item && typeof item === "object"
-    && String((item as Record<string, unknown>).status || "").toLowerCase() === "completed"
-  ).length;
-  const failedCalls = items.filter((item) => {
-    if (!item || typeof item !== "object") return false;
-    const status = String((item as Record<string, unknown>).status || "").toLowerCase();
-    return status === "failed" || status === "error";
-  }).length;
-  const isHandoff = payload?.summary_kind === "workflow_handoff_v1";
-  const summary = isHandoff && typeof payload?.summary === "string"
-    ? payload.summary.trim()
-    : "";
-  let directResult = "";
-  if (isHandoff && payload?.return_result === true && payload.result != null) {
-    directResult = typeof payload.result === "string"
-      ? payload.result.trim()
-      : JSON.stringify(payload.result, null, 2);
-  }
-  const cancelled = rawStatus === "cancelled" || rawStatus === "canceled";
-  const interrupted = rawStatus === "interrupted";
-  const failed = rawStatus === "error" || rawStatus === "failed" || Boolean(input.tree?.error);
-  const capped = rawStatus === "capped";
-
-  if (cancelled) {
-    return {
-      label: text("Conclusion", "结论"),
-      meta: items.length
-        ? text(
-            `Workflow was cancelled after ${counted("recorded call", items.length)}.`,
-            `工作流已取消；取消前记录了 ${items.length} 个调用。`,
-          )
-        : text("Workflow was cancelled.", "工作流已取消。"),
-      summary: "",
-      tone: "cancelled",
-    };
-  }
-
-  if (interrupted) {
-    return {
-      label: text("Conclusion", "结论"),
-      meta: text("Workflow was interrupted.", "工作流已中断。"),
-      summary: String(input.tree?.error || summary || "").trim(),
-      tone: "error",
-    };
-  }
-
-  if (failed || capped) {
-    return {
-      label: text("Conclusion", "结论"),
-      meta: capped
-        ? text(
-            items.length
-              ? `Workflow stopped at its execution limit after ${counted("recorded call", items.length)}.`
-              : "Workflow stopped at its execution limit.",
-            items.length
-              ? `工作流达到执行上限后停止，共记录 ${items.length} 个调用。`
-              : "工作流达到执行上限后停止。",
-          )
-        : items.length
-          ? text(
-              `Workflow failed after ${counted("recorded call", items.length)}.`,
-              `工作流在记录 ${items.length} 个调用后失败。`,
-            )
-          : text("Workflow failed.", "工作流失败。"),
-      summary: String(input.tree?.error || summary || "").trim(),
-      tone: "error",
-    };
-  }
-
-  const repair = revisions
-    ? text(
-        `, with ${counted("automatic repair", revisions)}`,
-        `，经过 ${revisions} 次自动修复`,
-      )
-    : "";
-  return {
-    label: text("Conclusion", "结论"),
-    meta: items.length
-      ? text(
-          `Completed ${counted("call", items.length)}: ${succeeded} succeeded, ${failedCalls} failed${repair}.`,
-          `已完成 ${items.length} 个调用：${succeeded} 个成功、${failedCalls} 个失败${repair}。`,
-        )
-      : text("Workflow completed.", "工作流已完成。"),
-    summary,
-    ...(directResult ? { result: directResult } : {}),
-    tone: "success",
-  };
 }
 
 export function runtimeSummaryLabel(input: RuntimeSummaryInput): string {
@@ -270,12 +150,9 @@ export function runtimeSummaryLabel(input: RuntimeSummaryInput): string {
           ? text("Succeeded", "成功")
           : statusByResult[rawStatus] || text("Completed", "已完成");
   const steps = countRuntimeSteps(input.tree);
-  const payload = isWorkflowName(input.fnName) || input.fnName === "gui_agent"
+  const payload = input.fnName === "gui_agent"
     ? workflowPayload(input.tree?.output)
     : null;
-  const handoffPreview = payload?.summary_kind === "workflow_handoff_v1"
-    ? preview(payload.summary)
-    : "";
   const guiPreview = input.fnName === "gui_agent"
     ? preview(guiInfeasible
       ? payload?.handoff_instruction || payload?.summary
@@ -295,9 +172,7 @@ export function runtimeSummaryLabel(input: RuntimeSummaryInput): string {
   } else if (paused) {
     result = stepCount;
   } else if (!(cancelled || interrupted || capped)) {
-    result = handoffPreview
-      || (payload ? stepCount : preview(input.tree?.output))
-      || stepCount;
+    result = (payload ? stepCount : preview(input.tree?.output)) || stepCount;
   }
   const elapsed = durationMs(input);
   return [input.fnName, status, elapsed === null ? "" : formatDuration(elapsed), result]

@@ -102,7 +102,7 @@ def _run_browser_task(
                     pending_screenshot_result = None
                 action_seq_before = getattr(controller, "_action_seq", 0)
                 try:
-                    reply = state.agent(
+                    reply = state.planner(
                         content,
                         tools=[action_tool],
                         tool_choice={"type": "function", "name": "browser_page"},

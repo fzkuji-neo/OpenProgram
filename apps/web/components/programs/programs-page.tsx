@@ -48,11 +48,14 @@ import {
 import {
   type ProgramExplorerEntry,
 } from "./programs-catalog";
-import {
-  isUserManualWorkflowEntry,
-  isWorkflowCapability,
-  type ProgramSourceEntry,
-} from "./programs-source";
+
+type ProgramSourceEntry = {
+  name?: string | null;
+  path?: string | null;
+  callable_name?: string | null;
+  entity_kind?: "package";
+  program_kind?: string | null;
+};
 
 import styles from "./programs-page.module.css";
 import fileStyles from "@/components/files/files-panel.module.css";
@@ -96,8 +99,6 @@ function kindLabel(
   text: (en: string, zh: string) => string,
   entry?: ProgramSourceEntry | null,
 ) {
-  if (isUserManualWorkflowEntry(entry)) return text("Auto entry · user only", "自动入口 · 仅用户手动");
-  if (isWorkflowCapability(entry)) return text("Workflow capability", "Workflow 管理能力");
   if (kind === "workflow") return text("Workflow", "工作流");
   if (entry?.entity_kind === "package") return text("Package", "程序包");
   if (kind === "agent_method") return text("Workflow", "工作流");
@@ -108,7 +109,7 @@ function kindLabel(
 }
 
 function usesWorkflowIcon(entry: ProgramSourceEntry) {
-  return entry.program_kind === "workflow" || isWorkflowCapability(entry);
+  return entry.program_kind === "workflow";
 }
 
 function EntryIcon({ entry, expanded }: { entry: ExplorerEntry; expanded: boolean }) {
@@ -540,6 +541,17 @@ export function ProgramsPage({
                     </div>
                   ) : null}
                 </div>
+                {selectedEntry?.workflow_state && (selectedEntry.workflow_state !== "loaded" || selectedEntry.workflow_note) ? (
+                  <div className={`${styles.workflowState} ${selectedEntry.workflow_state === "error" ? styles.workflowStateError : ""}`} role="status" data-testid="programs-workflow-state">
+                    <strong>{selectedEntry.workflow_state === "error"
+                      ? text("Failed to load", "加载失败")
+                      : selectedEntry.workflow_state === "pending"
+                        ? text("Not callable yet", "尚不可调用")
+                        : text("Uncommitted changes", "有未提交的修改")}</strong>
+                    {selectedEntry.workflow_error || selectedEntry.workflow_note ? <p>{selectedEntry.workflow_error || selectedEntry.workflow_note}</p> : null}
+                    {selectedEntry.source_path ? <small>{selectedEntry.source_path}</small> : null}
+                  </div>
+                ) : null}
                 <div className={styles.summary}><span>{logic.edges.filter((edge) => edge.source === logic.root).length} {text("direct calls", "个直接调用")}</span><span>{Math.max(0, logic.nodes.length - 1)} {text("reachable nodes", "个可达节点")}</span><span>{logic.edges.length} {text("edges", "条边")}</span></div>
                 {logic.analysis_kind === "function_calls" ? <div className={styles.noCalls}>{text("Current source · possible function calls, not execution order · refreshes automatically. External libraries and object methods are not expanded.", "当前源码 · 展示可能的函数调用，不代表执行顺序 · 自动刷新。外部库与对象方法不展开。")}</div> : null}
                 {logic.analysis_complete === false ? <div className={styles.analysisWarning} role="status">{text("Incomplete analysis", "分析不完整")}: {logic.analysis_warnings?.join(", ")}</div> : null}

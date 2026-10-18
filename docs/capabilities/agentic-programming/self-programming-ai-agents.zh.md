@@ -3,43 +3,43 @@
 # 自编程 AI Agent
 
 自编程 AI agent 可以在工作过程中创建或修改可执行工作流。在 OpenProgram 中，
-这些工作流使用 `Agent` method 装饰器：agent 用常规工具编辑源文件，
-runtime 验证并加载函数，后续轮次可通过与现有工具相同的注册表调用它。
+agent 用常规文件工具在 `~/.openprogram/workflows/<name>/` 中编写 Workflow 包，
+运行 `openprogram workflows check` 测试并提交，之后的轮次通过与现有工具相同的注册表调用它的入口。
 
 这项能力的范围小于不受限制的自我修改。OpenProgram 不允许模型静默替换 runtime
-或绕过验证。可编辑单元是能够审查的函数，具有声明的接口、显式工具访问、
-执行记录和常规源码版本控制。
+或绕过检查。可编辑单元是能够审查的包，具有声明的入口、每个角色显式的工具访问、
+执行记录和独立的 Git 历史。
 
 <div id="what-the-agent-programs"></div>
 
 ## Agent 编写什么
 
-Agentic function 将确定性控制流与模型决策结合：
+Workflow 将确定性控制流与模型决策结合：
 
 ```python
-from openprogram import Agent
+from openprogram import Agent, Context
 
-class ExampleAgent(Agent):
-    tools = []
-    method_options = {
-        'review_then_revise': {'tool': True},
-    }
+reviewer = Agent(instructions="You find concrete defects.", tools=[])
+editor = Agent(instructions="You revise drafts.", tools=[])
 
-    def review_then_revise(self, draft: str) -> str:
-        """Review a draft, then revise it against the review."""
-        review = self(f"Identify concrete defects in this draft:\n\n{draft}")
-        return self(f"Revise the draft using this review:\n\n{review}\n\n{draft}")
 
-_example_agent = ExampleAgent()
-review_then_revise = _example_agent.review_then_revise
+def review_then_revise(draft: str) -> str:
+    """Review a draft, then revise it against the review."""
+    ctx = Context({"draft": draft})
+    review = reviewer("Identify concrete defects in this draft", context=ctx)
+    return editor("Revise the draft using the review",
+                  context=ctx.derive({"review": review}))
+
+
+PROGRAM_ENTRIES = [review_then_revise]
 ```
 
-Python 函数体固定所需的执行顺序，模型处理两个语义步骤。每次调用都可在
-OpenProgram 的执行上下文中查看。
+Python 函数体固定所需的执行顺序，两个角色处理语义步骤，各自只看到自己 Context 中的块。
+每次角色调用都记录在会话图中。
 
 <div id="how-an-agent-creates-one"></div>
 
-## Agent 如何创建函数
+## Agent 如何创建
 
 安装并启动 OpenProgram：
 
@@ -51,22 +51,21 @@ openprogram
 然后向 agent 请求一个范围明确的工作流，例如：
 
 ```text
-创建一个名为 review_then_revise 的 agentic function。它必须审查草稿，
-根据审查意见修订，仅暴露最终输出，并包含冒烟测试。提交前向我展示 diff。
+创建一个名为 review_then_revise 的 Workflow。它必须审查草稿，
+根据审查意见修订，只返回最终文本，并包含行为测试。
 ```
 
-随附的 [Agentic function API](../../reference/api/agent.zh.md)
-定义文件布局、装饰器合同、验证步骤和冒烟测试。
-Watcher 可以加载已批准的函数，无需重启 worker。
+[编写和检查 Workflow](../workflows/authoring.zh.md) 定义包结构、角色与 Context
+规则、测试工具和检查流程。worker 无需重启即可加载通过检查的 Workflow。
 
 <div id="runtime-controls-that-still-apply"></div>
 
 ## 仍然适用的 Runtime 控制
 
-- 工具访问由函数的显式 runtime 调用和配置的审批策略决定。
-- 函数调用、模型调用及其上下文关系记录在会话 DAG 中。
+- 工具访问由每个角色的 `tools` 和配置的审批策略决定。
+- 每次角色调用及其发送的完整请求记录在会话图中。
 - 资源限制、取消、结构化输出验证和提供商用量核算仍由 runtime 负责。
-- 源码修改仍是普通文件：可以在发布前检查、测试、回退和审查。
+- 源码修改仍是普通文件：可以检查、测试和回退，只有通过检查并已提交的版本才会加载。
 
 <div id="when-to-use-it"></div>
 

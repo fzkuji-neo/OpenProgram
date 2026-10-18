@@ -429,7 +429,7 @@ def _run_browser_task_commands(
                 pending_screenshot_result = None
             seq_before = last["seq"]
             try:
-                reply = state.agent(
+                reply = state.planner(
                     content,
                     tools=[action_tool],
                     tool_choice="auto",

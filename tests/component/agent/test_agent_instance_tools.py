@@ -84,13 +84,13 @@ def test_agent_context_overrides_ambient_content_at_public_call(override):
     import json
     from openprogram import Context, Runtime
 
-    ambient = Context({"topic": "ambient", "outer": "inherited"}, history_filter="current_call")
+    ambient = Context({"topic": "ambient", "outer": "inherited"}, history="thread")
     configured = Context({"topic": "instance", "inner": "configured"})
     observations = []
 
     def provider(content, **kwargs):
         context = Context.current()
-        observations.append(context.history_filter)
+        observations.append(context.history)
         return json.dumps(context.resolve_blocks())
 
     runtime = Runtime(call=provider)
@@ -106,7 +106,7 @@ def test_agent_context_overrides_ambient_content_at_public_call(override):
         if override is not None:
             expected.update(topic="call" if override == "call" else "instance", inner="configured")
         assert result == expected
-        assert observations == ["current_call"]
+        assert observations == ["thread"]
         assert configured.resolve_blocks() == {"topic": "instance", "inner": "configured"}
         assert ambient.resolve_blocks() == {"topic": "ambient", "outer": "inherited"}
     finally:

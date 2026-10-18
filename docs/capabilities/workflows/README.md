@@ -28,7 +28,7 @@ openprogram programs run <name> -a key=value  # run a program directly
 
 First-party Programs are immutable product components. In a mutable extension or development environment, `programs install` clones an additional third-party harness, installs its declared dependencies, and records the approved source.
 
-`openprogram programs list` includes the registered entry points of owner-authorized published Workflows, including those inside a category such as `workflow/weekly_report/`. Listing does not execute them or import unrecorded projects.
+`openprogram programs list` includes the entries of the Workflows loaded from `~/.openprogram/workflows`. `openprogram workflows list` shows each of those Workflows with its load state.
 
 ## How to trigger them
 
@@ -51,7 +51,7 @@ Browser workflows retain an explicit initial URL when a backend is selected. Off
 
 Any repository that follows the directory contract (`<package>/agentics/__init__.py` exposing `PROGRAM_ENTRIES`) can be installed with the same `programs install` command. See [Installing and writing harnesses](../installing-harnesses.md) for the contract, a minimal template, and the publishing flow.
 
-That harness contract is different from a single self-programming Workflow package. For the package contract, a complete tested example, relative paths, and the `workflows validate/test/publish` commands, see [Write, test, and publish a Workflow](authoring.md). Generated `create_workflow` and `revise_workflow` packages use the same required behavior-test gate.
+That harness contract is different from a single Workflow package in `~/.openprogram/workflows`. For the package form, a complete tested example and the `workflows check` command, see [Write and check a Workflow](authoring.md). Workflows the chat agent writes go through the same check.
 
 Workflow forms ask for task information, not execution settings. Text polishing infers its style from the text in the same model request; it does not require a style selection. Browser backend and session handles remain internal. Document page ranges and output destinations are optional task requirements. Explicit Python callers retain supported overrides.
 

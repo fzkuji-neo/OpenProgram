@@ -387,12 +387,12 @@
   <h2>端到端流程：执行、交接与聊天投影</h2>
   <div class="flow-wrap">
     <div class="flow-head">
-      <strong>外部 auto_workflow 一次调用</strong>
+      <strong>外部 report_workflow 一次调用</strong>
       <span>默认：文件产物与简短交接说明</span>
     </div>
     <div class="flow-canvas">
       <svg class="flow-diagram" viewBox="0 0 1040 760" role="img" aria-labelledby="workflow-flow-title workflow-flow-desc">
-        <title id="workflow-flow-title">auto_workflow 从外部调用到聊天 Conclusion 的完整流程</title>
+        <title id="workflow-flow-title">report_workflow 从外部调用到聊天 Conclusion 的完整流程</title>
         <desc id="workflow-flow-desc">流程分为运行与产物、summary 信任边界、聊天投影三层。完整结果正文及其在后续调用参数中的副本默认只进入文件和 workflow state，不进入 summary 输入或公共 payload；只有原始任务明确要求直接返回正文时才单独显示。</desc>
         <defs>
           <marker id="flow-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -411,7 +411,7 @@
         <text x="333" y="125" fill="#9a988e" font-size="11" text-anchor="middle">caller 为空 · code square</text>
         <path d="M415 111 H465" fill="none" stroke="#6b6a63" stroke-width="1.5" marker-end="url(#flow-arrow)"/>
         <rect x="466" y="69" width="190" height="84" rx="7" fill="#232321" stroke="#4f8ef7"/>
-        <text x="561" y="96" fill="#f0eee6" font-size="13" text-anchor="middle">auto_workflow 执行</text>
+        <text x="561" y="96" fill="#f0eee6" font-size="13" text-anchor="middle">report_workflow 执行</text>
         <text x="561" y="117" fill="#9a988e" font-size="11" text-anchor="middle">搜索 → 选择 → 复用或创建 → 执行</text>
         <text x="561" y="136" fill="#9a988e" font-size="11" text-anchor="middle">使用当前 session provider / model</text>
         <path d="M656 95 H710" fill="none" stroke="#6b6a63" stroke-width="1.5" marker-end="url(#flow-arrow)"/>
@@ -515,12 +515,12 @@
         <span class="scene-kicker">ROOT → PROGRAM</span>
       </div>
       <div class="canvas">
-        <svg viewBox="0 0 500 280" role="img" aria-label="ROOT directly connects to an auto_workflow square node">
+        <svg viewBox="0 0 500 280" role="img" aria-label="ROOT directly connects to an report_workflow square node">
           <path d="M90 72 V184 H194" fill="none" stroke="#4f8ef7" stroke-width="2"/>
           <rect x="78" y="60" width="24" height="24" rx="3" transform="rotate(45 90 72)" fill="#141413" stroke="#4f8ef7" stroke-width="2.4"/>
           <text x="118" y="77" fill="#4f8ef7" font-size="13">ROOT</text>
           <rect x="198" y="172" width="24" height="24" rx="4" fill="#141413" stroke="#4f8ef7" stroke-width="2.4" stroke-dasharray="5 4"/>
-          <text x="238" y="181" fill="#d8d6cc" font-size="14">auto_workflow</text>
+          <text x="238" y="181" fill="#d8d6cc" font-size="14">report_workflow</text>
           <text x="238" y="201" fill="#9a988e" font-size="12">Running...</text>
         </svg>
       </div>
@@ -533,7 +533,7 @@
         <span class="scene-kicker">ONE ROOT · TWO ACTIONS</span>
       </div>
       <div class="canvas">
-        <svg viewBox="0 0 500 360" role="img" aria-label="ROOT connects to a normal user and LLM pair and separately to auto_workflow">
+        <svg viewBox="0 0 500 360" role="img" aria-label="ROOT connects to a normal user and LLM pair and separately to report_workflow">
           <path d="M72 54 V162 H156" fill="none" stroke="#4f8ef7" stroke-width="2"/>
           <path d="M168 174 V244 H252" fill="none" stroke="#4f8ef7" stroke-width="2"/>
           <path d="M72 54 V310 H156" fill="none" stroke="#4f8ef7" stroke-width="2"/>
@@ -544,7 +544,7 @@
           <polygon points="264,232 252,256 276,256" fill="#141413" stroke="#4f8ef7" stroke-width="2.4"/>
           <text x="292" y="250" fill="#d8d6cc" font-size="13">LLM response</text>
           <rect x="156" y="298" width="24" height="24" rx="4" fill="#141413" stroke="#4f8ef7" stroke-width="2.4" stroke-dasharray="5 4"/>
-          <text x="196" y="307" fill="#d8d6cc" font-size="14">auto_workflow</text>
+          <text x="196" y="307" fill="#d8d6cc" font-size="14">report_workflow</text>
           <text x="196" y="327" fill="#9a988e" font-size="12">Running...</text>
         </svg>
       </div>
@@ -559,8 +559,8 @@
       <div class="mock-chat">
         <div class="program-record">
           <div class="program-avatar" aria-hidden="true">ƒ</div>
-          <button class="program-summary" type="button" aria-expanded="false" title="auto_workflow · Running... · 02:14 · 4 steps">
-            <span class="summary-text"><span class="name">auto_workflow</span> · <span class="running" role="status" aria-live="polite">Running...</span> · 02:14 · 4 steps</span>
+          <button class="program-summary" type="button" aria-expanded="false" title="report_workflow · Running... · 02:14 · 4 steps">
+            <span class="summary-text"><span class="name">report_workflow</span> · <span class="running" role="status" aria-live="polite">Running...</span> · 02:14 · 4 steps</span>
             <span class="summary-chevron" aria-hidden="true">›</span>
           </button>
         </div>
@@ -582,8 +582,8 @@
       <small>RUNNING</small>
       <div class="program-record">
         <div class="program-avatar" aria-hidden="true">ƒ</div>
-        <button class="program-summary" type="button" aria-expanded="false" title="auto_workflow · Running... · 02:14 · 4 steps">
-          <span class="summary-text"><span class="name">auto_workflow</span> · <span class="running">Running...</span> · 02:14 · 4 steps</span>
+        <button class="program-summary" type="button" aria-expanded="false" title="report_workflow · Running... · 02:14 · 4 steps">
+          <span class="summary-text"><span class="name">report_workflow</span> · <span class="running">Running...</span> · 02:14 · 4 steps</span>
           <span class="summary-chevron" aria-hidden="true">›</span>
         </button>
       </div>
@@ -593,8 +593,8 @@
       <small>COMPLETED</small>
       <div class="program-record">
         <div class="program-avatar" aria-hidden="true">ƒ</div>
-        <button class="program-summary" type="button" aria-expanded="false" title="auto_workflow · 已完成 · 02:46 · 已处理 2 个文件">
-          <span class="summary-text"><span class="name">auto_workflow</span> · 已完成 · 02:46 · 已处理 2 个文件</span>
+        <button class="program-summary" type="button" aria-expanded="false" title="report_workflow · 已完成 · 02:46 · 已处理 2 个文件">
+          <span class="summary-text"><span class="name">report_workflow</span> · 已完成 · 02:46 · 已处理 2 个文件</span>
           <span class="summary-chevron" aria-hidden="true">›</span>
         </button>
         <div class="program-conclusion">
@@ -614,8 +614,8 @@
       <small>ERROR</small>
       <div class="program-record">
         <div class="program-avatar" aria-hidden="true">ƒ</div>
-        <button class="program-summary" type="button" aria-expanded="false" title="auto_workflow · Error · 01:22 · Permission denied">
-          <span class="summary-text"><span class="name">auto_workflow</span> · <span class="error">Error</span> · 01:22 · Permission denied</span>
+        <button class="program-summary" type="button" aria-expanded="false" title="report_workflow · Error · 01:22 · Permission denied">
+          <span class="summary-text"><span class="name">report_workflow</span> · <span class="error">Error</span> · 01:22 · Permission denied</span>
           <span class="summary-chevron" aria-hidden="true">›</span>
         </button>
         <div class="program-conclusion">
@@ -629,8 +629,8 @@
       <small>CANCELLED</small>
       <div class="program-record">
         <div class="program-avatar" aria-hidden="true">ƒ</div>
-        <button class="program-summary" type="button" aria-expanded="false" title="auto_workflow · Cancelled · 00:42 · 3 steps">
-          <span class="summary-text"><span class="name">auto_workflow</span> · Cancelled · 00:42 · 3 steps</span>
+        <button class="program-summary" type="button" aria-expanded="false" title="report_workflow · Cancelled · 00:42 · 3 steps">
+          <span class="summary-text"><span class="name">report_workflow</span> · Cancelled · 00:42 · 3 steps</span>
           <span class="summary-chevron" aria-hidden="true">›</span>
         </button>
         <div class="program-conclusion">
@@ -700,7 +700,7 @@
   <strong>调整：</strong>顶层 Program 增加专用头像；压缩标题比 Thinking/Functions 更详细，包含函数名、状态、时长和结果摘要。<br>
   <strong>拒绝：</strong>虚构 User/LLM、单独新 lane、大卡片、百分比进度、workflow 专用内部时间线、用完整产物正文冒充工作总结。</p>
 
-  <div class="not-decided"><strong>本页边界：</strong>本页设计头像、顶层折叠标题和终态 <code>Conclusion</code>。展开后怎样画根函数、嵌套函数、参数、输出和错误，全部服从当前 <code>RuntimeBlock</code>；不为 <code>auto_workflow</code> 增加专用内部流程设计。</div>
+  <div class="not-decided"><strong>本页边界：</strong>本页设计头像、顶层折叠标题和终态 <code>Conclusion</code>。展开后怎样画根函数、嵌套函数、参数、输出和错误，全部服从当前 <code>RuntimeBlock</code>；不为 <code>report_workflow</code> 增加专用内部流程设计。</div>
 
   <h2>已实现验收标准：summary 与聊天窗口</h2>
   <table>
@@ -726,7 +726,7 @@
   <table>
     <thead><tr><th>入口</th><th>可观察结果</th></tr></thead>
     <tbody>
-      <tr><td>空 session 从 Programs 运行 <code>auto_workflow</code></td><td>DAG 立即出现且只出现一个 ROOT 子级圆角正方形节点，标签为 <code>auto_workflow</code> 与 <code>Running...</code>。</td></tr>
+      <tr><td>空 session 从 Programs 运行 <code>report_workflow</code></td><td>DAG 立即出现且只出现一个 ROOT 子级圆角正方形节点，标签为 <code>report_workflow</code> 与 <code>Running...</code>。</td></tr>
       <tr><td>已有聊天的 session 从 Programs 运行</td><td>现有 User → LLM 结构不变；同一 conversation layer 增加一个由 ROOT 直接分出的 Program 节点。</td></tr>
       <tr><td>概览投影处理已有 predecessor</td><td>存储中的 <code>predecessor</code> 保持当前 HEAD；概览 renderer 根据空 <code>caller</code> 派生 ROOT → Program 排版边，不把 Program 误接成 assistant 的内部调用。</td></tr>
       <tr><td>运行完成、失败或取消</td><td>更新同一 Program 节点的描边和状态，不移动节点，不生成第二个结果节点。</td></tr>
@@ -738,7 +738,7 @@
     <thead><tr><th>范围</th><th>合同</th></tr></thead>
     <tbody>
       <tr><td>生产文件</td><td><code>workflow/__init__.py</code> 中的运行总结逻辑生成结构化 handoff；<code>runtime-summary.ts</code> 只把带版本标记的 handoff 当作 Conclusion，并仅在 <code>return_result=true</code> 时暴露原始结果；<code>runtime-block.tsx</code> 在同一 Conclusion 中分开渲染工作总结与明确要求的直接结果。</td></tr>
-      <tr><td>公共入口</td><td>从 Programs 或 fn-form 在会话中直接运行用户级 <code>auto_workflow</code>，刷新历史会话后也必须得到相同结论。</td></tr>
+      <tr><td>公共入口</td><td>从 Programs 或 fn-form 在会话中直接运行用户级 <code>report_workflow</code>，刷新历史会话后也必须得到相同结论。</td></tr>
       <tr><td>兼容与失败</td><td>非 workflow 的 Function 行、运行中的 workflow、嵌套 LLM 工具调用保持现状；JSON 不完整、失败、取消时不得抛出渲染异常或伪造成功数字。</td></tr>
       <tr><td>明确排除</td><td>不新增依赖、不改变 DAG、不改变按钮内容、顺序或行为、不修改普通 assistant 消息和嵌套函数，不让 summary 函数使用工具或再次执行任务。</td></tr>
       <tr><td>RED / GREEN</td><td>Python 公共入口测试验证当前package Workflow的独立summary不接收完整结果、调用参数或非agent步骤结果，只接收agent的短operational handoff；中间结果即使被后续调用参数引用，也只留在内部state。另以显式legacy resume测试保留SINGLE/code.py文件交付兼容，不能从该测试生成新legacy run。<code>npm run check:chat-ui</code> 覆盖新handoff、显式结果和旧payload不再显示完整正文；随后运行Web typecheck、完整Web check、文档链接与diff检查。</td></tr>

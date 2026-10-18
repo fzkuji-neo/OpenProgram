@@ -1,7 +1,7 @@
 """Visual collection boundaries; these fixtures do not prove live collection."""
 
 import pytest
-from openprogram.programs.workflow import report_wechat_visual as visual
+from openprogram.programs.workflow._reports import wechat_visual as visual
 
 
 @pytest.fixture(autouse=True)

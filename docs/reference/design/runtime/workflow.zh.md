@@ -2,7 +2,7 @@
 
 Workflow 是一个小型 Python 包：Agent 实例定义角色，Context 对象定义每次模型调用能看到什么，普通函数决定调用顺序。Workflow 由聊天 agent 直接编写和修改，不另设搜索、创建、修订 workflow 的工具。运行时，agent 把 workflow 当作普通工具调用。
 
-本文是 workflow 唯一的设计记录。产品用法见 [自编程 Workflow](../../../capabilities/agentic-workflow.zh.md) 和 [编写、测试和发布 Workflow](../../../capabilities/workflows/authoring.zh.md)。
+本文是 workflow 唯一的设计记录。产品用法见 [自编程 Workflow](../../../capabilities/agentic-workflow.zh.md) 和 [编写和检查 Workflow](../../../capabilities/workflows/authoring.zh.md)。
 
 ## Workflow 的形式
 
@@ -40,6 +40,7 @@ PROGRAM_ENTRIES = [weekly_report]
 
 - 模型调用只通过角色进行：`role(prompt, context=...)` 运行一次工具循环，`role.choose(prompt, {id: label})` 从选项中选一个。Workflow 代码不直接调用 `llm()`、`agent()` 这两个底层函数。
 - `PROGRAM_ENTRIES` 列出对外暴露为工具的函数。入口的类型标注就是工具参数，docstring 就是工具描述。
+- 可选的 `ENTRY_OPTIONS` 字典把入口名映射到工具选项，例如 `input` 下每个参数的表单说明，或 `run_in_worker`（见「运行」）。
 - 没有装饰器、基类、DSL，也没有按字符串分发。一个 workflow 用另一个 workflow 时，直接 Python import。
 
 ## 一次模型调用能看到什么
@@ -49,10 +50,12 @@ PROGRAM_ENTRIES = [weekly_report]
 | 顺序 | 内容 | 由谁定义 |
 |---|---|---|
 | 1 | 角色的 `instructions`（系统提示） | `Agent(...)` 实例 |
-| 2 | 发起调用的函数的 docstring，只在这一次调用里有 | 函数 |
-| 3 | `ctx` 里的命名内容块 | 构造或派生 `ctx` 的代码 |
-| 4 | 历史，默认为空 | `ctx` 的历史设置 |
+| 2 | 历史，默认为空，作为之前的消息 | `ctx` 的历史设置 |
+| 3 | 发起调用的函数的 docstring，只在这一次调用里有 | 函数 |
+| 4 | `ctx` 里的命名内容块 | 构造或派生 `ctx` 的代码 |
 | 5 | `prompt` | 调用处 |
+
+第 3 到 5 部分组成当前的用户消息，历史作为更早的轮次排在它前面。
 
 请求里不会出现其他内容。聊天记录、其他角色的输出、前面函数的执行过程，只有代码放进 `ctx` 或 `prompt` 时模型才能看到。`ctx` 不改变工具和权限，工具属于角色。
 
@@ -68,8 +71,6 @@ Workflow 使用现有的 `openprogram.context.Context`：
   - `"thread"`：用同一个 `ctx` 对象做过的前几次调用，包括它们的 prompt 和回复，适合同一个角色多轮工作；
   - `"chat"`：触发这个 workflow 的那段聊天；
   - 一个筛选历史条目的函数。
-
-  这四种取值替换掉现在按图结构命名的 `history_filter` 取值 `"dag"` 和 `"current_call"`。
 
 ### 函数的 docstring
 
@@ -103,27 +104,28 @@ docstring 查找和 `call_path` 都通过 `sys._getframe` 和 `co_qualname` 实�
 
 ## 编写
 
-- 聊天 agent 用普通文件工具编写 workflow 包，由一个编写 workflow 的 skill 提供指导。
+- 聊天 agent 用普通文件工具编写 workflow 包，由产品文档页[编写和检查 Workflow](../../../capabilities/workflows/authoring.zh.md)提供指导。OpenProgram 不内置第一方 skill，所以没有单独的编写 skill。
 - `openprogram.testing.script_roles` 用预设回复替换角色调用，并记录每次请求。记录下的请求提供 `text`（instructions、docstring、内容块和 prompt）和 `history_text`，测试可以断言角色到底看到了什么。
-- `openprogram workflows check <dir>` 导入包，检查 `PROGRAM_ENTRIES` 和入口签名，并运行包内测试。
+- `openprogram workflows check <dir> [-m MESSAGE] [--json]` 在子进程中导入包，检查 `PROGRAM_ENTRIES` 和入口签名，并在操作系统沙箱中运行包内测试：无网络、包目录只读、`HOME` 为空。
+- `openprogram workflows list [--json]` 列出用户 workflow 及其加载状态。
 
 ## 存储与加载
 
-- 用户的 workflow 放在 `~/.openprogram/workflows/<name>/`，每个 workflow 是一个独立的 Git 仓库。
-- `check` 通过后自动提交，workflow 随即可以调用，不需要单独的启用步骤。历史和回滚都用 Git。
+- 用户的 workflow 放在 `~/.openprogram/workflows/<name>/`，每个 workflow 是一个独立的 Git 仓库，以自己的顶层名字导入。
+- 内置 workflow 放在 `openprogram/programs/workflow/<name>/`，以 `openprogram.programs.workflow.<name>` 导入，使用同样的形式。
+- `check` 通过后自动提交，workflow 随即可以调用，不需要单独的启用步骤。只有干净、已提交的包才会加载；有未提交改动的包继续提供上次加载的版本。历史和回滚都用 Git。
 - 文件变化时 watcher 重新加载 workflow。加载和检查错误显示在 Programs 页面对应 workflow 旁边。
 - Workflow 以源码形式存在，在进程内运行。import 不受限制，和用户安装的其他 Python 代码一样。
 
 ## 运行
 
-- 聊天 agent 把 workflow 入口当作工具调用。调用在 worker 进程内执行，并按上文记录节点。
+- 聊天 agent 把 workflow 入口当作工具调用。调用在 fork 出的子进程中执行，并按上文记录节点。设置了 `run_in_worker` 的入口改在 worker 进程内执行，用于使用 worker 持有状态（如浏览器会话）的工具。
 - `openprogram programs run <name> -p <provider> -m <model>` 从命令行运行入口。
-- 没有设置超时的 Agent 方法工具运行在事件循环线程上。长时间运行的 workflow 会不会因此阻塞 worker，要先实测，再确定运行路径。
-- 重启后恢复执行使用 `openprogram.agentic_programming.continuation.step`，不放进第一版。
+- 重启后恢复执行使用 `openprogram.agentic_programming.continuation.step`。
 
 ## 示例：`llm_knowledge_research`
 
-用新形式重写你的论文调研 workflow。它现在是一个 `Agent` 子类，`llm()` 调用分散在五个文件里，共 399 行。
+你的论文调研 workflow，压缩成一个文件，完整展示这种形式。
 
 ```
 ~/.openprogram/workflows/llm_knowledge_research/
@@ -316,20 +318,27 @@ def test_empty_selection_broadens_once(monkeypatch, tmp_path):
 
 ## 迁移
 
-- 用户的 `weekly_report` 系列和 `llm_knowledge_research` 按新形式迁到 `~/.openprogram/workflows/`。
-- 内置 workflow 暂时保持现有形式，之后再统一迁移。
-- 新形式上线后，产品文档和 README 改为描述新形式。
+- 用户的 `weekly_report` 系列和 `llm_knowledge_research` 以这种形式放在 `~/.openprogram/workflows/`；共享的周报辅助代码留在 `openprogram.programs.workflow._reports`。
+- 所有内置 workflow 都使用这种形式：模块顶层角色、显式 `Context`、普通函数和 `PROGRAM_ENTRIES`。
+- 产品文档描述这种形式。
 
 ## 阶段
 
 1. 角色调用：docstring 注入、四种历史设置、`call_path` 和 `workflow_source`、角色节点挂在入口节点下、删除 `<situation>`。
 2. 加载与存储：`~/.openprogram/workflows`、check 通过后 Git 提交、watcher、Programs 页面显示错误。
-3. 编写：skill、测试辅助函数、`workflows check`，然后删除旧工具和旧代码。
-4. 迁移用户的 workflow，更新产品文档。
+3. 编写：编写文档、测试辅助函数、`workflows check`，然后删除旧工具和旧代码。
+4. 迁移用户的 workflow 和内置 workflow，更新产品文档。
 
 ## 实现状态
 
 | 项目 | 状态 |
 |---|---|
+| 角色调用：请求组成、docstring 查找、四种历史设置、`call_path`、`workflow_source`、去掉 `<situation>` | 已实现 |
+| 记录：入口节点加角色调用子节点；普通函数不记录 | 已实现 |
+| `~/.openprogram/workflows` 加载、只加载干净提交、watcher 重载、Programs 页面显示加载状态 | 已实现 |
+| `script_roles`、`workflows check`、`workflows list` | 已实现 |
+| 删除旧的编写工具、代码和界面 | 已实现 |
+| 用户 workflow 和内置 workflow 改为这种形式 | 已实现 |
 | Codex 401 刷新、`programs run -p/-m`、工具名解析 | 已实现 |
-| 本文其余内容 | 已设计，未实现 |
+| 示例的单文件布局和「放宽一次」步骤 | 已设计，未实现：迁移后的 `llm_knowledge_research` 保留 `steps/` 模块，角色同为 `planner` 和 `selector`，不做放宽 |
+| workflow 入口重启后恢复执行 | 已设计，未实现 |

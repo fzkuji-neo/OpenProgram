@@ -194,6 +194,15 @@ def register(tool: AgentTool, *, toolsets: list[str] = (),
     return tool
 
 
+def unregister(name: str) -> None:
+    """Remove a tool, as when a workflow package is reloaded or deleted."""
+    with _registry_lock:
+        _registry.pop(name, None)
+        _toolset_membership.pop(name, None)
+        _unsafe_in_channel.pop(name, None)
+        _unexposed.discard(name)
+
+
 def get(name: str) -> Optional[AgentTool]:
     with _registry_lock:
         return _registry.get(name)

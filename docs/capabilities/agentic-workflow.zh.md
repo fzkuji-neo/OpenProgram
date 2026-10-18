@@ -1,39 +1,27 @@
 # 自编程 Workflow
 
-OpenProgram 可以创建、版本化、搜索和执行可复用的 Python Workflow package。任务需要稳定的多阶段结构、显式恢复、重复使用或可审查版本历史时，适合创建 Workflow；一个 Agent 可以直接完成的一次性任务不需要新建 Workflow。
+OpenProgram 的聊天 Agent 可以为你编写可复用的 Workflow。当任务需要稳定的多阶段结构、会被反复使用或需要可审阅的版本历史时，才值得写成 Workflow。Agent 能直接完成的一次性任务不需要。
 
-## 当前四个入口
+## Agent 如何编写
 
-| 入口 | 职责 |
-|---|---|
-| `search_workflows(task)` | 只读搜索本地 catalog；不调用模型、不写文件、不执行候选。 |
-| `create_workflow(task)` | 编写一个新 package，校验后在操作系统沙箱中运行它的行为测试，再发布首个 Git revision；不执行用户任务。 |
-| `revise_workflow(workflow_id, request)` | 为指定 package 编写、校验并测试新 revision，然后发布；旧 revision 保持可用。 |
-| `auto_workflow(task)` | 仅用户手动使用：搜索、选择复用或有依据的创建，然后执行固定 revision。 |
+没有专门的编写工具。Agent 使用普通的文件工具和命令行：
 
-Chat Agent 可以直接调用搜索、创建、修订或具体 Workflow，但不能调用 `auto_workflow`；完整自动编排入口只在 Programs UI 提供给用户。
+1. 把 `~/.openprogram/workflows/<name>/` 建成 Git 仓库并写好包：角色、函数、`PROGRAM_ENTRIES`、`README.md` 和行为测试。
+2. 运行 `openprogram workflows check ~/.openprogram/workflows/<name>`。检查会导入包、在操作系统沙箱中运行测试，通过后提交。
+3. 失败时读报告、修改包，然后再次检查。
 
-校验错误或测试失败会连同被拒的 package 交回编写 Agent 重写，最多四次；没有一次通过就不发布。新发布的 Workflow 或新 revision 会在几秒内被运行中的 worker 加载，对话里无需重启即可调用。入口函数没有 docstring 时，模型看到的工具描述就是项目 summary。
+运行中的 worker 会在几秒内加载已提交的 Workflow，它的入口随即作为工具出现在所有聊天和 Programs 页面中，无需重启。修改 Workflow 也一样：改文件，再检查。早期版本保留在 Workflow 的 Git 历史中。
 
-## 已发布 package 与一次运行不是一回事
-
-已发布 Workflow 是带独立 Git 历史的多文件 Python package。每次执行会把一个不可变 revision 复制到会话仓库，并创建独立 `run_id`，记录 `state.json`、checkpoint、结果和 `project_ref.json`。
-
-运行已发布 package 不会修改或重新发布它。执行失败时，run 进入 `failed`，保留原错误和 checkpoint；修改 package 必须显式调用 `revise_workflow`。
-
-用户明确取消时，run 会把 `cancelled` 保存为终态。再次恢复该 `run_id` 只返回已保存的取消结果，不会重新执行。进程级 `KeyboardInterrupt` 则保存为 `interrupted`；后续调用可以复用该 run 保存的 artifact 和 checkpoint。这里的状态是 Workflow run 投影，不是 canonical Execution record。为恢复尝试分配新的 canonical `execution_id` 仍属于尚未完成的统一 Execution 接入。
-
-历史 `code.py` run 仍可兼容恢复，但 legacy 单模块格式不再接受新 authoring，也不会出现在 Workflow 搜索结果中。
-
-## 自己编写 package
-
-当前 authoring 合同见[编写 Workflow package](workflows/authoring.zh.md)，其中列出必需文件、metadata、入口签名、允许的 import、校验命令和当前接入限制。
+## 查找和运行 Workflow
 
 ```bash
-openprogram workflows validate ./my_workflow
-openprogram workflows validate ./my_workflow --json
+openprogram workflows list
 ```
 
-静态校验不会 import package，也不会执行 `tests/test_workflow.py`。`openprogram workflows test` 在操作系统沙箱中运行行为测试，`openprogram workflows publish` 测试并发布同一个 snapshot；见[编写 Workflow package](workflows/authoring.zh.md)。
+列出每个 Workflow 及其状态：已加载、加载失败或暂不可调用（例如有未提交改动）。在聊天中，每个入口都是 Agent 可以像其他工具一样调用的工具。Programs 页面显示同样的 Workflow，并为每个入口打开参数表单。
 
-如果扩展是一个暴露多组 agentic function 的可安装仓库，而不是单个生成式 Workflow package，请使用另一套 [Harness 安装合同](installing-harnesses.zh.md)。
+## 自己编写
+
+包结构、角色与 Context 规则、测试工具和检查命令见[编写和检查 Workflow](workflows/authoring.zh.md)。
+
+对于公开一组 agentic function、而不是单个 Workflow 包的可安装仓库，使用独立的[harness 安装合同](installing-harnesses.zh.md)。

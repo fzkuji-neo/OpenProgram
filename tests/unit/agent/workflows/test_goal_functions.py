@@ -1,18 +1,21 @@
-"""Unit tests for the goal agentic function
-(``openprogram/programs/workflow/goal/``): the single decision entry
-``goal`` — prompt assembly, JSON parse path, failure path. The loop
+"""Unit tests for the goal workflow (``openprogram/programs/workflow/goal/``):
+the ``judge`` and ``refiner`` role requests, JSON parse path, failure path. The loop
 semantics around it live in test_goal_loop.py."""
 from __future__ import annotations
 
-import importlib
 from types import SimpleNamespace
 
 import pytest
 
-from openprogram.agent.sub_agent_run import AgentTurnResult
+from openprogram.testing import script_roles
 
 import openprogram.programs.workflow.goal.judge as GJ
 import openprogram.programs.workflow.goal.refinement as GR
+
+
+@pytest.fixture(autouse=True)
+def no_configured_judge_model(monkeypatch):
+    monkeypatch.setattr("openprogram.programs.workflow.goal.judge_model", lambda: "")
 
 
 @pytest.fixture
@@ -56,24 +59,14 @@ def test_failed_inspection_receipt_cannot_confirm_completion() -> None:
     ]) == completed
 
 
-@pytest.mark.parametrize("session_id", ["", "s1"])
-def test_judge_rejects_met_with_actual_turn_error_receipts(monkeypatch, session_id) -> None:
+def test_judge_rejects_met_with_actual_turn_error_receipts(monkeypatch) -> None:
     from openprogram.agentic_programming.call_state import _current_runtime
-    reply = '{"met":true,"reason":"done"}'
     blocks = [{"type": "tool", "tool": "bash", "is_error": True}]
-    monkeypatch.setattr(GJ, "current_session_id", lambda: "")
-    agent_module = importlib.import_module("openprogram.agentic_programming.agent")
-    monkeypatch.setattr(agent_module, "agent", lambda **_kw: reply)
-    monkeypatch.setattr("openprogram.programs.agent_tools", lambda **_kw: [])
-    monkeypatch.setattr("openprogram.agent.sub_agent_run.run_agent_turn", lambda **_kw:
-                        AgentTurnResult(head_id="judge-turn", final_text=reply))
-    monkeypatch.setattr("openprogram.agent.session_db.default_db", lambda: SimpleNamespace(
-        get_messages=lambda _sid: [{"id": "judge-turn", "extra": {"blocks": blocks}}],
-    ))
     token = _current_runtime.set(SimpleNamespace(last_blocks=blocks))
     try:
-        with pytest.raises(ValueError, match="failed inspection tools"):
-            GJ.judge_goal("verify sources", session_id=session_id, session_view="evidence")
+        with script_roles({GJ.judge: ['{"met":true,"reason":"done"}']}):
+            with pytest.raises(ValueError, match="failed inspection tools"):
+                GJ.judge_goal("verify sources", session_id="s1", session_view="evidence")
     finally:
         _current_runtime.reset(token)
 
@@ -102,157 +95,70 @@ def test_parse_decision_checklist_cleaning() -> None:
 # The decision entry
 # ---------------------------------------------------------------------------
 
-def test_goal_decision_parses_and_forwards(monkeypatch, stub_view) -> None:
-    calls = []
-
-    def _fake_turn(session_id, prompt, *, agent_id, spawn_caller):
-        calls.append((session_id, prompt, agent_id, spawn_caller))
-        return ('prose before {"met": true, "reason": "done", '
-                '"need_user": false, "question": ""} after')
-
-    monkeypatch.setattr(GJ, "_run_decision_turn", _fake_turn)
-    out = GJ.judge_goal(goal="MY-GOAL", session_id="s1",
-                  spawn_caller="a1", agent_id="main")
+def test_goal_decision_parses_and_forwards(stub_view) -> None:
+    with script_roles({GJ.judge: ['prose before {"met": true, "reason": "done", '
+                                  '"need_user": false, "question": ""} after']}) as calls:
+        out = GJ.judge_goal(goal="MY-GOAL", session_id="s1")
     assert out == {"verdict": "met", "met": True, "reason": "done",
                    "need_user": False, "question": "", "options": [],
                    "can_continue": False, "checklist": None}
-    sid, prompt, agent_id, spawn_caller = calls[0]
-    assert (sid, agent_id, spawn_caller) == ("s1", "main", "a1")
-    assert "completion judge" in prompt              # docstring is the prompt
-    assert "<goal>\nMY-GOAL\n</goal>" in prompt
-    assert "<session_context>\nVIEW\n</session_context>" in prompt
+    request = calls[GJ.judge][0]
+    assert "completion judge" in request.text          # judge_goal docstring
+    assert "goal:\nMY-GOAL" in request.text
+    assert "session context:\nVIEW" in request.text
+    assert request.history_text == ""
 
 
-def test_goal_decision_optional_fields_default(monkeypatch, stub_view) -> None:
+def test_goal_decision_optional_fields_default(stub_view) -> None:
     # Replies without need_user/question stay valid.
-    monkeypatch.setattr(GJ, "_run_decision_turn",
-                        lambda *a, **k: '{"met": false, "reason": "not yet"}')
-    out = GJ.judge_goal(goal="g", session_id="s1")
+    with script_roles({GJ.judge: ['{"met": false, "reason": "not yet"}']}):
+        out = GJ.judge_goal(goal="g", session_id="s1")
     assert out == {"verdict": "unmet", "met": False, "reason": "not yet",
                    "need_user": False, "question": "", "options": [],
                    "can_continue": False, "checklist": None}
 
 
-def test_goal_decision_checklist_in_prompt_and_reply(monkeypatch,
-                                                    stub_view) -> None:
-    prompts = []
-
-    def _fake_turn(session_id, prompt, *, agent_id, spawn_caller):
-        prompts.append(prompt)
-        return '{"met": false, "reason": "r", "checklist": [true, false]}'
-
-    monkeypatch.setattr(GJ, "_run_decision_turn", _fake_turn)
-    out = GJ.judge_goal(goal="g", session_id="s1", checklist=["item A", "item B"])
-    assert "<checklist>\n1. item A\n2. item B\n</checklist>" in prompts[0]
+def test_goal_decision_checklist_in_request_and_reply(stub_view) -> None:
+    replies = ['{"met": false, "reason": "r", "checklist": [true, false]}',
+               '{"met": false, "reason": "r"}']
+    with script_roles({GJ.judge: replies}) as calls:
+        out = GJ.judge_goal(goal="g", session_id="s1", checklist=["item A", "item B"])
+        GJ.judge_goal(goal="g", session_id="s1")
+    assert "checklist:\n1. item A\n2. item B" in calls[GJ.judge][0].text
     assert out["checklist"] == [True, False]
-    # No checklist input → no rendered block (the docstring's own
-    # mention of <checklist> stays, the payload block does not).
+    assert "checklist:\n1." not in calls[GJ.judge][1].text
+
+
+def test_goal_decision_invalid_reply_raises(stub_view) -> None:
+    with script_roles({GJ.judge: ["no json here"]}):
+        with pytest.raises(ValueError):
+            GJ.judge_goal(goal="g", session_id="s1")
+
+
+def test_goal_decision_turn_failure_propagates(stub_view) -> None:
+    with script_roles({GJ.judge: [RuntimeError("provider down")]}):
+        with pytest.raises(Exception, match="provider down"):
+            GJ.judge_goal(goal="g", session_id="s1")
+
+
+def test_judge_call_uses_judge_model_tools_and_execution_kind(monkeypatch, stub_view) -> None:
+    captured = {}
+
+    def fake_judge(prompt, **kwargs):
+        captured.update(kwargs)
+        return '{"met": false, "reason": "r"}'
+
+    monkeypatch.setattr("openprogram.programs.workflow.goal.judge_model", lambda: "cheap/model")
+    monkeypatch.setattr(GJ, "judge", fake_judge)
     GJ.judge_goal(goal="g", session_id="s1")
-    assert "<checklist>\n1." not in prompts[1]
-
-
-def test_goal_decision_invalid_reply_raises(monkeypatch, stub_view) -> None:
-    monkeypatch.setattr(GJ, "_run_decision_turn",
-                        lambda *a, **k: "no json here")
-    with pytest.raises(ValueError):
-        GJ.judge_goal(goal="g", session_id="s1")
-
-
-def test_goal_decision_turn_failure_propagates(monkeypatch, stub_view) -> None:
-    monkeypatch.setattr(
-        GJ, "_run_decision_turn",
-        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("spawn down")))
-    with pytest.raises(RuntimeError):
-        GJ.judge_goal(goal="g", session_id="s1")
-
-
-def test_run_decision_turn_passes_judge_model(monkeypatch) -> None:
-    from openprogram.agentic_programming.call_state import _current_runtime
-    captured = {}
-
-    def fake_agent(**kwargs):
-        captured.update(kwargs)
-        return 'ok'
-
-    monkeypatch.setattr(importlib.import_module('openprogram.agentic_programming.agent'), 'agent', fake_agent)
-    monkeypatch.setattr('openprogram.programs.agent_tools', lambda **_kw: [])
-    monkeypatch.setattr(
-        "openprogram.setup._read_config",
-        lambda: {"goal": {"judge_model": "cheap/model"}},
-    )
-    token = _current_runtime.set(SimpleNamespace(last_blocks=[]))
-    try:
-        assert GJ._run_decision_turn(
-            "s1", "p", agent_id="main", spawn_caller="a1") == "ok"
-        assert captured["model"] == "cheap/model"
-
-        captured.clear()
-        monkeypatch.setattr(
-            "openprogram.setup._read_config",
-            lambda: {"goal": {"judge_model": ""}},
-        )
-        GJ._run_decision_turn("s1", "p", agent_id="main", spawn_caller="a1")
-        assert captured.get("model") in (None, "")
-    finally:
-        _current_runtime.reset(token)
-
-
-def test_headless_decision_uses_an_independent_read_only_turn(monkeypatch) -> None:
-    captured = {}
-    resolved_tools = [object()]
-
-    def resolve_tools(*, names):
-        assert names == list(GJ.DECISION_TOOLS)
-        return resolved_tools
-
-    monkeypatch.setattr("openprogram.programs.agent_tools", resolve_tools)
-
-    def fake_agent(**kwargs):
-        captured.update(kwargs)
-        return "judge reply"
-
-    agent_module = importlib.import_module("openprogram.agentic_programming.agent")
-    monkeypatch.setattr(agent_module, "agent", fake_agent)
-    assert GJ._run_decision_turn(
-        "", "judge prompt", agent_id="main", spawn_caller=None,
-    ) == "judge reply"
+    assert captured["model"] == "cheap/model"
     assert captured["execution_kind"] == "goal_judge"
-    assert captured["tools"] is resolved_tools
+    assert captured["timeout_s"] > 0
 
 
-@pytest.mark.parametrize("phase", ["refine", "judge"])
-def test_session_goal_inspects_in_current_runtime_without_starting_jobs(monkeypatch, phase):
-    from openprogram.agentic_programming.call_state import _current_runtime
-    captured = {}
-    runtime = SimpleNamespace(last_blocks=[])
-    reply = '{"verdict":"met","reason":"verified"}'
-
-    def unexpected_spawn(**_kwargs):
-        pytest.fail("Goal inspection must not initialize a JobRunner")
-
-    def fake_agent(**kwargs):
-        captured.update(kwargs)
-        runtime.last_blocks = [{"type": "tool", "tool": "read", "is_error": False}]
-        return reply
-
-    monkeypatch.setattr("openprogram.agent.sub_agent_run.run_agent_turn", unexpected_spawn)
-    monkeypatch.setattr(importlib.import_module("openprogram.agentic_programming.agent"), "agent", fake_agent)
-    monkeypatch.setattr("openprogram.programs.agent_tools", lambda *, names: names)
-    monkeypatch.setattr("openprogram.programs.workflow.goal.judge_model", lambda: "judge/model")
-    token = _current_runtime.set(runtime)
-    try:
-        if phase == "judge":
-            result = GJ._run_decision_turn("s1", "inspect", agent_id="main", spawn_caller="goal")
-            assert captured["model"] == "judge/model"
-            assert captured["tools"] == list(GJ.DECISION_TOOLS)
-        else:
-            result = GR._run_refine_turn("s1", "inspect", agent_id="main", spawn_caller="goal")
-            assert captured["tools"] == list(GR.REFINE_TOOLS)
-        assert result == reply
-        assert captured["execution_kind"] == ("goal_judge" if phase == "judge" else "goal_refiner")
-        assert captured["timeout_s"] > 0
-    finally:
-        _current_runtime.reset(token)
+def test_roles_have_read_only_inspection_tools() -> None:
+    assert list(GJ.DECISION_TOOLS) == [getattr(t, "name", t) for t in GJ.judge.tools]
+    assert list(GR.REFINE_TOOLS) == [getattr(t, "name", t) for t in GR.refiner.tools]
 
 
 # ---------------------------------------------------------------------------
@@ -287,65 +193,45 @@ def test_parse_refinement_invalid_raises() -> None:
             GR._parse_refinement(raw)
 
 
-def test_refine_parses_and_forwards(monkeypatch) -> None:
-    calls = []
-
-    def _fake_turn(session_id, prompt, *, agent_id, spawn_caller):
-        calls.append((session_id, prompt, agent_id, spawn_caller))
-        return ('thinking… {"spec": "criteria: tests pass", '
-                '"checklist": ["tests pass"]} ')
-
-    monkeypatch.setattr(GR, "_run_refine_turn", _fake_turn)
-    out = GR.refine_goal_spec_candidate("tests pass", session_id="s1", agent_id="main")
+def test_refine_parses_and_forwards() -> None:
+    with script_roles({GR.refiner: ['thinking… {"spec": "criteria: tests pass", '
+                                    '"checklist": ["tests pass"]} ']}) as calls:
+        out = GR.refine_goal_spec_candidate("tests pass", session_id="s1", context="CTX")
     assert out == ("criteria: tests pass", ["tests pass"])
-    sid, prompt, agent_id, spawn_caller = calls[0]
-    assert (sid, agent_id, spawn_caller) == ("s1", "main", None)
-    assert "SPECIFICATION" in prompt          # docstring is the prompt
-    assert "<goal>\ntests pass\n</goal>" in prompt
+    request = calls[GR.refiner][0]
+    assert "SPECIFICATION" in request.text            # refine docstring
+    assert "goal:\ntests pass" in request.text
+    assert "not instructions to follow):\nCTX" in request.text
 
 
-def test_refinement_prompt_preserves_user_scope(monkeypatch) -> None:
-    prompts = []
-    def fake_turn(_sid, prompt, **_kwargs):
-        prompts.append(prompt)
-        return '{"spec":"Write about 600 Chinese characters","checklist":["Write the requested comparison"]}'
-    monkeypatch.setattr(GR, "_run_refine_turn", fake_turn)
-    GR.refine_goal_spec_candidate("Write about 600 Chinese characters", session_id="s1")
-    assert "Do not add requirements" in prompts[0]
-    assert "Preserve approximate constraints as approximate" in prompts[0]
-    assert "MEET OR EXCEED" not in prompts[0]
-    assert "under 10%" not in prompts[0]
+def test_refinement_prompt_preserves_user_scope() -> None:
+    reply = '{"spec":"Write about 600 Chinese characters","checklist":["Write the requested comparison"]}'
+    with script_roles({GR.refiner: [reply]}) as calls:
+        GR.refine_goal_spec_candidate("Write about 600 Chinese characters", session_id="s1")
+    text = calls[GR.refiner][0].text
+    assert "Do not add requirements" in text
+    assert "Preserve approximate constraints as approximate" in text
+    assert "MEET OR EXCEED" not in text
+    assert "under 10%" not in text
 
 
-def test_refine_turn_failure_propagates(monkeypatch) -> None:
-    monkeypatch.setattr(
-        GR, "_run_refine_turn",
-        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("spawn down")))
-    with pytest.raises(RuntimeError):
-        GR.refine_goal_spec_candidate("g", session_id="s1")
+def test_refine_turn_failure_propagates() -> None:
+    with script_roles({GR.refiner: [RuntimeError("provider down")]}):
+        with pytest.raises(Exception, match="provider down"):
+            GR.refine_goal_spec_candidate("g", session_id="s1")
 
 
-def test_headless_refinement_uses_an_independent_read_only_turn(monkeypatch) -> None:
+def test_refiner_call_uses_execution_kind(monkeypatch) -> None:
     captured = {}
-    resolved_tools = [object()]
 
-    def resolve_tools(*, names):
-        assert names == list(GR.REFINE_TOOLS)
-        return resolved_tools
-
-    monkeypatch.setattr("openprogram.programs.agent_tools", resolve_tools)
-
-    def fake_agent(**kwargs):
+    def fake_refiner(prompt, **kwargs):
         captured.update(kwargs)
-        return "refinement reply"
+        return '{"spec": "S", "checklist": []}'
 
-    agent_module = importlib.import_module("openprogram.agentic_programming.agent")
-    monkeypatch.setattr(agent_module, "agent", fake_agent)
-    assert GR._run_refine_turn(
-        "", "refine prompt", agent_id="main", spawn_caller=None,
-    ) == "refinement reply"
+    monkeypatch.setattr(GR, "refiner", fake_refiner)
+    GR.refine_goal_spec_candidate("g")
     assert captured["execution_kind"] == "goal_refiner"
-    assert captured["tools"] is resolved_tools
+    assert captured["timeout_s"] > 0
 
 
 # ---------------------------------------------------------------------------
@@ -384,20 +270,15 @@ def test_render_session_view_plain_branch(monkeypatch) -> None:
 # Attended / unattended mode reaches the prompt
 # ---------------------------------------------------------------------------
 
-def test_goal_decision_mode_in_prompt(monkeypatch, stub_view) -> None:
-    prompts = []
-
-    def _fake_turn(session_id, prompt, *, agent_id, spawn_caller):
-        prompts.append(prompt)
-        return '{"met": false, "reason": "r"}'
-
-    monkeypatch.setattr(GJ, "_run_decision_turn", _fake_turn)
-    GJ.judge_goal(goal="g", session_id="s1")                    # default attended
-    GJ.judge_goal(goal="g", session_id="s1", attended=False)
-    assert "<mode>\nattended\n</mode>" in prompts[0]
-    assert "<mode>\nunattended\n</mode>" in prompts[1]
-    # Both policies are spelled out in the docstring prompt.
-    assert "unattended — nobody is watching" in prompts[0]
+def test_goal_decision_mode_in_request(stub_view) -> None:
+    replies = ['{"met": false, "reason": "r"}'] * 2
+    with script_roles({GJ.judge: replies}) as calls:
+        GJ.judge_goal(goal="g", session_id="s1")                    # default attended
+        GJ.judge_goal(goal="g", session_id="s1", attended=False)
+    assert "mode:\nattended" in calls[GJ.judge][0].text
+    assert "mode:\nunattended" in calls[GJ.judge][1].text
+    # Both policies are spelled out in the docstring.
+    assert "unattended — nobody is watching" in calls[GJ.judge][0].text
 
 
 def test_evaluator_includes_pending_questions_to_prevent_reasking(monkeypatch) -> None:
@@ -414,8 +295,15 @@ def test_evaluator_includes_pending_questions_to_prevent_reasking(monkeypatch) -
             "id": "scope", "prompt": "Which scope?", "status": "pending",
             "reason": "The requested scope is ambiguous",
         }],
-    }, agent_id="main", session_view="EVIDENCE")
+    }, session_view="EVIDENCE")
 
-    assert captured["session_view"].startswith("EVIDENCE")
-    assert "<pending_user_questions>" in captured["session_view"]
-    assert "Which scope?" in captured["session_view"]
+    assert captured["session_view"] == "EVIDENCE"
+    assert "Which scope?" in str(captured["pending_questions"])
+
+
+def test_pending_questions_reach_the_judge_request(stub_view) -> None:
+    with script_roles({GJ.judge: ['{"met": false, "reason": "r"}']}) as calls:
+        GJ.judge_goal(goal="g", session_id="s1",
+                      pending_questions=[{"id": "scope", "prompt": "Which scope?"}])
+    assert "pending user questions:" in calls[GJ.judge][0].text
+    assert "Which scope?" in calls[GJ.judge][0].text

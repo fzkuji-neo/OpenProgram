@@ -96,7 +96,7 @@ result = worker.run_turn(
 print(result.final_text)
 ```
 
-Use the same session ID for subsequent turns. `Context.for_session` selects the store; it does not create a provider. An optional `head_id` selects the predecessor branch. `Context(history_filter=False)` excludes past graph content while retaining the current prompt. Named content and providers are rendered as user content and cannot alter system instructions or tool permissions.
+Use the same session ID for subsequent turns. `Context.for_session` selects the store; it does not create a provider. An optional `head_id` selects the predecessor branch. `Context(history=None)` excludes past graph content while retaining the current prompt. Named content and providers are rendered as user content and cannot alter system instructions or tool permissions.
 
 `arun_turn()` and `aresume_turn()` are asynchronous counterparts. Their event callbacks run in the execution thread; use a thread-safe handoff when updating an asyncio consumer. Cancelling the awaiting task signals the running turn and waits for its cooperative cleanup. A synchronous caller can supply a `threading.Event` as `cancel_event`.
 

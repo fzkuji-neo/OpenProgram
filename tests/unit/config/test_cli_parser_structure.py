@@ -27,9 +27,9 @@ def test_cli_parser_has_a_dedicated_module_and_compatible_public_import() -> Non
     assert parser.prog == "openprogram"
     assert parser.parse_args(["programs", "list"]).programs_verb == "list"
     workflow_args = parser.parse_args([
-        "workflows", "validate", "/tmp/demo", "--json",
+        "workflows", "check", "/tmp/demo", "--json",
     ])
-    assert workflow_args.workflows_verb == "validate"
+    assert workflow_args.workflows_verb == "check"
     assert workflow_args.directory == "/tmp/demo"
     assert workflow_args.json is True
     assert parser.parse_args(["upgrade", "status"]).upgrade_verb == "status"

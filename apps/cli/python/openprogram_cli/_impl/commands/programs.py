@@ -113,26 +113,17 @@ def _cmd_list():
             pass
         entries.append((name, desc))
 
-    # Published Workflow packages are loaded by the owner-authorized registry,
-    # but are not members of the static module/file enumeration above.
+    # User workflows in ~/.openprogram/workflows register their entries
+    # under the workflow's name; they are not part of the enumeration above.
     from openprogram.programs._runtime import _registry
-    from openprogram.programs._programs import is_owner_controlled_program_path
 
     seen = {name for name, _desc in entries}
     for name, registered in _registry.copy().items():
         if name in seen or name.startswith("_"):
             continue
+        if not str(getattr(registered, "_workflow_owner", "")).isidentifier():
+            continue
         fn = inspect.unwrap(getattr(registered, "_python_callable", None) or registered)
-        if not str(getattr(fn, "__module__", "")).startswith(
-            ("openprogram.programs.workflow.", "workflows.")
-        ):
-            continue
-        try:
-            source = inspect.getsourcefile(fn)
-        except (OSError, TypeError):
-            continue
-        if not source or not os.path.isfile(source) or not is_owner_controlled_program_path(source):
-            continue
         desc = (getattr(registered, "tool_description", "")
                 or getattr(registered, "description", "")
                 or inspect.getdoc(fn) or "").strip().split("\n", 1)[0]

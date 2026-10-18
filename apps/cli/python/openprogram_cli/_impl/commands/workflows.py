@@ -1,65 +1,59 @@
-"""Workflow package authoring commands."""
+"""Workflow package commands: check and list."""
 
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import sys
 
 
-def _cmd_workflows_validate(directory: str, *, as_json: bool = False) -> int:
-    from openprogram.programs.workflow.errors import InvalidWorkflow
-    from openprogram.programs.workflow._project.validation import (
-        validate_workflow_directory,
-    )
+def _cmd_workflows_check(directory: str, *, message: str = "", as_json: bool = False) -> int:
+    from openprogram.programs._workflow_check import CheckFailed, check_workflow
 
     try:
-        report = validate_workflow_directory(Path(directory))
-    except (InvalidWorkflow, OSError, UnicodeError, ValueError) as exc:
-        report = {
-            "ok": False,
-            "error_type": type(exc).__name__,
-            "error": str(exc),
-            "executed_tests": False,
-        }
-        if as_json:
-            print(json.dumps(report, ensure_ascii=False, sort_keys=True))
-        else:
-            print(f"Workflow package is invalid: {report['error']}", file=sys.stderr)
-        return 1
-
+        report = check_workflow(directory, message=message)
+    except CheckFailed as exc:
+        report = exc.report
+    except (OSError, RuntimeError, ValueError) as exc:
+        report = {"ok": False, "problems": [f"{type(exc).__name__}: {exc}"]}
     if as_json:
         print(json.dumps(report, ensure_ascii=False, sort_keys=True))
+        return 0 if report.get("ok") else 1
+    if not report.get("ok"):
+        for problem in report.get("problems") or []:
+            print(f"error: {problem}", file=sys.stderr)
+        if report.get("traceback"):
+            print(report["traceback"].rstrip(), file=sys.stderr)
+        tests = report.get("tests") or {}
+        if tests.get("ran") and not tests.get("passed"):
+            print(tests.get("output", "").rstrip(), file=sys.stderr)
+            print("Tests failed; nothing was committed.", file=sys.stderr)
+        return 1
+    tests = report.get("tests") or {}
+    if tests.get("ran"):
+        where = "in the OS sandbox" if tests.get("sandboxed") else "without a sandbox"
+        print(f"Tests passed {where}.")
     else:
-        print(
-            f"Workflow package is valid: {report['workflow_id']} "
-            f"({len(report['files'])} Python files; tests not executed)"
-        )
+        print("No tests in tests/.")
+    entries = ", ".join(report.get("entries") or [])
+    action = "Committed" if report.get("committed") else "Already committed"
+    print(f"{action} {report['workflow']} at {report['revision'][:12]}; entries: {entries}")
     return 0
 
 
-def _cmd_workflows_action(directory: str, *, publish: bool = False, replace: bool = False, as_json: bool = False) -> int:
-    from openprogram.programs.workflow.errors import InvalidWorkflow
-    from openprogram.programs.workflow._project.authoring import (
-        publish_workflow_directory,
-        test_workflow_directory,
-    )
+def _cmd_workflows_list(*, as_json: bool = False) -> int:
+    from openprogram.programs._workflow_packages import load_user_workflows, workflow_statuses, workflows_root
 
-    try:
-        report = (publish_workflow_directory(directory, replace=replace)
-                  if publish else test_workflow_directory(directory))
-    except (InvalidWorkflow, OSError, UnicodeError, ValueError) as exc:
-        report = {"ok": False, "error_type": type(exc).__name__, "error": str(exc)}
-        if as_json:
-            print(json.dumps(report, ensure_ascii=False, sort_keys=True))
-        else:
-            print(f"Workflow {'publication' if publish else 'tests'} failed: {exc}", file=sys.stderr)
-        return 1
+    load_user_workflows()
+    rows = workflow_statuses()
     if as_json:
-        print(json.dumps(report, ensure_ascii=False, sort_keys=True))
-    elif publish:
-        print(f"Published {report['workflow_id']} at {report['revision']} after sandboxed tests")
-    else:
-        print(report["test_output"].rstrip())
-        print(f"Workflow tests passed in the OS sandbox: {report['workflow_id']}")
+        print(json.dumps({"root": str(workflows_root()), "workflows": rows}, ensure_ascii=False, sort_keys=True))
+        return 0
+    if not rows:
+        print(f"No workflows in {workflows_root()}")
+        return 0
+    for row in rows:
+        detail = ", ".join(row["entries"]) or row["error"] or row["note"]
+        print(f"{row['name']:<28} {row['state']:<8} {detail}")
+        if row["entries"] and row["note"]:
+            print(f"{'':<28} {'':<8} {row['note']}")
     return 0

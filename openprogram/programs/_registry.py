@@ -1,12 +1,8 @@
-"""Load explicit shipped Programs and owner-authorized external sources.
+"""Load built-in workflows, user workflows and owner-authorized harnesses.
 
-Program definitions receive structural call scopes during source compilation.
-Only package entrypoints and PROGRAM_ENTRIES exports register as tools.
-Registration uses the shared Agent method adapter. Public entries retain
-their configured registration and recording settings.
-
-Published packages use exact authorized package names. Installed catalogue
-packages and owner-recorded harnesses capture only their selected source roots;
+Workflows are plain Python packages: only their ``PROGRAM_ENTRIES`` register
+as tools, and plain functions are not recorded. Installed catalogue packages
+and owner-recorded harnesses capture only their selected source roots;
 Python dependencies and adjacent packages retain normal import behavior.
 """
 
@@ -26,31 +22,21 @@ logger = logging.getLogger(__name__)
 
 
 PROGRAM_MODULES: list[str] = [
-    # Framework primitive: ask the human during an execution.
+    # Library: ask the human during an execution. Exposes no tools.
     "ask_user",
-    # Single-model Workflows: exactly one llm() call site.
-    "document.extract_pdf_figures",
-    "document.extract_pdf_tables",
+    "document",
     "text",
-    # Multi-step Workflows: agent loops, goals, and control flow.
-    "search_workflows",
-    "create_workflow",
-    "revise_workflow",
     "browser",
     "docs_question",
     "security_review",
     "goal",
-    "auto_workflow",
 ]
-
-BUILTIN_PROGRAM_MODULES: list[str] = []
 
 
 # Names that should never be treated as external harnesses even if their
 # directory looks like one (e.g. internal package private dirs).
 _NOT_A_HARNESS = {
     "__pycache__", "pdf_layout", "document", "text", "workflow",
-    "_generation", "_project", "_runtime",
 }
 
 
@@ -58,48 +44,34 @@ def load_program_modules(
     programs_dir: str,
     applications_dir: str | None = None,
 ) -> None:
-    """Import every entry in PROGRAM_MODULES, then discover owner-recorded
-    external harnesses under ``applications_dir``.
+    """Import the built-in workflows, the user workflows, then installed and
+    owner-recorded external harnesses.
 
-    Failures are swallowed per-entry so a missing external harness
-    symlink (e.g. on a fresh clone without the side repos) doesn't kill
-    the whole import. Set ``OPENPROGRAM_DEBUG_REGISTRY=1`` to surface
-    swallowed errors.
+    Built-in and user workflows are plain Python packages; their
+    ``PROGRAM_ENTRIES`` register as tools. Failures are swallowed per entry
+    so one broken package doesn't kill the whole import. Set
+    ``OPENPROGRAM_DEBUG_REGISTRY=1`` to surface swallowed errors.
     """
-    # Shipped Programs are explicit source selections, as in PROGRAM_MODULES.
-    _workflow_source_finder.builtin_sources = {
-        f"openprogram.programs.workflow.{name}": os.path.join(
-            os.path.dirname(__file__), "workflow", *name.split("."),
-        )
-        for name in PROGRAM_MODULES
-    }
-    if _workflow_source_finder not in sys.meta_path:
-        sys.meta_path.insert(0, _workflow_source_finder)
-    # 1. Internal explicit list
+    from openprogram.programs._workflow_packages import register_workflow_entries
+
+    # 1. Built-in workflows.
     for mod_name in PROGRAM_MODULES:
         try:
-            module = importlib.import_module(
-                f"openprogram.programs.workflow.{mod_name}"
-            )
-            from openprogram.programs._source_loader import register_public_entries
-            register_public_entries(module)
+            module = importlib.import_module(f"openprogram.programs.workflow.{mod_name}")
+            if hasattr(module, "PROGRAM_ENTRIES"):
+                register_workflow_entries(module, owner=f"builtin:{mod_name}")
         except Exception as e:
             _debug_registry_error(mod_name, e)
             continue
 
-    # 2. Shipped Workflow modules — explicit so arbitrary files added to the
-    #    owner-controlled workflow catalog are never imported as trusted code.
-    for mod_name in BUILTIN_PROGRAM_MODULES:
-        try:
-            importlib.import_module(f"openprogram.programs.workflow.{mod_name}")
-        except Exception as e:
-            _debug_registry_error(f"workflow:{mod_name}", e)
-            continue
+    # 2. User workflow packages in ~/.openprogram/workflows/.
+    try:
+        from openprogram.programs._workflow_packages import load_user_workflows
+        load_user_workflows()
+    except Exception as e:
+        _debug_registry_error("workflows", e)
 
-    # 3. Published Workflow projects use the same shared tool registry.
-    _load_workflow_projects()
-
-    # 4. First-party *programs* — the agentic harnesses shipped as
+    # 3. First-party *programs* — the agentic harnesses shipped as
     #    separate pip-installable packages (gui_harness / research_harness
     #    / wiki_agent_harness). Importing an installed package fires its
     #    explicit exports register the entry point.
@@ -112,7 +84,7 @@ def load_program_modules(
     except Exception as e:
         _debug_registry_error("programs", e)
 
-    # 5. Auto-discovered external harnesses (owner-recorded directories or
+    # 4. Auto-discovered external harnesses (owner-recorded directories or
     #    local-dev symlinks in applications_dir). Still supported for the
     #    ``<pkg>/agentics/__init__.py`` convention, but no longer the
     #    primary path — a developer working on a harness locally can just
@@ -144,207 +116,6 @@ def load_program_modules(
         except Exception as e:
             _debug_registry_error(f"external:{harness_name}", e)
             continue
-
-
-def _is_workflow_project_candidate(project_dir) -> bool:
-    return (
-        project_dir.is_dir()
-        and not project_dir.is_symlink()
-        and not project_dir.name.startswith((".", "_"))
-        and (project_dir / ".git").exists()
-    )
-
-
-def _migrate_workflow_project_sources(root) -> None:
-    """Once, record structurally valid workflow dirs that predate the allowlist."""
-    from openprogram.programs._programs import (
-        mark_workflow_projects_migrated,
-        record_program_source,
-        workflow_projects_migrated,
-    )
-    from openprogram.programs.workflow._project import catalog
-
-    if workflow_projects_migrated():
-        return
-    projects = catalog._project_directories(root)
-    for project_dir in projects:
-        if sum(path.name == project_dir.name for path in projects) != 1:
-            continue
-        if not _is_workflow_project_candidate(project_dir):
-            continue
-        try:
-            index = catalog._read_project_index(project_dir)
-            if index["project_metadata"].get("entrypoint") != project_dir.name:
-                continue
-            record_program_source(
-                project_dir,
-                source="workflow-migration",
-                kind="workflow-migration",
-                base=str(project_dir.parent),
-            )
-        except Exception:
-            continue
-    mark_workflow_projects_migrated()
-
-
-class _WorkflowAliasLoader:
-    """Expose the existing callable without registering a second function."""
-
-    def __init__(self, canonical: str):
-        self.canonical = canonical
-
-    def create_module(self, spec):
-        return None
-
-    def exec_module(self, module):
-        package = importlib.import_module(self.canonical)
-        name = self.canonical.rsplit(".", 1)[-1]
-        setattr(module, name, getattr(package, name))
-        module.__all__ = [name]
-
-
-class _WorkflowSourceFinder:
-    """Resolve only explicitly authorized external Workflow package names.
-
-    A parent namespace path would also expose unapproved sibling packages.
-    Exact package specs preserve normal Python relative/dependency imports.
-    """
-
-    def __init__(self):
-        self.sources: dict[str, str] = {}
-        self.builtin_sources: dict[str, str] = {}
-
-    def find_spec(self, fullname, path=None, target=None):
-        if fullname == "workflows":
-            # Live imports have no filesystem search path. Snapshot execution
-            # explicitly supplies its own namespace before loading packages.
-            return importlib.machinery.ModuleSpec(fullname, loader=None, is_package=True)
-        alias = fullname.startswith("workflows.") and fullname.count(".") == 1
-        if alias and path:
-            return None  # A snapshot namespace owns its pinned package bytes.
-        canonical = "openprogram.programs.workflow." + fullname.split(".")[1] if alias else fullname
-        sources = {**self.builtin_sources, **self.sources}
-        package = next((name for name in sources
-                        if canonical == name or canonical.startswith(name + ".")), None)
-        if package is None:
-            return None
-        source = sources[package]
-        from openprogram.programs._programs import owner_controlled_program_sources
-
-        allowed = {row["path"] for row in owner_controlled_program_sources()}
-        if (source not in allowed and self.builtin_sources.get(package) != source) or os.path.islink(source):
-            raise ModuleNotFoundError(f"Workflow source is no longer authorized: {fullname}")
-        if alias:
-            return importlib.machinery.ModuleSpec(fullname, _WorkflowAliasLoader(canonical))
-        relative = canonical[len(package):].lstrip(".").split(".") if canonical != package else []
-        if relative and not os.path.isdir(source):
-            return None
-        base = os.path.join(source, *relative)
-        filename = os.path.join(base, "__init__.py")
-        is_package = os.path.isfile(filename)
-        if not is_package:
-            filename = base + ".py"
-        authorized_root = source if os.path.isdir(source) else os.path.dirname(source)
-        if not os.path.isfile(filename):
-            if os.path.isdir(base):
-                if os.path.commonpath((os.path.realpath(base), os.path.realpath(authorized_root))) != os.path.realpath(authorized_root):
-                    raise ModuleNotFoundError(f"Workflow module is outside its authorized source: {fullname}")
-                namespace = importlib.machinery.ModuleSpec(fullname, loader=None, is_package=True)
-                namespace.submodule_search_locations = [base]
-                return namespace
-            return None
-        if os.path.commonpath((os.path.realpath(filename), os.path.realpath(authorized_root))) != os.path.realpath(authorized_root):
-            raise ModuleNotFoundError(f"Workflow module is outside its authorized source: {fullname}")
-        from openprogram.programs._source_loader import ManagedSourceLoader
-        return importlib.util.spec_from_file_location(
-            fullname, filename, loader=ManagedSourceLoader(
-                fullname, filename, entry_owned=self.builtin_sources.get(package) != source),
-            submodule_search_locations=[base] if is_package else None,
-        )
-
-
-_workflow_source_finder = _WorkflowSourceFinder()
-# Revision of each Workflow package imported in this process.
-_loaded_workflow_revisions: dict[str, str] = {}
-
-
-def _load_workflow_projects() -> None:
-    """Import authorized packages and register their explicit public entries."""
-    try:
-        from openprogram.programs._programs import owner_controlled_program_sources
-        from openprogram.programs.workflow._project import catalog
-
-        root = catalog._workflow_projects_root()
-    except Exception as exc:
-        _debug_registry_error("workflows", exc)
-        return
-    if not root.is_dir() or root.is_symlink():
-        return
-
-    from openprogram.programs._programs import migrate_program_source_paths
-
-    migrate_program_source_paths()
-    _migrate_workflow_project_sources(root)
-    allowed = {
-        os.path.normcase(os.path.realpath(row["path"]))
-        for row in owner_controlled_program_sources()
-    }
-
-    sources = {}
-    summaries: dict[str, str] = {}
-    revisions: dict[str, str] = {}
-    projects = catalog._project_directories(root)
-    for project_dir in projects:
-        if sum(path.name == project_dir.name for path in projects) != 1:
-            continue
-        if (
-            not _is_workflow_project_candidate(project_dir)
-            or os.path.normcase(os.path.realpath(project_dir)) not in allowed
-        ):
-            continue
-        try:
-            index = catalog._read_project_index(project_dir)
-            entrypoint = index["project_metadata"].get("entrypoint")
-            if entrypoint != project_dir.name:
-                continue
-            sources[f"openprogram.programs.workflow.{entrypoint}"] = str(project_dir)
-            summaries[entrypoint] = str(index["project_metadata"].get("summary") or "")
-            revisions[entrypoint] = str(index["active_revision"])
-        except Exception as exc:
-            _debug_registry_error(f"workflow:{project_dir.name}", exc)
-
-    # Install every authorized name before importing any package, so A can
-    # import B regardless of directory order, including inside function bodies.
-    _workflow_source_finder.sources = sources
-    if _workflow_source_finder not in sys.meta_path:
-        sys.meta_path.insert(0, _workflow_source_finder)
-    previous_dont_write_bytecode = sys.dont_write_bytecode
-    sys.dont_write_bytecode = True
-    try:
-        importlib.invalidate_caches()
-        for module_name in sources:
-            entrypoint = module_name.rsplit(".", 1)[-1]
-            revision = revisions[entrypoint]
-            if _loaded_workflow_revisions.get(entrypoint, revision) != revision:
-                # A published revision replaced the package: drop the cached
-                # modules so the new source is imported and re-registered.
-                for name in [name for name in sys.modules
-                             if name == module_name or name.startswith(module_name + ".")]:
-                    del sys.modules[name]
-            try:
-                module = importlib.import_module(module_name)
-                from openprogram.programs._source_loader import register_public_entries
-                register_public_entries(module, entrypoint, summary=summaries.get(entrypoint))
-                _loaded_workflow_revisions[entrypoint] = revision
-            except Exception as exc:
-                _debug_registry_error(module_name, exc)
-    finally:
-        sys.dont_write_bytecode = previous_dont_write_bytecode
-
-
-# ---------------------------------------------------------------------------
-# External harness auto-discovery
-# ---------------------------------------------------------------------------
 
 
 def _iter_external_harness_dirs(applications_dir: str) -> Iterator[tuple[str, str]]:

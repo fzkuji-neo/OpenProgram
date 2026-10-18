@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OpenProgram Agent 执行统一与 Self Programming Workflow 重构计划</title>
+<title>统一 Agent 执行</title>
 <style>
   :root { color-scheme: dark; --bg:#111214; --panel:#17191c; --panel-2:#1d2024; --line:#30343a; --line-strong:#454b54; --text:#e8e9eb; --muted:#a3a7ae; --faint:#747981; --orange:#ee7d55; --orange-soft:rgba(238,125,85,.12); --cyan:#4bc6d8; --cyan-soft:rgba(75,198,216,.11); --green:#67c78a; --yellow:#d8b35d; --red:#ef6b62; --sidebar:238px; }
   * { box-sizing:border-box; }
@@ -80,7 +80,7 @@
       <div class="nav-label">设计选择</div>
       <a href="#decision">结论与边界</a><a href="#current">当前实现</a><a href="#architecture">目标架构</a>
       <div class="nav-label">契约</div>
-      <a href="#primitives">四个运行原语</a><a href="#workflow">自编程工作流</a><a href="#observability">DAG 与聊天显示</a><a href="#errors">失败与恢复</a>
+      <a href="#primitives">四个运行原语</a><a href="#workflow">Workflow 流程</a><a href="#observability">DAG 与聊天显示</a><a href="#errors">失败与恢复</a>
       <div class="nav-label">执行</div>
       <a href="#migration">迁移阶段</a><a href="#compatibility">兼容与删除项</a><a href="#tests">验收矩阵</a><a href="#comparison">框架对照</a><a href="#status">实现状态</a>
     </nav>
@@ -89,7 +89,7 @@
   <main class="main"><p>Agent、agent()、agent_async() 与 Agent.arun 使用同一执行内核。普通 Agent 方法与受管 Program 函数不需要逐方法配置。<a href="../integrations/nooa.zh.html#contract">统一 Agent 与 Context 契约</a>定义配置、上下文与作用域生命周期。</p>
     <header class="hero">
       <div class="eyebrow">重构计划 · 仅设计</div>
-      <h1>统一 Agent 执行语义，重构 Self Programming Workflow</h1>
+      <h1>统一 Agent 执行语义</h1>
       <p class="lead">Programs 内只使用 <code>openprogram.agentic_programming.agent()</code>。独立会话、后台 Job 与 sub-agent 分支继续由内部适配层负责，但两者最终必须进入同一个 Agent loop，不再形成两套规划、工具调用、模型覆盖和错误处理语义。</p>
       <div class="meta"><span class="pill target">目标：一个公共 Agent API</span><span class="pill">范围：Runtime / Workflow / DAG / Chat UI</span><span class="pill">迁移：分阶段，可回滚</span><span class="pill">状态：Workflow 编排已迁移 · App/DAG 验收待完成</span></div>
     </header>
@@ -110,13 +110,13 @@
         <div class="status-grid">
           <div class="card status"><span class="tag now">当前</span><strong><code>agent()</code> 已使用当前 Runtime</strong><p><code>openprogram/agentic_programming/agent.py</code> 调用 <code>runtime.exec(..., execution_kind="agent")</code>，因此本来就适合在 Workflow DAG 内运行。</p></div>
           <div class="card status"><span class="tag now">当前</span><strong><code>run_agent_turn()</code> 是持久 Job 入口</strong><p>它创建或恢复 session Job，处理 worker claim、branch、head、archive、chain depth 等会话生命周期。</p></div>
-          <div class="card status"><span class="tag remove">在工作流中解析</span><strong>Workflow 创建曾走错层</strong><p><code>create_workflow</code> 的编写经 <code>_run_planner_turn() → agent()</code> 执行，归属当前 Workflow 的 public Agent Call；<code>run_agent_turn()</code> 仍仅供 Chat/CLI/Job。</p></div>
+          <div class="card status"><span class="tag keep">现状</span><strong>Workflow 的模型调用都经过角色</strong><p>Workflow 只通过模块顶层的角色调用模型（<code>role(prompt, context=)</code>、<code>role.choose</code>），角色运行在 public <code>agent()</code>/<code>llm()</code> 执行核心上；<code>run_agent_turn()</code> 仍仅供 Chat/CLI/Job。</p></div>
           <div class="card status"><span class="tag keep">当前</span><strong>公共 <code>agent()</code> 已支持结构化结果</strong><p>公共 <code>agent()</code> 已把 <code>response_format</code> 透传到当前 Runtime，并原样返回经过验证的 JSON value；Workflow 规划器仍解析 JSON 文本。</p></div>
         </div>
         <table><thead><tr><th>位置</th><th>当前职责</th><th>问题</th><th>目标</th></tr></thead><tbody>
           <tr><td><code>agentic_programming.agent</code></td><td>当前 Runtime 内工具循环</td><td>参数能力不完整，DAG 标签不够明确</td><td>扩展为唯一公共 Agent 合同</td></tr>
           <tr><td><code>agent.sub_agent_run</code></td><td>会话分支和 durable Job</td><td>被 Workflow 内部规划直接调用</td><td>只保留为内部生命周期适配层</td></tr>
-          <tr><td>Workflow 管理与入口</td><td><code>search_workflows</code>、<code>create_workflow</code>、<code>revise_workflow</code>，以及 <code>workflows/auto_workflow.py</code></td><td>旧复合入口曾混合不同副作用</td><td>前三项保留为可复用管理函数；完整自动流程位于 <code>workflows/</code> 并保持独立注册</td></tr>
+          <tr><td>Workflow 编写</td><td>聊天 Agent 用文件工具编写，加上 <code>openprogram workflows check</code></td><td>没有专门的编写工具</td><td>见 <a href="workflow.zh.md">Workflow 设计</a></td></tr>
           <tr><td><code>Runtime.exec</code></td><td>统一 LLM/工具循环底层</td><td>公共参数未完全上浮</td><td>继续作为唯一 Agent loop 内核，不公开 session 语义</td></tr>
         </tbody></table>
       </section>
@@ -175,55 +175,22 @@
       </section>
 
       <section id="workflow">
-        <h2>5. Self Programming Workflow 的目标流程</h2>
+        <h2>5. Workflow 流程</h2>
         <p>Workflow 由聊天 Agent 直接编写成普通 Python 包：<code>Agent</code> 实例作为角色，显式的 <code>Context</code> 对象，加上普通函数。不另设搜索、创建、修订 workflow 的工具。完整合同以 <a href="workflow.zh.md">Workflow 设计</a>为准。</p>
-        <div class="diagram"><svg viewBox="0 0 1120 660" role="img" aria-label="auto_workflow 的用户手动流程：输入任务后搜索现有 Workflow，由一个可见 Agent 决定复用或创建；创建路径执行确定性验证和有界 author retry；发布后执行选定 Workflow。">
-          <defs><marker id="arrow3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#747981"/></marker></defs>
-          <rect x="430" y="18" width="260" height="58" rx="11" fill="#17191c" stroke="#454b54"/><text x="560" y="52" text-anchor="middle" fill="#e8e9eb" font-size="16">auto_workflow(task)</text><path d="M560 76V112" stroke="#747981" stroke-width="2" marker-end="url(#arrow3)"/>
-          <rect x="260" y="120" width="600" height="118" rx="14" fill="#241d1b" stroke="#ee7d55"/><text x="288" y="151" fill="#ee7d55" font-size="12" font-weight="700">AGENT · 选择复用或创建</text><text x="288" y="181" fill="#e8e9eb" font-size="16">search_workflows → 阅读候选 → 选择 reuse / create</text><text x="288" y="209" fill="#a3a7ae" font-size="12">不自动 revise 已发布Workflow；创建统一进入 create_workflow</text>
-          <path d="M560 238V274" stroke="#747981" stroke-width="2" marker-end="url(#arrow3)"/><rect x="360" y="282" width="400" height="76" rx="12" fill="#17191c" stroke="#67c78a"/><text x="560" y="313" text-anchor="middle" fill="#e8e9eb" font-size="16">确定性校验器与发布器</text><text x="560" y="338" text-anchor="middle" fill="#a3a7ae" font-size="12">包 · 显式入口导出 · 导入 · 策略 · 源码版本</text>
-          <path d="M360 320H210V402" fill="none" stroke="#ef6b62" stroke-width="1.8" marker-end="url(#arrow3)"/><text x="225" y="311" fill="#ef6b62" font-size="11">创建校验失败</text>
-          <rect x="54" y="410" width="312" height="94" rx="12" fill="#21191a" stroke="#ef6b62"/><text x="78" y="440" fill="#ef6b62" font-size="12" font-weight="700">AGENT · 有限次数的编写重试</text><text x="78" y="468" fill="#e8e9eb" font-size="14">输入明确诊断，重写未发布candidate</text><text x="78" y="490" fill="#a3a7ae" font-size="11">仅属于create发布前验证，不修改已发布Workflow</text><path d="M210 410V386H560V358" fill="none" stroke="#ef6b62" stroke-width="1.5" marker-end="url(#arrow3)"/>
-          <path d="M760 320H930V402" fill="none" stroke="#67c78a" stroke-width="1.8" marker-end="url(#arrow3)"/><text x="805" y="311" fill="#67c78a" font-size="11">已验证</text>
-          <rect x="754" y="410" width="312" height="94" rx="12" fill="#18201c" stroke="#67c78a"/><text x="778" y="440" fill="#67c78a" font-size="12" font-weight="700">执行选定的工作流</text><text x="778" y="468" fill="#e8e9eb" font-size="14">直接调用已发布入口</text><text x="778" y="490" fill="#a3a7ae" font-size="11">内部 llm / agent / goal / Functions 全部进入同一 DAG</text>
-          <path d="M910 504V548H560" fill="none" stroke="#747981" stroke-width="1.8" marker-end="url(#arrow3)"/><rect x="360" y="556" width="400" height="76" rx="12" fill="#17191c" stroke="#4bc6d8"/><text x="560" y="587" text-anchor="middle" fill="#e8e9eb" font-size="16">summary() · 工作流交接</text><text x="560" y="612" text-anchor="middle" fill="#a3a7ae" font-size="12">2–3 句概述 + 关键步骤 + 完成状态；结果文件留在项目目录</text>
-        </svg></div>
-        <div class="callout">Selection Agent 只输出 reuse/create 决策，不写文件。选择create后由 <code>create_workflow</code> 的author与确定性validator生成并发布多文件Python package；显式修改由 <code>revise_workflow</code> 独立负责。</div>
-        <table><thead><tr><th>阶段</th><th>允许能力</th><th>明确输出</th><th>可观测性</th></tr></thead><tbody>
-          <tr><td>搜索与选择</td><td>只读catalog与候选元数据</td><td>固定 revision，或 create 决策</td><td>search函数与一个selection Agent节点</td></tr>
-          <tr><td>验证与发布</td><td>纯 Python 校验和文件操作</td><td>revision、依赖清单、验证诊断</td><td>Function Call 节点</td></tr>
-          <tr><td>创建重试</td><td>同一未发布candidate、明确诊断、有限轮数</td><td>通过门禁的新candidate</td><td><code>create_workflow</code> 下的Agent节点</td></tr>
-          <tr><td>执行</td><td>Workflow 声明的 Programs</td><td>文件交付物或明确 return_result</td><td>完整嵌套 DAG</td></tr>
-          <tr><td>总结</td><td>运行事件和交付物元数据</td><td>过程性 summary，不复制完整正文</td><td>Conclusion 区域</td></tr>
+        <table><thead><tr><th>阶段</th><th>执行者</th><th>结果</th><th>可观察性</th></tr></thead><tbody>
+          <tr><td>编写</td><td>聊天 Agent 及其文件工具</td><td><code>~/.openprogram/workflows/&lt;name&gt;/</code> 中的包</td><td>聊天中的普通工具调用</td></tr>
+          <tr><td>检查</td><td><code>openprogram workflows check</code></td><td>导入探测、沙箱测试、通过后 Git 提交</td><td>检查报告（<code>--json</code>）</td></tr>
+          <tr><td>加载</td><td>worker watcher</td><td>干净已提交版本的入口成为工具</td><td>Programs 页面和 <code>workflows list</code> 中的加载状态</td></tr>
+          <tr><td>运行</td><td>Workflow 自己的代码</td><td>入口返回值</td><td>入口节点，每次角色调用一个子节点</td></tr>
         </tbody></table>
       </section>
 
       <section id="observability">
         <h2>6. DAG 与聊天显示合同</h2>
-        <p>重构后的首要验收不是“函数返回了 JSON”，而是用户能看到 Workflow 如何选择、如何创建、实际调用了哪些 Programs，以及错误发生在哪一层。</p>
-        <div class="diagram"><svg viewBox="0 0 1120 510" role="img" aria-label="目标 DAG 示例。auto_workflow 下含选择 Agent、create validator、实际 llm_knowledge_research Workflow 与 summary。Agent 下展示 LLM 与 Programs，Workflow 下展示 goal、agent、llm 和 web search 等调用。">
-          <defs><marker id="arrow4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#5b6068"/></marker></defs>
-          <path d="M180 78H310M440 78H548M678 78H786" stroke="#5b6068" stroke-width="2" marker-end="url(#arrow4)"/>
-          <rect x="32" y="34" width="148" height="88" rx="12" fill="#241d1b" stroke="#ee7d55"/><text x="106" y="68" text-anchor="middle" fill="#e8e9eb" font-size="15">auto_workflow</text><text x="106" y="94" text-anchor="middle" fill="#a3a7ae" font-size="11">仅用户消息的根节点</text>
-          <rect x="310" y="34" width="130" height="88" rx="12" fill="#172023" stroke="#4bc6d8"/><text x="375" y="68" text-anchor="middle" fill="#e8e9eb" font-size="14">Agent</text><text x="375" y="94" text-anchor="middle" fill="#a3a7ae" font-size="11">仅复用 / 创建</text>
-          <rect x="548" y="34" width="130" height="88" rx="12" fill="#18201c" stroke="#67c78a"/><text x="613" y="68" text-anchor="middle" fill="#e8e9eb" font-size="14">校验器</text><text x="613" y="94" text-anchor="middle" fill="#a3a7ae" font-size="11">发布</text>
-          <rect x="786" y="34" width="292" height="88" rx="12" fill="#241d1b" stroke="#ee7d55"/><text x="932" y="68" text-anchor="middle" fill="#e8e9eb" font-size="14">llm_knowledge_research</text><text x="932" y="94" text-anchor="middle" fill="#a3a7ae" font-size="11">选定的工作流</text>
-          <path d="M375 122V164M932 122V164" stroke="#5b6068" stroke-width="1.7"/><path d="M375 164H214V192M375 164H375V192M375 164H536V192" fill="none" stroke="#5b6068"/>
-          <rect x="148" y="192" width="132" height="64" rx="10" fill="#17191c" stroke="#4bc6d8"/><text x="214" y="218" text-anchor="middle" fill="#e8e9eb" font-size="13">LLM</text><text x="214" y="240" text-anchor="middle" fill="#747981" font-size="10">推理摘要</text>
-          <rect x="309" y="192" width="132" height="64" rx="10" fill="#17191c" stroke="#ee7d55"/><text x="375" y="218" text-anchor="middle" fill="#e8e9eb" font-size="13">搜索程序</text><text x="375" y="240" text-anchor="middle" fill="#747981" font-size="10">目录 / 图</text>
-          <rect x="470" y="192" width="132" height="64" rx="10" fill="#17191c" stroke="#ee7d55"/><text x="536" y="218" text-anchor="middle" fill="#e8e9eb" font-size="13">决策输出</text><text x="536" y="240" text-anchor="middle" fill="#747981" font-size="10">复用或创建</text>
-          <path d="M932 164H748V192M932 164H932V192M932 164H1040V192" fill="none" stroke="#5b6068"/>
-          <rect x="682" y="192" width="132" height="64" rx="10" fill="#17191c" stroke="#d8b35d"/><text x="748" y="218" text-anchor="middle" fill="#e8e9eb" font-size="13">goal</text><text x="748" y="240" text-anchor="middle" fill="#747981" font-size="10">任务目标</text>
-          <rect x="866" y="192" width="132" height="64" rx="10" fill="#17191c" stroke="#4bc6d8"/><text x="932" y="218" text-anchor="middle" fill="#e8e9eb" font-size="13">agent</text><text x="932" y="240" text-anchor="middle" fill="#747981" font-size="10">研究循环</text>
-          <rect x="1010" y="192" width="92" height="64" rx="10" fill="#17191c" stroke="#67c78a"/><text x="1056" y="218" text-anchor="middle" fill="#e8e9eb" font-size="13">llm</text><text x="1056" y="240" text-anchor="middle" fill="#747981" font-size="10">裁判</text>
-          <path d="M932 256V302H755V328M932 302H932V328M932 302H1060V328" fill="none" stroke="#5b6068"/>
-          <rect x="680" y="328" width="150" height="64" rx="10" fill="#17191c" stroke="#ee7d55"/><text x="755" y="354" text-anchor="middle" fill="#e8e9eb" font-size="13">web_search</text><text x="755" y="376" text-anchor="middle" fill="#747981" font-size="10">程序调用</text>
-          <rect x="857" y="328" width="150" height="64" rx="10" fill="#17191c" stroke="#ee7d55"/><text x="932" y="354" text-anchor="middle" fill="#e8e9eb" font-size="13">读取 / 提取</text><text x="932" y="376" text-anchor="middle" fill="#747981" font-size="10">程序调用</text>
-          <rect x="1020" y="328" width="82" height="64" rx="10" fill="#17191c" stroke="#4bc6d8"/><text x="1061" y="354" text-anchor="middle" fill="#e8e9eb" font-size="13">LLM</text><text x="1061" y="376" text-anchor="middle" fill="#747981" font-size="10">综合</text>
-          <path d="M932 392V438H560" fill="none" stroke="#5b6068" stroke-width="1.7" marker-end="url(#arrow4)"/><rect x="440" y="430" width="240" height="58" rx="10" fill="#172023" stroke="#4bc6d8"/><text x="560" y="464" text-anchor="middle" fill="#e8e9eb" font-size="14">摘要与交付元数据</text>
-        </svg></div>
+        <p>首要验收不是“函数返回了 JSON”，而是用户能看到 Workflow 做了哪些角色调用、每次请求包含什么、实际调用了哪些 Programs，以及错误发生在哪一层。入口调用是一个节点，每次角色调用是保存完整请求的子节点，普通函数不记录。</p>
+        
         <table><thead><tr><th>界面层级</th><th>默认显示</th><th>展开后显示</th></tr></thead><tbody>
-          <tr><td>顶层 Workflow</td><td>名称、状态、耗时、步骤数、完整 Conclusion</td><td>选择/编写 Agent、校验、实际 Workflow、summary</td></tr>
+          <tr><td>顶层 Workflow</td><td>名称、状态、耗时、步骤数、完整 Conclusion</td><td>按顺序的角色调用，各自带完整请求与回复</td></tr>
           <tr><td>Agent</td><td>描述标签、状态、迭代数</td><td>模型输出摘要和真实 Programs 调用；不展示隐藏 chain-of-thought</td></tr>
           <tr><td>Program Call</td><td>名称、参数摘要、状态</td><td>输入、输出、错误和 side panel 详情</td></tr>
           <tr><td>sub-agent session</td><td>单独的可跳转行</td><td>切换到子 session；返回后仍保持同一行，不变成另一套卡片</td></tr>
@@ -248,7 +215,7 @@
         <div class="phase-grid">
           <div class="card phase"><span class="phase-no">01</span><h3>冻结执行合同</h3><ul><li>记录当前 <code>agent()</code>、<code>run_agent_turn()</code> 和 Runtime 调用图。</li><li>增加架构测试：Programs 不得导入 <code>agent.sub_agent_run</code>。</li><li>增加真实注册 schema 测试，固定四个Workflow管理函数的公开参数。</li></ul><div class="gate">Gate：只新增失败测试和文档，不改行为。</div></div>
           <div class="card phase"><span class="phase-no">02</span><h3>补全 public agent()</h3><ul><li>透传 <code>response_format</code>、content blocks、description 和 agent profile。</li><li>复用现有 profile/tool resolver，不新建配置格式。</li><li>增加 Agent wrapper Call，使 LLM 和工具节点稳定归属。</li></ul><div class="gate">Gate：public agent 单元测试、DAG caller 测试、provider fallback 测试。</div></div>
-          <div class="card phase"><span class="phase-no">03</span><h3>拆分 Workflow 公共行为</h3><ul><li><code>search_workflows</code> 保持确定性只读。</li><li><code>auto_workflow</code> 的selection Agent只决定reuse/create，不写文件、不自动revise。</li><li>author、写入与发布前验证分别属于 <code>create_workflow</code> 和 <code>revise_workflow</code>。</li></ul><div class="gate">Gate：search/create/revise/auto 四条独立公共入口集成测试。</div></div>
+          <div class="card phase"><span class="phase-no">03</span><h3>不设专门编写工具</h3><ul><li>聊天 Agent 在 <code>~/.openprogram/workflows</code> 中编写包。</li><li><code>openprogram workflows check</code> 测试并提交；只加载干净的已提交版本。</li><li>Workflow 内的模型调用都经过角色。</li></ul><div class="gate">Gate：加载器、check 与请求内容测试。</div></div>
           <div class="card phase"><span class="phase-no">04</span><h3>收紧 session 适配层</h3><ul><li><code>run_agent_turn()</code> 保持内部，继续支持 branch、Job、recovery、archive。</li><li>确认 dispatcher 最终调用与 public agent 相同的 Agent loop 内核。</li><li>去除重复的模型默认值、工具解析和错误规范化。</li></ul><div class="gate">Gate：后台恢复、取消、branch/head 与 spawn caller 测试。</div></div>
           <div class="card phase"><span class="phase-no">05</span><h3>迁移所有 Programs</h3><ul><li>扫描 <code>openprogram/programs/</code> 对内部 Agent API 和直接 loop 的调用。</li><li>Workflow 与 Application 统一使用 public <code>agent()</code>；普通 Agentic Function 只允许一次 <code>llm()</code>。</li><li>保留 vanilla sub-agent 工具作为 session adapter 的产品入口。</li></ul><div class="gate">Gate：静态依赖检查 + Programs catalog/graph 回归。</div></div>
           <div class="card phase"><span class="phase-no">06</span><h3>DAG 与聊天展示</h3><ul><li>后端事件补充 execution_kind、label、caller、iteration 和 artifact metadata。</li><li>前端按同一 Runtime hierarchy 渲染，不推断独立结构。</li><li>Conclusion、footer 和折叠逻辑沿用现有统一组件。</li></ul><div class="gate">Gate：mapper、RuntimeBlock、reload 和真实 App DOM 验收。</div></div>
@@ -262,7 +229,6 @@
         <table><thead><tr><th>对象</th><th>处理</th><th>原因</th></tr></thead><tbody>
           <tr><td><code>agent()</code></td><td>保留并扩展；旧参数继续工作</td><td>已经是 ambient Runtime 内的正确公开原语</td></tr>
           <tr><td><code>run_agent_turn()</code></td><td>保留但标记 internal；禁止 Programs 导入</td><td>Chat/CLI/background 的 durable session 需求真实存在</td></tr>
-          <tr><td><code>_run_planner_turn()</code></td><td>Workflow selection/authoring 调用 public <code>agent()</code></td><td>Programs 内规划不再 import <code>run_agent_turn</code></td><td>保留为 <code>agent(tools=PLANNER_TOOLS)</code> 薄包装；后续可删除</td></tr>
           <tr><td><code>_request_project_decision()</code></td><td>用单一编排 Agent 的实际工具行为替代</td><td>先输出 selection JSON 再编写造成两次 Agent 语义和断裂 DAG</td></tr>
           <tr><td>legacy SINGLE / <code>code.py</code></td><td>只读恢复，禁止新建</td><td>保留历史记录但不继续产生不可维护单文件 Workflow</td></tr>
           <tr><td>工作流项目包</td><td>继续使用标准 Python package 和显式 Agent 方法或函数导出</td><td>支持多文件维护、Git revision、静态依赖图和直接 Python 调用</td></tr>
@@ -273,8 +239,8 @@
       <section id="tests">
         <h2>10. 验收矩阵</h2>
         <div class="brief-grid">
-          <div class="card brief"><h3>API 与注册</h3><ul><li>Registry只包含 <code>search_workflows</code>、<code>create_workflow</code>、<code>revise_workflow</code> 与 <code>auto_workflow</code>；分类目录不注册。</li><li><code>agent()</code> 的 model/tools/profile 覆盖顺序稳定。</li><li>结构化输出在支持和不支持原生 schema 的 provider 上都可验证。</li></ul></div>
-          <div class="card brief"><h3>调用结构</h3><ul><li>selection属于 <code>auto_workflow</code>；author与发布前重试属于 <code>create_workflow</code> 或 <code>revise_workflow</code>。</li><li>Workflow 调用的 Programs 均出现在 DAG。</li><li>direct/manual Workflow 不因 predecessor 被误归到上一条 assistant。</li></ul></div>
+          <div class="card brief"><h3>API 与注册</h3><ul><li>只有内置与用户 Workflow 的 <code>PROGRAM_ENTRIES</code> 注册为工具；分类目录不注册。</li><li><code>agent()</code> 的 model/tools/profile 覆盖顺序稳定。</li><li>结构化输出在支持和不支持原生 schema 的 provider 上都可验证。</li></ul></div>
+          <div class="card brief"><h3>调用结构</h3><ul><li>每次角色调用都是其 Workflow 入口节点的子节点。</li><li>Workflow 调用的 Programs 均出现在 DAG。</li><li>direct/manual Workflow 不因 predecessor 被误归到上一条 assistant。</li></ul></div>
           <div class="card brief"><h3>生命周期</h3><ul><li>父取消会终止 Agent、LLM 与工具。</li><li>session Job 重启后只恢复 session 路径。</li><li>新 run 不生成 SINGLE；旧 run 仍能恢复或给出明确不兼容错误。</li></ul></div>
           <div class="card brief"><h3>界面</h3><ul><li>折叠态显示 Workflow 标题、Conclusion、footer。</li><li>逐级展开，不一次展开全部子节点。</li><li>App/Web/TUI 读取同一默认 profile 和 18100 worker。</li></ul></div>
         </div>
@@ -309,7 +275,7 @@ git diff --check</code></pre>
         <div class="status-grid">
           <div class="card status"><span class="tag keep">已验证的现状</span><strong>已有公共 <code>llm()</code>、<code>agent()</code>、<code>goal()</code></strong><p>三者已经以 ambient Runtime 为基础，层级方向可保留。</p></div>
           <div class="card status"><span class="tag keep">已验证的现状</span><strong>Runtime 已支持大部分目标参数</strong><p><code>response_format</code>、tools、model、effort、timeout、execution_kind 等底层能力已经存在。</p></div>
-          <div class="card status"><span class="tag keep">已验证的现状</span><strong>Workflow selection/authoring 已走 public <code>agent()</code></strong><p><code>workflow._run_planner_turn()</code> 调用 <code>openprogram.agentic_programming.agent()</code>（受限 <code>PLANNER_TOOLS</code>）；auto selection 有 <code>AUTO_DECISION_ATTEMPTS</code> 上限。四个注册入口与源码分类的权威合同见authoring设计页。</p></div>
+          <div class="card status"><span class="tag keep">已验证的现状</span><strong>Workflow 角色调用走 public 执行核心</strong><p>角色调用以角色的工具运行 <code>openprogram.agentic_programming.agent()</code>（<code>role.choose</code> 走 <code>llm()</code>），请求组成见 <a href="workflow.zh.md">Workflow 设计</a>。</p></div>
           <div class="card status"><span class="tag now">部分实现</span><strong>Workflow 内嵌 <code>agent()</code> 仍用 session adapter</strong><p>旧版 <code>code.py</code> 执行路径的 <code>_agent_function()</code> 仍绑定 session turn；项目 snapshot 执行已使用 public <code>agent()</code>。</p></div>
           <div class="card status"><span class="tag target">待实现</span><strong>统一 DAG 与 App 可视验收尚未完成</strong><p>组件测试已覆盖 reuse/create/revise/pin/resume；默认 App 中 selection Agent 节点、Conclusion 与 reload 行为仍待验收。</p></div>
           <div class="card status"><span class="tag keep">已验证的现状</span><strong>公开 <code>agent()</code> 结构化输出透传</strong><p>公共 <code>agent()</code> 已接受裸 JSON Schema 或 <code>JsonSchemaOutput</code>，并原样返回 Runtime 验证后的 object、array、scalar 或 null。未请求结构化输出时继续保留文本和 legacy <code>{"text": ...}</code> 兼容行为；Workflow 规划器迁移不属于这项实现。</p></div>

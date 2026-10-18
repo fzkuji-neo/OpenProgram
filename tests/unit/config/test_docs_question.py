@@ -1,17 +1,16 @@
 """Unit tests for the docs_question workflow
 (``openprogram/programs/workflow/docs_question/``): the entry point's
-input validation, the page listing it builds its prompt from, source
-path normalization, and the shape it returns once the spawned agent has
-replied.
+input validation, the request its ``reader`` role sends, source path
+normalization, and the shape it returns once the role has replied.
 
-The single LLM round goes through the module-level ``_run_docs_turn``
-seam (the same shape ``goal`` and ``agentic_workflow`` use), so these tests
-stub it and never reach a provider."""
+``script_roles`` answers the role, so these tests never reach a provider."""
 from __future__ import annotations
 
 import json
 
 import pytest
+
+from openprogram.testing import script_roles
 
 import openprogram.programs.workflow.docs_question as DQ
 
@@ -35,54 +34,55 @@ def _reply(answer="It can.", sources=("capabilities/goal.md",), covered=True):
                        "covered": covered})
 
 
+def _ask(question, reply=None):
+    with script_roles({DQ.reader: [reply or _reply()]}) as calls:
+        out = DQ.run_docs_question(question)
+    return out, calls[DQ.reader][0]
+
+
 # ---------------------------------------------------------------------------
 # Entry point — argument validation
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("question", ["", "   ", "\n\t "])
-def test_empty_question_is_rejected(monkeypatch, fake_docs, question) -> None:
-    monkeypatch.setattr(
-        DQ, "_run_docs_turn",
-        lambda *a, **k: pytest.fail("must not spawn an agent for an empty question"))
-    with pytest.raises(ValueError, match="question"):
-        DQ.run_docs_question(question=question, session_id="s1")
+def test_empty_question_is_rejected(fake_docs, question) -> None:
+    with script_roles({DQ.reader: []}) as calls:
+        with pytest.raises(ValueError, match="question"):
+            DQ.run_docs_question(question)
+    assert calls[DQ.reader] == []
 
 
-def test_question_is_trimmed_into_the_prompt(monkeypatch, fake_docs) -> None:
-    prompts = []
-    monkeypatch.setattr(
-        DQ, "_run_docs_turn",
-        lambda sid, p, **k: prompts.append(p) or _reply())
-    DQ.run_docs_question(question="  can it set a goal?  ", session_id="s1")
-    assert "<question>\ncan it set a goal?\n</question>" in prompts[0]
+def test_question_is_trimmed_into_the_prompt(fake_docs) -> None:
+    _out, request = _ask("  can it set a goal?  ")
+    assert request.prompt == "can it set a goal?"
 
 
 # ---------------------------------------------------------------------------
-# The prompt: page listing and the rules that matter
+# The request: page listing and the rules that matter
 # ---------------------------------------------------------------------------
 
-def test_prompt_lists_english_pages_with_titles(fake_docs) -> None:
-    prompt = DQ._prompt("q", fake_docs)
-    assert "capabilities/goal.md — Session goals" in prompt
-    assert "README.md — OpenProgram" in prompt
-    assert "capabilities/goal.zh.md" not in prompt      # translations not listed
-    assert "_site/built.md" not in prompt               # build output not listed
-    assert str(fake_docs) in prompt                     # the scope it works in
+def test_request_lists_english_pages_with_titles(fake_docs) -> None:
+    _out, request = _ask("q")
+    assert "capabilities/goal.md — Session goals" in request.text
+    assert "README.md — OpenProgram" in request.text
+    assert "capabilities/goal.zh.md" not in request.text  # translations not listed
+    assert "_site/built.md" not in request.text           # build output not listed
+    assert str(fake_docs) in request.text                 # the scope it works in
 
 
-def test_prompt_states_the_three_outcomes_and_the_no_fabrication_rule(
+def test_instructions_state_the_three_outcomes_and_the_no_fabrication_rule(
     fake_docs,
 ) -> None:
-    prompt = DQ._prompt("q", fake_docs)
-    assert "covered=false" in prompt and "does not cover it" in prompt
-    assert "NOT supported" in prompt          # documented-no is not the same
-    assert "fabrication" in prompt
-    assert "authoritative" in prompt          # English page wins
+    _out, request = _ask("q")
+    assert "covered=false" in request.system and "does not cover it" in request.system
+    assert "NOT supported" in request.system      # documented-no is not the same
+    assert "fabrication" in request.system
+    assert "authoritative" in request.system      # English page wins
 
 
 def test_missing_docs_tree_lists_nothing_rather_than_erroring(tmp_path) -> None:
     assert DQ.list_pages(tmp_path / "nope") == []
-    assert "(no pages found)" in DQ._prompt("q", tmp_path / "nope")
+    assert DQ._listing(tmp_path / "nope") == "(no pages found)"
 
 
 def test_generated_reference_pages_are_listed_only_when_present(
@@ -99,34 +99,21 @@ def test_generated_reference_pages_are_listed_only_when_present(
 
 
 # ---------------------------------------------------------------------------
-# The spawned agent is read-only and scoped
+# The reader role is read-only and scoped
 # ---------------------------------------------------------------------------
 
-def test_tools_are_read_only(monkeypatch, fake_docs) -> None:
-    import importlib
-    seen = []
-
-    monkeypatch.setattr('openprogram.programs.agent_tools', lambda *, names: names)
-    monkeypatch.setattr(importlib.import_module('openprogram.agentic_programming.agent'), 'agent',
-                        lambda **kwargs: seen.append(kwargs) or _reply())
-    DQ.run_docs_question('Can it set a goal?', session_id='s1')
-    tools = seen[0]['tools']
+def test_tools_are_read_only() -> None:
+    tools = [getattr(tool, "name", tool) for tool in DQ.reader.tools]
     assert set(tools) == set(DQ.DOCS_TOOLS)
     for forbidden in ('write', 'edit', 'apply_patch', 'bash', 'task'):
         assert forbidden not in tools
     assert DQ.run_docs_question.render_range == {'callers': 0, 'subcalls': 0}
 
 
-def test_failed_turn_raises(monkeypatch, fake_docs) -> None:
-    import importlib
-
-    def failed_agent(**kwargs):
-        raise RuntimeError('provider down')
-
-    monkeypatch.setattr('openprogram.programs.agent_tools', lambda **kwargs: [])
-    monkeypatch.setattr(importlib.import_module('openprogram.agentic_programming.agent'), 'agent', failed_agent)
-    with pytest.raises(RuntimeError, match='provider down'):
-        DQ.run_docs_question(question='p', session_id='s1')
+def test_failed_turn_raises(fake_docs) -> None:
+    with script_roles({DQ.reader: [RuntimeError('provider down')]}):
+        with pytest.raises(Exception, match='provider down'):
+            DQ.run_docs_question('p')
 
 
 # ---------------------------------------------------------------------------
@@ -134,21 +121,15 @@ def test_failed_turn_raises(monkeypatch, fake_docs) -> None:
 # ---------------------------------------------------------------------------
 
 def test_returns_answer_sources_covered(monkeypatch, fake_docs) -> None:
-    monkeypatch.setattr(
-        DQ, "_run_docs_turn",
-        lambda *a, **k: _reply("Yes, with /goal.", ["capabilities/goal.md"]))
-    out = DQ.run_docs_question(question="can it set a goal?", session_id="s1")
+    out, _request = _ask("can it set a goal?", _reply("Yes, with /goal.", ["capabilities/goal.md"]))
     assert out == {"answer": "Yes, with /goal.",
                    "sources": ["capabilities/goal.md"],
                    "covered": True}
 
 
 def test_uncovered_answer_keeps_its_nearest_pages(monkeypatch, fake_docs) -> None:
-    monkeypatch.setattr(
-        DQ, "_run_docs_turn",
-        lambda *a, **k: _reply("The documentation does not cover this.",
-                               ["capabilities/goal.md"], covered=False))
-    out = DQ.run_docs_question(question="does it fly?", session_id="s1")
+    out, _request = _ask("does it fly?", _reply("The documentation does not cover this.",
+                                                ["capabilities/goal.md"], covered=False))
     assert out["covered"] is False
     assert out["sources"] == ["capabilities/goal.md"]   # closest related page
 

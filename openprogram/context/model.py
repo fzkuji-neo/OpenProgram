@@ -13,20 +13,29 @@ DELETE = object()
 _current: ContextVar[Context | None] = ContextVar("openprogram_context", default=None)
 
 
+HISTORY_MODES = (None, "thread", "chat")
+
+
 class Context(MutableMapping[str, Any]):
     """Named content with a parent scope and optional history selection.
 
     Providers must be synchronous callables that accept one Context.
     Local writes persist on this object. Derived scopes copy effective content.
     Content does not change system instructions or tool permissions.
+
+    ``history`` selects the history a model call sees: ``None`` for none,
+    ``"thread"`` for the earlier calls made with this same context object,
+    ``"chat"`` for the conversation, or a callable ``(node, context) -> bool``
+    that selects conversation nodes. Unset, a plain call sees the
+    conversation and a workflow role call sees none.
     """
 
     def __init__(self, blocks: Mapping[str, Any] | None = None, *,
                  parent: Context | None = None,
                  providers: Mapping[str, Callable] | None = None,
-                 history_filter: Any = UNSET, call_id: Any = UNSET,
+                 history: Any = UNSET, call_id: Any = UNSET,
                  store: Any = UNSET, head_id: Any = UNSET,
-                 excluded_call_ids: Any = UNSET):
+                 excluded_call_ids: Any = UNSET, thread: Any = UNSET):
         self.parent = parent
         self.excluded_call_ids = frozenset(parent.excluded_call_ids if parent is not None else ()) if excluded_call_ids is UNSET else frozenset(excluded_call_ids)
         self.store = (parent.store if parent is not None else None) if store is UNSET else store
@@ -38,11 +47,17 @@ class Context(MutableMapping[str, Any]):
         self._blocks = deepcopy(parent._blocks) if parent is not None else {}
         self._providers = dict(parent._providers) if parent is not None else {}
         self._deleted = set(parent._deleted) if parent is not None else set()
-        self._history_explicit = history_filter is not UNSET or (parent is not None and parent._history_explicit)
-        self.history_filter = (parent.history_filter if parent is not None else "dag") if history_filter is UNSET else history_filter
+        if history is not UNSET and history not in HISTORY_MODES and not callable(history):
+            raise TypeError("Context history must be None, 'thread', 'chat', or a callable.")
+        self._history_explicit = history is not UNSET or (parent is not None and parent._history_explicit)
+        self.history = (parent.history if parent is not None else "chat") if history is UNSET else history
+        if thread is not UNSET:
+            self._thread = thread
+        elif history is not UNSET or parent is None:
+            self._thread = []
+        else:
+            self._thread = parent._thread
         self.call_id = (parent.call_id if parent is not None else None) if call_id is UNSET else call_id
-        if self.history_filter not in (None, False, "dag", "current_call") and not callable(self.history_filter):
-            raise TypeError("History filter must be 'dag', 'current_call', or a callable.")
         for name, value in (blocks or {}).items():
             if value is DELETE:
                 self._blocks.pop(name, None)
@@ -107,9 +122,9 @@ class Context(MutableMapping[str, Any]):
 
     def filter_history(self, history):
         """Narrow an already authorized branch before model preparation."""
-        if self.history_filter is False:
+        if self.history in (None, "thread"):
             return []
-        if self.store is None or (self.history_filter in (None, 'dag') and not self.excluded_call_ids):
+        if self.store is None or (self.history == "chat" and not self.excluded_call_ids):
             return list(history)
         graph = self.store.load()
         ids = [row['id'] for row in history if row.get('id') in graph.nodes]
@@ -123,20 +138,36 @@ class Context(MutableMapping[str, Any]):
 
     def derive(self, blocks: Mapping[str, Any] | None = None, *,
                providers: Mapping[str, Callable] | None = None,
-               history_filter: Any = UNSET, call_id: Any = UNSET,
+               history: Any = UNSET, call_id: Any = UNSET,
                store: Any = UNSET, head_id: Any = UNSET,
-               excluded_call_ids: Any = UNSET) -> Context:
-        """Create a child with an independent content snapshot."""
+               excluded_call_ids: Any = UNSET, thread: Any = UNSET) -> Context:
+        """Create a child with an independent content snapshot.
+
+        The child shares this context's thread unless ``history`` is given,
+        which starts a new one."""
         return type(self)(blocks, parent=self, providers=providers,
-                          history_filter=history_filter, call_id=call_id, store=store, head_id=head_id,
-                          excluded_call_ids=excluded_call_ids)
+                          history=history, call_id=call_id, store=store, head_id=head_id,
+                          excluded_call_ids=excluded_call_ids, thread=thread)
+
+    @property
+    def thread(self) -> list[dict]:
+        """The ``{"role", "text"}`` turns recorded by calls made with this context."""
+        return self._thread
+
+    def record_turn(self, prompt: Any, reply: Any) -> None:
+        """Add one call's prompt and reply to the thread."""
+        if self.history != "thread":
+            return
+        self._thread.append({"role": "user", "text": _turn_text(prompt)})
+        self._thread.append({"role": "assistant", "text": _turn_text(reply)})
 
     def merge(self, other: Context) -> Context:
         """Create a child with content and selection from another context."""
         blocks = {name: DELETE for name in other._deleted}
         blocks.update(other._blocks)
         return self.derive(blocks, providers=other._providers,
-                           history_filter=other.history_filter if other._history_explicit else UNSET,
+                           history=other.history if other._history_explicit else UNSET,
+                           thread=other._thread if other._history_explicit else UNSET,
                            store=other.store if other._store_explicit else UNSET,
                            head_id=other.head_id if other._head_explicit else UNSET)
 
@@ -223,9 +254,8 @@ class Context(MutableMapping[str, Any]):
     def select_history(self, graph, read_ids: list[str], *, call_id: str | None = None) -> list[str]:
         """Filter IDs already selected by the DAG visibility policy.
 
-        ``current_call`` keeps the scope node and its caller descendants.
-        It does not include ancestor or sibling calls. It cannot restore IDs
-        excluded by DAG authority, branch, or render-range rules.
+        It cannot restore IDs excluded by DAG authority, branch, or
+        render-range rules.
         """
         scope_id = self.call_id or call_id
         excluded = set(self.excluded_call_ids)
@@ -261,24 +291,25 @@ class Context(MutableMapping[str, Any]):
                 seen.add(current)
                 node = graph.nodes.get(current)
                 current = node.caller if node is not None else None
-            if callable(self.history_filter):
-                value = self.history_filter(graph.nodes[node_id], self)
+            if callable(self.history):
+                value = self.history(graph.nodes[node_id], self)
                 if inspect.isawaitable(value):
                     if inspect.iscoroutine(value):
                         value.close()
-                    raise TypeError("History filter must return a synchronous value.")
+                    raise TypeError("History selector must return a synchronous value.")
                 return bool(value)
-            if self.history_filter is False:
-                return False
-            if self.history_filter != "current_call":
-                return True
-            current = node_id
-            seen = set()
-            while current and current not in seen:
-                if current == scope_id:
-                    return True
-                seen.add(current)
-                node = graph.nodes.get(current)
-                current = node.caller if node is not None else None
-            return False
+            return self.history == "chat"
         return list(dict.fromkeys(node_id for node_id in read_ids if selected(node_id)))
+
+
+def _turn_text(value: Any) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        return "\n".join(str(block.get("text", "")) for block in value
+                         if isinstance(block, dict) and block.get("type") == "text")
+    import json
+    try:
+        return json.dumps(value, ensure_ascii=False, default=str)
+    except Exception:
+        return str(value)

@@ -1,6 +1,6 @@
 """Source discovery must preserve dates, privacy boundaries and original text."""
 import json
-from openprogram.programs.workflow import report_sources as sources
+from openprogram.programs.workflow._reports import sources
 
 
 def test_discovery_keeps_current_originals_and_excludes_old_test_and_symlink(tmp_path, monkeypatch):

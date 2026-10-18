@@ -619,7 +619,7 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
     <div class="runtime-program-content">
       <div class="tl" id="subagent-demo">
         <button class="tl-toggle" type="button" id="subagent-demo-toggle" aria-expanded="false">
-          <span id="subagent-demo-label">auto_workflow · waiting to run</span><span class="chev">›</span>
+          <span id="subagent-demo-label">report_workflow · waiting to run</span><span class="chev">›</span>
         </button>
         <div class="tl-collapse"><div class="tl-collapse-inner">
           <div class="tl-body">
@@ -642,7 +642,7 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
   <thead><tr><th>Call path</th><th>Live data</th><th>Page node</th><th>Shared visibility control</th></tr></thead>
   <tbody>
     <tr><td>In chat, <code>agent()</code></td><td><code>sub_agent</code> events update by stable <code>card_id</code> : <code>attachCards</code></td><td><code>SubAgentStep</code></td><td rowspan="2"><code>ExecutionStrip</code><br><code>const [open, setOpen] = useState(false)</code></td></tr>
-    <tr><td><code>auto_workflow</code> internal selection agent</td><td><code>tree_update</code> : <code>contextTree</code></td><td><code>TreeStep</code> child node</td></tr>
+    <tr><td><code>report_workflow</code> internal role call</td><td><code>tree_update</code> : <code>contextTree</code></td><td><code>TreeStep</code> child node</td></tr>
   </tbody>
 </table>
 <div class="rule"><b>Implementation contract:</b>Completion events update the same sub-agent record only;<code>ExecutionStrip</code> uses <code>false</code> as the common default for streaming and historical messages, with manual choices taking precedence. Related entries:<a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/components/chat/messages/execution-strip.tsx" style="color:var(--accent-cyan)">execution-strip.tsx</a>, <a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/lib/net/chat-stream.ts" style="color:var(--accent-cyan)">chat-stream.ts</a>, <a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/components/chat/messages/runtime-block.tsx" style="color:var(--accent-cyan)">runtime-block.tsx</a>, <a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/scripts/runtime/check-spawn-cards.mjs" style="color:var(--accent-cyan)">check-spawn-cards.mjs</a>.</div>
@@ -737,7 +737,7 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
     <div class="branch-explain-item caller"><b>“Return to call site” before the first message</b>Return directly to <code>callerId</code>; later continuation in the parent branch is hidden.</div>
   </div>
 </div>
-<div class="rule"><b>Shared boundary:</b>All three actions switch the active HEAD in one session and reload the transcript; they do not open a new tab. The backend prohibits HEAD movement during execution. Legacy cross-session AttachCard opens a target session only and is outside this same-session example.<code>auto_workflow</code> contains only <code>TreeStep</code> without an attach pointer still open right-panel details only and show none of these branch-navigation actions.</div>
+<div class="rule"><b>Shared boundary:</b>All three actions switch the active HEAD in one session and reload the transcript; they do not open a new tab. The backend prohibits HEAD movement during execution. Legacy cross-session AttachCard opens a target session only and is outside this same-session example.<code>report_workflow</code> contains only <code>TreeStep</code> without an attach pointer still open right-panel details only and show none of these branch-navigation actions.</div>
 
 <!-- ═══════ 6. Message navigation ═══════ -->
 <h2><span class="num">6</span>Left-edge message navigation: lines mark messages; hover opens a list</h2>
@@ -983,14 +983,14 @@ function setSubagentOpen(open){
 function resetSubagentDemo(){
   subagentTimers.forEach(clearTimeout);subagentTimers=[];
   setSubagentOpen(false);
-  subagentLabel.textContent='auto_workflow · waiting to run';
+  subagentLabel.textContent='report_workflow · waiting to run';
   subagentRow.className='step demo-subagent';
   subagentNote.textContent='Running…';
   subagentStatus.textContent='Waiting to replay';
 }
 function replaySubagentDemo(){
   resetSubagentDemo();
-  subagentLabel.textContent='auto_workflow · running';
+  subagentLabel.textContent='report_workflow · running';
   subagentStatus.textContent='T0: parent running; execution area stays collapsed';
   subagentTimers.push(setTimeout(()=>{
     subagentRow.className='step demo-subagent is-mounted is-arriving is-running';
@@ -1002,7 +1002,7 @@ function replaySubagentDemo(){
     subagentStatus.textContent='T2: same row updates to Completed';
   },2800));
   subagentTimers.push(setTimeout(()=>{
-    subagentLabel.textContent='auto_workflow · Completed';
+    subagentLabel.textContent='report_workflow · Completed';
     setSubagentOpen(false);
     subagentStatus.textContent='T3: parent finished; execution area stays collapsed';
   },4800));

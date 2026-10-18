@@ -111,10 +111,10 @@ def test_browser_task_uses_high_level_agent_wrapper(monkeypatch):
 
     class Runtime:
         def exec(self, **_kwargs):
-            raise AssertionError("browser task must use agent(), not Runtime.exec()")
+            raise AssertionError("browser task must use the planner role, not Runtime.exec()")
 
     monkeypatch.setattr(browser_module, "_new_controller", Controller)
-    monkeypatch.setattr(browser_module, "agent", high_level_agent)
+    monkeypatch.setattr(browser_module, "planner", high_level_agent)
 
     result = run_on(
         Runtime(),

@@ -9,7 +9,7 @@ an independent, read-only ordinary chat turn in ``verification``.
 Programs and Python may still call :func:`goal` with isolated pre-call context.
 That compatibility Workflow owns its refinement, work rounds and judgment.
 
-Evaluation is one decision agent turn: :func:`judge_goal` (prompt in
+Evaluation is one ``judge`` role call: :func:`judge_goal` (brief in
 its docstring) reads the session's compacted context view plus the
 goal text and answers strict JSON with a typed verdict, reason, optional
 question, independent-work flag, options, and checklist. Only its ``met`` counts
@@ -43,11 +43,10 @@ from __future__ import annotations
 
 from . import chat_tools as _chat_tools  # noqa: F401
 
-from openprogram.programs.workflow.goal.goal import goal  # noqa: F401
+from openprogram.programs.workflow.goal.goal import ENTRY_OPTIONS, PROGRAM_ENTRIES, goal  # noqa: F401
 from openprogram.programs.workflow.goal.judge import (  # noqa: F401
     DECISION_TOOLS,
     _parse_decision,
-    _run_decision_turn,
     evaluate_goal,
     judge_goal,
     render_session_view,
@@ -97,7 +96,6 @@ from openprogram.programs.workflow.goal.execution import (  # noqa: F401
 from openprogram.programs.workflow.goal.refinement import (  # noqa: F401
     REFINE_TOOLS,
     _parse_refinement,
-    _run_refine_turn,
     refine_goal_spec_candidate,
 )
 from openprogram.programs.workflow.goal.loop import (  # noqa: F401

@@ -79,7 +79,7 @@ def test_public_agent_runs_real_loop_with_context_and_history(tmp_path, monkeypa
         assert 'explicit-value' in str(seen[0].messages)
         assert 'first-message' in str(seen[1].messages)
         assert 'explicit-value' not in seen[0].system_prompt
-        agent.run_turn(D.TurnRequest('one','without-history','main','python'), context=Context(history_filter=False))
+        agent.run_turn(D.TurnRequest('one','without-history','main','python'), context=Context(history=None))
         assert 'first-message' not in str(seen[-1].messages)
         assert Context.current() is None
     finally:
