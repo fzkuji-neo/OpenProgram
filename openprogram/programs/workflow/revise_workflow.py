@@ -40,6 +40,7 @@ class ReviseWorkflowAgent(Agent):
             agent_id="main",
             spawn_caller=call_state.current_call_id() or None,
             base=base,
+            check=repository._test_candidate,
         )
         return repository._publish_candidate(
             candidate,

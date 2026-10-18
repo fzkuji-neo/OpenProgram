@@ -221,6 +221,18 @@ def test_workflows_validate_cli_rejects_mismatched_project_identity(
     assert "display-name must match" in payload["error"]
 
 
+def test_behavior_tests_may_import_pytest_but_the_package_may_not(tmp_path: Path) -> None:
+    project = _write_project(tmp_path)
+    tests = project / "tests" / "test_workflow.py"
+    tests.write_text("import pytest\nfrom pytest import raises\nfrom workflows.demo_workflow.steps import work\n" + tests.read_text(encoding="utf-8"), encoding="utf-8")
+    validation.validate_workflow_directory(project)
+
+    steps = project / "steps" / "work.py"
+    steps.write_text("import pytest\n" + steps.read_text(encoding="utf-8"), encoding="utf-8")
+    with pytest.raises(validation.InvalidWorkflow, match="may not use import statements"):
+        validation.validate_workflow_directory(project)
+
+
 def test_directory_validation_rejects_a_second_public_entry(tmp_path: Path) -> None:
     project = _write_project(tmp_path)
     with (project / "workflow.py").open("a", encoding="utf-8") as stream:

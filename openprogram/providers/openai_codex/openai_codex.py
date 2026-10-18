@@ -129,6 +129,27 @@ def _resolve_codex_bearer_token(opts_api_key: str | None) -> str:
     return ""
 
 
+def _refresh_rejected_token(rejected: str) -> str:
+    """The backend answered 401 to a pooled OAuth token before its recorded
+    expiry (the session was revoked or rotated elsewhere). Refresh that
+    credential once, as the Codex CLI does on 401, and return the new bearer;
+    ``""`` when the token is not ours or no fresher one can be had."""
+    try:
+        from openprogram.auth.credential_provider import get_credential_provider
+        from openprogram.auth.store import get_store
+        manager = get_credential_provider()
+        for pool in get_store().list_pools():
+            if pool.provider_id != "openai-codex":
+                continue
+            for cred in pool.credentials:
+                if cred.payload.auth_value == rejected:
+                    fresh = manager.force_refresh_sync(cred).payload.auth_value
+                    return fresh if fresh and fresh != rejected else ""
+    except Exception:
+        pass
+    return ""
+
+
 def stream_openai_codex_responses(
     model: "Model",
     context: "Context",
@@ -301,9 +322,10 @@ def stream_openai_codex_responses(
             n0 = len(output.content)
             retry_route = 0
             attempt_number = 0
+            token_refreshed = False
 
             async def _attempt() -> None:
-                nonlocal attempt_number, retry_route
+                nonlocal attempt_number, retry_route, token_refreshed
                 attempt_number += 1
                 del output.content[n0:]
                 # Decoupled timeouts: bound connect/write/pool, but let the
@@ -355,6 +377,19 @@ def stream_openai_codex_responses(
                                 err_text = error_text_bytes.decode()
                             except Exception:
                                 err_text = repr(error_text_bytes)
+                            if response.status_code == 401 and not token_refreshed:
+                                token_refreshed = True
+                                rejected = headers["Authorization"].removeprefix("Bearer ")
+                                fresh = await asyncio.to_thread(_refresh_rejected_token, rejected)
+                                if fresh:
+                                    headers["Authorization"] = f"Bearer {fresh}"
+                                    raise ProviderStreamError(
+                                        f"HTTP 401: {err_text}",
+                                        http_status=401,
+                                        error_text=err_text,
+                                        retryable=True,
+                                        provider=model.provider,
+                                    )
                             raise ProviderStreamError(
                                 f"HTTP {response.status_code}: {err_text}",
                                 http_status=response.status_code,

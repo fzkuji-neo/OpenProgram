@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import ast
-import json
 import re
 import traceback
 from pathlib import Path
@@ -105,17 +104,13 @@ def _validated_reply(reply: str) -> str:
 
 
 def _parse_json_reply(reply: str) -> dict:
-    text = str(reply or "").strip()
-    match = re.search(r"```(?:json)?\s*\n(.*?)\n?\s*```", text, re.DOTALL)
-    if match:
-        text = match.group(1).strip()
+    from ..json_parsing import parse_json
+
     try:
-        value = json.loads(text)
-    except json.JSONDecodeError as exc:
+        # Tolerates fences, surrounding prose and stray trailing characters.
+        return parse_json(str(reply or "").strip())
+    except ValueError as exc:
         raise InvalidWorkflow(f"planner reply was not valid JSON: {exc}") from exc
-    if not isinstance(value, dict):
-        raise InvalidWorkflow("planner reply must be one JSON object")
-    return value
 
 
 def _request_auto_decision(
@@ -198,7 +193,10 @@ def _request_project_candidate(
     require_new_name: bool = False,
     pinned_snapshot: Optional[Path] = None,
     pinned_dependencies: Optional[dict] = None,
+    check: Optional[Callable[[dict], None]] = None,
 ) -> dict:
+    """Author a valid candidate. Validation errors and, with ``check``,
+    failing behavior tests go back to the model with its rejected attempt."""
     prompt = prompts._author_prompt(
         task, functions, base=base, error=error, state=state
     )
@@ -232,6 +230,8 @@ def _request_project_candidate(
                 pinned_snapshot=pinned_snapshot,
                 pinned_dependencies=pinned_dependencies,
             )
+            if check is not None:
+                check(candidate)
             return candidate
         except Exception as exc:
             last_error = f"{type(exc).__name__}: {exc}"
@@ -246,6 +246,7 @@ def _request_project_candidate(
                 base=base,
                 error=last_error,
                 state=state,
+                rejected=str(reply or ""),
             )
     raise InvalidWorkflow("workflow project author failed validation: " + last_error)
 

@@ -302,7 +302,8 @@ def _summarize_workflow(state: dict) -> dict:
             fallback += f" {failed} call(s) failed."
         fallback += " Summary generation was unavailable; verify generated artifacts."
     prompt = """<workflow_summary>
-Summarize the completed workflow as a concise, natural chat response.
+Summarize the completed workflow as a concise, natural chat response, written in
+the language of the task.
 Usually begin with a brief overview; 2-3 sentences are often enough.
 When several distinct stages exist, use a short numbered list to describe the main
 steps. Omit the list when it would make a simple workflow less clear.

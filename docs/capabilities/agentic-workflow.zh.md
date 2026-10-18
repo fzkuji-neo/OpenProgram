@@ -7,11 +7,13 @@ OpenProgram 可以创建、版本化、搜索和执行可复用的 Python Workfl
 | 入口 | 职责 |
 |---|---|
 | `search_workflows(task)` | 只读搜索本地 catalog；不调用模型、不写文件、不执行候选。 |
-| `create_workflow(task)` | 编写并静态校验一个新 package，然后发布首个 Git revision；不执行用户任务。 |
-| `revise_workflow(workflow_id, request)` | 为指定 package 编写并静态校验新 revision；旧 revision 保持可用。 |
+| `create_workflow(task)` | 编写一个新 package，校验后在操作系统沙箱中运行它的行为测试，再发布首个 Git revision；不执行用户任务。 |
+| `revise_workflow(workflow_id, request)` | 为指定 package 编写、校验并测试新 revision，然后发布；旧 revision 保持可用。 |
 | `auto_workflow(task)` | 仅用户手动使用：搜索、选择复用或有依据的创建，然后执行固定 revision。 |
 
 Chat Agent 可以直接调用搜索、创建、修订或具体 Workflow，但不能调用 `auto_workflow`；完整自动编排入口只在 Programs UI 提供给用户。
+
+校验错误或测试失败会连同被拒的 package 交回编写 Agent 重写，最多四次；没有一次通过就不发布。新发布的 Workflow 或新 revision 会在几秒内被运行中的 worker 加载，对话里无需重启即可调用。入口函数没有 docstring 时，模型看到的工具描述就是项目 summary。
 
 ## 已发布 package 与一次运行不是一回事
 
@@ -32,6 +34,6 @@ openprogram workflows validate ./my_workflow
 openprogram workflows validate ./my_workflow --json
 ```
 
-静态校验不会 import package，也不会执行 `tests/test_workflow.py`。强制 sandbox 的行为测试门和人工 publish 命令目前还不是公开能力；CLI 会明确报告这一边界。
+静态校验不会 import package，也不会执行 `tests/test_workflow.py`。`openprogram workflows test` 在操作系统沙箱中运行行为测试，`openprogram workflows publish` 测试并发布同一个 snapshot；见[编写 Workflow package](workflows/authoring.zh.md)。
 
 如果扩展是一个暴露多组 agentic function 的可安装仓库，而不是单个生成式 Workflow package，请使用另一套 [Harness 安装合同](installing-harnesses.zh.md)。

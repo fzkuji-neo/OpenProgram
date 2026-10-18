@@ -782,6 +782,15 @@ def _adapt_tools(raw_tools: list) -> list:
 
     adapted: list = []
     for entry in raw_tools:
+        if isinstance(entry, str):
+            # A registered tool's name, as agent(tools=["read", ...]) documents.
+            from openprogram.programs import _runtime as _registry
+
+            tool = _registry.get(entry)
+            if tool is None:
+                raise ValueError(f"Unknown tool {entry!r}")
+            adapted.append(tool)
+            continue
         if isinstance(entry, AgentTool):
             adapted.append(entry)
             continue

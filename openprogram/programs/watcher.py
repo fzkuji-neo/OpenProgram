@@ -75,7 +75,24 @@ def _catalog_fingerprint(base: str) -> tuple:
         source_stamp = (stat.st_mtime_ns, stat.st_size)
     except OSError:
         source_stamp = None
-    return (source_stamp, tuple((root, _fingerprint(root)) for root in sorted(roots)))
+    return (source_stamp, tuple((root, _fingerprint(root)) for root in sorted(roots)),
+            _workflow_fingerprint())
+
+
+def _workflow_fingerprint() -> tuple:
+    """Each published Workflow package and the stamp of its Git index, which
+    changes when a package is created or a revision is published."""
+    try:
+        from openprogram.programs.workflow._project import catalog
+        rows = []
+        for project in catalog._project_directories():
+            try:
+                rows.append((str(project), (project / ".git" / "index").stat().st_mtime_ns))
+            except OSError:
+                continue
+        return tuple(rows)
+    except Exception:
+        return ()
 
 
 def start_in_worker(

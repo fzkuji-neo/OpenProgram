@@ -72,8 +72,11 @@ class ManagedSourceLoader(importlib.machinery.SourceFileLoader):
             capture_suspended.reset(token)
 
 
-def register_public_entries(module, entrypoint=None, *, require_exports=False):
-    """Adapt only explicitly exported functions to the existing tool registry."""
+def register_public_entries(module, entrypoint=None, *, require_exports=False, summary=None):
+    """Adapt only explicitly exported functions to the existing tool registry.
+
+    ``summary`` describes an entrypoint whose function has no docstring, as a
+    published Workflow's project summary does."""
     from openprogram.agentic_programming.agent_method import wrap_agent_method, register_agent_method
     from openprogram.agentic_programming.call_scope import managed_function
     if require_exports and not hasattr(module, "PROGRAM_ENTRIES"):
@@ -88,7 +91,11 @@ def register_public_entries(module, entrypoint=None, *, require_exports=False):
             entries.append(entry)
     replacements = {}
     for entry in entries:
-        if getattr(entry, "_agent_tool", None) is not None:
+        existing = getattr(entry, "_agent_tool", None)
+        if existing is not None:
+            if (summary and entrypoint and entry is getattr(module, entrypoint, None)
+                    and not (entry.__doc__ or "").strip()):
+                existing.description = summary
             continue
         if not (inspect.isfunction(entry) or inspect.ismethod(entry)):
             raise TypeError("Program entries must be Python functions or Agent methods")
@@ -125,6 +132,8 @@ def register_public_entries(module, entrypoint=None, *, require_exports=False):
             execution_metadata = {key: value for key, value in metadata.items() if key != "available_if"}
             if entrypoint and entry is getattr(module, entrypoint, None):
                 options.setdefault("name", entrypoint)
+                if summary and not (original.__doc__ or "").strip():
+                    options.setdefault("description", summary)
             # Agent methods already carry their scope and instance binding.
             if is_method or getattr(entry, "_is_agent_method", False):
                 wrapper = entry

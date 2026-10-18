@@ -241,33 +241,19 @@ class CredentialProvider:
             having to refactor to be async.
           * cross-thread is always safe: each thread has its own loop.
         """
-        try:
-            running = asyncio.get_running_loop()
-        except RuntimeError:
-            running = None
-        if running is None:
-            return asyncio.run(self.acquire(provider_id, account_id))
+        return _run_sync(lambda: self.acquire(provider_id, account_id),
+                         f"acquire_sync-{provider_id}-{account_id}")
 
-        import threading
-        box: dict = {}
-
-        def _runner() -> None:
-            try:
-                box["cred"] = asyncio.run(
-                    self.acquire(provider_id, account_id),
-                )
-            except BaseException as e:  # noqa: BLE001
-                box["err"] = e
-
-        t = threading.Thread(
-            target=_runner, daemon=True,
-            name=f"acquire_sync-{provider_id}-{account_id}",
-        )
-        t.start()
-        t.join()
-        if "err" in box:
-            raise box["err"]
-        return box["cred"]
+    def force_refresh_sync(self, cred: Credential) -> Credential:
+        """Refresh ``cred`` now, before its recorded expiry, because the
+        provider rejected its access token (a revoked or rotated session).
+        A peer process that already refreshed it wins; read-only
+        credentials come back unchanged."""
+        pool = self._store.find_pool(cred.provider_id, cred.account_id)
+        if pool is None or cred.read_only:
+            return cred
+        return _run_sync(lambda: self._maybe_refresh(cred, pool, force=True),
+                         f"force_refresh-{cred.provider_id}-{cred.account_id}")
 
     async def acquire(self, provider_id: str, account_id: Optional[str] = None) -> Credential:
         """Return a usable credential for ``(provider, account)``.
@@ -367,7 +353,9 @@ class CredentialProvider:
 
     # -- refresh -------------------------------------------------------------
 
-    async def _maybe_refresh(self, cred: Credential, pool: CredentialPool) -> Credential:
+    async def _maybe_refresh(
+        self, cred: Credential, pool: CredentialPool, *, force: bool = False,
+    ) -> Credential:
         if cred.read_only:
             # Read-only credentials (imported from external CLI) don't
             # get refreshed by us — the external tool owns that. If
@@ -383,7 +371,7 @@ class CredentialProvider:
             return cred
 
         cfg = get_provider_config(cred.provider_id)
-        if not _oauth_stale(cred, cfg.refresh_skew_seconds):
+        if not force and not _oauth_stale(cred, cfg.refresh_skew_seconds):
             return cred
 
         if cfg.refresh is None and cfg.async_refresh is None:
@@ -421,7 +409,9 @@ class CredentialProvider:
                 if fresh_pool is not None:
                     for fc in fresh_pool.credentials:
                         if fc.credential_id == cred.credential_id:
-                            if not _oauth_stale(fc, cfg.refresh_skew_seconds):
+                            renewed = (fc.payload.auth_value != cred.payload.auth_value
+                                       if force else not _oauth_stale(fc, cfg.refresh_skew_seconds))
+                            if renewed:
                                 future.set_result(fc)
                                 return fc
                             cred = fc
@@ -588,6 +578,33 @@ class CredentialProvider:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _run_sync(make_coro, thread_name: str):
+    """Run a coroutine from sync code, on a private thread when this
+    thread already runs an event loop (TUI, FastAPI, async tests)."""
+    try:
+        running = asyncio.get_running_loop()
+    except RuntimeError:
+        running = None
+    if running is None:
+        return asyncio.run(make_coro())
+
+    import threading
+    box: dict = {}
+
+    def _runner() -> None:
+        try:
+            box["value"] = asyncio.run(make_coro())
+        except BaseException as e:  # noqa: BLE001
+            box["err"] = e
+
+    t = threading.Thread(target=_runner, daemon=True, name=thread_name)
+    t.start()
+    t.join()
+    if "err" in box:
+        raise box["err"]
+    return box["value"]
+
 
 def _is_permanent_refresh_failure(exc: Exception) -> bool:
     """Does this refresh exception mean the refresh_token is DEAD (re-auth

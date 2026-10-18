@@ -495,3 +495,35 @@ def test_unavailable_public_exports_remain_scoped_python_calls(monkeypatch):
     assert module.plain() == "plain"
     assert module.bound() == "bound"
     assert len(calls) == 2
+
+
+def test_published_revision_replaces_the_loaded_package(tmp_path, monkeypatch):
+    root = _isolate(tmp_path, monkeypatch)
+    _programs.mark_workflow_projects_migrated()
+    monkeypatch.setattr(_registry, "_loaded_workflow_revisions", {})
+    module = "openprogram.programs.workflow.trust_demo_workflow"
+
+    def publish(candidate, action, project_id=""):
+        instance = tmp_path / f"instance-{action}"
+        instance.mkdir()
+        repository._replace_snapshot(instance, candidate)
+        repository._publish_snapshot(
+            instance, project_id=project_id, action=action,
+            metadata=candidate["project_metadata"],
+        )
+
+    try:
+        publish(_candidate(), "create")
+        _registry._load_workflow_projects()
+        tool = program_runtime.get("trust_demo_workflow")
+        assert tool.description == "Import trust demo"
+        assert tool._python_callable("x") == "x"
+
+        revised = _candidate()
+        revised["files"]["steps/work.py"] = "def work(task: str):\n    return task.upper()\n"
+        publish(revised, "revise", "trust_demo_workflow")
+        _registry._load_workflow_projects()
+        assert program_runtime.get("trust_demo_workflow")._python_callable("x") == "X"
+    finally:
+        for name in [name for name in sys.modules if name.startswith(module)]:
+            del sys.modules[name]

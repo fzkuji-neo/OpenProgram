@@ -259,7 +259,7 @@ model's parameter choices.
 
 ## Allowed imports and composition
 
-Package top-level code permits docstrings, allowed `from ... import ...` statements, optional `__all__`, and function definitions. Classes, plain `import x`, mutable top-level constants, arbitrary top-level calls, and replacing managed names such as `llm`, `agent`, or `goal` are rejected.
+Package top-level code permits docstrings, allowed `from ... import ...` statements, optional `__all__`, function definitions, `Agent` subclasses, and the one public entry assignment. Other classes, plain `import x`, mutable top-level constants, arbitrary top-level calls, and replacing managed names such as `llm`, `agent`, or `goal` are rejected. Modules under `tests/` may also `import pytest` and import their own package's submodules, such as `from workflows.project_report.steps import prepare`, to mock a step.
 
 Absolute imports may reference `openprogram.agentic_programming`, `openprogram.programs.workflow.*`, `openprogram.programs.tools.*`, or one named Workflow:
 
@@ -301,7 +301,7 @@ openprogram workflows publish ./project_report --replace --json
 
 Replacement also requires a clean destination Git repository. Preserve or commit deliberate edits there before replacing it. The final publication operation rechecks the destination under its lock. A prior test report is never accepted in place of testing the snapshot being published.
 
-The author Agent's `create_workflow` and `revise_workflow` remain separate generated-package entry points and run the same required sandbox tests before publication. Failed tests publish nothing; testing does not execute the user's real task. The manual commands above are the supported path for publishing files written by a person. The legacy `entry.py` format is for historical revisions and resume compatibility, not new packages.
+The author Agent's `create_workflow` and `revise_workflow` remain separate generated-package entry points and run the same required sandbox tests before publication. A validation error or failing test goes back to the author with its rejected package for up to four attempts; if none passes, nothing is published. Testing does not execute the user's real task. The manual commands above are the supported path for publishing files written by a person. The legacy `entry.py` format is for historical revisions and resume compatibility, not new packages.
 
 ## Portable paths and installed Apps
 

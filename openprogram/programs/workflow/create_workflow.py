@@ -37,6 +37,7 @@ class CreateWorkflowAgent(Agent):
             agent_id="main",
             spawn_caller=call_state.current_call_id() or None,
             require_new_name=True,
+            check=repository._test_candidate,
         )
         return repository._publish_candidate(candidate, project_id="", action="create")
 

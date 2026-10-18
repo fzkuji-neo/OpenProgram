@@ -218,7 +218,21 @@ def _allowed_package_import(
         or module.startswith("openprogram.programs.workflow.")
         or module.startswith("openprogram.programs.tools.")
         or workflow_import
-        or (path.startswith("tests/") and module == f"workflows.{entrypoint}")
+        # Behavior tests reach their own package, submodules included, to
+        # monkeypatch the steps they mock.
+        or (path.startswith("tests/") and (
+            module in (f"workflows.{entrypoint}", "pytest")
+            or module.startswith(f"workflows.{entrypoint}.")))
+    )
+
+
+def _test_pytest_import(node: ast.AST, path: str) -> bool:
+    """Behavior tests may ``import pytest`` (for ``pytest.raises``); they
+    run in the network-less OS sandbox, never in the published entry."""
+    return (
+        isinstance(node, ast.Import)
+        and path.startswith("tests/")
+        and all(alias.name == "pytest" and alias.asname is None for alias in node.names)
     )
 
 
@@ -355,7 +369,9 @@ def _validate_project_candidate(
             detail = "".join(traceback.format_exception_only(type(exc), exc)).strip()
             raise InvalidWorkflow(detail) from exc
         for nested in ast.walk(tree):
-            if isinstance(nested, ast.Import):
+            if isinstance(nested, ast.Import) and not (
+                nested in tree.body and _test_pytest_import(nested, path)
+            ):
                 raise InvalidWorkflow("workflow packages may not use import statements")
             if isinstance(nested, ast.ImportFrom) and nested not in tree.body:
                 raise InvalidWorkflow("workflow package imports must be at module top level")
@@ -365,6 +381,8 @@ def _validate_project_candidate(
                 and isinstance(node.value, ast.Constant)
                 and isinstance(node.value.value, str)
             ):
+                continue
+            if _test_pytest_import(node, path):
                 continue
             if isinstance(node, ast.Import):
                 raise InvalidWorkflow("workflow packages may not use import statements")

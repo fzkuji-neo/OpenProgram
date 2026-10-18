@@ -146,7 +146,8 @@ runtime capabilities and application limits. Validate every field and constraint
 use a complete valid fallback on failure, propagate cancellation, and reuse the
 saved plan on resume. Ask users only for missing task facts or required approval.
 Do not override user constraints or application limits with model-generated values.
-Plain import statements such as `import json` are forbidden. Every Python
+Plain import statements such as `import json` are forbidden, except `import pytest`
+at the top of a tests/ module. Every Python
 module top level may contain only a module docstring, allowed `from ... import
 ...` statements, an optional `__all__` assignment, functions, and Agent classes.
 The public entry assignment may select a method from an Agent instance.
@@ -204,6 +205,7 @@ def _author_prompt(
     base: Optional[dict] = None,
     error: str = "",
     state: Optional[dict] = None,
+    rejected: str = "",
 ) -> str:
     import json
 
@@ -227,6 +229,11 @@ def _author_prompt(
                 indent=2,
             )
             + "\n</base_project>"
+        )
+    if rejected:
+        prompt += (
+            "\n\n<rejected_attempt>\n" + rejected + "\n</rejected_attempt>"
+            "\nFix the concrete error below in this attempt and return the complete corrected project."
         )
     if error:
         prompt += f"\n\n<concrete_error>\n{error}\n</concrete_error>"

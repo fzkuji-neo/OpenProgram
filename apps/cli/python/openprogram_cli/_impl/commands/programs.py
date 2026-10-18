@@ -577,7 +577,14 @@ def _cmd_run(name, arg_list, provider=None, model=None):
             print(f"Error: argument must be key=value, got '{a}'")
             sys.exit(1)
 
-    result = loaded_func(**kwargs)
+    if provider or model:
+        # Agent methods reach the model through the ambient runtime, so the
+        # chosen provider must be in scope for the whole call.
+        from openprogram.agentic_programming.runtime_scope import execution_scope
+        with execution_scope(runtime=_get_runtime(provider, model)):
+            result = loaded_func(**kwargs)
+    else:
+        result = loaded_func(**kwargs)
     print(result)
 
 

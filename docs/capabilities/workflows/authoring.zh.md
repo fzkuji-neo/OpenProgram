@@ -223,7 +223,7 @@ def test_empty_request(monkeypatch):
 
 ## 允许的导入与组合
 
-包顶层允许文档字符串、受支持的 `from ... import ...`、可选 `__all__` 和函数定义。类、普通 `import x`、顶层可变常量、任意顶层调用以及覆盖 `llm`、`agent`、`goal` 等托管名称都会被拒绝。
+包顶层允许文档字符串、受支持的 `from ... import ...`、可选 `__all__`、函数定义、`Agent` 子类和唯一的公开入口赋值。其他类、普通 `import x`、顶层可变常量、任意顶层调用以及覆盖 `llm`、`agent`、`goal` 等托管名称都会被拒绝。`tests/` 下的模块还可以 `import pytest`，并导入本包的子模块（如 `from workflows.project_report.steps import prepare`）来 mock 某个步骤。
 
 绝对 import 可以引用 `openprogram.agentic_programming`、`openprogram.programs.workflow.*`、`openprogram.programs.tools.*`，或者一个具名 Workflow：
 
@@ -265,7 +265,7 @@ openprogram workflows publish ./project_report --replace --json
 
 替换还要求目标 Git 仓库干净；先保留或提交目标中的有意修改。最终发布会在锁内再次检查目标状态。以前的测试报告不能替代对本次 snapshot 的实际测试。
 
-编写 Agent 的 `create_workflow` 和 `revise_workflow` 继续作为独立的生成式入口，发布前也执行同一强制沙箱测试。测试失败时不发布，也不会执行用户的真实任务。上述手工命令用于发布人工编写的文件。旧 `entry.py` 格式只用于历史版本和恢复兼容，新包不使用该格式。
+编写 Agent 的 `create_workflow` 和 `revise_workflow` 继续作为独立的生成式入口，发布前也执行同一强制沙箱测试。校验错误或测试失败会连同被拒的 package 交回编写 Agent 重写，最多四次；都不通过就不发布。测试不会执行用户的真实任务。上述手工命令用于发布人工编写的文件。旧 `entry.py` 格式只用于历史版本和恢复兼容，新包不使用该格式。
 
 ## 相对路径与已安装 App
 

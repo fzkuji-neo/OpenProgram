@@ -264,6 +264,8 @@ class _WorkflowSourceFinder:
 
 
 _workflow_source_finder = _WorkflowSourceFinder()
+# Revision of each Workflow package imported in this process.
+_loaded_workflow_revisions: dict[str, str] = {}
 
 
 def _load_workflow_projects() -> None:
@@ -289,6 +291,8 @@ def _load_workflow_projects() -> None:
     }
 
     sources = {}
+    summaries: dict[str, str] = {}
+    revisions: dict[str, str] = {}
     projects = catalog._project_directories(root)
     for project_dir in projects:
         if sum(path.name == project_dir.name for path in projects) != 1:
@@ -304,6 +308,8 @@ def _load_workflow_projects() -> None:
             if entrypoint != project_dir.name:
                 continue
             sources[f"openprogram.programs.workflow.{entrypoint}"] = str(project_dir)
+            summaries[entrypoint] = str(index["project_metadata"].get("summary") or "")
+            revisions[entrypoint] = str(index["active_revision"])
         except Exception as exc:
             _debug_registry_error(f"workflow:{project_dir.name}", exc)
 
@@ -317,10 +323,19 @@ def _load_workflow_projects() -> None:
     try:
         importlib.invalidate_caches()
         for module_name in sources:
+            entrypoint = module_name.rsplit(".", 1)[-1]
+            revision = revisions[entrypoint]
+            if _loaded_workflow_revisions.get(entrypoint, revision) != revision:
+                # A published revision replaced the package: drop the cached
+                # modules so the new source is imported and re-registered.
+                for name in [name for name in sys.modules
+                             if name == module_name or name.startswith(module_name + ".")]:
+                    del sys.modules[name]
             try:
                 module = importlib.import_module(module_name)
                 from openprogram.programs._source_loader import register_public_entries
-                register_public_entries(module, module_name.rsplit(".", 1)[-1])
+                register_public_entries(module, entrypoint, summary=summaries.get(entrypoint))
+                _loaded_workflow_revisions[entrypoint] = revision
             except Exception as exc:
                 _debug_registry_error(module_name, exc)
     finally:

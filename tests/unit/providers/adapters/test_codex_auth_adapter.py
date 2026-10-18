@@ -189,6 +189,48 @@ def test_manager_refreshes_expired_codex_credential(store):
     adapter.register_codex_auth()
 
 
+def test_rejected_token_is_refreshed_before_its_recorded_expiry(store, monkeypatch):
+    # The backend can revoke a session before the JWT's exp; a 401 then
+    # forces one refresh of exactly that credential, as the Codex CLI does.
+    from openprogram.auth import credential_provider as cp
+    from openprogram.providers.openai_codex import openai_codex as stream
+
+    live = Credential(
+        provider_id=adapter.PROVIDER_ID, account_id="default", kind="oauth",
+        payload=CredentialData(kind="oauth", auth_value="revoked", data={
+            "refresh_token": "R-old",
+            "expires_at_ms": int(time.time() * 1000) + 9 * 86400_000,
+            "client_id": adapter.OAUTH_CLIENT_ID,
+        }),
+    )
+    store.put_pool(CredentialPool(provider_id=adapter.PROVIDER_ID, account_id="default", credentials=[live]))
+    calls = []
+
+    def fake_refresh(cred):
+        calls.append(cred.payload.data["refresh_token"])
+        return Credential(
+            provider_id=cred.provider_id, account_id=cred.account_id, kind="oauth",
+            payload=CredentialData(kind="oauth", auth_value="NEW-ACCESS", data={
+                "refresh_token": "R-new",
+                "expires_at_ms": int(time.time() * 1000) + 3600_000,
+                "client_id": adapter.OAUTH_CLIENT_ID,
+            }),
+            credential_id=cred.credential_id,
+        )
+
+    register_provider_config(ProviderAuthConfig(
+        provider_id=adapter.PROVIDER_ID, refresh_skew_seconds=60, refresh=fake_refresh,
+    ))
+    monkeypatch.setattr(cp, "_manager", CredentialProvider(store=store))
+    try:
+        assert stream._refresh_rejected_token("someone-else") == ""
+        assert stream._refresh_rejected_token("revoked") == "NEW-ACCESS"
+        assert calls == ["R-old"]
+        assert store.find_pool(adapter.PROVIDER_ID, "default").credentials[0].payload.auth_value == "NEW-ACCESS"
+    finally:
+        adapter.register_codex_auth()
+
+
 def test_acquire_sync_from_non_async_caller(store):
     # Seed with a fresh cred — no refresh needed, pure happy path.
     fresh = Credential(

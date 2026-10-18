@@ -7,11 +7,13 @@ OpenProgram can create, version, find, and run reusable Python Workflow packages
 | Entry | Responsibility |
 |---|---|
 | `search_workflows(task)` | Search the local catalog without calling a model, writing files, or running a candidate. |
-| `create_workflow(task)` | Author and statically validate one new package, then publish its first Git revision. It does not execute the user's task. |
-| `revise_workflow(workflow_id, request)` | Author and statically validate a new revision of one named package. Previous revisions remain available. |
+| `create_workflow(task)` | Author one new package, validate it, run its behavior tests in the OS sandbox, then publish its first Git revision. It does not execute the user's task. |
+| `revise_workflow(workflow_id, request)` | Author, validate and test a new revision of one named package, then publish it. Previous revisions remain available. |
 | `auto_workflow(task)` | User-only orchestration: search, choose reuse or justified creation, then run the selected fixed revision. |
 
 A Chat Agent can call search, create, revise, or a concrete Workflow directly. It cannot call `auto_workflow`; that complete orchestration entry is available from the Programs UI.
+
+A validation error or failing test goes back to the author with its rejected package, up to four attempts; nothing is published until one passes. A newly published Workflow, or a new revision, is picked up by the running worker within a few seconds, so chats can call it without a restart. Its project summary is the description the model sees when the entry function has no docstring.
 
 ## Published packages and runs are different
 
@@ -32,6 +34,6 @@ openprogram workflows validate ./my_workflow
 openprogram workflows validate ./my_workflow --json
 ```
 
-Static validation does not import the package or execute `tests/test_workflow.py`. A forced-sandbox behavior-test gate and a manual publish command are not yet public capabilities; the CLI reports this distinction explicitly.
+Static validation does not import the package or execute `tests/test_workflow.py`. `openprogram workflows test` runs the behavior tests in the OS sandbox, and `openprogram workflows publish` tests and publishes the exact snapshot; see [Write a Workflow package](workflows/authoring.md).
 
 For installable repositories that expose a set of agentic functions rather than one generated Workflow package, use the separate [harness installation contract](installing-harnesses.md).

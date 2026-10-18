@@ -613,6 +613,17 @@ def _publish_snapshot(
     return project_id, head
 
 
+def _test_candidate(candidate: dict) -> None:
+    """Run a candidate's behavior tests in the OS sandbox; publish nothing."""
+    from .authoring import _run_tests
+
+    with tempfile.TemporaryDirectory(prefix="openprogram-workflow-test-") as raw:
+        instance = Path(raw) / "candidate"
+        instance.mkdir()
+        _replace_snapshot(instance, candidate)
+        _run_tests(instance, candidate["project_metadata"]["entrypoint"])
+
+
 def _publish_candidate(
     candidate: dict, *, project_id: str, action: str, expected_revision: str = ""
 ) -> dict:
