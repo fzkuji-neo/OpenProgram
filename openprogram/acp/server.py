@@ -66,7 +66,7 @@ _TOOL_KINDS: dict[str, str] = {
     "edit_file": "edit", "multi_edit": "edit", "apply_patch": "edit",
     "grep": "search", "glob": "search", "search": "search",
     "web_search": "fetch", "web_fetch": "fetch", "fetch": "fetch",
-    "bash": "execute", "shell": "execute", "run": "execute",
+    "bash": "execute", "write_stdin": "execute", "shell": "execute", "run": "execute",
     "think": "think", "todo_write": "think", "task": "think",
     "delete": "delete", "move": "move",
 }

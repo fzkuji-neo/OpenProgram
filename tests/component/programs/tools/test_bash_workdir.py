@@ -70,7 +70,8 @@ def test_workdir_is_optional_and_model_description_matches():
     assert "workdir" not in schema.get("required", [])
     assert "do not persist between calls" in module.bash.description
     assert "does not change file-tool paths" in module.bash.description
-    assert "120000" in schema["properties"]["timeout"]["description"]
+    assert "30000" in schema["properties"]["yield_time_ms"]["description"]
+    assert "timeout" not in schema["properties"]
 
 
 def test_override_does_not_leak_to_next_call_or_file_tools(scope, recorder):

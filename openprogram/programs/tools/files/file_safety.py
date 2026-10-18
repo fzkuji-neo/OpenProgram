@@ -95,6 +95,6 @@ def is_dangerous_allow_rule(tool_name: str, pattern: str | None) -> bool:
     """危险规则剥离：一条 allow 规则在 acceptEdits 档下会不会放过危险命令。
     `bash(python:*)` 之类命令解释器规则 → 危险（进 auto/acceptEdits 时临时剥离）。"""
     if pattern is None:
-        return tool_name.lower() in {"bash", "exec", "shell", "execute_code", "process"}
+        return tool_name.lower() in {"bash", "exec", "shell", "execute_code", "write_stdin"}
     head = pattern.split(":", 1)[0].strip().split()[0] if pattern.strip() else ""
     return head.lower() in DANGEROUS_BASH_PATTERNS

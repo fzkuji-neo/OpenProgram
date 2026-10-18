@@ -93,6 +93,7 @@ def main():
             proc.stdin.flush()
         else:
             from openprogram._compat import ProcessTreeOwner
+            launch.pop("_tty", None)
             tree = ProcessTreeOwner()
             proc = tree.popen(**launch, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT, bufsize=0)
@@ -133,6 +134,14 @@ def main():
                                 tree.terminate_members()
                             stopping_at = time.monotonic()
                             store.update(process_id, status="stopping")
+                    elif command["kind"] == "interrupt":
+                        # Ctrl-C for a command without a terminal: SIGINT to its
+                        # group. A terminal's Ctrl-C arrives as written input.
+                        if stopping_at is None and members_alive():
+                            if os.name == "posix":
+                                os.killpg(proc.pid, signal.SIGINT)
+                            else:
+                                tree.terminate_members()
                     else:
                         if stdin_writer is not None and pending_write is not None and pending_write.command_id == command["id"]:
                             if not pending_write.done.is_set():
@@ -150,8 +159,8 @@ def main():
                             raise RuntimeError("process is stopping")
                         if write_blocked or pending_write is not None:
                             continue
-                        text = command["input"] or ""
-                        payload = (text if text.endswith("\n") else text + "\n").encode("utf-8")
+                        # Raw bytes, as typed: a line needs its own "\n" or "\r".
+                        payload = (command["input"] or "").encode("utf-8")
                         if stdin_writer is not None:
                             pending_write = _StdinWrite(command["id"], payload)
                             stdin_writer.jobs.put_nowait(pending_write)

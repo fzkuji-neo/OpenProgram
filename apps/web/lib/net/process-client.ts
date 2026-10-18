@@ -30,6 +30,10 @@ export type ManagedProcess = {
   backend_id: string;
   truncated: boolean;
   can_stop?: boolean;
+  /** Started with a pseudo-terminal, so its output carries terminal control codes. */
+  tty?: boolean;
+  /** A bash call returned while it was still running: a background terminal. */
+  background?: boolean;
 };
 export const processIsActive = (process: ManagedProcess) =>
   ["starting", "running", "stopping", "unknown"].includes(process.status);

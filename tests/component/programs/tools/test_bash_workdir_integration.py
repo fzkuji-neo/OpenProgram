@@ -89,7 +89,7 @@ def test_native_sandbox_preserves_original_root(tmp_path, monkeypatch, swap_afte
     try:
         command = "printf escaped > escaped.txt" if swap_after_validation else "printf kept > ../at-root.txt"
         result = asyncio.run(module.bash.execute(
-            "sandbox-workdir", {"command": command, "workdir": "child", "timeout": 10_000}, None, None,
+            "sandbox-workdir", {"command": command, "workdir": "child"}, None, None,
         ))
         if swap_after_validation:
             assert result.is_error, _text(result)

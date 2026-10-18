@@ -390,7 +390,7 @@ def _run_with_args(tool, req, args, approve=True, scope="once"):
 
 @pytest.mark.parametrize(("tool_name", "args"), [
     ("bash", {"command": "echo harmless"}),
-    ("process", {"action": "start", "command": "echo harmless"}),
+    ("write_stdin", {"session_id": "abc", "chars": "echo harmless\n"}),
     ("execute_code", {"code": "print('harmless')"}),
 ])
 @pytest.mark.parametrize("source", ["agent_spawn", "mcp"])

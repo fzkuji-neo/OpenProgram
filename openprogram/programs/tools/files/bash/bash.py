@@ -1,4 +1,4 @@
-"""bash function — run a shell command, return stdout/stderr/exit code.
+"""bash function — run a shell command; a long one keeps running as a session.
 
 Single source of truth: the @function decorator builds an AgentTool from
 this function's signature + docstring.
@@ -13,7 +13,7 @@ from openprogram.backend import get_active_backend
 from openprogram.programs._runtime import function
 from openprogram.worktree.context import current_worktree_path
 
-from .prompt import DEFAULT_MAX_TIMEOUT_MS, DEFAULT_TIMEOUT_MS, DESCRIPTION
+from .prompt import DEFAULT_MAX_TIMEOUT_MS, DESCRIPTION
 from .workdir import prepare_command
 
 
@@ -35,23 +35,87 @@ from .workdir import prepare_command
     url_params=[],
 )
 def bash(command: str,
-        timeout: float | None = None,
         description: str | None = None,
-        workdir: str | None = None) -> str:
+        workdir: str | None = None,
+        yield_time_ms: int | None = None,
+        tty: bool = False) -> str:
     """Run a shell command via the active backend (local / docker / ssh).
 
     Args:
         command: The shell command to execute.
-        timeout: Optional timeout in milliseconds (default 120000, max 600000).
         description: Short active-voice description shown in UI (display only).
         workdir: Starting directory for this call only. Relative paths use the
             bound worktree, or the local process directory when unbound. No
             shell expansion is performed. Omit to use the backend default.
+        yield_time_ms: How long to wait before returning a session ID for a
+            still-running command. Commands that finish sooner return
+            immediately. Defaults to 30000; effective range is 250-30000.
+        tty: True runs the command in a pseudo-terminal so write_stdin can
+            type into it (REPLs, prompts, programs that need a terminal).
+            False or omitted uses pipes with stdin closed. Local macOS/Linux only.
     """
+    from openprogram.processes import current_owner
+
+    try:
+        current_owner()
+    except RuntimeError:
+        # No conversation to own a session (a script or test calling the
+        # tool directly): run to completion as a plain subprocess.
+        return _run_once(command, workdir)
+    return _run_session(command, workdir, yield_time_ms, tty)
+
+
+def _run_session(command, workdir, yield_time_ms, tty):
+    from openprogram.agent.types import AgentToolResult
+    from openprogram.providers.types import TextContent
+
+    from . import session
+
+    backend = get_active_backend()
+    start_cwd = None
+    try:
+        run_command, run_cwd, start_cwd = prepare_command(
+            command, workdir, backend_id=backend.backend_id,
+            worktree=current_worktree_path(),
+        )
+        reply = session.run(command, cwd=run_cwd, run_command=run_command, tty=bool(tty),
+                            yield_ms=session.clamp_exec_yield(yield_time_ms), shown_cwd=start_cwd)
+    except (OSError, ValueError, RuntimeError) as exc:
+        return AgentToolResult(
+            content=[TextContent(text=f"Error: shell launch failed: {exc}")],
+            details={"backend": backend.backend_id, "cwd": start_cwd,
+                     "error": type(exc).__name__},
+            is_error=True,
+        )
+    return session_result(reply)
+
+
+def session_result(reply):
+    """The tool result for one bash or write_stdin reply."""
+    from openprogram.agent.types import AgentToolResult
+    from openprogram.providers.types import TextContent
+
+    from .session import sandbox_denial
+
+    record = reply.record
+    text = reply.text()
+    details = {"session_id": record["id"], "running": reply.running,
+               "exit_code": record["exit_code"], "status": record["status"],
+               "backend": record.get("backend_id"), "cwd": record.get("cwd"),
+               "tty": bool(record.get("tty"))}
+    denial = sandbox_denial(reply)
+    if denial:
+        text += "\n" + denial
+        details["sandbox"] = {"kind": "denied",
+                              "backend": "seatbelt" if sys.platform == "darwin" else "bubblewrap"}
+    failed = not reply.running and (record["status"] != "exited" or record["exit_code"] != 0)
+    return AgentToolResult(content=[TextContent(text=text)], details=details, is_error=failed)
+
+
+def _run_once(command, workdir):
     # Bash output is not attributed to the current turn's exact mutation
     # journal. Only trusted file-mutating tools create recoverable receipts.
-    timeout_ms = min(timeout or DEFAULT_TIMEOUT_MS, DEFAULT_MAX_TIMEOUT_MS)
-    timeout_sec = timeout_ms / 1000.0
+    timeout_sec = DEFAULT_MAX_TIMEOUT_MS / 1000.0
 
     from openprogram.agent.types import AgentToolResult
     from openprogram.providers.types import TextContent

@@ -81,7 +81,7 @@ family.
 
 | Row | Solar icon |
 |---|---|
-| Command (`bash`, `terminal_use`, `process`) | `programming` |
+| Command (`bash`, `write_stdin`, `terminal_use`) | `programming` |
 | Execute code | `code-square` |
 | Edit / write / patch | `pen-new-square` |
 | Read file / PDF | `file-text` |

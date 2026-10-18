@@ -196,7 +196,10 @@ def register(app):
                         raise ExecutionAuthorizationError("not_found")
                 elif record["session_id"] != session_id:
                     raise ExecutionAuthorizationError("not_found")
-                items.append(public_record(record))
+                # A bash command still in its first wait shows as an active
+                # tool call; it becomes a program once it moves to the background.
+                if record.get("background", True):
+                    items.append(public_record(record))
             from openprogram.agent.session_db import default_db
             from openprogram.execution.activity_calls import active_tool_calls, agent_calls
             calls = active_tool_calls(default_store(), scope.values())

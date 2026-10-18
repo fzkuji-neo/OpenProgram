@@ -598,12 +598,15 @@ def create_app(*, owner_auth=None, port: int = 18100):
         from openprogram.store.project.discovery import run_discovery
         discovery_task = asyncio.create_task(run_discovery(
             checkpoint_stop, lambda: _broadcast(json.dumps({"type": "projects_changed", "data": {}}))))
+        from openprogram.processes.notices import run_exit_notices
+        notices_task = asyncio.create_task(run_exit_notices(checkpoint_stop))
         try:
             yield
         finally:
             checkpoint_stop.set()
             await checkpoint_task
             await discovery_task
+            await notices_task
             for hook in reversed(_SHUTDOWN):
                 await hook()
 

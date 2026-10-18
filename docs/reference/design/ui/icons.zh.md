@@ -55,7 +55,7 @@ Solar 的撤回图标都是细线箭头，在按钮尺寸下几乎看不见，�
 
 | 行 | Solar 图标 |
 |---|---|
-| 命令（`bash`、`terminal_use`、`process`） | `programming` |
+| 命令（`bash`、`write_stdin`、`terminal_use`） | `programming` |
 | 执行代码 | `code-square` |
 | 修改 / 写入 / 补丁 | `pen-new-square` |
 | 读取文件 / PDF | `file-text` |

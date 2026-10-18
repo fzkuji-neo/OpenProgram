@@ -161,10 +161,18 @@ export function presentTool(name: string, input: string | undefined, text: Text)
     case "browser_use":
       return { icon: "cursor", tone: "web", title: guiCapabilityLabel(name, text), target: pick(args, "url") ?? firstLine(pick(args, "task")) };
     case "bash":
-    case "terminal_use":
-    case "process":
       return { icon: "programming", tone: "shell", title: text("Ran", "运行"),
-        target: firstLine(pick(args, "command", "cmd", "input", "action")) };
+        target: firstLine(pick(args, "command", "cmd", "input")) };
+    case "write_stdin": {
+      const chars = typeof args.chars === "string" ? args.chars : "";
+      if (!chars) return { icon: "programming", tone: "shell", title: text("Waited for output", "等待输出") };
+      if (chars === "\u0003") return { icon: "programming", tone: "shell", title: text("Interrupted", "中断命令") };
+      return { icon: "programming", tone: "shell", title: text("Typed", "输入"), target: firstLine(chars) };
+    }
+    case "terminal_use":
+      return { icon: "programming", tone: "shell",
+        title: args.action === "input" ? text("Typed in terminal", "在终端输入") : text("Terminal", "终端"),
+        target: firstLine(pick(args, "data", "action")) };
     case "execute_code":
       return { icon: "code-square", tone: "shell", title: text("Executed code", "执行代码"),
         target: pick(args, "language") ?? firstLine(pick(args, "code")) };

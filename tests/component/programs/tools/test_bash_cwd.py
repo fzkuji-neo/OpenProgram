@@ -25,7 +25,7 @@ def bash_module() -> ModuleType:
 
 def _execute(bash_module: ModuleType, command: str) -> str:
     result = asyncio.run(bash_module.bash.execute(
-        "cwd-contract", {"command": command, "timeout": 10_000}, None, None,
+        "cwd-contract", {"command": command}, None, None,
     ))
     text = "\n".join(
         block.text for block in result.content if hasattr(block, "text")

@@ -1,4 +1,5 @@
 import type { TerminalResource } from "../desktop/terminal-resources";
+import type { ManagedProcess } from "../net/process-client";
 import { create } from "zustand";
 import type { CenterTab } from "../tabs/center-tabs-store";
 
@@ -30,7 +31,7 @@ export type SessionResource = {
   title: string;
   target: string;
   status: string;
-  source: "web" | "usage" | "browser" | "terminal" | "application";
+  source: "web" | "usage" | "browser" | "terminal" | "application" | "process";
   sourceId: string;
   terminalGeneration?: string;
   applicationId?: string;
@@ -339,6 +340,21 @@ export function terminalResourceRows(resources: readonly TerminalResource[], ses
     title: row.preset === "claude" ? "Claude Code" : "Terminal",
     target: row.start_cwd, status: row.status,
     controlState: row.in_use ? "active" : "idle",
+  }));
+}
+
+/** Commands a bash call left running, shown as background terminals. An
+ *  ended one stays listed only while it is the one being viewed. */
+export function backgroundTerminalRows(
+  processes: readonly ManagedProcess[], sessionId: string | null, viewingId?: string | null,
+): SessionResource[] {
+  if (!sessionId) return [];
+  const active = (item: ManagedProcess) => ["starting", "running", "stopping", "unknown"].includes(item.status);
+  return processes.filter(item => item.background && (active(item) || item.id === viewingId)).map(item => ({
+    id: `process:${item.id}`, sourceId: item.id, source: "process" as const,
+    sessionId, conversationSessionId: sessionId, kind: "terminal",
+    title: item.display?.name || item.command.slice(0, 60), target: item.command,
+    status: item.status, executionId: item.execution_id,
   }));
 }
 

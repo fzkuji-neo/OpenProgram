@@ -68,10 +68,11 @@ from . import workflow as _workflow_self_register  # noqa: F401
 
 
 # The safe default set: file ops + shell + search + multi-file patch +
-# transactional memory + the todo planning board. Omits ``process`` (long-lived
-# background sessions) — opt-in via toolset="coding" instead.
+# transactional memory + the todo planning board. ``write_stdin`` reaches the
+# command sessions ``bash`` leaves running.
 DEFAULT_TOOLS: list[str] = [
     "bash",
+    "write_stdin",
     "read",
     "write",
     "edit",
@@ -209,7 +210,7 @@ TOOLSETS: dict[str, dict[str, list[str]]] = {
         "includes": ["default"],
     },
     "coding": {
-        "tools":    ["execute_code", "process"],
+        "tools":    ["execute_code"],
         "includes": ["default"],
     },
     "vision": {

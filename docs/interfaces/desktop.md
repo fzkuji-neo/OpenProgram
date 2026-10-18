@@ -104,7 +104,7 @@ Click **Resources** in the right sidebar to open **Session resources**. Use the 
 
 Agent-created webpages with recorded session ownership stay out of the top strip unless pinned or in a split. Legacy pages without an owner remain in the top strip. Select a webpage to open its existing view. Webpages can be pinned or closed; collapsing the panel or a group leaves resources running. Selecting a resource keeps the panel open beside its view. Closing a webpage removes its active row immediately while the close request is processed. If closure is not confirmed, the row becomes available again.
 
-Docker and SSH commands stay in the execution/Activity flow; running a command does not create a software resource. GUI Harness reports its configured desktop or VM attachment. Other integrations must register the actual software/environment object and its identity, rather than a command, image name or process. Select an environment resource to inspect its target and status.
+Docker and SSH commands stay in the execution/Activity flow; running a command does not create a software resource. The one exception is a command the Agent left running in the background, which is listed as a Background terminal (see Shared Terminal environments). GUI Harness reports its configured desktop or VM attachment. Other integrations must register the actual software/environment object and its identity, rather than a command, image name or process. Select an environment resource to inspect its target and status.
 
 Integrations can report complete software/environment objects through `openprogram.session_resources.resource_use(kind, title, target)` inside a trusted runtime session. The context records the actual session automatically and releases the usage on exit. OpenProgram does not infer resources from arbitrary shell command text. URL resource identities omit credentials, query parameters, and fragments.
 
@@ -158,6 +158,10 @@ Self-update continuation, replanning after a changed runtime contract, and origi
 ### Shared Terminal environments
 
 Select a Terminal resource to attach its interactive view beside the conversation. The Agent and the user share the same shell, working directory, environment and output. Hiding the view or switching sessions does not terminate the shell. **Terminate terminal** explicitly requests process termination and requires confirmation; an acknowledged request is not evidence that the process has exited. **Share terminal** makes it discoverable to other sessions on that Desktop host; making it private revokes the current Agent binding.
+
+Typing into, interrupting or closing a terminal tab you opened yourself asks for approval every time, in every permission mode including Auto and Bypass, and the approval is never remembered. The card names the tab, its current directory and whether a command is running in it, and shows exactly what would be typed. Terminals the Agent opened for its own work follow the permission mode.
+
+Commands the Agent left running with `bash` are listed in the same Terminal group as **Background terminal**. Selecting one shows its output read-only, with **Stop**; the Agent types into it with `write_stdin`, not through this view.
 
 Terminal input delivery does not indicate command success. After an uncertain input result, OpenProgram does not resend it. **Reconnect view** reads the current output again without replaying input. An unfinished human input fragment or changed input revision prevents conflicting Agent input until the Agent observes the terminal again.
 

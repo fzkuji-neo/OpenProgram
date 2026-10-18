@@ -27,11 +27,14 @@ await build({
   packages: "external", platform: "node", tsconfig: join(webPath, "tsconfig.json"),
   loader: { ".css": "empty" },
   plugins: [{ name: "panel-services", setup(b) {
-    b.onResolve({ filter: /^(next\/navigation|@\/lib\/chat\/use-session-resources)$/ }, a => ({ path: a.path, namespace: "test-services" }));
+    b.onResolve({ filter: /^(next\/navigation|@\/lib\/chat\/use-session-resources|@\/lib\/execution\/use-managed-processes)$/ }, a => ({ path: a.path, namespace: "test-services" }));
     b.onResolve({ filter: /desktop-bridge/ }, () => ({ path: "desktop-bridge", namespace: "test-services" }));
     b.onLoad({ filter: /.*/, namespace: "test-services" }, a => {
       if (a.path === "next/navigation") {
         return { contents: "export const useRouter = () => ({ push() {} });" };
+      }
+      if (a.path === "@/lib/execution/use-managed-processes") {
+        return { contents: `export const useManagedProcesses = () => globalThis.managedProcesses || { items: [], calls: [], spawns: [], detail: null, loaded: true, stale: false, refresh: async () => true };` };
       }
       if (a.path === "desktop-bridge") {
         return { contents: `

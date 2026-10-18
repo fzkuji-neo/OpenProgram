@@ -11,6 +11,7 @@ import { useState } from "react";
 import { SolarIcon } from "@/components/solar-icons";
 import { OperationCode } from "./operation-code";
 import { ComputerUseApproval } from "./computer-use-approval";
+import { TerminalApproval } from "./terminal-approval";
 import { appStepArgs } from "@/lib/computer-use-agent-call";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -444,11 +445,16 @@ function StepBody({
       return <ComputerUseApproval args={appStep} allowedScopes={step.allowedScopes} />;
     }
   }
+  if (step.kind === "approval" && step.tool === "terminal_use" && !step.escalation && step.args) {
+    return <TerminalApproval args={step.args} />;
+  }
   if (step.kind === "approval") {
     const esc = step.escalation;
     const { prompt, summary } = approvalDisplayText(step.prompt, step.detail, esc, text);
-    const command = !esc && ["bash", "process", "shell", "exec_command"].includes(step.tool ?? "")
-      && typeof step.args?.command === "string" ? step.args.command : null;
+    const command = esc ? null
+      : ["bash", "shell", "exec_command"].includes(step.tool ?? "") && typeof step.args?.command === "string"
+        ? step.args.command
+        : step.tool === "write_stdin" && typeof step.args?.chars === "string" ? step.args.chars : null;
     return (
       <>
         <div className={styles.prompt}>{prompt}</div>

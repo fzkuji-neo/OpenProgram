@@ -387,7 +387,7 @@ _WRITE_TOOLS = {
     "worktree_create", "worktree_merge", "worktree_discard", "worktree_keep",
 }
 _PROCESS_TOOLS = {
-    "bash", "exec", "shell", "execute_code", "process", "agent",
+    "bash", "exec", "shell", "execute_code", "write_stdin", "agent",
     "research_agent", "wiki_agent", "browser_agent",
     "playwright_browser",
 }

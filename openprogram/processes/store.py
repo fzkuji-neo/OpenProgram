@@ -15,9 +15,12 @@ MAX_OUTPUT_LINES = 2000
 MAX_INPUT_BYTES = 64 * 1024
 LIVE = frozenset({"starting", "running", "stopping"})
 ACTIVE = LIVE | {"unknown"}
+TERMINAL = frozenset({"exited", "stopped", "failed"})
+COMMAND_KINDS = frozenset({"stop", "write", "interrupt"})
 PUBLIC_FIELDS = (
     "id", "session_id", "execution_id", "tool_call_id", "command", "cwd",
     "status", "started_at", "ended_at", "pid", "exit_code", "backend_id", "truncated",
+    "tty", "background",
 )
 
 
@@ -68,12 +71,17 @@ class ProcessStore:
         finally:
             db.close()
 
-    def create(self, *, session_id, execution_id, tool_call_id, command, cwd, backend_id):
+    def create(self, *, session_id, execution_id, tool_call_id, command, cwd, backend_id,
+               tty=False, sandboxed=False):
+        # ``background``: a command call returned while this was still running.
+        # ``reported``: the agent has seen its exit, so no exit notice is due.
         record = dict(id=uuid.uuid4().hex, session_id=session_id, execution_id=execution_id,
                       tool_call_id=tool_call_id, command=command, cwd=cwd, backend_id=backend_id,
                       status="starting", started_at=time.time(), ended_at=None, pid=None,
                       exit_code=None, truncated=False, supervisor_pid=None,
-                      supervisor_identity=None, pid_identity=None, heartbeat=time.time())
+                      supervisor_identity=None, pid_identity=None, heartbeat=time.time(),
+                      tty=bool(tty), sandboxed=bool(sandboxed), background=False,
+                      reported=False, last_used=time.time())
         with self.connect() as db:
             db.execute("INSERT INTO processes(id,session_id,execution_id,record) VALUES(?,?,?,?)",
                        (record["id"], session_id, execution_id, json.dumps(record)))
@@ -122,6 +130,21 @@ class ProcessStore:
                                   (session_id, *ids)).fetchall()
         return [record for row in rows if (record := self.get(row[0])) is not None]
 
+    def live_count(self, session_id):
+        with self.connect() as db:
+            return db.execute(
+                "SELECT COUNT(*) FROM processes WHERE session_id=? AND json_extract(record,'$.status')"
+                " IN ('starting','running','stopping')", (session_id,)).fetchone()[0]
+
+    def unreported_exits(self):
+        """Background commands that ended on their own and whose exit no reply has shown."""
+        with self.connect() as db:
+            rows = db.execute(
+                "SELECT record FROM processes WHERE json_extract(record,'$.background')=1"
+                " AND json_extract(record,'$.reported')=0"
+                " AND json_extract(record,'$.status') IN ('exited','failed') ORDER BY rowid").fetchall()
+        return [json.loads(row[0]) for row in rows]
+
     def append_output(self, process_id, chunk: bytes):
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -153,8 +176,21 @@ class ProcessStore:
                 output = output[start:]
         return output.decode("utf-8", errors="replace")
 
+    def take(self, process_id):
+        """Output the agent has not read yet, and how many bytes were dropped before it could."""
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT output,output_start,poll_offset FROM processes WHERE id=?", (process_id,)).fetchone()
+            if row is None:
+                raise KeyError("managed process not found")
+            output = bytes(row["output"])
+            start = row["poll_offset"] - row["output_start"]
+            db.execute("UPDATE processes SET poll_offset=? WHERE id=?",
+                       (row["output_start"] + len(output), process_id))
+        return output[max(0, start):], max(0, -start)
+
     def command(self, process_id, kind, text=None):
-        if kind not in {"stop", "write"}:
+        if kind not in COMMAND_KINDS:
             raise ValueError("invalid process control")
         if text is not None and len(text.encode("utf-8")) > MAX_INPUT_BYTES:
             raise ValueError("process input exceeds 64 KiB")

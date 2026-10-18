@@ -54,18 +54,28 @@ def _supervisor_command(store, process_id, launch):
     return [*options, "--", *command]
 
 
-def start(command, cwd=None, *, store=None):
+def start(command, cwd=None, *, store=None, tty=False, run_command=None):
+    """Launch ``command`` under a detached supervisor.
+
+    ``run_command`` is what the shell actually runs when it differs from the
+    command shown and recorded (a workdir prefix, for instance).
+    """
     from openprogram.backend import get_active_backend
     session_id, execution_id, tool_call_id = current_owner()
     if not isinstance(command, str) or not command.strip():
         raise ValueError("start requires a shell command")
     backend = get_active_backend()
+    if tty and (os.name != "posix" or backend.backend_id != "local"):
+        raise ValueError("tty needs the local backend on macOS or Linux")
     # Resolve sandbox policy before leaving the trusted caller context.
-    launch = backend.spawn_spec(command, cwd=cwd)
+    launch = backend.spawn_spec(run_command or command, cwd=cwd)
+    if tty:
+        launch["_tty"] = True
     store = store or ProcessStore()
     record = store.create(session_id=session_id, execution_id=execution_id,
                           tool_call_id=tool_call_id, command=command,
-                          cwd=cwd or (os.getcwd() if backend.backend_id == "local" else None), backend_id=backend.backend_id)
+                          cwd=cwd or (os.getcwd() if backend.backend_id == "local" else None), backend_id=backend.backend_id,
+                          tty=tty, sandboxed=bool(launch.get("sandboxed")))
     options = {"start_new_session": True} if os.name == "posix" else {
         "creationflags": subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
     }

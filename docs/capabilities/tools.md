@@ -45,11 +45,31 @@ The same History view combines manual edits and confirmed model file changes for
 
 | Tool | What it does | Requires |
 |---|---|---|
-| `bash` | Run a shell command synchronously, returning stdout / stderr / exit code | Nothing |
-| `process` | Manage background shell sessions (long-running services, pollable output) | Nothing |
+| `bash` | Run a shell command and return its output and exit code; a command still running after its wait keeps running as a session | Nothing |
+| `write_stdin` | Wait for more output from a session `bash` left running, interrupt it, or type into it | Nothing |
 | `execute_code` | Run a Python snippet in an isolated subprocess | Nothing |
 
 `execute_code` returns stdout, stderr and the observed exit code. A nonzero exit or timeout is an error result; partial output remains available to diagnose the failure. Success requires a zero exit code. Each call uses a fresh Python subprocess.
+
+### Commands that keep running
+
+`bash` waits up to `yield_time_ms` (default and maximum 30000 ms, minimum 250 ms) for the command to finish. A command that finishes in time returns its output (stdout and stderr together) and `Process exited with code N`. A command still running then keeps running in the background, and the result says `Process running with session ID <id>`, with the output so far. Servers, watchers and long builds work this way; no separate start step is needed.
+
+`write_stdin(session_id, chars, yield_time_ms)` reaches that session:
+
+| `chars` | Effect | Wait |
+|---|---|---|
+| empty | Writes nothing and returns new output, or the exit code once the command ends | 5000–300000 ms, default 5000 |
+| `"\u0003"` | Interrupts the command, like Ctrl-C | Default 250 ms |
+| anything else | Typed into the command as is; end a line with `"\n"` | 250–30000 ms, default 250 |
+
+Typing needs a session started with `bash(..., tty=true)`, which runs the command in a pseudo-terminal (local backend on macOS or Linux). Without `tty` the command's stdin is closed, so a command waiting for input ends instead of hanging, and only the interrupt is accepted. The output of a call is kept up to 1 MiB, its first and last halves when longer.
+
+When a background command ends on its own and no `bash` or `write_stdin` result has shown the agent that exit, the conversation gets a notice turn saying which command ended, its exit code and its last output. A conversation in the middle of a turn gets it once that turn ends; a command you stop yourself sends no notice. Background commands are listed as **Background terminal** under Terminal in Resources, where you can watch their output and stop them, and in Activity.
+
+A conversation runs at most 64 commands at once. Starting another stops the least recently used one, never one of the eight most recently used, and the result names the command it stopped. Cancelling a turn stops a command that is still in its first wait; commands already in the background keep running.
+
+Polling a session or interrupting it is never asked about, since `bash` already ran the command. Typing into a session follows the permission mode, like `bash`.
 
 ### One-shot command directories
 
@@ -61,7 +81,7 @@ Missing, non-directory or denied workdirs fail without running the requested com
 
 SSH and Docker interpret explicit workdirs as POSIX paths in the backend filesystem, not paths on the host. Relative remote paths require an absolute POSIX worktree binding. A guarded directory change prevents the command list from running if that directory is unavailable; Docker does not create the requested directory via `-w`. When a host sandbox policy is active, explicit remote workdirs are refused until backend-native path authorization is available. Omitting `workdir` preserves the existing backend behavior.
 
-Results include the selected local starting `cwd`, or `requested_cwd` for remote paths whose canonical location is not independently observed. This is not an ending-directory report or a promise of persistent shell state. Long-running processes remain the separate `process` tool's responsibility; `bash` does not control the Desktop integrated terminal.
+Results include the selected local starting `cwd`, or `requested_cwd` for remote paths whose canonical location is not independently observed. This is not an ending-directory report or a promise of persistent shell state. `bash` does not control the Desktop integrated terminal; that is `terminal_use`.
 
 ## Web
 

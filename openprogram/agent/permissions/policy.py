@@ -31,9 +31,33 @@ def _page_script(name: str, args: dict | None) -> bool:
     return name == "web_use" and _web_use_evaluates(args)
 
 
+# Terminals the agent opened itself carry this prefix; every other terminal
+# tab is one the user opened.
+AGENT_TERMINAL_PREFIX = "terminal-resource:"
+
+
+def user_terminal_write(name: str, args: dict | None) -> bool:
+    """A terminal_use call that types into, interrupts or closes a terminal tab the user opened.
+
+    That shell holds whatever the user has signed in to and left running, so
+    each such call is shown with its tab and approved alone, in every mode.
+    """
+    if name != "terminal_use" or not isinstance(args, dict):
+        return False
+    return (str(args.get("action") or "") in {"input", "interrupt", "close"}
+            and not str(args.get("terminal_id") or "").startswith(AGENT_TERMINAL_PREFIX))
+
+
+def _session_poll(name: str, args: dict | None) -> bool:
+    """write_stdin that only waits for output or sends Ctrl-C to the agent's own command."""
+    if name != "write_stdin" or not isinstance(args, dict):
+        return False
+    return str(args.get("chars") or "") in {"", "\x03"}
+
+
 def force_approval(name: str, args: dict | None) -> bool:
     """Calls that ask in every mode, whatever the rules say."""
-    return name in _FORCE_APPROVAL_TOOLS or _page_script(name, args)
+    return name in _FORCE_APPROVAL_TOOLS or _page_script(name, args) or user_terminal_write(name, args)
 
 
 def one_shot_approval(name: str, args: dict | None) -> bool:
@@ -42,7 +66,8 @@ def one_shot_approval(name: str, args: dict | None) -> bool:
     A page script reads everything a signed-in page holds, including what
     observations redact, so each one is shown to the user and approved alone.
     """
-    return name in _ONE_SHOT_FORCE_APPROVAL_TOOLS or _page_script(name, args)
+    return (name in _ONE_SHOT_FORCE_APPROVAL_TOOLS or _page_script(name, args)
+            or user_terminal_write(name, args))
 
 
 # Desktop control is granted per application (and a VM per endpoint): in the
@@ -54,7 +79,7 @@ _APP_GRANT_TOOLS = {"computer_use_agent"}
 # Rules written for the tool's earlier name still grant the same app.
 _RULE_ALIASES = {"computer_use_agent": {"computer_use"}}
 # auto 档下即便未声明 requires_approval 也仍要审批的高风险工具。
-_RISKY_TOOLS = {"bash", "exec", "shell", "execute_code", "process"}
+_RISKY_TOOLS = {"bash", "exec", "shell", "execute_code", "write_stdin"}
 # Non-interactive worktree side effects mutate repository state outside the
 # spawned agent's working directories, and those turns cannot ask approval.
 _WORKTREE_TOOLS = {
@@ -282,6 +307,9 @@ def permission_decision(agent_tool, req, args: dict) -> tuple[str, str, str, obj
             from openprogram.agent.surface_context import web_use_available
             if web_use_available(getattr(req, "surface_context", None)):
                 return "allow", "SURFACE_GRANT", "", None
+        if _session_poll(name, args):
+            # The command itself was approved when bash started it.
+            return "allow", "SESSION_POLL", "", None
         if req.permission_mode == "bypass" or verdict == "allow":
             _audit_delegated_risky(name, req)
             return "allow", "BYPASS" if req.permission_mode == "bypass" else "PERMISSION_RULE_ALLOW", "", None

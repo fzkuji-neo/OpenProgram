@@ -24,7 +24,7 @@ default_db().create_session('process-test', 'main', work_dir=str(folder))
 def work(*, request, cancel_event):
     command = shlex.join([sys.executable, '-u', '-c',
         "import sys; print('ready', flush=True); print(sys.stdin.readline().strip(), flush=True)"])
-    record = start(command, cwd=str(folder))
+    record = start(command, cwd=str(folder), tty=True)
     (folder / 'process.json').write_text(json.dumps(record))
     threading.Event().wait(25)
     raise TimeoutError('test did not terminate worker')
@@ -71,7 +71,9 @@ print(json.dumps({'record': store.get(record['id']), 'output': store.output(reco
         observed = json.loads(result.stdout.strip().splitlines()[-1])
         for key in ("id", "pid", "pid_identity", "supervisor_pid", "supervisor_identity"):
             assert observed["record"][key] == initial[key]
-        assert observed["output"].splitlines() == ["ready", "continued-once"]
+        # The terminal echoes the typed line before the program prints it back.
+        assert [line.strip() for line in observed["output"].splitlines()] == [
+            "ready", "continued-once", "continued-once"]
         assert observed["record"]["exit_code"] == 0
         assert len(store.list()) == 1
     finally:

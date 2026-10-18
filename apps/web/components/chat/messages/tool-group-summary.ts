@@ -64,7 +64,7 @@ interface Bucket {
 
 interface FileOp { kind: "create" | "edit" | "delete"; path: string }
 
-const COMMAND = new Set(["bash", "terminal_use", "process", "execute_code"]);
+const COMMAND = new Set(["bash", "terminal_use", "write_stdin", "execute_code"]);
 const SEARCH = new Set(["grep", "glob", "semble_search", "semble_find_related",
   "lsp_definition", "lsp_references", "lsp_diagnostics"]);
 const BROWSER = new Set(["web_use", "agent_browser", "playwright_browser", "browser_use"]);

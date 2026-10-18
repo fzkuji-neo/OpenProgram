@@ -344,6 +344,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/runtime/execution/control.html",
             "reference/design/runtime/execution/agent-action-lifecycle.html",
             "reference/design/runtime/execution/agent-worktree.md",
+            "reference/design/runtime/execution/command-sessions.md",
             "reference/design/runtime/execution/agentic-self-recursion.html",
             "reference/design/runtime/execution/agentic-self-recursion.md",
             "reference/design/runtime/execution/async-job-lifecycle.md",

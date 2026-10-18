@@ -3,6 +3,11 @@
 This small detached group leader has no runtime/config dependencies. A parent
 supervisor owns its Popen handle and may terminate this exact group. Commands
 that deliberately create another session are outside this managed group.
+
+Without a terminal the command's stdin is closed, as in Codex. With one, the
+leader makes a new pseudo-terminal its controlling terminal with this group in
+the foreground, so input arrives raw and Ctrl-C (``\x03``) interrupts the
+whole group.
 """
 from __future__ import annotations
 
@@ -30,10 +35,49 @@ def _other_members():
     return False
 
 
+def _pump(source, target):
+    try:
+        while chunk := os.read(source, 8192):
+            offset = 0
+            while offset < len(chunk):
+                offset += os.write(target, chunk[offset:])
+    except OSError:
+        pass  # EIO once every terminal descriptor of the command is closed
+
+
+def _spawn_in_terminal(launch, pending_input):
+    import fcntl
+    import pty
+    import struct
+    import termios
+
+    master, slave = pty.openpty()
+    fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 120, 0, 0))
+    # This leader started a session of its own and has no controlling
+    # terminal yet; its group becomes the terminal's foreground group.
+    fcntl.ioctl(slave, termios.TIOCSCTTY, 0)
+    os.tcsetpgrp(slave, os.getpgrp())
+    env = dict(launch.pop("env", None) or os.environ)
+    env.setdefault("TERM", "xterm-256color")
+    proc = subprocess.Popen(**launch, env=env, stdin=slave, stdout=slave, stderr=slave)
+    os.close(slave)
+    output = threading.Thread(target=_pump, args=(master, sys.stdout.fileno()), daemon=True)
+    output.start()
+
+    def forward_input():
+        if pending_input:
+            os.write(master, pending_input)
+        _pump(sys.stdin.fileno(), master)
+
+    threading.Thread(target=forward_input, daemon=True).start()
+    return proc, output
+
+
 def main():
     # A caught signal is reset by exec in the backend child; unlike SIG_IGN,
     # this does not accidentally make the launched command ignore SIGTERM.
     signal.signal(signal.SIGTERM, lambda *_: None)
+    signal.signal(signal.SIGINT, lambda *_: None)
     try:
         # Use raw pipe I/O throughout: a daemon holding a buffered stdin
         # lock would abort the interpreter when the managed group finishes.
@@ -45,29 +89,16 @@ def main():
             frame.extend(chunk)
         header, _, pending_input = bytes(frame).partition(b"\n")
         launch = json.loads(header)
-        proc = subprocess.Popen(**launch, stdin=subprocess.PIPE, bufsize=0)
-
-        def forward_input():
-            try:
-                chunk = pending_input
-                while True:
-                    if not chunk:
-                        chunk = os.read(sys.stdin.fileno(), 8192)
-                        if not chunk:
-                            break
-                    offset = 0
-                    while offset < len(chunk):
-                        offset += os.write(proc.stdin.fileno(), chunk[offset:])
-                    chunk = b""
-            except (BrokenPipeError, OSError):
-                pass
-            finally:
-                proc.stdin.close()
-
-        threading.Thread(target=forward_input, daemon=True).start()
+        output = None
+        if launch.pop("_tty", False):
+            proc, output = _spawn_in_terminal(launch, pending_input)
+        else:
+            proc = subprocess.Popen(**launch, stdin=subprocess.DEVNULL)
         code = proc.wait()
         while _other_members():
             time.sleep(0.1)
+        if output is not None:
+            output.join(timeout=2)
         return code if code >= 0 else 128 - code
     except BaseException as exc:
         print(f"[process group failed: {type(exc).__name__}]", file=sys.stderr, flush=True)

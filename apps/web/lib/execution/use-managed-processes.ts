@@ -36,14 +36,14 @@ export function useManagedProcesses(active: boolean, sessionId: string | null, s
         try {
           const data = await getSessionProcesses(sessionId, controller.signal);
           if (disposed) return false;
-          setItems(data.items); setCalls(data.calls || []); setSpawns(data.spawns || []); setLoaded(true);
+          setItems(data.items || []); setCalls(data.calls || []); setSpawns(data.spawns || []); setLoaded(true);
           if (selectedId) {
-            if (!data.items.some(item => item.id === selectedId)) {
+            if (!(data.items || []).some(item => item.id === selectedId)) {
               setDetail(null);
               throw new Error("Selected program is no longer in this conversation.");
             }
             const selected = await getProcess(selectedId, controller.signal, sessionId);
-            if (!disposed && data.items.some(item => item.id === selected.process.id)) setDetail(selected);
+            if (!disposed && (data.items || []).some(item => item.id === selected.process.id)) setDetail(selected);
           }
           if (disposed) return false;
           setFailedSessionId(null);

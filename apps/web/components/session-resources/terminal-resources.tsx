@@ -6,6 +6,7 @@ import { TerminalSquare, X } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { terminalResourceApi,
   type TerminalResource, type TerminalReply } from "@/lib/desktop/terminal-resources";
+import { processIsActive, type ManagedProcess } from "@/lib/net/process-client";
 import styles from "./terminal-resources.module.css";
 
 export function terminalTheme(): ITheme {
@@ -200,4 +201,62 @@ export function TerminalMirror({ resource }: { resource: TerminalResource }) {
     <div className={styles.mirrorScreen} ref={host} />
     {error && <p className={styles.mirrorError} role="status">{text("Terminal output is unavailable", "终端输出不可用")}</p>}
   </div>;
+}
+
+/** A command the agent left running in the background, as a read-only
+ *  terminal: its retained output, and a Stop that ends it. The agent types
+ *  into it with write_stdin, never through this view. */
+export function BackgroundTerminalView({ process, output, onStop, onHide }: {
+  process: ManagedProcess; output: string; onStop: () => void; onHide: () => void;
+}) {
+  const { text } = useTranslation();
+  const host = useRef<HTMLDivElement>(null);
+  const view = useRef<{ terminal: Terminal; written: string } | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!host.current) return;
+    let disposed = false, resize: ResizeObserver | undefined;
+    void (async () => {
+      const [{ Terminal: XTerm }, { FitAddon }] = await Promise.all([import("@xterm/xterm"), import("@xterm/addon-fit")]);
+      if (disposed || !host.current) return;
+      const terminal = new XTerm({ allowProposedApi: false, disableStdin: true, cursorBlink: false,
+        convertEol: !process.tty, fontSize: 13, scrollback: 5000, theme: terminalTheme() });
+      const fit = new FitAddon(); terminal.loadAddon(fit); terminal.open(host.current); fit.fit();
+      resize = new ResizeObserver(() => { if (!disposed) fit.fit(); }); resize.observe(host.current);
+      view.current = { terminal, written: "" };
+      setError("");
+    })().catch(() => { if (!disposed) setError("terminal_view_unavailable"); });
+    return () => { disposed = true; resize?.disconnect(); view.current?.terminal.dispose(); view.current = null; };
+    // One view per command; output updates are appended below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [process.id]);
+
+  useEffect(() => {
+    const current = view.current;
+    if (!current || output === current.written) return;
+    // Retained output only grows, except when its oldest part is dropped.
+    if (output.startsWith(current.written)) current.terminal.write(output.slice(current.written.length));
+    else { current.terminal.reset(); current.terminal.write(output); }
+    current.written = output;
+  });
+
+  const active = processIsActive(process);
+  const state = active ? text("Running", "运行中")
+    : process.status === "exited" ? text(`Exited ${process.exit_code ?? ""}`.trim(), `已退出 ${process.exit_code ?? ""}`.trim())
+      : process.status === "stopped" ? text("Stopped", "已停止") : process.status;
+  return <section className={styles.viewer} aria-label={text("Background terminal", "后台终端")}>
+    <header><TerminalSquare size={16} /><strong>{text("Background terminal", "后台终端")}</strong>
+      <span>{state}{process.pid ? ` · PID ${process.pid}` : ""}</span>
+      <button type="button" onClick={onHide} aria-label={text("Hide terminal view", "隐藏终端视图")}><X size={16} /></button>
+    </header>
+    <p className={styles.location}>{process.command}</p>
+    {process.cwd && <p className={styles.location}>{text("Starting directory", "起始目录")}: {process.cwd}</p>}
+    <div className={styles.screen} ref={host} />
+    {error && <div role="alert"><p>{error}</p></div>}
+    <footer>
+      <span>{text("The agent started this command and reads its output.", "这条命令是 agent 启动的，它会读取输出。")}</span>
+      <button type="button" disabled={!active || process.can_stop === false} onClick={onStop}>{text("Stop", "停止")}</button>
+    </footer>
+  </section>;
 }

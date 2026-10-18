@@ -1613,7 +1613,7 @@ def test_cancel_resumed_local_shell_reaps_child_and_finalizes_chat(
         lambda *_a, **_kw: [bash],
     )
     real_agent_chat.provider.add_response(
-        ScriptedToolCall("bash", {"command": command, "timeout": 5000}, "cancel-shell"),
+        ScriptedToolCall("bash", {"command": command}, "cancel-shell"),
     )
     real_agent_chat.provider.block_calls.add(0)
     execution = _chat(real_agent_chat)

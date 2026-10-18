@@ -86,7 +86,7 @@ def test_worktree_tools_still_run_for_an_interactive_owner_turn(owner_authority)
 
 
 @pytest.mark.parametrize("tool_name", [
-    "bash", "exec", "shell", "execute_code", "process",
+    "bash", "exec", "shell", "execute_code", "write_stdin",
     "worktree_create", "worktree_merge", "worktree_discard",
 ])
 def test_mcp_cannot_run_risky_or_worktree_tools_even_on_bypass(

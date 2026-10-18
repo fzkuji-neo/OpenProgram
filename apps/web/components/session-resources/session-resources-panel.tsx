@@ -19,6 +19,7 @@ import {
   previewResource,
   sessionResourceRows,
   terminalResourceRows,
+  backgroundTerminalRows,
   useBrowserResourceStore,
   type SessionResource,
 } from "@/lib/chat/session-resources";
@@ -30,7 +31,9 @@ import { desktopBridge, retryRestoreWebTab } from "@/lib/desktop/desktop-bridge"
 import { useSessionResources } from "@/lib/chat/use-session-resources";
 import { useTranslation } from "@/lib/i18n";
 import { useTerminalResources } from "@/lib/desktop/terminal-resources";
-import { TerminalResourceView } from "./terminal-resources";
+import { BackgroundTerminalView, TerminalResourceView } from "./terminal-resources";
+import { useManagedProcesses } from "@/lib/execution/use-managed-processes";
+import { stopProcess } from "@/lib/net/process-client";
 import { ApplicationResourceView } from "./application-resource";
 import { useResourceSelection } from "@/lib/framework/resource-selection";
 import styles from "./session-resources.module.css";
@@ -95,7 +98,10 @@ function SessionResourceList({ sessionId }: { sessionId: string | null }) {
   }, [collapseKey, collapsed]);
   const [selected, setSelected] = useState<SessionResource | null>(null);
   const [, render] = useState(0);
-  const rows = sessionResourceRows(tabs, [...backend.rows, ...terminalResourceRows(Object.values(terminals), sessionId)], sessionId);
+  const viewingProcess = selected?.source === "process" ? selected.sourceId : null;
+  const programs = useManagedProcesses(!!sessionId, sessionId, viewingProcess);
+  const rows = sessionResourceRows(tabs, [...backend.rows, ...terminalResourceRows(Object.values(terminals), sessionId),
+    ...backgroundTerminalRows(programs.items, sessionId, viewingProcess)], sessionId);
   const selectView = (row: SessionResource) => {
     if (!sessionId) return;
     hideResourcePreview(sessionId, backend.currentBranchId);
@@ -133,6 +139,7 @@ function SessionResourceList({ sessionId }: { sessionId: string | null }) {
       attached: text("Attached", "已关联"), running: text("Running", "运行中"),
       starting: text("Starting", "启动中"), stopping: text("Stopping", "停止中"),
       exited: text("Exited", "已退出"), closed: text("Closed", "已关闭"), released: text("Released", "已释放"),
+      stopped: text("Stopped", "已停止"), failed: text("Failed", "失败"),
       unknown: text("Reconnect", "需要重新连接"),
     } as Record<string, string>)[row.status] || row.status;
   };
@@ -175,7 +182,7 @@ function SessionResourceList({ sessionId }: { sessionId: string | null }) {
           const operating = resourceIsOperating(row);
           const title = resourceDisplayTitle(row, tab);
           const subtitle = [
-            names[row.kind] || row.kind,
+            row.source === "process" ? text("Background terminal", "后台终端") : names[row.kind] || row.kind,
             operating ? text("Operating", "操作中") : statusName(row),
             row.agentName === "main" ? text("Main agent", "主 Agent") : row.agentName,
           ].filter(Boolean).join(" · ");
@@ -243,7 +250,11 @@ function SessionResourceList({ sessionId }: { sessionId: string | null }) {
     {selected?.source === "application" && selected.applicationInstanceId
       && rows.some(row => row.id === selected.id && row.applicationDigest === selected.applicationDigest)
       && <ApplicationResourceView resource={selected} onHide={() => setSelected(null)} />}
-    {selected && selected.source !== "terminal" && selected.source !== "application" && <div className={styles.detail}>
+    {selected?.source === "process" && programs.detail?.process.id === selected.sourceId &&
+      <BackgroundTerminalView key={selected.sourceId} process={programs.detail.process} output={programs.detail.output}
+        onHide={() => setSelected(null)}
+        onStop={() => { void stopProcess(selected.sourceId, sessionId).finally(() => { void programs.refresh(); }); }} />}
+    {selected && !["terminal", "application", "process"].includes(selected.source) && <div className={styles.detail}>
       <button type="button" className={styles.action} aria-label={text("Close resource details", "关闭资源详情")} onClick={() => setSelected(null)}><X size={14} /></button>
       <strong>{selected.title}</strong><p>{names[selected.kind] || selected.kind} · {statusName(rows.find(row => row.id === selected.id) || selected)}</p>
       <p>{selected.target}</p>
