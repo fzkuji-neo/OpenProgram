@@ -1,8 +1,7 @@
 "use client";
 import { useRef, useState, type ReactNode, type MouseEvent } from "react";
 import * as Menu from "@radix-ui/react-dropdown-menu";
-import { ChevronRight, MessageSquarePlus, FolderOpen, Pencil, PanelsTopLeft, FolderSearch, GitBranch, Archive, FolderMinus } from "lucide-react";
-import { SolarIcon } from "@/components/solar-icons";
+import { MoreHorizontal, ChevronRight, MessageSquarePlus, FolderOpen, Pencil, PanelsTopLeft, FolderSearch, GitBranch, Archive, FolderMinus } from "lucide-react";
 import { CHECK_SLOT_PAD, MENU_ITEM_STATES, MENU_PANEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
 import { useTranslation } from "@/lib/i18n";
 import { useRecentsView, setRecentsView } from "@/lib/prefs/recents-view";
@@ -64,7 +63,7 @@ export function ProjectMenu({project, children, onOpen, onNewSession, onSaved}: 
     <Menu.Root open={open && !menu.native} onOpenChange={menu.onOpenChange}>
       <Menu.Trigger asChild><span aria-hidden="true" style={{position:"fixed",left:menu.point.x,top:menu.point.y,width:0,height:0,pointerEvents:"none"}} /></Menu.Trigger>
       <div onContextMenu={showMenu}>
-        {children(<button data-state={open ? "open" : "closed"} aria-haspopup="menu" aria-expanded={open} data-active={editing || addingSection || operation !== null} type="button" aria-label={text(`Options for ${project.name}`, `${project.name} 的选项`)} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();if(open)menu.close();else showMenu(event);}} className={styles.trigger+" "+sidebarProjectActionClass+" text-text-muted opacity-0 group-hover:opacity-100 focus:opacity-100"}><SolarIcon name="menu-dots" size={SIDEBAR_ROW_ACTION_ICON} motionPreset="none" aria-hidden="true"/></button>)}
+        {children(<button data-state={open ? "open" : "closed"} aria-haspopup="menu" aria-expanded={open} data-active={editing || addingSection || operation !== null} type="button" aria-label={text(`Options for ${project.name}`, `${project.name} 的选项`)} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();if(open)menu.close();else showMenu(event);}} className={styles.trigger+" "+sidebarProjectActionClass+" text-text-muted opacity-0 group-hover:opacity-100 focus:opacity-100"}><MoreHorizontal size={SIDEBAR_ROW_ACTION_ICON}/></button>)}
       </div>
       <Menu.Portal><Menu.Content side="bottom" align="start" sideOffset={4} onCloseAutoFocus={event=>event.preventDefault()} className={MENU_PANEL+" "+styles.menu+" min-w-[220px]"}>
         <Menu.Item className={item} onSelect={onNewSession}><MessageSquarePlus size={14} className={styles.menuIcon}/>{text("New chat", "新会话")}</Menu.Item>
@@ -104,7 +103,7 @@ export function ProjectSectionHeading({ section, collapsed, onToggle, actions }:
   const title = section === "__pinned__" ? text("Pinned", "置顶") : section || text("Projects", "项目");
   return <><SectionHeader name={title} collapsible collapsed={collapsed} onToggle={onToggle} actions={<>
     {actions}
-    {custom && <Menu.Root><Menu.Trigger asChild><button type="button" aria-label={text(`Options for section ${section}`, `分区 ${section} 的选项`)}><SolarIcon name="menu-dots" size={15} motionPreset="none" aria-hidden="true"/></button></Menu.Trigger>
+    {custom && <Menu.Root><Menu.Trigger asChild><button type="button" aria-label={text(`Options for section ${section}`, `分区 ${section} 的选项`)}><MoreHorizontal size={15}/></button></Menu.Trigger>
       <Menu.Portal><Menu.Content className={MENU_PANEL+" "+styles.menu+" min-w-[180px]"}>
         <Menu.Item className={item} onSelect={()=>setRenaming(true)}>{text("Rename section", "重命名分区")}</Menu.Item>
         <Menu.Item className={item} onSelect={()=>setRecentsView({projectSectionNames:view.projectSectionNames.filter(value=>value!==section),projectSections:Object.fromEntries(Object.entries(view.projectSections).filter(([,value])=>value!==section))})}>{text("Remove section", "移除分区")}</Menu.Item>
