@@ -70,6 +70,9 @@ export default function RootLayout({
                 if (!cookieFont && FONTS[f]) {
                   document.cookie = 'agentic_font=' + f + '; path=/; max-age=31536000; samesite=lax';
                 }
+                if (/(?:^|;\\s*)agentic_tabular_nums=off(?:;|$)/.test(document.cookie)) {
+                  document.documentElement.setAttribute('data-tabular-nums', 'off');
+                }
 
                 // 没存过就看浏览器语言（zh* → zh，其余 en）。和
                 // lib/i18n/index.ts 的 readStored() 逻辑必须一致。

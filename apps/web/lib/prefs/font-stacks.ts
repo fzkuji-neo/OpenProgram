@@ -19,6 +19,11 @@ export const FONT_COOKIE = "agentic_font";
 
 export const DEFAULT_FONT: FontKey = "inter";
 
+/** Cookie for equal-width digits (font-variant-numeric: tabular-nums on
+ *  all text). On unless the cookie says "off"; the <head> script mirrors it
+ *  as html[data-tabular-nums="off"] before first paint. */
+export const TABULAR_NUMS_COOKIE = "agentic_tabular_nums";
+
 // Latin face + CJK fallback per option. Every stack starts with a real,
 // always-resolvable name (never an undefined `var()`), so it is a valid
 // font-family value on its own — no dependency on any CSS variable being

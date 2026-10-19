@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import {
   FONT_STACKS,
   FONT_COOKIE,
+  TABULAR_NUMS_COOKIE,
   DEFAULT_FONT,
   coerceFontKey,
   type FontKey,
@@ -90,4 +91,46 @@ export function useFontPref() {
     };
   }, []);
   return { font, setFont };
+}
+
+// ── Equal-width digits ───────────────────────────────────────────────
+
+const tabularSubscribers = new Set<(on: boolean) => void>();
+
+function readTabularNums(): boolean {
+  if (typeof document === "undefined") return true;
+  const m = document.cookie.match(
+    new RegExp(`(?:^|;\\s*)${TABULAR_NUMS_COOKIE}=([^;]+)`),
+  );
+  return m?.[1] !== "off";
+}
+
+function applyTabularNums(on: boolean): void {
+  if (typeof document === "undefined") return;
+  if (on) delete document.documentElement.dataset.tabularNums;
+  else document.documentElement.dataset.tabularNums = "off";
+}
+
+export function setTabularNums(on: boolean): void {
+  if (typeof document !== "undefined") {
+    document.cookie =
+      `${TABULAR_NUMS_COOKIE}=${on ? "on" : "off"}; path=/; max-age=31536000; samesite=lax`;
+    applyTabularNums(on);
+  }
+  tabularSubscribers.forEach((s) => s(on));
+}
+
+/** Every digit the same width, so numbers in columns line up. */
+export function useTabularNumsPref() {
+  const [on, setOn] = useState(true);
+  useEffect(() => {
+    const stored = readTabularNums();
+    applyTabularNums(stored);
+    setOn(stored);
+    tabularSubscribers.add(setOn);
+    return () => {
+      tabularSubscribers.delete(setOn);
+    };
+  }, []);
+  return { tabularNums: on, setTabularNums };
 }

@@ -11,7 +11,7 @@ import {
   type DesktopBridge,
   type DesktopUpdateState,
 } from "@/lib/desktop/desktop-bridge";
-import { useFontPref, FONT_LABELS, fontStack, type FontKey } from "@/lib/prefs/font-pref";
+import { useFontPref, useTabularNumsPref, FONT_LABELS, fontStack, type FontKey } from "@/lib/prefs/font-pref";
 import {
   setAgentProfile,
   useAgentProfile,
@@ -385,6 +385,7 @@ function ApplicationSection() {
 export function GeneralSection() {
   const { t, text, locale, setLocale } = useTranslation();
   const { font, setFont } = useFontPref();
+  const { tabularNums, setTabularNums } = useTabularNumsPref();
   const transcriptView = useDefaultTranscriptView();
   const predictions = useComposerPredictions();
   const {
@@ -598,6 +599,13 @@ export function GeneralSection() {
             onChange={setFont}
             label={t("general.font")}
           />
+        </SettingsRow>
+
+        <SettingsRow
+          label={text("Equal-width digits (numbers in lists and menus line up)", "数字等宽（列表和菜单里的数字上下对齐）")}
+          htmlFor="tabular-nums"
+        >
+          <Switch id="tabular-nums" checked={tabularNums} onCheckedChange={setTabularNums} />
         </SettingsRow>
 
         <SettingsRow label={t("general.language")}>

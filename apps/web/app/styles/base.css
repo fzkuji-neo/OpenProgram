@@ -299,6 +299,11 @@
   --dag-ghost: #57564f;
 }
 
+/* Equal-width digits everywhere (Settings > Font); off via the switch. */
+html:not([data-tabular-nums="off"]) {
+  font-variant-numeric: tabular-nums;
+}
+
 html, body {
   height: 100%;
   font-family: var(--font-sans);
