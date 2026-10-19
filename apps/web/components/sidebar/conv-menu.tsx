@@ -229,34 +229,96 @@ export function BulkConvMenu({
 
 /* ---- item primitives ------------------------------------------- */
 
+type Point = [number, number];
+
+/** The submenu the pointer is heading for: while the pointer stays inside
+ *  `area` (the triangle from where it left the row to the submenu's near
+ *  edge), that submenu stays open and other rows don't open theirs. */
+const safeArea: { owner: symbol | null; area: Point[] | null } = { owner: null, area: null };
+
+function inside([x, y]: Point, poly: Point[]): boolean {
+  let hit = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i];
+    const [xj, yj] = poly[j];
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) hit = !hit;
+  }
+  return hit;
+}
+
 /** A row that opens its submenu to the right while the pointer is on it
- *  (or on click / ArrowRight), like Claude's "Open in ›". A short grace
- *  period lets the pointer cross from the row into the submenu. */
+ *  (or on click / ArrowRight), like Claude's "Open in ›". Leaving the row
+ *  toward the submenu, or resting in the gap between the two, keeps it
+ *  open (a safe triangle, as in Claude's and Radix's menus). */
 function Flyout({ label, children }: { label: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [id] = useState(() => Symbol("flyout"));
+  const panelRef = useRef<HTMLDivElement>(null);
   const closeTimer = useRef<number | undefined>(undefined);
-  const enter = () => {
+  const stopTracking = useRef<(() => void) | null>(null);
+
+  const release = () => {
+    stopTracking.current?.();
+    stopTracking.current = null;
+    if (safeArea.owner === id) { safeArea.owner = null; safeArea.area = null; }
+  };
+  const show = () => {
     window.clearTimeout(closeTimer.current);
+    release();
     setOpen(true);
   };
-  const leave = () => {
+  const hide = () => {
+    window.clearTimeout(closeTimer.current);
+    release();
+    setOpen(false);
+  };
+  /** Pointer over the row: open, unless it is crossing another row's
+   *  safe triangle on its way to that row's submenu. */
+  const hover = (e: React.PointerEvent) => {
+    if (safeArea.owner && safeArea.owner !== id && safeArea.area
+      && inside([e.clientX, e.clientY], safeArea.area)) return;
+    if (!open || stopTracking.current) show();
+  };
+  const leaveRow = (e: React.PointerEvent) => {
+    const panel = panelRef.current?.getBoundingClientRect();
+    if (!open || !panel) { hide(); return; }
+    const near = panel.left;
+    safeArea.owner = id;
+    safeArea.area = [[e.clientX - 4, e.clientY], [near, panel.top - 8], [near + 8, panel.top - 8],
+      [near + 8, panel.bottom + 8], [near, panel.bottom + 8]];
+    const move = (ev: PointerEvent) => {
+      const p: Point = [ev.clientX, ev.clientY];
+      const r = panelRef.current?.getBoundingClientRect();
+      if (r && p[0] >= r.left && p[0] <= r.right && p[1] >= r.top && p[1] <= r.bottom) {
+        release();
+        return;
+      }
+      if (safeArea.area && inside(p, safeArea.area)) return;
+      hide();
+    };
+    stopTracking.current?.();
+    document.addEventListener("pointermove", move);
+    stopTracking.current = () => document.removeEventListener("pointermove", move);
+  };
+  const leavePanel = () => {
     window.clearTimeout(closeTimer.current);
     closeTimer.current = window.setTimeout(() => setOpen(false), 150);
   };
-  useEffect(() => () => window.clearTimeout(closeTimer.current), []);
+  useEffect(() => () => { window.clearTimeout(closeTimer.current); release(); }, []);
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(next) => (next ? show() : hide())}>
       <PopoverTrigger asChild>
         <button
           type="button"
           className={itemCls(open)}
           aria-haspopup="menu"
           aria-expanded={open}
-          onPointerEnter={enter}
-          onPointerLeave={leave}
-          onClick={enter}
+          onPointerEnter={hover}
+          onPointerMove={hover}
+          onPointerLeave={leaveRow}
+          onClick={show}
           onKeyDown={(e) => {
-            if (e.key === "ArrowRight") { e.preventDefault(); enter(); }
+            if (e.key === "ArrowRight") { e.preventDefault(); show(); }
           }}
         >
           <span className="flex-1 text-left">{label}</span>
@@ -277,13 +339,13 @@ function Flyout({ label, children }: { label: string; children: React.ReactNode 
         // Returning focus to this row on close would count as "focus
         // outside" for the sibling submenu the pointer just opened.
         onCloseAutoFocus={(e) => e.preventDefault()}
-        onPointerEnter={enter}
-        onPointerLeave={leave}
+        onPointerEnter={() => { window.clearTimeout(closeTimer.current); release(); }}
+        onPointerLeave={leavePanel}
         onKeyDown={(e) => {
-          if (e.key === "ArrowLeft") { e.preventDefault(); setOpen(false); }
+          if (e.key === "ArrowLeft") { e.preventDefault(); hide(); }
         }}
       >
-        <div role="menu" className={`${MENU_PANEL} min-w-[180px]`}>{children}</div>
+        <div ref={panelRef} role="menu" className={`${MENU_PANEL} min-w-[180px]`}>{children}</div>
       </PopoverContent>
     </Popover>
   );
