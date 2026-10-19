@@ -37,28 +37,28 @@ const MODE_LABELS: {
 }[] = [
   {
     value: "auto", en: "Auto mode", zh: "自动判定", key: "1",
-    enDesc: "A risk check decides which operations need your approval",
-    zhDesc: "由风险检查决定哪些操作需要你批准",
+    enDesc: "Risk check decides what needs approval",
+    zhDesc: "风险检查决定是否需要批准",
   },
   {
     value: "ask", en: "Ask permissions", zh: "逐次确认", key: "2",
-    enDesc: "Always ask before making changes",
-    zhDesc: "做任何修改前都先问你",
+    enDesc: "Ask before every change",
+    zhDesc: "每次修改前都询问",
   },
   {
     value: "acceptEdits", en: "Accept edits", zh: "接受编辑", key: "3",
-    enDesc: "Accept file edits automatically; commands still ask",
-    zhDesc: "自动接受文件编辑，命令仍需批准",
+    enDesc: "Auto-accept file edits",
+    zhDesc: "自动接受文件编辑",
   },
   {
     value: "plan", en: "Plan mode", zh: "计划模式", key: "4",
-    enDesc: "Read and plan only, without making changes",
-    zhDesc: "只读取和制定计划，不做修改",
+    enDesc: "Plan only, no changes",
+    zhDesc: "只做计划，不修改",
   },
   {
     value: "bypass", en: "Bypass permissions", zh: "跳过审批", key: "5",
-    enDesc: "Skips ordinary approvals; explicit rules and sandbox still apply",
-    zhDesc: "跳过普通审批，显式规则和沙箱仍然生效",
+    enDesc: "Skip ordinary approvals",
+    zhDesc: "跳过普通审批",
   },
 ];
 
