@@ -8,7 +8,13 @@ import sys
 import pytest
 
 
+# Scenarios whose probe opens an owned page in a real headless Chromium.
+_OPENS_PAGE = {'available', 'existing', 'stale_binding', 'old_recovery'}
+
+
 def _probe(tmp_path, scenario):
+    if scenario in _OPENS_PAGE:
+        pytest.importorskip('playwright.sync_api')
     root = Path(__file__).resolve().parents[3]
     receipt = tmp_path / 'receipt.json'
     env = dict(os.environ, HOME=str(tmp_path), USERPROFILE=str(tmp_path),
