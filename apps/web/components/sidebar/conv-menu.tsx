@@ -130,6 +130,7 @@ export function ConvMenu({
   onClose,
 }: ConvMenuProps) {
   const { t } = useTranslation();
+  const otherGroups = groups.filter((g) => g && g !== conv.group);
 
   function run(fn: () => void) {
     fn();
@@ -163,12 +164,11 @@ export function ConvMenu({
         {conv.group ? (
           <MenuItem label={t("sidebar.remove_from_group")} onSelect={() => onMoveToGroup("")} />
         ) : null}
-        {groups
-          .filter((g) => g && g !== conv.group)
-          .map((g) => (
-            <MenuItem key={g} label={g} onSelect={() => onMoveToGroup(g)} />
-          ))}
-        <DropdownMenuSeparator className={MENU_SEPARATOR} />
+        {otherGroups.map((g) => (
+          <MenuItem key={g} label={g} onSelect={() => onMoveToGroup(g)} />
+        ))}
+        {/* The separator only divides New group… from rows above it. */}
+        {conv.group || otherGroups.length > 0 ? <DropdownMenuSeparator className={MENU_SEPARATOR} /> : null}
         <MenuItem label={t("sidebar.new_group")} onSelect={onNewGroup} />
       </Submenu>
 
