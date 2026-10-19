@@ -1058,13 +1058,14 @@ def test_review_revert_hunk_restores_one_hunk_through_document_history(store, tm
     subprocess.run(["git", "-C", str(root), "config", "user.name", "T"], check=True)
     target = root / "tracked.py"
     lines = [f"line {i}" for i in range(1, 21)]
-    target.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    # newline="\n": a Windows text write would turn every line into a change.
+    target.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     subprocess.run(["git", "-C", str(root), "add", "."], check=True)
     subprocess.run(["git", "-C", str(root), "commit", "-qm", "base"], check=True)
     edited = list(lines)
     edited[1] = "first change"
     edited[17] = "second change"
-    target.write_text("\n".join(edited) + "\n", encoding="utf-8")
+    target.write_text("\n".join(edited) + "\n", encoding="utf-8", newline="\n")
     monkeypatch.setattr(tf, "_project_root", lambda _session_id: root)
     project = types.SimpleNamespace(id="p1", path=str(root), **capture_directory_identity(root))
     monkeypatch.setattr(project_store, "project_for_session", lambda _sid: project)
