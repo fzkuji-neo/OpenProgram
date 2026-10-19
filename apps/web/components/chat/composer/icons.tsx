@@ -42,7 +42,7 @@ export const AttachIcon = forwardRef<AnimatedNavIconHandle, IconProps>(
 
 export const RecordIcon = forwardRef<AnimatedNavIconHandle, IconProps>(
   function RecordIcon({ size = 16 }, ref) {
-    return <SolarIcon ref={ref} name="record-circle" size={size} />;
+    return <SolarIcon ref={ref} name="record" size={size} />;
   },
 );
 
