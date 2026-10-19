@@ -11,14 +11,32 @@
  * submenus, so hover-to-open, the pointer grace on the way to a submenu
  * and keyboard navigation are Radix's own.
  *
- * Items mirror Claude.ai's conversation menu, minus the ones we have
- * no backing infra for (Open in / Mark as read / Share). Each item
- * shows a right-aligned single-key shortcut; while the menu is open,
- * pressing that key fires the item (menu-local, see onKeyDown — it runs
- * before Radix's typeahead, which it replaces in the top-level menu).
+ * Laid out like the project menu (project-menu.tsx): a muted icon on
+ * every row and the rows grouped by purpose — this chat's name and pin,
+ * where it lives, sharing it, archiving or deleting it. Items mirror
+ * Claude.ai's conversation menu, minus the ones we have no backing infra
+ * for (Open in / Mark as read / Share). While the menu is open, R / P /
+ * C / A / D still fire Rename / Pin / Copy link / Archive / Delete
+ * (menu-local, see onKeyDown — it runs before Radix's typeahead, which
+ * it replaces in the top-level menu); the rows no longer print them.
  */
 
-import { ChevronRight } from "lucide-react";
+import {
+  Archive,
+  ArchiveRestore,
+  ChevronRight,
+  Download,
+  FolderInput,
+  FolderTree,
+  Link,
+  Pencil,
+  Pin,
+  PinOff,
+  Sparkles,
+  Trash2,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 
 import { useTranslation } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -35,7 +53,6 @@ import {
   MENU_ITEM_STATES,
   MENU_PANEL,
   MENU_SEPARATOR,
-  SHORTCUT,
   itemCls,
 } from "@/components/chat/top-bar/menu-styles";
 
@@ -132,15 +149,17 @@ export function ConvMenu({
 
   return (
     <MenuContent onKeyDown={onKeyDown}>
-      <MenuItem label={t("sidebar.rename")} shortcut="R" onSelect={onRename} />
-      <MenuItem label={t("sidebar.auto_rename")} onSelect={onAutoRename} />
+      <MenuItem icon={Pencil} label={t("sidebar.rename")} onSelect={onRename} />
+      <MenuItem icon={Sparkles} label={t("sidebar.auto_rename")} onSelect={onAutoRename} />
       <MenuItem
+        icon={conv.pinned ? PinOff : Pin}
         label={conv.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
-        shortcut="P"
         onSelect={onTogglePin}
       />
 
-      <Submenu label={t("sidebar.move_to_group")}>
+      <DropdownMenuSeparator className={MENU_SEPARATOR} />
+
+      <Submenu icon={FolderTree} label={t("sidebar.move_to_group")}>
         {conv.group ? (
           <MenuItem label={t("sidebar.remove_from_group")} onSelect={() => onMoveToGroup("")} />
         ) : null}
@@ -149,34 +168,35 @@ export function ConvMenu({
           .map((g) => (
             <MenuItem key={g} label={g} onSelect={() => onMoveToGroup(g)} />
           ))}
-        <MenuItem label={t("sidebar.new_group")} accent onSelect={onNewGroup} />
+        <DropdownMenuSeparator className={MENU_SEPARATOR} />
+        <MenuItem label={t("sidebar.new_group")} onSelect={onNewGroup} />
       </Submenu>
 
       {/* Dragging the row onto a project header does the same thing. */}
       {projects && onMoveToProject && projects.length > 0 && (
-        <Submenu label={t("sidebar.move_to_project")}>
+        <Submenu icon={FolderInput} label={t("sidebar.move_to_project")}>
           {projects.map((project) => (
             <MenuItem key={project.id} label={project.name} onSelect={() => onMoveToProject(project.id)} />
           ))}
         </Submenu>
       )}
 
-      <MenuItem label={t("sidebar.copy_link")} shortcut="C" onSelect={onCopyLink} />
+      <DropdownMenuSeparator className={MENU_SEPARATOR} />
 
-      <Submenu label={t("sidebar.export")}>
+      <MenuItem icon={Link} label={t("sidebar.copy_link")} onSelect={onCopyLink} />
+      <Submenu icon={Download} label={t("sidebar.export")}>
         <MenuItem label={t("sidebar.export_markdown")} onSelect={() => onExport("md")} />
         <MenuItem label={t("sidebar.export_html")} onSelect={() => onExport("html")} />
       </Submenu>
 
-      <MenuItem
-        label={conv.archived ? t("sidebar.unarchive") : t("sidebar.archive")}
-        shortcut="A"
-        onSelect={onToggleArchive}
-      />
-
       <DropdownMenuSeparator className={MENU_SEPARATOR} />
 
-      <MenuItem label={t("sidebar.delete")} shortcut="D" danger onSelect={onDelete} />
+      <MenuItem
+        icon={conv.archived ? ArchiveRestore : Archive}
+        label={conv.archived ? t("sidebar.unarchive") : t("sidebar.archive")}
+        onSelect={onToggleArchive}
+      />
+      <MenuItem icon={Trash2} label={t("sidebar.delete")} danger onSelect={onDelete} />
     </MenuContent>
   );
 }
@@ -206,33 +226,40 @@ export function BulkConvMenu({
     <MenuContent>
       <div className={GROUP_LABEL}>{text(`${count} chats selected`, `已选 ${count} 个聊天`)}</div>
       {projects && onMoveToProject && projects.length > 0 && (
-        <Submenu label={t("sidebar.move_to_project")}>
+        <Submenu icon={FolderInput} label={t("sidebar.move_to_project")}>
           {projects.map((project) => (
             <MenuItem key={project.id} label={project.name} onSelect={() => onMoveToProject(project.id)} />
           ))}
         </Submenu>
       )}
-      <Submenu label={t("sidebar.move_to_group")}>
+      <Submenu icon={FolderTree} label={t("sidebar.move_to_group")}>
         <MenuItem label={t("sidebar.remove_from_group")} onSelect={() => onMoveToGroup("")} />
         {groups.filter(Boolean).map((g) => (
           <MenuItem key={g} label={g} onSelect={() => onMoveToGroup(g)} />
         ))}
       </Submenu>
-      <MenuItem label={t("sidebar.archive")} onSelect={onArchive} />
       <DropdownMenuSeparator className={MENU_SEPARATOR} />
-      <MenuItem label={text("Clear selection", "取消选择")} onSelect={onClear} />
+      <MenuItem icon={Archive} label={t("sidebar.archive")} onSelect={onArchive} />
+      <DropdownMenuSeparator className={MENU_SEPARATOR} />
+      <MenuItem icon={X} label={text("Clear selection", "取消选择")} onSelect={onClear} />
     </MenuContent>
   );
 }
 
 /* ---- item primitives ------------------------------------------- */
 
+/** The leading icon of a row, muted like the project menu's. */
+function RowIcon({ icon: Icon }: { icon?: LucideIcon }) {
+  return Icon ? <Icon size={14} className="shrink-0 text-text-muted" aria-hidden="true" /> : null;
+}
+
 /** A row that opens its submenu to the right (hover, click or
  *  ArrowRight) — Nova's DropdownMenuSub with its trailing chevron. */
-function Submenu({ label, children }: { label: string; children: React.ReactNode }) {
+function Submenu({ icon, label, children }: { icon?: LucideIcon; label: string; children: React.ReactNode }) {
   return (
     <DropdownMenuSub>
       <DropdownMenuSubTrigger className={cn(itemCls(false), MENU_ITEM_STATES)}>
+        <RowIcon icon={icon} />
         <span className="flex-1 truncate text-left">{label}</span>
         <ChevronRight className="ml-auto size-4 shrink-0 text-text-muted" aria-hidden="true" />
       </DropdownMenuSubTrigger>
@@ -244,21 +271,18 @@ function Submenu({ label, children }: { label: string; children: React.ReactNode
 }
 
 // Rows share the canonical `itemCls` from menu-styles, so this context
-// menu is pixel-identical to the topbar pickers. Danger (Delete) and the
-// orange "new group" accent are the only per-item variants; the shortcut
-// hint uses the shared SHORTCUT style. Selecting a row closes the menu
-// (Radix), which reaches the parent through onOpenChange.
+// menu is pixel-identical to the topbar pickers. Delete is the one danger
+// row (red text and icon). Selecting a row closes the menu (Radix), which
+// reaches the parent through onOpenChange.
 function MenuItem({
+  icon,
   label,
-  shortcut,
   danger,
-  accent,
   onSelect,
 }: {
+  icon?: LucideIcon;
   label: string;
-  shortcut?: string;
   danger?: boolean;
-  accent?: boolean;
   onSelect: () => void;
 }) {
   return (
@@ -267,14 +291,11 @@ function MenuItem({
       className={cn(
         itemCls(false, danger),
         MENU_ITEM_STATES,
-        danger && "data-[highlighted]:bg-[color-mix(in_srgb,var(--accent-red)_15%,transparent)] data-[highlighted]:text-[var(--accent-red)]",
-        accent && "!text-[var(--accent-orange)]",
+        danger && "data-[highlighted]:bg-[color-mix(in_srgb,var(--accent-red)_15%,transparent)] data-[highlighted]:text-[var(--accent-red)] [&_svg]:!text-[var(--accent-red)]",
       )}
     >
+      <RowIcon icon={icon} />
       <span className="flex-1 truncate text-left">{label}</span>
-      {shortcut ? (
-        <span className={SHORTCUT + " w-[16px] text-center"}>{shortcut}</span>
-      ) : null}
     </DropdownMenuItem>
   );
 }
