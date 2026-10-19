@@ -1389,113 +1389,70 @@
   padding-left: 2px;
 }
 
-/* ===== 主题选择器 ==========================================
-   Compact right-hand cluster. Cards keep a natural 96px width and
-   never stretch with 1fr / width:100% across the leftover row. */
-.themeGrid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-}
-.themeCard {
+/* ===== 主题选择器 ========================================== */
+/* Theme tiles (Mode, Color style): one compact row of mini window
+   previews, the radio and label under each. */
+.themeTile {
   display: flex;
   flex-direction: column;
-  flex: 0 0 96px;
-  width: 96px;
-  gap: 6px;
-  padding: 7px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  gap: 8px;
+  width: 112px;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-  text-align: left;
 }
-.themeCard:hover {
-  border-color: var(--border-light);
-}
-.themeCard.active {
-  border-color: var(--accent-orange);
-  background: var(--bg-hover);
-}
-/* 预览块自身带 data-theme，所以里面的 var() 解析成那套主题的取值——
-   预览即真值，不需要在 TS 里再抄一份色号。 */
+/* The preview carries data-theme, so var() inside resolves to that
+   theme's values — the preview is the real palette. A thin top band
+   stands in for the tab strip, coloured like base.css --tabrow-bg. */
 .themeSwatch {
-  height: 34px;
-  border-radius: 6px;
-  /* A thin top band stands in for the tab strip, tinted the same way as
-     base.css --tabrow-bg, so Vivid's coloured strip shows on its card. */
+  height: 56px;
+  border-radius: 8px;
   background: linear-gradient(
-    color-mix(in oklab, var(--bg-secondary), var(--tabrow-color) var(--tabrow-tint)) 0 8px,
-    var(--bg-primary) 8px
+    color-mix(in oklab, var(--bg-secondary), var(--tabrow-color) var(--tabrow-tint)) 0 10px,
+    var(--bg-primary) 10px
   );
-  padding-top: 8px;
+  padding-top: 10px;
   box-sizing: border-box;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-light);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
+}
+.themeTile:has([data-state="checked"]) .themeSwatch,
+.swatch[aria-pressed="true"],
+.swatchCustom[data-active] {
+  outline: 2px solid var(--accent-orange);
+  outline-offset: 2px;
 }
 .themeDot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
 }
-.themeCardLabel {
-  font-size: 14px;
-  color: var(--text-secondary);
-  font-family: var(--font-sans);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.themeCard.active .themeCardLabel {
-  color: var(--text-bright);
-}
 
-.accentControls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-.accentColorInput {
-  width: 36px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: transparent;
-  cursor: pointer;
-}
-.accentPresets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.accentPreset {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  padding: 0;
-  border: 1px solid var(--border);
-  cursor: pointer;
-}
-.tabrowPreset {
+/* Colour rows (Tab bar color, Accent color): round swatches, then the
+   custom-colour well, all the same size and selection ring. */
+.swatch,
+.swatchCustom {
   width: 24px;
   height: 24px;
   border-radius: 50%;
   padding: 0;
-  border: 1px solid var(--border-light);
+  border: 1px solid color-mix(in oklab, var(--text-bright) 12%, transparent);
   cursor: pointer;
 }
-.tabrowPreset[aria-pressed="true"],
-.accentPreset[aria-pressed="true"] {
-  outline: 2px solid var(--text-primary);
-  outline-offset: 1px;
+.swatchCustom {
+  display: grid;
+  place-items: center;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+.swatchCustom[data-active] {
+  color: #fff;
+}
+.swatch:focus-visible,
+.swatchCustom:has(input:focus-visible) {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 .customCssToolbar {
   display: flex;

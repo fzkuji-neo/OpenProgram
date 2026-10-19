@@ -27,6 +27,8 @@ const ICONS = {
   "dumbbell-large-minimalistic": "bold-duotone",
   "plain-2": "bold-duotone",
   "record": "bold-duotone",
+  // settings colour pickers: the custom-colour well
+  "pipette": "bold-duotone",
   // composer voice input
   "microphone-2": "bold-duotone",
   // model / permission badges, question panel

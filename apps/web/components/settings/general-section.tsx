@@ -5,6 +5,7 @@ import { useEffect, useId, useState, type CSSProperties } from "react";
 
 import { useTranslation, type Locale } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import { SolarIcon } from "@/components/solar-icons";
 import { Switch } from "@/components/ui/switch";
 import {
   desktopBridge,
@@ -469,57 +470,38 @@ export function GeneralSection() {
             )}
             stacked
           >
-            <div className="flex flex-wrap gap-2" role="group" aria-label={text("Tab bar color", "标签栏颜色")}>
-              {TABROW_COLOR_PRESETS.map((hex) => (
-                <button
-                  key={hex}
-                  type="button"
-                  className={styles.tabrowPreset}
-                  style={{ background: hex }}
-                  aria-label={hex}
-                  aria-pressed={(tabrowColor ?? DEFAULT_TABROW_COLOR) === hex}
-                  onClick={() => setTabrowColor(hex)}
-                />
-              ))}
-            </div>
+            <ColorSwatches
+              label={text("Tab bar color", "标签栏颜色")}
+              customLabel={text("Custom tab bar color", "自定义标签栏颜色")}
+              resetLabel={text("Reset", "重置")}
+              presets={TABROW_COLOR_PRESETS}
+              value={tabrowColor ?? DEFAULT_TABROW_COLOR}
+              onPick={setTabrowColor}
+              onReset={() => setTabrowColor(null)}
+              resetDisabled={!tabrowColor}
+            />
           </SettingsRow>
         ) : null}
 
         <SettingsRow
           label={text("Accent color", "强调色")}
           description={text(
-            "Overrides the current theme package accent. Empty / reset uses that package's default.",
-            "覆盖当前主题包的强调色。留空或重置则使用该主题包的默认强调色。",
+            "Buttons, links and highlights. Reset returns to the colour style's default.",
+            "按钮、链接和高亮。重置后回到当前颜色风格的默认色。",
           )}
+          stacked
         >
-          <input
-            type="color"
-            className={styles.accentColorInput}
-            aria-label={text("Accent color", "强调色")}
+          <ColorSwatches
+            label={text("Accent color", "强调色")}
+            customLabel={text("Custom accent color", "自定义强调色")}
+            resetLabel={text("Reset", "重置")}
+            resetAriaLabel={text("Reset to theme default", "重置为主题默认")}
+            presets={ACCENT_PRESETS}
             value={accentValue}
-            onChange={(e) => setAccent(e.target.value)}
+            onPick={setAccent}
+            onReset={() => resetAccent()}
+            resetDisabled={!accent}
           />
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label={text("Accent presets", "强调色预设")}>
-            {ACCENT_PRESETS.map((hex) => (
-              <button
-                key={hex}
-                type="button"
-                className={styles.accentPreset}
-                style={{ background: hex }}
-                aria-label={hex}
-                aria-pressed={accentValue.toLowerCase() === hex.toLowerCase()}
-                onClick={() => setAccent(hex)}
-              />
-            ))}
-          </div>
-          <Button
-            variant="outline"
-            onClick={() => resetAccent()}
-            disabled={!accent}
-            aria-label={text("Reset to theme default", "重置为主题默认")}
-          >
-            {text("Reset", "重置")}
-          </Button>
         </SettingsRow>
 
         <SettingsRow
@@ -680,8 +662,6 @@ export function GeneralSection() {
   );
 }
 
-/** Theme pickers as the docs' radio "choice cards": a FieldLabel card per
- *  option holding a live swatch of that theme, its name and the radio. */
 function ThemeChoices({
   name,
   value,
@@ -693,23 +673,91 @@ function ThemeChoices({
   onChange: (value: string) => void;
   options: { value: string; label: string; theme: string }[];
 }) {
+  // Compact tiles in one row: a mini window preview, then the radio and
+  // its label. The selected tile's preview carries the same accent ring
+  // as a selected colour swatch.
   return (
-    <RadioGroup value={value} onValueChange={onChange} className="grid-cols-3 gap-3">
+    <RadioGroup value={value} onValueChange={onChange} className="flex flex-wrap gap-3">
       {options.map((option) => (
-        <FieldLabel key={option.value} htmlFor={`${name}-${option.value}`}>
-          <Field orientation="horizontal">
-            <FieldContent>
-              <span className={styles.themeSwatch} data-theme={option.theme} aria-hidden="true">
-                <span className={styles.themeDot} style={{ background: "var(--accent-orange)" }} />
-                <span className={styles.themeDot} style={{ background: "var(--accent-green)" }} />
-                <span className={styles.themeDot} style={{ background: "var(--text-primary)" }} />
-              </span>
-              <FieldTitle className="mt-2">{option.label}</FieldTitle>
-            </FieldContent>
+        <label key={option.value} htmlFor={`${name}-${option.value}`} className={styles.themeTile}>
+          <span className={styles.themeSwatch} data-theme={option.theme} aria-hidden="true">
+            <span className={styles.themeDot} style={{ background: "var(--accent-orange)" }} />
+            <span className={styles.themeDot} style={{ background: "var(--accent-green)" }} />
+            <span className={styles.themeDot} style={{ background: "var(--text-primary)" }} />
+          </span>
+          <span className="flex items-center gap-2">
             <RadioGroupItem value={option.value} id={`${name}-${option.value}`} />
-          </Field>
-        </FieldLabel>
+            <span className="text-sm">{option.label}</span>
+          </span>
+        </label>
       ))}
     </RadioGroup>
+  );
+}
+
+/** One colour picker for every colour row: round preset swatches, a
+ *  custom-colour well (native picker behind a pipette) and Reset, in
+ *  that order, left-aligned under the row's label. */
+function ColorSwatches({
+  label,
+  customLabel,
+  resetLabel,
+  resetAriaLabel,
+  presets,
+  value,
+  onPick,
+  onReset,
+  resetDisabled,
+}: {
+  label: string;
+  customLabel: string;
+  resetLabel: string;
+  resetAriaLabel?: string;
+  presets: readonly string[];
+  value: string;
+  onPick: (hex: string) => void;
+  onReset: () => void;
+  resetDisabled: boolean;
+}) {
+  const current = value.toLowerCase();
+  const isPreset = presets.some((hex) => hex.toLowerCase() === current);
+  return (
+    <div className="flex flex-wrap items-center gap-2" role="group" aria-label={label}>
+      {presets.map((hex) => (
+        <button
+          key={hex}
+          type="button"
+          className={styles.swatch}
+          style={{ background: hex }}
+          aria-label={hex}
+          aria-pressed={hex.toLowerCase() === current}
+          onClick={() => onPick(hex)}
+        />
+      ))}
+      <label
+        className={styles.swatchCustom}
+        data-active={isPreset ? undefined : ""}
+        style={isPreset ? undefined : { background: value }}
+      >
+        <input
+          type="color"
+          className="sr-only"
+          aria-label={customLabel}
+          value={value}
+          onChange={(e) => onPick(e.target.value)}
+        />
+        <SolarIcon name="pipette" size={14} aria-hidden="true" />
+      </label>
+      <Button
+        variant="outline"
+        size="sm"
+        className="ml-1"
+        onClick={onReset}
+        disabled={resetDisabled}
+        aria-label={resetAriaLabel}
+      >
+        {resetLabel}
+      </Button>
+    </div>
   );
 }
