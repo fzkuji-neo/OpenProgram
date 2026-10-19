@@ -28,7 +28,9 @@ panel          raised cards:             the left and right rails
 The window is three floating cards on one page — the shadcn
 Sidebar `floating` shell for both rails (`components/ui/sidebar.tsx`,
 the registry's shell only) and its `inset` idea for the centre
-column at once. Each card has 14px corners (`rounded-2xl`) and the
+column at once. Each card has Nova's floating-Sidebar corner
+(`rounded-lg`, 12px; split panes and the canvas overview use the
+same `--radius-lg`) and the
 per-theme raised shadow (`--composer-shadow`), no border and no
 ring; the rails keep a 7px gutter on every side (`p-2`), the
 centre card sits 7px off the top and bottom edges and takes its
@@ -471,7 +473,16 @@ carries geometry only, so the 40px row keeps its rhythm.
   delete-chat and Bypass Permissions prompts, the plugin, channel,
   branch-merge, icon-picker, function and provider-setup panels).
   The attachment lightbox keeps its own full-screen viewer.
+- Done: every part in `components/ui` is radix-nova — the command
+  palette (`Command` in the Nova `Dialog`, selected row on
+  `bg-accent` like the menus), `Popover` (Nova surface with the
+  menus' `--popover-ring` / `--popover-shadow` frame; a
+  `bg-transparent` content hosts its own `MENU_PANEL`), `Tooltip`
+  (Nova's inverted badge with an arrow; `--surface-tooltip` /
+  `--text-on-tooltip` alias `--foreground` / `--background` so the
+  hand-placed rail tips match), `Tabs` (the Agent editor uses the
+  `line` variant), `Kbd`, `ScrollArea` and the `Sidebar` shell.
 - Not yet migrated: the other Settings pages (still on
-  `settings-page.module.css` rows) and tooltips. Form inputs outside
+  `settings-page.module.css` rows). Form inputs outside
   Settings keep the 1px-edge rule above until they move to the
   shadcn input. Sidebar list rows stay on the list set above.

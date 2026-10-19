@@ -65,9 +65,9 @@
   /* 全屏/图片遮罩。深色主题下就是黑纱。 */
   --scrim: rgba(0, 0, 0, 0.55);
   --scrim-strong: rgba(0, 0, 0, 0.75);
-  /* Tooltip 与页面反色：深色主题下用比表面更亮的一块灰。 */
-  --surface-tooltip: #4a4a47;
-  --text-on-tooltip: #ffffff;
+  /* Tooltips are Nova's inverted badge (components/ui/tooltip.tsx). */
+  --surface-tooltip: var(--foreground);
+  --text-on-tooltip: var(--background);
   /* 输入框（composer）外圈发丝线，常态 / 聚焦。 */
   --composer-ring: rgba(255, 255, 255, 0.08);
   --composer-ring-focus: rgba(255, 255, 255, 0.14);

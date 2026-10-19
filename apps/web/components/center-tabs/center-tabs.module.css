@@ -2118,7 +2118,8 @@
 .ntpShortcutForm {
   display: grid;
   gap: 14px;
-  margin-top: 14px;
+  /* + the popover's 10px gap = 14px below the header */
+  margin-top: 4px;
 }
 .ntpShortcutField {
   display: grid;

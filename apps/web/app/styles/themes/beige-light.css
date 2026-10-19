@@ -74,9 +74,9 @@
   --focus-ring: color-mix(in srgb, var(--text-bright) 45%, transparent);
   --scrim: rgba(0, 0, 0, 0.45);
   --scrim-strong: rgba(0, 0, 0, 0.65);
-  /* 浅色主题下 tooltip 反色：深墨底白字（实测 Claude）。 */
-  --surface-tooltip: #141413;
-  --text-on-tooltip: #ffffff;
+  /* Tooltips are Nova's inverted badge (components/ui/tooltip.tsx). */
+  --surface-tooltip: var(--foreground);
+  --text-on-tooltip: var(--background);
   --composer-ring: rgba(10, 10, 10, 0.1);
   --composer-ring-focus: rgba(10, 10, 10, 0.18);
   /* Input box = shadcn Luma Card surface with no border: shadow-sm

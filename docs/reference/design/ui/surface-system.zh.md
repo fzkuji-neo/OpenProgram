@@ -17,7 +17,7 @@ panel          浮起的卡片：               左右两条侧栏（`--bg-input
 ─────────────────────────────────────────────────────────────────
 ```
 
-整个窗口是一张页面上的三张浮起卡片——左右栏用 shadcn Sidebar 的 `floating` 壳（`components/ui/sidebar.tsx`，只取注册表的壳），中栏同时用它 `inset` 的思路。每张卡片 14px 圆角（`rounded-2xl`）、每套主题自己的浮起阴影（`--composer-shadow`），无边框、无描边；侧栏四周各留 7px（`p-2`），中栏上下各离边 7px，左右的缝由侧栏的留白提供。侧栏用白色（`--bg-input`），和输入框、用户气泡同一种材质；中栏保持 `--bg-primary`，这样白色的浮起元素在它上面仍有对比。
+整个窗口是一张页面上的三张浮起卡片——左右栏用 shadcn Sidebar 的 `floating` 壳（`components/ui/sidebar.tsx`，只取注册表的壳），中栏同时用它 `inset` 的思路。每张卡片用 Nova 浮动 Sidebar 的圆角（`rounded-lg`，12px；分屏格子和画布总览用同一个 `--radius-lg`）、每套主题自己的浮起阴影（`--composer-shadow`），无边框、无描边；侧栏四周各留 7px（`p-2`），中栏上下各离边 7px，左右的缝由侧栏的留白提供。侧栏用白色（`--bg-input`），和输入框、用户气泡同一种材质；中栏保持 `--bg-primary`，这样白色的浮起元素在它上面仍有对比。
 
 分屏时中栏这张卡片消失，每个窗格各自是一张同材质的卡片（`.center-col[data-split]`）：每个窗格离侧栏卡片和窗口边缘 7px，窗格之间相隔 8px。空窗格自己画同样的卡片。
 
@@ -238,4 +238,5 @@ link         primary 字                           下划线
 
 - 已完成：`Button`、`Select`、`Input`、`Textarea`、`Switch`、`Slider`、`Card`、`Badge`、`Label`、`Separator`（radix-nova，包括替换所有原生 `<select>` 和自制下拉），以及 `Checkbox`、`RadioGroup`、`Field`、`Toggle`、`ToggleGroup`；菜单面板和菜单行（Nova 几何和材质）；设置的通用页和桌面提醒一节换成设置积木；输入框上方的环境标签、底部控制栏、发送和语音按钮、输入框本体、网页预览小窗（外框、标题栏、图标按钮）、浏览器工具栏的图标按钮。
 - 已完成：所有模态框换成 `Dialog` / `AlertDialog`，所有确认换成 `ConfirmDialog`（原来的 `window.confirm`、删除聊天和绕过权限的确认、插件、频道、分支合并、图标选择、函数和 Provider 设置面板）。附件灯箱保留自己的全屏查看器。
-- 尚未迁移：其余设置页（仍用 `settings-page.module.css` 的行）和提示框。设置页以外的表单输入框在换成 shadcn input 之前继续遵守上面的 1px 边规则。侧栏列表行继续用上面的列表尺寸。
+- 已完成：`components/ui` 里的每个部件都是 radix-nova——命令面板（`Command` 放在 Nova `Dialog` 里，选中行和菜单一样用 `bg-accent`）、`Popover`（Nova 表面，外框用菜单的 `--popover-ring` / `--popover-shadow`；`bg-transparent` 的内容自己承载 `MENU_PANEL`）、`Tooltip`（Nova 带箭头的反色小标签；`--surface-tooltip` / `--text-on-tooltip` 指向 `--foreground` / `--background`，手动定位的侧栏提示也一致）、`Tabs`（Agent 编辑页用 `line` 变体）、`Kbd`、`ScrollArea` 和 `Sidebar` 外壳。
+- 尚未迁移：其余设置页（仍用 `settings-page.module.css` 的行）。设置页以外的表单输入框在换成 shadcn input 之前继续遵守上面的 1px 边规则。侧栏列表行继续用上面的列表尺寸。

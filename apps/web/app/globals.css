@@ -97,6 +97,16 @@
   }
 }
 
+/* shadcn/tailwind.css utility the Nova registry parts use (Command list). */
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* Design tokens → Tailwind utility names. Mirrors app/styles/base.css
    (:root), which stays the single source of truth — this block only
    hands Tailwind the utility aliases (was theme.extend in

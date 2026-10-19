@@ -13,7 +13,9 @@ native `title` bubble. The tip body is `TipBody`:
   does ("Click to turn off.").
 
 The tip appears after the pointer rests for 1.5 s, never while the control's own menu is open,
-and is wider than the chip (up to 320 px, paths wrap anywhere).
+and is wider than the chip (up to Nova's `max-w-xs`, paths wrap anywhere).
+It is shadcn's radix-nova tooltip: an inverted badge (foreground on
+background) with an arrow, 12px text.
 
 | Control | Title | Detail |
 |---|---|---|

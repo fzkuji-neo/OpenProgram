@@ -7,7 +7,7 @@
   box-sizing: border-box;
   /* 与格子卡片同圆角。多格时每个格子本身就是一张浮起卡片
      （base.css 的 .center-col[data-split]），不再画细描边。 */
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   pointer-events: none;
   transition: box-shadow 160ms ease, opacity 140ms ease;
 }

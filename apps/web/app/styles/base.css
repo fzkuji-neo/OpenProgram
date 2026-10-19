@@ -45,7 +45,7 @@
   /* 10px — Claude shape language: list rows and small buttons sit at
      10px; cards/panels at 12px (--radius-lg). */
   --ui-list-radius: 10px;
-  /* 2rem = the Rhea Button/Select default (h-8), so inputs, search
+  /* 2rem = the Nova Button/Select default (h-8), so inputs, search
      fields and header pills line up with the buttons beside them. */
   --ui-button-h: 2rem;
   --ui-button-radius: 10px;
@@ -277,9 +277,10 @@
      dot. One placeholder for the coming brand accent; every theme shares it.
      The native macOS helper mirrors it as ACCENT in mac_indicator.py. */
   --agent-accent: #5b5bd6;
-  /* Tooltip 与页面反色：深色主题下用比表面更亮的一块灰。 */
-  --surface-tooltip: #4a4a47;
-  --text-on-tooltip: #ffffff;
+  /* Tooltips are Nova's: an inverted badge, foreground on background,
+     in every theme (components/ui/tooltip.tsx). */
+  --surface-tooltip: var(--foreground);
+  --text-on-tooltip: var(--background);
   /* 输入框（composer）外圈发丝线，常态 / 聚焦。 */
   --composer-ring: rgba(255, 255, 255, 0.08);
   --composer-ring-focus: rgba(255, 255, 255, 0.14);
@@ -477,7 +478,8 @@ select:focus-visible {
   position: relative;
   margin: 7px 0;
   background: var(--bg-primary);
-  border-radius: 1rem;
+  /* Nova's floating Sidebar corner (rounded-lg), like the rails. */
+  border-radius: var(--radius-lg);
   box-shadow: var(--composer-shadow);
   overflow: hidden;
 }

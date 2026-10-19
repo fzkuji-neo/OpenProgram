@@ -46,8 +46,9 @@ type Box = { left: number; top: number; width: number; height: number };
 function windowBox(canvas: HTMLElement): Box {
   return { left: 0, top: 0, width: canvas.clientWidth, height: canvas.clientHeight };
 }
-const PANE_INSET = 1, PANE_RADIUS = 16;
-const centerRadius = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 14;
+const PANE_INSET = 1, PANE_RADIUS = 12;
+// The centre card's corner (base.css .center-col: var(--radius-lg)).
+const centerRadius = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--radius-lg")) || 12;
 const reducedMotion = () => typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** Columns and card width that make n cards of this aspect as large as

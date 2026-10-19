@@ -50,8 +50,8 @@
   --focus-ring: color-mix(in srgb, var(--accent-cyan) 60%, transparent);
   --scrim: rgba(6, 4, 18, 0.6);
   --scrim-strong: rgba(6, 4, 18, 0.8);
-  --surface-tooltip: #35304f;
-  --text-on-tooltip: #f2f0ff;
+  --surface-tooltip: var(--foreground);
+  --text-on-tooltip: var(--background);
   --composer-ring: rgba(180, 165, 255, 0.14);
   --composer-ring-focus: rgba(99, 220, 255, 0.4);
   /* Input box = shadcn Luma Card surface with no border: shadow-sm
