@@ -38,6 +38,8 @@ const ICONS = {
   "earth": "bold-duotone",
   "pip-2": "bold-duotone",
   "folder-with-files": "bold-duotone",
+  // sidebar project rows: closed / open (folder-open above)
+  "folder": "bold-duotone",
   "folder-open": "bold-duotone",
   "add-folder": "bold-duotone",
   "danger-triangle": "bold-duotone",

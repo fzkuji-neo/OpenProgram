@@ -28,10 +28,11 @@ import { copyText } from "@/lib/clipboard";
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Folder, FolderOpen, MoreHorizontal, Plus } from "lucide-react";
+import { MoreHorizontal, Plus } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useCurrentSessionId } from "./use-window-globals";
 import { useSessionStore } from "@/lib/session-store";
+import { SolarIcon } from "@/components/solar-icons";
 import type { ConvSummary } from "@/lib/session-store";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { useTranslation } from "@/lib/i18n";
@@ -908,7 +909,7 @@ function ProjectGroupHeader({
         {/* The folder opens and closes with the group — the only
             expand/collapse cue on the row. A custom icon stays as set. */}
         {icon ? <span className="truncate" aria-hidden="true">{icon}</span>
-          : collapsed ? <Folder size={18} aria-hidden="true" /> : <FolderOpen size={18} aria-hidden="true" />}
+          : <SolarIcon name={collapsed ? "folder" : "folder-open"} size={18} motionPreset="none" aria-hidden="true" />}
       </span>
       <span className={sidebarNavLabelClass}>{name}</span>
       {/* -mr-[4px]: the buttons end 4px inside the row, where a chat
