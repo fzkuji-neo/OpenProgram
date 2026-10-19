@@ -195,7 +195,9 @@ def test_registered_workflow_is_available_to_favorites(
         "    return task\n",
         encoding="utf-8",
     )
-    namespace = {"__name__": "workflows.favorite_workflow"}
+    # A package in ~/.openprogram/workflows imports under its own name
+    # (favorite_workflow.workflow); the loader tags the tool with its owner.
+    namespace = {"__name__": "favorite_workflow.workflow"}
     exec(compile(source.read_text(), str(source), "exec"), namespace)
     monkeypatch.setitem(
         _registry,
@@ -203,7 +205,7 @@ def test_registered_workflow_is_available_to_favorites(
         SimpleNamespace(
             _is_agent_method=True,
             _python_callable=namespace["favorite_workflow"],
-            _source_module="workflows.favorite_workflow",
+            _workflow_owner="favorite_workflow",
         ),
     )
 
@@ -323,3 +325,43 @@ def test_multi_entry_call_graph_scopes_imports_to_selected_function(
         ),
     }
     assert beta["edges"] == []
+
+
+
+def test_installed_program_entry_is_available_to_favorites(
+    tmp_path: Path, monkeypatch
+) -> None:
+    import functools
+    from types import SimpleNamespace
+
+    from openprogram.programs import _programs
+    from openprogram.programs._runtime import _registry
+    from openprogram.webui._functions import _discover_program_functions
+
+    source = tmp_path / "main.py"
+    source.write_text(
+        "def paper_agent(topic: str) -> str:\n"
+        '    """Write a paper."""\n'
+        "    return topic\n",
+        encoding="utf-8",
+    )
+    namespace = {"__name__": "paper_harness.main"}
+    exec(compile(source.read_text(), str(source), "exec"), namespace)
+
+    # The registry holds the Agent method wrapper, defined elsewhere.
+    @functools.wraps(namespace["paper_agent"])
+    def wrapper(*args, **kwargs):
+        return namespace["paper_agent"](*args, **kwargs)
+
+    monkeypatch.setitem(
+        _registry, "paper_agent", SimpleNamespace(_python_callable=wrapper)
+    )
+    monkeypatch.setattr(
+        _programs,
+        "installed_programs",
+        lambda: [SimpleNamespace(function="paper_agent")],
+    )
+
+    rows = {row["name"]: row for row in _discover_program_functions(set())}
+    assert rows["paper_agent"]["filepath"] == str(source)
+    assert rows["paper_agent"]["params"] == ["topic"]

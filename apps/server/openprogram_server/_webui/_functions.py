@@ -90,9 +90,11 @@ def _discover_workflow_functions(seen: set[str]) -> list[dict]:
             continue
         fn = inspect.unwrap(getattr(registered, "_python_callable", None) or registered)
         module = str(getattr(fn, "__module__", "") or "")
+        # A user package from ~/.openprogram/workflows imports under its
+        # own top-level name; the loader marks its tools with an owner.
         if not (
             module.startswith("openprogram.programs.workflow.")
-            or module.startswith("workflows.")
+            or getattr(registered, "_workflow_owner", None)
         ):
             continue
         if "._generation." in module or "._project." in module or "._runtime." in module:
@@ -127,7 +129,9 @@ def _discover_program_functions(seen: set[str]) -> list[dict]:
         reg = _registry.get(prog.function)
         if reg is None:
             continue
-        fn = getattr(reg, "_python_callable", None) or reg
+        # Unwrap the Agent method wrapper so the source is the program's
+        # entry file, not agent_class.py.
+        fn = inspect.unwrap(getattr(reg, "_python_callable", None) or reg)
         try:
             src = inspect.getsourcefile(fn)
         except (TypeError, OSError):
