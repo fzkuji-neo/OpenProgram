@@ -1850,6 +1850,10 @@ registerSingleMainWindow({
     registerOwnerAuthIpc();
     registerUpdateIpc();
     registerAttentionIpc();
+    require("./main/recording-bar").createRecordingBar({
+      BrowserWindow, ipcMain, path, screen: require("electron").screen,
+      uiOrigin: overlayUiOrigin, preloadDir: __dirname,
+    });
     registerNativeTitleBarIpc({ ipcMain, BrowserWindow, platform: process.platform, getChrome: () => currentChrome });
     ipcMain.on("theme:trace", (event, payload) => {
       // Only the app document can write diagnostics, not embedded websites.

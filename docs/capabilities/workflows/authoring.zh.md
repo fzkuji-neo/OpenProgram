@@ -1,6 +1,6 @@
 # 编写和检查 Workflow
 
-Workflow 是一个小型 Python 包。`Agent` 实例定义角色，`Context` 对象定义每次模型调用看到什么，普通函数决定调用顺序。聊天里的 Agent 用普通文件工具编写 Workflow；你也可以按同样的形式手写。包通过 `openprogram workflows check` 后，它的入口就成为可调用的工具。
+Workflow 是一个小型 Python 包。`Agent` 实例定义角色，`Context` 对象定义每次模型调用看到什么，普通函数决定调用顺序。聊天里的 Agent 用普通文件工具编写 Workflow；你也可以按同样的形式手写，或者[录制一次演示](recording.zh.md)让 agent 做成 Workflow。包通过 `openprogram workflows check` 后，它的入口就成为可调用的工具。
 
 ## 编码前明确合同
 

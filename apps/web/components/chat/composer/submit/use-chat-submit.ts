@@ -31,6 +31,7 @@ import { expandAtMentions } from "../attach/at-mention";
 import { expandPasteTokens, expandPasteTokensDelimited, missingPasteIds, takePastedSpans } from "../paste/paste-store";
 import { elementsForBody } from "@/lib/chat/paste-elements";
 import { sendChatMessage } from "./send-chat-message";
+import { composerKey, recordingPlaceholder, useRecordingStore } from "@/lib/recording/recording-store";
 import { defaultScrollerKey, noteTakeLatest } from "@/lib/chat/chat-scroll";
 import { resolveFnFormSessionId } from "../modes/fn-form/session-target";
 import type { SubmittedAttachments, useComposerAttachments } from "../attach/use-composer-attachments";
@@ -135,6 +136,10 @@ export function useChatSubmit({
     // until the durable command receipt accepts it or releases it for normal drain.
     // Attachments stay in the queue for an ordinary turn; steering is text-only.
     if (isRunning) {
+      if (useRecordingStore.getState().pending[composerKey(bound)]) {
+        showToast("Send the recording after the current turn finishes.", { tone: "error" });
+        return;
+      }
       if ((!trimmed && pendingImages.length === 0 && pendingDocs.length === 0) || !submitOwnerKey) return;
       if (attachmentsBlockSend(pendingImages, pendingDocs)) return;
       // Queue and steer bypass the ordinary send preparation below. Capture
@@ -176,8 +181,10 @@ export function useChatSubmit({
     }
     // Allow image-only submits — the LLM can answer "describe this
     // screenshot" without text. Otherwise require at least one of
-    // text or attached image.
-    if (!trimmed && pendingImages.length === 0 && pendingDocs.length === 0) {
+    // text, an attached image or a recording.
+    const recordingKey = composerKey(bound);
+    const recording = useRecordingStore.getState().pending[recordingKey];
+    if (!trimmed && pendingImages.length === 0 && pendingDocs.length === 0 && !recording) {
       return;
     }
     // No enabled model → don't send. Routing a turn with nothing
@@ -271,7 +278,13 @@ export function useChatSubmit({
       // Delegate to legacy `sendMessage` (chat.js) so the user bubble +
       // welcome-hide + assistant placeholder + isRunning flip all fire
       // before the WS payload goes out. Composer is just the trigger.
+      if (recording) {
+        // The optimistic bubble shows the recording card until the server's
+        // message, which carries the real block, replaces it.
+        expanded = expanded ? `${expanded}\n\n${recordingPlaceholder(recording)}` : recordingPlaceholder(recording);
+      }
       const handled = sendChatMessage({
+        recording: recording?.id,
         text: expanded,
         textElements: textElements.length > 0 ? textElements : undefined,
         sessionId: submitOwnerKey,
@@ -288,6 +301,9 @@ export function useChatSubmit({
         // still belong to this attachment turn for run_active handling.
         hasAttachments: hasSubmittedAttachments,
         onAck: () => {
+          if (recording && useRecordingStore.getState().pending[recordingKey]?.id === recording.id) {
+            useRecordingStore.getState().setPending(recordingKey, null);
+          }
           // Remove only the submitted attachments; keep newer draft edits.
           if (submittedAttachments) submittedAttachments.release();
           else clearAttachmentsAfterSubmit(submitOwnerKey, capturedAttachmentIds);

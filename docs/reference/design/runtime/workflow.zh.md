@@ -105,6 +105,7 @@ docstring 查找和 `call_path` 都通过 `sys._getframe` 和 `co_qualname` 实�
 ## 编写
 
 - 聊天 agent 用普通文件工具编写 workflow 包，由产品文档页[编写和检查 Workflow](../../../capabilities/workflows/authoring.zh.md)提供指导。OpenProgram 不内置第一方 skill，所以没有单独的编写 skill。
+- 系统提示里有一小段 `workflows` 说明：用户 workflow 放在哪、编写指南在磁盘上的位置，以及用户要 workflow 时的工作顺序。agent 先从当前对话、以前的对话（`list_agents`、`read_conversation`）、记忆和消息里附带的录制中补全合同，只问仍然缺的部分，然后写包并运行 `check`。在 App 里录制的演示也以同样方式交给 agent，见[录制 Workflow](workflow-recording.zh.md)。
 - `openprogram.testing.script_roles` 用预设回复替换角色调用，并记录每次请求。记录下的请求提供 `text`（instructions、docstring、内容块和 prompt）和 `history_text`，测试可以断言角色到底看到了什么。
 - `openprogram workflows check <dir> [-m MESSAGE] [--json]` 在子进程中导入包，检查 `PROGRAM_ENTRIES` 和入口签名，并在操作系统沙箱中运行包内测试：无网络、包目录只读、`HOME` 为空。
 - `openprogram workflows list [--json]` 列出用户 workflow 及其加载状态。

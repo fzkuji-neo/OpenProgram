@@ -42,6 +42,7 @@ import {
   WebSearchIcon,
 } from "../icons";
 import { ChannelSubmenu } from "./channel-submenu";
+import { RecordingGlyph } from "../../recording/recording-glyph";
 import { PlusMenuRow, ToolChip } from "./menu-pieces";
 import { ThinkingEffortPill } from "./thinking-effort-pill";
 import type { ThinkingOption } from "./use-thinking-effort";
@@ -73,6 +74,9 @@ export interface ControlsClusterProps {
   plusMenuOpen: boolean;
   setPlusMenuOpen(open: boolean): void;
   onPickImages(): void;
+  /** Present where a demonstration can be recorded (desktop App on macOS). */
+  onRecord?(): void;
+  recordingActive?: boolean;
   pendingImagesCount: number;
   pendingDocsCount: number;
   toolsEnabled: boolean;
@@ -109,6 +113,8 @@ export function ControlsCluster({
   plusMenuOpen,
   setPlusMenuOpen,
   onPickImages,
+  onRecord,
+  recordingActive = false,
   pendingImagesCount,
   pendingDocsCount,
   toolsEnabled,
@@ -206,6 +212,14 @@ export function ControlsCluster({
                   label={text("Add files or photos", "添加文件或照片")}
                   onSelect={() => onPickImages()}
                 />
+                {onRecord ? (
+                  <PlusMenuRow
+                    active={recordingActive}
+                    icon={<RecordingGlyph size={16} />}
+                    label={text("Record a workflow", "录制 Workflow")}
+                    onSelect={() => onRecord()}
+                  />
+                ) : null}
 
                 <DropdownMenuSeparator className={MENU_SEPARATOR} />
 

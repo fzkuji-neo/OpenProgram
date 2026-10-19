@@ -1,0 +1,113 @@
+/* The recording bar fills its small frameless window; the bar itself
+   drags the window, the buttons do not. */
+
+.bar {
+  position: absolute;
+  inset: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 6px 0 14px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--text-bright, #fff) 12%, transparent);
+  background: color-mix(in srgb, var(--bg-primary, #1d1f24) 94%, transparent);
+  color: var(--text-primary, #e8e8ea);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.28);
+  font-size: 13px;
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border-radius: 50%;
+  background: var(--accent-red, #e5534b);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot { animation: none; }
+}
+
+.time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  min-width: 38px;
+}
+
+.label {
+  color: var(--text-muted, #9a9ca3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.icon,
+.done {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  cursor: pointer;
+  color: inherit;
+}
+
+.icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted, #9a9ca3);
+}
+
+.icon:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text-bright, #fff) 10%, transparent);
+  color: var(--text-primary, #e8e8ea);
+}
+
+.icon[data-on="true"] {
+  color: var(--text-primary, #e8e8ea);
+}
+
+.icon[data-speaking="true"] {
+  color: var(--accent-green, #3fb950);
+}
+
+.done {
+  gap: 5px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--text-primary, #e8e8ea);
+  color: var(--bg-primary, #1d1f24);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.done:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.icon:disabled,
+.done:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.icon:focus-visible,
+.done:focus-visible {
+  outline: 2px solid var(--accent, #285bbb);
+  outline-offset: 2px;
+}

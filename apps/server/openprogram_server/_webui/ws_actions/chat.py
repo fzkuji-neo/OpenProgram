@@ -469,6 +469,33 @@ def _attachments_for_dispatch(incoming: list) -> list | None:
     return images or None
 
 
+def _with_recording(text: str, recording_id) -> tuple[str, dict, list]:
+    """Append a recording's step block to the message text.
+
+    Returns the new text, the summary kept in the message's metadata and
+    the screenshots that go to the model as image blocks. A recording
+    still running is finished first, as if Done had been pressed.
+    """
+    import re
+    from openprogram import recording
+    if not isinstance(recording_id, str):
+        raise ValueError("Invalid recording id")
+    live = recording.get(recording_id)
+    if live is not None:
+        live.finish("done")
+    try:
+        directory = recording.directory_of(recording_id)
+    except recording.RecordingError:
+        raise ValueError("The recording no longer exists") from None
+    block, images = recording.compose(directory)
+    # The composer's placeholder for the optimistic bubble, and anything
+    # else shaped like a recording block, gives way to the real one.
+    text = re.sub(rf"<{recording.TAG}[^>]*>.*?</{recording.TAG}>", "", text or "", flags=re.S).strip()
+    info = recording.summary(directory)
+    meta = {key: info[key] for key in ("id", "purpose", "steps", "duration_ms", "images")}
+    return (f"{text}\n\n{block}" if text else block), meta, images
+
+
 def _title_from_text(text: str) -> str:
     """Conversation title from the first user message, with attachment
     markers + legacy inline blocks stripped so a truncated
@@ -482,11 +509,15 @@ def _title_from_text(text: str) -> str:
     import re
     from openprogram import attachments as _attachments
     t = re.sub(r"<attachment-preview[^>]*>.*?</attachment-preview>", "", text, flags=re.S)
+    recorded = "<recorded-demonstration" in t
+    t = re.sub(r"<recorded-demonstration[^>]*>.*?</recorded-demonstration>", "", t, flags=re.S)
     t = _attachments.strip_markers(t)
     t = re.sub(r"\[attachment:[^\]]*\]", "", t)
     t = re.sub(r"\[attached(?: file)?:[^\]]*\]", "", t)
     t = re.sub(r"<file [^>]*>.*?</file>", "", t, flags=re.S)
     t = t.strip()
+    if not t and recorded:
+        return "Recorded demonstration"
     return t[:50] + ("..." if len(t) > 50 else "")
 
 
@@ -590,6 +621,11 @@ async def handle_chat(ws, cmd: dict):
                for a in raw_attachments):
             raise ValueError("Invalid attachment payload")
         attachments = raw_attachments
+    recording_meta = None
+    recording_images: list = []
+    if cmd.get("recording") is not None:
+        text, recording_meta, recording_images = await asyncio.to_thread(
+            _with_recording, text, cmd.get("recording"))
     if not text and not attachments:
         return
     if not text and attachments:
@@ -1048,6 +1084,9 @@ async def handle_chat(ws, cmd: dict):
             _s._release_run_reservation(session_id, msg_id)
             raise
         attachments = _attachments_for_dispatch(attachments)
+    user_attachments = attachments
+    if recording_images:
+        attachments = (attachments or []) + recording_images
 
     # Stage 1 (immediate, zero-latency sidebar placeholder): truncate the
     # user's first line into a title the instant the message is sent, so the
@@ -1124,12 +1163,14 @@ async def handle_chat(ws, cmd: dict):
         if parsed.get("wait", True):
             user_msg["function"] = "agent"
     extra_meta: dict = {}
-    if attachments:
+    if user_attachments:
         extra_meta["attachments"] = [
             {"type": a.get("type"), "media_type": a.get("media_type"),
              "size_b64": len(a.get("data") or "")}
-            for a in attachments
+            for a in user_attachments
         ]
+    if recording_meta:
+        extra_meta["recording"] = recording_meta
     text_elements = _pasted_text_elements(cmd.get("text_elements"), len(text))
     if text_elements:
         extra_meta["text_elements"] = text_elements

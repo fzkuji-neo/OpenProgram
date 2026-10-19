@@ -60,6 +60,42 @@ export interface DesktopBridge {
   /** Draw the agent cursor at a screen point an Agent step acts on in a
    *  desktop app. Absent in shells older than this build. */
   nativeActionCue?(cue: NativeActionCue): void;
+  /** The floating bar of a demonstration recording. Absent in shells older
+   *  than this build and on platforms without a recorder. */
+  recording?: DesktopRecordingApi;
+}
+
+/** What the recording bar is opened with. */
+export interface RecordingBarOptions {
+  id: string;
+  maxSeconds: number;
+  mic: boolean;
+  deviceId?: string;
+}
+
+/** The bar's result: the stopped recording's summary, or null when discarded. */
+export interface RecordingFinished {
+  id: string;
+  summary: RecordingSummary | null;
+  error?: string;
+}
+
+export interface RecordingSummary {
+  id: string;
+  purpose: string;
+  steps: number;
+  duration_ms: number;
+  images: number;
+  end_reason?: string;
+}
+
+export interface DesktopRecordingApi {
+  /** Open the bar and move the calling window out of the way. */
+  openBar(options: RecordingBarOptions): Promise<boolean>;
+  /** Called by the bar: close it and tell the window that opened it. */
+  finish(result: RecordingFinished): void;
+  /** The window that opened the bar hears the result here. */
+  onFinished(callback: (result: RecordingFinished) => void): () => void;
 }
 
 /** One Agent step in a desktop app: its screen point (points, origin at the

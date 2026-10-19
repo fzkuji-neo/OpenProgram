@@ -55,6 +55,12 @@ contextBridge.exposeInMainWorld("openprogramDesktop", {
   windowId,
   refreshOwnerAuth: () => ipcRenderer.invoke("owner-auth:refresh"),
   nativeActionCue: (cue) => ipcRenderer.send("native:action-cue", cue),
+  // The floating bar of a demonstration recording (macOS only).
+  recording: process.platform === "darwin" ? {
+    openBar: (options) => ipcRenderer.invoke("recording:open-bar", options),
+    finish: (result) => ipcRenderer.send("recording:finish", result),
+    onFinished: (cb) => fanOut("recording:finished", cb),
+  } : undefined,
   selfUpdateCapture: (nonce) => ipcRenderer.invoke("self-update:ui-capture", nonce),
   selfUpdateReopen: {
     getState: () => ipcRenderer.invoke("self-update:reopen-state"),

@@ -1,6 +1,6 @@
 # Write and check a Workflow
 
-A Workflow is a small Python package. `Agent` instances define the roles, `Context` objects define what each model call sees, and plain functions decide the order of the calls. The chat agent writes Workflows with its ordinary file tools; you can write them by hand in the same form. Once a package passes `openprogram workflows check`, its entries are callable tools.
+A Workflow is a small Python package. `Agent` instances define the roles, `Context` objects define what each model call sees, and plain functions decide the order of the calls. The chat agent writes Workflows with its ordinary file tools; you can write them by hand in the same form, or [record a demonstration](recording.md) for the agent to turn into one. Once a package passes `openprogram workflows check`, its entries are callable tools.
 
 ## Define the contract before writing code
 

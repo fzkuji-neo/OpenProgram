@@ -19,6 +19,7 @@ import { MessageActions } from "./message-actions";
 import { useAvatarAlign } from "./use-avatar-align";
 import { AttachmentChips, parseAttachments } from "./user-attachments";
 import { MessageEditor } from "./message-editor";
+import { RecordingCard } from "../recording/recording-card";
 import { renderUserMarkdown } from "./markdown";
 import { collapsePastedSpans, pasteSentinel } from "@/lib/chat/paste-elements";
 import { collapseSecrets, maskSecrets, secretParts, secretSentinel } from "@/lib/chat/secret-mask";
@@ -94,7 +95,7 @@ export function UserBubble({ msg, sessionIdOverride }: { msg: ChatMsg; sessionId
   const collapsed = !pastesExpanded && msg.pastedElements?.length
     ? collapsePastedSpans(content, msg.pastedElements)
     : { content, spans: [] as { label: string; text: string }[] };
-  const { attachments, text: proseText } = parseAttachments(collapsed.content);
+  const { attachments, text: proseText, recordings } = parseAttachments(collapsed.content);
   // Access tokens and private keys show masked, each with an eye button.
   const { content: cleanText, secrets } = collapseSecrets(proseText);
   const [revealState, setRevealState] = useState(() => ({
@@ -178,6 +179,7 @@ export function UserBubble({ msg, sessionIdOverride }: { msg: ChatMsg; sessionId
                 ) : null}
               </div>
             ) : null}
+            {recordings.map((recording) => <RecordingCard key={recording.id} info={recording} />)}
             <AttachmentChips sessionId={sessionId} items={attachments} />
             {cleanText ? (
               <div

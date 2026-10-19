@@ -53,7 +53,7 @@ openprogram programs run <name> -a key=value  # 直接运行一个 program
 
 任何满足目录契约（`<package>/agentics/__init__.py` 暴露 `PROGRAM_ENTRIES`）的仓库都能被同一条 `programs install` 命令安装。契约、最小模板和发布流程见[安装与编写 Harness](../installing-harnesses.zh.md)。
 
-Harness 契约与 `~/.openprogram/workflows` 中的单个 Workflow 包不同。包结构、完整测试示例和 `workflows check` 命令见[编写和检查 Workflow](authoring.zh.md)。聊天 Agent 编写的 Workflow 经过同样的检查。
+Harness 契约与 `~/.openprogram/workflows` 中的单个 Workflow 包不同。包结构、完整测试示例和 `workflows check` 命令见[编写和检查 Workflow](authoring.zh.md)。聊天 Agent 编写的 Workflow 经过同样的检查。想把一件事演示给 agent 看而不是用文字描述，可以[录制 Workflow](recording.zh.md)。
 
 Workflow 表单只询问任务信息，不要求配置执行设置。文本润色在同一次模型请求中根据文本判断风格，不强制用户选择。浏览器 backend 和会话标识保留为内部参数。文档页码和输出位置属于可选的任务要求。显式 Python 调用仍支持受支持的覆盖值。
 

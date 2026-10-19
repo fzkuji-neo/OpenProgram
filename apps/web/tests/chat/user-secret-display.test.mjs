@@ -15,7 +15,8 @@ const mocks={
  '@/lib/prefs/user-profile':'export const useUserProfile=()=>({name:"User",avatar:{}});',
  './message-actions':'export const MessageActions=()=>null;',
  './use-avatar-align':'export const useAvatarAlign=()=>({containerRef:{current:null},avatarTop:0});',
- './user-attachments':'export const AttachmentChips=()=>null;export const parseAttachments=text=>({attachments:[],text});',
+ './user-attachments':'export const AttachmentChips=()=>null;export const parseAttachments=text=>({attachments:[],text,recordings:[]});',
+ '../recording/recording-card':'export const RecordingCard=()=>null;',
  './message-editor':'export const MessageEditor=()=>null;',
  './markdown':'export const renderUserMarkdown=s=>s.replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");',
 };

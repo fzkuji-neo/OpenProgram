@@ -78,6 +78,11 @@ import { ComposerBody } from "./modes/composer-body";
 import { useVoiceInput } from "./voice/use-voice-input";
 import { MicButton, VoiceStrip } from "./voice/voice-controls";
 import styles from "./composer.module.css";
+import { RecordDialog } from "../recording/record-dialog";
+import { RecordingTile } from "../recording/recording-card";
+import {
+  composerKey, listenForRecordingResults, recordingAvailable, useRecordingStore,
+} from "@/lib/recording/recording-store";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -230,6 +235,17 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
   const execAgent = agentSettings.exec || {};
   const { noEnabledModels, promptNeedModel } = useModelAvailability();
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
+  // Demonstration recording: the + menu item, its start dialog and the
+  // finished recording waiting to go out with the next message.
+  const recordingComposer = composerKey(bound);
+  const pendingRecording = useRecordingStore((s) => s.pending[recordingComposer]);
+  const activeRecording = useRecordingStore((s) => s.active);
+  const [recordDialogOpen, setRecordDialogOpen] = useState(false);
+  const [canRecord, setCanRecord] = useState(false);
+  useEffect(() => {
+    setCanRecord(recordingAvailable());
+    listenForRecordingResults();
+  }, []);
   const {
     tools: toolsEnabled,
     webSearch: webSearchEnabled,
@@ -490,7 +506,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
   // border instead. The button still LOOKS dim (data-fn-missing) and
   // its title spells out which field is blocking.
   const attachmentBlock = attachmentsBlockSend(pendingImages, pendingDocs);
-  const hasAttachments = pendingImages.length > 0 || pendingDocs.length > 0;
+  const hasAttachments = pendingImages.length > 0 || pendingDocs.length > 0 || !!pendingRecording;
   const sendDisabled = fnFormActive
     ? false
     : attachmentBlock != null
@@ -524,6 +540,8 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
       plusMenuOpen={plusMenuOpen}
       setPlusMenuOpen={setPlusMenuOpen}
       onPickImages={onPickImages}
+      onRecord={canRecord ? () => setRecordDialogOpen(true) : undefined}
+      recordingActive={!!activeRecording}
       pendingImagesCount={pendingImages.length}
       pendingDocsCount={pendingDocs.length}
       toolsEnabled={toolsEnabled}
@@ -611,6 +629,12 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
         className={`${styles.inputWrapper} ${morphed ? styles.morphed : ""}`}
         data-voice={voice.state !== "idle" ? voice.state : undefined}
       >
+        {pendingRecording ? (
+          <RecordingTile
+            info={pendingRecording}
+            onRemove={() => useRecordingStore.getState().setPending(recordingComposer, null)}
+          />
+        ) : null}
         <AttachmentStrip
           sessionId={currentSessionId}
           pendingImages={pendingImages}
@@ -705,6 +729,9 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
       <div ref={controlsRowRef} className={`${styles.controlsRow} composer-bottom-row`}>
         {controlsCluster}
       </div>
+      {recordDialogOpen ? (
+        <RecordDialog composer={recordingComposer} onClose={() => setRecordDialogOpen(false)} />
+      ) : null}
     </div>
   );
 }

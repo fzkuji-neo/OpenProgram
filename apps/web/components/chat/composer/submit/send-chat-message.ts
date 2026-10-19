@@ -89,6 +89,9 @@ interface SendMessageBridgeArgs {
    *  the provider request body. */
   serviceTier?: string;
   attachments?: ChatAttachment[];
+  /** A finished demonstration recording; the server adds its steps and
+   *  screenshots to the message (openprogram/recording). */
+  recording?: string;
   /** Set when the turn targets a session that is NOT the focused one
    *  (a split-view peer pane). The WS payload is identical — only the
    *  focused-shell side effects are skipped, since `setWelcomeVisible`
@@ -164,6 +167,7 @@ export function sendChatMessage({
   webSearchEnabled,
   serviceTier,
   attachments,
+  recording,
   background = false,
   onAck,
   onSent,
@@ -292,6 +296,7 @@ export function sendChatMessage({
   if (additionalWorkingDirs != null) {
     payload.additional_working_dirs = additionalWorkingDirs;
   }
+  if (recording) payload.recording = recording;
   if (attachments && attachments.length > 0) {
     // Backend (ws_actions/chat.py) reads ``attachments`` and dispatcher
     // (TurnRequest.attachments) folds them into the user message as

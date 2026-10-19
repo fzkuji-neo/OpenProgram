@@ -62,6 +62,7 @@
       "main/control-overlays.js",
       "main/downloads.js",
       "main/menus.js",
+      "main/recording-bar.js",
       "main/transfers.js",
       "main/view-layout.js",
       "main/web-views.js",

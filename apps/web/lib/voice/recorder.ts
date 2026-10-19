@@ -21,11 +21,15 @@ export class VoiceRecorder {
   private source: MediaStreamAudioSourceNode | null = null;
   private segmenter: PhraseSegmenter | null = null;
 
-  constructor(private readonly callbacks: RecorderCallbacks) {}
+  /** `deviceId` picks an input other than the system default. */
+  constructor(private readonly callbacks: RecorderCallbacks, private readonly deviceId?: string) {}
 
   async start(): Promise<void> {
     this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+      audio: {
+        channelCount: 1, echoCancellation: true, noiseSuppression: true,
+        ...(this.deviceId ? { deviceId: { exact: this.deviceId } } : {}),
+      },
     });
     this.context = new AudioContext({ sampleRate: SAMPLE_RATE });
     this.segmenter = new PhraseSegmenter({ sampleRate: this.context.sampleRate });

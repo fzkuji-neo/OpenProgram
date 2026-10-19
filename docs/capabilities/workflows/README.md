@@ -51,7 +51,7 @@ Browser workflows retain an explicit initial URL when a backend is selected. Off
 
 Any repository that follows the directory contract (`<package>/agentics/__init__.py` exposing `PROGRAM_ENTRIES`) can be installed with the same `programs install` command. See [Installing and writing harnesses](../installing-harnesses.md) for the contract, a minimal template, and the publishing flow.
 
-That harness contract is different from a single Workflow package in `~/.openprogram/workflows`. For the package form, a complete tested example and the `workflows check` command, see [Write and check a Workflow](authoring.md). Workflows the chat agent writes go through the same check.
+That harness contract is different from a single Workflow package in `~/.openprogram/workflows`. For the package form, a complete tested example and the `workflows check` command, see [Write and check a Workflow](authoring.md). Workflows the chat agent writes go through the same check. To show the agent a task instead of describing it, [record a workflow](recording.md).
 
 Workflow forms ask for task information, not execution settings. Text polishing infers its style from the text in the same model request; it does not require a style selection. Browser backend and session handles remain internal. Document page ranges and output destinations are optional task requirements. Explicit Python callers retain supported overrides.
 

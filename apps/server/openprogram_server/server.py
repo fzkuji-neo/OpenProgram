@@ -753,6 +753,10 @@ def create_app(*, owner_auth=None, port: int = 18100):
     from openprogram.webui.routes.settings import voice as _routes_voice
     _routes_voice.register(app)
 
+    # Recording a demonstration: start, stop, narration and screenshots.
+    from openprogram.webui.routes.execution import recordings as _routes_recordings
+    _routes_recordings.register(app)
+
     # Global running-work snapshot for the right-sidebar Running panel.
     from openprogram.webui.routes.execution import running as _routes_running
     _routes_running.register(app)

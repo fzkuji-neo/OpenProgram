@@ -105,6 +105,7 @@ Plain functions are not recorded and do not appear in any call path stored in th
 ## Authoring
 
 - The chat agent writes workflow packages with its normal file tools, guided by the product page [Write and check a Workflow](../../../capabilities/workflows/authoring.md). OpenProgram ships no first-party skills, so there is no separate authoring skill.
+- The system prompt carries a short `workflows` block: where user workflows live, where the authoring guide is on disk, and the order of work when the user asks for a workflow. The agent first fills the contract from the current conversation, earlier conversations (`list_agents`, `read_conversation`), memory and any recording in the message, asks only for what is still missing, then writes the package and runs `check`. A demonstration recorded in the App reaches the agent the same way; see [Recording a workflow](workflow-recording.md).
 - `openprogram.testing.script_roles` replaces role calls with scripted replies and captures each request. A captured request exposes `text` (instructions, docstring, blocks and prompt) and `history_text`, so tests can assert exactly what a role saw.
 - `openprogram workflows check <dir> [-m MESSAGE] [--json]` imports the package in a subprocess, validates `PROGRAM_ENTRIES` and the entry signatures, and runs the package tests under the OS sandbox: no network, the package directory read-only, an empty `HOME`.
 - `openprogram workflows list [--json]` lists user workflows with their load state.

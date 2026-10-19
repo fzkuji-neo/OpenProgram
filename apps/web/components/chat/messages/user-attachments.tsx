@@ -28,6 +28,7 @@ import { useSessionStore } from "@/lib/session-store";
 import { absRawFileUrl } from "@/lib/files/files-shared";
 import { extractAttachmentMentions } from "@/lib/chat/attachment-marker";
 import { AttachmentPreview } from "./attachment-preview";
+import type { RecordingInfo } from "../recording/recording-card";
 
 export interface ParsedAttachment {
   /** Original wire representation, preserved by the message editor. */
@@ -68,6 +69,13 @@ const FILE_BLOCK = /<file (?:name|path)="([^"]*)">[\s\S]*?<\/file>/g;
 // the whole block from the bubble. Stripped BEFORE the mention scan so any
 // "[attachment:" inside previewed file content can't spawn a false chip.
 const PREVIEW_BLOCK = /<attachment-preview[^>]*>[\s\S]*?<\/attachment-preview>/g;
+// A demonstration recording: the step lines and instructions are for the
+// model; the bubble shows a recording card built from the opening tag.
+const RECORDING_BLOCK = /<recorded-demonstration([^>]*)>[\s\S]*?<\/recorded-demonstration>/g;
+
+function recordingAttr(attrs: string, name: string): string {
+  return new RegExp(`\\b${name}="([^"]*)"`).exec(attrs)?.[1] ?? "";
+}
 // Current path-bearing markers use an escaped JSON string so legal path
 // delimiters and trailing spaces round-trip. `extractAttachmentMentions`
 // also accepts historical unquoted markers and optimistic path-less uploads.
@@ -81,10 +89,24 @@ const ATTACHED_FILE = /\[attach(?:ment|ed file):\s*([^(@\]]+?)\s*@\s*([^\]]+)\]/
 export function parseAttachments(
   content: string | null | undefined,
   includeRaw = false,
-): { attachments: ParsedAttachment[]; text: string } {
-  if (!content) return { attachments: [], text: content || "" };
+): { attachments: ParsedAttachment[]; text: string; recordings: RecordingInfo[] } {
+  if (!content) return { attachments: [], text: content || "", recordings: [] };
   const attachments: ParsedAttachment[] = [];
+  const recordings: RecordingInfo[] = [];
   let text = content;
+
+  text = text.replace(RECORDING_BLOCK, (_m, attrs: string) => {
+    const id = recordingAttr(attrs, "id");
+    if (id) {
+      recordings.push({
+        id,
+        steps: Number(recordingAttr(attrs, "steps")) || 0,
+        duration_ms: Number(recordingAttr(attrs, "duration_ms")) || 0,
+        images: Number(recordingAttr(attrs, "images")) || 0,
+      });
+    }
+    return "";
+  });
 
   // Strip the model-only head preview first so its file content can't be
   // mistaken for prose or spawn a false chip. It produces no chip itself —
@@ -133,7 +155,7 @@ export function parseAttachments(
   // The prefix was joined with "\n" and separated from the prose by
   // "\n\n"; after removing the markers, collapse the leftover blank lines.
   text = text.replace(/\n{3,}/g, "\n\n").trim();
-  return { attachments, text };
+  return { attachments, text, recordings };
 }
 
 function FileGlyph() {

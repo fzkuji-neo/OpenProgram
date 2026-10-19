@@ -23,6 +23,7 @@ from __future__ import annotations
 import contextvars
 import logging
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable, Literal, Optional
 
 from openprogram.memory.policy import MemoryPolicyError
@@ -565,11 +566,57 @@ _PLAN_MODE_TEXT = (
 )
 
 
+def _authoring_guide() -> str:
+    """The workflow authoring guide on this computer, as a file the agent can read."""
+    try:
+        from openprogram.webui.frontend import out_dir, web_dir
+    except Exception:
+        return ""
+    built = out_dir() / "docs" / "capabilities" / "workflows" / "authoring.html.md"
+    if built.is_file():
+        return str(built)
+    source = web_dir().parents[1] / "docs" / "capabilities" / "workflows" / "authoring.md"
+    return str(source) if source.is_file() else ""
+
+
+def _build_workflows(agent: Any) -> str:
+    """How the chat agent writes a workflow when the user asks for one.
+
+    Only with tools: writing a package needs the file and shell tools."""
+    tools = _tools_var.get()
+    if not tools:
+        return ""
+    names = {getattr(t, "name", "") for t in tools}
+    from openprogram.paths import get_state_dir
+    root = Path(get_state_dir()) / "workflows"
+    guide = _authoring_guide()
+    history = ("earlier conversations (`list_agents`, `read_conversation`), "
+               if {"list_agents", "read_conversation"} <= names else "earlier conversations, ")
+    lines = [
+        "<workflows>",
+        f"Workflows are Python packages in {root}/<name>/, each its own Git repository. "
+        "An entry becomes a tool once `openprogram workflows check <name>` passes.",
+    ]
+    if guide:
+        lines.append(f"Read the authoring guide at {guide} before writing or changing a workflow.")
+    lines += [
+        "When the user asks for a workflow, or sends a recorded demonstration to turn into one:",
+        "1. Fill its contract (purpose, inputs, output, effects, failure behavior, tests) from this conversation.",
+        f"2. Fill what is still missing from {history}memory, and any recorded demonstration.",
+        "3. Ask the user, in one short message, only for what is still missing or ambiguous.",
+        "4. Write the package with a test, run `openprogram workflows check`, and summarize the steps, "
+        "inputs and assumptions.",
+        "</workflows>",
+    ]
+    return "\n".join(lines)
+
+
 def _build_plan_mode(agent: Any) -> str:
     return _PLAN_MODE_TEXT if _plan_mode_var.get() else ""
 
 
 register(ContextComponent("tool_runtime", "L1", 20, _build_tool_runtime))
+register(ContextComponent("workflows", "L1", 22, _build_workflows))
 register(ContextComponent("deferred_catalog", "L1", 25, _build_deferred_catalog))
 # The date is the one component guaranteed to change on its own — at
 # midnight, without anything in the session changing. From L0 it sat above
