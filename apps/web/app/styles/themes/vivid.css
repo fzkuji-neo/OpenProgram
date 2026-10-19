@@ -39,8 +39,10 @@
   --accent-orange: #818cf8;
   --accent-fill: #6366f1;
   --accent-orange-hover: #4f46e5;
-  /* Share of the accent mixed into the tab strip (base.css --tabrow-bg). */
-  --tabrow-tint: 42%;
+  /* Share of the accent mixed into the tab strip (base.css --tabrow-bg).
+     Kept low like Chrome's dark colour themes: the frame is a deep,
+     muted tint of the colour, not the colour itself. */
+  --tabrow-tint: 20%;
   --accent-green: #6e9b76;
   --accent-red: #c24e42;
   --accent-yellow: #d4a346;
