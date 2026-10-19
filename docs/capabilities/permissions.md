@@ -4,10 +4,10 @@ Use the permission menu in Web or the installed App, or `/permissions` in the te
 
 | Mode | What proceeds automatically |
 | --- | --- |
+| Auto mode | Safe tools and operations accepted by the risk classifier. |
 | Ask permissions | Safe read tools; other operations ask for approval. |
 | Accept edits | Safe reads and supported edits inside working directories. Commands still ask. |
 | Plan mode | Operations allowed by the read-only plan tool policy. |
-| Auto mode | Safe tools and operations accepted by the risk classifier. |
 | Bypass permissions | Ordinary operations without approval or risk classification. |
 
 Bypass does not override explicit deny or ask rules, mandatory plan-exit or self-update approval, plugin restrictions, identity capabilities, or Sandbox.

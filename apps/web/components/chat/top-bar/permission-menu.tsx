@@ -7,12 +7,11 @@
  * exclusion, animated iconRef). Lives in the top-bar `.right` region.
  *
  * The dropdown follows the Claude selection-menu grammar: a "Mode"
- * GROUP_LABEL header, then the 5 permission tiers as plain itemCls rows
- * (13px, with a 12px muted description under the label) — a
- * right-aligned ink Check on the currently-selected tier only (hover
+ * GROUP_LABEL header, then the 5 permission tiers (recommended Auto
+ * first) as two-line itemCls rows, a muted description under each label —
+ * a right-aligned ink Check on the currently-selected tier only (hover
  * tint is the only row background; selection is never a filled row),
- * then the number shortcut hint in muted text (1/2/3/4; bypass has
- * none). The check / shortcut column is centred on the label line so it
+ * then the number shortcut hint in muted text (1–5). The check / shortcut column is centred on the label line so it
  * lines up with the single-line rows of the other menus. The
  * danger-tier colour lives on the topbar chip, not in the menu rows.
  * Picking a tier switches to it and closes the menu. Picking `bypass`

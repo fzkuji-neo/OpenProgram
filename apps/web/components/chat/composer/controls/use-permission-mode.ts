@@ -22,30 +22,43 @@ export type PermissionMode =
 export interface PermissionModeOption {
   value: PermissionMode;
   label: string;
-  key?: string;   // 数字快捷键提示（1-4）；bypass 无（走 Enable 确认）
+  key?: string;   // 数字快捷键提示（1-5）
   description?: string;
   /** The mode a session starts in (DEFAULT_MODE) — the menu tags it "Recommended". */
   recommended?: boolean;
 }
 
-// 常规档（批准强度，按危险度递增）+ plan 单列（只读，另一维度）。
-// 照 Claude Code 网页端 Mode 菜单：Ask permissions(1) / Accept edits(2) /
-// Plan mode(3) / Auto mode(4) / Bypass permissions(Enable 确认，无数字)。
+// Same layout as Claude Code's Mode menu: the recommended default first, then
+// the ordinary tiers by how much proceeds without asking, Bypass last (it
+// opens a confirmation). Every row carries a one-line description.
 const MODE_LABELS: {
   value: PermissionMode; en: string; zh: string; key?: string;
   enDesc?: string; zhDesc?: string;
 }[] = [
-  { value: "ask", en: "Ask permissions", zh: "逐次确认", key: "1" },
-  { value: "acceptEdits", en: "Accept edits", zh: "接受编辑", key: "2" },
-  { value: "plan", en: "Plan mode", zh: "计划模式", key: "3" },
-  { value: "auto", en: "Auto mode", zh: "自动判定", key: "4" },
   {
-    value: "bypass",
-    en: "Bypass permissions",
-    zh: "跳过审批",
-    key: "5",
-    enDesc: "Skips ordinary approvals; explicit rules and sandbox restrictions still apply.",
-    zhDesc: "跳过普通审批；显式规则和沙箱限制仍然生效。",
+    value: "auto", en: "Auto mode", zh: "自动判定", key: "1",
+    enDesc: "A risk check decides which operations need your approval",
+    zhDesc: "由风险检查决定哪些操作需要你批准",
+  },
+  {
+    value: "ask", en: "Ask permissions", zh: "逐次确认", key: "2",
+    enDesc: "Always ask before making changes",
+    zhDesc: "做任何修改前都先问你",
+  },
+  {
+    value: "acceptEdits", en: "Accept edits", zh: "接受编辑", key: "3",
+    enDesc: "Accept file edits automatically; commands still ask",
+    zhDesc: "自动接受文件编辑，命令仍需批准",
+  },
+  {
+    value: "plan", en: "Plan mode", zh: "计划模式", key: "4",
+    enDesc: "Read and plan only, without making changes",
+    zhDesc: "只读取和制定计划，不做修改",
+  },
+  {
+    value: "bypass", en: "Bypass permissions", zh: "跳过审批", key: "5",
+    enDesc: "Skips ordinary approvals; explicit rules and sandbox still apply",
+    zhDesc: "跳过普通审批，显式规则和沙箱仍然生效",
   },
 ];
 
