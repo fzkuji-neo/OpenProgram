@@ -63,6 +63,11 @@ test('a close plays once its tab is gone: the ghost is a still copy and the othe
   assert.equal(ghost.querySelector('[id]'), null, 'nothing may find the ghost by id');
   assert.equal(ghost.hasAttribute('data-center-tab-id'), false);
   assert.equal(canvas.hasAttribute('data-canvas-animating'), true);
+  const leave = animations.find(a => a.el === ghost);
+  assert.deepEqual(leave.frames.at(-1), {transform: 'translateX(500px)', clipPath: 'inset(0 500px 0 0)'},
+    'the closed pane narrows out at the far edge instead of fading');
+  assert.deepEqual([leave.options.duration, leave.options.easing], [move.options.duration, move.options.easing],
+    'the closing pane and the growing pane share one clock');
 });
 
 test('a capture the layout never follows lapses instead of playing later', () => {

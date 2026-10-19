@@ -222,6 +222,20 @@ function growTab(tab: HTMLElement, before: Map<Element, DOMRect>): void {
   ], { duration: TAB_GROW_MS, easing });
 }
 
+/** Which way a closed pane leaves: away from the pane that grows into its
+ *  room. Null when no pane takes its place (it then fades as before). */
+function closingSide(rect: DOMRect, moves: { from: DOMRect; to: DOMRect }[]): CanvasEnter | null {
+  for (const { from, to } of moves) {
+    const covers = to.left < rect.right - 1 && to.right > rect.left + 1 && to.top < rect.bottom - 1 && to.bottom > rect.top + 1;
+    if (!covers) continue;
+    if (from.right <= rect.left + 1) return "right";
+    if (from.left >= rect.right - 1) return "left";
+    if (from.bottom <= rect.top + 1) return "bottom";
+    if (from.top >= rect.bottom - 1) return "top";
+  }
+  return null;
+}
+
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 const smoothstep = (value: number) => value * value * (3 - 2 * value);
 const easeInOut = (value: number) => value < 0.5 ? 4 * value ** 3 : 1 - (-2 * value + 2) ** 3 / 2;
@@ -479,7 +493,20 @@ export function playCanvasTransition(): void {
       if (item) { item.scrollTop = top; item.scrollLeft = left; }
     }
     let animation: Animation;
-    if (exit === "close") {
+    const side = exit === "close" ? closingSide(rect, moves) : null;
+    if (side) {
+      // The pane beside it takes the room: the closed pane slides out at
+      // the canvas edge, clipped there, on the same clock as the growing
+      // pane, so the edge between them moves as one. The mirror of a dock.
+      const [shift, clip] = side === "right" ? [`translateX(${rect.width}px)`, `inset(0 ${rect.width}px 0 0)`]
+        : side === "left" ? [`translateX(${-rect.width}px)`, `inset(0 0 0 ${rect.width}px)`]
+        : side === "bottom" ? [`translateY(${rect.height}px)`, `inset(0 0 ${rect.height}px 0)`]
+        : [`translateY(${-rect.height}px)`, `inset(${rect.height}px 0 0 0)`];
+      animation = node.animate([
+        { transform: "none", clipPath: "inset(0 0 0 0)" },
+        { transform: shift, clipPath: clip },
+      ], { duration: MOVE_MS, easing: EASE, fill: "forwards" });
+    } else if (exit === "close") {
       animation = node.animate([
         { opacity: 1, transform: "none" },
         { opacity: 0, transform: `translate(${rect.width * 0.03}px, ${rect.height * 0.03}px) scale(.94)` },
@@ -522,7 +549,7 @@ export function playCanvasTransition(): void {
     }
   }
   clearTimeout(settleTimer);
-  const longest = Math.max(MOVE_MS, zoomLeft, ...leaving.map(g => folds.has(g) ? foldDelay + MINIMIZE_MS : g.exit === "minimize" ? SHRINK_MS : g.exit === "close" ? CLOSE_MS : MOVE_MS));
+  const longest = Math.max(MOVE_MS, zoomLeft, ...leaving.map(g => folds.has(g) ? foldDelay + MINIMIZE_MS : g.exit === "minimize" ? SHRINK_MS : g.exit === "close" && !closingSide(g.rect, moves) ? CLOSE_MS : MOVE_MS));
   settleTimer = setTimeout(() => {
     root.removeAttribute("data-canvas-animating");
     setCanvasAnimating(false);
