@@ -1104,6 +1104,64 @@ def test_review_revert_hunk_restores_one_hunk_through_document_history(store, tm
     assert target.read_text(encoding="utf-8") == "\n".join(lines) + "\n"
 
 
+def _crlf_repo(tmp_path, monkeypatch, autocrlf):
+    import types
+    from openprogram.store.project import project_store
+    from openprogram.store.project.identity import capture_directory_identity
+
+    root = tmp_path / f"crlf-{autocrlf}"
+    root.mkdir()
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    for key, value in (("user.email", "t@example.com"), ("user.name", "T"), ("core.autocrlf", autocrlf)):
+        subprocess.run(["git", "-C", str(root), "config", key, value], check=True)
+    target = root / "tracked.py"
+    lines = [f"line {i}" for i in range(1, 21)]
+    target.write_bytes(("\n".join(lines) + "\n").encode())
+    subprocess.run(["git", "-C", str(root), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(root), "commit", "-qm", "base"], check=True)
+    monkeypatch.setattr(tf, "_project_root", lambda _session_id: root)
+    project = types.SimpleNamespace(id="p1", path=str(root), **capture_directory_identity(root))
+    monkeypatch.setattr(project_store, "project_for_session", lambda _sid: project)
+    monkeypatch.setattr(project_store, "get_project", lambda pid: project if pid == "p1" else None)
+    return target, lines
+
+
+def test_review_diff_of_a_crlf_checkout_shows_only_the_edited_lines(store, tmp_path, monkeypatch):
+    # Windows checks an LF blob out with CRLF when core.autocrlf is true.
+    target, lines = _crlf_repo(tmp_path, monkeypatch, "true")
+    edited = list(lines)
+    edited[1] = "first change"
+    edited[17] = "second change"
+    target.write_bytes(("\r\n".join(edited) + "\r\n").encode())
+
+    scope = tf._workspace_scope("session")
+    diff = tf._workspace_file_diff("session", str(target), scope["snapshot_id"])["diff"]
+    first, second = _hunks(diff)
+    assert first["old_lines"][1] == "line 2" and first["new_lines"][1] == "first change"
+    assert "\r" not in diff
+
+    ws = FakeWS()
+    _run(tf.handle_review_revert_hunk(ws, {
+        "session_id": "session", "scope": "workspace", "path": str(target),
+        "snapshot_id": scope["snapshot_id"], "request_id": "r1", "idempotency_key": "crlf-k1",
+        "hunk": second,
+    }))
+    assert ws.sent[0]["data"]["status"] == "ready", ws.sent[0]["data"]
+    # The working file keeps its CRLF line endings.
+    restored = target.read_bytes().decode()
+    assert restored.count("\r\n") == 20 and restored.split("\r\n")[17] == "line 18"
+
+
+def test_review_diff_keeps_line_ending_changes_without_eol_conversion(store, tmp_path, monkeypatch):
+    target, lines = _crlf_repo(tmp_path, monkeypatch, "false")
+    target.write_bytes(("\r\n".join(lines) + "\r\n").encode())
+
+    scope = tf._workspace_scope("session")
+    diff = tf._workspace_file_diff("session", str(target), scope["snapshot_id"])["diff"]
+    (hunk,) = _hunks(diff)
+    assert len(hunk["new_lines"]) == 20
+
+
 def test_review_revert_hunk_refuses_paths_outside_scope_and_active_runs(store, tmp_path, monkeypatch):
     from openprogram.webui import server as _server
 

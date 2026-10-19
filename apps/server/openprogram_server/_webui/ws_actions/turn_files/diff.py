@@ -167,6 +167,54 @@ def _workspace_git_states(root, head, index_vector, files, budget):
     return [(state(base, False), state(index_entry, True)) for base, index_entry in pairs]
 
 
+def _eol_actions(root: Path, rels: list[str]) -> dict[str, str]:
+    """How Git cleans each path's line endings: "text", "auto" or "".
+
+    Follows Git's rules: a ``text``/``-text``/``eol`` attribute decides,
+    otherwise ``core.autocrlf`` true or input means "auto".
+    """
+    if not rels:
+        return {}
+    try:
+        autocrlf = _git_output(
+            root, "config", "--default", "false", "--get", "core.autocrlf",
+        ).decode().strip().lower()
+        raw = _git_output(
+            root, "check-attr", "-z", "--stdin", "text", "eol",
+            input_data=b"\0".join(rel.encode() for rel in rels) + b"\0",
+        )
+    except (OSError, ValueError):
+        return {}
+    attributes: dict[str, dict[str, str]] = {}
+    fields = raw.split(b"\0")
+    for at in range(0, len(fields) - 2, 3):
+        path, name, value = (field.decode("utf-8", errors="replace") for field in fields[at:at + 3])
+        attributes.setdefault(path, {})[name] = value
+    default = "auto" if autocrlf in {"true", "input"} else ""
+    actions = {}
+    for rel in rels:
+        text = attributes.get(rel, {}).get("text", "unspecified")
+        eol = attributes.get(rel, {}).get("eol", "unspecified")
+        actions[rel] = (
+            "" if text == "unset"
+            else "text" if text == "set"
+            else "auto" if text == "auto"
+            else "text" if eol != "unspecified"
+            else default
+        )
+    return actions
+
+
+def _clean_worktree(content: bytes | None, action: str, index: bytes | None) -> bytes | None:
+    """The working file as Git compares it with the index (CRLF cleaned to LF)."""
+    if not content or not action or b"\0" in content or b"\r\n" not in content:
+        return content
+    # Like Git, "auto" leaves a file alone whose indexed form has CRs.
+    if action == "auto" and index and b"\r" in index:
+        return content
+    return content.replace(b"\r\n", b"\n")
+
+
 def _untracked_stats(path: Path) -> tuple[int | None, int | None, bool, str]:
     try:
         info = os.lstat(path)
@@ -444,6 +492,7 @@ def _workspace_scope(
     content_budget = _ReviewContentBudget(_setting("_MAX_REVIEW_SNAPSHOT_BYTES"))
     try:
         git_states = _workspace_git_states(root, head_identity, index_vector, files, content_budget)
+        eol_actions = _eol_actions(root, [row["rel"] for row in files])
         for row, (base_pair, index_pair) in zip(files, git_states):
             base, base_content = base_pair
             index, index_content = index_pair
@@ -466,7 +515,11 @@ def _workspace_scope(
             candidate_states[row["path"]] = {
                 "base": b"" if base.get("kind") == "absent" else base_content,
                 "index": b"" if index.get("kind") == "absent" else index_content,
-                "worktree": b"" if worktree.get("kind") == "absent" else worktree_content,
+                # Compared the way Git does, so a CRLF checkout of an LF
+                # blob is not a change on every line.
+                "worktree": b"" if worktree.get("kind") == "absent" else _clean_worktree(
+                    worktree_content, eol_actions.get(row["rel"], ""), index_content,
+                ),
             }
             snapshot_basis.append({
                 key: row.get(key)
