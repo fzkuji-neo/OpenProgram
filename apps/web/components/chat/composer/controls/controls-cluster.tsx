@@ -35,6 +35,7 @@ import { ContextBadge } from "../../context-badge";
 import {
   AttachIcon,
   OptionsIcon,
+  RecordIcon,
   ToolProfileIcon,
   ToolsIcon,
   SandboxIcon,
@@ -42,7 +43,6 @@ import {
   WebSearchIcon,
 } from "../icons";
 import { ChannelSubmenu } from "./channel-submenu";
-import { RecordingGlyph } from "../../recording/recording-glyph";
 import { PlusMenuRow, ToolChip } from "./menu-pieces";
 import { ThinkingEffortPill } from "./thinking-effort-pill";
 import type { ThinkingOption } from "./use-thinking-effort";
@@ -215,7 +215,7 @@ export function ControlsCluster({
                 {onRecord ? (
                   <PlusMenuRow
                     active={recordingActive}
-                    icon={<RecordingGlyph size={16} />}
+                    icon={<RecordIcon size={16} />}
                     label={text("Record a workflow", "录制 Workflow")}
                     onSelect={() => onRecord()}
                   />
@@ -237,9 +237,9 @@ export function ControlsCluster({
                     // Reserves the gear's 22px before the check column.
                     trailing={<span className="w-[22px] shrink-0" aria-hidden="true" />}
                     className={
-                      "group-hover:bg-bg-hover group-hover:text-text-bright " +
-                      "group-focus-within:bg-bg-hover group-focus-within:text-text-bright " +
-                      "group-has-[[data-state=open]]:bg-bg-hover group-has-[[data-state=open]]:text-text-bright"
+                      "group-hover:bg-accent group-hover:text-text-bright " +
+                      "group-focus-within:bg-accent group-focus-within:text-text-bright " +
+                      "group-has-[[data-state=open]]:bg-accent group-has-[[data-state=open]]:text-text-bright"
                     }
                     onSelect={() => {
                       toggleTools();
