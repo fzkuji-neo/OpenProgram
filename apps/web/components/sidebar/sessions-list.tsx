@@ -28,7 +28,6 @@ import { copyText } from "@/lib/clipboard";
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { MoreHorizontal, Plus } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useCurrentSessionId } from "./use-window-globals";
 import { useSessionStore } from "@/lib/session-store";
@@ -925,7 +924,7 @@ function ProjectGroupHeader({
           }}
           className={sidebarProjectActionClass + " text-text-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:text-text-bright"}
         >
-          <Plus size={SIDEBAR_ROW_ACTION_ICON} strokeWidth={2} />
+          <SolarIcon name="add" size={SIDEBAR_ROW_ACTION_ICON} motionPreset="none" aria-hidden="true" />
         </button>
         {menuTrigger}
       </div>
@@ -1312,7 +1311,7 @@ function ConvItem({
             data-state={menuOpen ? "open" : "closed"}
           >
             {/* The same ⋯ at the same size as the project row's. */}
-            <MoreHorizontal size={SIDEBAR_ROW_ACTION_ICON} aria-hidden="true" />
+            <SolarIcon name="menu-dots" size={SIDEBAR_ROW_ACTION_ICON} motionPreset="none" aria-hidden="true" />
           </button>
       </div>
 

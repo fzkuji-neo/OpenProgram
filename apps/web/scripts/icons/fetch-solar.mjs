@@ -42,6 +42,9 @@ const ICONS = {
   "folder-with-files": "bold-duotone",
   // sidebar project rows: closed / open (folder-open above)
   "folder": "bold-duotone",
+  // sidebar row actions: new chat in project, row menu
+  "add": "bold-duotone",
+  "menu-dots": "bold-duotone",
   "folder-open": "bold-duotone",
   "add-folder": "bold-duotone",
   "danger-triangle": "bold-duotone",
