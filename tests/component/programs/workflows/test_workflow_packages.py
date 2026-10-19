@@ -161,6 +161,28 @@ def test_only_a_clean_committed_package_loads(tmp_path):
         packages._finder.packages.pop(name, None)
 
 
+def test_bytecode_caches_do_not_make_a_package_dirty(tmp_path):
+    from openprogram.programs import _workflow_packages as packages
+
+    package = _write_package(tmp_path, f"wf_cache_{uuid.uuid4().hex[:8]}")
+    _git(package, "init", "-q")
+    _git(package, "add", "-A")
+    _git(package, "commit", "-qm", "first")
+    # What importing the package leaves behind when bytecode is written.
+    (package / "__pycache__").mkdir()
+    (package / "__pycache__" / "workflow.cpython-312.pyc").write_bytes(b"\0")
+    head, dirty = packages.git_state(package)
+    assert head and not dirty
+    # Committed by a bare ``git add -A``, then rewritten by the next import.
+    _git(package, "add", "-A")
+    _git(package, "commit", "-qm", "with caches")
+    (package / "__pycache__" / "workflow.cpython-312.pyc").write_bytes(b"\1")
+    assert not packages.git_state(package)[1]
+
+    (package / "notes.md").write_text("draft", encoding="utf-8")
+    assert packages.git_state(package)[1]
+
+
 def test_check_commits_only_when_tests_pass(tmp_path):
     from openprogram.programs._workflow_check import CheckFailed, check_workflow
 

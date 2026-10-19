@@ -289,11 +289,20 @@ def git_state(directory: Path) -> tuple[str, bool]:
     try:
         head = subprocess.run(["git", "-C", str(directory), "rev-parse", "--verify", "-q", "HEAD"],
                               capture_output=True, text=True, timeout=10).stdout.strip()
-        status = subprocess.run(["git", "-C", str(directory), "status", "--porcelain"],
+        status = subprocess.run(["git", "-C", str(directory), "status", "--porcelain", "--untracked-files=all"],
                                 capture_output=True, text=True, timeout=10).stdout
     except (OSError, subprocess.SubprocessError):
         return "", True
-    return head, bool(status.strip())
+    # Importing the package rewrites __pycache__ in it; a package committed
+    # without a .gitignore must not turn dirty just because it was loaded.
+    changes = [line for line in status.splitlines() if line.strip() and not _generated(line)]
+    return head, bool(changes)
+
+
+def _generated(line: str) -> bool:
+    """A ``git status --porcelain`` line for a cache file."""
+    path = line[3:].split(" -> ")[-1].strip('"')
+    return path.endswith((".pyc", ".pyo")) or bool(_IGNORED_DIRS.intersection(path.split("/")[:-1]))
 
 
 def _evict(name: str) -> None:
