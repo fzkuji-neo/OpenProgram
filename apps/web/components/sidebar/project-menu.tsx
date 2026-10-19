@@ -11,7 +11,7 @@ import { PinIcon, type AnimatedNavIconHandle } from "@/components/animated-icons
 import { ProjectEditor, type EditableProject } from "./project-editor";
 import { useSidebarMenu } from "./use-sidebar-menu";
 
-import { sidebarProjectActionClass } from "./nav-classes";
+import { SIDEBAR_ROW_ACTION_ICON, sidebarProjectActionClass } from "./nav-classes";
 import { SectionHeader } from "./section-header";
 import { Input } from "@/components/ui/input";
 import styles from "./project-settings.module.css";
@@ -63,7 +63,7 @@ export function ProjectMenu({project, children, onOpen, onNewSession, onSaved}: 
     <Menu.Root open={open && !menu.native} onOpenChange={menu.onOpenChange}>
       <Menu.Trigger asChild><span aria-hidden="true" style={{position:"fixed",left:menu.point.x,top:menu.point.y,width:0,height:0,pointerEvents:"none"}} /></Menu.Trigger>
       <div onContextMenu={showMenu}>
-        {children(<button data-state={open ? "open" : "closed"} aria-haspopup="menu" aria-expanded={open} data-active={editing || addingSection || operation !== null} type="button" aria-label={text(`Options for ${project.name}`, `${project.name} 的选项`)} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();if(open)menu.close();else showMenu(event);}} className={styles.trigger+" "+sidebarProjectActionClass+" text-text-muted opacity-0 group-hover:opacity-100 focus:opacity-100"}><MoreHorizontal size={14}/></button>)}
+        {children(<button data-state={open ? "open" : "closed"} aria-haspopup="menu" aria-expanded={open} data-active={editing || addingSection || operation !== null} type="button" aria-label={text(`Options for ${project.name}`, `${project.name} 的选项`)} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();if(open)menu.close();else showMenu(event);}} className={styles.trigger+" "+sidebarProjectActionClass+" text-text-muted opacity-0 group-hover:opacity-100 focus:opacity-100"}><MoreHorizontal size={SIDEBAR_ROW_ACTION_ICON}/></button>)}
       </div>
       <Menu.Portal><Menu.Content side="bottom" align="start" sideOffset={4} onCloseAutoFocus={event=>event.preventDefault()} className={MENU_PANEL+" "+styles.menu+" min-w-[220px]"}>
         <Menu.Item className={item} onSelect={onNewSession}><MessageSquarePlus size={14} className={styles.menuIcon}/>{text("New chat", "新会话")}</Menu.Item>

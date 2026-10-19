@@ -80,7 +80,7 @@
 .trigger[data-state="open"], .trigger[data-active="true"] {
   opacity: 1;
   color: var(--text-bright);
-  background: var(--bg-hover);
+  background: var(--bg-selected);
 }
 .menuIcon { color: var(--text-muted); flex-shrink: 0; }
 @media (prefers-reduced-motion: reduce) {

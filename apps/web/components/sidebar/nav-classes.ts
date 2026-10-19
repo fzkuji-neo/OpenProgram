@@ -102,7 +102,13 @@ export const sidebarNavActionClass = [
 
 /** Consistent hover surfaces for the pin, new-chat and project-options actions. */
 export const sidebarProjectActionClass = [
-  "inline-flex size-[20px] shrink-0 items-center justify-center",
-  "rounded-[5px] border-0 p-0 leading-none",
-  "hover:bg-bg-hover",
+  "inline-flex size-[22px] shrink-0 items-center justify-center",
+  "rounded-[6px] border-0 p-0 leading-none",
+  // The row under it already shows --bg-hover, so the button's own hover
+  // (and open) tint is one step stronger, as on a chat row's ⋯.
+  "hover:bg-[var(--bg-selected)]",
 ].join(" ");
+
+/** Glyph size inside a sidebarProjectActionClass button — the project
+ *  row's ＋ and ⋯ and a chat row's ⋯ all use it, so they match. */
+export const SIDEBAR_ROW_ACTION_ICON = 15;

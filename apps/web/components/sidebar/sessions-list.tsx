@@ -28,7 +28,7 @@ import { copyText } from "@/lib/clipboard";
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { ChevronRight, Plus } from "lucide-react";
+import { Folder, FolderOpen, MoreHorizontal, Plus } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useCurrentSessionId } from "./use-window-globals";
 import { useSessionStore } from "@/lib/session-store";
@@ -41,10 +41,6 @@ import { autoRenameSession } from "@/lib/session-auto-rename";
 import { wsRequest } from "@/lib/net/ws-request";
 import { projectGroups, moveProject, filterProjectItems } from "@/lib/projects/project-groups";
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import {
-  FoldersIcon,
-  type AnimatedNavIconHandle,
-} from "@/components/animated-icons";
 import { BulkConvMenu, ConvMenu } from "./conv-menu";
 import { EMPTY_SELECTION, pickChat, type ChatSelection } from "@/lib/sidebar/chat-selection";
 import { useSidebarMenu } from "./use-sidebar-menu";
@@ -55,6 +51,7 @@ import {
   sidebarNavItemClass,
   sidebarNavLabelClass,
   sidebarProjectActionClass,
+  SIDEBAR_ROW_ACTION_ICON,
 } from "./nav-classes";
 import styles from "./sidebar.module.css";
 
@@ -855,11 +852,12 @@ function buildSections(visible: LegacyConv[], o: SectionOpts): Section[] {
 
 /* ---- project group header (Group-by → Project mode) --------------
  * The EXACT nav-row recipe the Functions/Chats links use: `ui-list-item`
- * box (32px) via sidebarNavItemClass, animated FoldersIcon in the
- * standard 16px icon slot, normal-weight label — plus this row's two
- * trailing extras: compact new-session and options controls, followed
- * by a small chevron at the row end that rotates 90° when the
- * group is open. The project's path lives in the row's title tooltip. */
+ * box (32px) via sidebarNavItemClass, a folder in the standard 16px
+ * icon slot that is open while the group is expanded and closed while it
+ * is collapsed (the row's only expand/collapse cue), normal-weight label
+ * — plus the new-session ＋ and the options ⋯ at the row end, the same
+ * size and right edge as a chat row's ⋯. The project's path lives in the
+ * row's title tooltip. */
 function ProjectGroupHeader({
   name,
   path,
@@ -884,7 +882,6 @@ function ProjectGroupHeader({
   icon?: string;
   menuTrigger: React.ReactNode;
 }) {
-  const iconRef = useRef<AnimatedNavIconHandle>(null);
   return (
     <div
       {...dragProps}
@@ -906,14 +903,17 @@ function ProjectGroupHeader({
           onMove(event.key === "ArrowUp" ? -1 : 1);
         } else activateOnKey(onToggle)(event);
       }}
-      onMouseEnter={() => iconRef.current?.startAnimation?.()}
-      onMouseLeave={() => iconRef.current?.stopAnimation?.()}
     >
       <span className={sidebarNavIconClass}>
-        {icon ? <span className="truncate" aria-hidden="true">{icon}</span> : <FoldersIcon ref={iconRef} size={20} />}
+        {/* The folder opens and closes with the group — the only
+            expand/collapse cue on the row. A custom icon stays as set. */}
+        {icon ? <span className="truncate" aria-hidden="true">{icon}</span>
+          : collapsed ? <Folder size={18} aria-hidden="true" /> : <FolderOpen size={18} aria-hidden="true" />}
       </span>
       <span className={sidebarNavLabelClass}>{name}</span>
-      <div className="flex shrink-0 items-center gap-[2px]">
+      {/* -mr-[4px]: the buttons end 4px inside the row, where a chat
+          row's ⋯ sits, so both columns line up. */}
+      <div className="-mr-[4px] flex shrink-0 items-center gap-[2px]">
         <button
           type="button"
           title={newSessionTitle}
@@ -924,16 +924,10 @@ function ProjectGroupHeader({
           }}
           className={sidebarProjectActionClass + " text-text-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:text-text-bright"}
         >
-          <Plus size={14} strokeWidth={2} />
+          <Plus size={SIDEBAR_ROW_ACTION_ICON} strokeWidth={2} />
         </button>
         {menuTrigger}
       </div>
-      <ChevronRight
-        size={12}
-        aria-hidden="true"
-        className="shrink-0 text-[var(--text-muted)] transition-transform duration-150"
-        style={{ transform: collapsed ? "none" : "rotate(90deg)" }}
-      />
     </div>
   );
 }
@@ -1307,7 +1301,7 @@ function ConvItem({
             aria-label={text(`Options for ${label}`, `${label} 的操作`)}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
-            className="absolute right-[4px] top-1/2 flex size-[24px] -translate-y-1/2
+            className="absolute right-[4px] top-1/2 flex size-[22px] -translate-y-1/2
               items-center justify-center rounded-[6px] text-text-muted
               opacity-0 pointer-events-none transition-opacity duration-150 ease-out
               group-hover:opacity-100 group-hover:pointer-events-auto
@@ -1316,12 +1310,8 @@ function ConvItem({
               hover:bg-[var(--bg-selected)] hover:text-text-bright"
             data-state={menuOpen ? "open" : "closed"}
           >
-            {/* Vertical ⋮ (matches Claude's row menu trigger). */}
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-              <circle cx="8" cy="3" r="1.4" />
-              <circle cx="8" cy="8" r="1.4" />
-              <circle cx="8" cy="13" r="1.4" />
-            </svg>
+            {/* The same ⋯ at the same size as the project row's. */}
+            <MoreHorizontal size={SIDEBAR_ROW_ACTION_ICON} aria-hidden="true" />
           </button>
       </div>
 
