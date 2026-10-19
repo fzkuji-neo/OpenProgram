@@ -92,7 +92,8 @@ import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {AssistantBubble} from './components/chat/messages/assistant-bubble';
 import {RuntimeBlock} from './components/chat/messages/runtime-block';
 import {SOLAR_BODIES} from './components/solar-icons';
-window.expectedFunctionGlyph=SOLAR_BODIES.sledgehammer;
+// gui_agent rows carry their tool glyph from tool-presentation, not a brand logo.
+window.expectedFunctionGlyph=SOLAR_BODIES.monitor;
 import {useSessionStore} from './lib/session-store';
 import {applyChatWsMessage} from './lib/net/chat-stream';
 import {setPendingUserText} from './lib/chat/pending-user-text';

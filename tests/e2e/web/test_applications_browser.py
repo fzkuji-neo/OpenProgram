@@ -9,6 +9,7 @@ from fastapi.responses import Response
 import pytest
 import uvicorn
 
+from tests.support.select import choose
 from tests.support.waiting import wait_until
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -94,7 +95,7 @@ esbuild.buildSync({stdin:{contents:'import React from "react"; import {createRoo
                 expect(page.frame_locator('iframe').get_by_label('Note')).to_have_value('persistent annotation')
                 page.goto(f'http://127.0.0.1:{port}/launch')
                 page.get_by_role('button', name='Project notes', exact=True).click()
-                page.locator('#application-project').select_option(projects[0].id)
+                choose(page.locator('#application-project'), f'{projects[0].name} — {projects[0].path}')
                 page.get_by_role('button', name='Open application', exact=True).click()
                 project_frame = page.frame_locator('iframe')
                 project_frame.get_by_label('Note').fill('first project')
@@ -111,7 +112,7 @@ esbuild.buildSync({stdin:{contents:'import React from "react"; import {createRoo
                 page.evaluate("async id => {await fetch('/api/applications/test.project-browser/open',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({project_id:id})});}", projects[1].id)
                 page.reload()
                 page.get_by_role('button', name='Project notes', exact=True).click()
-                page.locator('#application-project').select_option(projects[1].id)
+                choose(page.locator('#application-project'), f'{projects[1].name} — {projects[1].path}')
                 page.get_by_role('button', name='Open application', exact=True).click()
                 expect(page.frame_locator('iframe').get_by_label('Note')).to_have_value('')
                 assert page.locator('iframe').get_attribute('src') != first_url

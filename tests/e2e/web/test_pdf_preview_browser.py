@@ -117,19 +117,13 @@ def test_pdf_toolbar_has_one_visible_focus_border(pdf_page):
     page.locator('html').evaluate("el => el.dataset.theme = 'dark'")
     page.evaluate("body => showFile('fixture.pdf', body)", PDF_FIXTURE)
     expect(page.get_by_text('1 / 2', exact=True)).to_be_visible()
-    accent = page.evaluate("""() => {
-      const probe = document.createElement('span');
-      probe.style.color = 'var(--accent-blue)'; document.body.append(probe);
-      const color = getComputedStyle(probe).color; probe.remove(); return color;
-    }""")
+    # Zoom is the shared Select; its focus ring belongs to that component.
     field = page.get_by_role('combobox', name='Zoom', exact=True)
+    expect(field).to_have_attribute('data-slot', 'select-trigger')
     before = field.bounding_box()
     field.focus()
     expect(field).to_be_focused()
-    expect(field).to_have_css('border-top-color', accent)
-    expect(field).to_have_css('border-top-width', '1px')
     expect(field).to_have_css('outline-style', 'none')
-    expect(field).to_have_css('box-shadow', 'none')
     assert field.bounding_box() == before
     checkbox = page.get_by_role('checkbox', name='Remove line breaks when copying')
     checkbox.focus()
@@ -315,10 +309,10 @@ def test_pdf_text_annotation_persists_and_reopens(pdf_page, fail_first):
     page.route('**/api/documents/history?*', lambda route: route.fulfill(json={'entries': [{'version_id': 'v1', 'actor': 'user'}]}))
     held = []
     page.route('**/api/documents/history/content?*', lambda route: held.append(route))
-    page.on('dialog', lambda dialog: dialog.accept())
     page.get_by_role('button', name='History', exact=True).click()
+    page.get_by_role('button', name='Restore', exact=True).click()
     with page.expect_request('**/api/documents/history/content?*'):
-        page.get_by_role('button', name='Restore', exact=True).click()
+        page.get_by_role('alertdialog').get_by_role('button', name='Restore', exact=True).click()
     reader = page.locator('[data-pdf-reader]')
     expect(reader).to_have_attribute('inert', '')
     # Real pointer input must not reach the annotation toolbar during restore.

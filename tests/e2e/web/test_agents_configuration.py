@@ -6,6 +6,8 @@ import subprocess
 
 import pytest
 
+from tests.support.select import choose
+
 ROOT = Path(__file__).resolve().parents[3]
 pytestmark = pytest.mark.browser
 
@@ -373,16 +375,16 @@ def test_agent_model_change_keeps_incompatible_effort(agents_browser):
     page = agents_browser()
     _tab(page, 'General')
     effort = page.get_by_role('combobox', name='Thinking effort', exact=True)
-    expect(effort).to_have_value('high')
+    expect(effort).to_have_text('high')
     page.get_by_label('Model', exact=True).click()
     dialog = page.get_by_role('dialog', name='Choose model')
     dialog.get_by_role('textbox', name='Search models').fill('Fast')
     dialog.get_by_role('button', name=re.compile('^Fast model')).click()
-    expect(effort).to_have_value('high')
+    expect(effort).to_have_text('high — not supported by this model')
     expect(page.get_by_role('alert').filter(has_text='Your previous choice has been kept')).to_be_visible()
     expect(page.get_by_role('button', name='Save changes', exact=True)).to_be_disabled()
     assert not _patches(page)
-    effort.select_option('')
+    choose(effort, re.compile('^Inherit model default'))
     page.get_by_role('button', name='Save changes', exact=True).click()
     expect(page.get_by_role('button', name='Save changes', exact=True)).to_be_disabled()
     body = _patches(page)[-1]['body']
@@ -471,13 +473,13 @@ def test_agent_switch_and_create_require_explicit_draft_choice(agents_browser):
     page = agents_browser(390)
     name = page.get_by_role('textbox', name='Display name', exact=True)
     name.fill('Uncommitted general')
-    page.get_by_role('combobox', name='Agent', exact=True).select_option('researcher')
+    choose(page.get_by_role('combobox', name='Agent', exact=True), 'Researcher')
     dialog = page.get_by_role('dialog')
     expect(dialog).to_be_visible()
     dialog.get_by_role('button', name='Cancel', exact=True).click()
     expect(name).to_have_value('Uncommitted general')
     assert not _patches(page)
-    page.get_by_role('combobox', name='Agent', exact=True).select_option('researcher')
+    choose(page.get_by_role('combobox', name='Agent', exact=True), 'Researcher')
     page.get_by_role('dialog').get_by_role('button', name=re.compile('^Save')).click()
     expect(name).to_have_value('Researcher')
     assert _patches(page)[-1]['body']['name'] == 'Uncommitted general'
@@ -642,7 +644,7 @@ def test_agent_empty_list_can_create_first_configuration(agents_browser):
     dialog.get_by_role('button', name='Create', exact=True).click()
     expect(dialog).not_to_be_visible()
     expect(page.get_by_role('textbox', name='Display name', exact=True)).to_have_value('First Agent')
-    expect(page.get_by_role('tab')).to_have_count(7)
+    expect(page.get_by_role('tab')).to_have_count(8)
     _tab(page, 'Memory')
     expect(page.get_by_role('radio', name=re.compile('^Off'))).to_be_checked()
     assert page.evaluate("window.httpCalls.filter(call=>call.method==='POST').map(call=>call.body)") == [{'name': 'First Agent', 'model': {'provider': '', 'id': ''}, 'thinking_effort': ''}]
@@ -667,7 +669,7 @@ def test_program_changes_preserve_explicit_web_search_setting(agents_browser, mo
         if change == 'toggle':
             dialog.get_by_role('checkbox', name='read_file Read file', exact=True).uncheck()
         else:
-            dialog.get_by_role('combobox', name='Access preset', exact=True).select_option('FULL')
+            choose(dialog.get_by_role('combobox', name='Access preset', exact=True), 'FULL')
         dialog.get_by_role('button', name='Done', exact=True).click()
     else:
         page.get_by_role('radio', name=re.compile('^All Programs' if change == 'all' else '^No Programs')).check()

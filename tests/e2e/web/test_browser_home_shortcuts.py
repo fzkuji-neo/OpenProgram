@@ -218,16 +218,11 @@ def test_editor_uses_theme_font_and_fits_narrow_viewports(homepage, theme, width
     assert editor.evaluate("element => element.scrollWidth <= element.clientWidth")
     fonts = editor.locator("input, button, label").evaluate_all("elements => elements.map(element => getComputedStyle(element).fontFamily)")
     assert fonts and set(fonts) == {homepage.evaluate("getComputedStyle(document.body).fontFamily")}
+    # The fields are the app's shared Input and keep its themed surface.
     inputs = editor.get_by_role("textbox")
-    background = homepage.evaluate("""() => {
-      const probe = document.createElement('div');
-      probe.style.backgroundColor = 'var(--bg-input)';
-      document.body.append(probe);
-      const color = getComputedStyle(probe).backgroundColor;
-      probe.remove();
-      return color;
-    }""")
-    assert inputs.evaluate_all("(elements, background) => elements.every(element => getComputedStyle(element).backgroundColor === background)", background)
+    assert inputs.evaluate_all("elements => elements.every(element => element.dataset.slot === 'input')")
+    backgrounds = inputs.evaluate_all("elements => elements.map(element => getComputedStyle(element).backgroundColor)")
+    assert len(set(backgrounds)) == 1
     for field in ("Name (optional)", "Address"):
         field_box = editor.get_by_role("textbox", name=field, exact=True).bounding_box()
         assert field_box and field_box["width"] > 100 and field_box["x"] >= box["x"]

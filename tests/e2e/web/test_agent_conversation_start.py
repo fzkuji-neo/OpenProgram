@@ -39,6 +39,7 @@ window.fetch=async(input,options={})=>{
     {id:'fast',thinking_levels:[],default_thinking_level:''},
   ]});
   if(url==='/api/providers')return reply([]);
+  if(url==='/api/providers/list')return reply({providers:[{id:'test',label:'Fixture provider',enabled:true,configured:true}]});
   if(url.startsWith('/api/agent_settings'))return reply({chat:{provider:'test',model:'reasoning'}});
   window.unexpectedRequests.push({url,method});return reply({error:'Unexpected fixture request'},500);
 };
