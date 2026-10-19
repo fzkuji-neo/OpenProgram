@@ -1424,7 +1424,14 @@
 .themeSwatch {
   height: 34px;
   border-radius: 6px;
-  background: var(--bg-primary);
+  /* A thin top band stands in for the tab strip, tinted the same way as
+     base.css --tabrow-bg, so Vivid's coloured strip shows on its card. */
+  background: linear-gradient(
+    color-mix(in oklab, var(--bg-secondary), var(--accent-orange) var(--tabrow-tint)) 0 8px,
+    var(--bg-primary) 8px
+  );
+  padding-top: 8px;
+  box-sizing: border-box;
   border: 1px solid var(--border);
   display: flex;
   align-items: center;
