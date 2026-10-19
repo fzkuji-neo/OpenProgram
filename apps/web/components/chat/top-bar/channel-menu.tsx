@@ -3,16 +3,16 @@
 /**
  * Channel menu — the content of the channel chip's popover.
  *
- * Lists the enabled channel accounts (WeChat / Discord / Telegram /
- * Slack) grouped by platform, plus a "Not connected" row that unbinds.
- * Picking one mirrors the conversation's messages to that account; it
- * never changes where the conversation runs (that is the environment
- * chip beside it).
+ * The chip already says this is the channel, so the menu has no "Channel"
+ * heading: it lists the enabled accounts grouped under their platform
+ * name (WeChat, Telegram, …), checks the bound one, and offers
+ * "Disconnect" only while one is bound. Picking an account mirrors the
+ * conversation's messages to it; it never changes where the conversation
+ * runs (that is the environment chip beside it).
  *
  * Positioning / click-outside / portal are handled by the shadcn
  * <Popover> that hosts it; this component just renders the rows.
  */
-import { channelIcon } from "@/lib/runtime-bridge/conversations";
 import { useTranslation } from "@/lib/i18n";
 import { SolarIcon } from "@/components/solar-icons";
 import { channelBrand, useChannelChoices } from "./channel-choices";
@@ -28,7 +28,7 @@ import { MenuCheck } from "./menu-check";
 
 export function ChannelMenu({ onClose }: { onClose: () => void }) {
   const { text } = useTranslation();
-  const { groups, current: cur, pick } = useChannelChoices();
+  const { loaded, groups, current: cur, pick } = useChannelChoices();
 
   function choose(ch: string, acct: string) {
     onClose();
@@ -37,28 +37,10 @@ export function ChannelMenu({ onClose }: { onClose: () => void }) {
 
   return (
     <div className={MENU_PANEL}>
-      <div className={GROUP_LABEL}>{text("Channel", "渠道")}</div>
-
-      {/* 选中不铺底色（hover 是唯一底色），选中态只靠右侧勾。 */}
-      <div className={itemCls(false)} onClick={() => choose("", "")}>
-        <span className="flex-1 truncate">{text("Not connected", "不连接")}</span>
-        {!cur.channel ? (
-          <MenuCheck />
-        ) : (
-          <span className={CHECK_SLOT_PAD} />
-        )}
-      </div>
-
-      {groups.map((g) => (
+      {groups.map((g, i) => (
         <div key={g.plat}>
-          <div className={GROUP_LABEL}>
-            <span
-              className="provider-icon"
-              style={{ width: 14, height: 14 }}
-              dangerouslySetInnerHTML={{ __html: channelIcon(g.plat) }}
-            />
-            <span>{channelBrand(g.plat)}</span>
-          </div>
+          {i > 0 ? <div className={MENU_SEPARATOR} /> : null}
+          <div className={GROUP_LABEL}>{channelBrand(g.plat)}</div>
           {g.accounts.map((r) => {
             const active = r.channel === cur.channel && r.account_id === cur.account_id;
             const meta = r.name && r.name !== r.account_id ? r.name : "";
@@ -84,15 +66,26 @@ export function ChannelMenu({ onClose }: { onClose: () => void }) {
         </div>
       ))}
 
-      {/* Grammar-B action row：设置图标 + 文案 + 右箭头，常驻菜单底部。 */}
+      {loaded && groups.length === 0 ? (
+        <div className={`${GROUP_LABEL} whitespace-normal`}>
+          {text("No chat app accounts yet.", "还没有可用的聊天软件账号。")}
+        </div>
+      ) : null}
+
       <div className={MENU_SEPARATOR} />
+      {cur.channel ? (
+        <div className={itemCls(false)} onClick={() => choose("", "")}>
+          <SolarIcon name="close-circle" size={16} aria-hidden="true" />
+          <span className="flex-1 truncate">{text("Disconnect", "断开")}</span>
+        </div>
+      ) : null}
       <a
         href="/settings/channels"
         onClick={onClose}
         className={`${itemCls(false)} no-underline`}
       >
         <SolarIcon name="settings-minimalistic" size={16} aria-hidden="true" />
-        <span className="flex-1 truncate">{text("Add channels", "添加渠道")}</span>
+        <span className="flex-1 truncate">{text("Manage channels", "管理渠道")}</span>
         <SolarIcon name="alt-arrow-right" size={14} className="text-text-muted" />
       </a>
     </div>

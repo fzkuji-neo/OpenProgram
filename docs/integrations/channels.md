@@ -136,7 +136,7 @@ See [Profiles](../install/profiles.md) for how a second instance is set up.
 
 A channel decides where a conversation's messages are mirrored. It does not decide where the agent's tools run; that is the conversation's [environment](../capabilities/environments.md). A conversation that arrives from a channel runs in the default environment.
 
-In Web and the App, the channel chip above the message box, next to the environment chip, shows the conversation's channel, or **Not connected**. Click it to bind an account, switch account, or disconnect. The **Channel** item in the **+** menu below the message box offers the same choice.
+In Web and the App, the channel chip above the message box, next to the environment chip, shows the conversation's channel, or **No channel**. Click it to see your accounts grouped by app: pick one to bind or switch, choose **Disconnect** to stop mirroring, or **Manage channels** to add accounts.
 
 ## How Chats Map to Sessions
 

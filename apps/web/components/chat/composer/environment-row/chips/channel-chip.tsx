@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/popover";
 import { buttonVariants } from "@/components/ui/button";
 import { useSessionStore } from "@/lib/session-store";
-import { channelIcon } from "@/lib/runtime-bridge/conversations";
 import { closeAllPopovers } from "@/lib/runtime-bridge/ui";
 import { useTranslation } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -20,8 +19,8 @@ import { ChannelMenu } from "../../../top-bar/channel-menu";
 
 /** Channel chip — which chat channel account this conversation's
  *  messages are mirrored to, beside the environment chip. Always shown:
- *  unbound reads "Not connected", bound shows the platform letter and
- *  account, tinted by the channel poll's health (yellow degraded, red
+ *  unbound reads "No channel", bound shows "WeChat · account"; the chat
+ *  glyph is tinted by the channel poll's health (yellow degraded, red
  *  unreachable). The popover binds, switches or disconnects. */
 export function ChannelChip() {
   const { text } = useTranslation();
@@ -45,7 +44,7 @@ export function ChannelChip() {
 
   const brand = channel ? channelBrand(channel) : "";
   const label = !channel
-    ? text("Not connected", "未连接")
+    ? text("No channel", "未接渠道")
     : account_id ? `${brand} · ${account_id}` : brand;
   const color =
     !channel ? undefined
@@ -81,16 +80,7 @@ export function ChannelChip() {
             className={cn(buttonVariants({ variant: "elevated", size: "sm" }), "status-badge cursor-pointer")}
             data-channel-chip=""
           >
-            {channel ? (
-              <span
-                className="provider-icon"
-                style={{ width: 14, height: 14, color }}
-                aria-hidden="true"
-                dangerouslySetInnerHTML={{ __html: channelIcon(channel) }}
-              />
-            ) : (
-              <SolarIcon name="chat-round-dots" size={14} aria-hidden="true" />
-            )}
+            <SolarIcon name="chat-round-dots" size={14} aria-hidden="true" style={color ? { color } : undefined} />
             <span className="badge-short">{label}</span>
           </span>
         </PopoverTrigger>
