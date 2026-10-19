@@ -3,6 +3,7 @@ import json
 
 import pytest
 
+from openprogram.computer_use import backends
 from openprogram.programs._execution_common import ToolReturn
 from openprogram.programs.tools.system.computer_use_agent import fresh, grounding
 from openprogram.programs.tools.system.computer_use_agent import tool as entry
@@ -54,6 +55,8 @@ def test_a_spawned_agent_sees_the_guide_in_its_brief_not_again_on_first_call(mon
         seen.update(target=target, guide=guide, kwargs=kwargs)
         return ToolReturn(text="done")
     monkeypatch.setattr(fresh, "run", spawn)
+    # The app target is available whatever the host is.
+    monkeypatch.setattr(backends, "support", lambda: {"available": True})
     entry._shown.add(("default", 1, "browser"))  # an earlier spawned agent's record
     assert entry.computer_use_agent(target="app", context="fresh", brief="b", args={"app": "Notes"}).text == "done"
     assert seen["guide"] == entry.guide("app") and seen["kwargs"]["needs_grant"] is True

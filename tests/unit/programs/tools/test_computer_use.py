@@ -13,6 +13,18 @@ from openprogram.programs.tools.system.computer_use_agent import tool as entry
 from openprogram.programs.tools.system.computer_use_agent.targets import app as tool
 
 
+@pytest.fixture(autouse=True)
+def _mac_backend_on_every_host(monkeypatch):
+    """The app target runs against the macOS backend these tests fake.
+
+    The host dispatcher would pick the Linux or Windows backend on CI and
+    refuse before any faked call ran.
+    """
+    from openprogram.computer_use import backends
+    monkeypatch.setattr(backends, "support", lambda: {"available": True})
+    monkeypatch.setattr(backends, "backend", lambda: macos.backend())
+
+
 # ----------------------------------------------------------------- key chords
 
 def test_plain_named_keys_map_to_macos_keycodes():
