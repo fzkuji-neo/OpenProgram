@@ -3,8 +3,9 @@
 /**
  * ConvMenu — the right-click / ⋯ context menu for a Recents row.
  *
- * Presentational only: it renders the menu item list and the inline
- * "Move to group" sub-list, and calls back to the parent (ConvItem in
+ * Presentational only: it renders the menu item list and the "Move to
+ * group" / "Move to project" / "Export" submenus, which fly out to the
+ * right on hover like Claude's, and calls back to the parent (ConvItem in
  * sessions-list.tsx) for every action. The Popover shell + open state
  * live in the parent so the same menu can be opened by either the ⋯
  * button or a right-click on the row.
@@ -16,9 +17,10 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 import { useTranslation } from "@/lib/i18n";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   GROUP_LABEL,
   MENU_PANEL,
@@ -78,9 +80,6 @@ export function ConvMenu({
   onClose,
 }: ConvMenuProps) {
   const { t } = useTranslation();
-  const [groupOpen, setGroupOpen] = useState(false);
-  const [projectOpen, setProjectOpen] = useState(false);
-  const [exportOpen, setExportOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   // Focus the menu on mount so menu-local key shortcuts work without
@@ -122,78 +121,40 @@ export function ConvMenu({
         onClick={() => run(onTogglePin)}
       />
 
-      {/* Move to group — inline-expanding sub-list (Radix popover has
-          no native submenu flyout). */}
-      <button
-        type="button"
-        className={itemCls(false)}
-        onClick={() => setGroupOpen((v) => !v)}
-        aria-expanded={groupOpen}
-      >
-        <span className="flex-1 text-left">{t("sidebar.move_to_group")}</span>
-        <span className="flex w-[16px] shrink-0 items-center justify-center text-text-muted">{groupOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
-      </button>
-      {groupOpen && (
-        <div className="flex flex-col border-l border-[var(--border)] ml-3 my-0.5">
-          {conv.group ? (
-            <SubItem
-              label={t("sidebar.remove_from_group")}
-              onClick={() => run(() => onMoveToGroup(""))}
-            />
-          ) : null}
-          {groups
-            .filter((g) => g && g !== conv.group)
-            .map((g) => (
-              <SubItem key={g} label={g} onClick={() => run(() => onMoveToGroup(g))} />
-            ))}
+      <Flyout label={t("sidebar.move_to_group")}>
+        {conv.group ? (
           <SubItem
-            label={t("sidebar.new_group")}
-            accent
-            onClick={() => run(onNewGroup)}
+            label={t("sidebar.remove_from_group")}
+            onClick={() => run(() => onMoveToGroup(""))}
           />
-        </div>
-      )}
+        ) : null}
+        {groups
+          .filter((g) => g && g !== conv.group)
+          .map((g) => (
+            <SubItem key={g} label={g} onClick={() => run(() => onMoveToGroup(g))} />
+          ))}
+        <SubItem
+          label={t("sidebar.new_group")}
+          accent
+          onClick={() => run(onNewGroup)}
+        />
+      </Flyout>
 
-      {/* Move to project — the same inline sub-list; dragging the row
-          onto a project header does the same thing. */}
-      {projects && onMoveToProject && projects.length > 0 && <>
-        <button
-          type="button"
-          className={itemCls(false)}
-          onClick={() => setProjectOpen((v) => !v)}
-          aria-expanded={projectOpen}
-        >
-          <span className="flex-1 text-left">{t("sidebar.move_to_project")}</span>
-          <span className="flex w-[16px] shrink-0 items-center justify-center text-text-muted">{projectOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
-        </button>
-        {projectOpen && (
-          <div className="flex flex-col border-l border-[var(--border)] ml-3 my-0.5">
-            {projects.map((project) => (
-              <SubItem key={project.id} label={project.name} onClick={() => run(() => onMoveToProject(project.id))} />
-            ))}
-          </div>
-        )}
-      </>}
+      {/* Dragging the row onto a project header does the same thing. */}
+      {projects && onMoveToProject && projects.length > 0 && (
+        <Flyout label={t("sidebar.move_to_project")}>
+          {projects.map((project) => (
+            <SubItem key={project.id} label={project.name} onClick={() => run(() => onMoveToProject(project.id))} />
+          ))}
+        </Flyout>
+      )}
 
       <MenuItem label={t("sidebar.copy_link")} shortcut="C" onClick={() => run(onCopyLink)} />
 
-      {/* Export — same inline sub-list as "Move to group", because the
-          format is part of the choice, not a second dialog. */}
-      <button
-        type="button"
-        className={itemCls(false)}
-        onClick={() => setExportOpen((v) => !v)}
-        aria-expanded={exportOpen}
-      >
-        <span className="flex-1 text-left">{t("sidebar.export")}</span>
-        <span className="flex w-[16px] shrink-0 items-center justify-center text-text-muted">{exportOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
-      </button>
-      {exportOpen && (
-        <div className="flex flex-col border-l border-[var(--border)] ml-3 my-0.5">
-          <SubItem label={t("sidebar.export_markdown")} onClick={() => run(() => onExport("md"))} />
-          <SubItem label={t("sidebar.export_html")} onClick={() => run(() => onExport("html"))} />
-        </div>
-      )}
+      <Flyout label={t("sidebar.export")}>
+        <SubItem label={t("sidebar.export_markdown")} onClick={() => run(() => onExport("md"))} />
+        <SubItem label={t("sidebar.export_html")} onClick={() => run(() => onExport("html"))} />
+      </Flyout>
 
       <MenuItem
         label={conv.archived ? t("sidebar.unarchive") : t("sidebar.archive")}
@@ -235,8 +196,6 @@ export function BulkConvMenu({
   onClose: () => void;
 }) {
   const { t, text } = useTranslation();
-  const [groupOpen, setGroupOpen] = useState(false);
-  const [projectOpen, setProjectOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => { rootRef.current?.focus(); }, []);
   const run = (fn: () => void) => { fn(); onClose(); };
@@ -248,31 +207,19 @@ export function BulkConvMenu({
       className={`${MENU_PANEL} min-w-[200px] outline-none`}
     >
       <div className={GROUP_LABEL}>{text(`${count} chats selected`, `已选 ${count} 个聊天`)}</div>
-      {projects && onMoveToProject && projects.length > 0 && <>
-        <button type="button" className={itemCls(false)} onClick={() => setProjectOpen((v) => !v)} aria-expanded={projectOpen}>
-          <span className="flex-1 text-left">{t("sidebar.move_to_project")}</span>
-          <span className="flex w-[16px] shrink-0 items-center justify-center text-text-muted">{projectOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
-        </button>
-        {projectOpen && (
-          <div className="flex flex-col border-l border-[var(--border)] ml-3 my-0.5">
-            {projects.map((project) => (
-              <SubItem key={project.id} label={project.name} onClick={() => run(() => onMoveToProject(project.id))} />
-            ))}
-          </div>
-        )}
-      </>}
-      <button type="button" className={itemCls(false)} onClick={() => setGroupOpen((v) => !v)} aria-expanded={groupOpen}>
-        <span className="flex-1 text-left">{t("sidebar.move_to_group")}</span>
-        <span className="flex w-[16px] shrink-0 items-center justify-center text-text-muted">{groupOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
-      </button>
-      {groupOpen && (
-        <div className="flex flex-col border-l border-[var(--border)] ml-3 my-0.5">
-          <SubItem label={t("sidebar.remove_from_group")} onClick={() => run(() => onMoveToGroup(""))} />
-          {groups.filter(Boolean).map((g) => (
-            <SubItem key={g} label={g} onClick={() => run(() => onMoveToGroup(g))} />
+      {projects && onMoveToProject && projects.length > 0 && (
+        <Flyout label={t("sidebar.move_to_project")}>
+          {projects.map((project) => (
+            <SubItem key={project.id} label={project.name} onClick={() => run(() => onMoveToProject(project.id))} />
           ))}
-        </div>
+        </Flyout>
       )}
+      <Flyout label={t("sidebar.move_to_group")}>
+        <SubItem label={t("sidebar.remove_from_group")} onClick={() => run(() => onMoveToGroup(""))} />
+        {groups.filter(Boolean).map((g) => (
+          <SubItem key={g} label={g} onClick={() => run(() => onMoveToGroup(g))} />
+        ))}
+      </Flyout>
       <MenuItem label={t("sidebar.archive")} onClick={() => run(onArchive)} />
       <div className={MENU_SEPARATOR} />
       <MenuItem label={text("Clear selection", "取消选择")} onClick={() => run(onClear)} />
@@ -281,6 +228,63 @@ export function BulkConvMenu({
 }
 
 /* ---- item primitives ------------------------------------------- */
+
+/** A row that opens its submenu to the right while the pointer is on it
+ *  (or on click / ArrowRight), like Claude's "Open in ›". A short grace
+ *  period lets the pointer cross from the row into the submenu. */
+function Flyout({ label, children }: { label: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const closeTimer = useRef<number | undefined>(undefined);
+  const enter = () => {
+    window.clearTimeout(closeTimer.current);
+    setOpen(true);
+  };
+  const leave = () => {
+    window.clearTimeout(closeTimer.current);
+    closeTimer.current = window.setTimeout(() => setOpen(false), 150);
+  };
+  useEffect(() => () => window.clearTimeout(closeTimer.current), []);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={itemCls(open)}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          onPointerEnter={enter}
+          onPointerLeave={leave}
+          onClick={enter}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowRight") { e.preventDefault(); enter(); }
+          }}
+        >
+          <span className="flex-1 text-left">{label}</span>
+          <span className="flex w-[16px] shrink-0 items-center justify-center text-text-muted"><ChevronRight size={14} /></span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="right"
+        align="start"
+        sideOffset={6}
+        alignOffset={-4}
+        collisionPadding={8}
+        className="w-auto border-0 bg-transparent p-0 shadow-none"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        // Returning focus to this row on close would count as "focus
+        // outside" for the sibling submenu the pointer just opened.
+        onCloseAutoFocus={(e) => e.preventDefault()}
+        onPointerEnter={enter}
+        onPointerLeave={leave}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowLeft") { e.preventDefault(); setOpen(false); }
+        }}
+      >
+        <div role="menu" className={`${MENU_PANEL} min-w-[180px]`}>{children}</div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 // MenuItem / SubItem share the canonical `itemCls` from menu-styles, so
 // this context menu is pixel-identical to the topbar pickers. Danger
