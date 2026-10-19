@@ -186,6 +186,13 @@ export function pagesActions(set: StoreApi<CenterTabsState>["setState"], get: St
         }).groups;
         const visibleTabs = topLevelTabs(tabs, groups);
         let activeId = s.activeId;
+        // Closing one pane of a split leaves focus on the pane beside it,
+        // wherever the closed tab happened to sit in the tab list.
+        const split = findCenterTabGroup(s.groups, id);
+        if (activeId === id && split) {
+          const survivors = split.memberIds.filter(member => member !== id && visibleTabs.some(tab => tab.id === member));
+          activeId = survivors.includes(split.focusedId) ? split.focusedId : survivors[0] ?? activeId;
+        }
         if (!visibleTabs.some((tab) => tab.id === activeId)) {
           const visibleIndex = topLevelTabs(s.tabs, s.groups).findIndex((tab) => tab.id === id);
           activeId = (visibleTabs[Math.max(0, visibleIndex)] ?? visibleTabs.at(-1))?.id ?? null;

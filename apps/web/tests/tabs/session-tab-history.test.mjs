@@ -581,3 +581,19 @@ test("the sidebar switching to another tab that shows Settings opens its convers
   assert.equal(active().navigationRoute, undefined);
   assert.equal(state().navigationRoute, undefined);
 });
+
+test("closing the focused pane of a split leaves focus on the pane beside it", () => {
+  reset();
+  // The review pane sits last in the tab list, after an unrelated new chat.
+  useCenterTabs.setState({
+    tabs: [
+      { id: "s:A", kind: "session", title: "Alpha", sessionId: "A" },
+      { id: "s:new", kind: "session", title: "", sessionId: "new", draft: true },
+      { id: "r:A", kind: "builtin", title: "", page: "review", reviewSessionId: "A" },
+    ],
+    groups: [{ id: "g", memberIds: ["s:A", "r:A"], visibleIds: ["s:A", "r:A"], focusedId: "r:A" }],
+    activeId: "r:A",
+  });
+  state().closeTab("r:A");
+  assert.equal(state().activeId, "s:A");
+});
