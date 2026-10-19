@@ -76,6 +76,7 @@ import { SpawnedFromCard } from "./spawned-from-card";
 import { SelectionQuote } from "./quote-to-chat";
 import { UserBubble } from "./user-bubble";
 import { MessageTimestamp } from "./message-actions";
+import { formatMessageTime } from "@/lib/chat/message-time";
 
 /** goal 循环的内部 spawn 轮 label（openprogram/programs/workflow/goal/
  *  __init__.py 的 run_agent_turn(label=...)，经 spawnedFrom.label 到达）。
@@ -99,7 +100,7 @@ function formatEventTime(timestamp?: number): string {
     return "";
   }
   const value = new Date(timestamp > 1e12 ? timestamp : timestamp * 1000);
-  return value.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return formatMessageTime(value);
 }
 
 const originalsOpen = new Set<string>();
