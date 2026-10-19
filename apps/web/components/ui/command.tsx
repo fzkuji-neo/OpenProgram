@@ -47,7 +47,7 @@ function CommandDialog({
         <DialogPrimitive.Content
           data-slot="dialog-content"
           className={cn(
-            "fixed left-1/2 top-1/4 z-[120] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-3xl bg-popover p-0 shadow-lg ring-1 ring-foreground/10 outline-none duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+            "fixed left-1/2 top-1/4 z-[120] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-3xl bg-popover p-0 shadow-(--popover-shadow) ring-1 ring-(color:--popover-ring) outline-none duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
             className
           )}
         >

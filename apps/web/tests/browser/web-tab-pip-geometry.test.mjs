@@ -110,7 +110,7 @@ test("css keeps a flush frameless page and eight outward transparent handles", (
   // (unlayered module rules would beat them); the module keeps geometry only.
   assert.match(css, /\.webPip \{[^}]*border: 0;[^}]*overflow: visible;/);
   assert.doesNotMatch(css, /\.webPip \{[^}]*(border-radius|background|box-shadow):/);
-  assert.match(pipSource, /const PIP_FRAME = "rounded-\[10px\] bg-popover text-popover-foreground ring-1 ring-foreground\/10 shadow-lg"/);
+  assert.match(pipSource, /const PIP_FRAME = "rounded-\[10px\] bg-popover text-popover-foreground ring-1 ring-\(color:--popover-ring\) shadow-\(--popover-shadow\)"/);
   assert.match(pipSource, /className=\{cn\(styles\.webPip, PIP_FRAME, expanded && styles\.webPipExpanded\)\}/);
   assert.match(css, /\.webPipLive \{[^}]*inset: 0;/);
   for (const [dir, edge] of [["n", "top"], ["s", "bottom"], ["e", "right"], ["w", "left"]]) {

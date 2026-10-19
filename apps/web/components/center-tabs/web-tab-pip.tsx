@@ -79,7 +79,7 @@ import { WebTabPipSurface } from "./web-tab-pip-surface";
  *  native surface is not clipped by the DOM, so a larger frame radius would
  *  let page pixels show past the bottom corners. Geometry (position, size)
  *  stays in the CSS module and inline styles. */
-export const PIP_FRAME = "rounded-[10px] bg-popover text-popover-foreground ring-1 ring-foreground/10 shadow-lg";
+export const PIP_FRAME = "rounded-[10px] bg-popover text-popover-foreground ring-1 ring-(color:--popover-ring) shadow-(--popover-shadow)";
 export const PIP_STAGE = "rounded-b-[10px]";
 /** Header icon buttons are the official ghost icon Button (`icon-xs`, 21px
  *  at the app's 14px root) carried on plain <button>s so the menu trigger

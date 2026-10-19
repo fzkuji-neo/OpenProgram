@@ -11,7 +11,9 @@
  *  instead of 7/8 of it.
  *  Panel (MENU_PANEL): rounded-lg · p-1 · width hugs content,
  *    min-w-32 up to 320px · scrolls past 60vh. Material is Nova's own:
- *    solid bg-popover, ring-1 ring-foreground/10, shadow-md — the same
+ *    solid bg-popover, ring-1 + shadow from the --popover-ring /
+ *    --popover-shadow tokens (Nova's ring-foreground/10 + shadow-md in
+ *    light themes, lifted in dark ones, app/globals.css) — the same
  *    surface as the Select popup.
  *  Row (itemCls): min-h-7 · rounded-md · px-1.5 py-1 · text-sm ·
  *    gap-1.5 · icons size-4 ·
@@ -39,7 +41,7 @@
 export const MENU_PANEL =
   // 只有内容本身需要固定宽度的菜单（git 的分支列表 + 搜索框）才自带 w-[…]。
   "shadcn-scale flex max-h-[60vh] min-w-32 max-w-[320px] flex-col overflow-y-auto rounded-lg p-1 " +
-  "bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10";
+  "bg-popover text-popover-foreground shadow-(--popover-shadow) ring-1 ring-(color:--popover-ring)";
 
 export const GROUP_LABEL =
   "flex items-center gap-1.5 px-1.5 py-1 text-xs font-medium text-text-muted";

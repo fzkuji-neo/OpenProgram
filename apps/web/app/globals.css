@@ -265,6 +265,10 @@
      light themes, one step above the page in the dark ones. */
   --popover: var(--bg-input);
   --popover-foreground: var(--text-primary);
+  /* Frame of every menu, Select and command palette (Nova's ring-1
+     ring-foreground/10 + shadow-md), as tokens so dark themes can lift it. */
+  --popover-ring: color-mix(in oklab, var(--foreground) 10%, transparent);
+  --popover-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --primary: var(--accent-blue);
   /* Defined per theme block in app/styles/base.css. Dark mode
      wants near-black text on the brand-fill button so the warm
@@ -288,4 +292,14 @@
   --input: color-mix(in srgb, var(--text-bright) 14%, transparent);
   --ring: var(--focus-ring);
   --radius-lg: 12px;
+}
+
+/* In the dark themes a popup sat on the same colour as the cards and the
+   composer under it (both --bg-input) and Nova's light shadow vanished.
+   Lift it a step, give it a visible hairline and a deep shadow, like
+   Claude's menus. */
+:root[data-theme-mode="dark"] {
+  --popover: color-mix(in oklab, var(--bg-input), #fff 4%);
+  --popover-ring: color-mix(in oklab, var(--text-bright) 14%, transparent);
+  --popover-shadow: 0 0 0 2px rgb(0 0 0 / 0.35), 0 10px 28px -6px rgb(0 0 0 / 0.6);
 }

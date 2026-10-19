@@ -16,7 +16,7 @@ test("the shared menu panel and the Select popup render at the docs' scale", () 
 
 test("menus are Nova's solid popover with a visible highlight, icons unshifted", () => {
   const spec = read("components/chat/top-bar/menu-styles.ts");
-  assert.match(spec, /"bg-popover text-popover-foreground shadow-md ring-1 ring-foreground\/10"/);
+  assert.match(spec, /"bg-popover text-popover-foreground shadow-\(--popover-shadow\) ring-1 ring-\(color:--popover-ring\)"/);
   assert.doesNotMatch(spec, /GLASS_MATERIAL/);
   assert.doesNotMatch(spec, /-ms-\[3px\]/);
   assert.match(spec, /hover:bg-accent/);
