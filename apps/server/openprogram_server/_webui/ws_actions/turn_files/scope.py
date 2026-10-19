@@ -467,7 +467,8 @@ def _history_eligibility(session_id: str, turn_id: str) -> dict:
         return {"status": "error", "action": None, "error": "unknown turn"}
     active = _active_nodes(index)
     if not any(candidate.id == turn_id for candidate in active):
-        return {"status": "blocked", "action": None, "error": "turn is not on active branch"}
+        return {"status": "blocked", "action": None, "reason": "inactive_branch",
+                "error": "turn is not on active branch"}
     file_turn_ids = []
     for candidate in active:
         if candidate.role != "llm":
@@ -493,6 +494,7 @@ def _history_eligibility(session_id: str, turn_id: str) -> dict:
             "latest_file_turn_id": latest_file_turn,
             "blockers": ownership["blockers"],
             "linked_impacts": ownership["linked"],
+            "reason": "agent_running",
             "error": "owned_actor_running",
         }
     plan = (
@@ -510,6 +512,9 @@ def _history_eligibility(session_id: str, turn_id: str) -> dict:
             "latest_file_turn_id": latest_file_turn,
             "conflicts": plan.get("conflicts", []),
             "unavailable": plan.get("unavailable", []),
+            # What the user is told; ``error`` keeps the engine's wording.
+            "reason": {"blocked": "files_changed", "unavailable": "not_recoverable"}.get(
+                plan.get("status", "unavailable"), ""),
             "error": plan.get("error"),
             "linked_impacts": ownership["linked"],
         }

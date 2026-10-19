@@ -960,6 +960,7 @@ def test_history_action_hidden_when_current_digest_changed(store, tmp_path):
 
     assert result["status"] == "blocked"
     assert result["action"] is None
+    assert result["reason"] == "files_changed"
     assert result["conflicts"] == [str(target)]
 
 

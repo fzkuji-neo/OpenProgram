@@ -49,23 +49,26 @@ assert.doesNotMatch(card, /list_turn_files|function loadMore\(\)/);
 assert.match(card, /wsRequest[\s\S]*"turn_history_state"/);
 assert.match(card, /operation: null,[\s\S]*?setHistoryNonce/);
 assert.match(card, /setHistoryError\(""\);\s*setHistoryState\(/);
-assert.match(card, /\} = historyPresentation\([\s\S]*?historyState,[\s\S]*?historyError,[\s\S]*?Review remains available/);
-const refreshed = historyPresentation(
-  { status: "ready", operation: "undo" },
-  "",
-  "fallback",
-);
-assert.deepEqual(refreshed, { notice: "", operation: "undo" });
+assert.match(card, /\} = historyPresentation\([\s\S]*?historyState,[\s\S]*?historyError,[\s\S]*?files_changed:[\s\S]*?Review remains available/);
+assert.match(card, /reason: data\.reason,/);
+const notices = { files_changed: "changed", fallback: "fallback" };
+const refreshed = historyPresentation({ status: "ready", operation: "undo" }, "", notices);
+assert.deepEqual(refreshed, { notice: "", tone: "info", operation: "undo" });
 const blocked = historyPresentation(
-  { status: "blocked", operation: null, error: "current file state does not match the recorded source" },
+  { status: "blocked", operation: null, reason: "files_changed", error: "current file state does not match the recorded source" },
   "",
-  "fallback",
+  notices,
 );
-assert.deepEqual(blocked, {
-  notice: "current file state does not match the recorded source",
-  operation: null,
-});
-assert.match(card, /\{currentAction \? \([\s\S]*?<\/button>\s*\) : historyNotice \? \([\s\S]*?className="turn-files-history-notice"[\s\S]*?role="status"[\s\S]*?\{historyNotice\}[\s\S]*?\) : null\}\s*<button[\s\S]*?"turn-files-review"\)/);
+assert.deepEqual(blocked, { notice: "changed", tone: "info", operation: null });
+const unknown = historyPresentation(
+  { status: "unavailable", operation: null, reason: "later_code", error: "engine text" },
+  "",
+  notices,
+);
+assert.deepEqual(unknown, { notice: "fallback", tone: "info", operation: null });
+const failed = historyPresentation({ status: "blocked", operation: null }, "STALE_SNAPSHOT", notices);
+assert.deepEqual(failed, { notice: "STALE_SNAPSHOT", tone: "warning", operation: null });
+assert.match(card, /\{currentAction \? \([\s\S]*?<\/button>\s*\) : historyNotice \? \([\s\S]*?className="turn-files-history-notice"[\s\S]*?data-tone=\{historyTone\}[\s\S]*?role="status"[\s\S]*?\{historyNotice\}[\s\S]*?\) : null\}\s*<button[\s\S]*?"turn-files-review"\)/);
 assert.match(card, /buttonVariants\(\{ variant: "elevated", size: "sm" \}\), "turn-files-action"/);
 assert.match(card, /buttonVariants\(\{ variant: "elevated", size: "sm" \}\), "turn-files-review"/);
 assert.doesNotMatch(card, /turn-files-blocked/);
@@ -121,7 +124,7 @@ assert.doesNotMatch(cardCss, /\.turn-files-stat\{[^}]*var\(--font-mono\)/);
 assert.doesNotMatch(cardCss, /\.turn-files-op\{[^}]*var\(--font-mono\)/);
 assert.match(cardCss, /\.turn-files-more\{[^}]*background:transparent[^}]*font-size:13px/);
 assert.match(cardCss, /\.turn-files-more:hover\{[^}]*background:var\(--bg-hover\)/);
-assert.match(cardCss, /\.turn-files-history-notice\{display:block;min-width:0;max-width:min\(48ch,40cqi\);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var\(--accent-orange\);font-size:12px;line-height:1\.2\}/);
+assert.match(cardCss, /\.turn-files-history-notice\{display:block;min-width:0;max-width:min\(48ch,40cqi\);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var\(--text-muted\);font-size:12px;line-height:1\.2\}\n\.turn-files-history-notice\[data-tone="warning"\]\{color:var\(--accent-orange\)\}/);
 assert.doesNotMatch(cardCss, /\.turn-files-blocked/);
 assert.doesNotMatch(cardCss, /data-theme-mode="light"[^}]*\.turn-files-card/);
 assert.match(cardCss, /@media\(max-width:420px\)\{\.turn-files-summary\{gap:6px;padding-left:6px\}\.turn-files-heading\{gap:5px\}/);

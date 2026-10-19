@@ -345,7 +345,7 @@ async def handle_turn_history_state(ws, cmd: dict) -> None:
     if not session_id or not turn_id:
         result = {"status": "error", "action": None, "error": "session_id and assistant_msg_id are required"}
     elif server._is_run_active(session_id):
-        result = {"status": "blocked", "action": None, "error": "run_active"}
+        result = {"status": "blocked", "action": None, "reason": "run_active", "error": "run_active"}
     else:
         result = await _run(lambda: _history_eligibility(session_id, turn_id))
     result = _stable_file_result(result)

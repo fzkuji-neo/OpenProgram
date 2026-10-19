@@ -152,7 +152,7 @@ export function TurnFilesChips({
   useEffect(() => {
     if (!visible || !sessionId) return;
     const controller = new AbortController();
-    void wsRequest<{ status?: string; operation?: string | null; error?: string; session_id?: string; assistant_msg_id?: string }>(
+    void wsRequest<{ status?: string; operation?: string | null; reason?: string; error?: string; session_id?: string; assistant_msg_id?: string }>(
       "turn_history_state",
       { session_id: sessionId, assistant_msg_id: assistantMsgId },
       "turn_history_state_result",
@@ -167,6 +167,7 @@ export function TurnFilesChips({
           operation: HISTORY_OPERATIONS.has(data.operation as TurnHistoryOperation)
             ? (data.operation as TurnHistoryOperation)
             : null,
+          reason: data.reason,
           error: data.error,
         });
     });
@@ -274,6 +275,7 @@ export function TurnFilesChips({
         setHistoryState({
           status: "in_progress",
           operation: null,
+          reason: "in_progress",
           error: text("History action is still in progress.", "历史操作仍在进行中。"),
         });
         return;
@@ -348,14 +350,20 @@ export function TurnFilesChips({
   const headerCount = layout.total;
   const {
     notice: historyNotice,
+    tone: historyTone,
     operation: currentAction,
   } = historyPresentation(
     historyState,
     historyError,
-    text(
-      "The current file state does not pass history preflight. Review remains available.",
-      "当前文件状态未通过历史操作预检，仍可审阅。",
-    ),
+    {
+      files_changed: text("Files changed since — can't undo", "文件之后又改过，无法撤回"),
+      not_recoverable: text("These changes can't be undone", "这次修改已无法撤回"),
+      inactive_branch: text("Not on the current branch", "不在当前分支上"),
+      agent_running: text("Wait for the agent to finish", "等智能体运行结束后再撤回"),
+      run_active: text("Available when the run finishes", "本轮运行结束后可撤回"),
+      in_progress: text("Undo in progress…", "撤回进行中…"),
+      fallback: text("Undo unavailable. Review remains available.", "暂时无法撤回，仍可审阅。"),
+    },
   );
   const actionLabel = currentAction === "undo"
     ? text("Undo", "撤回")
@@ -408,6 +416,7 @@ export function TurnFilesChips({
           ) : historyNotice ? (
             <span
               className="turn-files-history-notice"
+              data-tone={historyTone}
               role="status"
             >
               {historyNotice}
