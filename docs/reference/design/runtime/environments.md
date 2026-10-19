@@ -81,7 +81,7 @@ The environment row above the message box starts with two chips:
 - **Environment chip** (always shown): the icon matches the kind (monitor / cpu / box) and the label is the environment name. The icon color is the worker connection tone that the old status chip showed. For a draft, it opens a list of environments plus a link to Settings → Environments, and the pick goes into the draft's composer settings. Once the conversation exists, the menu still opens but greys out the other environments and says the choice is fixed.
 - **Channel chip** (always shown): unbound, a chat glyph and "Not connected"; bound, the platform glyph tinted by the channel health poll (`channelHealth`) with a "WeChat · account" label. It opens the channel menu (bind, switch account, or "Not connected").
 
-The **+** menu's Channel submenu offers the same choice. The channel menu, the channel chip and the submenu share `channel-choices.ts`. It follows the composer's own pane (`useBoundChat`), so in a split view each pane reads and changes its own conversation.
+The chip is the only place the composer sets the channel; the **+** menu has no Channel entry. The channel menu and the channel chip share `channel-choices.ts`. It follows the composer's own pane (`useBoundChat`), so in a split view each pane reads and changes its own conversation.
 
 The worker connection tone (`statusBadge`) and the channel health (`channelHealth`) are separate store slices, so neither can repaint the other's chip.
 
