@@ -109,7 +109,7 @@ function NestedMenuItems({ items, persistent = false }: { items: ContextMenuItem
         <DropdownMenuPrimitive.Sub>
           <DropdownMenuPrimitive.SubTrigger
             disabled={item.disabled}
-            className={`${itemCls(false)} w-full min-w-0 outline-none data-[highlighted]:bg-bg-hover data-[highlighted]:text-text-bright data-[state=open]:bg-bg-hover data-[state=open]:text-text-bright`}
+            className={`${itemCls(false)} w-full min-w-0 outline-none data-[highlighted]:bg-accent data-[highlighted]:text-text-bright data-[state=open]:bg-accent data-[state=open]:text-text-bright`}
             title={item.label}
           >
             {hasItemIcon(item) ? (
@@ -136,7 +136,7 @@ function NestedMenuItems({ items, persistent = false }: { items: ContextMenuItem
       ) : (
         <DropdownMenuPrimitive.Item
           disabled={item.disabled}
-          className={`${itemCls(false)} w-full min-w-0 outline-none data-[highlighted]:bg-bg-hover data-[highlighted]:text-text-bright data-[disabled]:pointer-events-none data-[disabled]:opacity-55`}
+          className={`${itemCls(false)} w-full min-w-0 outline-none data-[highlighted]:bg-accent data-[highlighted]:text-text-bright data-[disabled]:pointer-events-none data-[disabled]:opacity-55`}
           role={typeof item.checked === "boolean" ? "menuitemcheckbox" : "menuitem"}
           aria-checked={item.checked}
           title={item.description ? undefined : item.label}

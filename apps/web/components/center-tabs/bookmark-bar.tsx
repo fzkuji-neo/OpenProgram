@@ -68,7 +68,7 @@ function BookmarkMenuNodes({
   return nodes.map((node) => node.kind === "folder" ? (
     <DropdownMenuSub key={node.id}>
       <DropdownMenuSubTrigger
-        className={`${itemCls(false)} w-full min-w-0 outline-none data-[highlighted]:bg-bg-hover data-[highlighted]:text-text-bright data-[state=open]:bg-bg-hover data-[state=open]:text-text-bright`}
+        className={`${itemCls(false)} w-full min-w-0 outline-none data-[highlighted]:bg-accent data-[highlighted]:text-text-bright data-[state=open]:bg-accent data-[state=open]:text-text-bright`}
       >
         <Folder size={13} fill="currentColor" className="shrink-0" />
         <span className="min-w-0 flex-1 truncate text-left">{node.title || "Folder"}</span>
@@ -81,7 +81,7 @@ function BookmarkMenuNodes({
   ) : (
     <DropdownMenuItem
       key={node.id}
-      className={`${itemCls(false)} w-full min-w-0 outline-none data-[highlighted]:bg-bg-hover data-[highlighted]:text-text-bright`}
+      className={`${itemCls(false)} w-full min-w-0 outline-none data-[highlighted]:bg-accent data-[highlighted]:text-text-bright`}
       onSelect={() => onNavigate(node.url)}
       title={node.title || node.url}
     >

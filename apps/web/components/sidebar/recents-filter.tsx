@@ -60,8 +60,8 @@ const surface =
 // (32px tall · 13px) so these match the context-menu + topbar rows.
 const rowCls =
   itemCls(false) +
-  " select-none outline-none data-[state=open]:bg-bg-hover" +
-  " data-[state=open]:text-text-bright data-[highlighted]:bg-bg-hover" +
+  " select-none outline-none data-[state=open]:bg-accent" +
+  " data-[state=open]:text-text-bright data-[highlighted]:bg-accent" +
   " data-[highlighted]:text-text-bright";
 
 export function RecentsFilter({projects = []}: {projects?: readonly {id:string;name:string}[]} = {}) {

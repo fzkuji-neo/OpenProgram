@@ -120,9 +120,9 @@ assert.match(contextMenuOverlay, /<DropdownMenuPrimitive\.Sub>/,
   "desktop bookmark folders must open cascading submenus");
 assert.match(contextMenuOverlay, /min-w-0 flex-1 truncate/,
   "desktop bookmark titles must truncate instead of widening the menu");
-assert.match(contextMenuOverlay, /data-\[highlighted\]:bg-bg-hover/,
+assert.match(contextMenuOverlay, /data-\[highlighted\]:bg-accent/,
   "desktop nested bookmark rows need a visible keyboard highlight");
-assert.match(bookmarkBar, /data-\[highlighted\]:bg-bg-hover/,
+assert.match(bookmarkBar, /data-\[highlighted\]:bg-accent/,
   "web nested bookmark rows need a visible keyboard highlight");
 assert.match(bookmarkBar, /onMouseLeave=\{\(\) => mainMenu\.scheduleClose\?\.\(120\)\}/,
   "desktop bookmark folder triggers must schedule close after pointer leave");

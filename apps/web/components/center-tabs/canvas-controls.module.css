@@ -99,7 +99,7 @@
    its width and colours until the menu has folded back, then shrinks. */
 .handle[data-open],
 .handle[data-folding] {
-  width: 244px;
+  width: 268px;
 }
 .grip {
   height: 22px;
@@ -211,7 +211,7 @@
   min-height: 0;
   max-height: calc(100vh - 80px);
   overflow-y: auto;
-  width: 244px;
+  width: 268px;
   box-sizing: border-box;
   padding: 0 5px 5px;
 }
@@ -265,7 +265,7 @@
 .emptyItem:hover,
 .emptyItem:focus-visible {
   outline: none;
-  background: color-mix(in oklch, var(--accent-blue) 16%, transparent);
+  background: var(--accent);
   color: var(--text-bright);
 }
 .emptyItem svg {
@@ -380,11 +380,14 @@
   white-space: nowrap;
 }
 
+/* Rows, labels and separators follow the app's menus (top-bar/menu-styles.ts):
+   28px rows, 14px text, the --accent ink fill on hover. */
 .menuLabel {
-  padding: 6px 8px 4px;
+  padding: 4px 6px;
   color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
 }
 /* 贴靠菜单的布局图示：和 macOS 绿色按钮菜单一样，一格一个小画布，
    蓝色块是这一格会去的位置。 */
@@ -409,7 +412,7 @@
 .tile:focus-visible,
 .tile[aria-pressed="true"] {
   outline: none;
-  background: var(--bg-hover);
+  background: var(--accent);
 }
 .glyph {
   position: relative;
@@ -438,9 +441,9 @@
 /* 指向图示时在这里说出它的名字和快捷键（不用原生 title）。 */
 .hint {
   min-height: 16px;
-  padding: 4px 8px 2px;
-  color: var(--text-secondary);
-  font-size: 11px;
+  padding: 4px 6px 2px;
+  color: var(--text-muted);
+  font-size: 12px;
   line-height: 16px;
   white-space: pre;
   overflow: hidden;
@@ -471,45 +474,55 @@
 .preset:hover,
 .preset:focus-visible {
   outline: none;
-  background: var(--bg-hover);
+  background: var(--accent);
   color: var(--text-bright);
 }
 .separator {
   height: 1px;
-  margin: 4px 6px;
+  margin: 4px -5px;
   background: var(--border);
 }
 .menuItem {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
-  padding: 5px 8px;
+  min-height: 28px;
+  box-sizing: border-box;
+  padding: 4px 6px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: transparent;
-  color: inherit;
-  font: inherit;
+  color: var(--text-primary);
+  font: 14px/20px var(--font-sans);
   text-align: left;
+  white-space: nowrap;
   cursor: pointer;
+  transition: background-color 75ms, color 75ms;
 }
 .menuItem:hover,
 .menuItem:focus-visible {
   outline: none;
-  background: var(--accent-blue);
-  color: #fff;
+  background: var(--accent);
+  color: var(--text-bright);
 }
 .menuItem svg {
-  width: 14px;
-  height: 14px;
-  opacity: 0.85;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
 }
 .shortcut {
   display: inline-flex;
   align-items: center;
   margin-left: auto;
-  opacity: 0.55;
+  padding-left: 12px;
+  color: var(--text-muted);
   font-size: 12px;
+  letter-spacing: 0.1em;
+}
+.shortcut svg {
+  width: 14px;
+  height: 14px;
 }
 .saveForm {
   display: flex;
