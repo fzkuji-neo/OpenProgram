@@ -296,10 +296,10 @@
 
 /* In the dark themes a popup sat on the same colour as the cards and the
    composer under it (both --bg-input) and Nova's light shadow vanished.
-   Lift it a step, give it a visible hairline and a deep shadow, like
+   Lift it a step, give it a light hairline and a soft deep shadow, like
    Claude's menus. */
 :root[data-theme-mode="dark"] {
   --popover: color-mix(in oklab, var(--bg-input), #fff 4%);
   --popover-ring: color-mix(in oklab, var(--text-bright) 14%, transparent);
-  --popover-shadow: 0 0 0 2px rgb(0 0 0 / 0.35), 0 10px 28px -6px rgb(0 0 0 / 0.6);
+  --popover-shadow: 0 10px 28px -6px rgb(0 0 0 / 0.6);
 }
