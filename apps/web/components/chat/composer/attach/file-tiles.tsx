@@ -389,7 +389,7 @@ function LocalFilePreviewModal({
           }}
         >
           <span style={{
-            fontFamily: "ui-monospace, monospace",
+            fontFamily: "var(--font-mono)",
             fontSize: 13,
             color: "var(--text-primary)",
             flex: 1,
@@ -432,7 +432,7 @@ function LocalFilePreviewModal({
             flex: 1,
             overflow: "auto",
             padding: 16,
-            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+            fontFamily: "var(--font-mono)",
             fontSize: 12,
             lineHeight: 1.5,
             color: "var(--text-primary)",

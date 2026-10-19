@@ -61,7 +61,7 @@ export function ScopedDropOverlay() {
           flexDirection: "column",
           alignItems: "center",
           gap: 10,
-          fontFamily: "ui-sans-serif, system-ui, sans-serif",
+          fontFamily: "var(--font-sans)",
         }}
       >
         <SolarIcon name="paperclip" size={36} motionPreset="none" aria-hidden />

@@ -384,7 +384,7 @@
 .catalogSubtitle {
   margin-top: 2px;
   color: var(--text-tertiary);
-  font: 10px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 10px/1.4 var(--font-mono);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
