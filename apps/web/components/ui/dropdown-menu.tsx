@@ -7,7 +7,9 @@
  * inner div), so every menu in the app shares one visual definition and
  * fits its content (MENU_PANEL caps the width). Radix supplies the parts
  * popovers make us hand-roll: roving focus, typeahead, Esc,
- * outside-click, and `role="menu"/"menuitem"` semantics.
+ * outside-click, and `role="menu"/"menuitem"` semantics. A submenu sits
+ * where shadcn's radix-nova one does (no offsets): against its trigger
+ * row, top edges level.
  */
 
 import * as React from "react"
@@ -49,12 +51,10 @@ const DropdownMenuSubTrigger = DropdownMenuPrimitive.SubTrigger
 const DropdownMenuSubContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.SubContent>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.SubContent>
->(({ className, sideOffset = 2, alignOffset = -6, ...props }, ref) => (
+>(({ className, ...props }, ref) => (
   <DropdownMenuPrimitive.Portal>
     <DropdownMenuPrimitive.SubContent
       ref={ref}
-      sideOffset={sideOffset}
-      alignOffset={alignOffset}
       className={cn(
         "z-50 outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         className

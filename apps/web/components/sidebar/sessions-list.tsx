@@ -40,11 +40,7 @@ import { useRecentsView, setRecentsView } from "@/lib/prefs/recents-view";
 import { autoRenameSession } from "@/lib/session-auto-rename";
 import { wsRequest } from "@/lib/net/ws-request";
 import { projectGroups, moveProject, filterProjectItems } from "@/lib/projects/project-groups";
-import {
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-} from "@/components/ui/popover";
+import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   FoldersIcon,
   type AnimatedNavIconHandle,
@@ -1079,6 +1075,7 @@ function ConvItem({
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(label);
   const inputRef = useRef<HTMLInputElement>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
 
   // `ui-list-item` (global) carries the row box — height, corner, padding,
   // gap-[12px] (which + the 16px marker slot aligns titles to the nav rows'
@@ -1192,8 +1189,9 @@ function ConvItem({
   }
 
   return (
-    <Popover open={menuOpen && !menu.native} onOpenChange={menu.onOpenChange}>
+    <DropdownMenu open={menuOpen} onOpenChange={menu.onOpenChange} modal={false}>
       <div
+        ref={rowRef}
         className={`${base} ${colorCls} ${stateCls}`}
         /* The row is a div (the marquee/mask layering and the nested ⋮
            trigger rule out a real <button>), so it needs the button role
@@ -1288,7 +1286,16 @@ function ConvItem({
         )}
 
         {/* ⋯ button — hover-visible; anchors the menu. */}
-        <PopoverAnchor virtualRef={menu.anchor} />
+        {/* The menu opens at the click point: a zero-size trigger placed
+            there inside the row, so the menu follows the row on scroll. */}
+        <DropdownMenuTrigger asChild>
+          <span
+            aria-hidden="true"
+            tabIndex={-1}
+            className="pointer-events-none absolute size-0"
+            style={menuAnchorStyle(menu.point, rowRef.current)}
+          />
+        </DropdownMenuTrigger>
           <button
             type="button"
             onClick={(e) => {
@@ -1318,14 +1325,6 @@ function ConvItem({
           </button>
       </div>
 
-      <PopoverContent
-        align="start"
-        side="bottom"
-        sideOffset={4}
-        onCloseAutoFocus={event => event.preventDefault()}
-        className="w-auto border-0 bg-transparent p-0 text-[var(--text-primary)] shadow-none"
-        onClick={(e) => e.stopPropagation()}
-      >
         {bulk ? <BulkConvMenu {...bulk} groups={groups} onClose={menu.close} /> : <ConvMenu
           conv={conv}
           groups={groups}
@@ -1342,7 +1341,13 @@ function ConvItem({
           onDelete={onDelete}
           onClose={menu.close}
         />}
-      </PopoverContent>
-    </Popover>
+    </DropdownMenu>
   );
+}
+
+/** Where a row's context-menu anchor goes: the click point, relative to
+ *  the row it sits in. */
+function menuAnchorStyle(point: { x: number; y: number }, row: HTMLElement | null): React.CSSProperties {
+  const rect = row?.getBoundingClientRect();
+  return rect ? { left: point.x - rect.left, top: point.y - rect.top } : { left: 0, top: 0 };
 }

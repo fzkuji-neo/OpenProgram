@@ -28,9 +28,14 @@ registerHooks({
   },
 });
 const {window} = parseHTML('<!doctype html><html><body></body></html>');
-Object.assign(globalThis,{window,document:window.document,IS_REACT_ACT_ENVIRONMENT:true,WebSocket:{OPEN:1}});
+Object.assign(globalThis,{window,document:window.document,IS_REACT_ACT_ENVIRONMENT:true,WebSocket:{OPEN:1},
+  // Radix's menu measures and observes its popper; linkedom has neither.
+  getComputedStyle:()=>({animationName:'none',display:'block'}),
+  ResizeObserver:class{observe(){}unobserve(){}disconnect(){}},
+  Event:window.Event,CustomEvent:window.CustomEvent});
 const {autoRenameSession} = await import('../../lib/session-auto-rename.ts');
 const {ConvMenu} = await import('../../components/sidebar/conv-menu.tsx');
+const {DropdownMenu} = await import('@radix-ui/react-dropdown-menu').then(m=>({DropdownMenu:m.Root}));
 function socket() {
   messages.length=0;
   const listeners=new Map(), frames=[];
@@ -42,8 +47,9 @@ test('menu exposes Auto rename directly after Rename and invokes its own action'
   const host=document.createElement('div'); document.body.append(host); const root=createRoot(host);
   const noop=()=>{};
   try {
-    await act(async()=>root.render(React.createElement(ConvMenu,{conv:{id:'A'},groups:[],onRename:()=>manual++,onAutoRename:()=>automatic++,onClose:()=>closed++,onTogglePin:noop,onToggleArchive:noop,onMoveToGroup:noop,onNewGroup:noop,onCopyLink:noop,onExport:noop,onDelete:noop})));
-    const buttons=[...host.querySelectorAll('button')];
+    // The menu's Radix root lives in the row (ConvItem); selecting an item closes it through onOpenChange.
+    await act(async()=>root.render(React.createElement(DropdownMenu,{open:true,modal:false,onOpenChange:open=>{if(!open)closed++;}},React.createElement(ConvMenu,{conv:{id:'A'},groups:[],onRename:()=>manual++,onAutoRename:()=>automatic++,onClose:noop,onTogglePin:noop,onToggleArchive:noop,onMoveToGroup:noop,onNewGroup:noop,onCopyLink:noop,onExport:noop,onDelete:noop}))));
+    const buttons=[...document.querySelectorAll('[role=menuitem]')];
     assert.match(buttons[0].textContent,/sidebar.rename/);
     assert.match(buttons[1].textContent,/sidebar.auto_rename/);
     await act(async()=>buttons[1].click());

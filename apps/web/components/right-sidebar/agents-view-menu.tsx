@@ -43,7 +43,7 @@ function ValueSubmenu<T extends string>({ icon, label, value, options, onPick }:
       <span className="shrink-0 text-text-muted">{options.find(([key]) => key === value)?.[1]}</span>
       <SolarIcon name="alt-arrow-right" size={14} className="shrink-0 text-text-muted" />
     </DropdownMenuSubTrigger>
-    <DropdownMenuSubContent sideOffset={6} className={cn(MENU_PANEL, "z-[201]")}>
+    <DropdownMenuSubContent className={cn(MENU_PANEL, "z-[201]")}>
       {options.map(([key, name]) => <PlusMenuRow key={key} active={key === value} icon={null} label={name} onSelect={() => onPick(key)} />)}
     </DropdownMenuSubContent>
   </DropdownMenuSub>;
