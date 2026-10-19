@@ -8,6 +8,7 @@ recognition wants, and is turned into a 16-bit WAV when it stops.
 """
 from __future__ import annotations
 
+import contextlib
 from array import array
 from dataclasses import dataclass, field
 import io
@@ -186,10 +187,8 @@ def halt(recording: Recording) -> None:
         recording.timer.cancel()
     stream, recording.stream = recording.stream, None
     if stream is not None:
-        try:
+        with contextlib.suppress(Exception):
             _wait(lambda cb: stream.stopCaptureWithCompletionHandler_(cb))
-        except Exception:
-            pass
 
 
 def finish(recording: Recording) -> tuple[bytes, float]:

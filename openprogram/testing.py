@@ -19,6 +19,7 @@ loop's retries.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -115,10 +116,8 @@ def script_roles(script: Mapping[Any, Sequence[Any]]) -> Iterator[RoleCalls]:
             else:
                 role.runtime = previous
         for runtime in runtimes:
-            try:
+            with contextlib.suppress(Exception):
                 runtime.close()
-            except Exception:
-                pass
 
 
 __all__ = ["Request", "RoleCalls", "script_roles"]

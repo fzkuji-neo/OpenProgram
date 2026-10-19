@@ -36,6 +36,7 @@ existing ``ssh``/``docker`` setup keeps behaving the same.
 """
 from __future__ import annotations
 
+import contextlib
 import re
 from contextvars import ContextVar
 from dataclasses import asdict, dataclass, field
@@ -343,10 +344,8 @@ def bind_turn_environment(env: Optional[Environment]):
 
 
 def reset_turn_environment(token) -> None:
-    try:
+    with contextlib.suppress(Exception):
         _current_environment.reset(token)
-    except Exception:
-        pass
 
 
 def current_environment() -> Environment:

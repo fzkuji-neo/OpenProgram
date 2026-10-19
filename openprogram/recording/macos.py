@@ -7,6 +7,7 @@ screenshots, so a slow application never stalls the tap.
 """
 from __future__ import annotations
 
+import contextlib
 import os
 import queue
 import threading
@@ -136,10 +137,8 @@ class Capture:
                 if self.tap is not None:
                     cg.CGEventTapEnable(self.tap, True)
                 return event
-            try:
+            with contextlib.suppress(Exception):
                 self.queue.put(self._copy(kind, event))
-            except Exception:
-                pass
             return event
 
         self.tap = cg.CGEventTapCreate(cg.kCGSessionEventTap, cg.kCGHeadInsertEventTap,

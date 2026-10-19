@@ -16,6 +16,7 @@ is created, and the backend follows it.
 """
 from __future__ import annotations
 
+import contextlib
 import re
 
 from openprogram.backend.base import Backend, RunResult
@@ -56,26 +57,20 @@ def _session_mounts(session_id: str | None) -> tuple[str, ...]:
     """Host folders a session's container sees: its working directory
     first (the container's starting folder), then extra working dirs."""
     paths: list[str] = []
-    try:
+    with contextlib.suppress(Exception):
         from openprogram.worktree.context import current_worktree_path
         wt = current_worktree_path()
         if wt:
             paths.append(wt)
-    except Exception:
-        pass
     if session_id:
-        try:
+        with contextlib.suppress(Exception):
             from openprogram.agent.internals._workdir import runtime_location_for
             wd = runtime_location_for(session_id)["workdir"]
             if isinstance(wd, str) and wd:
                 paths.append(wd)
-        except Exception:
-            pass
-        try:
+        with contextlib.suppress(Exception):
             from openprogram.agent.session_config import load_session_run_config
             paths.extend(load_session_run_config(session_id).additional_working_dirs)
-        except Exception:
-            pass
     out: list[str] = []
     for path in paths:
         if path and path.startswith("/") and path not in out:

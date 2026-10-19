@@ -12,6 +12,7 @@ A window stays watched while steps keep arriving and is released after
 """
 from __future__ import annotations
 
+import contextlib
 import threading
 import time
 from typing import Any
@@ -126,7 +127,5 @@ def _stop(watch: _Watch) -> None:
     stream, watch.stream = watch.stream, None
     if stream is None:
         return
-    try:
+    with contextlib.suppress(Exception):
         _wait(lambda cb: stream.stopCaptureWithCompletionHandler_(cb))
-    except Exception:
-        pass
