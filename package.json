@@ -24,5 +24,8 @@
     "check:web": "npm run check --workspace apps/web",
     "check:desktop": "npm run check --workspace apps/desktop",
     "check:cli": "npm test --workspace apps/cli"
+  },
+  "overrides": {
+    "@electron/get": "^5.1.0"
   }
 }

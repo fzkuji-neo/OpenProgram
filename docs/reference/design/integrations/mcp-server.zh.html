@@ -174,7 +174,7 @@
   </svg>
   <div class="legend"><b>已有的复用点</b>：<code>AgentTool.execute</code> 的签名是
     <code>(call_id, args, cancel: asyncio.Event | None, on_update)</code>，参数字典、取消事件、增量回调三样协议服务端需要的东西都在。
-    服务端已通过显式 <code>CallToolRequest</code> handler 将这些参数接到 MCP 1.29.0 stdio transport。</div>
+    服务端已通过显式 <code>CallToolRequest</code> handler 将这些参数接到 MCP 1.30.0 stdio transport。</div>
   </div>
 
   <h2 id="surf"><span class="num">02</span>三个内部面，Web 边界已认证</h2>
@@ -522,7 +522,7 @@
       <h3 style="color:#4f8ef7">stdio 单一传输</h3>
       <div class="noun">openprogram mcp serve　模块 openprogram/mcp/server/</div>
       <div class="row"><div class="t">为什么</div><div class="v">被调查的每个实现都最先支持 stdio；它<b>继承拉起进程那方的信任边界</b>；而且不把内部 full-owner Web API 暴露成 integration surface。</div></div>
-      <div class="row"><div class="t">规范基线</div><div class="v">首版锁定仓库当前 <code>mcp 1.29.0</code> 与协议 <code>2025-11-25</code>；由 SDK 协商兼容版本，不自行扩展握手字段。</div></div>
+      <div class="row"><div class="t">规范基线</div><div class="v">首版锁定仓库当前 <code>mcp 1.30.0</code> 与协议 <code>2025-11-25</code>；由 SDK 协商兼容版本，不自行扩展握手字段。</div></div>
       <div class="row"><div class="t">HTTP</div><div class="v">等 stdio contract 稳定后单独设计 Streamable HTTP、OAuth、Origin 校验与部署生命周期，不复用 Web owner token。</div></div>
       <div class="row"><div class="t">模块位置</div><div class="v">与 <code>openprogram/mcp/</code> 平级的顶层模块，<b>不复用客户端模块</b>（翻译方向相反），但共用 <code>_runtime.py</code> 与审批阶梯 —— 共用这两样正是全部意义。</div></div>
     </div>
@@ -574,7 +574,7 @@
     <tr><td>档位不含该能力</td><td class="m"><code>isError: true</code>，正文点名缺失能力</td><td>工具存在但本次不可用</td></tr>
     <tr><td>审批被拒或无法审批</td><td class="m"><code>isError: true</code>，仅保留固定 gate reason</td><td>无 owner 在场时判为拒绝，不透传任意工具 details</td></tr>
     <tr><td>工具跑了并失败</td><td class="m"><code>isError: true</code>，固定净化正文与 reason code</td><td>保留 typed error，不跨边界泄漏异常、trace 或工具自报原因</td></tr>
-    <tr><td>外部 SDK 取消在途请求</td><td class="n"><code>ErrorData(code=0, message="Request cancelled", data=None)</code>；应用不返回 tool result</td><td>SDK 1.29.0 的 <code>notifications/cancelled</code> 拥有响应；OpenProgram 只做停止、清理与审计</td></tr>
+    <tr><td>外部 SDK 取消在途请求</td><td class="n"><code>ErrorData(code=0, message="Request cancelled", data=None)</code>；应用不返回 tool result</td><td>SDK 1.30.0 的 <code>notifications/cancelled</code> 拥有响应；OpenProgram 只做停止、清理与审计</td></tr>
     <tr><td>普通 <code>prompt_cancel</code></td><td class="m">同连接活跃轮次返回 <code>cancelled=true</code>；foreign/completed 返回 false</td><td>它是六个 wrapper 之一，不等同于 SDK cancellation notification</td></tr>
   </table>
   </div>
@@ -591,7 +591,7 @@
     <code>notifications/cancelled</code> 使 SDK 为原 <code>prompt_send</code> 返回标准 JSON-RPC cancellation error，断言不存在后续 tool result / <code>isError</code>；
     同时验证后续副作用停止、活跃请求与问题状态清空、审计事件落下。进度通知当且仅当给了 <code>progressToken</code> 时到达，保持每请求顺序；
     正常、错误与取消路径均有界终止 progress consumer，外部 parent cancellation 不被 teardown 吞掉。
-    验收使用真实 MCP 1.29.0 <code>ClientSession</code> 经真实 <code>openprogram mcp serve</code> 子进程覆盖六个 wrapper、typed errors、并发、进度、取消与 stdout 纯协议帧；手写帧只作为原始 stdout 的补充检查。</div>
+    验收使用真实 MCP 1.30.0 <code>ClientSession</code> 经真实 <code>openprogram mcp serve</code> 子进程覆盖六个 wrapper、typed errors、并发、进度、取消与 stdout 纯协议帧；手写帧只作为原始 stdout 的补充检查。</div>
 
   <!-- ══════════════════ 层四 ══════════════════ -->
   <div class="band L4" id="L4">
@@ -654,7 +654,7 @@
     <tr><td><b>SDK cancellation → 请求清理与审计</b></td><td class="y">已实施</td><td class="g">精确 request/session/connection ownership；设置 thread/tool event，清理 process、Runtime、questions、run-control，再记录 <code>mcp.request.cancelled</code></td></tr>
     <tr><td><b><code>notifications/progress</code> 由 <code>on_update</code> 驱动</b></td><td class="y">已实施</td><td class="g">仅有 <code>progressToken</code> 时发送；每请求单调有序；normal/error/cancel 均有界清理 consumer，保留 parent cancellation</td></tr>
     <tr><td><b><code>AgentToolResult</code> 上的一等 <code>is_error</code></b></td><td class="y">已实施</td><td class="g">Runtime 失败、拒绝与 wire <code>CallToolResult.isError</code> 端到端使用 typed bit；敏感正文/details 在 MCP 边界净化</td></tr>
-    <tr><td><b>端到端协议测试</b></td><td class="y">已实施</td><td class="g">真实 MCP 1.29.0 <code>ClientSession</code> + CLI stdio 子进程，协议 <code>2025-11-25</code>；覆盖六项、clientInfo invariance、typed errors、question decline、progress、并发、取消、审计与 stdout 隔离</td></tr>
+    <tr><td><b>端到端协议测试</b></td><td class="y">已实施</td><td class="g">真实 MCP 1.30.0 <code>ClientSession</code> + CLI stdio 子进程，协议 <code>2025-11-25</code>；覆盖六项、clientInfo invariance、typed errors、question decline、progress、并发、取消、审计与 stdout 隔离</td></tr>
     <tr><td><b>ACP stdio 服务端</b></td><td class="g">已存在；本轮不扩张</td><td class="m"><code>apps/cli/python/openprogram_cli/_impl/commands/acp.py</code> 与 <code>openprogram/acp/server.py</code>；只做共享类型回归</td></tr>
     <tr><td><b>入站 webhook</b></td><td class="g">本轮不做</td><td class="m">依赖沙箱批次 I 与第 05B 步的固化 job capability</td></tr>
     <tr><td><b>客户端 SDK</b></td><td class="g">本轮不做</td><td class="m">标准 MCP SDK 已覆盖客户端角色；仅当已冻结的六工具面被真实集成证明过粗时，再考虑专属 OpenProgram SDK</td></tr>

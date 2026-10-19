@@ -192,7 +192,7 @@ def test_unknown_wrapper_is_method_not_found_without_echoing_the_name() -> None:
 
 
 def test_contract_matches_locked_mcp_protocol_without_startup_side_effects() -> None:
-    assert version("mcp") == "1.29.0"
+    assert version("mcp") == "1.30.0"
     assert mcp_types.LATEST_PROTOCOL_VERSION == "2025-11-25"
 
 
