@@ -745,6 +745,12 @@ html.is-desktop {
      same mix only lowers lightness. */
   --tabrow-bg: color-mix(in oklch, var(--bg-secondary) 88%, #2a2117 12%);
 }
+html.is-desktop[data-theme-mode="dark"] {
+  /* In dark themes #2a2117 is lighter than the surface, so the mix above
+     lands on the panels' own colour and the strip/content boundary
+     disappears. Step toward black instead, like Chrome's dark frame. */
+  --tabrow-bg: color-mix(in oklch, var(--bg-secondary) 60%, #000 40%);
+}
 .desktop-tab-row {
   display: flex;
   flex-shrink: 0;
