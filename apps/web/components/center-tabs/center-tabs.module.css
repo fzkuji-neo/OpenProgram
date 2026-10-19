@@ -168,8 +168,7 @@
   width: 2px;
   height: 16px;
   border-radius: 1px;
-  /* --border (6% white in the dark themes) vanished on the dark strip. */
-  background: color-mix(in oklab, var(--text-muted) 45%, transparent);
+  background: var(--border);
   pointer-events: none;
 }
 .tab:first-child::before,
@@ -352,8 +351,7 @@
   width: 2px;
   height: 16px;
   border-radius: 1px;
-  /* --border (6% white in the dark themes) vanished on the dark strip. */
-  background: color-mix(in oklab, var(--text-muted) 45%, transparent);
+  background: var(--border);
   pointer-events: none;
 }
 .compoundTab:first-child::before,
