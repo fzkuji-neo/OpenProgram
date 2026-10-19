@@ -15,9 +15,8 @@
   overflow-anchor: none;
   /* 让 minimap 能用 cqw 算出聊天区实际宽度，贴到右缘分割线。 */
   container-type: inline-size;
-  /* Text scrolling under the pane's top edge fades out instead of running
-     into the pane grip ("•••") that floats there. */
-  mask-image: linear-gradient(to bottom, transparent 0, #000 28px);
+  /* No fade at the top edge: text scrolls under the pane edge at full
+     contrast (a fade read as a smudge over the first visible line). */
 }
 /* While the chat's width changes (a divider drag, a rail opening, a
    window resize), rows off screen keep their last laid-out height and
