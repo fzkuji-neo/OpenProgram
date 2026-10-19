@@ -1427,7 +1427,7 @@
   /* A thin top band stands in for the tab strip, tinted the same way as
      base.css --tabrow-bg, so Vivid's coloured strip shows on its card. */
   background: linear-gradient(
-    color-mix(in oklab, var(--bg-secondary), var(--accent-orange) var(--tabrow-tint)) 0 8px,
+    color-mix(in oklab, var(--bg-secondary), var(--tabrow-color) var(--tabrow-tint)) 0 8px,
     var(--bg-primary) 8px
   );
   padding-top: 8px;
@@ -1484,6 +1484,15 @@
   border: 1px solid var(--border);
   cursor: pointer;
 }
+.tabrowPreset {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  padding: 0;
+  border: 1px solid var(--border-light);
+  cursor: pointer;
+}
+.tabrowPreset[aria-pressed="true"],
 .accentPreset[aria-pressed="true"] {
   outline: 2px solid var(--text-primary);
   outline-offset: 1px;

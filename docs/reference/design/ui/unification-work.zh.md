@@ -24,7 +24,7 @@ OpenProgram 包含多个 UI 界面：
 设置默认打开常规页。外观采用类似 Obsidian 的分层结构，保留 schema 3（模式 × 命名主题包）：
 
 - **模式**：自动 / 浅色 / 深色。自动跟随系统；它属于模式，不是主题。
-- **主题包**：仅 Beige / Neutral / Aurora / Vivid。每个包都有浅色和深色 `data-theme`。Custom 不作为单独的皮肤。Vivid（彩色）沿用 Beige 的面板，用强调色给顶部标签栏着色（`--tabrow-tint`），所以改强调色时标签栏跟着变色。
+- **主题包**：仅 Beige / Neutral / Aurora / Vivid。每个包都有浅色和深色 `data-theme`。Custom 不作为单独的皮肤。Vivid（彩色）沿用 Beige 的面板，顶部标签栏是彩色的。标签栏颜色是单独的设置，从 Chrome 深色模式的同款颜色里选（存在 `agentic_tabrow_color`，以 `--tabrow-seed` 生效）；浅色模式用同一色相的淡色。
 - **强调色**：颜色输入框、取自各主题包默认 `--accent-orange` 的预设，以及恢复主题默认值。空值/默认值使用当前主题包的强调色。覆盖设置写入 `--accent-orange`、`--accent-fill` 及派生的 `--accent-orange-hover`。
 - **CSS 叠加层**：用户 CSS 叠加在所选主题包之上，由“启用自定义 CSS”控制。“插入模板”写入以 `html` / 当前 `data-theme` 值为目标的初始模板。“清空”清除片段。旧 `[data-theme="custom"]` / `[data-theme="custom-light"]` 选择器改写为 `data-custom-css`，以继续生效。
 

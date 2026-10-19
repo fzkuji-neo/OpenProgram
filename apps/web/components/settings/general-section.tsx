@@ -26,6 +26,8 @@ import {
   useThemePref,
   ACCENT_PRESETS,
   CUSTOM_CSS_TEMPLATE,
+  DEFAULT_TABROW_COLOR,
+  TABROW_COLOR_PRESETS,
   THEME_MODES,
   THEME_STYLES,
   THEME_STYLE_PAIRS,
@@ -397,6 +399,8 @@ export function GeneralSection() {
     setAccent,
     resetAccent,
     packageAccent,
+    tabrowColor,
+    setTabrowColor,
     customCss,
     customCssEnabled,
     setCustomCssEnabled,
@@ -455,6 +459,31 @@ export function GeneralSection() {
             }))}
           />
         </SettingsRow>
+
+        {style === "vivid" ? (
+          <SettingsRow
+            label={text("Tab bar color", "标签栏颜色")}
+            description={text(
+              "Chrome's colour set. Dark mode shows the colour, light mode a pale tone of it.",
+              "Chrome 同款颜色。深色模式直接用这个颜色，浅色模式用它的淡色。",
+            )}
+            stacked
+          >
+            <div className="flex flex-wrap gap-2" role="group" aria-label={text("Tab bar color", "标签栏颜色")}>
+              {TABROW_COLOR_PRESETS.map((hex) => (
+                <button
+                  key={hex}
+                  type="button"
+                  className={styles.tabrowPreset}
+                  style={{ background: hex }}
+                  aria-label={hex}
+                  aria-pressed={(tabrowColor ?? DEFAULT_TABROW_COLOR) === hex}
+                  onClick={() => setTabrowColor(hex)}
+                />
+              ))}
+            </div>
+          </SettingsRow>
+        ) : null}
 
         <SettingsRow
           label={text("Accent color", "强调色")}

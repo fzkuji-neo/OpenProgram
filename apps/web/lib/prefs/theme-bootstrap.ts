@@ -108,6 +108,12 @@ function applyAccentOverride() {
   root.setProperty('--accent-orange-hover', deriveAccentHover(accent));
   return accent;
 }
+function applyTabrowColor() {
+  var hex = normalizeAccentHex(themeStorageGet('agentic_tabrow_color') || '');
+  var root = document.documentElement.style;
+  if (hex) root.setProperty('--tabrow-seed', hex);
+  else root.removeProperty('--tabrow-seed');
+}
 function applyOverlayCss() {
   var css = themeStorageGet('agentic_custom_css') || '';
   var on = themeStorageGet('agentic_custom_css_enabled') === '1' && css.trim();
@@ -149,6 +155,7 @@ function applyThemePreference(source) {
   document.documentElement.setAttribute('data-theme-mode', resolvedMode);
   themeStorageSet('agentic_theme', theme);
   var accent = applyAccentOverride();
+  applyTabrowColor();
   applyOverlayCss();
   try {
     if (window.openprogramDesktop && window.openprogramDesktop.theme) {
@@ -181,6 +188,7 @@ window.addEventListener('storage', function (event) {
     event.key === 'agentic_theme_style'
     || event.key === 'agentic_theme_mode'
     || event.key === 'agentic_theme_accent'
+    || event.key === 'agentic_tabrow_color'
     || event.key === 'agentic_custom_css'
     || event.key === 'agentic_custom_css_enabled'
   ) {

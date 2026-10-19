@@ -20,6 +20,7 @@ import {
   coerceThemeMode,
   coerceThemeStyle,
   CUSTOM_CSS_TEMPLATE,
+  normalizeAccentHex,
   DEFAULT_THEME_MODE,
   DEFAULT_THEME_STYLE,
   isThemeId,
@@ -35,6 +36,8 @@ import {
 export {
   ACCENT_PRESETS,
   CUSTOM_CSS_TEMPLATE,
+  DEFAULT_TABROW_COLOR,
+  TABROW_COLOR_PRESETS,
   DEFAULT_THEME_MODE,
   DEFAULT_THEME_STYLE,
   isThemeId,
@@ -50,6 +53,7 @@ export const LEGACY_THEME_STORAGE_KEY = "agentic_theme";
 export const THEME_STYLE_STORAGE_KEY = "agentic_theme_style";
 export const THEME_MODE_STORAGE_KEY = "agentic_theme_mode";
 export const ACCENT_STORAGE_KEY = "agentic_theme_accent";
+export const TABROW_COLOR_STORAGE_KEY = "agentic_tabrow_color";
 export const CUSTOM_CSS_STORAGE_KEY = "agentic_custom_css";
 export const CUSTOM_CSS_ENABLED_STORAGE_KEY = "agentic_custom_css_enabled";
 
@@ -150,6 +154,7 @@ export function applyTheme(style: ThemeStyle, mode: ThemeMode, source = "apply")
   }
   storageSet(LEGACY_THEME_STORAGE_KEY, resolved.theme);
   applyAccentColor(currentAccent);
+  applyTabrowColor(currentTabrowColor);
   notifyDesktopChrome(resolved.theme, style, mode);
   traceThemeEvent(source, previousTheme);
 }
@@ -180,6 +185,14 @@ function applyAccentColor(hex: string | null): void {
   root.setProperty("--accent-orange-hover", tokens["--accent-orange-hover"]);
 }
 
+/** Vivid's tab-strip colour: an inline --tabrow-seed on <html>; none = base.css default. */
+function applyTabrowColor(hex: string | null): void {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement.style;
+  if (hex) root.setProperty("--tabrow-seed", hex);
+  else root.removeProperty("--tabrow-seed");
+}
+
 function notifyDesktopChrome(
   theme: ThemeId,
   style: ThemeStyle,
@@ -208,12 +221,14 @@ type ThemePreferences = {
   style: ThemeStyle;
   mode: ThemeMode;
   accent: string | null;
+  tabrowColor: string | null;
   customCssEnabled: boolean;
 };
 const subscribers = new Set<(preferences: ThemePreferences) => void>();
 let currentStyle: ThemeStyle = DEFAULT_THEME_STYLE;
 let currentMode: ThemeMode = DEFAULT_THEME_MODE;
 let currentAccent: string | null = null;
+let currentTabrowColor: string | null = null;
 let currentCssEnabled = false;
 
 function notify(): void {
@@ -221,6 +236,7 @@ function notify(): void {
     style: currentStyle,
     mode: currentMode,
     accent: currentAccent,
+    tabrowColor: currentTabrowColor,
     customCssEnabled: currentCssEnabled,
   };
   subscribers.forEach((subscriber) => subscriber(preferences));
@@ -249,6 +265,15 @@ export function setAccentColor(next: string | null): void {
   if (typeof window !== "undefined") {
     storageSet(ACCENT_STORAGE_KEY, currentAccent ?? "");
     applyTheme(currentStyle, currentMode, "settings-accent");
+  }
+  notify();
+}
+
+export function setTabrowColor(next: string | null): void {
+  currentTabrowColor = normalizeAccentHex(next);
+  if (typeof window !== "undefined") {
+    storageSet(TABROW_COLOR_STORAGE_KEY, currentTabrowColor ?? "");
+    applyTabrowColor(currentTabrowColor);
   }
   notify();
 }
@@ -305,6 +330,7 @@ export function useThemePref() {
   const [style, setStyleState] = useState<ThemeStyle>(currentStyle);
   const [mode, setModeState] = useState<ThemeMode>(currentMode);
   const [accent, setAccentState] = useState<string | null>(currentAccent);
+  const [tabrowColor, setTabrowColorState] = useState<string | null>(currentTabrowColor);
   const [customCss, setCustomCssState] = useState("");
   const [customCssEnabled, setCustomCssEnabledState] = useState(currentCssEnabled);
 
@@ -313,12 +339,14 @@ export function useThemePref() {
     currentStyle = coerceThemeStyle(storageGet(THEME_STYLE_STORAGE_KEY));
     currentMode = coerceThemeMode(storageGet(THEME_MODE_STORAGE_KEY));
     currentAccent = coerceAccentColor(storageGet(ACCENT_STORAGE_KEY));
+    currentTabrowColor = normalizeAccentHex(storageGet(TABROW_COLOR_STORAGE_KEY));
     currentCssEnabled = storageGet(CUSTOM_CSS_ENABLED_STORAGE_KEY) === "1";
     applyTheme(currentStyle, currentMode, "settings-mount");
     applyCustomCss(getCustomCss(), currentCssEnabled);
     setStyleState(currentStyle);
     setModeState(currentMode);
     setAccentState(currentAccent);
+    setTabrowColorState(currentTabrowColor);
     setCustomCssState(getCustomCss());
     setCustomCssEnabledState(currentCssEnabled);
 
@@ -326,6 +354,7 @@ export function useThemePref() {
       setStyleState(preferences.style);
       setModeState(preferences.mode);
       setAccentState(preferences.accent);
+      setTabrowColorState(preferences.tabrowColor);
       setCustomCssEnabledState(preferences.customCssEnabled);
     };
     subscribers.add(sub);
@@ -345,10 +374,12 @@ export function useThemePref() {
         event.key === THEME_STYLE_STORAGE_KEY
         || event.key === THEME_MODE_STORAGE_KEY
         || event.key === ACCENT_STORAGE_KEY
+        || event.key === TABROW_COLOR_STORAGE_KEY
       ) {
         currentStyle = coerceThemeStyle(storageGet(THEME_STYLE_STORAGE_KEY));
         currentMode = coerceThemeMode(storageGet(THEME_MODE_STORAGE_KEY));
         currentAccent = coerceAccentColor(storageGet(ACCENT_STORAGE_KEY));
+        currentTabrowColor = normalizeAccentHex(storageGet(TABROW_COLOR_STORAGE_KEY));
         applyTheme(currentStyle, currentMode, "storage");
         notify();
       } else if (
@@ -380,6 +411,8 @@ export function useThemePref() {
     setAccent: setAccentColor,
     resetAccent: resetAccentColor,
     packageAccent: packageAccent(style, mode),
+    tabrowColor,
+    setTabrowColor,
     customCss,
     customCssEnabled,
     setCustomCssEnabled,

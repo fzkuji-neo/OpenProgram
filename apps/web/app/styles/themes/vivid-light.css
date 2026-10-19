@@ -1,6 +1,6 @@
 /* vivid-light — 彩色浅色：暖奶油浅色的面板 + 淡彩标签栏。
-   标签栏底色由 --tabrow-tint 把强调色混进窗框色（base.css），
-   所以设置里改强调色，标签栏跟着变色；默认靛蓝（App 图标的颜色）。 */
+   标签栏颜色在设置里从 Chrome 同款色块中选（base.css --tabrow-color），
+   和强调色无关；按钮等强调色默认靛蓝（App 图标的颜色）。 */
 [data-theme="vivid-light"] {
   /* 中间页面是极淡的暖白，比两侧白色面板略暖；米色留在外框（--bg-secondary）。 */
   --bg-primary: #fbfaf8;
@@ -49,8 +49,9 @@
   --accent-orange: #4f46e5;
   --accent-fill: #4f46e5;
   --accent-orange-hover: #4338ca;
-  /* Share of the accent mixed into the tab strip (base.css --tabrow-bg). */
-  --tabrow-tint: 24%;
+  /* The tab strip shows the colour picked in Settings (base.css
+     --tabrow-color) at full strength. */
+  --tabrow-tint: 100%;
   --accent-green: #3f7a4e; /* 4.86:1 as text on the light page; #6e9b76 was 3.0:1 */
   --accent-red: #c24e42;
   /* Deeper amber for the same reason — `#d4a346` is 2.18:1 as text

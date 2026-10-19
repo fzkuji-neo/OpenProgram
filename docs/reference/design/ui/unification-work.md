@@ -18,7 +18,7 @@ Each surface evolved independently, resulting in divergent color palettes, typog
 Settings opens on General. Appearance follows an Obsidian-like stack and keeps schema 3 (mode × named package):
 
 - **Mode**: Auto / Light / Dark. Auto follows the system; it is a mode, not a theme.
-- **Theme package**: Beige / Neutral / Aurora / Vivid only. Each package has a light and a dark `data-theme`. Custom is not a separate skin. Vivid reuses the Beige panels and tints the top tab strip with the accent colour (`--tabrow-tint`), so the accent picker recolours the strip.
+- **Theme package**: Beige / Neutral / Aurora / Vivid only. Each package has a light and a dark `data-theme`. Custom is not a separate skin. Vivid reuses the Beige panels and colours the top tab strip. The strip colour is its own setting, picked from Chrome's dark-mode colour set (stored in `agentic_tabrow_color`, applied as `--tabrow-seed`); light mode uses a pale tone of the same hue.
 - **Accent color**: a color input, presets taken from each package's default `--accent-orange`, and Reset to theme default. Empty/default uses the current package accent. The override writes `--accent-orange`, `--accent-fill`, and a derived `--accent-orange-hover`.
 - **CSS overlay**: user CSS sits on top of the selected package, gated by Enable custom CSS. Insert template writes a starter that targets `html` / current `data-theme` values. Clear empties the snippet. Old `[data-theme="custom"]` / `[data-theme="custom-light"]` selectors are rewritten onto `data-custom-css` so they keep applying.
 

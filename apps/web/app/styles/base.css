@@ -732,16 +732,27 @@ select:focus-visible {
 /* Tab-row surface colour. --tabrow-base is the plain frame colour:
    browser mode uses --bg-secondary as is; desktop mode goes one step
    darker than the panels below, like Chrome's frame vs. toolbar.
-   --tabrow-bg then mixes the theme accent into it by the theme's
-   --tabrow-tint share (0% everywhere except the vivid pair), so the
-   accent picker recolours a vivid strip. Declared on html (same element
-   as [data-theme]), so the vars resolve per theme. */
+   --tabrow-bg then mixes --tabrow-color into it by the theme's
+   --tabrow-tint share: 0% everywhere except the vivid pair (100%), so
+   only Vivid shows a coloured strip. --tabrow-seed is the colour the
+   user picked in Settings (an inline var on <html>, one of Chrome's
+   dark-mode frame colours); dark mode uses it as is, light mode a pale
+   tone of the same hue, like Chrome's light frame. Declared on html
+   (same element as [data-theme]), so the vars resolve per theme. */
 :root {
   --tabrow-base: var(--bg-secondary);
-  /* oklab, not oklch: the frame's warm hue and a blue accent sit far
-     apart on the hue wheel, and oklch's shorter-arc hue blend swings
-     through red (a cream + indigo mix came out salmon). */
-  --tabrow-bg: color-mix(in oklab, var(--tabrow-base), var(--accent-orange) var(--tabrow-tint));
+  --tabrow-seed: #3d475c;
+  --tabrow-color: var(--tabrow-seed);
+  /* oklab, not oklch: the frame's warm hue and a blue strip colour sit
+     far apart on the hue wheel, and oklch's shorter-arc hue blend swings
+     through red. */
+  --tabrow-bg: color-mix(in oklab, var(--tabrow-base), var(--tabrow-color) var(--tabrow-tint));
+  /* Inactive tab text: text-primary on a coloured strip (Chrome's
+     on-surface-subtle), the usual text-secondary on a plain one. */
+  --tabrow-fg: color-mix(in oklab, var(--text-secondary), var(--text-primary) var(--tabrow-tint));
+}
+:root[data-theme-mode="light"] {
+  --tabrow-color: oklch(from var(--tabrow-seed) 0.91 calc(c * 0.5) h);
 }
 html.is-desktop {
   /* Mix toward a warm brown-black in oklch, not srgb+#000: the theme is a

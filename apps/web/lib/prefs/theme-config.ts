@@ -62,6 +62,20 @@ export const ACCENT_PRESETS = [
   THEME_DEFAULT_ACCENTS["vivid-light"],
 ] as const;
 
+/**
+ * Tab-strip colours for the Vivid style, copied from Chrome's dark-mode
+ * colour picker (the frame colour of each swatch, in Chrome's order).
+ * base.css uses the hex as is in dark mode and derives a pale tone of the
+ * same hue for light mode. The default is Chrome's grey-blue.
+ */
+export const TABROW_COLOR_PRESETS = [
+  "#1c419a", "#474747", "#29457a", "#3d475c",
+  "#3c494c", "#204f49", "#2f4f22", "#414a3d",
+  "#524712", "#693a13", "#544338", "#6d3441",
+  "#544245", "#623661", "#4e3b76",
+] as const;
+export const DEFAULT_TABROW_COLOR = "#3d475c";
+
 export const LEGACY_THEME_PREFERENCES = {
   auto: { style: "beige", mode: "auto" },
   "beige-dark": { style: "beige", mode: "dark" },

@@ -1,6 +1,6 @@
 /* vivid — 彩色深色：暖奶油深色的面板 + 彩色标签栏。
-   标签栏底色由 --tabrow-tint 把强调色混进窗框色（base.css），
-   所以设置里改强调色，标签栏跟着变色；默认靛蓝（App 图标的颜色）。 */
+   标签栏颜色在设置里从 Chrome 同款色块中选（base.css --tabrow-color），
+   和强调色无关；按钮等强调色默认靛蓝（App 图标的颜色）。 */
 [data-theme="vivid"] {
   --bg-primary: #191918;
   --bg-secondary: #141413;
@@ -39,10 +39,9 @@
   --accent-orange: #818cf8;
   --accent-fill: #6366f1;
   --accent-orange-hover: #4f46e5;
-  /* Share of the accent mixed into the tab strip (base.css --tabrow-bg).
-     Kept low like Chrome's dark colour themes: the frame is a deep,
-     muted tint of the colour, not the colour itself. */
-  --tabrow-tint: 20%;
+  /* The tab strip shows the colour picked in Settings (base.css
+     --tabrow-color) at full strength. */
+  --tabrow-tint: 100%;
   --accent-green: #6e9b76;
   --accent-red: #c24e42;
   --accent-yellow: #d4a346;

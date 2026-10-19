@@ -26,6 +26,9 @@
    处全部同色。切 tab 不做任何过渡动画，瞬时切换。 */
 .strip {
   --tab-active-bg: var(--bg-primary);
+  /* Inactive tab labels read --text-secondary; on Vivid's coloured strip
+     it resolves brighter (base.css --tabrow-fg). */
+  --text-secondary: var(--tabrow-fg);
   height: 40px;
   box-sizing: border-box;
   display: flex;
