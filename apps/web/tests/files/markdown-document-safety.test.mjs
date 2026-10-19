@@ -43,7 +43,7 @@ test('math text never creates HTML and literal code never loses its delimiters',
  }
 });
 test('math preserves replacement characters and source authored placeholder text',()=>{
- const text='%%MATH0%% $x & y$ and $$a $& b$$';assert.equal(render(text).textContent.trim(),text);
+ const text='%%MATH0%% $x & y$ and $$a $& b$$';assert.equal(render(text).querySelector('.md-rendered').textContent.trim(),text);
 });
 test('images use scoped URLs, retain SVG fragment and never fall back after rejection',()=>{
  const image=render('![icon](figure%20one.svg?session=evil#part%20one)').querySelector('img');assert.equal(image.getAttribute('src'),'/raw?project=project%20%26%20one&path=docs%2Ffigure%20one.svg#part%20one');
@@ -108,5 +108,19 @@ test('image alternative text and titles retain standard Markdown entity semantic
  assert.equal(doc.querySelector('img').title,'& ©');
  assert.equal(doc.querySelector('img').getAttribute('alt'),'Alt ©');
  const rejected=render('![**Alt** &copy;](data:text/html,evil)');
- assert.equal(rejected.textContent.trim(),'Alt ©');
+ assert.equal(rejected.querySelector('.md-rendered').textContent.trim(),'Alt ©');
+});
+test('Obsidian reading view: title, properties, callouts, highlights, tags and wikilinks',()=>{
+ const doc=render('---\ntitle: "Post"\ntags: [a, b]\naliases:\n  - one\n---\n> [!warning]- Careful\n> body **bold**\n\n==hi== #topic [[Other Note#Some Heading|see]] ![[pic.png|200]] [[x<img src=y>]]\n\n`#notag ==no==`');
+ assert.equal(doc.querySelector('h1').textContent,'post');
+ assert.deepEqual([...doc.querySelectorAll('dt')].map(e=>e.textContent),['title','tags','aliases']);
+ assert.deepEqual([...doc.querySelectorAll('dd')[1].querySelectorAll('span')].map(e=>e.textContent),['a','b']);
+ assert.equal(doc.querySelectorAll('dd')[2].textContent,'one');
+ const callout=doc.querySelector('details.callout');assert.equal(callout.getAttribute('data-callout'),'warning');assert.ok(!callout.hasAttribute('open'));
+ assert.equal(callout.querySelector('summary').textContent,'Careful');assert.equal(callout.querySelector('strong').textContent,'bold');
+ assert.equal(doc.querySelector('mark').textContent,'hi');assert.equal(doc.querySelector('.tag').textContent,'#topic');
+ const link=doc.querySelector('a.internal-link');assert.equal(link.getAttribute('href'),'Other%20Note.md#some-heading');assert.equal(link.textContent,'see');
+ const image=doc.querySelector('img');assert.equal(image.getAttribute('src'),'/raw?project=project%20%26%20one&path=docs%2Fpic.png');assert.equal(image.getAttribute('width'),'200');
+ assert.equal(doc.querySelectorAll('img').length,1);
+ assert.equal(doc.querySelector('code').textContent,'#notag ==no==');
 });

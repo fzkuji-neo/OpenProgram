@@ -2,6 +2,7 @@ import { decodeHTMLAttribute } from "entities";
 import { Marked, type TokenizerExtension, type RendererExtension } from "marked";
 import { cjkEmphasis } from "@/lib/markdown/cjk-emphasis";
 import { markdownTokenDestination } from "@/lib/files/markdown-paths";
+import { obsidianExtensions, sectionKey } from "./obsidian-document";
 
 function escapeHtml(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -22,16 +23,18 @@ function mathExtension(block: boolean): TokenizerExtension & RendererExtension {
   };
 }
 
-export function createDocumentMarkdown(resolveImage?: (src: string) => string | null): Marked {
+/** `obsidian` adds Obsidian's reading-view syntax (callouts, highlights,
+ *  tags, wikilinks) for file previews. */
+export function createDocumentMarkdown(resolveImage?: (src: string) => string | null, obsidian = false): Marked {
   const headings = new Set<string>();
   return new Marked(cjkEmphasis, {
     hooks: { preprocess(source) { headings.clear(); return source; } },
-    extensions: [mathExtension(true), mathExtension(false)],
+    extensions: [mathExtension(true), mathExtension(false), ...(obsidian ? obsidianExtensions(resolveImage) ?? [] : [])],
     renderer: {
       heading(token) {
         const label = this.parser.parseInline(token.tokens);
         const text = decodeHTMLAttribute(this.parser.parseInline(token.tokens, this.parser.textRenderer));
-        const base = text.normalize("NFC").toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, "").trim().replace(/\s+/g, "-") || "section";
+        const base = sectionKey(text);
         let key = base;
         for (let suffix = 1; headings.has(key); suffix++) key = `${base}-${suffix}`;
         headings.add(key);

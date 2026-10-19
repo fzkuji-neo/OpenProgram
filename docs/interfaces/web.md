@@ -18,7 +18,16 @@ Opening a conversation already displayed in this window selects its existing tab
 
 When Files or a file tab is active, Back and Forward revisit the folders and files you opened in the current project. Returning to Files restores its expanded folders and scroll position. Opening a new location after going back replaces the forward steps. File locations belong to this tab’s saved page history, separate from document version History. Refreshing a stale directory listing keeps existing rows visible while the loaded range is replaced.
 
-A Markdown file opens as a rendered document. Relative image paths such as `figures/a.png` load from the document's own folder, and a relative link opens the linked file in its own tab. Raw HTML in the file is shown as text, not run. A link such as `#installation` scrolls within that document; `guide.md#installation` opens the target file and scrolls after its content loads. Heading keys use lowercase visible text, keep Unicode letters and numbers, replace spaces with hyphens, and assign numeric suffixes to duplicates. Section requests are temporary and are not restored after reopening the app. Navigation preserves unsaved text. Wikilinks, embedded documents, and an outline are not supported by this navigation feature.
+A Markdown file opens as a rendered document. Relative image paths such as `figures/a.png` load from the document's own folder, and a relative link opens the linked file in its own tab. Raw HTML in the file is shown as text, not run. A link such as `#installation` scrolls within that document; `guide.md#installation` opens the target file and scrolls after its content loads. Heading keys use lowercase visible text, keep Unicode letters and numbers, replace spaces with hyphens, and assign numeric suffixes to duplicates. Section requests are temporary and are not restored after reopening the app. Navigation preserves unsaved text.
+
+The document is laid out like Obsidian's reading view: the file name appears as a title, and YAML frontmatter appears as a **Properties** table, with list values such as `tags` shown as pills. Obsidian syntax is rendered too:
+
+- `> [!note] Title` callouts, in the standard kinds (note, tip, warning, danger, and so on). `> [!tip]-` starts folded and `> [!tip]+` starts open; click the title to toggle.
+- `==text==` highlights and `#tag` tags.
+- `[[Note]]`, `[[Note#Heading]]` and `[[Note|label]]` link to `Note.md` in the document's own folder, or the folder written before the name, and open it in its own tab.
+- `![[image.png]]` embeds an image from the same place; `![[image.png|300]]` sets its width. Embedding another note shows a link instead.
+
+Wikilinks are not searched for across the whole folder tree the way Obsidian resolves them, and there is no outline.
 
 In the desktop App, an HTML file opens as a web page in a browser tab: the file card in a reply opens it beside its conversation, and **View page** in a file tab opens the saved file. The page loads from disk through a `file://` address, so stylesheets, images and scripts next to it load and run as they would in Chrome. **View source** in that tab's toolbar returns to the file, where Edit and History work as usual; the file tab's first button reads **Source**. In a regular browser, or when the worker runs on another machine, HTML files stay source files.
 

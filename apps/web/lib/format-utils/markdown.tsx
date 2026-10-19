@@ -77,15 +77,18 @@ export function Markdown({
   source,
   escapeRawHtml,
   resolveImage,
+  obsidian,
 }: {
   source: string;
   escapeRawHtml?: boolean;
   resolveImage?: MarkdownImageResolver;
+  /** With escapeRawHtml: Obsidian's callouts, highlights, tags, wikilinks. */
+  obsidian?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const parser = useMemo(() => escapeRawHtml ? createDocumentMarkdown(resolveImage)
+  const parser = useMemo(() => escapeRawHtml ? createDocumentMarkdown(resolveImage, obsidian)
     : resolveImage ? imageResolvingMarked(resolveImage) : undefined,
-    [resolveImage, escapeRawHtml]);
+    [resolveImage, escapeRawHtml, obsidian]);
   const html = markdownToHtml(source, escapeRawHtml, parser);
 
   // KaTeX auto-render mutates the DOM after marked has produced HTML.

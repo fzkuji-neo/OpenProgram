@@ -1,21 +1,28 @@
 "use client";
 import type { FileSectionNavigation } from "@/lib/tabs/file-section-requests";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Markdown } from "@/lib/format-utils/markdown";
+import { splitFrontmatter } from "@/lib/format-utils/obsidian-document";
 import { absRawFileUrl, rawFileUrl } from "@/lib/files/files-shared";
 import { markdownDestination, resolveMarkdownFile } from "@/lib/files/markdown-paths";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { useTranslation } from "@/lib/i18n";
 import styles from "./markdown-preview.module.css";
 
-/** A markdown file read as a document. Relative images load from the
- *  document's own folder through the same scoped file routes as the file
- *  itself, and a relative link opens that file in its own tab. Raw HTML
- *  stays escaped: a repository file is untrusted. */
+/** A markdown file read as a document, laid out like Obsidian's reading
+ *  view: the file name as an inline title, the frontmatter as a
+ *  Properties table, then the body with Obsidian's syntax (callouts,
+ *  ==highlights==, #tags, [[wikilinks]], ![[image embeds]]). Relative
+ *  images load from the document's own folder through the same scoped
+ *  file routes as the file itself, and a relative link or wikilink opens
+ *  that file in its own tab. Raw HTML stays escaped: a repository file is
+ *  untrusted. */
 export function MarkdownPreview({ source, projectId, path, abs = false, sessionId, sectionNavigation }: {
   source: string; projectId: string; path: string; abs?: boolean; sessionId?: string; sectionNavigation?: FileSectionNavigation;
 }) {
   const { text } = useTranslation();
+  const { properties, body } = useMemo(() => splitFrontmatter(source), [source]);
+  const title = (path.split(/[\\/]/).pop() ?? path).replace(/\.(md|markdown|mdx)$/i, "");
   const article = useRef<HTMLElement>(null);
   const [missing, setMissing] = useState(false);
   const navigate = useCallback((fragment: string) => {
@@ -57,10 +64,21 @@ export function MarkdownPreview({ source, projectId, path, abs = false, sessionI
   }
 
   return <div className={styles.scroll} onClick={onClick}>
-    {/* message-content reuses chat.css element styles (headings, lists, tables) */}
-    <article ref={article} className={`${styles.document} message-content`}>
-      <Markdown source={source} escapeRawHtml resolveImage={resolveImage} />
+    <article ref={article} className={styles.document}>
+      <h1 className={styles.inlineTitle}>{title}</h1>
+      {properties.length > 0 && <section className={styles.properties} aria-label={text("Properties", "属性")}>
+        <div className={styles.propertiesHeading}>{text("Properties", "属性")}</div>
+        <dl>
+          {properties.map(({ key, values }, index) => <div key={`${key}-${index}`} className={styles.property}>
+            <dt>{key}</dt>
+            <dd>{values.length > 1 || /^(tags|aliases|cssclasses)$/i.test(key)
+              ? values.map((value, i) => <span key={i} className={styles.pill}>{value}</span>)
+              : values[0] ?? <span className={styles.empty}>{text("Empty", "空")}</span>}</dd>
+          </div>)}
+        </dl>
+      </section>}
+      {missing && <p role="status" className={styles.missing}>{text("Section not found.", "未找到章节。")}</p>}
+      <Markdown source={body} escapeRawHtml obsidian resolveImage={resolveImage} />
     </article>
-    {missing && <p role="status">{text("Section not found.", "未找到章节。")}</p>}
   </div>;
 }
