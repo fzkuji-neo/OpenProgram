@@ -266,8 +266,11 @@ function Flyout({ label, children }: { label: string; children: React.ReactNode 
       <PopoverContent
         side="right"
         align="start"
-        sideOffset={6}
-        alignOffset={-4}
+        // The row sits 4px inside its panel, so 10 leaves a 4px gap
+        // between the two frames; the submenu's top lines up with the
+        // row, as in Claude's.
+        sideOffset={10}
+        alignOffset={0}
         collisionPadding={8}
         className="w-auto border-0 bg-transparent p-0 shadow-none"
         onOpenAutoFocus={(e) => e.preventDefault()}
