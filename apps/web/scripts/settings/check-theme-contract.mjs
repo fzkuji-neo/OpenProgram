@@ -47,9 +47,9 @@ assert.deepEqual(
 );
 assert.deepEqual(customSlots, ["custom", "custom-light"]);
 const themeStyles = quotedValues(themeConfig, "THEME_STYLES");
-assert.deepEqual(themeStyles, ["beige", "neutral", "aurora"]);
+assert.deepEqual(themeStyles, ["beige", "neutral", "aurora", "vivid"]);
 assert.doesNotMatch(themeConfig, /custom:\s*\{\s*dark:\s*"custom"/);
-assert.match(desktopChrome, /THEME_STYLES = \["beige", "neutral", "aurora"\]/);
+assert.match(desktopChrome, /THEME_STYLES = \["beige", "neutral", "aurora", "vivid"\]/);
 assert.match(themeConfig, /THEME_DEFAULT_ACCENTS/);
 
 const requiredTokens = [
@@ -65,7 +65,7 @@ const requiredTokens = [
   "--primary-foreground", "--provider-icon-bg", "--scrim", "--scrim-strong",
   "--selection-bg", "--shadow", "--shadow-dialog", "--shadow-popover",
   "--shadow-sidebar-left", "--shadow-sidebar-right", "--shadow-sm", "--stream-info",
-  "--stream-tool", "--success-soft", "--surface-popover", "--surface-tooltip",
+  "--stream-tool", "--success-soft", "--tabrow-tint", "--surface-popover", "--surface-tooltip",
   "--text-bright", "--text-muted", "--text-on-tooltip", "--text-primary",
   "--text-secondary", "--user-msg-bg", "--warning-soft",
 ].sort();
@@ -94,6 +94,8 @@ const expectedAccent = {
   light: ["#2563eb", "#2563eb", "#1d4ed8"],
   aurora: ["#4fd6c0", "#35b8a4", "#2ea38f"],
   "aurora-light": ["#0f766e", "#0f766e", "#115e59"],
+  vivid: ["#818cf8", "#6366f1", "#4f46e5"],
+  "vivid-light": ["#4f46e5", "#4f46e5", "#4338ca"],
 };
 function tokenValue(source, token) {
   return source.match(new RegExp(`${token.replaceAll("-", "\\-")}\\s*:\\s*([^;]+);`))?.[1].trim();
@@ -161,7 +163,7 @@ for (const file of cssFiles(join(root, "app", "styles")).concat(cssFiles(join(ro
   if (projectPath.startsWith("app/styles/themes/")) continue;
   assert.doesNotMatch(
     readFileSync(file, "utf8"),
-    /\[data-theme=["'](?:beige-dark|beige-light|dark|light|aurora|aurora-light)["']\]/,
+    /\[data-theme=["'](?:beige-dark|beige-light|dark|light|aurora|aurora-light|vivid|vivid-light)["']\]/,
     `${projectPath} must consume tokens instead of branching on a theme id`,
   );
 }

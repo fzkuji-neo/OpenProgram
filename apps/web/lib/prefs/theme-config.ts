@@ -5,17 +5,19 @@ export const THEME_IDS = [
   "light",
   "aurora",
   "aurora-light",
+  "vivid",
+  "vivid-light",
   "custom",
   "custom-light",
 ] as const;
 export type ThemeId = (typeof THEME_IDS)[number];
 
 /** Named theme packages shown in Settings. Custom is no longer a package. */
-export const THEME_STYLES = ["beige", "neutral", "aurora"] as const;
+export const THEME_STYLES = ["beige", "neutral", "aurora", "vivid"] as const;
 export type ThemeStyle = (typeof THEME_STYLES)[number];
 
 /** Stored style values that still need a one-time migrate off Custom. */
-export const LEGACY_THEME_STYLES = ["beige", "neutral", "aurora", "custom"] as const;
+export const LEGACY_THEME_STYLES = ["beige", "neutral", "aurora", "vivid", "custom"] as const;
 
 export const THEME_MODES = ["auto", "dark", "light"] as const;
 export type ThemeMode = (typeof THEME_MODES)[number];
@@ -31,6 +33,7 @@ export const THEME_STYLE_PAIRS: Record<
   beige: { dark: "beige-dark", light: "beige-light" },
   neutral: { dark: "dark", light: "light" },
   aurora: { dark: "aurora", light: "aurora-light" },
+  vivid: { dark: "vivid", light: "vivid-light" },
 };
 
 /** Package default --accent-orange, copied from apps/web/app/styles/themes/*.css. */
@@ -41,6 +44,8 @@ export const THEME_DEFAULT_ACCENTS: Record<ThemeId, string> = {
   light: "#2563eb",
   aurora: "#4fd6c0",
   "aurora-light": "#0f766e",
+  vivid: "#818cf8",
+  "vivid-light": "#4f46e5",
   custom: "#d97757",
   "custom-light": "#c15f3c",
 };
@@ -53,6 +58,8 @@ export const ACCENT_PRESETS = [
   THEME_DEFAULT_ACCENTS.light,
   THEME_DEFAULT_ACCENTS.aurora,
   THEME_DEFAULT_ACCENTS["aurora-light"],
+  THEME_DEFAULT_ACCENTS.vivid,
+  THEME_DEFAULT_ACCENTS["vivid-light"],
 ] as const;
 
 export const LEGACY_THEME_PREFERENCES = {
@@ -63,6 +70,8 @@ export const LEGACY_THEME_PREFERENCES = {
   light: { style: "neutral", mode: "light" },
   aurora: { style: "aurora", mode: "dark" },
   "aurora-light": { style: "aurora", mode: "light" },
+  vivid: { style: "vivid", mode: "dark" },
+  "vivid-light": { style: "vivid", mode: "light" },
   custom: { style: "beige", mode: "dark" },
   "custom-light": { style: "beige", mode: "light" },
 } as const satisfies Record<string, { style: ThemeStyle; mode: ThemeMode }>;
@@ -242,7 +251,7 @@ export function rewriteCustomCssForOverlay(css: string): string {
  * Starter snippet for the CSS overlay. Targets `html` / current package
  * ids, not a fake Custom theme. Users may still target any data-theme.
  */
-export const CUSTOM_CSS_TEMPLATE = `/* Overlay on the current theme package (Beige / Neutral / Aurora).
+export const CUSTOM_CSS_TEMPLATE = `/* Overlay on the current theme package (Beige / Neutral / Aurora / Vivid).
    Enable custom CSS to apply. You can still target any data-theme. */
 
 html {

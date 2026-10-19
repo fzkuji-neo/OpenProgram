@@ -12,6 +12,8 @@ function checkBackgroundMapUsesRealHexes() {
   assert.equal(themeChrome.backgroundForTheme("light"), "#ffffff");
   assert.equal(themeChrome.backgroundForTheme("aurora"), "#171528");
   assert.equal(themeChrome.backgroundForTheme("aurora-light"), "#fbfaff");
+  assert.equal(themeChrome.backgroundForTheme("vivid"), "#191918");
+  assert.equal(themeChrome.backgroundForTheme("vivid-light"), "#fbfaf8");
   assert.equal(themeChrome.backgroundForTheme("custom"), "#191918");
   assert.equal(themeChrome.backgroundForTheme("custom-light"), "#fbfaf8");
   assert.notEqual(themeChrome.backgroundForTheme("beige-light"), "#141416");

@@ -76,6 +76,7 @@
      Custom CSS entry points, so keep them writable and derive semantic roles
      from them. Neutral themes use blue, warm themes coral, Aurora teal. */
   --accent-orange: #6ea8fe;
+  --tabrow-tint: 0%;
   --accent-fill: #3b82f6;
   --accent-orange-hover: #2563eb;
   --theme-accent: var(--accent-orange);
@@ -728,28 +729,32 @@ select:focus-visible {
    center-tabs.module.css — the row only reserves the traffic-light
    zone and repeats the strip's background so the 76px gap isn't
    transparent. */
-/* Tab-row surface colour. Browser mode: identical to --bg-secondary (no
-   visual change). Desktop mode: one step darker than the sidebars below,
-   like Chrome's frame vs. toolbar — mixing toward black works for both
-   themes (Chrome's dark frame is darker than its content too). Declared
-   on html (same element as [data-theme]), so var(--bg-secondary) resolves
-   per theme. */
+/* Tab-row surface colour. --tabrow-base is the plain frame colour:
+   browser mode uses --bg-secondary as is; desktop mode goes one step
+   darker than the panels below, like Chrome's frame vs. toolbar.
+   --tabrow-bg then mixes the theme accent into it by the theme's
+   --tabrow-tint share (0% everywhere except the vivid pair), so the
+   accent picker recolours a vivid strip. Declared on html (same element
+   as [data-theme]), so the vars resolve per theme. */
 :root {
-  --tabrow-bg: var(--bg-secondary);
+  --tabrow-base: var(--bg-secondary);
+  /* oklab, not oklch: the frame's warm hue and a blue accent sit far
+     apart on the hue wheel, and oklch's shorter-arc hue blend swings
+     through red (a cream + indigo mix came out salmon). */
+  --tabrow-bg: color-mix(in oklab, var(--tabrow-base), var(--accent-orange) var(--tabrow-tint));
 }
 html.is-desktop {
   /* Mix toward a warm brown-black in oklch, not srgb+#000: the theme is a
      warm cream palette, and srgb-mixing pure black drags chroma down with
      lightness — the frame goes muddy grey. oklch keeps the hue/chroma, so
-     the cream base just steps down to a warm beige-grey; in dark themes the
-     same mix only lowers lightness. */
-  --tabrow-bg: color-mix(in oklch, var(--bg-secondary) 88%, #2a2117 12%);
+     the cream base just steps down to a warm beige-grey. */
+  --tabrow-base: color-mix(in oklch, var(--bg-secondary) 88%, #2a2117 12%);
 }
 html.is-desktop[data-theme-mode="dark"] {
   /* In dark themes #2a2117 is lighter than the surface, so the mix above
      lands on the panels' own colour and the strip/content boundary
      disappears. Step toward black instead, like Chrome's dark frame. */
-  --tabrow-bg: color-mix(in oklch, var(--bg-secondary) 60%, #000 40%);
+  --tabrow-base: color-mix(in oklch, var(--bg-secondary) 60%, #000 40%);
 }
 .desktop-tab-row {
   display: flex;

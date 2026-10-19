@@ -24,7 +24,7 @@ OpenProgram 包含多个 UI 界面：
 设置默认打开常规页。外观采用类似 Obsidian 的分层结构，保留 schema 3（模式 × 命名主题包）：
 
 - **模式**：自动 / 浅色 / 深色。自动跟随系统；它属于模式，不是主题。
-- **主题包**：仅 Beige / Neutral / Aurora。每个包都有浅色和深色 `data-theme`。Custom 不作为第四种皮肤。
+- **主题包**：仅 Beige / Neutral / Aurora / Vivid。每个包都有浅色和深色 `data-theme`。Custom 不作为单独的皮肤。Vivid（彩色）沿用 Beige 的面板，用强调色给顶部标签栏着色（`--tabrow-tint`），所以改强调色时标签栏跟着变色。
 - **强调色**：颜色输入框、取自各主题包默认 `--accent-orange` 的预设，以及恢复主题默认值。空值/默认值使用当前主题包的强调色。覆盖设置写入 `--accent-orange`、`--accent-fill` 及派生的 `--accent-orange-hover`。
 - **CSS 叠加层**：用户 CSS 叠加在所选主题包之上，由“启用自定义 CSS”控制。“插入模板”写入以 `html` / 当前 `data-theme` 值为目标的初始模板。“清空”清除片段。旧 `[data-theme="custom"]` / `[data-theme="custom-light"]` 选择器改写为 `data-custom-css`，以继续生效。
 
@@ -34,6 +34,7 @@ OpenProgram 包含多个 UI 界面：
 - `beige-dark` / `beige-light` → beige + dark/light
 - `dark` / `light` （schema 2） → neutral + dark/light
 - `aurora` / `aurora-light` → aurora + dark/light
+- `vivid` / `vivid-light` → vivid + dark/light
 - `custom` / `custom-light` → beige + 已保存模式；存在已保存自定义 CSS 时启用叠加层
 
 `custom` / `custom-light` 保留为旧片段的回退主题 ID 和 CSS 文件，不显示为样式卡片。主题约定继续验证六个内置主题包 token 文件；默认强调色继续取自这些 CSS 文件。
@@ -217,7 +218,7 @@ Electron 窗口首次显示的像素与已解析的 Web 主题一致。创建 `B
 
 ## 实现状态
 
-- **设置外观**：✅ 已完成（模式 × Beige/Neutral/Aurora × 强调色选择器 × CSS 叠加层；存储的 Custom 迁移为 beige）
+- **设置外观**：✅ 已完成（模式 × Beige/Neutral/Aurora/Vivid × 强调色选择器 × CSS 叠加层；存储的 Custom 迁移为 beige）
 - **Web token 清理**：❌ 未开始
 - **文档配色**：❌ 未开始
 - **桌面窗口状态**：✅ 已完成

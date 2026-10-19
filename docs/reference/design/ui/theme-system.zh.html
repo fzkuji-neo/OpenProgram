@@ -157,6 +157,7 @@
           <tr><td>Beige</td><td><code>beige-dark</code> / <code>beige-light</code></td><td>橙色 / 珊瑚色</td><td>同一套组件角色，只替换主题值</td></tr>
           <tr><td>Neutral</td><td><code>dark</code> / <code>light</code></td><td>蓝色</td><td>Default Button、主操作填充、选中态、链接与强调边界</td></tr>
           <tr><td>Aurora</td><td><code>aurora</code> / <code>aurora-light</code></td><td>青绿色</td><td>同一套组件角色，并使用深色 foreground 保证填充对比</td></tr>
+          <tr><td>Vivid</td><td><code>vivid</code> / <code>vivid-light</code></td><td>靛蓝</td><td>沿用 Beige 面板；顶部标签栏用强调色着色（<code>--tabrow-tint</code>），改强调色时跟着变</td></tr>
         </tbody>
       </table>
     </section>
@@ -194,7 +195,7 @@
     <section id="acceptance">
       <h2>验收标准</h2>
       <ul class="status-list">
-        <li><strong>主题列表</strong><span>设置页只展示 Beige / Neutral / Aurora；CSS imports、主题文件、桌面浮层允许值由检查脚本证明一致。</span></li>
+        <li><strong>主题列表</strong><span>设置页只展示 Beige / Neutral / Aurora / Vivid；CSS imports、主题文件、桌面浮层允许值由检查脚本证明一致。</span></li>
         <li><strong>Token 完整</strong><span>六套内置主题（三包 × 深浅）提供相同 token 集；<code>custom-light.css</code> 仅作为旧 snippet 回落，取值与 beige-light 一致。</span></li>
         <li><strong>中间卡片里的页面</strong><span>App 外壳标出非聊天路由（<code>.page-col</code>）和非聊天面板（<code>[data-page-surface]</code>）。主题可以在这两个范围内重新声明 <code>--bg-secondary</code>、<code>--bg-tertiary</code> 以及 <code>:root</code> 上由它们派生的 token；beige-light 把它们设为聊天页的 <code>#fbfaf8</code> 和控件底色 <code>#f3f1ec</code>，页面看起来和聊天页一致，窗口外框、两侧栏和聊天面板仍用主题原值。</span></li>
         <li><strong>强调色</strong><span>独立 picker 覆盖 <code>--accent-orange</code> / <code>--accent-fill</code> / <code>--accent-orange-hover</code>；空值使用当前包默认。桌面错误页与目录列表的链接色跟随覆盖值，窗口底色仍是包的 <code>--bg-primary</code>。</span></li>
@@ -202,7 +203,7 @@
         <li><strong>组件隔离</strong><span>theme 文件之外不存在按具体内置主题名分支的组件 CSS。</span></li>
         <li><strong>跨窗口一致</strong><span>六个主题包 id 原样传给 desktop overlay；桌面窗口底色使用该主题的 <code>--bg-primary</code>。</span></li>
         <li><strong>字体一致</strong><span>普通文本和原生表单控件继承同一 <code>--font-sans</code>；mono 区域显式例外。</span></li>
-        <li><strong>主色矩阵</strong><span>Neutral 深浅主题为蓝色，Beige 深浅主题为橙色，Aurora 为青绿色；包默认 accent 仍从 CSS 文件读取。</span></li>
+        <li><strong>主色矩阵</strong><span>Neutral 深浅主题为蓝色，Beige 深浅主题为橙色，Aurora 为青绿色，Vivid 为靛蓝；包默认 accent 仍从 CSS 文件读取。</span></li>
         <li><strong>桌面活动标签</strong><span>深色模式下，标签栏的 <code>--tab-active-bg</code> 使用内容区底色混合 12% 白色，普通标签与分屏组合共用。选中背景在悬停时保持稳定；浅色模式与浏览器标签保持内容区底色。</span></li>
         <li><strong>可见验收</strong><span>默认安装版在深色、浅色和 aurora 下检查主窗口、tab、composer、popover 与桌面浮层。</span></li>
       </ul>
@@ -214,7 +215,7 @@
       <h2>实现状态</h2>
       <div class="card">
         <p><strong>当前实现采用 Obsidian 式 Appearance：Mode × 命名主题包 × 强调色 × CSS overlay。</strong></p>
-        <p>schema 3 的 <code>THEME_STYLE_PAIRS</code> 仍是 Beige / Neutral / Aurora 的深浅矩阵。Custom 不再是第四张风格卡；存量 <code>custom</code> / <code>custom-light</code> 迁到 beige，已保存的 CSS 打开 overlay，旧选择器改写到 <code>data-custom-css</code>。强调色独立持久化，只覆盖三个 accent token。composer、provider icon 与 DAG 只消费角色 token。桌面 BrowserWindow 底色仍用包的 <code>--bg-primary</code>；错误页与目录列表链接色在有覆盖时使用强调色。主题契约检查已纳入 Web 总检查。</p>
+        <p>schema 3 的 <code>THEME_STYLE_PAIRS</code> 仍是 Beige / Neutral / Aurora / Vivid 的深浅矩阵。Custom 不再是第四张风格卡；存量 <code>custom</code> / <code>custom-light</code> 迁到 beige，已保存的 CSS 打开 overlay，旧选择器改写到 <code>data-custom-css</code>。强调色独立持久化，只覆盖三个 accent token。composer、provider icon 与 DAG 只消费角色 token。桌面 BrowserWindow 底色仍用包的 <code>--bg-primary</code>；错误页与目录列表链接色在有覆盖时使用强调色。主题契约检查已纳入 Web 总检查。</p>
       </div>
     </section>
   </main>

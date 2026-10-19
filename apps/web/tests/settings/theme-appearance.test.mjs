@@ -12,7 +12,7 @@ const ui = readFileSync(join(root, "components/settings/settings-ui.tsx"), "utf8
 const picker = readFileSync(join(root, "components/avatar/AvatarPicker.tsx"), "utf8");
 
 test("settings color style grid has three packages and no Custom card", () => {
-  assert.deepEqual([...THEME_STYLES], ["beige", "neutral", "aurora"]);
+  assert.deepEqual([...THEME_STYLES], ["beige", "neutral", "aurora", "vivid"]);
   assert.match(settings, /THEME_STYLES\.map/);
   assert.doesNotMatch(settings, /custom:\s*text\("Custom"/);
   assert.doesNotMatch(settings, /pick the "Custom" color style/);

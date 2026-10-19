@@ -12,16 +12,19 @@ const THEME_IDS = [
   "light",
   "aurora",
   "aurora-light",
+  "vivid",
+  "vivid-light",
   "custom",
   "custom-light",
 ];
-const THEME_STYLES = ["beige", "neutral", "aurora"];
-const LEGACY_THEME_STYLES = ["beige", "neutral", "aurora", "custom"];
+const THEME_STYLES = ["beige", "neutral", "aurora", "vivid"];
+const LEGACY_THEME_STYLES = ["beige", "neutral", "aurora", "vivid", "custom"];
 const THEME_MODES = ["auto", "dark", "light"];
 const THEME_STYLE_PAIRS = {
   beige: { dark: "beige-dark", light: "beige-light" },
   neutral: { dark: "dark", light: "light" },
   aurora: { dark: "aurora", light: "aurora-light" },
+  vivid: { dark: "vivid", light: "vivid-light" },
 };
 const LEGACY_THEME_PREFERENCES = {
   auto: { style: "beige", mode: "auto" },
@@ -31,6 +34,8 @@ const LEGACY_THEME_PREFERENCES = {
   light: { style: "neutral", mode: "light" },
   aurora: { style: "aurora", mode: "dark" },
   "aurora-light": { style: "aurora", mode: "light" },
+  vivid: { style: "vivid", mode: "dark" },
+  "vivid-light": { style: "vivid", mode: "light" },
   custom: { style: "beige", mode: "dark" },
   "custom-light": { style: "beige", mode: "light" },
 };
@@ -101,6 +106,24 @@ const THEME_CHROME = {
     surface: "#e9e5f5",
     link: "#0f766e",
     border: "#d9d1eb",
+    colorScheme: "light",
+  },
+  vivid: {
+    bg: "#191918",
+    text: "#b8b5ad",
+    muted: "#757370",
+    surface: "#252523",
+    link: "#818cf8",
+    border: "rgba(255, 255, 255, 0.10)",
+    colorScheme: "dark",
+  },
+  "vivid-light": {
+    bg: "#fbfaf8",
+    text: "#3d3d3a",
+    muted: "#91908c",
+    surface: "#e8e6dc",
+    link: "#4f46e5",
+    border: "#dedcd1",
     colorScheme: "light",
   },
 };

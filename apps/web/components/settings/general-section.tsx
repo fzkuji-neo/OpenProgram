@@ -415,6 +415,7 @@ export function GeneralSection() {
     beige: text("Beige", "暖色"),
     neutral: text("Neutral", "中性"),
     aurora: text("Aurora", "极光"),
+    vivid: text("Vivid", "彩色"),
   };
 
   const accentValue = accent ?? packageAccent;

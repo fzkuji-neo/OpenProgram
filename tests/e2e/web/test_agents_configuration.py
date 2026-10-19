@@ -181,7 +181,7 @@ def test_agents_exposes_memory_configuration(agents_browser):
     expect(page.get_by_role('tab', name='Memory', exact=True)).to_be_visible()
 
 
-@pytest.mark.parametrize('theme', ['beige-dark', 'beige-light', 'dark', 'light', 'aurora', 'aurora-light'])
+@pytest.mark.parametrize('theme', ['beige-dark', 'beige-light', 'dark', 'light', 'aurora', 'aurora-light', 'vivid', 'vivid-light'])
 def test_agent_fields_have_one_flush_focus_border(agents_browser, theme):
     from playwright.sync_api import expect
 

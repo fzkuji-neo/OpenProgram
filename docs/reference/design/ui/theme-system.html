@@ -157,6 +157,7 @@
           <tr><td>Beige</td><td><code>beige-dark</code> / <code>beige-light</code></td><td>Orange / coral</td><td>Same component roles; only theme values change</td></tr>
           <tr><td>Neutral</td><td><code>dark</code> / <code>light</code></td><td>Blue</td><td>Default Button, primary-action fills, selected states, links and accent borders</td></tr>
           <tr><td>Aurora</td><td><code>aurora</code> / <code>aurora-light</code></td><td>Teal</td><td>Same component roles, with dark foreground for filled-element contrast</td></tr>
+          <tr><td>Vivid</td><td><code>vivid</code> / <code>vivid-light</code></td><td>Indigo</td><td>Beige panels; the top tab strip is tinted with the accent (<code>--tabrow-tint</code>), so the accent picker recolours it</td></tr>
         </tbody>
       </table>
     </section>
@@ -194,7 +195,7 @@
     <section id="acceptance">
       <h2>Acceptance criteria</h2>
       <ul class="status-list">
-        <li><strong>Theme list</strong><span>Settings displays only Beige / Neutral / Aurora; check scripts establish agreement between CSS imports, theme files and allowed desktop overlay values.</span></li>
+        <li><strong>Theme list</strong><span>Settings displays only Beige / Neutral / Aurora / Vivid; check scripts establish agreement between CSS imports, theme files and allowed desktop overlay values.</span></li>
         <li><strong>Complete tokens</strong><span>Six built-in themes (three packs × light/dark) provide the same token set;<code>custom-light.css</code>  is only a legacy-snippet fallback with values matching beige-light.</span></li>
         <li><strong>Pages in the centre card</strong><span>The App shell marks non-chat routes (<code>.page-col</code>) and non-chat panes (<code>[data-page-surface]</code>). A theme may restate <code>--bg-secondary</code>, <code>--bg-tertiary</code> and the tokens derived from them on <code>:root</code> for those scopes; beige-light sets them to the chat's <code>#fbfaf8</code> and a <code>#f3f1ec</code> control fill, so pages read as the chat does while the window frame, rails and chat pane keep the theme values.</span></li>
         <li><strong>Accent color</strong><span>An independent picker overrides <code>--accent-orange</code> / <code>--accent-fill</code> / <code>--accent-orange-hover</code>; an empty value uses the current pack default. Desktop error-page and directory-listing link colors follow the override, while the window background remains the pack's <code>--bg-primary</code>.</span></li>
@@ -202,7 +203,7 @@
         <li><strong>Component isolation</strong><span>Outside theme files, no component CSS branches on specific built-in theme names.</span></li>
         <li><strong>Cross-window consistency</strong><span>All six theme-pack ids pass unchanged to desktop overlays; desktop window backgrounds use that theme's <code>--bg-primary</code>.</span></li>
         <li><strong>Font consistency</strong><span>Ordinary text and native form controls inherit the same <code>--font-sans</code>, with explicit exceptions for mono regions.</span></li>
-        <li><strong>Primary-color matrix</strong><span>Neutral light/dark themes use blue, Beige uses orange, and Aurora uses teal; pack-default accents continue to come from CSS files.</span></li>
+        <li><strong>Primary-color matrix</strong><span>Neutral light/dark themes use blue, Beige uses orange, Aurora uses teal, and Vivid uses indigo; pack-default accents continue to come from CSS files.</span></li>
         <li><strong>Active desktop tab</strong><span>In dark mode, the tab bar's <code>--tab-active-bg</code>  blends the content background with 12% white, shared by ordinary tabs and split groups. The selected background remains stable on hover; light mode and browser tabs retain the content background.</span></li>
         <li><strong>Visible acceptance</strong><span>Inspect the main window, tabs, composer, popovers and desktop overlays in dark, light and aurora using the default installed App.</span></li>
       </ul>
@@ -214,7 +215,7 @@
       <h2>Implementation status</h2>
       <div class="card">
         <p><strong>The current implementation uses Obsidian-style Appearance: Mode × named theme pack × accent color × CSS overlay.</strong></p>
-        <p>Schema 3's <code>THEME_STYLE_PAIRS</code>  remains the light/dark matrix of Beige / Neutral / Aurora. Custom is no longer a fourth style card; existing <code>custom</code> / <code>custom-light</code>  migrates to beige, saved CSS enables the overlay, and old selectors are rewritten to <code>data-custom-css</code>. Accent color persists independently and overrides only three accent tokens. Composer, provider icons and DAG consume role tokens only. Desktop BrowserWindow backgrounds still use the pack's <code>--bg-primary</code>; error-page and directory-listing links use the accent override when present. Theme-contract checks are included in the complete Web checks.</p>
+        <p>Schema 3's <code>THEME_STYLE_PAIRS</code>  remains the light/dark matrix of Beige / Neutral / Aurora / Vivid. Custom is no longer a fourth style card; existing <code>custom</code> / <code>custom-light</code>  migrates to beige, saved CSS enables the overlay, and old selectors are rewritten to <code>data-custom-css</code>. Accent color persists independently and overrides only three accent tokens. Composer, provider icons and DAG consume role tokens only. Desktop BrowserWindow backgrounds still use the pack's <code>--bg-primary</code>; error-page and directory-listing links use the accent override when present. Theme-contract checks are included in the complete Web checks.</p>
       </div>
     </section>
   </main>

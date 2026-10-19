@@ -29,6 +29,7 @@
   --accent-orange: #0f766e;
   --accent-fill: #0f766e;
   --accent-orange-hover: #115e59;
+  --tabrow-tint: 0%; /* plain tab strip; vivid themes tint it with the accent */
   --accent-green: #4f8a6b;
   --accent-red: #b7475b;
   --accent-yellow: #8a6b1f;

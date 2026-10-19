@@ -18,7 +18,7 @@ Each surface evolved independently, resulting in divergent color palettes, typog
 Settings opens on General. Appearance follows an Obsidian-like stack and keeps schema 3 (mode × named package):
 
 - **Mode**: Auto / Light / Dark. Auto follows the system; it is a mode, not a theme.
-- **Theme package**: Beige / Neutral / Aurora only. Each package has a light and a dark `data-theme`. Custom is not a fourth skin.
+- **Theme package**: Beige / Neutral / Aurora / Vivid only. Each package has a light and a dark `data-theme`. Custom is not a separate skin. Vivid reuses the Beige panels and tints the top tab strip with the accent colour (`--tabrow-tint`), so the accent picker recolours the strip.
 - **Accent color**: a color input, presets taken from each package's default `--accent-orange`, and Reset to theme default. Empty/default uses the current package accent. The override writes `--accent-orange`, `--accent-fill`, and a derived `--accent-orange-hover`.
 - **CSS overlay**: user CSS sits on top of the selected package, gated by Enable custom CSS. Insert template writes a starter that targets `html` / current `data-theme` values. Clear empties the snippet. Old `[data-theme="custom"]` / `[data-theme="custom-light"]` selectors are rewritten onto `data-custom-css` so they keep applying.
 
@@ -28,6 +28,7 @@ Storage stays schema 3 (`agentic_theme_style` + `agentic_theme_mode`). Accent us
 - `beige-dark` / `beige-light` → beige + dark/light
 - `dark` / `light` (schema 2) → neutral + dark/light
 - `aurora` / `aurora-light` → aurora + dark/light
+- `vivid` / `vivid-light` → vivid + dark/light
 - `custom` / `custom-light` → beige + the saved mode; overlay turns on when any custom CSS is saved
 
 `custom` / `custom-light` remain fallback theme ids and CSS files for old snippets. They do not appear as style cards. The theme contract still validates the six built-in package token files; default accents stay sourced from those CSS files.
@@ -185,7 +186,7 @@ Window-state persistence (normal bounds vs maximize/fullscreen, display fallback
 
 ## Implementation Status
 
-- **Settings Appearance**: ✅ Complete (Mode × Beige/Neutral/Aurora × accent picker × CSS overlay; stored Custom migrates to beige)
+- **Settings Appearance**: ✅ Complete (Mode × Beige/Neutral/Aurora/Vivid × accent picker × CSS overlay; stored Custom migrates to beige)
 - **Web token cleanup**: ❌ Not started
 - **Docs palette**: ❌ Not started
 - **Desktop window-state**: ✅ Complete
