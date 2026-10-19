@@ -403,7 +403,7 @@ testContext.assert.match(testContext.webTabPaneSource, /const occluded = isWebTa
 
 testContext.assert.match(
   testContext.webTabPaneSource,
-  /document\.querySelectorAll\([\s\S]*?\[role="dialog"\], \[role="menu"\], \[role="listbox"\], \.branches-merge-modal-backdrop, \[data-native-view-occluder="true"\]/,
+  /document\.querySelectorAll\([\s\S]*?\[role="dialog"\], \[role="menu"\], \[role="listbox"\], \[data-native-view-occluder="true"\]/,
 );
 
 testContext.assert.match(
@@ -426,7 +426,7 @@ testContext.assert.match(
   /return \(\) => \{[\s\S]*?removeVisibleWebTabBounds\(bridge, tabId\);/s,
 );
 
-testContext.assert.match(testContext.webTabPaneSource, /new MutationObserver\(report\)/);
+testContext.assert.match(testContext.webTabPaneSource, /new MutationObserver\(reportAndFollow\)/);
 
 testContext.assert.match(
   testContext.webTabPaneSource,
@@ -461,8 +461,18 @@ testContext.assert.match(
 
 testContext.assert.match(
   testContext.permissionMenuSource,
-  /bypassConfirm[\s\S]*?data-native-view-occluder="true"/,
-  "the custom full-window permission confirmation must occlude native views",
+  /bypassConfirm \? \([\s\S]*?<ConfirmDialog/,
+  "the full-window permission confirmation must use the shared ConfirmDialog",
+);
+testContext.assert.match(
+  await testContext.readFile(new URL("../../components/ui/confirm-dialog.tsx", testContext.sourceUrl), "utf8"),
+  /<AlertDialog\b/,
+  "ConfirmDialog must build on AlertDialog, whose backdrop occludes native views",
+);
+testContext.assert.match(
+  await testContext.readFile(new URL("../../components/ui/alert-dialog.tsx", testContext.sourceUrl), "utf8"),
+  /<AlertDialogPrimitive\.Overlay[\s\S]*?data-native-view-occluder="true"/,
+  "the full-window confirmation backdrop must participate in native view occlusion",
 );
 
 (testContext.contextBadgeSource = await testContext.readFile(

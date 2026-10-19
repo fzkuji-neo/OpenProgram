@@ -57,7 +57,7 @@ assert.match(skillsList, /className=\{shared\.groupToggle\}/, "Skill folders mus
 assert.match(skillsList, /aria-label=\{skill\.enabled[\s\S]*Disable \$\{skill\.name\}/, "Skill switches must name their target");
 assert.match(skillsList, /aria-label=\{allOn[\s\S]*Disable \$\{node\.segment\}/, "Skill folder switches must name their target");
 assert.match(mcp, /action=\{\{[\s\S]*Add MCP server/, "MCP Add belongs to the secondary task bar");
-assert.match(mcp, /<ManageRow[\s\S]*Open MCP server details/, "MCP Installed must use the shared management row");
+assert.match(mcp, /<ManageRow[\s\S]*onClick=\{\(\) => setSelected\(s\.name\)\}/, "MCP Installed must use the shared management row that opens details");
 assert.match(mcp, /<Dialog open=\{selectedServer !== null\}/, "MCP details must use the standard detail dialog");
 assert.match(mcp, /detailErr && <div className=\{shared\.errorBar\} role="alert">/, "MCP detail failures must be visible inside the dialog");
 assert.doesNotMatch(mcp, /shared\.splitBody|styles\.serverItem/, "MCP must not retain its old split-list grammar");

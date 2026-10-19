@@ -107,25 +107,6 @@ export function EnvironmentChip() {
     connection,
   ].filter(Boolean).join("\n");
 
-  const chip = (
-    <span
-      role="button"
-      className={cn(
-        buttonVariants({ variant: "elevated", size: "sm" }),
-        "status-badge cursor-pointer",
-      )}
-      data-environment-chip=""
-    >
-      <SolarIcon
-        name={environmentIconName(env?.kind)}
-        size={14}
-        style={{ color: iconColor }}
-        aria-hidden="true"
-      />
-      <span className="badge-short">{label}</span>
-    </span>
-  );
-
   const tip = (
     <TipBody
       title={text(`Environment: ${label}`, `运行环境：${label}`)}
@@ -150,7 +131,24 @@ export function EnvironmentChip() {
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <HoverTip label={tip}>
-        <PopoverTrigger asChild>{chip}</PopoverTrigger>
+        <PopoverTrigger asChild>
+          <span
+            role="button"
+            className={cn(
+              buttonVariants({ variant: "elevated", size: "sm" }),
+              "status-badge cursor-pointer",
+            )}
+            data-environment-chip=""
+          >
+            <SolarIcon
+              name={environmentIconName(env?.kind)}
+              size={14}
+              style={{ color: iconColor }}
+              aria-hidden="true"
+            />
+            <span className="badge-short">{label}</span>
+          </span>
+        </PopoverTrigger>
       </HoverTip>
       <PopoverContent
         side="top"

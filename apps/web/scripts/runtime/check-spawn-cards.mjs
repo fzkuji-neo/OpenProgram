@@ -401,8 +401,8 @@ const stripBody = strip.slice(
 assert.ok(stripBody.length > 0, "failed to locate the ExecutionStrip body");
 assert.match(
   stripBody,
-  /const\s+\[open,\s*setOpen\]\s*=\s*useState\(false\)/,
-  "execution traces must default to collapsed, with a manual toggle winning",
+  /const \[chosen, setOpen\] = useState<boolean \| null>\(null\);\s*const open = chosen \?\? view !== "normal";/,
+  "execution traces start collapsed in the normal view, with a manual toggle winning",
 );
 
 // Every assistant-owned spawn uses the ordinary timeline row, including

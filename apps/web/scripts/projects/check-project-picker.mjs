@@ -32,7 +32,7 @@ assert.doesNotMatch(projectMenu, /\bremoveProject\b/);
 assert.doesNotMatch(projectMenu, /remove_project/);
 assert.doesNotMatch(projectMenu, /Remove from list|从列表移除/);
 assert.match(projectMenu, /<PopoverTrigger asChild>[\s\S]*id="projectBadge"/);
-assert.match(projectMenu, /name="check-circle"/);
+assert.match(projectMenu, /<MenuCheck \/>/);
 assert.match(projectMenu, /Open folder…/);
 assert.match(projectMenu, /useFolderPicker\(\)/);
 assert.match(workingDirs, /useFolderPicker\(\)/);
@@ -119,9 +119,9 @@ assert.doesNotMatch(projectsPage, /remove_project/);
 assert.doesNotMatch(projectsPage, /Remove from list|从列表移除/);
 assert.doesNotMatch(projectsPage, /styles\.removeBtn/);
 assert.doesNotMatch(projectsCss, /\.removeBtn\b/);
-assert.match(projectsPage, /\{filtered\.map\(/);
+assert.match(projectsPage, /\{projects\.map\(\(p\) =>/);
 assert.match(projectsPage, /<ProjectConfigSection\b/);
-assert.match(projectsPage, /"list_project_sessions"/);
+assert.match(projectsPage, /tab === "chats" && \([\s\S]*?<ChatsPage[\s\S]*?include=\{includeSelected\}/);
 
 assert.match(
   sessionsList,

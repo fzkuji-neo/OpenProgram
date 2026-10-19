@@ -65,7 +65,7 @@ assert.deepEqual(blocked, {
   notice: "current file state does not match the recorded source",
   operation: null,
 });
-assert.match(card, /\{currentAction \? \([\s\S]*?<\/button>\s*\) : historyNotice \? \([\s\S]*?className="turn-files-history-notice"[\s\S]*?title=\{historyNotice\}[\s\S]*?role="status"[\s\S]*?\{historyNotice\}[\s\S]*?\) : null\}\s*<button[\s\S]*?"turn-files-review"\)/);
+assert.match(card, /\{currentAction \? \([\s\S]*?<\/button>\s*\) : historyNotice \? \([\s\S]*?className="turn-files-history-notice"[\s\S]*?role="status"[\s\S]*?\{historyNotice\}[\s\S]*?\) : null\}\s*<button[\s\S]*?"turn-files-review"\)/);
 assert.match(card, /buttonVariants\(\{ variant: "elevated", size: "sm" \}\), "turn-files-action"/);
 assert.match(card, /buttonVariants\(\{ variant: "elevated", size: "sm" \}\), "turn-files-review"/);
 assert.doesNotMatch(card, /turn-files-blocked/);
@@ -110,12 +110,12 @@ assert.match(cardCss, /\.turn-files-list\{padding:3px;border-radius:11px;backgro
 assert.match(cardCss, /\.turn-files-row\{[^}]*height:30px[^}]*grid-template-columns:auto minmax\(0,1fr\) max-content[^}]*column-gap:8px/);
 assert.match(cardCss, /\.turn-files-row\{[^}]*background:transparent/);
 assert.match(cardCss, /\.turn-files-row:hover\{[^}]*background:var\(--bg-hover\)/);
-assert.match(cardCss, /\.turn-files-diff\{display:inline-flex[^}]*border-radius:6px[^}]*overflow:hidden/);
-assert.match(cardCss, /\.turn-files-stat\.is-add\{[^}]*background:color-mix\(in oklch,var\(--accent-green\)/);
-assert.match(cardCss, /\.turn-files-stat\.is-del\{[^}]*background:color-mix\(in oklch,var\(--accent-red\)/);
+assert.match(cardCss, /\.turn-files-diff\{display:inline-flex[^}]*border-radius:4\.5px[^}]*overflow:hidden/);
+assert.match(cardCss, /\.turn-files-stat\.is-add\{color:var\(--git-added\)/);
+assert.match(cardCss, /\.turn-files-stat\.is-del\{color:var\(--git-removed\)/);
 assert.match(cardCss, /\.turn-files-name\{[^}]*font-size:13px/);
 assert.match(cardCss, /\.turn-files-dir\{color:var\(--text-muted\)\}\.turn-files-base\{color:var\(--text-bright\)\}/);
-assert.match(cardCss, /\.turn-files-stat\{[^}]*font-size:12px[^}]*font-variant-numeric:tabular-nums/);
+assert.match(cardCss, /\.turn-files-diff\{[^}]*font:500 11px\/14px[^}]*font-variant-numeric:tabular-nums/);
 assert.doesNotMatch(cardCss, /\.turn-files-name\{[^}]*var\(--font-mono\)/);
 assert.doesNotMatch(cardCss, /\.turn-files-stat\{[^}]*var\(--font-mono\)/);
 assert.doesNotMatch(cardCss, /\.turn-files-op\{[^}]*var\(--font-mono\)/);

@@ -7,6 +7,12 @@ import { fileURLToPath } from "node:url";
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
+    // A React component Node cannot load; lib modules only call confirmAction.
+    if (specifier === "@/components/ui/confirm-dialog") {
+      const stub = "export const confirmAction = async () => true;"
+        + " export const ConfirmDialog = () => null; export const ConfirmDialogHost = () => null;";
+      return { url: `data:text/javascript,${encodeURIComponent(stub)}`, shortCircuit: true };
+    }
     if (specifier.startsWith("@/")) {
       const base = new URL(`../../${specifier.slice(2)}`, import.meta.url).href;
       const file = `${base}.ts`;

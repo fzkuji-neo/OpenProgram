@@ -552,8 +552,8 @@ assert.match(compactControls, /\.effortValue/);
 assert.match(compactControls, /position:\s*absolute/);
 assert.match(compactControls, /\.permission-badge\s*>\s*:has\(svg\)[\s\S]*display:\s*inline-flex\s*!important/);
 assert.match(compactControls, /\.compactEffortIcon[\s\S]*display:\s*inline-flex/);
-assert.match(compactControls, /\.permission-badge[\s\S]*width:\s*28px/);
-assert.match(compactControls, /\.agent-badge[\s\S]*width:\s*28px/);
+assert.match(compactControls, /\.permission-badge[\s\S]*aspect-ratio:\s*1;/);
+assert.match(compactControls, /\.agent-badge[\s\S]*aspect-ratio:\s*1;/);
 assert.doesNotMatch(compactControls, /\.(?:permission-badge|agent-badge|effort-pill-host)[^{]*\{[^}]*display:\s*none/s);
 
 assert.match(workingDirChips, /className="workdir-remove"/);

@@ -42,7 +42,7 @@ assert.doesNotMatch(layout, /styles\.topbar/);
 
 const tabsBlock = layout.match(/const tabs = \[([\s\S]*?)\n  \];/)?.[1] ?? "";
 const tabOrder = [...tabsBlock.matchAll(/id: "([^"]+)"/g)].map((match) => match[1]);
-assert.deepEqual(tabOrder, ["general", "providers", "memory", "search", "browser", "environments", "channels", "usage", "system"]);
+assert.deepEqual(tabOrder, ["general", "providers", "memory", "search", "browser", "voice", "environments", "channels", "usage", "system"]);
 
 // Settings home is General. Client entries must not land on /settings
 // (desktop often skips the server redirect, and the unmatched-path
@@ -54,7 +54,7 @@ assert.match(userMenu, /router\.push\("\/settings\/general"\)/);
 assert.doesNotMatch(userMenu, /router\.push\("\/settings"\)/);
 assert.match(mainMenu, /router\.push\("\/settings\/general"\)/);
 assert.doesNotMatch(mainMenu, /router\.push\("\/settings"\)/);
-assert.match(agentSelector, /href="\/settings\/general"/);
+assert.match(agentSelector, /href="\/settings\/providers"/);
 assert.doesNotMatch(agentSelector, /href="\/settings"/);
 assert.match(loading, /pathname\.split\("\/"\)\[2\] \|\| "general"/);
 const warmRoutes = appShell.match(/const WARM_ROUTES = \[([\s\S]*?)\];/)?.[1] ?? "";
@@ -239,6 +239,6 @@ assert.match(browser, /styles\.label[\s\S]{0,80}Bookmarks are not removed/);
 assert.doesNotMatch(browser, /styles\.pageMeta[\s\S]{0,80}Bookmarks are not removed/);
 
 // Installation type is chrome, not a code value.
-assert.match(general, /styles\.control\}>\{installType\}/);
+assert.match(general, /<span className="text-sm text-muted-foreground">\{installType\}<\/span>/);
 
 console.log("settings collapsible-column checks passed");

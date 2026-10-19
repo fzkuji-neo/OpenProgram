@@ -19,7 +19,8 @@ assert.match(general, /aria-live=\{updateState\?\.status === "downloading" \? un
 assert.match(general, /Update check failed/);
 assert.doesNotMatch(general, /if \(updateActionError\) return updateActionError/);
 assert.doesNotMatch(general, /case "error": return updateState\.error/);
-assert.match(general, /title=\{statusDetail\}/);
+assert.match(general, /data-tip=\{statusDetail\}/);
+assert.doesNotMatch(general, /title=\{statusDetail\}/);
 assert.match(general, /release\.status === "available"/);
 assert.match(general, /openprogram upgrade --check/);
 assert.match(general, /openprogram upgrade</);
