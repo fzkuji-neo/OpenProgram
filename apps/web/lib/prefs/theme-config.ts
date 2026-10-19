@@ -44,8 +44,10 @@ export const THEME_DEFAULT_ACCENTS: Record<ThemeId, string> = {
   light: "#2563eb",
   aurora: "#4fd6c0",
   "aurora-light": "#0f766e",
-  vivid: "#818cf8",
-  "vivid-light": "#4f46e5",
+  // Vivid derives its accent from the tab-strip colour; these are the
+  // values for the default strip colour (DEFAULT_TABROW_COLOR).
+  vivid: "#a7b8da",
+  "vivid-light": "#526386",
   custom: "#d97757",
   "custom-light": "#c15f3c",
 };

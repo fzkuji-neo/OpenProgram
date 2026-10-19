@@ -157,7 +157,7 @@
           <tr><td>Beige</td><td><code>beige-dark</code> / <code>beige-light</code></td><td>Orange / coral</td><td>Same component roles; only theme values change</td></tr>
           <tr><td>Neutral</td><td><code>dark</code> / <code>light</code></td><td>Blue</td><td>Default Button, primary-action fills, selected states, links and accent borders</td></tr>
           <tr><td>Aurora</td><td><code>aurora</code> / <code>aurora-light</code></td><td>Teal</td><td>Same component roles, with dark foreground for filled-element contrast</td></tr>
-          <tr><td>Vivid</td><td><code>vivid</code> / <code>vivid-light</code></td><td>Indigo</td><td>Beige panels; the top tab strip takes a colour from Chrome's colour set, picked in Settings (<code>--tabrow-seed</code>), a pale tone of it in light mode</td></tr>
+          <tr><td>Vivid</td><td><code>vivid</code> / <code>vivid-light</code></td><td>Follows the tab-strip colour</td><td>Beige panels; the top tab strip takes a colour from Chrome's colour set, picked in Settings (<code>--tabrow-seed</code>), a pale tone of it in light mode; panels, text and the default accent derive from the same hue</td></tr>
         </tbody>
       </table>
     </section>
@@ -203,7 +203,7 @@
         <li><strong>Component isolation</strong><span>Outside theme files, no component CSS branches on specific built-in theme names.</span></li>
         <li><strong>Cross-window consistency</strong><span>All six theme-pack ids pass unchanged to desktop overlays; desktop window backgrounds use that theme's <code>--bg-primary</code>.</span></li>
         <li><strong>Font consistency</strong><span>Ordinary text and native form controls inherit the same <code>--font-sans</code>, with explicit exceptions for mono regions.</span></li>
-        <li><strong>Primary-color matrix</strong><span>Neutral light/dark themes use blue, Beige uses orange, Aurora uses teal, and Vivid uses indigo; pack-default accents continue to come from CSS files.</span></li>
+        <li><strong>Primary-color matrix</strong><span>Neutral light/dark themes use blue, Beige uses orange, Aurora uses teal, and Vivid follows its tab-strip colour; pack-default accents continue to come from CSS files.</span></li>
         <li><strong>Active desktop tab</strong><span>In dark mode, the tab bar's <code>--tab-active-bg</code>  blends the content background with 12% white, shared by ordinary tabs and split groups. The selected background remains stable on hover; light mode and browser tabs retain the content background.</span></li>
         <li><strong>Visible acceptance</strong><span>Inspect the main window, tabs, composer, popovers and desktop overlays in dark, light and aurora using the default installed App.</span></li>
       </ul>

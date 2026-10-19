@@ -94,8 +94,6 @@ const expectedAccent = {
   light: ["#2563eb", "#2563eb", "#1d4ed8"],
   aurora: ["#4fd6c0", "#35b8a4", "#2ea38f"],
   "aurora-light": ["#0f766e", "#0f766e", "#115e59"],
-  vivid: ["#818cf8", "#6366f1", "#4f46e5"],
-  "vivid-light": ["#4f46e5", "#4f46e5", "#4338ca"],
 };
 function tokenValue(source, token) {
   return source.match(new RegExp(`${token.replaceAll("-", "\\-")}\\s*:\\s*([^;]+);`))?.[1].trim();
@@ -112,6 +110,13 @@ for (const [id, values] of Object.entries(expectedAccent)) {
     new RegExp(`["']?${id.replaceAll("-", "\\-")}["']?:\\s*"${values[0]}"`),
     `THEME_DEFAULT_ACCENTS.${id} must stay sourced from ${id} --accent-orange`,
   );
+}
+// Vivid derives every surface and its accent from the tab-strip colour.
+for (const id of ["vivid", "vivid-light"]) {
+  const source = read(`app/styles/themes/${id}.css`);
+  for (const token of ["--bg-primary", "--bg-secondary", "--text-primary", "--accent-orange", "--accent-fill"]) {
+    assert.match(tokenValue(source, token), /^oklch\(from var\(--tabrow-seed\)/, `${id} ${token} must derive from --tabrow-seed`);
+  }
 }
 for (const token of requiredTokens) {
   assert.ok(tokens(base).includes(token), `:root fallback is missing ${token}`);
@@ -236,6 +241,12 @@ const chromeLinks = chromeField(desktopChrome, "link");
 assert.deepEqual(Object.keys(chromeBgs).sort(), builtins.slice().sort());
 for (const id of builtins) {
   const source = read(`app/styles/themes/${id}.css`);
+  // Vivid's tokens are computed from the tab-strip colour, so the desktop
+  // table holds their resolved hex for the default strip colour instead.
+  if (id === "vivid" || id === "vivid-light") {
+    assert.match(chromeBgs[id], /^#[0-9a-f]{6}$/i, `desktop THEME_CHROME.${id}.bg must be a resolved hex`);
+    continue;
+  }
   assert.equal(
     chromeBgs[id].toLowerCase(),
     tokenValue(source, "--bg-primary").toLowerCase(),

@@ -464,8 +464,8 @@ export function GeneralSection() {
           <SettingsRow
             label={text("Tab bar color", "标签栏颜色")}
             description={text(
-              "Chrome's colour set. Dark mode shows the colour, light mode a pale tone of it.",
-              "Chrome 同款颜色。深色模式直接用这个颜色，浅色模式用它的淡色。",
+              "Chrome's colour set. Panels, text and the default accent take the same hue.",
+              "Chrome 同款颜色。面板、文字和默认强调色都跟着用同一色相。",
             )}
             stacked
           >

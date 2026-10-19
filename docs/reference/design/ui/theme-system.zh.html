@@ -157,7 +157,7 @@
           <tr><td>Beige</td><td><code>beige-dark</code> / <code>beige-light</code></td><td>橙色 / 珊瑚色</td><td>同一套组件角色，只替换主题值</td></tr>
           <tr><td>Neutral</td><td><code>dark</code> / <code>light</code></td><td>蓝色</td><td>Default Button、主操作填充、选中态、链接与强调边界</td></tr>
           <tr><td>Aurora</td><td><code>aurora</code> / <code>aurora-light</code></td><td>青绿色</td><td>同一套组件角色，并使用深色 foreground 保证填充对比</td></tr>
-          <tr><td>Vivid</td><td><code>vivid</code> / <code>vivid-light</code></td><td>靛蓝</td><td>沿用 Beige 面板；顶部标签栏颜色在设置里从 Chrome 同款色块中选（<code>--tabrow-seed</code>），浅色模式用它的淡色</td></tr>
+          <tr><td>Vivid</td><td><code>vivid</code> / <code>vivid-light</code></td><td>跟随标签栏颜色</td><td>沿用 Beige 面板；顶部标签栏颜色在设置里从 Chrome 同款色块中选（<code>--tabrow-seed</code>），浅色模式用它的淡色；面板、文字和默认强调色都从同一色相派生</td></tr>
         </tbody>
       </table>
     </section>
@@ -203,7 +203,7 @@
         <li><strong>组件隔离</strong><span>theme 文件之外不存在按具体内置主题名分支的组件 CSS。</span></li>
         <li><strong>跨窗口一致</strong><span>六个主题包 id 原样传给 desktop overlay；桌面窗口底色使用该主题的 <code>--bg-primary</code>。</span></li>
         <li><strong>字体一致</strong><span>普通文本和原生表单控件继承同一 <code>--font-sans</code>；mono 区域显式例外。</span></li>
-        <li><strong>主色矩阵</strong><span>Neutral 深浅主题为蓝色，Beige 深浅主题为橙色，Aurora 为青绿色，Vivid 为靛蓝；包默认 accent 仍从 CSS 文件读取。</span></li>
+        <li><strong>主色矩阵</strong><span>Neutral 深浅主题为蓝色，Beige 深浅主题为橙色，Aurora 为青绿色，Vivid 跟随标签栏颜色；包默认 accent 仍从 CSS 文件读取。</span></li>
         <li><strong>桌面活动标签</strong><span>深色模式下，标签栏的 <code>--tab-active-bg</code> 使用内容区底色混合 12% 白色，普通标签与分屏组合共用。选中背景在悬停时保持稳定；浅色模式与浏览器标签保持内容区底色。</span></li>
         <li><strong>可见验收</strong><span>默认安装版在深色、浅色和 aurora 下检查主窗口、tab、composer、popover 与桌面浮层。</span></li>
       </ul>

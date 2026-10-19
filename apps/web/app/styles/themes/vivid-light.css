@@ -1,33 +1,36 @@
-/* vivid-light — 彩色浅色：暖奶油浅色的面板 + 淡彩标签栏。
-   标签栏颜色在设置里从 Chrome 同款色块中选（base.css --tabrow-color），
-   和强调色无关；按钮等强调色默认靛蓝（App 图标的颜色）。 */
+/* vivid-light — 彩色浅色：整套界面跟着标签栏颜色走。
+   标签栏颜色在设置里从 Chrome 同款色块中选（--tabrow-seed，base.css），
+   面板、文字、强调色都从同一色相派生，和 Chrome 彩色主题一样。 */
 [data-theme="vivid-light"] {
-  /* 中间页面是极淡的暖白，比两侧白色面板略暖；米色留在外框（--bg-secondary）。 */
-  --bg-primary: #fbfaf8;
-  --bg-secondary: #f0eee5;
-  --bg-tertiary: #e8e6dc;
+  /* Every surface, text tier and the accent derive from the tab-strip
+     colour (--tabrow-seed, base.css) with the same hue, like Chrome's
+     colour themes: near-white panels with a trace of the hue, text a
+     tinted ink, the accent a saturated tone of it. */
+  --bg-primary: oklch(from var(--tabrow-seed) 0.99 calc(c * 0.08) h);
+  --bg-secondary: oklch(from var(--tabrow-seed) 0.965 calc(c * 0.2) h);
+  --bg-tertiary: oklch(from var(--tabrow-seed) 0.935 calc(c * 0.28) h);
   --bg-hover: rgba(20, 20, 19, 0.05);
   --bg-hover-contrast: #ffffff;
   /* 纯白：composer 和用户气泡比极淡暖白的页面更亮，再靠阴影浮起来。 */
   --bg-input: #ffffff;
   --border: rgba(20, 20, 19, 0.08); /* subtle hairline */
-  --border-light: #dedcd1;          /* strong hairline */
+  --border-light: oklch(from var(--tabrow-seed) 0.89 calc(c * 0.35) h);          /* strong hairline */
   /* Claude light text tiers: ink #141413 (bright), body #3d3d3a
      (Claude's text-200 tier — the brief's four tiers skip it),
      secondary #5e5d59, muted #91908c. The dim tier #b0aea7 has no
      token; use it inline for placeholders if a component needs it. */
-  --text-primary: #3d3d3a;
-  --text-secondary: #5e5d59;
-  --text-bright: #141413;
-  --text-muted: #91908c;
-  --nav-color: #5e5d59;       /* lighter than text-primary so light-mode icons aren't black */
-  --nav-color-hover: #141413; /* same as text-bright */
+  --text-primary: oklch(from var(--tabrow-seed) 0.33 calc(c * 0.15) h);
+  --text-secondary: oklch(from var(--tabrow-seed) 0.46 calc(c * 0.15) h);
+  --text-bright: oklch(from var(--tabrow-seed) 0.17 calc(c * 0.1) h);
+  --text-muted: oklch(from var(--tabrow-seed) 0.62 calc(c * 0.12) h);
+  --nav-color: oklch(from var(--tabrow-seed) 0.46 calc(c * 0.15) h);       /* lighter than text-primary so light-mode icons aren't black */
+  --nav-color-hover: oklch(from var(--tabrow-seed) 0.17 calc(c * 0.1) h); /* same as text-bright */
   --bg-selected: rgba(20, 20, 19, 0.08); /* selected row, one step above hover */
   /* Chat surfaces: the sent user bubble is the same raised surface as
      the composer (--bg-input + --composer-shadow); the assistant
      message sits flat on the page (no bubble tint). */
   --user-msg-bg: var(--bg-input);
-  --assistant-msg-bg: #fbfaf8;
+  --assistant-msg-bg: oklch(from var(--tabrow-seed) 0.99 calc(c * 0.08) h);
   /* Claude light is flat: hairlines + tint carry elevation, shadows
      stay barely-there. */
   --shadow-sm: 0 1px 2px rgba(20, 20, 19, 0.04);
@@ -44,11 +47,10 @@
   --shadow-sidebar-left: 4px 0 16px rgba(20, 20, 19, 0.06);
   --shadow-sidebar-right: -4px 0 16px rgba(20, 20, 19, 0.06);
   /* Collapsed `off` effort-pill chip — light-theme counterpart. */
-  --effort-off-bg: #e8e6dc;
-  /* Warm light uses a deeper coral for both text and filled actions. */
-  --accent-orange: #4f46e5;
-  --accent-fill: #4f46e5;
-  --accent-orange-hover: #4338ca;
+  --effort-off-bg: oklch(from var(--tabrow-seed) 0.935 calc(c * 0.28) h);
+  --accent-orange: oklch(from var(--tabrow-seed) 0.5 calc(c * 1.6) h);
+  --accent-fill: oklch(from var(--tabrow-seed) 0.5 calc(c * 1.6) h);
+  --accent-orange-hover: oklch(from var(--tabrow-seed) 0.44 calc(c * 1.6) h);
   /* The tab strip shows the colour picked in Settings (base.css
      --tabrow-color) at full strength. */
   --tabrow-tint: 100%;
@@ -93,7 +95,7 @@
   --meter-fill: #3b82f6;
   --meter-track: var(--bg-tertiary);
   --provider-icon-bg: var(--bg-tertiary);
-  --dag-ghost: #b9b7ae;
+  --dag-ghost: oklch(from var(--tabrow-seed) 0.78 calc(c * 0.15) h);
 }
 
 /* Pages inside the centre card (non-chat routes, Review, Agents and other
@@ -104,8 +106,8 @@
    and the chat pane keep the theme's own values. */
 [data-theme="vivid-light"] .page-col,
 [data-theme="vivid-light"] [data-page-surface] {
-  --bg-secondary: #fbfaf8;
-  --bg-tertiary: #f3f1ec;
+  --bg-secondary: oklch(from var(--tabrow-seed) 0.99 calc(c * 0.08) h);
+  --bg-tertiary: oklch(from var(--tabrow-seed) 0.965 calc(c * 0.2) h);
   --card: var(--bg-secondary);
   --popover: var(--bg-input);
   --secondary: var(--bg-tertiary);

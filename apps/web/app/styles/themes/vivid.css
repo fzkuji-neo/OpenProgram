@@ -1,33 +1,33 @@
-/* vivid — 彩色深色：暖奶油深色的面板 + 彩色标签栏。
-   标签栏颜色在设置里从 Chrome 同款色块中选（base.css --tabrow-color），
-   和强调色无关；按钮等强调色默认靛蓝（App 图标的颜色）。 */
+/* vivid — 彩色深色：整套界面跟着标签栏颜色走。
+   标签栏直接用设置里选的 Chrome 同款颜色（--tabrow-seed，base.css），
+   面板是同一色相的深色，文字和强调色也从它派生，和 Chrome 彩色主题一样。 */
 [data-theme="vivid"] {
-  --bg-primary: #191918;
-  --bg-secondary: #141413;
-  --bg-tertiary: #252523;
+  --bg-primary: oklch(from var(--tabrow-seed) 0.215 calc(c * 0.18) h);
+  --bg-secondary: oklch(from var(--tabrow-seed) 0.19 calc(c * 0.2) h);
+  --bg-tertiary: oklch(from var(--tabrow-seed) 0.27 calc(c * 0.22) h);
   --bg-hover: rgba(255, 255, 255, 0.06);
-  --bg-hover-contrast: #0f0f0e;
-  --bg-input: #262624;
+  --bg-hover-contrast: oklch(from var(--tabrow-seed) 0.16 calc(c * 0.2) h);
+  --bg-input: oklch(from var(--tabrow-seed) 0.275 calc(c * 0.22) h);
   --border: rgba(255, 255, 255, 0.06);       /* subtle hairline */
   --border-light: rgba(255, 255, 255, 0.10); /* strong hairline */
-  --text-primary: #b8b5ad;
-  --text-secondary: #94928b; /* 5.65:1 on --bg-primary */
-  --text-bright: #f0efea;
-  --text-muted: #757370; /* 3.72:1 on --bg-primary */
-  --nav-color: #b8b5ad;       /* nav default — same as text-primary in dark */
-  --nav-color-hover: #f0efea; /* nav hover — same as text-bright */
+  --text-primary: oklch(from var(--tabrow-seed) 0.79 calc(c * 0.12) h);
+  --text-secondary: oklch(from var(--tabrow-seed) 0.68 calc(c * 0.12) h);
+  --text-bright: oklch(from var(--tabrow-seed) 0.95 calc(c * 0.05) h);
+  --text-muted: oklch(from var(--tabrow-seed) 0.57 calc(c * 0.12) h);
+  --nav-color: oklch(from var(--tabrow-seed) 0.79 calc(c * 0.12) h);       /* nav default — same as text-primary in dark */
+  --nav-color-hover: oklch(from var(--tabrow-seed) 0.95 calc(c * 0.05) h); /* nav hover — same as text-bright */
   --bg-selected: rgba(255, 255, 255, 0.10); /* selected row, one step above hover */
   /* Chat surfaces: the sent user bubble is the same raised surface as
      the composer (--bg-input + --composer-shadow); the assistant
      message sits flat on the page (no bubble tint). */
   --user-msg-bg: var(--bg-input);
-  --assistant-msg-bg: #191918;
+  --assistant-msg-bg: oklch(from var(--tabrow-seed) 0.215 calc(c * 0.18) h);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.18);
   --shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
   /* Popover / menu surface — the ONE elevated card every floating menu
      uses (see components/chat/top-bar/menu-styles.ts MENU_PANEL). The
      shadow carries its own 1px ring, so panels need no border. */
-  --surface-popover: #252523;
+  --surface-popover: oklch(from var(--tabrow-seed) 0.27 calc(c * 0.22) h);
   --border-popover: rgba(255, 255, 255, 0.12);
   --shadow-popover: var(--glass-shadow);
   --shadow-dialog: 0 12px 32px rgba(0, 0, 0, 0.3);
@@ -35,10 +35,10 @@
   --shadow-sidebar-right: -4px 0 20px rgba(0, 0, 0, 0.28);
   /* Collapsed `off` effort-pill chip. Solid, a step above --bg-input
      so it reads as a distinct chip on the dark composer. */
-  --effort-off-bg: #2d2d2b;
-  --accent-orange: #818cf8;
-  --accent-fill: #6366f1;
-  --accent-orange-hover: #4f46e5;
+  --effort-off-bg: oklch(from var(--tabrow-seed) 0.3 calc(c * 0.22) h);
+  --accent-orange: oklch(from var(--tabrow-seed) 0.78 calc(c * 1.4) h);
+  --accent-fill: oklch(from var(--tabrow-seed) 0.6 calc(c * 1.5) h);
+  --accent-orange-hover: oklch(from var(--tabrow-seed) 0.54 calc(c * 1.5) h);
   /* The tab strip shows the colour picked in Settings (base.css
      --tabrow-color) at full strength. */
   --tabrow-tint: 100%;
@@ -87,5 +87,5 @@
   --meter-fill: #5b9cf8;
   --meter-track: rgba(255, 255, 255, 0.08);
   --provider-icon-bg: var(--bg-tertiary);
-  --dag-ghost: #57564f;
+  --dag-ghost: oklch(from var(--tabrow-seed) 0.45 calc(c * 0.15) h);
 }
