@@ -14,7 +14,7 @@ import { useFunctions } from "@/lib/abilities/functions-store";
 import { setPendingRunFunction } from "@/lib/execution/use-pending-run-function";
 
 import { SimpleSelect } from "@/components/ui/select";
-import { CtxMenu, type CtxMenuState } from "./ctx-menu";
+import { CtxMenu, type CtxItem } from "./ctx-menu";
 import { FunctionCard, ToolCard, cardGridClass, cardListClass } from "./function-card";
 import { IconPicker, normalizeIcon } from "./icon-picker";
 import {
@@ -39,7 +39,6 @@ export function FunctionsPage() {
   const [search, setSearch] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [iconPickerFor, setIconPickerFor] = useState<string | null>(null);
-  const [contextMenu, setContextMenu] = useState<CtxMenuState | null>(null);
 
   const reload = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -142,8 +141,8 @@ export function FunctionsPage() {
     return new Date(timestamp * 1000).toLocaleDateString(locale === "zh" ? "zh-CN" : undefined);
   }
 
-  function toggleFavorite(name: string, event: React.MouseEvent) {
-    event.stopPropagation();
+  function toggleFavorite(name: string, event?: React.MouseEvent) {
+    event?.stopPropagation();
     const favorites = meta.favorites.includes(name)
       ? meta.favorites.filter((item) => item !== name)
       : [...meta.favorites, name];
@@ -159,17 +158,13 @@ export function FunctionsPage() {
     });
   }
 
-  function openProgramMenu(event: React.MouseEvent, name: string) {
-    event.preventDefault();
-    setContextMenu({
-      x: event.clientX,
-      y: event.clientY,
-      items: [
+  function programMenuItems(name: string): CtxItem[] {
+    return [
         {
           label: meta.favorites.includes(name)
             ? text("Unfavorite", "取消收藏")
             : text("Favorite", "收藏"),
-          action: () => toggleFavorite(name, event),
+          action: () => toggleFavorite(name),
         },
         { label: text("Change icon...", "更换图标..."), action: () => setIconPickerFor(name) },
         {
@@ -179,8 +174,7 @@ export function FunctionsPage() {
             router.push(getLastChatPath() || "/chat");
           },
         },
-      ],
-    });
+    ];
   }
 
   async function refreshPrograms() {
@@ -208,18 +202,18 @@ export function FunctionsPage() {
     return (
       <div className={view === "grid" ? cardGridClass : cardListClass}>
         {rows.map((program) => (
+          <CtxMenu key={program.name} items={programMenuItems(program.name)}>
           <FunctionCard
-            key={program.name}
             p={program}
             icon={normalizeIcon(meta.icons[program.name])}
             fav={meta.favorites.includes(program.name)}
             profileName={null}
             formatDate={formatDate}
             onClick={() => router.push(`/chat?${new URLSearchParams({ run: program.name, cat: program.category || "" })}`)}
-            onContextMenu={(event) => openProgramMenu(event, program.name)}
             onToggleFav={(event) => toggleFavorite(program.name, event)}
             onChangeIcon={(event) => { event.stopPropagation(); setIconPickerFor(program.name); }}
           />
+          </CtxMenu>
         ))}
       </div>
     );
@@ -343,7 +337,6 @@ export function FunctionsPage() {
           onClose={() => setIconPickerFor(null)}
         />
       ) : null}
-      {contextMenu ? <CtxMenu state={contextMenu} onClose={() => setContextMenu(null)} /> : null}
     </div>
   );
 }

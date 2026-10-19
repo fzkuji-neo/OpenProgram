@@ -1,9 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { cn } from "@/lib/utils";
-import { MENU_PANEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
-import styles from "./ctx-menu.module.css";
+/**
+ * The right-click menu of a program card: the shadcn (radix-nova)
+ * ContextMenu, which opens at the pointer and brings keyboard navigation,
+ * Esc and outside-click dismissal with it. The panel and rows are the
+ * shared menu recipes (components/ui/context-menu.tsx).
+ */
+import type { ReactNode } from "react";
+
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 export interface CtxItem {
   type?: "sep";
@@ -11,56 +22,24 @@ export interface CtxItem {
   action?: () => void;
 }
 
-export interface CtxMenuState {
-  x: number;
-  y: number;
-  items: CtxItem[];
-}
-
-export function CtxMenu({
-  state,
-  onClose,
-}: {
-  state: CtxMenuState;
-  onClose: () => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ left: state.x, top: state.y });
-
-  useEffect(() => {
-    const r = ref.current?.getBoundingClientRect();
-    if (!r) return;
-    let { left, top } = pos;
-    if (r.right > window.innerWidth) left = window.innerWidth - r.width - 4;
-    if (r.bottom > window.innerHeight)
-      top = window.innerHeight - r.height - 4;
-    if (left !== pos.left || top !== pos.top) setPos({ left, top });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+export function CtxMenu({ items, children }: { items: CtxItem[]; children: ReactNode }) {
   return (
-    <div
-      ref={ref}
-      className={cn(MENU_PANEL, styles.ctxMenu)}
-      style={{ left: pos.left, top: pos.top }}
-      onClick={(e) => e.stopPropagation()}
-    >
-      {state.items.map((it, i) =>
-        it.type === "sep" ? (
-          <div key={i} className={MENU_SEPARATOR} />
-        ) : (
-          <div
-            key={i}
-            className={itemCls(false)}
-            onClick={() => {
-              onClose();
-              it.action?.();
-            }}
-          >
-            {it.label}
-          </div>
-        ),
-      )}
-    </div>
+    <ContextMenu>
+      {/* display: contents — the card keeps its own place in the grid. */}
+      <ContextMenuTrigger asChild>
+        <div style={{ display: "contents" }}>{children}</div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="min-w-40" onClick={(e) => e.stopPropagation()}>
+        {items.map((it, i) =>
+          it.type === "sep" ? (
+            <ContextMenuSeparator key={i} />
+          ) : (
+            <ContextMenuItem key={i} onSelect={() => it.action?.()}>
+              {it.label}
+            </ContextMenuItem>
+          ),
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }

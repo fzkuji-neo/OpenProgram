@@ -30,13 +30,8 @@ import {
 } from "@/lib/net/ws-request";
 import { navigate } from "@/lib/navigate";
 import { useSessionStore } from "@/lib/session-store";
-import {
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-} from "@/components/ui/popover";
+import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useSidebarMenu } from "@/components/sidebar/use-sidebar-menu";
 import { TreeContextMenu, treeClipboard } from "./tree-context-menu";
 import {
   ExplorerHeader,
@@ -183,7 +178,9 @@ export function FileTree({
   const [creating, setCreating] = useState<{ dir: string; kind: "file" | "dir" } | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [menuTarget, setMenuTarget] = useState<{ path: string; type: "file" | "dir" } | null>(null);
-  const contextMenu = useSidebarMenu();
+  // Set by a row's right-click on its way up to the tree's ContextMenu
+  // trigger, which opens only for a row (see treeMenu).
+  const rowMenuHit = useRef(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const pierreRef = useRef<PierreTreeHandle>(null);
@@ -372,7 +369,6 @@ export function FileTree({
     setCreating(null);
     setRenaming(null);
     setMenuTarget(null);
-    contextMenu.close();
     setFilter("");
     setSearchResults([]);
     setSearchPage(1);
@@ -683,23 +679,6 @@ export function FileTree({
     };
   }
 
-  function fileContextItems(path: string, type: "file" | "dir") {
-    const actions = fileContextActions(path, type);
-    return [
-      { id: "info", label: text("Get Info", "查看详细信息"), onSelect: actions.info },
-      { id: "reveal", label: revealLabel(), onSelect: actions.reveal },
-      { id: "new-file", label: text("New File", "新建文件"), separatorBefore: true, onSelect: actions.newFile },
-      { id: "new-folder", label: text("New Folder", "新建文件夹"), onSelect: actions.newFolder },
-      { id: "copy-path", label: text("Copy Path", "复制路径"), separatorBefore: true, onSelect: actions.copyPath },
-      { id: "copy-relative-path", label: text("Copy Relative Path", "复制相对路径"), onSelect: actions.copyRelativePath },
-      { id: "cut", label: text("Cut", "剪切"), separatorBefore: true, onSelect: actions.cut },
-      { id: "copy", label: text("Copy", "复制"), onSelect: actions.copy },
-      { id: "paste", label: text("Paste", "粘贴"), disabled: treeClipboard.current?.projectId !== projectId, onSelect: actions.paste },
-      { id: "rename", label: text("Rename", "重命名"), separatorBefore: true, onSelect: actions.rename },
-      { id: "delete", label: text("Delete", "删除"), onSelect: actions.delete },
-    ];
-  }
-
   function onRowContextMenu(
     e: React.MouseEvent<HTMLElement>,
     path: string,
@@ -707,12 +686,45 @@ export function FileTree({
   ) {
     setSelected({ path, type });
     setMenuTarget({ path, type });
-    contextMenu.show(e, fileContextItems(path, type));
+    rowMenuHit.current = true;
   }
 
   const webMenuActions = menuTarget
     ? fileContextActions(menuTarget.path, menuTarget.type)
     : null;
+
+  /** The tree's right-click menu (shadcn ContextMenu at the pointer): it
+   *  opens over a row only — elsewhere in the tree nothing opens. Keyed by
+   *  project, so switching roots closes it. */
+  function treeMenu(tree: React.ReactNode): React.ReactNode {
+    return (
+      <ContextMenu key={projectId} onOpenChange={open => { if (!open) setMenuTarget(null); }}>
+        <ContextMenuTrigger asChild onContextMenu={event => {
+          if (!rowMenuHit.current) event.preventDefault();
+          rowMenuHit.current = false;
+        }}>
+          <div style={{ flex: 1, minHeight: 0 }}>{tree}</div>
+        </ContextMenuTrigger>
+        {webMenuActions ? (
+          <TreeContextMenu
+            canPaste={treeClipboard.current?.projectId === projectId}
+            revealLabel={revealLabel()}
+            onInfo={webMenuActions.info}
+            onReveal={webMenuActions.reveal}
+            onNewFile={webMenuActions.newFile}
+            onNewFolder={webMenuActions.newFolder}
+            onCopyPath={webMenuActions.copyPath}
+            onCopyRelativePath={webMenuActions.copyRelativePath}
+            onCut={webMenuActions.cut}
+            onCopy={webMenuActions.copy}
+            onPaste={webMenuActions.paste}
+            onRename={webMenuActions.rename}
+            onDelete={webMenuActions.delete}
+          />
+        ) : null}
+      </ContextMenu>
+    );
+  }
 
   const searchableEntries = useMemo(() => {
     const entries = new Map<string, TreeEntry>();
@@ -896,8 +908,8 @@ export function FileTree({
   function renderSearchResults(): React.ReactNode {
     return (
       <div role="list" aria-label={text("Project search results", "项目搜索结果")} style={{ height: "100%", display: "flex", flexDirection: "column" }}><div className={styles.treeHint}>{text("Matching files and their parent folders", "匹配文件及其父目录")}</div>
-        <div style={{ flex: 1, minHeight: 0 }}><PierreSearchTree key={projectId} ref={pierreRef} projectId={projectId} matches={pierreSearchEntries} currentPath={currentSearchPath} query={!fuzzySearch ? filter : undefined}
-          onSelect={(path, type) => setSelected({ path, type })} onOpen={path => void revealSearchResult(path, "file")} onActivate={(path, type) => void revealSearchResult(path, type)} onContextMenu={onRowContextMenu} /></div>
+        {treeMenu(<PierreSearchTree key={projectId} ref={pierreRef} projectId={projectId} matches={pierreSearchEntries} currentPath={currentSearchPath} query={!fuzzySearch ? filter : undefined}
+          onSelect={(path, type) => setSelected({ path, type })} onOpen={path => void revealSearchResult(path, "file")} onActivate={(path, type) => void revealSearchResult(path, type)} onContextMenu={onRowContextMenu} />)}
         {searchHasMore ? (
           <button
             type="button"
@@ -946,7 +958,7 @@ export function FileTree({
         <InlineNameInput initial={baseOf(renaming)} onCommit={name => commitRename(renaming, name)} onCancel={() => setRenaming(null)} />
       </div> : null}
       {dirs[""] === "loading" || dirs[""] === undefined ? <div className={styles.treeHint}>{text("Loading…", "加载中…")}</div> : null}
-      <div style={{ flex: 1, minHeight: 0 }}>
+      {treeMenu(
         <PierreFileTree key={projectId} ref={pierreRef} projectId={projectId} sort={sort} onSortChange={setSort} entries={pierreEntries} query={searchMode === "highlight" && !fuzzySearch ? filter : undefined} matches={filter.trim() ? new Set(searchMatches.map(match => match.path)) : undefined} expanded={expanded} selected={(filter.trim() ? currentSearchPath : null) ?? selected?.path ?? activePath ?? null}
           onRowsRendered={paths => {
             if (pendingScrollRestore && pierreRef.current?.restoreScrollState(pendingScrollRestore)) setPendingScrollRestore(null);
@@ -957,7 +969,7 @@ export function FileTree({
           }}
           onExpandedChange={next => { setExpanded(next); useCenterTabs.getState().updateFileNavigationView?.({ expanded: [...next].sort(), scroll: pierreRef.current?.getScrollState() ?? null }); for (const path of next) if (dirs[path] === undefined) void load(path); }}
           onSelect={(path, type) => { setSelected({ path, type }); if (type === "dir") recordNavigation(path, type); }} onOpen={openFile} onContextMenu={onRowContextMenu} />
-      </div>
+      )}
       {visibleDirectories.map(dir => <div key={dir}>
         {dir && dirs[dir] === "loading" ? <div className={styles.treeHint}>{dir} · {text("Loading…", "加载中…")}</div> : null}
         {dirs[dir] === "error" || refreshErrors.has(dir) ? <button type="button" className={styles.treeRow} onClick={refetchRoot}>{dir || "/"} · {text("Refresh failed — retry", "刷新失败，重试")}</button> : null}
@@ -1035,37 +1047,6 @@ export function FileTree({
           </>
         )}
       </div>
-
-      {/* Desktop uses the platform menu. Web keeps the existing visual
-          menu at the same pointer coordinates as a fallback. */}
-      {menuTarget && webMenuActions && contextMenu.open && !contextMenu.native ? (
-        <Popover open onOpenChange={contextMenu.onOpenChange}>
-          <PopoverAnchor virtualRef={contextMenu.anchor} />
-          <PopoverContent
-            align="start"
-            side="bottom"
-            sideOffset={2}
-            className="w-auto border-0 bg-transparent p-0 text-[var(--text-primary)] shadow-none"
-          >
-            <TreeContextMenu
-              canPaste={treeClipboard.current?.projectId === projectId}
-              revealLabel={revealLabel()}
-              onInfo={webMenuActions.info}
-              onReveal={webMenuActions.reveal}
-              onNewFile={webMenuActions.newFile}
-              onNewFolder={webMenuActions.newFolder}
-              onCopyPath={webMenuActions.copyPath}
-              onCopyRelativePath={webMenuActions.copyRelativePath}
-              onCut={webMenuActions.cut}
-              onCopy={webMenuActions.copy}
-              onPaste={webMenuActions.paste}
-              onRename={webMenuActions.rename}
-              onDelete={webMenuActions.delete}
-              onClose={contextMenu.close}
-            />
-          </PopoverContent>
-        </Popover>
-      ) : null}
 
       {detailsPath !== null ? <FileDetails key={`${projectId}:${detailsPath}`} projectId={projectId} path={detailsPath} inline={detailsInline} onClose={() => setDetailsPath(null)} /> : null}
 

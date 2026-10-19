@@ -26,7 +26,6 @@ export function FunctionCard({
   profileName,
   formatDate,
   onClick,
-  onContextMenu,
   onDragStart,
   onToggleFav,
   onChangeIcon,
@@ -37,7 +36,6 @@ export function FunctionCard({
   profileName: string | null;
   formatDate: (ts?: number) => string;
   onClick: () => void;
-  onContextMenu: (e: React.MouseEvent) => void;
   onDragStart?: (e: React.DragEvent) => void;
   onToggleFav: (e: React.MouseEvent) => void;
   onChangeIcon: (e: React.MouseEvent) => void;
@@ -53,7 +51,6 @@ export function FunctionCard({
       className={styles.card}
       draggable={Boolean(onDragStart)}
       onDragStart={onDragStart}
-      onContextMenu={onContextMenu}
       onMouseEnter={() => cardIconRef.current?.startAnimation?.()}
       onMouseLeave={() => cardIconRef.current?.stopAnimation?.()}
     >

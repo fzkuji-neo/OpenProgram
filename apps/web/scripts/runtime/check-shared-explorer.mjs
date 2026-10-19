@@ -50,9 +50,9 @@ assert.doesNotMatch(rightSidebar, /headerExtra=\{/);
 assert.doesNotMatch(rightSidebar, /view !== VIEW_FILES/);
 assert.doesNotMatch(programs, /react-arborist|react-use-measure/);
 assert.doesNotMatch(files, /const filtered = useMemo/);
-assert.match(files, /useSidebarMenu/);
-assert.match(files, /contextMenu\.show\(e,/);
-assert.match(files, /!contextMenu\.native/);
+// Right-click on a row opens the shadcn ContextMenu, and only over a row.
+assert.match(files, /from "@\/components\/ui\/context-menu"/);
+assert.match(files, /if \(!rowMenuHit\.current\) event\.preventDefault\(\);/);
 assert.match(files, /Reveal in File Explorer/);
 
 console.log("shared explorer checks passed");

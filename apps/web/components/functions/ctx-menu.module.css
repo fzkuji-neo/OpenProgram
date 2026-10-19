@@ -1,8 +1,0 @@
-/* Frame, rows and separator are the shared menu classes (top-bar/
-   menu-styles.ts MENU_PANEL / itemCls / MENU_SEPARATOR); only the
-   placement lives here. */
-.ctxMenu {
-  position: fixed;
-  z-index: 999;
-  min-width: 160px;
-}

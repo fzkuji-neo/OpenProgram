@@ -638,13 +638,12 @@
 .fileBreadcrumb { position: relative; display: flex; align-items: center; min-width: 0; flex: 1; gap: 0; overflow: hidden; font-size: var(--right-panel-text-size, 14px); color: var(--text-dim); }
 .fileBreadcrumb button { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-height: 32px; padding: 6px 8px; background: transparent; border: 0; border-radius: var(--ui-list-radius); cursor: pointer; }
 .fileBreadcrumb > button { flex: 0 0 auto; max-width: 40%; }
-.fileBreadcrumb button:hover, .fileCrumbMenu button:hover { background: var(--bg-hover); }
+.fileBreadcrumb button:hover { background: var(--bg-hover); }
 .fileBreadcrumb svg { width: 12px; height: 12px; margin-inline: -4px; flex-shrink: 0; pointer-events: none; }
 .fileCrumbPart { display: flex; align-items: center; gap: 0; min-width: 0; flex-shrink: 0; }
 .fileCrumbPart:last-child { color: var(--text-primary); flex: 0 1 auto; }
 .fileCrumbMenu { width: max-content; min-width: 140px; max-width: min(300px, calc(100vw - 24px)); }
-.fileCrumbMenu button { width: 100%; text-align: left; padding: 6px 10px; overflow-wrap: anywhere; }
-.fileCrumbMenu button:focus-visible { outline: none; background: var(--bg-hover); color: var(--text-bright); }
+.fileCrumbMenu [role="menuitem"] { overflow-wrap: anywhere; }
 
 .treeRowWithSize { grid-template-columns: 17px minmax(0, 1fr) auto; }
 .folderSize { font-size: var(--right-panel-meta-size, 10px); font-variant-numeric: tabular-nums; color: var(--text-dim); padding-left: 8px; white-space: nowrap; }

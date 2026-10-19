@@ -24,10 +24,19 @@ test("menus are Nova's solid popover with a visible highlight, icons unshifted",
   assert.match(read("app/globals.css"), /--accent: color-mix\(in oklab, var\(--foreground\) 9%, transparent\)/);
 });
 
-test("footer, function and tab menus use the shared classes, not their own copies", () => {
+test("right-click menus are the Nova ContextMenu on the shared recipes", () => {
+  const kit = read("components/ui/context-menu.tsx");
+  assert.match(kit, /radix-nova/);
+  assert.match(kit, /cn\(MENU_PANEL, MENU_MOTION/);
+  assert.match(kit, /itemCls\(false, variant === "destructive"\),\n\s+MENU_ITEM_STATES/);
+  for (const user of ["components/functions/ctx-menu.tsx", "components/center-tabs/terminal-context-menu.tsx"]) {
+    assert.match(read(user), /from "@\/components\/ui\/context-menu"/, user);
+  }
+});
+
+test("footer and tab menus use the shared classes, not their own copies", () => {
   for (const [tsx, css] of [
     ["components/user-menu-footer.tsx", "components/user-menu-footer.module.css"],
-    ["components/functions/ctx-menu.tsx", "components/functions/ctx-menu.module.css"],
     ["components/center-tabs/tab-context-menu.tsx", "components/center-tabs/center-tabs.module.css"],
   ]) {
     const source = read(tsx);
