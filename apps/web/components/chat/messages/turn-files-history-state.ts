@@ -20,21 +20,19 @@ export interface TurnHistoryState {
 export type TurnHistoryNotices = Partial<Record<TurnHistoryReason, string>> & { fallback: string };
 
 /**
- * What the card shows next to Review. Expected states (files edited since,
- * a run still going) read as a quiet ``info`` line; only an action that just
- * failed is a ``warning``. Engine error text is never shown as the notice.
+ * Why the card's history action is withheld, shown in the hover tip of the
+ * greyed action. A failed action reports its own error; otherwise the reason
+ * picks the copy. Engine error text is never shown as the explanation.
  */
 export function historyPresentation(
   state: TurnHistoryState | null,
   transientError: string,
   notices: TurnHistoryNotices,
 ) {
-  if (transientError) {
-    return { notice: transientError, tone: "warning" as const, operation: null };
-  }
+  if (transientError) return { notice: transientError, operation: null };
   if (state && state.status !== "ready") {
     const known = state.reason ? notices[state.reason as TurnHistoryReason] : undefined;
-    return { notice: known || notices.fallback, tone: "info" as const, operation: null };
+    return { notice: known || notices.fallback, operation: null };
   }
-  return { notice: "", tone: "info" as const, operation: state?.operation ?? null };
+  return { notice: "", operation: state?.operation ?? null };
 }

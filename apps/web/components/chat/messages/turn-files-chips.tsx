@@ -6,6 +6,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { FileTypeIcon } from "@/components/files/file-type-icon";
 import { SolarIcon } from "@/components/solar-icons";
 import { buttonVariants } from "@/components/ui/button";
+import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
 import {
@@ -350,19 +351,36 @@ export function TurnFilesChips({
   const headerCount = layout.total;
   const {
     notice: historyNotice,
-    tone: historyTone,
     operation: currentAction,
   } = historyPresentation(
     historyState,
     historyError,
     {
-      files_changed: text("Files changed since", "文件已被改动"),
-      not_recoverable: text("Can't undo", "无法撤回"),
-      inactive_branch: text("Not on this branch", "不在当前分支"),
-      agent_running: text("Agent running", "智能体运行中"),
-      run_active: text("Run in progress", "运行中"),
-      in_progress: text("Undoing…", "撤回中…"),
-      fallback: text("Can't undo", "无法撤回"),
+      files_changed: text(
+        "Files from this turn were edited afterwards. Undoing now would overwrite those newer edits.",
+        "这一轮改过的文件之后又被改动了，现在撤回会覆盖后来的修改。",
+      ),
+      not_recoverable: text(
+        "Some changes in this turn were not fully recorded, so they can't be restored.",
+        "这一轮有些修改没有完整记录，无法恢复到修改前。",
+      ),
+      inactive_branch: text(
+        "This turn is not on the conversation's current branch.",
+        "这一轮不在对话的当前分支上。",
+      ),
+      agent_running: text(
+        "An agent started from this turn is still running. Undo becomes available when it finishes.",
+        "这一轮启动的智能体还在运行，结束后才能撤回。",
+      ),
+      run_active: text(
+        "This conversation is still running. Undo becomes available when the run finishes.",
+        "对话还在运行，运行结束后才能撤回。",
+      ),
+      in_progress: text("An undo for this turn is already in progress.", "这一轮的撤回正在进行中。"),
+      fallback: text(
+        "Undo isn't available for this turn right now. You can still review the changes.",
+        "这一轮暂时无法撤回，仍可审阅修改。",
+      ),
     },
   );
   const actionLabel = currentAction === "undo"
@@ -373,7 +391,11 @@ export function TurnFilesChips({
         ? text("Redo", "重做")
         : currentAction === "reapply"
           ? text("Reapply", "重新应用")
-          : "";
+          : reverted
+            ? text("Redo", "重做")
+            : text("Undo", "撤回");
+  const actionRedo = currentAction === "redo" || currentAction === "reapply"
+    || (!currentAction && reverted);
 
   return (
     <div
@@ -402,25 +424,36 @@ export function TurnFilesChips({
               type="button"
               className={cn(buttonVariants({ variant: "elevated", size: "sm" }), "turn-files-action")}
               disabled={Boolean(busy)}
-              onClick={() => historyAction(
-                currentAction === "redo" || currentAction === "reapply"
-                  ? "redo"
-                  : "undo",
-              )}
+              onClick={() => historyAction(actionRedo ? "redo" : "undo")}
             >
-              <span className={`turn-files-action-icon${currentAction === "redo" || currentAction === "reapply" ? " turn-files-redo-icon" : ""}`}>
+              <span className={`turn-files-action-icon${actionRedo ? " turn-files-redo-icon" : ""}`}>
                 <SolarIcon name="fa-rotate-left" size={13} motionPreset="none" />
               </span>
               <span>{busy ? text("Working…", "处理中…") : actionLabel}</span>
             </button>
           ) : historyNotice ? (
-            <span
-              className="turn-files-history-notice"
-              data-tone={historyTone}
-              role="status"
+            // Stays a focusable control (aria-disabled, not disabled) so the
+            // hover tip can say why the action is withheld.
+            <HoverTip
+              label={(
+                <TipBody
+                  title={actionRedo ? text("Can't redo now", "暂时无法重做") : text("Can't undo now", "暂时无法撤回")}
+                  detail={historyNotice}
+                />
+              )}
             >
-              {historyNotice}
-            </span>
+              <button
+                type="button"
+                className={cn(buttonVariants({ variant: "elevated", size: "sm" }), "turn-files-action")}
+                aria-disabled="true"
+                aria-label={`${actionLabel}: ${historyNotice}`}
+              >
+                <span className={`turn-files-action-icon${actionRedo ? " turn-files-redo-icon" : ""}`}>
+                  <SolarIcon name="fa-rotate-left" size={13} motionPreset="none" />
+                </span>
+                <span>{actionLabel}</span>
+              </button>
+            </HoverTip>
           ) : null}
           <button
             type="button"

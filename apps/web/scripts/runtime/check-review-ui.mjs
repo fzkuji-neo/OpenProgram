@@ -49,26 +49,27 @@ assert.doesNotMatch(card, /list_turn_files|function loadMore\(\)/);
 assert.match(card, /wsRequest[\s\S]*"turn_history_state"/);
 assert.match(card, /operation: null,[\s\S]*?setHistoryNonce/);
 assert.match(card, /setHistoryError\(""\);\s*setHistoryState\(/);
-assert.match(card, /\} = historyPresentation\([\s\S]*?historyState,[\s\S]*?historyError,[\s\S]*?files_changed:[\s\S]*?fallback: text\("Can't undo", "无法撤回"\)/);
+assert.match(card, /\} = historyPresentation\([\s\S]*?historyState,[\s\S]*?historyError,[\s\S]*?files_changed:[\s\S]*?fallback: text\([\s\S]*?You can still review the changes/);
 assert.match(card, /reason: data\.reason,/);
 const notices = { files_changed: "changed", fallback: "fallback" };
 const refreshed = historyPresentation({ status: "ready", operation: "undo" }, "", notices);
-assert.deepEqual(refreshed, { notice: "", tone: "info", operation: "undo" });
+assert.deepEqual(refreshed, { notice: "", operation: "undo" });
 const blocked = historyPresentation(
   { status: "blocked", operation: null, reason: "files_changed", error: "current file state does not match the recorded source" },
   "",
   notices,
 );
-assert.deepEqual(blocked, { notice: "changed", tone: "info", operation: null });
+assert.deepEqual(blocked, { notice: "changed", operation: null });
 const unknown = historyPresentation(
   { status: "unavailable", operation: null, reason: "later_code", error: "engine text" },
   "",
   notices,
 );
-assert.deepEqual(unknown, { notice: "fallback", tone: "info", operation: null });
+assert.deepEqual(unknown, { notice: "fallback", operation: null });
 const failed = historyPresentation({ status: "blocked", operation: null }, "STALE_SNAPSHOT", notices);
-assert.deepEqual(failed, { notice: "STALE_SNAPSHOT", tone: "warning", operation: null });
-assert.match(card, /\{currentAction \? \([\s\S]*?<\/button>\s*\) : historyNotice \? \([\s\S]*?className="turn-files-history-notice"[\s\S]*?data-tone=\{historyTone\}[\s\S]*?role="status"[\s\S]*?\{historyNotice\}[\s\S]*?\) : null\}\s*<button[\s\S]*?"turn-files-review"\)/);
+assert.deepEqual(failed, { notice: "STALE_SNAPSHOT", operation: null });
+assert.match(card, /\{currentAction \? \([\s\S]*?<\/button>\s*\) : historyNotice \? \([\s\S]*?<HoverTip[\s\S]*?<TipBody[\s\S]*?detail=\{historyNotice\}[\s\S]*?aria-disabled="true"[\s\S]*?<\/HoverTip>\s*\) : null\}\s*<button[\s\S]*?"turn-files-review"\)/);
+assert.doesNotMatch(card, /turn-files-history-notice/);
 assert.match(card, /buttonVariants\(\{ variant: "elevated", size: "sm" \}\), "turn-files-action"/);
 assert.match(card, /buttonVariants\(\{ variant: "elevated", size: "sm" \}\), "turn-files-review"/);
 assert.doesNotMatch(card, /turn-files-blocked/);
@@ -124,13 +125,12 @@ assert.doesNotMatch(cardCss, /\.turn-files-stat\{[^}]*var\(--font-mono\)/);
 assert.doesNotMatch(cardCss, /\.turn-files-op\{[^}]*var\(--font-mono\)/);
 assert.match(cardCss, /\.turn-files-more\{[^}]*background:transparent[^}]*font-size:13px/);
 assert.match(cardCss, /\.turn-files-more:hover\{[^}]*background:var\(--bg-hover\)/);
-assert.match(cardCss, /\.turn-files-history-notice\{display:block;min-width:0;max-width:min\(48ch,40cqi\);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var\(--text-muted\);font-size:12px;line-height:1\.2\}\n\.turn-files-history-notice\[data-tone="warning"\]\{color:var\(--accent-orange\)\}/);
+assert.match(cardCss, /\.turn-files-action\[aria-disabled="true"\]\{opacity:\.5;cursor:default\}/);
+assert.doesNotMatch(cardCss, /turn-files-history-notice/);
 assert.doesNotMatch(cardCss, /\.turn-files-blocked/);
 assert.doesNotMatch(cardCss, /data-theme-mode="light"[^}]*\.turn-files-card/);
 assert.match(cardCss, /@media\(max-width:420px\)\{\.turn-files-summary\{gap:6px;padding-left:6px\}\.turn-files-heading\{gap:5px\}/);
 assert.match(cardCss, /@container turn-files \(max-width:420px\)\{\.turn-files-summary\{gap:6px;padding-left:6px\}\.turn-files-heading\{gap:5px\}/);
-assert.match(cardCss, /@media\(max-width:420px\)[^\n]*\.turn-files-history-notice\{max-width:92px\}/);
-assert.match(cardCss, /@container turn-files \(max-width:420px\)[^\n]*\.turn-files-history-notice\{max-width:92px\}/);
 assert.doesNotMatch(card, /Review all \$\{fileCount\} files|审阅全部 \$\{fileCount\} 个文件/);
 assert.match(design, /\.change-card-demo\{container:change-card\/inline-size/);
 assert.match(design, /\.change-card-demo\{[^}]*font-family:var\(--font-sans\)/);

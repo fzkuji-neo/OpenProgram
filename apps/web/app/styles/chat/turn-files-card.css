@@ -13,10 +13,9 @@
 .turn-files-summary-actions{margin-left:auto;display:flex;align-items:center;gap:6px;flex:0 0 auto}
 /* The card itself deepens its shadow on hover, so the buttons need a
    clearly brighter fill of their own to read as the hover target. */
-/* Revert / Review are elevated Buttons: hover only deepens the shadow; no grey fill, which in light themes matched the shadow colour. */.turn-files-action:hover:not(:disabled),.turn-files-review:hover{background:var(--bg-input);color:var(--text-bright)}
+/* Revert / Review are elevated Buttons: hover only deepens the shadow; no grey fill, which in light themes matched the shadow colour. */.turn-files-action:hover:not(:disabled):not([aria-disabled="true"]),.turn-files-review:hover{background:var(--bg-input);color:var(--text-bright)}
 .turn-files-action-icon{display:inline-flex;align-items:center;justify-content:center;line-height:0}.turn-files-redo-icon{transform:scaleX(-1)}
-.turn-files-history-notice{display:block;min-width:0;max-width:min(48ch,40cqi);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted);font-size:12px;line-height:1.2}
-.turn-files-history-notice[data-tone="warning"]{color:var(--accent-orange)}
+.turn-files-action[aria-disabled="true"]{opacity:.5;cursor:default}.turn-files-action[aria-disabled="true"]:active{translate:none}
 .turn-files-list{padding:3px;border-radius:11px;background:var(--bg-primary)}.turn-files-row{width:100%;height:30px;display:grid;grid-template-columns:auto minmax(0,1fr) max-content;align-items:center;column-gap:8px;padding:0 10px;border:0;border-radius:9px;background:transparent;color:inherit;text-align:left;cursor:pointer}.turn-files-row:hover{background:var(--bg-hover)}
 /* Rows carry the Files panel's per-type icon (FileTypeIcon colours itself);
    the 16px box keeps the 15px glyph aligned with the overflow row's eye. */
@@ -32,6 +31,6 @@
 .turn-files-diff.is-plain{height:auto;column-gap:6px;border-radius:0;overflow:visible;font-size:12px;line-height:16px}.turn-files-diff.is-plain .turn-files-stat{padding:0;background:none}
 .turn-files-more{display:block;width:100%;height:30px;margin-top:6px;padding:0 13px;border:0;border-radius:9px;background:transparent;color:var(--text-secondary);font-size:13px;text-align:left;cursor:pointer}.turn-files-more:hover{background:var(--bg-hover);color:var(--text-primary)}
 .turn-files-reverted{padding:6px 10px 2px;color:var(--text-muted);font-size:11px}
-@media(max-width:420px){.turn-files-summary{gap:6px;padding-left:6px}.turn-files-heading{gap:5px}.turn-files-count{font-size:0}.turn-files-count::after{content:attr(data-short);font-size:13px}.turn-files-summary-actions{gap:4px}.turn-files-history-notice{max-width:92px}}
-@container turn-files (max-width:420px){.turn-files-summary{gap:6px;padding-left:6px}.turn-files-heading{gap:5px}.turn-files-count{font-size:0}.turn-files-count::after{content:attr(data-short);font-size:13px}.turn-files-summary-actions{gap:4px}.turn-files-history-notice{max-width:92px}}
+@media(max-width:420px){.turn-files-summary{gap:6px;padding-left:6px}.turn-files-heading{gap:5px}.turn-files-count{font-size:0}.turn-files-count::after{content:attr(data-short);font-size:13px}.turn-files-summary-actions{gap:4px}}
+@container turn-files (max-width:420px){.turn-files-summary{gap:6px;padding-left:6px}.turn-files-heading{gap:5px}.turn-files-count{font-size:0}.turn-files-count::after{content:attr(data-short);font-size:13px}.turn-files-summary-actions{gap:4px}}
 .workspace-alignment-banner{width:min(100%,680px);margin:4px 0 10px;padding:10px 11px;border:1px solid color-mix(in srgb,var(--accent-orange) 55%,var(--border));border-radius:8px;background:color-mix(in srgb,var(--accent-orange) 6%,var(--bg-secondary));color:var(--text-muted);font-size:11px}.workspace-alignment-banner b{display:block;margin-bottom:2px;color:var(--accent-orange);font-size:12px}.workspace-alignment-banner>span{display:block}.workspace-alignment-banner>div{display:flex;align-items:center;gap:6px;margin-top:8px}.workspace-alignment-banner button{height:27px;border:1px solid var(--border);border-radius:6px;padding:0 8px;background:var(--bg-tertiary);color:var(--text-primary);font-size:10px;cursor:pointer}.workspace-alignment-banner small{margin-left:auto;color:var(--accent-orange);font:9px/1 var(--font-mono)}
