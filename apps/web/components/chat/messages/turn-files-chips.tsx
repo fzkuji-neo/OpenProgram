@@ -356,13 +356,13 @@ export function TurnFilesChips({
     historyState,
     historyError,
     {
-      files_changed: text("Files changed since — can't undo", "文件之后又改过，无法撤回"),
-      not_recoverable: text("These changes can't be undone", "这次修改已无法撤回"),
-      inactive_branch: text("Not on the current branch", "不在当前分支上"),
-      agent_running: text("Wait for the agent to finish", "等智能体运行结束后再撤回"),
-      run_active: text("Available when the run finishes", "本轮运行结束后可撤回"),
-      in_progress: text("Undo in progress…", "撤回进行中…"),
-      fallback: text("Undo unavailable. Review remains available.", "暂时无法撤回，仍可审阅。"),
+      files_changed: text("Files changed since", "文件已被改动"),
+      not_recoverable: text("Can't undo", "无法撤回"),
+      inactive_branch: text("Not on this branch", "不在当前分支"),
+      agent_running: text("Agent running", "智能体运行中"),
+      run_active: text("Run in progress", "运行中"),
+      in_progress: text("Undoing…", "撤回中…"),
+      fallback: text("Can't undo", "无法撤回"),
     },
   );
   const actionLabel = currentAction === "undo"

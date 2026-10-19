@@ -49,7 +49,7 @@ assert.doesNotMatch(card, /list_turn_files|function loadMore\(\)/);
 assert.match(card, /wsRequest[\s\S]*"turn_history_state"/);
 assert.match(card, /operation: null,[\s\S]*?setHistoryNonce/);
 assert.match(card, /setHistoryError\(""\);\s*setHistoryState\(/);
-assert.match(card, /\} = historyPresentation\([\s\S]*?historyState,[\s\S]*?historyError,[\s\S]*?files_changed:[\s\S]*?Review remains available/);
+assert.match(card, /\} = historyPresentation\([\s\S]*?historyState,[\s\S]*?historyError,[\s\S]*?files_changed:[\s\S]*?fallback: text\("Can't undo", "无法撤回"\)/);
 assert.match(card, /reason: data\.reason,/);
 const notices = { files_changed: "changed", fallback: "fallback" };
 const refreshed = historyPresentation({ status: "ready", operation: "undo" }, "", notices);
