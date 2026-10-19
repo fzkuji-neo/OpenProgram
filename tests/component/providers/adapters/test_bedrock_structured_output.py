@@ -4,6 +4,7 @@ import pytest
 
 from openprogram.providers.amazon_bedrock import amazon_bedrock
 from openprogram.providers.api_registry import get_structured_output_capabilities
+from openprogram.providers.register import register_builtins
 from openprogram.providers.structured_output import (
     StructuredOutputUnsupportedError,
     negotiate_structured_output,
@@ -75,6 +76,8 @@ def test_installed_botocore_accepts_documented_output_config_shape():
 
 
 def test_bedrock_native_requires_explicit_model_support_metadata():
+    # The built-in contract, registered here rather than by whichever test ran first.
+    register_builtins()
     capabilities = get_structured_output_capabilities("bedrock-converse-stream")
     base = Model(
         id="anthropic.claude-test-v1:0",

@@ -42,6 +42,38 @@ SCHEMA = {
 }
 
 
+class _UnusedProvider:
+    """The loop streams through the test's ``stream_fn``; the adapter is never called."""
+
+    requires_credentials = False
+
+    def stream_simple(self, model, context, options):
+        raise AssertionError("the registered adapter must not be called")
+
+
+@pytest.fixture(autouse=True)
+def _codex_contract(monkeypatch):
+    """Each test sees the openai-codex contract (strict tools only) in its own registry.
+
+    Without this the tests depended on an earlier test in the same process
+    having loaded the built-in providers, which xdist does not guarantee.
+    Tests that need a different registry replace it again.
+    """
+    from openprogram.providers import register
+
+    monkeypatch.setattr(api_registry, "_registry", {})
+    monkeypatch.setattr(api_registry, "_original_registry", {})
+    monkeypatch.setattr(api_registry, "_audited_originals", {})
+    monkeypatch.setattr(api_registry, "_audited_accounting", {})
+    monkeypatch.setattr(api_registry, "_provider_transform", None)
+    monkeypatch.setattr(register, "_registered", register._registered)
+    register_api_provider(
+        "openai-codex",
+        _UnusedProvider(),
+        StructuredOutputCapabilities(strict_tool=True, schema_profile="openai_strict"),
+    )
+
+
 def _assistant(content) -> AssistantMessage:
     has_calls = any(isinstance(block, ToolCall) for block in content)
     return AssistantMessage(

@@ -227,6 +227,25 @@ def _restore_shipped_tools():
 
 
 @pytest.fixture(autouse=True)
+def _keep_builtin_provider_flag_honest():
+    """Let ``register_builtins`` run again when its registration was lost.
+
+    ``register_builtins`` records that it ran in a module flag. A test that
+    swaps ``api_registry._registry`` for an empty dict and then (directly or
+    through a lazy import) triggers the built-in registration fills the
+    swapped dict and sets the flag; once monkeypatch restores the real
+    registry, the flag still says "registered" and every later caller in
+    that worker process sees no built-in providers. Runs after monkeypatch
+    teardown, so it sees the real registry.
+    """
+    yield
+    from openprogram.providers import api_registry, register
+
+    if register._registered and "openai-codex" not in api_registry._registry:
+        register._registered = False
+
+
+@pytest.fixture(autouse=True)
 def _reset_process_sandbox_policy():
     """Un-pin a process-wide sandbox policy a test left installed.
 
