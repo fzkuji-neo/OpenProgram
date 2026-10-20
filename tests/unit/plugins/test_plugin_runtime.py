@@ -200,3 +200,69 @@ def test_web_slots_match_the_page():
               / "slots.ts").read_text(encoding="utf-8")
     block = re.search(r"PLUGIN_SLOTS = \[(.*?)\] as const", source, re.S).group(1)
     assert re.findall(r'"([^"]+)"', block) == list(CLIENT_SLOTS)
+
+
+def test_web_routes_serve_a_plugin_from_install_to_reload(plugin_home):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from openprogram.programs._runtime import get
+    from openprogram.webui.routes.catalog import plugins as routes
+
+    root = write_plugin(plugin_home / "src" / "web-demo", "web-demo", SETUP.format(suffix="!"),
+                        client="./ui/client.js",
+                        sidebar=[{"label": "Demo", "label_zh": "演示", "page": "index.html"}])
+    (root / "ui").mkdir()
+    (root / "ui" / "client.js").write_text("export default (api) => {};\n", encoding="utf-8")
+    (root / "secret.txt").write_text("not served", encoding="utf-8")
+    app = FastAPI()
+    routes.register(app)
+    client = TestClient(app)
+
+    installed = client.post("/api/plugins/install", json={"source": "path", "spec": str(root)}).json()
+    assert installed["success"], installed
+    enabled = client.post("/api/plugins/web-demo/toggle", json={"enabled": True}).json()
+    assert enabled["loaded"] and get("shout") is not None
+    assert enabled["contributions"]["tools"] == ["shout"]
+
+    module = client.get("/api/plugins/client").json()["modules"][0]
+    assert module["plugin"] == "web-demo"
+    served = client.get(module["url"])
+    assert served.status_code == 200 and "javascript" in served.headers["content-type"]
+    assert client.get("/api/plugins/web-demo/client/secret.txt").status_code == 404
+    assert client.get("/api/plugins/web-demo/client/ui/../secret.txt").status_code == 404
+    item = client.get("/api/plugins/sidebar").json()["items"][0]
+    assert item["href"] == "/plugin/web-demo/index.html" and item["label_zh"] == "演示"
+    assert "plugin.settings" in client.get("/api/plugins/inspect").json()["client_slots"]
+
+    (root / "plugin.py").write_text(textwrap.dedent(SETUP.format(suffix="?")), encoding="utf-8")
+    assert client.post("/api/plugins/web-demo/reload").json()["loaded"]
+    assert get("shout")._python_callable(text="a") == "A?"
+
+    assert not client.post("/api/plugins/web-demo/toggle", json={"enabled": False}).json()["loaded"]
+    assert get("shout") is None
+    assert client.get("/api/plugins/client").json()["modules"] == []
+    assert client.get("/api/plugins/sidebar").json()["items"] == []
+
+
+def test_the_agent_tool_installs_and_reloads_a_plugin(plugin_home, monkeypatch):
+    from openprogram import sandbox
+    monkeypatch.setattr(sandbox, "resolve_policy", lambda: None)
+    from openprogram.programs._runtime import get
+    from openprogram.programs.tools.runtime.plugin import plugin as tool
+
+    def plugin_tool(**args):
+        import asyncio
+        result = asyncio.run(tool.execute("plugin-test", args, None, None))
+        assert not result.is_error, result
+        text = result.content[0].text
+        return json.loads(text) if text.lstrip().startswith("{") else {"guide": text}
+
+    root = write_plugin(plugin_home / "src" / "agent-made", "agent-made", SETUP.format(suffix="!"))
+    assert "ctx.tool" in plugin_tool(action="guide")["guide"]
+    installed = plugin_tool(action="install", path=str(root))
+    assert installed["ok"] and installed["plugin"]["loaded"], installed
+    (root / "plugin.py").write_text(textwrap.dedent(SETUP.format(suffix="?")), encoding="utf-8")
+    assert plugin_tool(action="reload", name="agent-made")["plugin"]["loaded"]
+    assert get("shout")._python_callable(text="b") == "B?"
+    assert plugin_tool(action="uninstall", name="agent-made")["ok"]
+    assert get("shout") is None and (root / "plugin.py").is_file()
