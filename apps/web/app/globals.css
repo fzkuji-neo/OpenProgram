@@ -244,6 +244,20 @@
   }
 }
 
+/* One cursor rule for the whole app: anything clickable takes the hand,
+   a disabled control the arrow. Tailwind's preflight leaves buttons on
+   the arrow while links get the hand, so the two kinds disagreed side by
+   side. In the base layer, so any component's own cursor (a resize
+   handle, a utility class, an unlayered module rule) still wins. */
+@layer base {
+  :is(button, [role="button"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"], [role="combobox"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"], summary, select, label[for], a[href]) {
+    cursor: pointer;
+  }
+  :is(button, [role="button"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"], [role="combobox"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"], select):is(:disabled, [aria-disabled="true"], [data-disabled]) {
+    cursor: default;
+  }
+}
+
 /* shadcn/ui at the docs' scale. The registry's sizes are rem-based and
    written for a 16px root; this app's root is 14px (base.css), which
    renders every official component at 7/8 size. Pages built entirely
