@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import { useTranslation } from "@/lib/i18n";
 
 // Static export has no dynamic segments: /plugin/<name>/<slug...> is
 // served by the worker's SPA fallback with this page's HTML; name and
@@ -17,6 +18,7 @@ export default function PluginWebPage() {
   }, [pathname]);
   const [hasWeb, setHasWeb] = useState<boolean | null>(null);
   const [err, setErr] = useState<string>("");
+  const { text } = useTranslation();
 
   useEffect(() => {
     if (!name) return;
@@ -43,14 +45,25 @@ export default function PluginWebPage() {
     return `/api/plugins/${encodeURIComponent(name)}/web/${slugPath}`;
   }, [name, slugArr]);
 
-  if (!name) return <div style={{ padding: 24 }}>missing plugin name</div>;
-  if (hasWeb === null) return <div style={{ padding: 24 }}>加载中…</div>;
-  if (err) return <div style={{ padding: 24, color: "#ef4444" }}>{err}</div>;
-  if (!hasWeb) {
-    return (
-      <div style={{ padding: 24, color: "var(--text-dim)" }}>
-        插件 <strong>{name}</strong> 未声明 web entrypoint。
+  const notice = (body: ReactNode, tone: "muted" | "error" = "muted") => (
+    <div className="flex h-full items-center justify-center p-6">
+      <div
+        className={"max-w-md rounded-lg border border-border bg-muted px-5 py-4 text-sm "
+          + (tone === "error" ? "text-destructive" : "text-muted-foreground")}
+      >
+        {body}
       </div>
+    </div>
+  );
+  if (!name) return notice(text("No plugin named in the address.", "地址里没有插件名。"), "error");
+  if (err) return notice(err, "error");
+  if (hasWeb === null) return notice(text("Loading…", "加载中…"));
+  if (!hasWeb) {
+    return notice(
+      <>
+        {text("Plugin ", "插件 ")}<strong className="text-foreground">{name}</strong>
+        {text(" has no web page (manifest key web).", " 没有声明 web 页面（manifest 键 web）。")}
+      </>,
     );
   }
 
