@@ -85,6 +85,9 @@ export function SidebarPrimaryNav() {
     } catch { /* ignore */ }
   }, [pathname]);
   const pluginItems = usePluginSlots((state) => state.sidebarItems);
+  const pluginItemActive = (href: string) =>
+    pathname === href || pathname === href.replace(/\/$/, "");
+  const onPluginRow = pluginItems.some((item) => pluginItemActive(item.href));
   const [refreshing, setRefreshing] = useState(false);
   const [refreshDone, setRefreshDone] = useState(false);
   const refreshSvgRef = useRef<SVGSVGElement>(null);
@@ -149,7 +152,7 @@ export function SidebarPrimaryNav() {
       active:
         pathname.startsWith("/skills")
         || pathname.startsWith("/plugins")
-        || pathname.startsWith("/plugin/")
+        || (pathname.startsWith("/plugin/") && !onPluginRow)
         || pathname.startsWith("/mcp")
         || pathname.startsWith("/programs"),
       label: t("nav.ability"),
@@ -183,7 +186,7 @@ export function SidebarPrimaryNav() {
     ...pluginItems.map((item) => ({
       href: item.href,
       id: `navPlugin-${item.id}`,
-      active: pathname === item.href || pathname === item.href.replace(/\/$/, ""),
+      active: pluginItemActive(item.href),
       label: item.label_zh ? text(item.label, item.label_zh) : item.label,
       icon: BlocksIcon,
     })),

@@ -40,6 +40,16 @@ export function PluginDetailDialog({
             {plugin.deprecated ? text(" · deprecated", " · 已废弃") : ""}
           </div>
           {plugin.description && <p style={{ marginTop: 8 }}>{plugin.description}</p>}
+          {plugin.loaded && Object.keys(plugin.contributions || {}).length > 0 && (
+            <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+              {Object.entries(plugin.contributions || {}).map(([kind, names]) => (
+                <div key={kind} className="contents">
+                  <dt className="text-muted-foreground">{kind}</dt>
+                  <dd className="font-mono break-all">{names.join(", ")}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
           {contrib.length > 0 && (
             <p style={{ marginTop: 8 }}>
               {text("Provides", "提供")} {contrib.join(", ")}
