@@ -223,16 +223,18 @@ def _build_workspace_files(agent: Any) -> str:
         return ""
     from openprogram.agent.management import workspace as _workspace
     blocks: list[str] = []
-    for reader in (_workspace.read_agents_md,
-                   _workspace.read_soul_md,
-                   _workspace.read_user_md):
+    for filename, reader in ((_workspace.AGENTS_FILE, _workspace.read_agents_md),
+                             (_workspace.SOUL_FILE, _workspace.read_soul_md),
+                             (_workspace.USER_FILE, _workspace.read_user_md)):
         block = (reader(agent_id) or "").strip()
+        if block and _workspace.is_seed(agent_id, filename, block):
+            continue
         if block:
             hits = detect_injection_patterns(block)
             if hits:
                 import logging
                 logging.getLogger(__name__).warning(
-                    "PI patterns in %s: %s", reader.__name__, hits)
+                    "PI patterns in %s: %s", filename, hits)
                 block = (
                     "⚠ This file contains patterns that may be prompt "
                     "injection attempts (" + ", ".join(hits) + "). "

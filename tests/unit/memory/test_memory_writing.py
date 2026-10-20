@@ -1030,3 +1030,13 @@ def test_retryable_and_terminal_outcomes_persist_differently(watched):
     assert processed == {}
     _n, processed = run(WriteFailure("batch refused", retryable=False))
     assert processed == {"idle1": 1.0}
+
+
+def test_structure_marks_topic_files_that_need_splitting():
+    from pathlib import Path
+    from openprogram.memory.management.workspace import TOPIC_SPLIT_BYTES, _topic_size_note
+    big = "x" * (TOPIC_SPLIT_BYTES + 1)
+    assert _topic_size_note(Path("topics/projects/demo.md"), big).endswith(
+        "split into topics/projects/demo/)")
+    assert "split" not in _topic_size_note(Path("topics/core.md"), big)
+    assert _topic_size_note(Path("topics/a.md"), "short") == "  (1 KB)"

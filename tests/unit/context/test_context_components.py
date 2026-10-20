@@ -313,3 +313,20 @@ def test_date_still_reaches_the_system_prompt():
     import datetime
     prompt = comp.build_system_prompt({"id": "main"})
     assert datetime.date.today().strftime("%B %d, %Y") in prompt
+
+
+def test_untouched_seed_files_stay_out_of_the_prompt(tmp_path, monkeypatch):
+    from openprogram.agent.management import workspace
+    from openprogram.context.components import _build_workspace_files
+    from types import SimpleNamespace
+    files = {
+        workspace.AGENTS_FILE: workspace._SEED[workspace.AGENTS_FILE].format(name="Old name"),
+        workspace.SOUL_FILE: "# Helper — persona\n\nDry humour.\n",
+        workspace.USER_FILE: workspace._LEGACY_SEEDS[workspace.USER_FILE][0],
+    }
+    monkeypatch.setattr(workspace, "read_file", lambda agent_id, name: files.get(name))
+    monkeypatch.setattr(workspace, "read_agents_md", lambda a: files[workspace.AGENTS_FILE])
+    monkeypatch.setattr(workspace, "read_soul_md", lambda a: files[workspace.SOUL_FILE])
+    monkeypatch.setattr(workspace, "read_user_md", lambda a: files[workspace.USER_FILE])
+    monkeypatch.setattr(workspace._agents, "get", lambda agent_id: SimpleNamespace(name="Renamed"))
+    assert _build_workspace_files(SimpleNamespace(id="helper")) == "# Helper — persona\n\nDry humour."

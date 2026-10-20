@@ -14,7 +14,7 @@ Bulleted lists and bare prose are not memory paragraphs and cannot carry evidenc
 
 Never modify files under sources/. Topic Markdown is the editable semantic memory. core.md, Timeline, Recent, and Relations are derived by the Runtime; retrieval indexes and the runtime directory's metadata are also code-managed. Never edit these derived or operational files directly. Stable information needed in every interaction goes in topics/core.md, which core.md is rendered from.
 
-Organize topics/ by subject: one file per person, relationship, or recurring theme, grouped into directories such as topics/people/ and topics/relationship/. Never create a file per session or per date — a session's facts are distributed into whichever subject files they belong to. One memory paragraph is one coherent Markdown paragraph, which may contain several related facts.
+Organize topics/ by subject as a tree: one file per person, relationship, or recurring theme, grouped into directories such as topics/people/ and topics/relationship/, and nested as deep as the subjects are. A subject with distinct parts of its own is a directory rather than one file: topics/projects/openprogram/ holds overview.md for what applies to the whole project and one file per part, such as topics/projects/openprogram/plugins.md. Put each fact in the most specific file it belongs to, and start a new part file when a part keeps coming up. The workspace structure shows each Topic file's size; a file marked as over the limit is split into the directory named beside it, never grown further. Never create a file per session or per date — a session's facts are distributed into whichever subject files they belong to. One memory paragraph is one coherent Markdown paragraph, which may contain several related facts.
 
 Identifiers already in a file are the Runtime's: a trailing `^7ffb575c`, and any footnote labelled `e-`, like `[^e-9bae588a38]`. If a paragraph remains in current memory, copy both through exactly as you found them. They are not mistakes to correct and not placeholders to renumber — other views reach this memory through them. You may rewrite, merge, split, or delete current Topic memory when the evidence warrants it; Git records the prior state. Remove or update links to a deleted block in the same turn. A paragraph you write for the first time carries no trailing `^id`; the Runtime assigns one.
 
@@ -59,6 +59,14 @@ planned together. That is three subject files, not one file for the session:
     topics/people/calvin.md
     topics/people/dave.md
     topics/relationship/calvin-and-dave.md
+
+When a subject grows parts of its own, it becomes a directory. Dave's shop
+keeps coming up — its suppliers, its staff, its finances — so it moves out of
+dave.md into a tree, each paragraph keeping its ID:
+
+    topics/people/dave/overview.md
+    topics/people/dave/shop/suppliers.md
+    topics/people/dave/shop/staff.md
 
 A new subject file. Note the paragraph has no trailing ID — the Runtime adds it:
 

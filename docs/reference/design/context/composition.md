@@ -125,17 +125,19 @@ The registered components are listed below with their `order` and `condition`. T
 
 | order | Component | condition | Registered as |
 |---|---|---|---|
-| 1 | project identity (AGENTS.md) | project file present | workspace_files |
+| 1 | project identity (AGENTS.md) | project file present and edited | workspace_files |
 | 2 | prompt-injection detection (scan 1 before injecting) | when loading project files | pi_shield + detect_injection_patterns |
 | 3 | context file truncation | project file oversized | MAX_WORKSPACE_CHARS=8000 truncation inside workspace_files |
 | 4 | project-level memory | present | — |
-| 5 | USER.md user profile | present | user_profile (loaded by workspace_files via read_user_md) |
+| 5 | USER.md user profile | present and edited | user_profile (loaded by workspace_files via read_user_md) |
 | 6 | working directory cwd | always | — |
 | 7 | whether in a git repo | in a git repo | git_repo_flag |
 | 8 | session/model/thinking/tier bindings | always | — |
 | 9 | deferred tools catalog | deferred tools present | deferred_catalog (order 25) |
 | 10 | current date (day granularity) | always | current_date (order 85, L1 tail) |
 | 11 | **unified call tree (history)** | history present | append-grows, completed nodes release io, placed last in L1 |
+
+> Every agent's workspace is seeded with `AGENTS.md`, `SOUL.md` and `USER.md` placeholders. A file still identical to its seed (under the agent's current name or the name in its own heading) is left out, so generic rules are not repeated every turn. What is learned about the user lives in Memory's Core, which every agent sees; `USER.md` is only for what the owner wants to state to one agent, and `AGENTS.md` for the rules the owner writes for it.
 
 > The date sits at the **tail of L1**, not in L0. It is the one component that changes on its own — at midnight, with nothing in the session having changed. Placed in L0 it would precede the tools, memory, and workspace blocks, so a rollover mid-session would invalidate the entire cached prefix. At the L1 tail only what follows it is lost.
 

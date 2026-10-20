@@ -6,7 +6,9 @@ Review both the organization and the current usefulness of the Topic memory. Add
 
 When `topics/core.md` is listed, keep only preferences, identity facts, long-term goals, and mandatory rules that are useful across most future interactions. Move project-specific material out of `topics/core.md` into its project Topic when it remains useful; delete it when the current Topic state or project files already provide the answer. A paragraph being outside the rendered token budget is not a reason to retain it in the Core master.
 
-Make each change with a small Edit. Never rewrite a whole file: these files are mostly footnote definitions, and reproducing them costs far more than the organizing is worth. If a file is already well organized, say so and move on. Doing nothing is a valid outcome.
+Split every file the workspace structure marks as over the limit into the directory named beside it: an overview.md for what applies to the whole subject, and one file per part, grouped into deeper directories where the parts have parts. Write each new file in one call with its paragraphs, their trailing IDs and their footnote definitions copied exactly, then remove the original file with the shell. Merge a part file back into its parent when it holds only a paragraph or two.
+
+Apart from splitting, make each change with a small Edit. Never rewrite a whole file just to rearrange it: these files are mostly footnote definitions, and reproducing them costs far more than the organizing is worth. If a file is already well organized, say so and move on. Doing nothing is a valid outcome.
 
 If a paragraph remains, keep its existing block ID. Moving a paragraph carries its ID along. Splitting a paragraph keeps the original ID on one part; the other part gets no ID and the Runtime assigns one. When deleting a block, remove or update every link to that block in the same turn.
 

@@ -149,17 +149,19 @@ messages = L1[统一调用树 …追加增长,完成节点释放 io…]      ←
 
 | order | 成分 | condition | 注册为 |
 |---|---|---|---|
-| 1 | 项目身份（AGENTS.md） | 有项目文件 | workspace_files |
+| 1 | 项目身份（AGENTS.md） | 有项目文件且改过 | workspace_files |
 | 2 | Prompt 注入检测（扫 1 再注入） | 加载项目文件时 | pi_shield + detect_injection_patterns |
 | 3 | 上下文文件截断 | 项目文件超大 | workspace_files 内 MAX_WORKSPACE_CHARS=8000 截断 |
 | 4 | 项目级记忆 | 有 | — |
-| 5 | USER.md 用户档案 | 有 | user_profile（由 workspace_files 调 read_user_md 加载） |
+| 5 | USER.md 用户档案 | 有且改过 | user_profile（由 workspace_files 调 read_user_md 加载） |
 | 6 | 工作目录 cwd | 恒 | — |
 | 7 | 是否在 git 仓库 | 在 git 仓库 | git_repo_flag |
 | 8 | session/model/thinking/tier 绑定 | 恒 | — |
 | 9 | deferred tools catalog | 有延迟工具 | deferred_catalog（order 25） |
 | 10 | 当前日期（日粒度） | 恒 | current_date（order 85，L1 尾部） |
 | 11 | **统一调用树（历史）** | 有历史 | 追加增长、完成节点释放 io，排 L1 最后 |
+
+> 每个 Agent 的工作区会预置 `AGENTS.md`、`SOUL.md` 和 `USER.md` 占位文件。仍与预置内容一致的文件（按 Agent 当前名字或文件自身标题里的名字比对）不注入，避免每轮重复通用规则。从对话里学到的用户信息放在记忆的 Core 里，所有 Agent 都能看到；`USER.md` 只写所有者想亲自告诉某个 Agent 的内容，`AGENTS.md` 写所有者为它定的规则。
 
 > 日期放在 **L1 尾部**而不是 L0。它是唯一会自己变的成分——会话里什么都没动，一到午夜
 > 它就变。放 L0 时它排在工具、记忆、工作区各块之前，跨零点会作废整条缓存前缀；放到

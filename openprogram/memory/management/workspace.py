@@ -35,6 +35,21 @@ from .transaction import (
 from ..workspace_layout import TEMPORARY_PREFIX, is_internal_path, runtime_dir
 
 
+#: A Topic file past this size holds several subjects and is split into
+#: a directory of them; the structure listing says so beside the file.
+TOPIC_SPLIT_BYTES = 16_000
+
+
+def _topic_size_note(relative: Path, text: str) -> str:
+    """`` (12 KB)`` beside a Topic path, with the split instruction past the limit."""
+    size = len(text.encode("utf-8"))
+    note = f"  ({max(1, round(size / 1000))} KB"
+    if size > TOPIC_SPLIT_BYTES and relative.name != "core.md":
+        target = relative.with_suffix("").as_posix() + "/"
+        note += f" — over {TOPIC_SPLIT_BYTES // 1000} KB: split into {target}"
+    return note + ")"
+
+
 class MemoryWorkspace(
     TopicNormalizationMixin,
     SourceArchiveMixin,
@@ -605,11 +620,13 @@ class MemoryWorkspace(
             relative = path.relative_to(self.stage_dir)
             if is_internal_path(relative):
                 continue
-            lines.append(relative.as_posix())
             if path.suffix != ".md" or topics not in path.parents:
+                lines.append(relative.as_posix())
                 continue
+            text = path.read_text(encoding="utf-8")
+            lines.append(relative.as_posix() + _topic_size_note(relative, text))
             heading = ""
-            for line in path.read_text(encoding="utf-8").splitlines():
+            for line in text.splitlines():
                 if line.startswith("#"):
                     heading = line.strip()
                     continue

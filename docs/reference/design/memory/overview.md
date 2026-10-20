@@ -48,8 +48,15 @@ Two properties we care about:
 
 **Sources** are what was said, archived verbatim and never edited.
 **Topics** are what it means — one file per person, project or recurring
-theme. Every topic paragraph ends in a stable `^block-id` and cites a
-footnote:
+theme, nested as deep as the subjects are. A subject with parts of its own
+is a directory: `topics/projects/openprogram/` holds `overview.md` and one
+file per part, and a part with parts is a directory again. The structure
+the writer and the organizer see lists every Topic file with its size, and
+marks a file past `TOPIC_SPLIT_BYTES` (16 KB) with the directory it is to be
+split into; the writer then puts new facts in a part file, and the nightly
+pass performs the split. `topics/core.md` is never marked: its size is
+governed by the Core render budget. Every topic paragraph ends in a stable
+`^block-id` and cites a footnote:
 
 ```markdown
 Craig is building a budget tracker in Flask, due 2024-04-15.[^e-1175dea39c] ^f888f60e
@@ -389,8 +396,10 @@ Writing only ever makes files longer; nothing shortens them. Left alone,
 a workspace becomes one enormous file per subject with its timeline cut
 into pieces by topic — the shape that makes ordering and counting
 questions unanswerable. The 03:00 pass splits files that have grown to
-cover several subjects, merges paragraphs that say the same thing, and
-repairs links.
+cover several subjects — every file marked over the size limit becomes a
+directory of part files, each paragraph keeping its block ID — merges
+paragraphs that say the same thing, folds a part file of a paragraph or
+two back into its parent, and repairs links.
 
 It also runs on demand: `openprogram memory sleep`.
 

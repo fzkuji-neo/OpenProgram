@@ -70,9 +70,19 @@ Edit this file to give {name} its personality.
 
 _DEFAULT_USER_MD = """# About the user
 
+What agents learn about you from conversations is kept in Memory and
+shown to every agent, so this file is not needed for that. Write here
+only what you want to state yourself for this agent.
+"""
+
+# Earlier seeds, still recognised as untouched placeholders.
+_LEGACY_SEEDS: dict[str, tuple[str, ...]] = {
+    USER_FILE: ("""# About the user
+
 (Fill in anything the agent should remember about you — your name,
 your projects, how you prefer to be addressed, time zone, etc.)
-"""
+""",),
+}
 
 
 _SEED: dict[str, str] = {
@@ -107,6 +117,26 @@ def bootstrap(agent_id: str) -> Path:
         if not path.exists():
             path.write_text(template.format(name=name), encoding="utf-8")
     return ws
+
+
+def is_seed(agent_id: str, filename: str, text: str) -> bool:
+    """Whether ``text`` is still the placeholder this file was seeded with.
+
+    An untouched placeholder says nothing about the agent or the user, so
+    the prompt leaves it out rather than repeating generic rules every turn.
+    """
+    templates = (_SEED.get(filename), *_LEGACY_SEEDS.get(filename, ()))
+    spec = _agents.get(agent_id)
+    names = {agent_id, spec.name if spec else agent_id}
+    # The agent may have been renamed since: the seed carries the old name.
+    first = text.lstrip().splitlines()[0] if text.strip() else ""
+    if first.startswith("# "):
+        names.add(first[2:].removesuffix(" — persona").strip())
+    wanted = " ".join(text.split())
+    return any(
+        template is not None and " ".join(template.format(name=name).split()) == wanted
+        for template in templates for name in names
+    )
 
 
 def read_file(agent_id: str, name: str) -> Optional[str]:
