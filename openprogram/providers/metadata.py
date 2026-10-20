@@ -400,7 +400,6 @@ def is_configured(provider_id: str) -> bool:
 
 
 # ── provider.json endpoint metadata ──────────────────────────────
-_ROOT = Path(__file__).parent
 _logger = logging.getLogger(__name__)
 
 
@@ -428,9 +427,10 @@ def _provider_dir(provider_id: str) -> Path | None:
     # Same hyphen->underscore resolution as provider_models._provider_dir, but
     # WITHOUT importing webui (that would re-create the cycle this module breaks).
     # Read-only: never creates a dir.
+    from openprogram.providers.plugin_dirs import find
     for name in (provider_id, provider_id.replace("-", "_")):
-        d = _ROOT / name
-        if (d / "provider.json").is_file():
+        d = find(name)
+        if d is not None and (d / "provider.json").is_file():
             return d
     return None
 
@@ -501,11 +501,10 @@ def shipped_provider_ids() -> list[str]:
     only wire-format metadata (thinking specs — ``openai_completions``,
     ``openai_responses``, ``google_gemini_cli``) are not providers a user
     can enable and are excluded by the endpoints check."""
+    from openprogram.providers.plugin_dirs import iter_dirs
     out: list[str] = []
-    for d in sorted(_ROOT.iterdir()):
+    for d in iter_dirs():
         f = d / "provider.json"
-        if not f.is_file():
-            continue
         j = _read_provider_json(f)
         if j is None:
             continue

@@ -508,6 +508,20 @@ def create_app(*, owner_auth=None, port: int = 18100):
             _load_mcp_servers(), name="openprogram-mcp-startup",
         )
 
+    async def _load_plugins():
+        """Load every enabled plugin: its tools, hooks, prompt sections,
+        MCP servers and Web modules come back after a restart. A plugin
+        that fails stays enabled with its error on the Plugins page."""
+        try:
+            from openprogram.plugins import loader as plugin_loader
+            from openprogram.plugins.context import set_host_loop
+            set_host_loop(asyncio.get_running_loop())
+            failures = await asyncio.to_thread(plugin_loader.load_enabled)
+            for name, error in failures.items():
+                _log(f"[plugins] {name} failed to load: {error}")
+        except Exception as e:  # noqa: BLE001
+            _log(f"[plugins] startup failed: {type(e).__name__}: {e}")
+
     async def _start_skills_watcher():
         """Watch the five skill source directories and push ``skills:changed``
         to all connected WS clients whenever a SKILL.md file is added, edited
@@ -583,6 +597,7 @@ def create_app(*, owner_auth=None, port: int = 18100):
         _recover_execution_control,
         _reconcile_interrupted_runs,
         _start_mcp_servers,
+        _load_plugins,
         _start_skills_watcher,
         _start_plugin_autoupdate,
     )

@@ -20,6 +20,8 @@ import {
 } from "../animated-icons";
 import { useTranslation } from "@/lib/i18n";
 import { refreshFunctionsList } from "@/lib/abilities/functions-actions";
+import { usePluginSlots } from "@/lib/plugins/slots";
+import { PluginSlot } from "../plugins/plugin-slot";
 import {
   sidebarNavActionClass,
   sidebarNavIconClass,
@@ -82,6 +84,7 @@ export function SidebarPrimaryNav() {
       else if (kind === "plugins" || kind === "skills" || kind === "programs") setAbilityHref(`/${kind}`);
     } catch { /* ignore */ }
   }, [pathname]);
+  const pluginItems = usePluginSlots((state) => state.sidebarItems);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshDone, setRefreshDone] = useState(false);
   const refreshSvgRef = useRef<SVGSVGElement>(null);
@@ -177,6 +180,13 @@ export function SidebarPrimaryNav() {
       label: t("nav.scheduler"),
       icon: CalendarDaysIcon,
     },
+    ...pluginItems.map((item) => ({
+      href: item.href,
+      id: `navPlugin-${item.id}`,
+      active: pathname === item.href || pathname === item.href.replace(/\/$/, ""),
+      label: item.label_zh ? text(item.label, item.label_zh) : item.label,
+      icon: BlocksIcon,
+    })),
   ];
 
   const refreshAction = (
@@ -220,6 +230,7 @@ export function SidebarPrimaryNav() {
           action={item.id === "navAbility" ? refreshAction : undefined}
         />
       ))}
+      <PluginSlot name="sidebar.nav" />
     </div>
   );
 }

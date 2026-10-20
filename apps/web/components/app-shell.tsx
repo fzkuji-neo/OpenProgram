@@ -49,6 +49,7 @@ import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
 import { newSession } from "@/lib/runtime-bridge/conversations";
 import { completeTabRouteNavigation } from "@/lib/tabs/navigation/route";
 import { setNavigate } from "@/lib/navigate";
+import { loadPluginClients } from "@/lib/plugins/slots";
 import { startAttentionBridge } from "@/lib/desktop/attention";
 import { openSession } from "@/lib/tabs/open-session";
 import { setLastChatPath } from "@/lib/tabs/last-chat-path";
@@ -376,6 +377,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     // Publish client-side navigation for non-React callers, which would
     // otherwise need `window.location.href` (a full reload killing the shell).
     setNavigate((path: string) => router.push(path));
+    // Plugins' Web modules render into the page's slots.
+    void loadPluginClients();
 
     // Intercept clicks on anchor tags that point to internal paths so they go
     // through the Next.js router instead of a full page reload.

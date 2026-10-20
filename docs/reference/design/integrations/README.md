@@ -8,3 +8,4 @@ External integrations — MCP, skills/plugins, and the harness standard for plug
 - [`mcp-integration.html`](mcp-integration.html)
 - [MCP server — authenticated stdio design and evidence](mcp-server.html)
 - [`skills-and-plugins.md`](skills-and-plugins.md)
+- [Plugin runtime — setup(ctx), reversible registrations, reload, Web slots](plugin-runtime.md)

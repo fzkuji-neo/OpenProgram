@@ -89,9 +89,13 @@ def _cmd_plugins_search(query: str) -> int:
 def _cmd_plugins_install(source: str, spec: str, ref: str | None = None) -> int:
     """``source`` ∈ {pip, npm, git, path}. ``spec`` is the package name / URL /
     absolute path. ``ref`` is the optional git ref."""
-    from openprogram.plugins.installer import install
-
-    result = install(source, spec, ref=ref)
+    answer = _worker("/api/plugins/install", {"source": source, "spec": spec, "ref": ref})
+    if answer is not None:
+        answer.pop("_status", None)
+        result = answer
+    else:
+        from openprogram.plugins.installer import install
+        result = install(source, spec, ref=ref)
     log = result.get("log", "")
     if log:
         print(log)
@@ -104,9 +108,13 @@ def _cmd_plugins_install(source: str, spec: str, ref: str | None = None) -> int:
 
 
 def _cmd_plugins_uninstall(name: str) -> int:
-    from openprogram.plugins.installer import uninstall
-
-    result = uninstall(name)
+    answer = _worker(f"/api/plugins/{name}/uninstall")
+    if answer is not None:
+        answer.pop("_status", None)
+        result = answer
+    else:
+        from openprogram.plugins.installer import uninstall
+        result = uninstall(name)
     if result.get("log"):
         print(result["log"])
     if not result.get("success"):
@@ -153,7 +161,44 @@ def _cmd_plugins_update(all_flag: bool, name: str | None) -> int:
     return 0
 
 
+def _worker(path: str, body: dict | None = None) -> dict | None:
+    """Ask the running worker, so a change applies to it at once.
+
+    Returns its JSON answer (with ``_status``), or ``None`` when no worker
+    is running here; the caller then changes the profile files directly
+    and the change applies on the next worker start.
+    """
+    try:
+        from openprogram.backend_endpoint import resolve_backend_endpoint
+        import httpx
+        endpoint = resolve_backend_endpoint()
+        with httpx.Client(timeout=120, follow_redirects=False, trust_env=False) as client:
+            response = client.post(endpoint.base_url + path, json=body or {}, headers={
+                "Authorization": endpoint.authorization_header, "Origin": endpoint.origin})
+    except Exception:
+        return None
+    try:
+        value = response.json()
+    except ValueError:
+        value = {"error": response.text[:200]}
+    if not isinstance(value, dict):
+        value = {"result": value}
+    value["_status"] = response.status_code
+    return value
+
+
+def _report(answer: dict, done: str) -> int:
+    if answer["_status"] >= 400 or answer.get("error"):
+        print(f"Error: {answer.get('error') or answer}", file=sys.stderr)
+        return 1
+    print(done)
+    return 0
+
+
 def _cmd_plugins_enable(name: str) -> int:
+    answer = _worker(f"/api/plugins/{name}/toggle", {"enabled": True})
+    if answer is not None:
+        return _report(answer, f"Enabled: {name}")
     from openprogram.plugins.loader import load_plugin
 
     try:
@@ -161,11 +206,14 @@ def _cmd_plugins_enable(name: str) -> int:
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
-    print(f"Enabled: {p.name}")
+    print(f"Enabled: {p.name} (applies when the worker starts)")
     return 0
 
 
 def _cmd_plugins_disable(name: str) -> int:
+    answer = _worker(f"/api/plugins/{name}/toggle", {"enabled": False})
+    if answer is not None:
+        return _report(answer, f"Disabled: {name}")
     from openprogram.plugins.loader import unload_plugin
 
     try:
@@ -174,4 +222,27 @@ def _cmd_plugins_disable(name: str) -> int:
         print(f"Error: {e}", file=sys.stderr)
         return 1
     print(f"Disabled: {p.name}")
+    return 0
+
+
+def _cmd_plugins_reload(name: str) -> int:
+    """Re-read a plugin's manifest and code and load it again."""
+    answer = _worker(f"/api/plugins/{name}/reload")
+    if answer is not None:
+        return _report(answer, f"Reloaded: {name}")
+    print("Error: no worker is running; the plugin loads fresh when it starts",
+          file=sys.stderr)
+    return 1
+
+
+def _cmd_plugins_inspect(as_json: bool = False) -> int:
+    """Print what a plugin can register: setup(ctx) methods, manifest
+    keys, events, services and Web slots."""
+    import json as _json
+    from openprogram.plugins.inspect import describe, guide
+
+    if as_json:
+        print(_json.dumps(describe(), indent=2, ensure_ascii=False))
+    else:
+        print(guide())
     return 0

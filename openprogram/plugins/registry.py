@@ -41,11 +41,19 @@ def get_sidebar_items() -> list[dict[str, Any]]:
     """所有已启用 plugin 注册的侧栏项。前端从 /api/plugins/sidebar 拉。"""
     out: list[dict[str, Any]] = []
     for name, c in all_contrib().items():
-        for item in c.get("sidebar", []) or []:
-            if isinstance(item, dict):
-                row = dict(item)
-                row["plugin"] = name
-                out.append(row)
+        for index, item in enumerate(c.get("sidebar", []) or []):
+            if not isinstance(item, dict):
+                continue
+            row = dict(item)
+            row["plugin"] = name
+            row.setdefault("id", f"{name}-{index}")
+            row.setdefault("label", name)
+            href = row.get("href")
+            # Only paths inside the app: a sidebar row never leaves it.
+            if not (isinstance(href, str) and href.startswith("/") and not href.startswith("//")):
+                page = str(row.get("page") or "").strip("/")
+                row["href"] = f"/plugin/{name}/{page}" if page else f"/plugin/{name}/"
+            out.append(row)
     return out
 
 

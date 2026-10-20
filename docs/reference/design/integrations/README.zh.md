@@ -8,3 +8,4 @@
 - [`mcp-integration.html`](mcp-integration.zh.html)
 - [MCP 服务端——认证 stdio 设计与实现证据](mcp-server.zh.html)
 - [`skills-and-plugins.md`](skills-and-plugins.zh.md)
+- [插件运行时——setup(ctx)、可撤销注册、重载、Web 插槽](plugin-runtime.zh.md)

@@ -6,16 +6,16 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-_ROOT = Path(__file__).parent
 
 
 def _provider_dir(provider_id: str) -> Path | None:
     # Same hyphen->underscore resolution as provider_models._provider_dir, but
     # WITHOUT importing webui (that would re-create the cycle this module breaks).
     # Read-only: never creates a dir.
+    from openprogram.providers.plugin_dirs import find
     for name in (provider_id, provider_id.replace("-", "_")):
-        d = _ROOT / name
-        if (d / "provider.json").is_file():
+        d = find(name)
+        if d is not None and (d / "provider.json").is_file():
             return d
     return None
 

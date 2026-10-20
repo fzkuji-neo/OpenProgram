@@ -91,26 +91,34 @@ def _install_git(url: str, ref: str | None) -> dict[str, Any]:
 
 
 def _install_path(abs_path: str) -> dict[str, Any]:
+    """Link a plugin directory into the plugins directory.
+
+    The plugin keeps living where its author edits it: the link makes it
+    an installed ``link`` plugin, so a reload picks up every change.
+    """
+    from .manifest import parse_manifest_dir
     p = Path(abs_path).expanduser()
     if not p.is_absolute() or not p.is_dir():
         return {"success": False, "log": f"not an absolute existing directory: {abs_path}"}
-    pin = paths.project_pins()
-    pin.parent.mkdir(parents=True, exist_ok=True)
-    data: dict[str, Any] = {"plugins": []}
-    if pin.exists():
-        try:
-            data = json.loads(pin.read_text(encoding="utf-8"))
-            if isinstance(data, list):
-                data = {"plugins": data}
-            if "plugins" not in data or not isinstance(data["plugins"], list):
-                data["plugins"] = []
-        except Exception:
-            data = {"plugins": []}
-    entry = {"path": str(p.resolve())}
-    if entry not in data["plugins"]:
-        data["plugins"].append(entry)
-    pin.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-    return {"success": True, "log": f"pinned {entry['path']} in {pin}"}
+    mf = parse_manifest_dir(p)
+    if mf is None:
+        return {"success": False, "log": f"no plugin manifest in {p}"}
+    try:
+        paths.sanitize_name(mf.name)
+    except ValueError as e:
+        return {"success": False, "log": str(e)}
+    link = paths.plugins_dir() / mf.name
+    target = p.resolve()
+    if link.is_symlink() and link.resolve() == target:
+        return {"success": True, "name": mf.name, "log": f"{link} already links {target}"}
+    if link.exists() or link.is_symlink():
+        return {"success": False, "log": f"{link} already exists; uninstall {mf.name} first"}
+    link.symlink_to(target, target_is_directory=True)
+    # The owner pointed at this directory: trust it unless they ruled otherwise.
+    from . import trust
+    if mf.name not in trust._load():
+        trust.set_trust(mf.name, "community")
+    return {"success": True, "name": mf.name, "log": f"linked {link} -> {target}"}
 
 
 def uninstall(name: str) -> dict[str, Any]:
@@ -131,6 +139,12 @@ def uninstall(name: str) -> dict[str, Any]:
         from openprogram._compat import node_tool_cmd
         ok, log = _run(node_tool_cmd(["npm", "uninstall", "--prefix", str(paths.npm_root()), name]))
         return {"success": ok, "log": log}
+    if src == "link":
+        for child in paths.plugins_dir().iterdir():
+            if child.is_symlink() and child.resolve() == Path(p.manifest.root).resolve():
+                child.unlink()
+                return {"success": True, "log": f"removed link {child}; {p.manifest.root} is untouched"}
+        return {"success": False, "log": f"no link to {p.manifest.root} in {paths.plugins_dir()}"}
     if src == "path":
         d = Path(p.manifest.root)
         # 真正的包含判断：<plugins>-backup/ 也以 <plugins> 开头，不能被 rmtree

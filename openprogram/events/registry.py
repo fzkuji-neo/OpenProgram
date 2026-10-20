@@ -7,12 +7,15 @@ event because someone wants to respond to it, never because the code
 happens to pass through it). Emitting an unregistered type is tolerated
 during migration — the bus logs one warning per type instead of raising.
 
-Two kinds of dispatch:
+Three kinds of dispatch:
 
 * ``notify`` — asynchronous observation via ``EventBus.emit``; subscribers
   can never block or influence the emitter.
 * ``gate`` — synchronous veto via ``EventBus.emit_gate``; subscribers run
   in the emitter's thread and any deny reason stops the action.
+* ``transform`` — synchronous rewrite via ``EventBus.emit_transform``;
+  subscribers run in the emitter's thread and each returns the value the
+  next one sees.
 """
 from __future__ import annotations
 
@@ -21,7 +24,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class EventSpec:
-    kind: str         # "notify" | "gate"
+    kind: str         # "notify" | "gate" | "transform"
     payload_doc: str  # what the payload dict carries
 
 
@@ -36,6 +39,12 @@ EVENTS: dict[str, EventSpec] = {
         payload_doc="{tool: str, tool_call_id: str, args: dict} — the tool "
                     "call about to run; a deny reason becomes the model's "
                     "error tool result",
+    ),
+    "tool.result": EventSpec(
+        kind="transform",
+        payload_doc="{tool: str, tool_call_id: str, args: dict, is_error: "
+                    "bool} — value: the result's text; a rewriter returns "
+                    "the text the model sees instead",
     ),
     "tool.after": EventSpec(
         kind="notify",

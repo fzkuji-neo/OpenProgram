@@ -1,15 +1,16 @@
 """统一路径：~/.openprogram/ 下的插件相关目录。
 
-设计稿明确要求用 ``~/.openprogram/``。这里集中管理，避免散落。
+插件状态跟随当前 profile 的状态目录（默认 ``~/.openprogram/``）。这里集中管理，避免散落。
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 
 def root() -> Path:
-    p = Path(os.path.expanduser("~/.openprogram"))
+    """The active profile's state directory (``~/.openprogram`` by default)."""
+    from openprogram.paths import get_state_dir
+    p = Path(get_state_dir())
     p.mkdir(parents=True, exist_ok=True)
     return p
 

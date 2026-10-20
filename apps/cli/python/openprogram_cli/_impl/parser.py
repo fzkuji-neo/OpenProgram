@@ -327,6 +327,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_pl_en.add_argument("name", help="Plugin name to enable")
     p_pl_dis = plugins_sub.add_parser("disable", help="Disable a loaded plugin")
     p_pl_dis.add_argument("name", help="Plugin name to disable")
+    p_pl_rel = plugins_sub.add_parser("reload",
+        help="Re-read a plugin's manifest and code and load it again")
+    p_pl_rel.add_argument("name", help="Plugin name to reload")
+    p_pl_ins = plugins_sub.add_parser("inspect",
+        help="Show what a plugin can register: setup(ctx) methods, manifest keys, events, services, Web slots")
+    p_pl_ins.add_argument("--json", action="store_true", help="Emit JSON")
 
     # ---- permission rule diagnostics --------------------------------------
     p_permissions = sub.add_parser("permissions", help="Explain and test permission rules without executing tools")

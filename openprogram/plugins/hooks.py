@@ -17,6 +17,9 @@ Dispatch kind follows the registry (``openprogram/events/registry.py``):
   ``None``/falsy to allow, a reason
   string to deny; raising :class:`ToolGateDenied` denies with its message;
   any other exception is logged as a warning and allows (fail-open).
+* **transform** events (``tool.result``) — ``bus.subscribe_transform``;
+  the handler receives ``(event, value)`` and returns the rewritten value
+  (``None`` keeps it); an exception keeps the value it was given.
 
 The plugin sandbox / trust gate (``sandbox.py``) decides whether a
 plugin's handlers get registered at all; once registered, dispatch
@@ -77,7 +80,9 @@ def register_plugin_hooks(plugin_name: str,
         if not isinstance(event_name, str) or not callable(handler):
             continue
         spec = EVENTS.get(event_name)
-        if spec is not None and spec.kind == "gate":
+        if spec is not None and spec.kind == "transform":
+            disposables.append(bus.subscribe_transform(event_name, handler))
+        elif spec is not None and spec.kind == "gate":
             disposables.append(bus.subscribe_gate(
                 event_name, _wrap_gate(plugin_name, event_name, handler)))
         else:

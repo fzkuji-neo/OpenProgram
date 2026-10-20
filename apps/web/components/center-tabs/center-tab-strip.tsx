@@ -43,6 +43,7 @@ import { useTabDropActions } from "./use-tab-drop-actions";
 import { useTabLifecycle } from "./use-tab-lifecycle";
 import { useTabMenu } from "./use-tab-menu";
 import { useTabPointerDrag } from "./use-tab-pointer-drag";
+import { PluginSlot } from "../plugins/plugin-slot";
 
 /** Stable empty shift map — used while detaching, when neighbours must not
  *  move to fill the leaving tab's slot. A shared frozen instance avoids a new
@@ -403,6 +404,10 @@ export function CenterTabStrip() {
       >
         <LayoutGrid size={15} />
       </button>
+      <PluginSlot
+        name="tabstrip.actions"
+        wrap={(children) => <div className="flex shrink-0 items-center gap-1">{children}</div>}
+      />
       {/* Main menu (Chrome's ⋮) owns the reserved column at the right
          end of the strip; the ＋ above is therefore free to sit
          naturally after the last tab. */}

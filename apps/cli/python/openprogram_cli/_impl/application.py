@@ -642,6 +642,7 @@ def main():
             _cmd_plugins_list, _cmd_plugins_search, _cmd_plugins_install,
             _cmd_plugins_uninstall, _cmd_plugins_update,
             _cmd_plugins_enable, _cmd_plugins_disable,
+            _cmd_plugins_reload, _cmd_plugins_inspect,
         )
         verb = getattr(args, "plugins_verb", None)
         if verb == "list":
@@ -658,6 +659,10 @@ def main():
             sys.exit(_cmd_plugins_enable(args.name))
         elif verb == "disable":
             sys.exit(_cmd_plugins_disable(args.name))
+        elif verb == "reload":
+            sys.exit(_cmd_plugins_reload(args.name))
+        elif verb == "inspect":
+            sys.exit(_cmd_plugins_inspect(args.json))
         else:
             _need_subcommand(args._cmd_parser)
         return

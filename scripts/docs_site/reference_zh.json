@@ -536,5 +536,8 @@
   "Workflow package directory (contains __init__.py)": "Workflow 包目录（包含 __init__.py）",
   "List user workflows and their load state": "列出用户 Workflow 及其加载状态",
   "Commit message": "提交信息",
-  "Emit a JSON report": "输出 JSON 报告"
+  "Emit a JSON report": "输出 JSON 报告",
+  "Re-read a plugin's manifest and code and load it again": "重新读取插件的 manifest 和代码并再次加载",
+  "Plugin name to reload": "要重新加载的插件名",
+  "Show what a plugin can register: setup(ctx) methods, manifest keys, events, services, Web slots": "显示插件能注册的内容：setup(ctx) 方法、manifest 键、事件、服务、Web 插槽"
 }

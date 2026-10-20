@@ -582,6 +582,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/integrations/mcp-integration.html",
             "reference/design/integrations/mcp-server.html",
             "reference/design/integrations/skills-and-plugins.md",
+            "reference/design/integrations/plugin-runtime.md",
             "reference/design/integrations/web-use-technical-spec.html",
             "reference/design/integrations/web-use.html",
             "reference/design/integrations/computer-and-browser-use.md",

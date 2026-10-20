@@ -50,6 +50,7 @@ import { runtimeState } from "@/lib/runtime-bridge/state";
 import { openNewChat } from "@/lib/tabs/open-session";
 import { useResizableRail } from "../layout/use-resizable-rail";
 import { useStableScrollEnd } from "./use-stable-scroll-end";
+import { PluginSlot } from "../plugins/plugin-slot";
 
 // At or below this width the expanded sidebar is a fixed overlay over the
 // page (base.css), so it starts collapsed and closes after navigation.
@@ -380,6 +381,10 @@ export const Sidebar = memo(function Sidebar() {
          for left-sidebar pages (no element with that id exists) but
          is kept around for any code path that might still inject the
          legacy `_sidebar.html` template. */}
+      <PluginSlot
+        name="sidebar.footer"
+        wrap={(children) => <div className="flex shrink-0 flex-col gap-px px-[8px] pb-1">{children}</div>}
+      />
       <UserMenuFooter />
       </div>
     </SidebarShell>

@@ -23,7 +23,9 @@ def _load_folded(dir_name: str, key: str, legacy_file: str) -> Optional[dict[str
     """Read provider.json's ``key`` block; fall back to the standalone
     ``legacy_file`` (with a DeprecationWarning) for un-migrated / out-of-tree
     provider dirs. Returns None when neither source has data."""
-    prov = _PROVIDERS_DIR / dir_name / "provider.json"
+    from openprogram.providers.plugin_dirs import find
+    base = find(dir_name) or _PROVIDERS_DIR / dir_name
+    prov = base / "provider.json"
     if prov.is_file():
         try:
             block = json.loads(prov.read_text(encoding="utf-8")).get(key)
@@ -31,7 +33,7 @@ def _load_folded(dir_name: str, key: str, legacy_file: str) -> Optional[dict[str
                 return block
         except (OSError, json.JSONDecodeError):
             pass
-    legacy = _PROVIDERS_DIR / dir_name / legacy_file
+    legacy = base / legacy_file
     if legacy.is_file():
         warnings.warn(
             f"{dir_name}/{legacy_file} is deprecated; move it under the "

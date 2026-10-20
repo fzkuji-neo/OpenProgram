@@ -47,6 +47,7 @@ class PluginManifest:
 _CONTRIB_KEYS = (
     "commands", "skills", "agents", "hooks", "mcpServers",
     "providers", "web", "lspServers", "outputStyles",
+    "python", "setup", "tools", "client",
 )
 
 

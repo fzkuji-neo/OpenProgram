@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.metadata as md
+import importlib.util
 import json
 import sys
 import traceback
@@ -17,6 +18,7 @@ from threading import RLock
 from typing import Any, Optional
 
 from . import paths, registry, trust as _trust
+from .context import PluginContext, call_setup
 from .manifest import (
     PluginManifest,
     check_compatibility,
@@ -35,6 +37,7 @@ class Plugin:
     error: str = ""
     module: Any = None  # in-process import 拿到的 module/object
     contrib: dict[str, Any] = field(default_factory=dict)
+    ctx: Optional[PluginContext] = None  # registrations of the running plugin
 
     @property
     def name(self) -> str:
@@ -140,7 +143,7 @@ def _scan_local() -> list[PluginManifest]:
             continue
         mf = parse_manifest_dir(child)
         if mf:
-            mf.source_kind = "path"
+            mf.source_kind = "link" if child.is_symlink() else "path"
             out.append(mf)
     return out
 
@@ -177,18 +180,27 @@ def _scan_project(cwd: Path | None = None) -> list[PluginManifest]:
 
 
 def rescan(cwd: Path | None = None) -> dict[str, Plugin]:
-    """重新扫描所有来源。来源优先级越后越高，覆盖之前同名。"""
+    """重新扫描所有来源。来源优先级越后越高，覆盖之前同名。
+
+    A plugin that is running keeps its runtime state across a rescan when
+    it still resolves to the same directory; one that disappeared or moved
+    is unloaded first, so nothing it registered outlives it.
+    """
     global _plugins
     with _lock:
-        # 不保留旧 module 引用 (避免误用未 reload 的)
-        existing_enabled = {p.name for p in _plugins.values() if p.enabled}
         enabled_persist = _load_enabled()
         merged: dict[str, Plugin] = {}
         for mf in _scan_pip() + _scan_npm() + _scan_local() + _scan_project(cwd):
-            merged[mf.name] = Plugin(
-                manifest=mf,
-                enabled=(mf.name in enabled_persist) or (mf.name in existing_enabled),
-            )
+            merged[mf.name] = Plugin(manifest=mf, enabled=mf.name in enabled_persist)
+        for name, old in list(_plugins.items()):
+            if not old.loaded:
+                continue
+            new = merged.get(name)
+            if new is not None and new.manifest.root == old.manifest.root:
+                new.loaded, new.enabled, new.ctx = True, True, old.ctx
+                new.module, new.contrib, new.error = old.module, old.contrib, old.error
+            else:
+                _deactivate(old)
         _plugins = merged
         return dict(_plugins)
 
@@ -209,100 +221,246 @@ def _host_version() -> str:
 _HOST_VERSION = _host_version()
 
 
-def _import_entrypoints(plugin: Plugin) -> Plugin:
-    """In-process 解析 plugin 入口。返回填充了 module / contrib 的 plugin。"""
+def _options(name: str) -> dict[str, Any]:
+    f = paths.options_dir() / f"{name}.json"
+    try:
+        data = json.loads(f.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _module_name(plugin: str, part: str) -> str:
+    return f"openprogram_plugin_{plugin.replace('-', '_')}.{part}"
+
+
+def _import_file(plugin: str, part: str, target: Path):
+    """Import a file or package directory of the plugin under a private name."""
+    init = target / "__init__.py" if target.is_dir() else target
+    if not init.is_file():
+        raise FileNotFoundError(f"{target} is not a Python file or package")
+    name = _module_name(plugin, part)
+    spec = importlib.util.spec_from_file_location(
+        name, init, submodule_search_locations=[str(target)] if target.is_dir() else None,
+    )
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot import {target}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    try:
+        spec.loader.exec_module(module)
+    except BaseException:
+        sys.modules.pop(name, None)
+        raise
+    return module
+
+
+def _resolve_python(plugin: Plugin, target: str):
+    """``pkg.module:attr``, ``pkg.module`` or a path inside the plugin."""
+    base = Path(plugin.manifest.root) if plugin.manifest.root else Path.cwd()
+    if target.endswith(".py") or target.startswith(("./", "../")) or "/" in target:
+        path = (base / target).resolve()
+        if not path.is_relative_to(base.resolve()):
+            raise ValueError(f"{target} is outside the plugin directory")
+        return _import_file(plugin.name, "main", path)
+    mod_name, _, attr = target.partition(":")
+    module = importlib.import_module(mod_name)
+    return getattr(module, attr) if attr else module
+
+
+def _rel(plugin: Plugin, value: str) -> Path:
+    base = Path(plugin.manifest.root) if plugin.manifest.root else Path.cwd()
+    path = (base / value).resolve()
+    if not path.is_relative_to(base.resolve()):
+        raise ValueError(f"{value} is outside the plugin directory")
+    return path
+
+
+def _md_commands(directory: Path) -> list[dict[str, str]]:
+    out: list[dict[str, str]] = []
+    for md_file in sorted(directory.rglob("*.md")) if directory.is_dir() else []:
+        try:
+            text = md_file.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        fm, body = _split_frontmatter(text)
+        out.append({"name": fm.get("name", md_file.stem),
+                    "description": fm.get("description", ""), "prompt": body.strip()})
+    return out
+
+
+def _agent_definitions(plugin: Plugin, value: Any) -> list[dict[str, Any]]:
+    """Agents as a list of objects or a directory of Claude-style ``.md``."""
+    if isinstance(value, list):
+        return [dict(item) for item in value if isinstance(item, dict)]
+    if not isinstance(value, str):
+        return []
+    rows = []
+    directory = _rel(plugin, value)
+    for md_file in sorted(directory.glob("*.md")) if directory.is_dir() else []:
+        fm, body = _split_frontmatter(md_file.read_text(encoding="utf-8"))
+        rows.append({"name": fm.get("name", md_file.stem), "description": fm.get("description", ""),
+                     "prompt": body.strip(), "tools": fm.get("tools", "")})
+    return rows
+
+
+def _install_agents(ctx: PluginContext, plugin: Plugin, value: Any) -> None:
+    """Create the plugin's Agents that do not exist yet.
+
+    Agents are user records with their own sessions, so they stay when the
+    plugin is disabled; enabling again reuses them untouched.
+    """
+    import re
+    from openprogram.agent.management import manager
+    for definition in _agent_definitions(plugin, value):
+        label = str(definition.get("name") or "").strip()
+        if not label:
+            continue
+        agent_id = re.sub(r"[^a-z0-9_-]+", "-", f"{plugin.name}-{label}".lower()).strip("-")[:40]
+        if not agent_id[:1].isalpha():
+            agent_id = f"p-{agent_id}"[:40]
+        if manager.get(agent_id) is None:
+            manager.create(agent_id, name=label, system_prompt=str(definition.get("prompt") or ""))
+            patch: dict[str, Any] = {"description": str(definition.get("description") or "")}
+            tools = definition.get("tools")
+            if isinstance(tools, str) and tools.strip():
+                tools = [t.strip().lower() for t in tools.split(",") if t.strip()]
+            if isinstance(tools, list) and tools:
+                patch["tools"] = {"mode": "selected", "allowed": [str(t) for t in tools]}
+            elif isinstance(tools, dict):
+                patch["tools"] = tools
+            manager.update(agent_id, patch, replace_tool_policy="tools" in patch)
+        ctx._record("agents", agent_id)
+
+
+def _mcp_entries(plugin: Plugin, value: Any) -> dict[str, dict[str, Any]]:
+    """``mcpServers`` inline or as a ``.mcp.json``-style file."""
+    if isinstance(value, str):
+        value = json.loads(_rel(plugin, value).read_text(encoding="utf-8"))
+    if isinstance(value, dict) and isinstance(value.get("mcpServers"), dict):
+        value = value["mcpServers"]
+    if not isinstance(value, dict):
+        return {}
+    return {str(k): dict(v) for k, v in value.items() if isinstance(v, dict)}
+
+
+def _activate(plugin: Plugin) -> None:
+    """Run the plugin's setup and wire its manifest contributions.
+
+    Everything goes through one :class:`PluginContext`; a failure part way
+    undoes what already registered, so a broken plugin leaves no trace.
+    """
     mf = plugin.manifest
+    ctx = PluginContext(mf.name, mf.root, _options(mf.name))
+    plugin.ctx = ctx
     ep = dict(mf.entrypoints)
     contrib: dict[str, Any] = {}
-
-    # 1) pip entry_point 的 target (module:obj)
-    target = ep.get("_pip_entry") or ep.get("python") or ep.get("module")
-    if target and ":" in str(target):
-        mod_name, obj_name = str(target).split(":", 1)
-        try:
-            module = importlib.import_module(mod_name)
-            obj = getattr(module, obj_name, module)
+    root = mf.root
+    if root and mf.source_kind in ("path", "link", "project") and root not in sys.path:
+        sys.path.insert(0, root)
+        ctx.effect(lambda: root in sys.path and sys.path.remove(root), "sys.path")
+    ctx.effect(lambda: _evict(plugin), "modules")
+    try:
+        target = ep.get("_pip_entry") or ep.get("python") or ep.get("module") or ep.get("setup")
+        if isinstance(target, str) and target:
+            obj = _resolve_python(plugin, target)
             plugin.module = obj
-        except Exception as e:
-            raise RuntimeError(f"import {target}: {e}") from e
+            setup = obj if callable(obj) and not isinstance(obj, type) else getattr(obj, "setup", None)
+            if callable(setup):
+                call_setup(setup, ctx)
 
-    # 2) 静态贡献 (skills 目录 / web 目录 / sidebar / mcpServers / commands ...)
-    base = Path(mf.root) if mf.root else Path.cwd()
-
-    def _abs(p: str) -> str:
-        pp = Path(p)
-        if not pp.is_absolute():
-            pp = (base / pp).resolve()
-        return str(pp)
-
-    if isinstance(ep.get("skills"), str):
-        contrib["skills"] = _abs(ep["skills"])
-    if isinstance(ep.get("web"), str):
-        contrib["web"] = _abs(ep["web"])
-    for k in ("commands", "agents", "hooks", "mcpServers", "providers"):
-        if k in ep:
-            v = ep[k]
-            if isinstance(v, str):
-                contrib[k] = _abs(v)
-            else:
-                contrib[k] = v
-
-    if mf.sidebar:
-        contrib["sidebar"] = list(mf.sidebar)
-
-    # If the plugin declares ``hooks`` as a ``module:name`` reference, resolve
-    # it to the actual callable mapping so registry / dispatch can use it.
-    hooks_ep = ep.get("hooks")
-    if isinstance(hooks_ep, str) and ":" in hooks_ep:
-        try:
-            mod_name, obj_name = hooks_ep.split(":", 1)
-            mod = importlib.import_module(mod_name)
-            obj = getattr(mod, obj_name)
-            if callable(obj):
-                obj = obj()  # factory style
-            if isinstance(obj, dict):
-                contrib["_hook_map"] = obj
-        except Exception:
-            pass
-
-    # Materialise plugin-contributed slash commands so the host doesn't
-    # have to re-parse every chat tick. Commands can come from either
-    # form:
-    #   * a dict {name: {description, prompt}} declared inline in the
-    #     manifest
-    #   * a directory of ``.md`` files (claude-code style), each with
-    #     ``name`` / ``description`` frontmatter and the body as the
-    #     prompt template
-    cmds = ep.get("commands")
-    materialised: list[dict[str, str]] = []
-    if isinstance(cmds, dict):
-        for cname, cdef in cmds.items():
-            if isinstance(cdef, dict):
-                materialised.append({
-                    "name": str(cname),
-                    "description": str(cdef.get("description", "")),
-                    "prompt": str(cdef.get("prompt", "")),
-                })
-    elif isinstance(cmds, str):
-        # path → walk .md files
-        cmd_dir = Path(_abs(cmds))
-        if cmd_dir.is_dir():
-            for md in sorted(cmd_dir.rglob("*.md")):
-                try:
-                    text = md.read_text(encoding="utf-8")
-                except OSError:
-                    continue
-                fm, body = _split_frontmatter(text)
-                materialised.append({
-                    "name": fm.get("name", md.stem),
-                    "description": fm.get("description", ""),
-                    "prompt": body.strip(),
-                })
-    if materialised:
-        contrib["_commands"] = materialised
-
+        if isinstance(ep.get("tools"), str):
+            target = ep["tools"]
+            module = (_import_file(mf.name, "tools", _rel(plugin, target))
+                      if "/" in target or target.startswith(".") else importlib.import_module(target))
+            ctx.tools_from(module)
+        if isinstance(ep.get("skills"), str):
+            ctx.skills(ep["skills"])
+            contrib["skills"] = str(_rel(plugin, ep["skills"]))
+        cmds = ep.get("commands")
+        if isinstance(cmds, dict):
+            for cname, cdef in cmds.items():
+                if isinstance(cdef, dict):
+                    ctx.command(str(cname), str(cdef.get("prompt", "")), str(cdef.get("description", "")))
+        elif isinstance(cmds, str) and "*" not in cmds:
+            for c in _md_commands(_rel(plugin, cmds)):
+                ctx.command(c["name"], c["prompt"], c["description"])
+        hooks_ep = ep.get("hooks")
+        if isinstance(hooks_ep, str) and ":" in hooks_ep and not hooks_ep.endswith(".json"):
+            from . import hooks as _hooks
+            mapping = _resolve_python(plugin, hooks_ep)
+            if callable(mapping):
+                mapping = mapping()
+            if isinstance(mapping, dict):
+                _hooks.register_plugin_hooks(mf.name, mapping)
+                ctx.effect(lambda: _hooks.unregister_plugin_hooks(mf.name), "hooks")
+                for event_name in mapping:
+                    ctx._record("events", str(event_name))
+        for server, entry in _mcp_entries(plugin, ep.get("mcpServers")).items():
+            ctx.mcp_server(server, entry)
+        if isinstance(ep.get("providers"), str) and _rel(plugin, ep["providers"]).is_dir():
+            ctx.provider_root(ep["providers"])
+        if ep.get("agents"):
+            _install_agents(ctx, plugin, ep["agents"])
+        if isinstance(ep.get("web"), str):
+            contrib["web"] = str(_rel(plugin, ep["web"]))
+        clients = ep.get("client")
+        for module_path in ([clients] if isinstance(clients, str) else clients or []):
+            ctx.client(module_path)
+        if mf.sidebar:
+            contrib["sidebar"] = list(mf.sidebar)
+    except BaseException:
+        ctx.dispose()
+        plugin.ctx = None
+        raise
+    if ctx.commands:
+        contrib["_commands"] = ctx.commands
     plugin.contrib = contrib
-    return plugin
+    registry.set_plugin_contrib(mf.name, contrib)
+
+
+def _evict(plugin: Plugin) -> None:
+    """Forget every module the plugin brought, so the next import is fresh."""
+    root = Path(plugin.manifest.root).resolve() if plugin.manifest.root else None
+    prefixes = (f"openprogram_plugin_{plugin.name.replace('-', '_')}.",
+                f"openprogram_plugin_tools.{plugin.name}.")
+    for name, module in list(sys.modules.items()):
+        if name.startswith(prefixes):
+            sys.modules.pop(name, None)
+            continue
+        if root is None or plugin.manifest.source_kind == "pip":
+            continue
+        origin = getattr(module, "__file__", None)
+        try:
+            if origin and Path(origin).resolve().is_relative_to(root):
+                sys.modules.pop(name, None)
+        except (OSError, ValueError):
+            continue
+    importlib.invalidate_caches()
+
+
+def _deactivate(plugin: Plugin) -> list[str]:
+    """Undo everything the plugin registered. Returns undo errors."""
+    from openprogram.events import emit_safe
+    emit_safe("plugin.disable", "system", {"plugin": plugin.name})
+    errors = plugin.ctx.dispose() if plugin.ctx is not None else []
+    registry.clear_plugin_contrib(plugin.name)
+    plugin.ctx = None
+    plugin.loaded = False
+    plugin.module = None
+    plugin.contrib = {}
+    return errors
+
+
+def _announce(name: str) -> None:
+    """Refresh what reads plugin contributions and tell the Web page."""
+    try:
+        from openprogram.commands import registry as commands
+        commands.reload()
+    except Exception:
+        pass
+    from openprogram.events import emit_ws_frame
+    emit_ws_frame({"type": "plugins:changed", "data": {"plugin": name}})
 
 
 def _split_frontmatter(text: str) -> tuple[dict[str, str], str]:
@@ -332,6 +490,38 @@ def _split_frontmatter(text: str) -> tuple[dict[str, str], str]:
     return fm, "\n".join(lines[end + 1:])
 
 
+def _check(p: Plugin) -> None:
+    """Refuse a plugin whose trust, compatibility or dependencies fail."""
+    name = p.name
+    level = _trust.get_trust(name)
+    if level == "untrusted":
+        p.error = "trust=untrusted; please elevate trust before enabling"
+        raise PermissionError(p.error)
+    ok, reason = check_compatibility(p.manifest.compatibility, _HOST_VERSION)
+    if not ok:
+        p.error = f"incompatible: {reason}"
+        raise RuntimeError(p.error)
+    # Dependency resolution — every plugin in ``requires`` must be
+    # installed AND loaded. We don't auto-enable upstream deps;
+    # that would be too magical. We just report the gap.
+    missing: list[str] = []
+    not_enabled: list[str] = []
+    for dep in p.manifest.requires:
+        dep_p = _plugins.get(dep)
+        if dep_p is None:
+            missing.append(dep)
+        elif not dep_p.loaded:
+            not_enabled.append(dep)
+    if missing or not_enabled:
+        parts: list[str] = []
+        if missing:
+            parts.append(f"missing dependencies: {', '.join(missing)}")
+        if not_enabled:
+            parts.append(f"deps not enabled: {', '.join(not_enabled)}")
+        p.error = "; ".join(parts)
+        raise RuntimeError(p.error)
+
+
 def load_plugin(name: str) -> Plugin:
     """加载并启用单个 plugin。trust 不足时拒绝。"""
     paths.sanitize_name(name)
@@ -339,76 +529,30 @@ def load_plugin(name: str) -> Plugin:
         p = _plugins.get(name)
         if not p:
             raise KeyError(f"unknown plugin: {name}")
-
-        # trust 检查
-        level = _trust.get_trust(name)
-        if level == "untrusted":
-            p.enabled = False
-            p.loaded = False
-            p.error = "trust=untrusted; please elevate trust before enabling"
-            raise PermissionError(p.error)
-
-        # compatibility
-        ok, reason = check_compatibility(p.manifest.compatibility, _HOST_VERSION)
-        if not ok:
-            p.enabled = False
-            p.loaded = False
-            p.error = f"incompatible: {reason}"
-            raise RuntimeError(p.error)
-
-        # Dependency resolution — every plugin in ``requires`` must be
-        # installed AND enabled. We don't auto-enable upstream deps;
-        # that would be too magical. We just report the gap.
-        missing: list[str] = []
-        not_enabled: list[str] = []
-        for dep in p.manifest.requires:
-            dep_p = _plugins.get(dep)
-            if dep_p is None:
-                missing.append(dep)
-            elif not dep_p.enabled:
-                not_enabled.append(dep)
-        if missing or not_enabled:
-            parts: list[str] = []
-            if missing:
-                parts.append(f"missing dependencies: {', '.join(missing)}")
-            if not_enabled:
-                parts.append(f"deps not enabled: {', '.join(not_enabled)}")
-            p.enabled = False
-            p.loaded = False
-            p.error = "; ".join(parts)
-            raise RuntimeError(p.error)
-
-        if p.manifest.deprecated:
-            # 不阻止加载，但记一行日志/错误位
-            p.error = "deprecated"
-
+        if p.loaded:
+            return p
+        p.error = ""
         try:
-            _import_entrypoints(p)
-            p.loaded = True
-            p.enabled = True
-            registry.set_plugin_contrib(name, p.contrib)
-            # skills 对接
-            if p.contrib.get("skills"):
-                registry.try_register_skills(name, p.contrib["skills"])
-            # 注册 lifecycle hooks
-            hook_map = p.contrib.get("_hook_map") or {}
-            if hook_map:
-                from . import hooks as _hooks
-                _hooks.register_plugin_hooks(name, hook_map)
-            # 持久化 enabled
-            s = _load_enabled()
-            s.add(name)
-            _save_enabled(s)
-            # 通知总线: 这个 plugin 上线了
-            from openprogram.events import emit_safe
-            emit_safe("plugin.enable", "system", {"plugin": name})
+            _check(p)
+            _activate(p)
         except Exception as e:
-            p.loaded = False
             p.enabled = False
-            p.error = f"{type(e).__name__}: {e}\n{traceback.format_exc(limit=3)}"
+            p.loaded = False
+            if not p.error:
+                p.error = f"{type(e).__name__}: {e}\n{traceback.format_exc(limit=3)}"
             _errors[name] = p.error
             raise
-        return p
+        p.loaded = True
+        p.enabled = True
+        p.error = "deprecated" if p.manifest.deprecated else ""
+        _errors.pop(name, None)
+        s = _load_enabled()
+        s.add(name)
+        _save_enabled(s)
+        from openprogram.events import emit_safe
+        emit_safe("plugin.enable", "system", {"plugin": name})
+    _announce(name)
+    return p
 
 
 def unload_plugin(name: str) -> Plugin:
@@ -417,38 +561,72 @@ def unload_plugin(name: str) -> Plugin:
         p = _plugins.get(name)
         if not p:
             raise KeyError(f"unknown plugin: {name}")
-        # Fire plugin.disable BEFORE we drop registrations so handlers
-        # can still see neighbour state.
-        from openprogram.events import emit_safe
-        emit_safe("plugin.disable", "system", {"plugin": name})
-        try:
-            from . import hooks as _hooks
-            _hooks.unregister_plugin_hooks(name)
-        except Exception:
-            pass
-        registry.try_unregister_skills(name)
-        registry.clear_plugin_contrib(name)
-        # 不主动 del sys.modules：用户可能仍有引用。Reload 时再处理。
-        p.loaded = False
+        errors = _deactivate(p) if p.loaded else []
         p.enabled = False
-        p.module = None
+        p.error = "; ".join(errors)
         s = _load_enabled()
         s.discard(name)
         _save_enabled(s)
-        return p
+    _announce(name)
+    return p
 
 
 def reload_plugin(name: str) -> Plugin:
+    """Unload, re-read the manifest and code from disk, load again.
+
+    A plugin that fails to come back stays enabled with its error, so the
+    next fix and reload (or restart) brings it back.
+    """
     paths.sanitize_name(name)
     with _lock:
-        unload_plugin(name)
-        # 真重新 import：清除子模块缓存
-        prefix = f"openprogram_plugin_{name}"
-        for mod in list(sys.modules):
-            if mod.startswith(prefix):
-                sys.modules.pop(mod, None)
+        p = _plugins.get(name)
+        if not p:
+            raise KeyError(f"unknown plugin: {name}")
+        if p.loaded:
+            _deactivate(p)
         rescan()
+        p = _plugins.get(name)
+        if p is None:
+            raise KeyError(f"plugin {name} is no longer installed")
+    try:
         return load_plugin(name)
+    except Exception:
+        with _lock:
+            s = _load_enabled()
+            s.add(name)
+            _save_enabled(s)
+        raise
+
+
+def load_enabled() -> dict[str, str]:
+    """Load every plugin the profile has enabled, dependencies first.
+
+    Called once at worker startup. Returns ``{name: error}`` for the ones
+    that could not load; they stay enabled so a fix takes effect on reload.
+    """
+    with _lock:
+        rescan()
+        wanted = [p for p in _plugins.values() if p.enabled and not p.loaded]
+    failures: dict[str, str] = {}
+    pending = {p.name: p for p in wanted}
+    while pending:
+        ready = [n for n, p in pending.items()
+                 if all(dep not in pending for dep in p.manifest.requires)]
+        if not ready:  # a dependency cycle: try them anyway, each reports why
+            ready = list(pending)
+        for name in sorted(ready):
+            pending.pop(name)
+            try:
+                load_plugin(name)
+            except Exception as exc:
+                failures[name] = str(exc)
+                with _lock:
+                    s = _load_enabled()
+                    s.add(name)
+                    _save_enabled(s)
+                    if name in _plugins:
+                        _plugins[name].enabled = True
+    return failures
 
 
 # ---------- 公共 getter ----------

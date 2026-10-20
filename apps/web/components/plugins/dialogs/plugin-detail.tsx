@@ -5,6 +5,7 @@ import type { PluginRow } from "@/lib/abilities/plugins-store";
 import { useTranslation } from "@/lib/i18n";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { PluginSlot } from "../plugin-slot";
 
 interface Props {
   plugin: PluginRow;
@@ -43,6 +44,14 @@ export function PluginDetailDialog({
             <p style={{ marginTop: 8 }}>
               {text("Provides", "提供")} {contrib.join(", ")}
             </p>
+          )}
+          {plugin.loaded && (
+            <PluginSlot
+              name="plugin.settings"
+              plugin={plugin.name}
+              props={{ plugin: plugin.name }}
+              wrap={(children) => <div style={{ marginTop: 12 }}>{children}</div>}
+            />
           )}
           {plugin.error && (
             <pre className={styles.errorBox} style={{ marginTop: 12 }}>{plugin.error}</pre>

@@ -16,6 +16,12 @@ Three APIs live here:
   returned reason denies the action. Gates must be fast — no LLM calls, no
   slow IO.
 
+* **Transform dispatch** (``emit_transform`` / ``subscribe_transform``):
+  the synchronous rewrite path for transform-kind types. Each subscriber
+  receives the event and the current value and returns the value the next
+  one sees (``None`` keeps it), in registration order; the emitter uses
+  what the last one returned.
+
 * **Legacy channel pub/sub** (``emit("channel", data)`` / ``on()``): the
   original API, kept verbatim because ``AgentSession`` still targets it.
   New code uses typed events.
@@ -172,6 +178,7 @@ class EventBus:
         # [(handler, frozenset(types) | None)]
         self._subscribers: list[tuple[Callable, frozenset[str] | None]] = []
         self._gates: dict[str, list[Callable]] = {}             # type -> gates
+        self._transforms: dict[str, list[Callable]] = {}        # type -> rewriters
         self._lock = threading.Lock()
         self._gate_active = threading.local()   # re-entrancy guard
         # Only the process-wide singleton logs to disk; isolated buses
@@ -299,6 +306,48 @@ class EventBus:
         finally:
             active.discard(event.type)
 
+    # transform dispatch（同步改写）
+
+    def subscribe_transform(
+        self, type: str, fn: Callable[[Event, Any], Any],
+    ) -> Callable[[], None]:
+        """Register a rewriter for one event type. ``fn(event, value)``
+        returns the value the next rewriter sees; ``None`` keeps it.
+        Returns an unregister function."""
+        with self._lock:
+            self._transforms.setdefault(type, []).append(fn)
+
+        def unregister() -> None:
+            with self._lock:
+                try:
+                    self._transforms.get(type, []).remove(fn)
+                except ValueError:
+                    pass
+
+        return unregister
+
+    def emit_transform(self, event: Event, value: Any) -> Any:
+        """Pass ``value`` through every rewriter of this event's type, in
+        the caller's thread, and return the result. A raising rewriter is
+        skipped (its input carries on), like a fail-open gate."""
+        _warn_unregistered(event.type)
+        with self._lock:
+            rewriters = list(self._transforms.get(event.type, []))
+        for fn in rewriters:
+            try:
+                result = fn(event, value)
+            except Exception as exc:
+                print(f"Transform error ({event.type}, skipped): {exc}",
+                      file=sys.stderr)
+                continue
+            if result is not None:
+                value = result
+        return value
+
+    def has_transforms(self, type: str) -> bool:
+        with self._lock:
+            return bool(self._transforms.get(type))
+
     # shared dispatch
 
     def _call(self, handler: Callable, arg: Any, label: str) -> None:
@@ -348,6 +397,7 @@ class EventBus:
         with self._lock:
             self._subscribers.clear()
             self._gates.clear()
+            self._transforms.clear()
 
 
 def create_event_bus() -> EventBus:

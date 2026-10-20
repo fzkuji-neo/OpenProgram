@@ -117,6 +117,10 @@ def install_config_hooks(bus=None, hooks_config: dict | None = None) -> int:
                 timeout = float(entry.get("timeout") or DEFAULT_SHELL_TIMEOUT_S)
             except (TypeError, ValueError):
                 timeout = DEFAULT_SHELL_TIMEOUT_S
+            if spec.kind == "transform":
+                _log.warning("hooks config: %s rewrites a value; shell hooks "
+                             "cannot, entry skipped", event_type)
+                continue
             if spec.kind == "gate":
                 bus.subscribe_gate(event_type, make_shell_gate(command, timeout))
             else:

@@ -108,6 +108,15 @@ def register_api_provider(
         _rebuild_audited_accounting()
 
 
+def unregister_api_provider(api: Api) -> None:
+    """Remove an API implementation a plugin registered."""
+    with _registry_lock:
+        _registry.pop(api, None)
+        _original_registry.pop(api, None)
+        _audited_originals.pop(api, None)
+        _rebuild_audited_accounting()
+
+
 def get_api_provider_snapshot(api: Api) -> ApiProviderSnapshot | None:
     """Atomically capture a provider and the capabilities registered with it."""
     from .initialization import initialize_provider_runtime

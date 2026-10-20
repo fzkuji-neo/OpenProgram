@@ -96,6 +96,13 @@ def register(component: ContextComponent) -> None:
     bucket.append(component)
 
 
+def unregister(name: str, layer: Optional[Layer] = None) -> None:
+    """Remove a component by name, from one layer or every layer — the
+    inverse of :func:`register`, used when a plugin unloads."""
+    for key in ([layer] if layer else list(_REGISTRY)):
+        _REGISTRY[key][:] = [c for c in _REGISTRY[key] if c.name != name]
+
+
 def assemble(
     agent: Any,
     layers: list[Layer],

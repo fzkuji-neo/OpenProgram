@@ -37,6 +37,7 @@ import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
 import { LlmNodeContent } from "./llm-node-content";
 import { renderMarkdown, useMarkdownReady } from "./markdown";
 import { MessageTimestamp } from "./message-actions";
+import { PluginSlot } from "@/components/plugins/plugin-slot";
 
 export { SPAWNING_TOOL_NAMES } from "./tool-group-summary";
 
@@ -477,7 +478,7 @@ export function FunctionStep({
       setLoadingFull(false);
     }
   }
-  return (
+  const step = (
     <StepRow
       icon="function"
       glyph={view.icon}
@@ -499,6 +500,17 @@ export function FunctionStep({
         ? kids.map((c, i) => <TreeStep key={c.path || i} node={c} sessionId={sessionId} />)
         : undefined}
     />
+  );
+  if (running || result === undefined || result === null) return step;
+  return (
+    <>
+      {step}
+      <PluginSlot
+        name="tool.result"
+        props={{ tool: name, args: detail.params, result: decodeEscapes(String(result)), isError }}
+        wrap={(children) => <div className="tl-step-plugin pl-[26px] empty:hidden">{children}</div>}
+      />
+    </>
   );
 }
 

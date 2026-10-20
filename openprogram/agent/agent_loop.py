@@ -1694,6 +1694,28 @@ RUNNING_TOOL_CALLS: dict[str, dict] = {}
 RUNNING_TOOL_CALLS_LOCK = _threading.Lock()
 
 
+def _rewrite_tool_result(tool_call: Any, result: AgentToolResult) -> AgentToolResult:
+    """Let ``tool.result`` rewriters (plugins) change the text the model
+    sees. Without a rewriter the result passes through untouched; a
+    rewritten text replaces the text blocks and keeps images and audio."""
+    bus = get_event_bus()
+    if not bus.has_transforms("tool.result"):
+        return result
+    text = "".join(
+        c.text for c in (result.content or [])
+        if hasattr(c, "text") and isinstance(c.text, str)
+    )
+    event = make_event("tool.result", "tool", {
+        "tool": tool_call.name, "tool_call_id": tool_call.id,
+        "args": tool_call.arguments, "is_error": result.is_error,
+    })
+    rewritten = bus.emit_transform(event, text)
+    if not isinstance(rewritten, str) or rewritten == text:
+        return result
+    others = [c for c in (result.content or []) if not isinstance(c, TextContent)]
+    return result.model_copy(update={"content": [TextContent(text=rewritten), *others]})
+
+
 def _tool_call_label(name: str, args: Any) -> str:
     """Human-readable one-liner for a tool call (UI display only)."""
     if isinstance(args, dict):
@@ -2016,6 +2038,7 @@ async def _execute_tool_calls(
                 RUNNING_TOOL_CALLS.pop(tool_call.id, None)
 
         outcome = "not_started" if not execution.started else ("failed" if result.is_error else "completed")
+        result = _rewrite_tool_result(tool_call, result)
         if not skipped_repeat:
             if result.is_error and not execution.automatic_refusal:
                 from .failure_policy import record_failure

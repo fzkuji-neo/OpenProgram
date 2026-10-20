@@ -327,6 +327,10 @@ export function useWS(): void {
           import("@/lib/abilities/plugins-store").then(({ usePluginsStore }) => {
             usePluginsStore.getState().refresh();
           });
+          // A plugin's Web modules and sidebar rows follow its state.
+          import("@/lib/plugins/slots").then(({ loadPluginClients }) => {
+            void loadPluginClients();
+          });
           return true;
         case "programs:changed":
           // A harness was installed at runtime (cloned into agentics/ or

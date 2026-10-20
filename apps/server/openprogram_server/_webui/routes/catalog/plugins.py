@@ -28,6 +28,7 @@ def _plugin_to_dict(p) -> dict[str, Any]:
         "entrypoints": mf.entrypoints,
         "sidebar": mf.sidebar,
         "options_schema": mf.options,
+        "contributions": dict(p.ctx.contributions) if p.ctx is not None else {},
         "enabled": p.enabled,
         "loaded": p.loaded,
         "error": p.error,
@@ -55,6 +56,30 @@ def register(app):
     async def list_sidebar():
         from openprogram.plugins import registry
         return JSONResponse(content={"items": registry.get_sidebar_items()})
+
+    @app.get("/api/plugins/client")
+    async def list_client_modules():
+        """Web modules of the loaded plugins; ``rev`` changes with the file."""
+        from openprogram.plugins import loader
+        modules = []
+        for p in loader.list_plugins():
+            if not p.loaded or p.ctx is None:
+                continue
+            root = Path(p.manifest.root).resolve()
+            for path in p.ctx.client_modules:
+                target = Path(path)
+                try:
+                    rel = target.relative_to(root).as_posix()
+                    rev = str(int(target.stat().st_mtime_ns))
+                except (OSError, ValueError):
+                    continue
+                modules.append({"plugin": p.name, "url": f"/api/plugins/{p.name}/client/{rel}?rev={rev}"})
+        return JSONResponse(content={"modules": modules})
+
+    @app.get("/api/plugins/inspect")
+    async def inspect_api():
+        from openprogram.plugins.inspect import describe
+        return JSONResponse(content=describe())
 
     @app.get("/api/plugins/marketplaces")
     async def list_marketplaces_api():
@@ -137,6 +162,9 @@ def register(app):
         result = installer.install(source, spec, ref=ref)
         # 重新扫描
         loader.rescan()
+        if result.get("success"):
+            from openprogram.events import emit_ws_frame
+            emit_ws_frame({"type": "plugins:changed", "data": {"plugin": result.get("name", "")}})
         return JSONResponse(content=result)
 
     @app.get("/api/plugins/{name}")
@@ -274,6 +302,28 @@ def register(app):
         except ValueError as e:
             return JSONResponse(content={"error": str(e)}, status_code=400)
         return JSONResponse(content={"ok": True, "level": level})
+
+    @app.get("/api/plugins/{name}/client/{rel:path}")
+    async def serve_plugin_client(name: str, rel: str):
+        """A loaded plugin's Web module, or a file beside it."""
+        from openprogram.plugins import paths as pp, loader
+        try:
+            pp.sanitize_name(name)
+        except ValueError:
+            return JSONResponse(content={"error": "invalid name"}, status_code=400)
+        p = loader.get_plugin(name)
+        if not p or not p.loaded or p.ctx is None or not p.ctx.client_modules:
+            return JSONResponse(content={"error": "not loaded"}, status_code=404)
+        root = Path(p.manifest.root).resolve()
+        target = (root / rel).resolve()
+        allowed = {Path(m).resolve().parent for m in p.ctx.client_modules}
+        if not target.is_file() or not any(target.is_relative_to(d) for d in allowed):
+            return JSONResponse(content={"error": "not found"}, status_code=404)
+        mt, _ = mimetypes.guess_type(str(target))
+        if target.suffix in (".js", ".mjs"):
+            mt = "text/javascript"
+        return FileResponse(str(target), media_type=mt or "application/octet-stream",
+                            headers={"Cache-Control": "no-cache"})
 
     @app.get("/api/plugins/{name}/web/{slug:path}")
     async def serve_plugin_web(name: str, slug: str):
