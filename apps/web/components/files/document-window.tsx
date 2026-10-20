@@ -22,6 +22,11 @@ import { PdfSurface } from "./pdf-surface";
 import { RasterSurface } from "./raster-surface";
 import type { RasterEditorInstance } from "@/lib/documents/raster-editor";
 import { confirmAction } from "@/components/ui/confirm-dialog";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+/** Toolbar actions are the app's raised buttons (Undo / Review). */
+const BUTTON = cn(buttonVariants({ variant: "elevated", size: "sm" }), styles.button);
 
 interface VersionPreview { blob: Blob; content?: string; version?: string; side?: "before" | "after"; disk?: boolean; }
 
@@ -253,26 +258,26 @@ export function DocumentWindow({ projectId, path, sessionId, readOnly = false, s
   }}>
     <div className={styles.toolbar} role="toolbar" aria-label={text("Document", "文档")}>
       <span className={styles.title}><FileTextIcon size={16} aria-hidden />{path.split("/").pop()}</span><span className={styles.spacer} />
-      <button type="button" className={styles.button} disabled={!state.snapshot || state.restoring || state.renaming}
+      <button type="button" className={BUTTON} disabled={!state.snapshot || state.restoring || state.renaming}
         onClick={() => void refresh()} {...refreshIcon.handlers}>
         <RefreshCwIcon ref={refreshIcon.ref} size={14} aria-hidden />{text("Refresh", "刷新")}
       </button>
-      {!isOffice && <button className={`${styles.button} ${mode === "preview" && !selected ? styles.active : ""}`}
+      {!isOffice && <button className={`${BUTTON} ${mode === "preview" && !selected ? styles.active : ""}`}
         aria-pressed={mode === "preview" && !selected} onClick={() => void showCurrent()}>{isHtml ? text("Source", "源代码") : text("Preview", "预览")}</button>}
-      {canOpenPage && <button type="button" className={styles.button} disabled={state.restoring || state.renaming}
+      {canOpenPage && <button type="button" className={BUTTON} disabled={state.restoring || state.renaming}
         onClick={() => void openPage()}>{text("View page", "网页预览")}</button>}
-      {!readOnly && (isText || isRaster) && <button className={`${styles.button} ${mode === "edit" && !selected ? styles.active : ""}`}
+      {!readOnly && (isText || isRaster) && <button className={`${BUTTON} ${mode === "edit" && !selected ? styles.active : ""}`}
         disabled={!state.snapshot || state.restoring || state.renaming} aria-pressed={mode === "edit" && !selected}
         onClick={() => { setSelected(null); setEditorOpened(true); setMode("edit"); }}>{text("Edit", "编辑")}</button>}
-      {!readOnly && office?.conversionRequired && !selected && <button className={styles.button}
+      {!readOnly && office?.conversionRequired && !selected && <button className={BUTTON}
         disabled={!currentBytes || converting} onClick={() => void convert()}>
         {text(`Convert to ${office.format.toUpperCase()}`, `转换为 ${office.format.toUpperCase()}`)}</button>}
-      {!readOnly && isRaster && !selected && <button className={styles.button}
+      {!readOnly && isRaster && !selected && <button className={BUTTON}
         disabled={!currentBytes || converting || state.restoring || state.renaming} onClick={() => void convertImage()}>
         {text("Convert to PNG", "转换为 PNG")}</button>}
-      {(isOffice || isRaster) && <a className={styles.button} href={readOnly ? absRawFileUrl(path, sessionId) : rawFileUrl(projectId, path)}
+      {(isOffice || isRaster) && <a className={BUTTON} href={readOnly ? absRawFileUrl(path, sessionId) : rawFileUrl(projectId, path)}
         download={path.split("/").pop()}>{text("Download disk file", "下载磁盘文件")}</a>}
-      {!readOnly && <button className={styles.button} aria-expanded={historyOpen}
+      {!readOnly && <button className={BUTTON} aria-expanded={historyOpen}
         onClick={() => historyOpen ? setHistoryOpen(false) : void openHistory()}>{text("History", "历史")}</button>}
     </div>
     {(state.externalChanged || updateError) && <div className={styles.updateNotice} role="status">
@@ -282,30 +287,30 @@ export function DocumentWindow({ projectId, path, sessionId, readOnly = false, s
     {(error || state.error) && <div className={styles.error} role="alert">
       {error || state.error}
       {(state.status === "error" || state.status === "conflict") && <span>
-        <button className={styles.button} onClick={() => void perform(() => state.snapshot ? controller.flush() : controller.load())}>{text("Retry", "重试")}</button>
-        <button className={styles.button} onClick={() => void showDisk()}>{text("View disk version", "查看磁盘版本")}</button>
-        <button className={styles.button} disabled={!state.draft} onClick={exportDraft}>{text("Export draft", "导出草稿")}</button>
-        <button className={styles.button} disabled={!state.draft} onClick={() => void discard()}>{text("Discard draft", "丢弃草稿")}</button>
+        <button className={BUTTON} onClick={() => void perform(() => state.snapshot ? controller.flush() : controller.load())}>{text("Retry", "重试")}</button>
+        <button className={BUTTON} onClick={() => void showDisk()}>{text("View disk version", "查看磁盘版本")}</button>
+        <button className={BUTTON} disabled={!state.draft} onClick={exportDraft}>{text("Export draft", "导出草稿")}</button>
+        <button className={BUTTON} disabled={!state.draft} onClick={() => void discard()}>{text("Discard draft", "丢弃草稿")}</button>
       </span>}
     </div>}
     {selected && <div className={styles.toolbar}>
       <span>{selected.disk ? text("Disk version", "磁盘版本") : text("History version", "历史版本")}</span>
-      <button className={styles.button} onClick={showCurrent}>{text("Back to current file", "返回当前文件")}</button>
-      {selected.version && <button className={styles.button} disabled={state.restoring || state.renaming}
+      <button className={BUTTON} onClick={showCurrent}>{text("Back to current file", "返回当前文件")}</button>
+      {selected.version && <button className={BUTTON} disabled={state.restoring || state.renaming}
         onClick={() => void restore(selected.version!, selected.side)}>{text("Restore this version", "恢复此版本")}</button>}
     </div>}
     {isRaster && editorOpened && mode === "edit" && !selected && <fieldset className={styles.toolbar} role="toolbar" aria-label={text("Image tools", "图片工具")} disabled={!rasterReady || state.restoring || state.renaming} style={{border:0,margin:0}}>
       {cropping ? <>
-        <button className={styles.button} onClick={() => void imageCommand(async editor => {await editor.applyCrop();setCropping(false);})}>{text("Apply crop", "应用裁剪")}</button>
-        <button className={styles.button} onClick={() => void imageCommand(async editor => {await editor.cancelTool();setCropping(false);})}>{text("Cancel crop", "取消裁剪")}</button>
+        <button className={BUTTON} onClick={() => void imageCommand(async editor => {await editor.applyCrop();setCropping(false);})}>{text("Apply crop", "应用裁剪")}</button>
+        <button className={BUTTON} onClick={() => void imageCommand(async editor => {await editor.cancelTool();setCropping(false);})}>{text("Cancel crop", "取消裁剪")}</button>
       </> : <>
-        <button className={styles.button} onClick={() => void imageCommand(editor => editor.rotate())}>{text("Rotate", "旋转")}</button>
-        <button className={styles.button} onClick={() => void imageCommand(async editor => {await editor.startCrop();setCropping(true);})}>{text("Crop", "裁剪")}</button>
-        <button className={styles.button} onClick={() => {const value=window.prompt(text("Text to add", "要添加的文字"));if(value)void imageCommand(editor=>editor.addText(value));}}>{text("Text", "文字")}</button>
-        <button className={styles.button} onClick={() => void imageCommand(editor => editor.addShape("rect"))}>{text("Shape", "形状")}</button>
-        <button className={styles.button} onClick={() => void imageCommand(editor => editor.draw())}>{text("Draw", "绘制")}</button>
-        <button className={styles.button} onClick={() => void imageCommand(editor => editor.undo())}>{text("Undo", "撤销")}</button>
-        <button className={styles.button} onClick={() => void imageCommand(editor => editor.redo())}>{text("Redo", "重做")}</button>
+        <button className={BUTTON} onClick={() => void imageCommand(editor => editor.rotate())}>{text("Rotate", "旋转")}</button>
+        <button className={BUTTON} onClick={() => void imageCommand(async editor => {await editor.startCrop();setCropping(true);})}>{text("Crop", "裁剪")}</button>
+        <button className={BUTTON} onClick={() => {const value=window.prompt(text("Text to add", "要添加的文字"));if(value)void imageCommand(editor=>editor.addText(value));}}>{text("Text", "文字")}</button>
+        <button className={BUTTON} onClick={() => void imageCommand(editor => editor.addShape("rect"))}>{text("Shape", "形状")}</button>
+        <button className={BUTTON} onClick={() => void imageCommand(editor => editor.draw())}>{text("Draw", "绘制")}</button>
+        <button className={BUTTON} onClick={() => void imageCommand(editor => editor.undo())}>{text("Undo", "撤销")}</button>
+        <button className={BUTTON} onClick={() => void imageCommand(editor => editor.redo())}>{text("Redo", "重做")}</button>
       </>}
     </fieldset>}
     <div className={styles.body}>
@@ -334,21 +339,21 @@ export function DocumentWindow({ projectId, path, sessionId, readOnly = false, s
     </div>
     {historyOpen && <aside className={styles.history} aria-label={text("Document history", "文档历史")}>
       {!history.length && !historyCursor && (!historyIndex || historyIndex.state === "complete") && <span>{text("No retained versions.", "暂无保留的版本。")}</span>}
-      {historyIndex?.state === "partial" && <button className={styles.button} onClick={() => void openHistory()}>
+      {historyIndex?.state === "partial" && <button className={BUTTON} onClick={() => void openHistory()}>
         {text("Continue loading history", "继续加载历史")}</button>}
       {historyIndex?.state === "unavailable" && <span>{text("Some older model versions are unavailable.", "部分旧模型修改版本不可用。")}</span>}
       {history.map((entry) => <div className={styles.entry} key={entry.version_id}>
         <span>{entry.actor === "user" ? text("You", "你") : entry.actor === "model" ? text("Model", "模型") : entry.actor || text("Version", "版本")}</span>
         {entry.created_at && <time dateTime={new Date(entry.created_at * 1000).toISOString()}>{new Date(entry.created_at * 1000).toLocaleString()}</time>}
         {entry.actor === "model" && entry.status !== "committed" && <span>{text("After version unavailable", "修改后版本不可用")}</span>}
-        <button className={styles.button} disabled={entry.actor === "model" && (!entry.before_revision || entry.before_revision === "absent")}
+        <button className={BUTTON} disabled={entry.actor === "model" && (!entry.before_revision || entry.before_revision === "absent")}
           onClick={() => void previewVersion(entry.version_id, "before")}>{text("Before", "之前")}</button>
-        <button className={styles.button} disabled={entry.actor === "model" && (!entry.after_revision || entry.after_revision === "absent")}
+        <button className={BUTTON} disabled={entry.actor === "model" && (!entry.after_revision || entry.after_revision === "absent")}
           onClick={() => void previewVersion(entry.version_id, "after")}>{text("After", "之后")}</button>
-        <button className={styles.button} disabled={state.restoring || state.renaming || (entry.actor === "model" && (!entry.after_revision || entry.after_revision === "absent"))}
+        <button className={BUTTON} disabled={state.restoring || state.renaming || (entry.actor === "model" && (!entry.after_revision || entry.after_revision === "absent"))}
           onClick={() => void restore(entry.version_id)}>{text("Restore", "恢复")}</button>
       </div>)}
-      {historyCursor && <button className={styles.button} onClick={() => void openHistory(historyCursor)}>{text("Load more", "加载更多")}</button>}
+      {historyCursor && <button className={BUTTON} onClick={() => void openHistory(historyCursor)}>{text("Load more", "加载更多")}</button>}
     </aside>}
   </div>;
 }

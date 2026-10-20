@@ -7,6 +7,11 @@ import type { DocumentController } from "@/lib/files/document-controller";
 import { createBoundOfficeEditor, officeHostAvailability, type OfficeEditorInstance } from "@/lib/documents/office-editor";
 import styles from "./document-window.module.css";
 import officeStyles from "./office-surface.module.css";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+/** Toolbar actions are the app's raised buttons (Undo / Review). */
+const BUTTON = cn(buttonVariants({ variant: "elevated", size: "sm" }), styles.button);
 
 export function OfficeSurface({ controller, bytes, path, readOnly, mode }: {
   controller: DocumentController; bytes: Blob; path: string; readOnly: boolean; mode: "preview" | "edit";
@@ -76,15 +81,15 @@ export function OfficeSurface({ controller, bytes, path, readOnly, mode }: {
       <span className={officeStyles.officeLoadingTitle}>{text("Install Office document support", "安装 Office 文档支持")}</span>
       <span className={officeStyles.officeLoadingDetail}>{text("Open presentations, documents and spreadsheets locally with ONLYOFFICE. Optional download: about 699 MiB. Your files stay on this device.", "使用 ONLYOFFICE 在本地打开演示文稿、文档和表格。可选下载约 699 MiB，文件在本机处理。")}</span>
       <a href="https://github.com/ONLYOFFICE/DocumentServer/blob/master/LICENSE.txt" target="_blank" rel="noreferrer" className={officeStyles.officeLoadingDetail}>{text("ONLYOFFICE license (AGPLv3)", "ONLYOFFICE 许可证（AGPLv3）")}</a>
-      {dismissed ? <button className={styles.button} onClick={() => setDismissed(false)}>{text("Installation options", "安装选项")}</button> : <div className={officeStyles.officeActions}>
-        <button className={styles.button} onClick={() => setDismissed(true)}>{text("Cancel", "取消")}</button>
-        <button className={styles.button} onClick={() => setInstallRequested(true)}>{text("Install", "安装")}</button>
+      {dismissed ? <button className={BUTTON} onClick={() => setDismissed(false)}>{text("Installation options", "安装选项")}</button> : <div className={officeStyles.officeActions}>
+        <button className={BUTTON} onClick={() => setDismissed(true)}>{text("Cancel", "取消")}</button>
+        <button className={BUTTON} onClick={() => setInstallRequested(true)}>{text("Install", "安装")}</button>
       </div>}
     </div> : startupError ? <div role="alert" className={officeStyles.officeLoading}>
       <FileText size={28} strokeWidth={1.25} aria-hidden="true" />
       <span className={officeStyles.officeLoadingTitle}>{text("Unable to open document", "无法打开文档")}</span>
       <span className={officeStyles.officeLoadingDetail}>{error}</span>
-      <button className={styles.button} onClick={() => setAttempt(value => value + 1)}>{text("Retry", "重试")}</button>
+      <button className={BUTTON} onClick={() => setAttempt(value => value + 1)}>{text("Retry", "重试")}</button>
     </div> : loading && <div role="status" className={officeStyles.officeLoading}>
       <LoaderCircle size={24} strokeWidth={1.5} className={officeStyles.officeSpinner} aria-hidden="true" />
       <span className={officeStyles.officeLoadingTitle}>{phase === "install" ? text("Downloading and installing Office support…", "正在下载并安装 Office 支持…") : phase === "resources"
