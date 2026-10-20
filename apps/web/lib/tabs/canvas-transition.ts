@@ -127,8 +127,9 @@ export function prepareCanvasFold(tabId: string): Promise<void> | null {
 }
 
 /** Record the canvas before a layout change. `exits` says how particular
- *  tabs leave; any other tab that leaves fades under the rest. */
-export function captureCanvasTransition(exits: Record<string, CanvasExit> = {}): void {
+ *  tabs leave; any other tab that leaves fades under the rest. `enters`
+ *  names tabs that arrive from a side of the canvas. */
+export function captureCanvasTransition(exits: Record<string, CanvasExit> = {}, enters: Record<string, CanvasEnter> = {}): void {
   if (typeof document === "undefined" || reducedMotion()) return;
   const root = canvasRoot();
   if (!root) return;
@@ -144,7 +145,7 @@ export function captureCanvasTransition(exits: Record<string, CanvasExit> = {}):
     ghosts.push({ tabId: id, exit: exits[id] ?? "behind", node, rect, scroll, still: fresh });
   }
   if (!rects.size) return;
-  begin(root, rects, ghosts, exits, {});
+  begin(root, rects, ghosts, exits, enters);
 }
 
 /** Record a layout change seen from somewhere other than the live canvas:

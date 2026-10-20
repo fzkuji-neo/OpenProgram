@@ -14,8 +14,8 @@
  * dragging; the torn-off window is created at RELEASE.
  */
 import { useLayoutEffect, useRef, useState } from "react";
-import { clearDropPreview, commitCanvasDrop, showResourceDrop, setCanvasDragging } from "@/lib/tabs/canvas-drag";
-import { closeOverview, holdOverviewLanding, openOverview, overviewDropAt } from "@/lib/tabs/canvas-overview";
+import { clearDropPreview, commitCanvasDrop, liveCanvasDropAt, showLiveCanvasDrop, showResourceDrop, setCanvasDragging } from "@/lib/tabs/canvas-drag";
+import { closeOverview, holdOverviewLanding, openOverview, overviewDropAt, overviewOpen } from "@/lib/tabs/canvas-overview";
 import { captureVisiblePanes, useWindowSnapshots } from "@/lib/tabs/window-snapshots";
 
 import {
@@ -81,10 +81,6 @@ interface PointerDragState {
   lastTx: number;
   lastTy?: number;
   lastIntent: TabDropIntent | null;
-  /** The pointer has left the strip, so the window overview should show. */
-  wantsOverview?: boolean;
-  /** Pane pictures for the overview are taken (or timed out). */
-  snapshotsReady?: boolean;
   /** Tab strip's vertical span (viewport px), snapshotted at drag start.
    *  Detach intent triggers geometrically when the cursor leaves this band;
    *  drop-to-place, so the torn-off window is only created at release. */
@@ -532,10 +528,11 @@ export function useTabPointerDrag({
       // Registered so a release the page never saw (over the window-drag
       // strip or a native view) still ends this drag on the next move.
       setCanvasDragging(true, { cancel: cancelPointerDrag, release: onPointerDragUp });
-      // The dragged tab's own pane is pictured too: its small window shows it.
+      // The dragged tab's own pane is pictured too: its small window shows
+      // it. An overview already open (its button, or a pinch) takes the drag.
+      const inOverview = overviewOpen();
       void captureVisiblePanes().then(() => {
-        drag.snapshotsReady = true;
-        if (pointerDragRef.current === drag && drag.wantsOverview) openOverview("drag", drag.subject.tabIds);
+        if (inOverview && pointerDragRef.current === drag && overviewOpen()) openOverview("drag", drag.subject.tabIds);
       });
       try {
         drag.element.setPointerCapture(drag.pointerId);
@@ -578,13 +575,9 @@ export function useTabPointerDrag({
       const tx = outsideBand ? dx : Math.min(Math.max(dx, drag.minTx), drag.maxTx);
       drag.lastTy = outsideBand ? dy : 0;
       drag.lastTx = tx;
-      // Leaving the strip opens the window overview; inside it stays a
-      // plain reorder. Once open it stays until the drag ends. It waits
-      // for the panes' pictures, taken when the drag started.
-      if (outsideBand) {
-        drag.wantsOverview = true;
-        if (drag.snapshotsReady) openOverview("drag", drag.subject.tabIds);
-      }
+      // Leaving the strip keeps the window on screen: the tab can dock
+      // beside it there (liveCanvasDropAt). The overview opens only from
+      // its button or a pinch.
       updateDragPreview(drag, outsideBand);
       drag.element.style.transform = `translate(${tx}px, ${drag.lastTy}px)`;
     }
@@ -603,8 +596,10 @@ export function useTabPointerDrag({
       return;
     }
 
-    clearDropPreview();
-    const canvasDrop = overviewDropAt(e.clientX, e.clientY);
+    const canvasDrop = overviewDropAt(e.clientX, e.clientY) ?? liveCanvasDropAt(e.clientX, e.clientY, drag.subject.tabIds);
+    // The live cue moves between halves; the overview draws its own.
+    if (canvasDrop && !overviewOpen()) showLiveCanvasDrop(canvasDrop);
+    else clearDropPreview();
     if (canvasDrop) {
       drag.detaching = false; drag.overWindow = false; drag.lastIntent = null;
       setDetaching(false); publishDropMarker(null);
@@ -777,7 +772,7 @@ export function useTabPointerDrag({
       clearDragState();
       return;
     }
-    const canvasDrop = resourceTarget ? null : overviewDropAt(e.clientX, e.clientY);
+    const canvasDrop = resourceTarget ? null : overviewDropAt(e.clientX, e.clientY) ?? liveCanvasDropAt(e.clientX, e.clientY, prepared.subject.tabIds);
     if (canvasDrop) {
       // The slot stays closed while the drop commits: a merged tab leaves
       // the strip, and reopening first would flash its slot back for the

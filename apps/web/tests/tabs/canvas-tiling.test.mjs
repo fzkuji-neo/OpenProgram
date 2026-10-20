@@ -89,7 +89,7 @@ test('Return to previous layout finds a layout by any tab it involved', () => {
   assert.equal(takePreviousCanvas(['y']), undefined, 'each step is used once');
 });
 
-test('dragging a tab or a pane opens the window overview; its cards keep their splits', async () => {
+test('the window overview takes drags while open; its cards keep their splits', async () => {
   const overview = await read('lib/tabs/canvas-overview.ts');
   assert.match(overview, /const side: OverviewSide = px < OVERVIEW_SIDE \? "left" : px > 1 - OVERVIEW_SIDE \? "right" : py < 0\.5 \? "top" : "bottom";/, 'a card splits by quarter strips and halves, with no dead centre');
   assert.match(overview, /return \{ targetId: card\.dataset\.overviewTarget!, paneId: "root", side, rect, action: "dock", label \};/, 'a card merges beside the whole window');
@@ -100,8 +100,9 @@ test('dragging a tab or a pane opens the window overview; its cards keep their s
   assert.match(drag, /if \(useCanvasOverview\.getState\(\)\.mode === "drag" && !overviewHeld\(\)\) closeOverview\(\);/, 'every drag end closes it unless a merge is landing');
   assert.match(drag, /event\.preventDefault\(\);\s*const grip = event\.currentTarget/, 'a pane drag does not select text');
   const tab = await read('components/center-tabs/use-tab-pointer-drag.ts');
-  assert.match(tab, /if \(outsideBand\) \{\s*drag\.wantsOverview = true;/, 'a tab opens it once it leaves the strip, so reordering still works');
-  assert.match(tab, /const canvasDrop = resourceTarget \? null : overviewDropAt\(e\.clientX, e\.clientY\);/);
+  assert.doesNotMatch(tab, /wantsOverview/, 'a tab leaving the strip no longer opens the overview');
+  assert.match(tab, /if \(inOverview && pointerDragRef\.current === drag && overviewOpen\(\)\) openOverview\("drag", drag\.subject\.tabIds\);/, 'an overview already open takes the drag');
+  assert.match(tab, /const canvasDrop = resourceTarget \? null : overviewDropAt\(e\.clientX, e\.clientY\) \?\? liveCanvasDropAt\(e\.clientX, e\.clientY, prepared\.subject\.tabIds\);/);
   const view = await read('components/center-tabs/canvas-overview.tsx');
   assert.match(view, /for \(const p of leaves\(root\)\) if \(p\.content && leaving\.has\(p\.content\)\) root = removePane\(root, p\.id\);/, 'the dragged tab leaves its card');
   assert.match(view, /const geometry = canvasGeometry\(card\.root, viewport\);/, 'a split window stays split in its card');
@@ -119,7 +120,6 @@ test('dragging a tab or a pane opens the window overview; its cards keep their s
   const lifecycle = await read('components/center-tabs/use-tab-lifecycle.ts');
   assert.match(lifecycle, /window\.addEventListener\("op-activate-center-tab", onActivateTab\)/, 'a card click activates like a tab click');
   assert.match(lifecycle, /void captureVisiblePanes\(\)\.then\(\(\) => openOverview\("browse"\)\)/, 'the panes are pictured before the overview covers them');
-  assert.match(tab, /if \(drag\.snapshotsReady\) openOverview\("drag", drag\.subject\.tabIds\);/);
   assert.match(drag, /void captureVisiblePanes\(\[tabId\]\)\.then\(\(\) => \{ if \(!finished\) openOverview\("drag", \[tabId\]\); \}\);/);
   assert.match(view, /\{shot \? <img className=\{styles\.shot\} src=\{shot\}/, 'cards show what each pane looked like');
   const shots = await read('lib/tabs/window-snapshots.ts');
@@ -315,4 +315,15 @@ test('browsing, a card can be picked up and dropped like a dragged tab', async (
   assert.match(view, /browseOverview\(\);\n    \};/, 'anything else browses on');
   assert.match(view, /const activate = \(card: Card\) => \{ if \(!pickedUp\.current\) zoomOutTo\(card\); \};/, 'the release is not a click');
   assert.match(drag, /if \(useCanvasOverview\.getState\(\)\.mode === "browse"\) useCanvasOverview\.setState\(\{ sourceIds: \[\] \}\);/, 'a tab dropped on empty space gets its card back');
+});
+
+test('a tab dragged over the window on screen docks beside it, by the half under the pointer', async () => {
+  const drag = await read('lib/tabs/canvas-drag.ts');
+  assert.match(drag, /export function liveCanvasDropAt\(x: number, y: number, sourceIds: string\[\]\): CanvasDrop \| null \{\s*if \(overviewOpen\(\) \|\| !sourceIds\.length\) return null;/, 'only without the overview');
+  assert.match(drag, /if \(sourceIds\.some\(id => members\.includes\(id\)\)\) return null;/, 'a tab never docks into its own window');
+  assert.match(drag, /const side = px < OVERVIEW_SIDE \? "left" : px > 1 - OVERVIEW_SIDE \? "right" : py < 0\.5 \? "top" : "bottom";/, 'the same zones as an overview card');
+  assert.match(drag, /return \{ targetId, paneId: "root", side, rect, action: "dock", label \};/);
+  assert.match(drag, /const live = !overviewOpen\(\);\s*const dock = \(\) => \{\s*if \(live\) captureCanvasTransition\(\{\}, \{ \[sourceId\]: drop\.side/, 'the docked tab slides in from its side');
+  const tab = await read('components/center-tabs/use-tab-pointer-drag.ts');
+  assert.match(tab, /if \(canvasDrop && !overviewOpen\(\)\) showLiveCanvasDrop\(canvasDrop\);\s*else clearDropPreview\(\);/, 'the cue shows the half it will take');
 });

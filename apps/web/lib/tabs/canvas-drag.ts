@@ -1,6 +1,7 @@
 import { useCenterTabs } from "./center-tabs-store";
 import { rowLayout, type CanvasDockSide, type Rect } from "./canvas-layout";
-import { closeOverview, holdOverviewLanding, landOverview, openOverview, overviewDropAt, overviewHeld, useCanvasOverview } from "./canvas-overview";
+import { closeOverview, holdOverviewLanding, landOverview, openOverview, OVERVIEW_SIDE, overviewDropAt, overviewHeld, overviewOpen, useCanvasOverview } from "./canvas-overview";
+import { captureCanvasTransition } from "./canvas-transition";
 import { captureVisiblePanes } from "./window-snapshots";
 import { findCenterTabGroup } from "./center-tab-groups";
 import { rememberCanvas } from "./canvas-history";
@@ -89,13 +90,57 @@ export function commitCanvasDrop(drop: CanvasDrop, sourceIds: string[]): boolean
     if (useCanvasOverview.getState().mode === "browse") useCanvasOverview.setState({ sourceIds: [] });
     return true;
   }
+  // Without the overview the tab lands on the live canvas: it slides in
+  // from its side as the window gives up the room.
+  const live = !overviewOpen();
   const dock = () => {
+    if (live) captureCanvasTransition({}, { [sourceId]: drop.side as "left" | "right" | "top" | "bottom" });
     rememberCanvas([drop.targetId, ...sourceIds, ...(group ? [group.id, ...group.memberIds] : [])], layout);
     useCenterTabs.getState().dockCanvas(sourceIds, drop.targetId, drop.paneId, drop.side);
   };
   // A drop landed through the overview commits when its zoom is done.
   if (!landOverview(dock)) dock();
   return true;
+}
+const LIVE_SIDE_LABEL: Record<CanvasDockSide & ("left" | "right" | "top" | "bottom"), [string, string]> = {
+  left: ["Release to split, on the left", "松开以分屏，放在左边"],
+  right: ["Release to split, on the right", "松开以分屏，放在右边"],
+  top: ["Release to split, on top", "松开以分屏，放在上面"],
+  bottom: ["Release to split, below", "松开以分屏，放在下面"],
+};
+/** A tab dragged out of the strip over the window on screen, with no
+ *  overview open: it docks beside that window, on the side under the
+ *  pointer (outer quarters left and right, otherwise the top or bottom
+ *  half), and the cue shows the half it will take. Null off the canvas,
+ *  or when the dragged tab is already part of the window shown. */
+export function liveCanvasDropAt(x: number, y: number, sourceIds: string[]): CanvasDrop | null {
+  if (overviewOpen() || !sourceIds.length) return null;
+  const root = document.querySelector<HTMLElement>("[data-canvas-root]");
+  const s = useCenterTabs.getState();
+  const targetId = s.activeId;
+  if (!root || !targetId) return null;
+  const members = findCenterTabGroup(s.groups, targetId)?.memberIds ?? [targetId];
+  if (sourceIds.some(id => members.includes(id))) return null;
+  const b = root.getBoundingClientRect();
+  if (b.width <= 0 || b.height <= 0 || x < b.left || x > b.right || y < b.top || y > b.bottom) return null;
+  const px = (x - b.left) / b.width, py = (y - b.top) / b.height;
+  const side = px < OVERVIEW_SIDE ? "left" : px > 1 - OVERVIEW_SIDE ? "right" : py < 0.5 ? "top" : "bottom";
+  const rect: Rect = side === "left" ? { left: b.left, top: b.top, width: b.width / 2, height: b.height }
+    : side === "right" ? { left: b.left + b.width / 2, top: b.top, width: b.width / 2, height: b.height }
+    : side === "top" ? { left: b.left, top: b.top, width: b.width, height: b.height / 2 }
+    : { left: b.left, top: b.top + b.height / 2, width: b.width, height: b.height / 2 };
+  const label = translateText(...LIVE_SIDE_LABEL[side]);
+  return { targetId, paneId: "root", side, rect, action: "dock", label };
+}
+/** The floating cue for a live canvas drop: the half the tab will take. */
+export function showLiveCanvasDrop(drop: CanvasDrop) {
+  showDropPreview(drop.rect, "canvas");
+  if (!preview) return;
+  preview.dataset.dropAction = "dock";
+  const label = preview.querySelector(".canvas-drop-label") ?? document.createElement("span");
+  label.className = "canvas-drop-label";
+  label.textContent = drop.label;
+  if (!label.isConnected) preview.replaceChildren(label);
 }
 export function tabStripDropAt(x: number, y: number): Rect | null {
   const rect = document.querySelector('[role="tablist"]')?.getBoundingClientRect();
