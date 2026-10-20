@@ -399,7 +399,10 @@ questions unanswerable. The 03:00 pass splits files that have grown to
 cover several subjects — every file marked over the size limit becomes a
 directory of part files, each paragraph keeping its block ID — merges
 paragraphs that say the same thing, folds a part file of a paragraph or
-two back into its parent, and repairs links.
+two back into its parent, and repairs links. Each oversized file, largest
+first, gets an organizer run of its own before the run over the whole
+workspace: a single run over every file stops before it reaches a large
+file late in the list.
 
 It also runs on demand: `openprogram memory sleep`.
 

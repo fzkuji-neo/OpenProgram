@@ -901,6 +901,17 @@ def backfill(
         }
 
 
+def oversized_topics(root: Path) -> list[str]:
+    """Topic files past the split size, largest first (``topics/core.md`` aside)."""
+    from .management.workspace import TOPIC_SPLIT_BYTES
+    sizes = [
+        (path.stat().st_size, path.relative_to(root).as_posix())
+        for path in (root / "topics").rglob("*.md")
+        if path.relative_to(root).as_posix() != "topics/core.md"
+    ]
+    return [rel for size, rel in sorted(sizes, reverse=True) if size > TOPIC_SPLIT_BYTES]
+
+
 def reorganize(*, model: str | None = None) -> dict[str, Any]:
     """Rewrite every topic file. Called by the nightly scheduler.
 
@@ -926,7 +937,14 @@ def reorganize(*, model: str | None = None) -> dict[str, Any]:
         return {"status": "empty", "topics": 0, "changed_files": []}
     try:
         with workspace_write_lock(root, timeout_s=5.0):
-            audit = organize_topics(root, agent=_agent(model))
+            agent = _agent(model)
+            audit: list[dict[str, Any]] = []
+            # One pass over every file runs out before it reaches a large
+            # file late in the list, so each oversized file gets a pass of
+            # its own first, then the whole workspace gets the usual one.
+            for path in oversized_topics(root):
+                audit += organize_topics(root, agent=agent, touched={path})
+            audit += organize_topics(root, agent=agent)
             RuntimeStateStore(root).git_commit("memory: reorganize topics")
     except TransactionError as exc:
         if exc.code == "CONCURRENT_UPDATE":

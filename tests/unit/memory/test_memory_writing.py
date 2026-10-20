@@ -1040,3 +1040,27 @@ def test_structure_marks_topic_files_that_need_splitting():
         "split into topics/projects/demo/)")
     assert "split" not in _topic_size_note(Path("topics/core.md"), big)
     assert _topic_size_note(Path("topics/a.md"), "short") == "  (1 KB)"
+
+
+def test_reorganize_gives_each_oversized_topic_its_own_pass(tmp_path, monkeypatch):
+    import contextlib
+    import openprogram.memory as memory
+    from openprogram.memory import store, writing
+    from openprogram.memory.management.workspace import TOPIC_SPLIT_BYTES
+    topics = tmp_path / "topics" / "projects"
+    topics.mkdir(parents=True)
+    (topics / "big.md").write_text("x" * (TOPIC_SPLIT_BYTES * 3))
+    (topics / "bigger.md").write_text("x" * (TOPIC_SPLIT_BYTES * 4))
+    (topics / "small.md").write_text("x")
+    (tmp_path / "topics" / "core.md").write_text("x" * (TOPIC_SPLIT_BYTES * 2))
+    calls = []
+    monkeypatch.setattr(memory, "is_enabled", lambda: True)
+    monkeypatch.setattr(store, "ensure", lambda: tmp_path)
+    monkeypatch.setattr(writing, "workspace_write_lock", lambda *a, **k: contextlib.nullcontext())
+    monkeypatch.setattr(writing, "_agent", lambda model: object())
+    monkeypatch.setattr(writing, "organize_topics",
+                        lambda root, *, agent, touched=None: calls.append(touched) or [])
+    monkeypatch.setattr(writing, "RuntimeStateStore",
+                        lambda root: type("S", (), {"git_commit": lambda self, msg: None})())
+    assert writing.reorganize()["status"] == "ok"
+    assert calls == [{"topics/projects/bigger.md"}, {"topics/projects/big.md"}, None]
