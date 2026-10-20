@@ -5,6 +5,9 @@
 /* Geometry and colour come from buttonVariants (elevated, sm); unlayered
    rules here would override those utilities, so only the gap is set. */
 .button { gap:6px; }
+/* Download is a link styled as a button: it keeps the buttons' arrow
+   cursor rather than the browser's link hand. */
+a.button { cursor:default; }
 /* The pressed mode (Preview / Edit) sits flat and a step darker than the
    raised buttons beside it. */
 .active { background:color-mix(in srgb, var(--text-bright) 9%, var(--bg-input)); color:var(--text-bright); box-shadow:none; }
