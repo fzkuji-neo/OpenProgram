@@ -2,12 +2,16 @@
 
 import React, { useLayoutEffect, useState } from "react";
 import { SolarIcon } from "@/components/solar-icons";
+import { useTranslation } from "@/lib/i18n";
 
 /** Drop-overlay positioned over the central chat column rather than
  *  the whole window. Anchored to ``#chatArea`` by bounding rect so
  *  the sidebars stay clear. Falls back to centred-of-viewport when
- *  the element isn't found (settings / functions / etc routes). */
+ *  the element isn't found (settings / functions / etc routes).
+ *  Colours are theme tokens: a scrim of the page's own background and
+ *  the app's card material, so it reads right in light and dark. */
 export function ScopedDropOverlay() {
+  const { text } = useTranslation();
   const [rect, setRect] = useState<DOMRect | null>(null);
   useLayoutEffect(() => {
     function measure() {
@@ -40,7 +44,7 @@ export function ScopedDropOverlay() {
       style={{
         ...style,
         zIndex: 10_000,
-        background: "rgba(10,10,12,0.55)",
+        background: "color-mix(in srgb, var(--bg-primary) 65%, transparent)",
         backdropFilter: "blur(2px)",
         display: "flex",
         alignItems: "center",
@@ -53,10 +57,11 @@ export function ScopedDropOverlay() {
       <div
         style={{
           padding: "32px 48px",
-          borderRadius: 14,
-          border: "2px dashed rgba(255,255,255,0.4)",
-          background: "rgba(20,20,24,0.85)",
-          color: "var(--text-primary, #f5f5f5)",
+          borderRadius: 16,
+          border: "1.5px dashed color-mix(in srgb, var(--accent-blue) 55%, transparent)",
+          background: "var(--bg-input)",
+          boxShadow: "var(--composer-shadow-focus)",
+          color: "var(--text-bright)",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -64,13 +69,15 @@ export function ScopedDropOverlay() {
           fontFamily: "var(--font-sans)",
         }}
       >
-        <SolarIcon name="paperclip" size={36} motionPreset="none" aria-hidden />
+        <SolarIcon name="paperclip" size={36} motionPreset="none" aria-hidden style={{ color: "var(--accent-blue)" }} />
         <span style={{ fontSize: 16, fontWeight: 600 }}>
-          Drop to attach
+          {text("Drop to attach", "拖到这里添加附件")}
         </span>
-        <span style={{ fontSize: 12, opacity: 0.7 }}>
-          Images preview inline · text files inline as content ·
-          others attach by name
+        <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+          {text(
+            "Images preview inline · text files inline as content · others attach by name",
+            "图片直接预览 · 文本文件按内容附上 · 其他文件按名称附上",
+          )}
         </span>
       </div>
     </div>

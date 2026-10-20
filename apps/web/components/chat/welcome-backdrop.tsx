@@ -12,7 +12,7 @@ import { useWelcomeBackdropPref } from "@/lib/prefs/welcome-backdrop-pref";
 
 import styles from "./welcome-screen.module.css";
 
-type Palette = { ink: string };
+type Palette = { dark: boolean };
 type Scene = {
   init(width: number, height: number): void;
   draw(ctx: CanvasRenderingContext2D, t: number, width: number, height: number, pal: Palette): void;
@@ -66,7 +66,7 @@ function codeRain(): Scene {
       const dt = last ? Math.min(0.05, t - last) : 0.016;
       last = t;
       frame++;
-      const dark = !isDark(pal.ink); // 深色主题：正文墨色是浅的。
+      const dark = pal.dark;
       const tail = dark ? "#22e35b" : "#118a3a";
       const head = dark ? "#eafff0" : "#063d18";
       ctx.font = `600 ${CELL - 3}px ui-monospace, "SF Mono", Menlo, monospace`;
@@ -115,25 +115,11 @@ function codeRain(): Scene {
   };
 }
 
-/** True when a CSS color (hex or rgb()) is dark, i.e. the theme is light. */
-function isDark(color: string): boolean {
-  let r = 0, g = 0, b = 0;
-  const hex = color.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
-  if (hex) {
-    const v = hex[1].length === 3 ? hex[1].replace(/./g, "$&$&") : hex[1];
-    [r, g, b] = [0, 2, 4].map((o) => Number.parseInt(v.slice(o, o + 2), 16));
-  } else {
-    const m = color.match(/\d+(\.\d+)?/g);
-    if (m) [r, g, b] = m.map(Number);
-  }
-  return 0.299 * r + 0.587 * g + 0.114 * b < 128;
-}
-
-function readPalette(el: Element): Palette {
-  const css = getComputedStyle(el);
-  return {
-    ink: css.getPropertyValue("--text-primary").trim() || "#444",
-  };
+/** The resolved light/dark mode the theme bootstrap writes on <html>.
+ *  Reading the ink colour instead broke on oklch() tokens (Vivid), which
+ *  drew the dark-mode rain on a light page. */
+function readPalette(): Palette {
+  return { dark: document.documentElement.dataset.themeMode === "dark" };
 }
 
 export function WelcomeBackdrop() {
@@ -151,11 +137,11 @@ function CodeRainCanvas() {
     const scene = codeRain();
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let width = 0, height = 0, frame = 0, raf = 0;
-    let palette = readPalette(canvas);
+    let palette = readPalette();
 
     const render = (now: number) => {
       // 主题切换后每秒重读一次 token，不必订阅主题事件。
-      if (frame++ % 60 === 0) palette = readPalette(canvas);
+      if (frame++ % 60 === 0) palette = readPalette();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const dpr = window.devicePixelRatio || 1;
