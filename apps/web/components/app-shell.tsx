@@ -103,6 +103,8 @@ const WebTabPane = dynamic(
 
 import { PersistentFilePanes } from "./center-tabs/persistent-file-panes";
 
+const LONE_PANE = { left: "0px", top: "0px", width: "100%", height: "100%" };
+
 // Scripts shared by every page — loaded once on shell mount and kept alive for
 // the whole session. Page-specific scripts live in PageShell. Files sit in
 // apps/web/public/js/shared/ so the static tree groups them together.
@@ -537,8 +539,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     // No per-pane title bar: content fills its pane. In a multi-pane layout
     // every pane is its own floating card (see `.center-col[data-split]` in
     // base.css), so it keeps a 1px inset and the cards' 16px corners; a lone
-    // pane is flush inside the centre card.
-    const css = zoomed ? cssGeometry.viewport : cssGeometry.panes.get(p.id)!;
+    // pane is flush inside the centre card, whose rounded clip then holds
+    // its content. A web tab keeps the canvas gap: its native view paints
+    // square corners the card cannot clip.
+    const web = tabs.find(t => t.id === tabId)?.kind === "web";
+    const css = !canvasInset && !web ? LONE_PANE : zoomed ? cssGeometry.viewport : cssGeometry.panes.get(p.id)!;
     return { position:"absolute",...css,minWidth:0,minHeight:0,overflow:"hidden",borderRadius:canvasInset ? 16 : undefined,display:hidden?"none":"flex",flexDirection:"column" };
   }
 

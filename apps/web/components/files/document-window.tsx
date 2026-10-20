@@ -38,7 +38,10 @@ export function DocumentWindow({ projectId, path, sessionId, readOnly = false, s
   const host = useRef<HTMLDivElement>(null);
   const refreshIcon = useActionIconAnimation(state.restoring || state.renaming);
   const [updateError, setUpdateError] = useState<string | null>(null);
-  const [mode, setMode] = useState<"preview" | "edit">("preview");
+  // An editable Office file has no Preview/Edit switch: it opens writable.
+  const officeAlwaysEdit = !readOnly && fileCapabilities(path).preview === "office" && !!officeCapability(path)?.editable;
+  const restingMode = officeAlwaysEdit ? "edit" : "preview";
+  const [mode, setMode] = useState<"preview" | "edit">(restingMode);
   const [converting, setConverting] = useState(false);
   const conversion = useRef<{ path: string; key: string; bytes: File } | null>(null);
   const imageConversion = useRef<{ source: Blob; path: string; key: string; bytes: File } | null>(null);
@@ -60,7 +63,7 @@ export function DocumentWindow({ projectId, path, sessionId, readOnly = false, s
     if (!sectionNavigation) return;
     selectionRequest.current++;
     setSelected(null);
-    setMode("preview");
+    setMode(restingMode);
     if (!state.snapshot && state.status === "error") sectionNavigation.consume(sectionNavigation.request.sequence);
     if (!path.toLowerCase().endsWith(".md") || state.snapshot?.binary) {
       setError(text("Section not found.", "未找到章节。"));
@@ -205,7 +208,7 @@ export function DocumentWindow({ projectId, path, sessionId, readOnly = false, s
   async function showCurrent() {
     await perform(async () => {
       if (isOffice && !readOnly) await controller.flush();
-      selectionRequest.current++; setSelected(null); setMode("preview");
+      selectionRequest.current++; setSelected(null); setMode(restingMode);
     });
   }
   async function restore(version: string, side: "before" | "after" = "after") {
@@ -254,11 +257,11 @@ export function DocumentWindow({ projectId, path, sessionId, readOnly = false, s
         onClick={() => void refresh()} {...refreshIcon.handlers}>
         <RefreshCwIcon ref={refreshIcon.ref} size={14} aria-hidden />{text("Refresh", "刷新")}
       </button>
-      <button className={`${styles.button} ${mode === "preview" && !selected ? styles.active : ""}`}
-        aria-pressed={mode === "preview" && !selected} onClick={() => void showCurrent()}>{isHtml ? text("Source", "源代码") : text("Preview", "预览")}</button>
+      {!isOffice && <button className={`${styles.button} ${mode === "preview" && !selected ? styles.active : ""}`}
+        aria-pressed={mode === "preview" && !selected} onClick={() => void showCurrent()}>{isHtml ? text("Source", "源代码") : text("Preview", "预览")}</button>}
       {canOpenPage && <button type="button" className={styles.button} disabled={state.restoring || state.renaming}
         onClick={() => void openPage()}>{text("View page", "网页预览")}</button>}
-      {!readOnly && (isText || (isOffice && office?.editable) || isRaster) && <button className={`${styles.button} ${mode === "edit" && !selected ? styles.active : ""}`}
+      {!readOnly && (isText || isRaster) && <button className={`${styles.button} ${mode === "edit" && !selected ? styles.active : ""}`}
         disabled={!state.snapshot || state.restoring || state.renaming} aria-pressed={mode === "edit" && !selected}
         onClick={() => { setSelected(null); setEditorOpened(true); setMode("edit"); }}>{text("Edit", "编辑")}</button>}
       {!readOnly && office?.conversionRequired && !selected && <button className={styles.button}
