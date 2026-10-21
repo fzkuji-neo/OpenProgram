@@ -22,7 +22,6 @@ import {
   MENU_PANEL,
   MENU_SEPARATOR,
   MENU_TRAILING,
-  SHORTCUT,
   itemCls,
 } from "@/components/chat/top-bar/menu-styles";
 import { getSocket } from "@/lib/runtime-bridge/state";
@@ -288,7 +287,7 @@ function shade(color: string, index: number): string {
 function Trailing({ value, chevron }: { value: string; chevron?: "right" | "down" | null }) {
   return (
     <span className={MENU_TRAILING}>
-      <span className={SHORTCUT}>{value}</span>
+      <span className="text-xs text-text-muted">{value}</span>
       {chevron === "right" ? <ChevronRight className="size-4 text-text-muted" />
         : chevron === "down" ? <ChevronDown className="size-4 text-text-muted" />
         : <span className={CHECK_SLOT_PAD} />}
@@ -510,7 +509,7 @@ export function ContextBreakdownPanel({ sessionId, headId, onClose }: Props) {
                 <div className={GROUP_LABEL}>
                   <span className="flex-1">{group.title}</span>
                   {!group.noTotal && (
-                    <span className="tabular-nums">
+                    <span>
                       {fmt(group.items.reduce((sum, item) => sum + item.tokens, 0))}
                     </span>
                   )}
@@ -547,8 +546,8 @@ export function ContextBreakdownPanel({ sessionId, headId, onClose }: Props) {
             )}
           </div>
           <div className="flex items-baseline gap-1.5 px-1.5 pt-0.5 text-sm">
-            <span className="tabular-nums text-text-bright">{fmt(totalUsed)} / {fmt(win)}</span>
-            <span className="text-xs tabular-nums text-text-muted">{(usedPct * 100).toFixed(1)}%</span>
+            <span className="text-text-bright">{fmt(totalUsed)} / {fmt(win)}</span>
+            <span className="text-xs text-text-muted">{(usedPct * 100).toFixed(1)}%</span>
           </div>
           <div className="px-1.5 pt-1.5 pb-1">
             <StackedBar
