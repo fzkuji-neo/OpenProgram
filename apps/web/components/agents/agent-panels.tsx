@@ -59,22 +59,26 @@ export function ContextPanel({ draft, update, text }: Props) {
   </>;
 }
 export function AdvancedPanel({ draft, update, text }: Props) {
-  const [workspace, setWorkspace] = useState<{ path: string; files: Array<{ name: string; path: string; exists: boolean }> } | null>(null);
+  const [agentsMd, setAgentsMd] = useState<{ global: { path: string; exists: boolean }; working_dir: string; loaded: string[] } | null>(null);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
   const [copied, setCopied] = useState("");
   useEffect(() => {
-    let active = true; const controller = new AbortController(); setWorkspace(null); setError("");
-    void jsonFetch<NonNullable<typeof workspace>>(`/api/agents/${encodeURIComponent(draft.id)}/workspace`, { signal: controller.signal }).then((data) => { if (active) setWorkspace(data); }).catch((cause) => { if (active && cause.name !== "AbortError") setError(String(cause.message || cause)); });
+    let active = true; const controller = new AbortController(); setAgentsMd(null); setError("");
+    void jsonFetch<NonNullable<typeof agentsMd>>("/api/agents-md", { signal: controller.signal }).then((data) => { if (active) setAgentsMd(data); }).catch((cause) => { if (active && cause.name !== "AbortError") setError(String(cause.message || cause)); });
     return () => { active = false; controller.abort(); };
-  }, [draft.id, attempt]);
+  }, [attempt]);
+  const agentsMdFiles = agentsMd ? [
+    { path: agentsMd.global.path, exists: agentsMd.global.exists, scope: text("Every project", "所有项目") },
+    ...agentsMd.loaded.filter((path) => path !== agentsMd.global.path).map((path) => ({ path, exists: true, scope: path.slice(0, path.lastIndexOf("/") + 1) })),
+  ] : [];
   async function copy(path: string) {
     try { await navigator.clipboard.writeText(path); setCopied(path); }
     catch { setError(text("Unable to copy this path", "无法复制路径")); }
   }
-  return <><Intro title={text("Advanced", "高级")}>{text("Channel identity, optional instructions and workspace files.", "频道身份、可选指令与 Workspace 文件。")}</Intro>
+  return <><Intro title={text("Advanced", "高级")}>{text("Channel identity, optional instructions and AGENTS.md.", "频道身份、可选指令与 AGENTS.md。")}</Intro>
     <div className={styles.formGrid}><label>{text("Channel identity", "频道身份")}<input value={draft.identity.name} maxLength={80} onChange={(event) => update({ identity: { ...draft.identity, name: event.target.value } })} /></label><label>{text("Mention patterns", "提及规则")}<input value={draft.identity.mention_patterns.join(", ")} onChange={(event) => update({ identity: { ...draft.identity, mention_patterns: event.target.value.split(",").map((item) => item.trim()).filter(Boolean) } })} /><small>{text("Comma-separated patterns.", "使用逗号分隔。")}</small></label></div>
     <label className={styles.dialogField}>{text("System prompt", "系统指令")}<textarea className={styles.instructionsField} rows={6} maxLength={100000} value={draft.system_prompt} onChange={(event) => update({ system_prompt: event.target.value })} /><small>{text("Optional. Leave empty to use instructions from the call and Context.", "可选。留空时使用调用处与 Context 提供的指令。")}</small></label>
-    <section className={styles.workspaceSection}><h4>{text("Workspace files", "Workspace 文件")}</h4><p className={styles.note}>{text("Files are managed in the Agent workspace. Their contents are not copied when duplicating an Agent.", "文件在 Agent Workspace 中管理。复制 Agent 时不复制文件内容。")}</p>{error ? <p role="alert" className={styles.inlineError}>{error} <button type="button" onClick={() => setAttempt((value) => value + 1)}>{text("Retry", "重试")}</button></p> : workspace ? <><p className={styles.workspacePath}>{workspace.path}</p>{workspace.files.map((file) => <div className={styles.workspaceFile} key={file.name}><span><FileTextIcon size={16} aria-hidden /></span><div><strong>{file.name}</strong><small>{file.exists ? file.path : text("Optional file not created", "可选文件尚未创建")}</small></div><AgentButton variant="ghost" icon={CopyIcon} aria-label={text(`Copy ${file.name} path`, `复制 ${file.name} 路径`)} onClick={() => void copy(file.path)}>{copied === file.path ? text("Copied", "已复制") : text("Copy path", "复制路径")}</AgentButton></div>)}</> : <p role="status">{text("Loading workspace…", "正在加载 Workspace…")}</p>}</section>
+    <section className={styles.workspaceSection}><h4>AGENTS.md</h4><p className={styles.note}>{text("Every Agent reads AGENTS.md: the global file, then each one from the project root down to the working directory. One in a subdirectory is read when the Agent opens a file there. Closer files win on a conflict.", "所有 Agent 都读 AGENTS.md：先全局文件，再从项目根到工作目录逐级读取；子目录里的在 Agent 打开那里的文件时读取。离得越近越优先。")}</p>{error ? <p role="alert" className={styles.inlineError}>{error} <button type="button" onClick={() => setAttempt((value) => value + 1)}>{text("Retry", "重试")}</button></p> : agentsMd ? <><p className={styles.workspacePath}>{text("Working directory: ", "工作目录：")}{agentsMd.working_dir}</p>{agentsMdFiles.map((file) => <div className={styles.workspaceFile} key={file.path}><span><FileTextIcon size={16} aria-hidden /></span><div><strong>{file.scope}</strong><small>{file.exists ? file.path : text(`Not created yet: ${file.path}`, `尚未创建：${file.path}`)}</small></div><AgentButton variant="ghost" icon={CopyIcon} aria-label={text(`Copy ${file.path}`, `复制 ${file.path}`)} onClick={() => void copy(file.path)}>{copied === file.path ? text("Copied", "已复制") : text("Copy path", "复制路径")}</AgentButton></div>)}</> : <p role="status">{text("Loading AGENTS.md…", "正在加载 AGENTS.md…")}</p>}</section>
   </>;
 }

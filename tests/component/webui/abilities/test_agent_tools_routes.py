@@ -82,10 +82,7 @@ def test_agent_lifecycle_and_complete_configuration(tmp_path, monkeypatch) -> No
     )
     assert created.status_code == 201
     assert created.json()["agent"]["id"] == "research"
-    workspace = tmp_path / "agents" / "research" / "workspace"
-    assert (workspace / "AGENTS.md").is_file()
-    assert (workspace / "SOUL.md").is_file()
-    assert (workspace / "USER.md").is_file()
+    assert not (tmp_path / "agents" / "research" / "workspace").exists()
 
     version = created.json()["agent"]["updated_at"]
     updated = client.patch(
@@ -262,15 +259,23 @@ def test_agent_duplicate_copies_configuration_without_sessions(tmp_path, monkeyp
         tmp_path / "agents" / "main_copy" / "sessions" / "history.json"
     ).exists()
 
-    workspace = client.get("/api/agents/main_copy/workspace")
-    assert workspace.status_code == 200
-    payload = workspace.json()
-    assert Path(payload["path"]).parts[-3:] == ("agents", "main_copy", "workspace")
-    assert [row["name"] for row in payload["files"]] == [
-        "AGENTS.md",
-        "SOUL.md",
-        "USER.md",
-        "TOOLS.md",
+    project = tmp_path / "repo"
+    (project / ".git").mkdir(parents=True)
+    (project / "pkg").mkdir()
+    (project / "AGENTS.md").write_text("root rules", encoding="utf-8")
+    (project / "pkg" / "AGENTS.md").write_text("pkg rules", encoding="utf-8")
+    monkeypatch.setenv("OPENPROGRAM_WORKDIR", str(project / "pkg"))
+    from openprogram.context import agents_md as agents_md_module
+    monkeypatch.setattr(agents_md_module, "global_path", lambda: tmp_path / "AGENTS.md")
+    agents_md = client.get("/api/agents-md")
+    assert agents_md.status_code == 200
+    payload = agents_md.json()
+    assert payload["global"]["exists"] is False
+    assert Path(payload["global"]["path"]).name == "AGENTS.md"
+    assert payload["project_root"] == str(project.resolve())
+    assert payload["loaded"] == [
+        str(project.resolve() / "AGENTS.md"),
+        str(project.resolve() / "pkg" / "AGENTS.md"),
     ]
 
     generated = client.post(

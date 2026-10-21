@@ -13,7 +13,7 @@ Choose **New Agent**, enter a name and choose a model, then edit its configurati
 | Memory | Off, read only or read and write; readable and writable spaces |
 | Context | Channel conversation isolation, idle reset and daily reset |
 | Always-on | Wake on a schedule to work on a standing goal and report findings ([Always-on Agents](always-on-agents.md)) |
-| Advanced | Channel identity, mention patterns, optional instructions and workspace file paths |
+| Advanced | Channel identity, mention patterns, optional instructions, and which [AGENTS.md](agents-md.md) files apply |
 
 Changes across sections share one draft. **Save** writes the complete configuration. Changing Agents or starting a destructive action offers Save, Discard or Cancel. Failed saves retain the draft. If another editor saved first, compare your draft with the latest version before choosing which to keep. Keeping your draft does not immediately overwrite the newer version; review it and save again.
 
@@ -73,4 +73,4 @@ If **Require memory to be available** is enabled, unavailable memory prevents ex
 
 ## Duplicate and delete
 
-Duplicate copies the configuration, with a new ID. It does not copy conversations, workspace file contents or private memory. A `self` memory reference resolves to the new Agent's separate space; an explicit legacy shared reference still points to the shared store. The default Agent cannot be deleted until another Agent is made default.
+Duplicate copies the configuration, with a new ID. It does not copy conversations or private memory. A `self` memory reference resolves to the new Agent's separate space; an explicit legacy shared reference still points to the shared store. The default Agent cannot be deleted until another Agent is made default.

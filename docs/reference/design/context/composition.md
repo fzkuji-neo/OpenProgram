@@ -125,11 +125,11 @@ The registered components are listed below with their `order` and `condition`. T
 
 | order | Component | condition | Registered as |
 |---|---|---|---|
-| 1 | project identity (AGENTS.md) | project file present and edited | workspace_files |
+| 1 | AGENTS.md chain (global, then project root down to cwd) | any file present | agents_md (`context/agents_md.py`) |
 | 2 | prompt-injection detection (scan 1 before injecting) | when loading project files | pi_shield + detect_injection_patterns |
-| 3 | context file truncation | project file oversized | MAX_WORKSPACE_CHARS=8000 truncation inside workspace_files |
+| 3 | context file truncation | AGENTS.md chain over budget | one 32 KiB budget shared by the chain (`agents_md.MAX_BYTES`), later files cut |
 | 4 | project-level memory | present | — |
-| 5 | USER.md user profile | present and edited | user_profile (loaded by workspace_files via read_user_md) |
+| 5 | user profile | — | not a component: what is learned about the user lives in Memory's Core (L0 memory_global) |
 | 6 | working directory cwd | always | — |
 | 7 | whether in a git repo | in a git repo | git_repo_flag |
 | 8 | session/model/thinking/tier bindings | always | — |
@@ -137,7 +137,7 @@ The registered components are listed below with their `order` and `condition`. T
 | 10 | current date (day granularity) | always | current_date (order 85, L1 tail) |
 | 11 | **unified call tree (history)** | history present | append-grows, completed nodes release io, placed last in L1 |
 
-> Every agent's workspace is seeded with `AGENTS.md`, `SOUL.md` and `USER.md` placeholders. A file still identical to its seed (under the agent's current name or the name in its own heading) is left out, so generic rules are not repeated every turn. What is learned about the user lives in Memory's Core, which every agent sees; `USER.md` is only for what the owner wants to state to one agent, and `AGENTS.md` for the rules the owner writes for it.
+> Instructions come from one file name, `AGENTS.md`, layered by directory as Codex and Claude Code do. `agents_md` puts the global `<state>/AGENTS.md`, then every `AGENTS.md` from the project root (nearest ancestor of the turn's working directory holding `.git`, else the working directory alone) down to the working directory, each in an `<agents_md path applies_to>` block, most general first, so the closer file wins. The working directory is the turn's bound worktree or project folder, else the default workdir — the same one the tool-runtime block states. An `AGENTS.md` the turn reaches later — below the working directory or in another project — is not in the system prompt: `agent_loop._attach_nested_agents_md` appends it to the first `read`/`write`/`edit` result touching a file there, once per session, which keeps the cached prefix stable. Each file is scanned by `detect_injection_patterns` and flagged, not dropped. There are no per-agent persona files: an agent's own instructions are its `system_prompt` (inline_prompt), and what is learned about the user lives in Memory's Core. Worker startup retires the old `agents/<id>/workspace/` files: untouched seeds are deleted, edited ones appended to `system_prompt` and moved to `workspace/.retired/`.
 
 > The date sits at the **tail of L1**, not in L0. It is the one component that changes on its own — at midnight, with nothing in the session having changed. Placed in L0 it would precede the tools, memory, and workspace blocks, so a rollover mid-session would invalidate the entire cached prefix. At the L1 tail only what follows it is lost.
 

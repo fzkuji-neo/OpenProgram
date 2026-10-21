@@ -40,11 +40,11 @@ def test_assemble_orders_by_layer_then_order():
 
 
 def test_real_registry_has_expected_layers():
-    # identity/inline/skills/memory in L0; workspace_files in L1.
+    # identity/inline/skills/memory in L0; agents_md in L1.
     l0 = {c.name for c in comp._REGISTRY["L0"]}
     l1 = {c.name for c in comp._REGISTRY["L1"]}
     assert {"identity", "inline_prompt", "skills_index", "memory_global"} <= l0
-    assert "workspace_files" in l1
+    assert "agents_md" in l1
 
 
 def test_build_system_prompt_fence_and_identity_first():
@@ -184,7 +184,7 @@ def test_pi_shield_in_l1():
 def test_pi_shield_before_workspace():
     l1_sorted = sorted(comp._REGISTRY["L1"], key=lambda c: c.order)
     names = [c.name for c in l1_sorted]
-    assert names.index("pi_shield") < names.index("workspace_files")
+    assert names.index("pi_shield") < names.index("agents_md")
 
 
 def test_pi_shield_content():
@@ -221,71 +221,6 @@ def test_system_prompt_assembles_l0_and_l1_only():
         comp._REGISTRY = saved_reg
 
 
-# Workspace files truncation
-
-from unittest.mock import patch as _ws_patch
-from openprogram.context.components import MAX_WORKSPACE_CHARS, _build_workspace_files
-
-
-def test_workspace_truncation_short_unchanged():
-    """Content under the limit passes through unmodified."""
-    short = "x" * 100
-    with _ws_patch(
-        "openprogram.agent.management.workspace.read_agents_md",
-        return_value=short,
-    ), _ws_patch(
-        "openprogram.agent.management.workspace.read_soul_md",
-        return_value=None,
-    ), _ws_patch(
-        "openprogram.agent.management.workspace.read_user_md",
-        return_value=None,
-    ):
-        result = _build_workspace_files({"id": "test"})
-    assert result == short
-    assert "truncated" not in result
-
-
-def test_workspace_truncation_oversized():
-    """Content exceeding MAX_WORKSPACE_CHARS is truncated with a note."""
-    big = "A" * (MAX_WORKSPACE_CHARS + 5000)
-    with _ws_patch(
-        "openprogram.agent.management.workspace.read_agents_md",
-        return_value=big,
-    ), _ws_patch(
-        "openprogram.agent.management.workspace.read_soul_md",
-        return_value=None,
-    ), _ws_patch(
-        "openprogram.agent.management.workspace.read_user_md",
-        return_value=None,
-    ):
-        result = _build_workspace_files({"id": "test"})
-    assert result.startswith("A" * 100)
-    assert "truncated" in result
-    assert f"{MAX_WORKSPACE_CHARS + 5000} chars total" in result
-    body = result.split("\n... (truncated,")[0]
-    assert len(body) == MAX_WORKSPACE_CHARS
-
-
-def test_workspace_truncation_exact_limit():
-    """Content exactly at the limit is NOT truncated."""
-    exact = "B" * MAX_WORKSPACE_CHARS
-    with _ws_patch(
-        "openprogram.agent.management.workspace.read_agents_md",
-        return_value=exact,
-    ), _ws_patch(
-        "openprogram.agent.management.workspace.read_soul_md",
-        return_value=None,
-    ), _ws_patch(
-        "openprogram.agent.management.workspace.read_user_md",
-        return_value=None,
-    ):
-        result = _build_workspace_files({"id": "test"})
-    assert result == exact
-    assert "truncated" not in result
-
-
-
-
 # current_date sits at the L1 tail
 #
 # The date is the only component that changes on its own — at midnight,
@@ -299,7 +234,7 @@ def test_current_date_registered_at_the_l1_tail():
     assert "current_date" in l1, "date must be an L1 component"
     assert "current_date" not in {c.name for c in comp._REGISTRY["L0"]}
     # After every stable block: tools, catalog, workspace, memory.
-    for stable in ("tool_runtime", "deferred_catalog", "workspace_files"):
+    for stable in ("tool_runtime", "deferred_catalog", "agents_md"):
         assert l1["current_date"] > l1[stable], stable
 
 
@@ -313,20 +248,3 @@ def test_date_still_reaches_the_system_prompt():
     import datetime
     prompt = comp.build_system_prompt({"id": "main"})
     assert datetime.date.today().strftime("%B %d, %Y") in prompt
-
-
-def test_untouched_seed_files_stay_out_of_the_prompt(tmp_path, monkeypatch):
-    from openprogram.agent.management import workspace
-    from openprogram.context.components import _build_workspace_files
-    from types import SimpleNamespace
-    files = {
-        workspace.AGENTS_FILE: workspace._SEED[workspace.AGENTS_FILE].format(name="Old name"),
-        workspace.SOUL_FILE: "# Helper — persona\n\nDry humour.\n",
-        workspace.USER_FILE: workspace._LEGACY_SEEDS[workspace.USER_FILE][0],
-    }
-    monkeypatch.setattr(workspace, "read_file", lambda agent_id, name: files.get(name))
-    monkeypatch.setattr(workspace, "read_agents_md", lambda a: files[workspace.AGENTS_FILE])
-    monkeypatch.setattr(workspace, "read_soul_md", lambda a: files[workspace.SOUL_FILE])
-    monkeypatch.setattr(workspace, "read_user_md", lambda a: files[workspace.USER_FILE])
-    monkeypatch.setattr(workspace._agents, "get", lambda agent_id: SimpleNamespace(name="Renamed"))
-    assert _build_workspace_files(SimpleNamespace(id="helper")) == "# Helper — persona\n\nDry humour."

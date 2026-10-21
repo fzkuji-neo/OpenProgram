@@ -218,19 +218,19 @@ render_range['subcalls']        in-frame 节点最多保留多少（默认 -1 �
 
 ```
 [1] 身份 banner    "You are <name> (agent_id=<id>). Users may address you via: <mentions>."
-[2] 工作区文件      AGENTS.md  → SOUL.md  → USER.md  （按顺序读三个，空的跳过）
+[2] AGENTS.md 链    全局 ~/.openprogram/AGENTS.md → 项目根 … → 工作目录（共用 32 KiB）
 [3] 内联 prompt    agent.system_prompt  （用户在 agents show 里编辑的）
 [4] Skill 索引     "<available_skills>" + 每份启用 skill 的 name + 描述首行（截 250 字符）+ SKILL.md 绝对路径
 [5] Memory 块      get_backend().system_prompt()  （持久化 memory 快照）
 ```
 
-**为什么是这个顺序**：越靠前的越稳定，prefix cache 命中率越高。身份和工作区文件是几乎不变的；inline prompt 偶尔改；skill 列表会随启用/禁用变；memory 每天都在长。把不变的放前面，整段 system prompt 的 cache 命中率最高。
+**为什么是这个顺序**：越靠前的越稳定，prefix cache 命中率越高。身份和 AGENTS.md 是几乎不变的；inline prompt 偶尔改；skill 列表会随启用/禁用变；memory 每天都在长。把不变的放前面，整段 system prompt 的 cache 命中率最高。
 
 **实现细节**
 
 - 接受 AgentSpec 对象或 dict，内部用 `_attr(obj, name, default)` 统一访问，webui 传 profile dict、CLI 传 AgentSpec 都能用
 - 任何一层抛异常都被吞掉，最差情况退化到只返回 `agent.system_prompt`，绝不让系统提示装配失败拖崩整个 turn
-- 工作区文件读取走 `openprogram.agent.management.workspace`，命中文件系统但有内部缓存
+- AGENTS.md 由 `openprogram.context.agents_md` 读取；工作目录以下的 AGENTS.md 在文件工具触及时附在工具结果后（每会话一次）
 - Skill 索引限 20 条，超出显示 `... (+N more)`，避免 skill 多的 agent 把 system prompt 撑爆
 
 ## 2. Token 预算
@@ -746,7 +746,7 @@ FTS5 节点级全文搜索                    有        无            无     
 SessionDB 兼容适配器                   有        —             —          —
 
 分层 system prompt 装配            有            有            有         有
-工作区文件 (AGENTS/SOUL/USER.md)   有            有            有         无
+分层 AGENTS.md                     有            有            有         无
 Skill 索引                         有            有            无         部分
 持久化 memory 块                   有            有            无         无
 

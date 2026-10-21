@@ -24,7 +24,6 @@ Layout on disk:
     <state>/agents.json              # {default_id: "main", order: [...]}
     <state>/agents/<id>/agent.json   # AgentSpec
     <state>/agents/<id>/sessions/... # per-agent session store
-    <state>/agents/<id>/workspace/   # optional per-agent workspace
 """
 from __future__ import annotations
 
@@ -40,7 +39,6 @@ from openprogram.agent.management.manager import (
     set_default,
     agent_dir,
     sessions_dir,
-    workspace_dir,
 )
 
 from openprogram.agent.management.runtime_registry import (
@@ -61,7 +59,6 @@ __all__ = [
     "set_default",
     "agent_dir",
     "sessions_dir",
-    "workspace_dir",
     "get_runtime_for",
     "invalidate",
     "invalidate_all",

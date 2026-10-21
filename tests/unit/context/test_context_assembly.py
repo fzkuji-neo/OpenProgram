@@ -169,6 +169,9 @@ def test_dispatcher_sends_exactly_what_the_assembler_produced(
     == the string the budget counted."""
     profile = {"id": "main", "system_prompt": "INLINE", "tools": []}
     monkeypatch.setattr(D, "_load_agent_profile", lambda agent_id: dict(profile))
+    # The turn binds the session's project directory; AGENTS.md read there
+    # would differ from the test process's cwd.
+    monkeypatch.setattr("openprogram.context.agents_md.chain", lambda cwd=None: [])
 
     budgeted: list[str] = []
     from openprogram.context.engine import ContextEngine  # noqa: F401

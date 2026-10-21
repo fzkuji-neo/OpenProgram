@@ -149,11 +149,11 @@ messages = L1[统一调用树 …追加增长,完成节点释放 io…]      ←
 
 | order | 成分 | condition | 注册为 |
 |---|---|---|---|
-| 1 | 项目身份（AGENTS.md） | 有项目文件且改过 | workspace_files |
+| 1 | AGENTS.md 链（全局，再从项目根到 cwd） | 有任一文件 | agents_md（`context/agents_md.py`） |
 | 2 | Prompt 注入检测（扫 1 再注入） | 加载项目文件时 | pi_shield + detect_injection_patterns |
-| 3 | 上下文文件截断 | 项目文件超大 | workspace_files 内 MAX_WORKSPACE_CHARS=8000 截断 |
+| 3 | 上下文文件截断 | AGENTS.md 链超出预算 | 整条链共用 32 KiB（`agents_md.MAX_BYTES`），截断靠后的文件 |
 | 4 | 项目级记忆 | 有 | — |
-| 5 | USER.md 用户档案 | 有且改过 | user_profile（由 workspace_files 调 read_user_md 加载） |
+| 5 | 用户档案 | — | 不是组件：学到的用户信息放在记忆的 Core（L0 memory_global） |
 | 6 | 工作目录 cwd | 恒 | — |
 | 7 | 是否在 git 仓库 | 在 git 仓库 | git_repo_flag |
 | 8 | session/model/thinking/tier 绑定 | 恒 | — |
@@ -161,7 +161,7 @@ messages = L1[统一调用树 …追加增长,完成节点释放 io…]      ←
 | 10 | 当前日期（日粒度） | 恒 | current_date（order 85，L1 尾部） |
 | 11 | **统一调用树（历史）** | 有历史 | 追加增长、完成节点释放 io，排 L1 最后 |
 
-> 每个 Agent 的工作区会预置 `AGENTS.md`、`SOUL.md` 和 `USER.md` 占位文件。仍与预置内容一致的文件（按 Agent 当前名字或文件自身标题里的名字比对）不注入，避免每轮重复通用规则。从对话里学到的用户信息放在记忆的 Core 里，所有 Agent 都能看到；`USER.md` 只写所有者想亲自告诉某个 Agent 的内容，`AGENTS.md` 写所有者为它定的规则。
+> 指令只来自一个文件名 `AGENTS.md`，像 Codex 和 Claude Code 一样按目录分层。`agents_md` 依次放入全局 `<state>/AGENTS.md`，再从项目根（本轮工作目录最近的含 `.git` 的祖先；没有则只用工作目录）到工作目录逐级的每个 `AGENTS.md`，各自包在 `<agents_md path applies_to>` 块里，从通用到具体，越近越优先。工作目录是本轮绑定的 worktree 或项目文件夹，否则是默认 workdir——与 tool-runtime 块声明的是同一个。本轮之后才碰到的 `AGENTS.md`（工作目录以下或另一个项目里）不进系统提示词：`agent_loop._attach_nested_agents_md` 把它附在第一次触及那里文件的 `read`/`write`/`edit` 结果后面，每个会话一次，这样缓存前缀保持稳定。每个文件都经 `detect_injection_patterns` 扫描，命中只加警告不丢弃。没有按 Agent 的人设文件：Agent 自己的指令是它的 `system_prompt`（inline_prompt），学到的用户信息在记忆的 Core 里。worker 启动时清理旧的 `agents/<id>/workspace/` 文件：未改过的模板删除，改过的追加到 `system_prompt` 并移到 `workspace/.retired/`。
 
 > 日期放在 **L1 尾部**而不是 L0。它是唯一会自己变的成分——会话里什么都没动，一到午夜
 > 它就变。放 L0 时它排在工具、记忆、工作区各块之前，跨零点会作废整条缓存前缀；放到

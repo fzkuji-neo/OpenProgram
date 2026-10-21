@@ -522,6 +522,15 @@ def create_app(*, owner_auth=None, port: int = 18100):
         except Exception as e:  # noqa: BLE001
             _log(f"[plugins] startup failed: {type(e).__name__}: {e}")
 
+    async def _retire_agent_workspace_files():
+        """Per-agent AGENTS.md / SOUL.md / USER.md / TOOLS.md are no longer
+        read: untouched templates go, edited ones move into system_prompt."""
+        try:
+            from openprogram.agent.management.workspace import retire_all
+            await asyncio.to_thread(retire_all)
+        except Exception as e:  # noqa: BLE001
+            _log(f"[agents] retiring workspace files failed: {type(e).__name__}: {e}")
+
     async def _start_skills_watcher():
         """Watch the five skill source directories and push ``skills:changed``
         to all connected WS clients whenever a SKILL.md file is added, edited
@@ -598,6 +607,7 @@ def create_app(*, owner_auth=None, port: int = 18100):
         _reconcile_interrupted_runs,
         _start_mcp_servers,
         _load_plugins,
+        _retire_agent_workspace_files,
         _start_skills_watcher,
         _start_plugin_autoupdate,
     )

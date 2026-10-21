@@ -48,9 +48,9 @@ Intra-layer order: fixed project info (changes only when you switch projects, mo
 |:--:|---|:--:|:--:|:--:|---|
 | 1 | project identity (AGENTS.md / .cursorrules) | ✓ | ✓ | oclaw ✓ | ✓ L1 |
 | 2 | **prompt-injection detection** (scan before 1 is loaded into the prompt) | ✓ | - | - | ✓ L1 (pi_shield + detect_injection_patterns) |
-| 3 | context-file truncation policy (bounds the size of 1) | ✓ | - | - | ✓ L1 (workspace_files truncation, MAX_WORKSPACE_CHARS=8000) |
+| 3 | context-file truncation policy (bounds the size of 1) | ✓ | - | - | ✓ L1 (one 32 KiB budget across the AGENTS.md chain, agents_md.MAX_BYTES) |
 | 4 | project-level memory | ✓ | - | - | ✓ L1 |
-| 5 | **user profile USER.md** | ✓ | - | - | ✓ L1 (user_profile, loaded by workspace_files via read_user_md) |
+| 5 | **user profile USER.md** | ✓ | - | - | ✓ L0 (Memory Core, memory_global) |
 | 6 | working directory cwd | ✓ | - | pi ✓ | ✓ L1 |
 | 7 | whether inside a git repo | ✓ | - | - | ✓ L1 (git_repo_flag) |
 | 8 | session_id / model / thinking / tier | ✓ | - | - | ✓ L1 |

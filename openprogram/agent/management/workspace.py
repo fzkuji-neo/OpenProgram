@@ -1,45 +1,36 @@
-"""Per-agent workspace directory.
+"""Retire the per-agent workspace persona files.
 
-Mirrors OpenClaw's agent-workspace concept (see their concepts docs):
-each agent has a home folder on disk where it keeps operating
-notes, persona files, and any user-created content it references.
+Agents used to carry ``<state>/agents/<id>/workspace/`` with AGENTS.md,
+SOUL.md, USER.md and TOOLS.md seeded from templates. Instructions now come
+from AGENTS.md files layered by directory (``openprogram.context.agents_md``)
+and an agent's own instructions are its ``system_prompt`` setting, so these
+files are no longer read.
 
-Layout:
+:func:`retire` runs once per agent at worker startup:
 
-    <state>/agents/<agent_id>/workspace/
-        AGENTS.md     # how the agent should behave (rules, priorities)
-        SOUL.md       # persona, tone, boundaries
-        USER.md       # who the user is
-        TOOLS.md      # local tool notes (optional)
-
-On agent creation we seed the three required files with minimal
-placeholders so the user can edit them to taste later. The
-``read_*`` helpers are used by the context engine to build the
-system-prompt prefix every turn.
-
-We do NOT sandbox — the workspace is just the default cwd and a
-well-known location for the files above. Tool sandboxing is a
-separate feature we haven't ported yet.
+- a file still equal to the template it was seeded with is deleted;
+- a file someone edited is appended to the agent's ``system_prompt`` under a
+  heading naming it, then moved to ``workspace/.retired/`` so nothing is lost;
+- the ``workspace`` directory is removed when that leaves it empty.
 """
 from __future__ import annotations
 
+import logging
 from pathlib import Path
-from typing import Optional
 
 from openprogram.agent.management import manager as _agents
 
-
-# ---------------------------------------------------------------------------
-# File map
-# ---------------------------------------------------------------------------
+log = logging.getLogger(__name__)
 
 AGENTS_FILE = "AGENTS.md"
 SOUL_FILE = "SOUL.md"
 USER_FILE = "USER.md"
 TOOLS_FILE = "TOOLS.md"
+FILES = (AGENTS_FILE, SOUL_FILE, USER_FILE, TOOLS_FILE)
 
-
-_DEFAULT_AGENTS_MD = """# {name}
+# The templates agents were seeded with; a file equal to one is untouched.
+_SEEDS: dict[str, tuple[str, ...]] = {
+    AGENTS_FILE: ("""# {name}
 
 ## Operating rules
 - Answer concisely by default. Expand only when asked or when the
@@ -55,9 +46,8 @@ _DEFAULT_AGENTS_MD = """# {name}
   external messages).
 
 Edit this file to change how the agent behaves.
-"""
-
-_DEFAULT_SOUL_MD = """# {name} — persona
+""",),
+    SOUL_FILE: ("""# {name} — persona
 
 Tone: direct, technical, no filler. Plain prose. No headers unless
 the content actually branches.
@@ -66,104 +56,80 @@ Boundaries: if you don't know something, say so. Never invent APIs,
 file paths, or IDs.
 
 Edit this file to give {name} its personality.
-"""
-
-_DEFAULT_USER_MD = """# About the user
+""",),
+    USER_FILE: ("""# About the user
 
 What agents learn about you from conversations is kept in Memory and
 shown to every agent, so this file is not needed for that. Write here
 only what you want to state yourself for this agent.
-"""
-
-# Earlier seeds, still recognised as untouched placeholders.
-_LEGACY_SEEDS: dict[str, tuple[str, ...]] = {
-    USER_FILE: ("""# About the user
+""", """# About the user
 
 (Fill in anything the agent should remember about you — your name,
 your projects, how you prefer to be addressed, time zone, etc.)
-""",),
+"""),
 }
 
-
-_SEED: dict[str, str] = {
-    AGENTS_FILE: _DEFAULT_AGENTS_MD,
-    SOUL_FILE:   _DEFAULT_SOUL_MD,
-    USER_FILE:   _DEFAULT_USER_MD,
-}
-
-
-# ---------------------------------------------------------------------------
-# Path helpers
-# ---------------------------------------------------------------------------
 
 def workspace_path(agent_id: str) -> Path:
-    """Return the workspace dir. Does NOT create it — use
-    :func:`bootstrap` when you want the seed files to exist.
-    """
     return _agents.agent_dir(agent_id) / "workspace"
 
 
-def bootstrap(agent_id: str) -> Path:
-    """Create the workspace dir and seed the persona files if they
-    don't exist yet. Idempotent — safe to call on every startup.
-    Returns the workspace path.
-    """
-    spec = _agents.get(agent_id)
-    name = spec.name if spec else agent_id
-    ws = workspace_path(agent_id)
-    ws.mkdir(parents=True, exist_ok=True)
-    for filename, template in _SEED.items():
-        path = ws / filename
-        if not path.exists():
-            path.write_text(template.format(name=name), encoding="utf-8")
-    return ws
-
-
 def is_seed(agent_id: str, filename: str, text: str) -> bool:
-    """Whether ``text`` is still the placeholder this file was seeded with.
-
-    An untouched placeholder says nothing about the agent or the user, so
-    the prompt leaves it out rather than repeating generic rules every turn.
-    """
-    templates = (_SEED.get(filename), *_LEGACY_SEEDS.get(filename, ()))
+    """Whether ``text`` is still the template this file was seeded with."""
+    if not text.strip():
+        return True
     spec = _agents.get(agent_id)
     names = {agent_id, spec.name if spec else agent_id}
     # The agent may have been renamed since: the seed carries the old name.
-    first = text.lstrip().splitlines()[0] if text.strip() else ""
+    first = text.lstrip().splitlines()[0]
     if first.startswith("# "):
         names.add(first[2:].removesuffix(" — persona").strip())
     wanted = " ".join(text.split())
     return any(
-        template is not None and " ".join(template.format(name=name).split()) == wanted
-        for template in templates for name in names
+        " ".join(template.format(name=name).split()) == wanted
+        for template in _SEEDS.get(filename, ()) for name in names
     )
 
 
-def read_file(agent_id: str, name: str) -> Optional[str]:
-    """Read a workspace file by name. Returns None if it doesn't
-    exist, the empty string if it exists but is empty (we treat
-    those differently in the prompt composer).
-    """
-    path = workspace_path(agent_id) / name
-    if not path.exists():
-        return None
+def retire(agent_id: str) -> list[str]:
+    """Fold edited persona files into ``system_prompt``; returns their names."""
+    ws = workspace_path(agent_id)
+    if not ws.is_dir():
+        return []
+    kept: list[tuple[str, str]] = []
+    for filename in FILES:
+        path = ws / filename
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if is_seed(agent_id, filename, text):
+            path.unlink()
+        else:
+            kept.append((filename, text.strip()))
+    if kept:
+        spec = _agents.get(agent_id)
+        if spec is not None:
+            parts = [spec.system_prompt.strip()] if spec.system_prompt.strip() else []
+            parts += [f"## From workspace {name}\n\n{text}" for name, text in kept]
+            _agents.update(agent_id, {"system_prompt": "\n\n".join(parts)})
+        retired = ws / ".retired"
+        retired.mkdir(exist_ok=True)
+        for name, _ in kept:
+            (ws / name).replace(retired / name)
+        log.info("agent %s: moved %s into system_prompt", agent_id, ", ".join(n for n, _ in kept))
     try:
-        return path.read_text(encoding="utf-8")
+        ws.rmdir()
     except OSError:
-        return None
+        pass
+    return [name for name, _ in kept]
 
 
-def read_agents_md(agent_id: str) -> Optional[str]:
-    return read_file(agent_id, AGENTS_FILE)
-
-
-def read_soul_md(agent_id: str) -> Optional[str]:
-    return read_file(agent_id, SOUL_FILE)
-
-
-def read_user_md(agent_id: str) -> Optional[str]:
-    return read_file(agent_id, USER_FILE)
-
-
-def read_tools_md(agent_id: str) -> Optional[str]:
-    return read_file(agent_id, TOOLS_FILE)
+def retire_all() -> None:
+    for spec in _agents.list_all():
+        try:
+            retire(spec.id)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("agent %s: retiring workspace files failed: %s", spec.id, exc)

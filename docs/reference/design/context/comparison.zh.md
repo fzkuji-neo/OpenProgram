@@ -48,9 +48,9 @@
 |:--:|---|:--:|:--:|:--:|---|
 | 1 | 项目身份（AGENTS.md / .cursorrules） | ✓ | ✓ | oclaw ✓ | ✓ L1 |
 | 2 | **Prompt 注入检测**（在 1 加载进 prompt 前扫描） | ✓ | - | - | ✓ L1（pi_shield + detect_injection_patterns） |
-| 3 | 上下文文件截断策略（约束 1 的大小） | ✓ | - | - | ✓ L1（workspace_files 截断，MAX_WORKSPACE_CHARS=8000） |
+| 3 | 上下文文件截断策略（约束 1 的大小） | ✓ | - | - | ✓ L1（AGENTS.md 链共用 32 KiB，agents_md.MAX_BYTES） |
 | 4 | 项目级记忆 | ✓ | - | - | ✓ L1 |
-| 5 | **用户档案 USER.md** | ✓ | - | - | ✓ L1（user_profile，由 workspace_files 调 read_user_md 加载） |
+| 5 | **用户档案 USER.md** | ✓ | - | - | ✓ L0（记忆 Core，memory_global） |
 | 6 | 工作目录 cwd | ✓ | - | pi ✓ | ✓ L1 |
 | 7 | 是否在 git 仓库 | ✓ | - | - | ✓ L1（git_repo_flag） |
 | 8 | session_id / model / thinking / tier | ✓ | - | - | ✓ L1 |

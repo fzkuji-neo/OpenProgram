@@ -24,7 +24,7 @@ dispatcher.process_user_turn
   → engine.prepare()            ← core: 6 steps producing TurnPrep
       1. reference scan (references)
       2. select history messages ── commit-chain (default) or dag (flag), pick one
-      3. assemble system prompt (identity + workspace files + skills + memory)
+      3. assemble system prompt (identity + AGENTS.md chain + skills + memory)
       4. compute token budget (four-way split: system / history / tools / output reserve)
       5. usage reconciliation (provider-measured + local estimate)
       6. return TurnPrep

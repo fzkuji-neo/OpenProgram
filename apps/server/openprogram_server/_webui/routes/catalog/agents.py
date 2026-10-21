@@ -282,24 +282,21 @@ def register(app: FastAPI) -> None:
             return JSONResponse(content={"error": str(exc)}, status_code=400)
         return JSONResponse(content={"agent": agent.to_dict()}, status_code=201)
 
-    @app.get("/api/agents/{agent_id}/workspace")
-    def get_workspace(agent_id: str):
-        from openprogram.agent.management import manager as _agents
-        from openprogram.agent.management import workspace as _workspace
+    @app.get("/api/agents-md")
+    def get_agents_md():
+        """The AGENTS.md files the next turn reads at the working directory."""
+        from openprogram.context import agents_md
 
-        if _agents.get(agent_id) is None:
-            return JSONResponse(content={"error": "agent not found"}, status_code=404)
-        root = _workspace.bootstrap(agent_id)
-        files = []
-        for name in (
-            _workspace.AGENTS_FILE,
-            _workspace.SOUL_FILE,
-            _workspace.USER_FILE,
-            _workspace.TOOLS_FILE,
-        ):
-            path = root / name
-            files.append({"name": name, "path": str(path), "exists": path.is_file()})
-        return JSONResponse(content={"path": str(root), "files": files})
+        cwd = agents_md.working_dir().resolve()
+        root = agents_md.project_root(cwd)
+        glob = agents_md.global_path()
+        return JSONResponse(content={
+            "global": {"path": str(glob), "exists": glob.is_file()},
+            "working_dir": str(cwd),
+            "project_root": str(root) if root else None,
+            "loaded": [str(p) for p in agents_md.chain(cwd)],
+            "budget_bytes": agents_md.MAX_BYTES,
+        })
 
     @app.get("/api/agents/{agent_id}/always-on")
     def get_always_on(agent_id: str):

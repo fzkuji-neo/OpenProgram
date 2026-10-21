@@ -23,7 +23,7 @@ dispatcher.process_user_turn
   → engine.prepare()            ← 核心:6 步产出 TurnPrep
       1. 引用扫描(references)
       2. 选历史消息  ── commit-chain(默认) 或 dag(flag) 二选一
-      3. 拼 system prompt(身份 + 工作区文件 + 技能 + 记忆)
+      3. 拼 system prompt(身份 + AGENTS.md 链 + 技能 + 记忆)
       4. 算 token 预算(四分:system / history / tools / 输出预留)
       5. usage 融合(provider 实测 + 本地估算)
       6. 返回 TurnPrep

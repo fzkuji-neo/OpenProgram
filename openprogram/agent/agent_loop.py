@@ -1694,10 +1694,30 @@ RUNNING_TOOL_CALLS: dict[str, dict] = {}
 RUNNING_TOOL_CALLS_LOCK = _threading.Lock()
 
 
+def _attach_nested_agents_md(tool_call: Any, result: AgentToolResult) -> AgentToolResult:
+    """Append the AGENTS.md files a file tool just reached — below the
+    working directory or in another project — once per session."""
+    if result.is_error:
+        return result
+    try:
+        from openprogram.context import agents_md
+        from openprogram.events.bus import _context_metadata
+        text = agents_md.nested_for(
+            tool_call.name, tool_call.arguments,
+            str(_context_metadata().get("session") or ""))
+    except Exception:
+        return result
+    if not text:
+        return result
+    return result.model_copy(update={
+        "content": [*(result.content or []), TextContent(text="\n\n" + text)]})
+
+
 def _rewrite_tool_result(tool_call: Any, result: AgentToolResult) -> AgentToolResult:
     """Let ``tool.result`` rewriters (plugins) change the text the model
     sees. Without a rewriter the result passes through untouched; a
     rewritten text replaces the text blocks and keeps images and audio."""
+    result = _attach_nested_agents_md(tool_call, result)
     bus = get_event_bus()
     if not bus.has_transforms("tool.result"):
         return result

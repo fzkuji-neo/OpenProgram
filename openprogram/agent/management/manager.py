@@ -312,12 +312,6 @@ def sessions_dir(agent_id: str) -> Path:
     return d
 
 
-def workspace_dir(agent_id: str) -> Path:
-    d = agent_dir(agent_id) / "workspace"
-    d.mkdir(parents=True, exist_ok=True)
-    return d
-
-
 def _agent_file(agent_id: str) -> Path:
     return agent_dir(agent_id) / _AGENT_FILE
 
@@ -529,15 +523,7 @@ def create(
         )
         agent_dir(agent_id).mkdir(parents=True, exist_ok=True)
         sessions_dir(agent_id)
-        workspace_dir(agent_id)
-        # Seed AGENTS.md / SOUL.md / USER.md placeholders so the
-        # persona pipeline has something to load on the first turn.
         _write_agent(spec)
-        try:
-            from openprogram.agent.management.workspace import bootstrap as _ws_bootstrap
-            _ws_bootstrap(agent_id)
-        except Exception:
-            pass
 
         order = list(idx.get("order") or [])
         if agent_id not in order:
@@ -627,13 +613,7 @@ def duplicate(agent_id: str, *, target_id: str = "", name: str = "") -> AgentSpe
             folder.mkdir(parents=True, exist_ok=False)
             folder_created = True
             sessions_dir(candidate)
-            workspace_dir(candidate)
             _write_agent(spec)
-            try:
-                from openprogram.agent.management.workspace import bootstrap as _ws_bootstrap
-                _ws_bootstrap(candidate)
-            except Exception:
-                pass
             idx = _read_index()
             order = list(idx.get("order") or [])
             order.append(candidate)
