@@ -14,4 +14,6 @@ Preserve a historical state change only when it explains the current state or a 
 
 Write into `topics/core.md` only stable information that should be visible in nearly every future interaction, such as persistent preferences, identity facts, long-term goals, or mandatory constraints. Project-specific state belongs in its project Topic. Do not put ordinary project progress in `topics/core.md`. It is a subject file like any other and follows the same contract; the always-on `core.md` at the workspace root is rendered from it and is not yours to edit.
 
+When you start a new Topic file or directory, add a line for it to `MEMORY.md` in the same turn, saying what it covers.
+
 {sessions}"""

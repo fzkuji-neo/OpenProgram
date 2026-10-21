@@ -31,6 +31,7 @@ Two properties we care about:
 
 ```
 <state>/memory/
+    MEMORY.md                the map of this memory, kept by the memory agents
     core.md                  always-on block, rendered from topics/core.md
     topics/                  the editable semantic memory
         core.md              what must be visible in every conversation
@@ -424,6 +425,28 @@ characters produced 43,000. Three times the input, the same memory. What
 a pass decides to do and how much a pass can hold are separate limits,
 and only the first one answers to a rule.
 
+## The memory map
+
+`MEMORY.md` at the workspace root says where things are. It describes
+what each part of the workspace holds, which subjects `topics/` covers
+and how they nest, and what has been active lately, so a session knows
+when a search is worth making and which file to open. `core.md` says
+what every session must know; `MEMORY.md` says where the rest is.
+
+The Runtime writes the first one. A commit that finds no `MEMORY.md`
+generates it from the staged tree (`runtime/memory_guide.py`): a fixed
+description of the layout, every Topic directory and file to three levels
+with the opening sentence of its first paragraph, and the Topic files the
+latest `recent_events` touched. From then on it is the memory agents'
+file. It is staged and installed with the rest of the workspace and is
+never regenerated; the writer adds a line when it starts a Topic file or
+directory, and the nightly organizer brings it in line with the tree,
+replacing the generated quoted sentences with short descriptions of what
+each file covers. It is plain Markdown without block IDs or evidence
+footnotes, so the contract is that it names files and never states facts:
+a fact on it would reach every session without the trust filter
+`core.md` applies.
+
 ## The always-on block
 
 `core.md` is what every session starts with, and it is derived. Its
@@ -484,8 +507,10 @@ way.
 
 ## What the model sees
 
-- **Every session**: `core.md`, injected as a fenced `<memory-context>`
-  block so recalled facts are never mistaken for the user talking now.
+- **Every session**: `MEMORY.md` (cut to 6 KB) then `core.md`, injected
+  as one fenced `<memory-context>` block so recalled facts are never
+  mistaken for the user talking now. With project Memory on, the
+  project's pair comes before the personal one.
 - **Every turn**: whatever `search` finds for that message, ranked by the
   recall method in Settings (five records by default), also fenced.
 - **On demand**: the `memory_*` tools.

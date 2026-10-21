@@ -30,11 +30,14 @@ WRITE_TOKEN_THRESHOLD = 16_000
 
 
 def _core_block(root: Any) -> str:
-    """One workspace's ``core.md``, fenced; empty when it holds nothing."""
+    """One workspace's ``MEMORY.md`` map then its ``core.md``, fenced;
+    empty when neither holds anything."""
+    from .runtime.memory_guide import prompt_text
+
     try:
         text = (root / "core.md").read_text(encoding="utf-8").strip()
     except FileNotFoundError:
-        return ""
+        text = ""
     except OSError as exc:
         from .policy import require_or_empty
         require_or_empty(exc)
@@ -43,7 +46,9 @@ def _core_block(root: Any) -> str:
     body = "\n".join(
         line for line in text.splitlines() if not line.startswith("# ")
     ).strip()
-    return fence_memory(text) if body else ""
+    guide = prompt_text(root)
+    parts = [part for part in (guide, text if body else "") if part]
+    return fence_memory("\n\n".join(parts)) if parts else ""
 
 
 class LocalMemoryBackend(MemoryBackend):
@@ -63,16 +68,17 @@ class LocalMemoryBackend(MemoryBackend):
     def system_prompt(
         self, *, tier: str | None = None, session_id: str = "",
     ) -> str:
-        """Core memory, injected into every session.
+        """The memory map and core memory, injected into every session.
 
-        ``core.md`` is rendered only from blocks whose evidence is
+        ``MEMORY.md`` comes first: where things are, kept by the memory
+        agents. ``core.md`` is rendered only from blocks whose evidence is
         trusted, so what lands here is already filtered by trust. ``tier``
         is accepted so the caller's resolved authority reaches the
         backend rather than being looked up again here; per-tier
         redaction of the block itself is not yet rendered.
 
-        In a project with project Memory on, the project's ``core.md``
-        comes first, then the personal one.
+        In a project with project Memory on, the project's map and
+        ``core.md`` come first, then the personal ones.
         """
         if not load_memory_config().core_inject:
             return ""

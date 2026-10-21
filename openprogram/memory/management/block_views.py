@@ -12,6 +12,7 @@ from ..runtime.derived_views import (
     rebuild_derived_views,
     render_core_block,
 )
+from ..runtime import memory_guide
 from ..runtime.state import RuntimeStateStore
 from ..markdown.syntax import BLOCK_TARGET_ID
 from ..markdown import (
@@ -207,6 +208,9 @@ class BlockViewsMixin:
         self.last_core_block = render_core_block(
             self.stage_dir, budget_tokens=self.config.core_max_tokens
         )
+        # The map is the memory agents' to keep; the Runtime only writes a
+        # first one for a workspace that has none.
+        memory_guide.ensure(self.stage_dir)
         return self._install_staged_state(len(units), "blocks")
 
     def _install_staged_state(
@@ -234,6 +238,7 @@ class BlockViewsMixin:
             Path("commitments.jsonl"),
             Path("relations.json"),
             Path("core.md"),
+            Path(memory_guide.GUIDE_FILE),
             Path(runtime_dir(self.memory_dir).name) / "runtime.json",
         )
         moved: list[Path] = []

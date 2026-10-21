@@ -120,9 +120,10 @@ class MemoryWorkspace(
         relations = self.memory_dir / "relations.json"
         if relations.exists():
             shutil.copy2(relations, self.stage_dir / relations.name)
-        core = self.memory_dir / "core.md"
-        if core.exists():
-            shutil.copy2(core, self.stage_dir / core.name)
+        for name in ("core.md", "MEMORY.md"):
+            root_file = self.memory_dir / name
+            if root_file.exists():
+                shutil.copy2(root_file, self.stage_dir / root_file.name)
         runtime = runtime_dir(self.memory_dir) / "runtime.json"
         staged_runtime = self.stage_dir / runtime.parent.name / "runtime.json"
         staged_runtime.parent.mkdir(parents=True, exist_ok=True)
