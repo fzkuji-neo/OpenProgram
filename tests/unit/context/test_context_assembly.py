@@ -139,13 +139,13 @@ def test_assembler_is_deterministic_for_the_same_inputs():
     assert C.build_system_prompt(agent) == C.build_system_prompt(agent)
 
 
-def test_assembler_absorbs_the_tool_runtime_block():
-    """The block the dispatcher used to append by hand is a component now."""
-    out = C.build_system_prompt({"id": "main"}, tools=[_Tool("bash")])
-    assert "Runtime tool context:" in out
-    assert "Available tools for this turn: bash" in out
-    # ...and it is absent when there are no tools.
-    assert "Runtime tool context:" not in C.build_system_prompt({"id": "main"})
+def test_the_working_directory_rides_the_environment_block():
+    """The tool-runtime block the dispatcher used to append is part of the
+    environment component; the tool list itself travels as schemas."""
+    with_tools = C.build_system_prompt({"id": "main"}, tools=[_Tool("bash")])
+    without = C.build_system_prompt({"id": "main"})
+    assert "Working directory:" in with_tools and "Working directory:" in without
+    assert "Available tools for this turn" not in with_tools
 
 
 def test_assembler_absorbs_the_plan_mode_block():
@@ -158,8 +158,8 @@ def test_assembler_absorbs_the_plan_mode_block():
 def test_skills_index_is_in_the_assembled_prompt():
     """The skill system needs its index in the prompt to trigger on-demand
     loading — the dispatcher's hand-rolled prompt never had it."""
-    l0 = {c.name for c in C._REGISTRY["L0"]}
-    assert "skills_index" in l0
+    l1 = {c.name for c in C._REGISTRY["L1"]}
+    assert "capabilities" in l1
 
 
 def test_dispatcher_sends_exactly_what_the_assembler_produced(
@@ -172,6 +172,7 @@ def test_dispatcher_sends_exactly_what_the_assembler_produced(
     # The turn binds the session's project directory; AGENTS.md read there
     # would differ from the test process's cwd.
     monkeypatch.setattr("openprogram.context.agents_md.chain", lambda cwd=None: [])
+    monkeypatch.setattr(C, "environment_block", lambda *a, **k: "<environment/>")
 
     budgeted: list[str] = []
     from openprogram.context.engine import ContextEngine  # noqa: F401
@@ -213,9 +214,9 @@ def test_exec_runtime_uses_the_same_assembler():
     from openprogram.agentic_programming.runtime import _exec_system_prompt
     out = _exec_system_prompt("FN INLINE", [_Tool("read")])
     assert "FN INLINE" in out
-    assert "Runtime tool context:" in out
+    assert "<environment>" in out
     # ...and it is the assembler that produced it, not a bespoke concat.
-    assert "<tool_use>" in out
+    assert "# How you work" in out
 
 
 # B. The prompt is recorded as a node
@@ -257,7 +258,7 @@ def test_recording_never_moves_the_branch_head(tmp_db: SessionDB):
     assert (tmp_db.get_session("rec3") or {}).get("head_id") == head_before
 
 
-def test_toolset_change_appends_a_new_prompt_node(
+def test_toolset_change_keeps_the_recorded_prompt(
     tmp_db: SessionDB, monkeypatch: pytest.MonkeyPatch,
 ):
     monkeypatch.setattr(D, "_load_agent_profile",
@@ -273,11 +274,11 @@ def test_toolset_change_appends_a_new_prompt_node(
     assert len([n for n in tmp_db.get_nodes("tc1")
                 if n.name == NODE_NAME]) == 1
 
-    # Different toolset → the tool-runtime block changes → new node.
+    # A different loaded toolset changes the schemas, not the prompt: the
+    # tool list is no longer repeated in the text, so the cached prefix holds.
     _run_turn("three", sink, session_id="tc1", tools=["read", "glob"])
     after_change = [n for n in tmp_db.get_nodes("tc1") if n.name == NODE_NAME]
-    assert len(after_change) == 2
-    assert "glob" in after_change[-1].output
+    assert len(after_change) == 1
 
 
 def test_context_nodes_are_hidden_from_the_chat_views(tmp_db: SessionDB):

@@ -160,7 +160,7 @@ class HistoryOperations:
     def _skills_block(self) -> str:
         """Return the ``<available_skills>`` XML block for this runtime.
 
-        Same loader and same renderer as the chat path's ``skills_index``
+        Same loader and same renderer as the chat path's ``capabilities``
         component (openprogram/skills/loader.py) — one registry, one
         listing format. Cached per config so repeat exec() calls don't
         rescan unless it changes. Empty string when skills are disabled or

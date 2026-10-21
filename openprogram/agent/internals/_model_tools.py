@@ -8,10 +8,10 @@ responsibilities:
   into a concrete ``Model`` instance, with robust fallback if the
   profile points at something the registry doesn't know about.
 
-* Tool resolution (``resolve_tools``, ``with_tool_runtime_prompt``,
-  ``log_resolved_tools``) — turns the agent profile's ``tools``
-  field + per-turn override into an ``AgentTool[]`` list and decorates
-  the system prompt with runtime CWD + tool inventory.
+* Tool resolution (``resolve_tools``, ``log_resolved_tools``) — turns
+  the agent profile's ``tools`` field + per-turn override into an
+  ``AgentTool[]`` list. The working directory reaches the prompt through
+  the ``environment`` context component.
 
 * ``history_to_agent_messages`` — convert SessionDB rows to
   AgentMessage list for AgentContext replay.
@@ -169,91 +169,6 @@ def _raise_model_unavailable(requested) -> None:
             "the message again."
         )
     raise LLMError(message=msg, reason=ErrorReason.INVALID_REQUEST, retryable=False)
-
-
-def with_tool_runtime_prompt(
-    system_prompt: str,
-    tools: Optional[list],
-    additional_working_dirs: Optional[list] = None,
-) -> str:
-    """Legacy convenience wrapper around :func:`tool_runtime_block`.
-
-    Production assembly goes through ``context.components`` (dag/overview.md
-    §7); this stays for direct callers/tests that want the concatenation.
-    """
-    block = tool_runtime_block(tools, additional_working_dirs)
-    if not block:
-        return system_prompt
-    return f"{system_prompt.rstrip()}\n\n{block}".strip()
-
-
-def tool_runtime_block(
-    tools: Optional[list],
-    additional_working_dirs: Optional[list] = None,
-) -> str:
-    """The "Runtime tool context:" block — cwd, per-turn tool names, and the
-    filesystem-scoping guidance. Empty string when there are no tools."""
-    if not tools:
-        return ""
-
-    names = [getattr(t, "name", "") for t in tools]
-    names = [n for n in names if n]
-    if not names:
-        return ""
-
-    # Per-turn cwd: the dispatcher binds the session's worktree OR bound
-    # project path to the worktree ContextVar before prompt assembly, so
-    # read that first; the global default (env / config / process cwd)
-    # only applies to sessions with neither.
-    from openprogram.paths import get_default_workdir
-    from openprogram.worktree.context import current_worktree_path
-    cwd = current_worktree_path() or get_default_workdir()
-    has_bash = "bash" in names
-    lines = [
-        "Runtime tool context:",
-        f"- Current working directory: {cwd}",
-    ]
-    # Where tools act: a conversation picks its environment at creation.
-    try:
-        from openprogram.environments import current_environment
-        env = current_environment()
-    except Exception:
-        env = None
-    if env is not None and env.kind == "ssh":
-        lines.append(
-            f"- Environment: SSH host {env.ssh_target} ({env.name}). Shell "
-            "commands and file tools act on that remote machine, not on the "
-            "user's computer; paths are remote paths.")
-    elif env is not None and env.kind == "docker":
-        lines.append(
-            f"- Environment: Docker container from image {env.image} ({env.name}). "
-            "Shell commands run inside the container; the working directories "
-            "are mounted at the same paths, so file tools and commands see the "
-            "same files.")
-    if additional_working_dirs:
-        # 会话挂载的额外工作目录（additional-working-directories.md §3.4）：
-        # 只扩模型认知与围栏白名单，不改变主 cwd。
-        lines.append(
-            "- Additional working directories (equally writable): "
-            f"{', '.join(additional_working_dirs)}"
-        )
-    lines += [
-        f"- Available tools for this turn: {', '.join(names)}",
-        "- Scope every filesystem operation (read/list/glob/grep/bash) "
-        "to the smallest known target, ideally under the working "
-        "directory above. Do NOT recurse over `$HOME` or `/`; recursive "
-        "`**` walks over a home directory take minutes and exhaust the "
-        "turn budget.",
-        "- If the user asks for the current directory, answer from the Current working directory line above.",
-        "- If the user asks to list the current directory, call the list tool with that absolute path.",
-        "- When the user asks to inspect files, directories, or program state, call the relevant available tool instead of saying no tools are available.",
-    ]
-    if has_bash:
-        lines.append("- Shell command execution is available through the bash tool.")
-    else:
-        lines.append("- Shell command execution is not available in this transport; use filesystem/search tools such as list, read, glob, and grep when possible.")
-
-    return "\n".join(lines)
 
 
 def log_resolved_tools(req: "TurnRequest", tools: Optional[list]) -> None:

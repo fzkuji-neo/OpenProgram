@@ -258,7 +258,7 @@ class ProvidersOperations:
         # provider prefix cache is shared. ``self.system`` — the per-runtime
         # override — feeds the assembler's inline_prompt layer; the skills
         # block stays appended here because it is exec's *own* skill dirs
-        # (``Runtime(skills=...)``), which the agent-level skills_index
+        # (``Runtime(skills=...)``), which the agent-level capabilities
         # component doesn't know about.
         from openprogram.agentic_programming.workflow_site import in_role_call
         workflow_role = in_role_call() is not None

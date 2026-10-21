@@ -396,24 +396,6 @@ def test_selected_deferred_program_keeps_scoped_search_loader(fresh_registry) ->
     assert names == {"tool_search", "deferred_report"}
 
 
-def test_tool_runtime_prompt_mentions_available_tools() -> None:
-    class T:
-        def __init__(self, name: str):
-            self.name = name
-
-    prompt = D._with_tool_runtime_prompt("Base prompt.", [T("read"), T("list")])
-
-    assert "Base prompt." in prompt
-    assert "Available tools for this turn: read, list" in prompt
-    assert "Current working directory:" in prompt
-    assert "call the list tool with that absolute path" in prompt
-    assert "instead of saying no tools are available" in prompt
-
-
-# ---------------------------------------------------------------------------
-# Test 1: tool_use → tool gets executed, tool_result envelope emitted
-# ---------------------------------------------------------------------------
-
 def test_tool_use_event_runs_tool_and_emits_result(
     tmp_db: SessionDB, captured, collector, fresh_registry,
     monkeypatch: pytest.MonkeyPatch,

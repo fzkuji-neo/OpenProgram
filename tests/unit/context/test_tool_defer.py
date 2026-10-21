@@ -87,13 +87,15 @@ def test_deferred_defaults_appear_in_catalog_line():
     catalog_names = {n for n, _ in catalog}
     missing = DEFERRED_DEFAULT_TOOLS - catalog_names
     assert not missing, f"deferred tools missing from catalog: {sorted(missing)}"
-    # The prompt intentionally keeps only a bounded count and search guidance;
-    # names and schemas are returned by tool_search on demand.
+    # The prompt names the deferred tools, at most DEFERRED_NAMES_SHOWN of
+    # them; schemas are returned by tool_search on demand.
+    from openprogram.programs._runtime import DEFERRED_NAMES_SHOWN
     text = deferred_catalog_text(catalog)
     assert text.startswith(f"{len(catalog)} deferred tools are available")
-    assert "Their names and schemas are not loaded" in text
+    assert "Their schemas are not loaded" in text
     assert "tool_search" in text
-    assert not any(name in text for name in DEFERRED_DEFAULT_TOOLS)
+    shown = [name for name, _ in catalog][:DEFERRED_NAMES_SHOWN]
+    assert all(name in text for name in shown)
 
 
 def test_default_web_prompt_advertises_deferred_memory_tools(monkeypatch):

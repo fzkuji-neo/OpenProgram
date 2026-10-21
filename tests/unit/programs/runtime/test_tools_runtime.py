@@ -1225,15 +1225,14 @@ def test_tool_search_cannot_load_program_outside_resolved_scope() -> None:
 
 
 def test_deferred_catalog_text_format() -> None:
-    """Turn-start context discloses only a count and search guidance."""
+    """Turn-start context names the deferred tools, without descriptions."""
     from openprogram.programs._runtime import deferred_catalog_text
     block = deferred_catalog_text([("CronCreate", "Create a cron job"),
                                     ("WebFetch",   "Fetch a URL")])
     assert "deferred tools" in block
     assert "tool_search" in block, "must name the actual registered tool"
     assert "2" in block
-    assert "CronCreate" not in block
-    assert "WebFetch" not in block
+    assert "CronCreate, WebFetch" in block
     assert "Create a cron job" not in block
     assert "keyword" in block.lower()
 

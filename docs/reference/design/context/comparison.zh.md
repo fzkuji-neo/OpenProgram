@@ -26,13 +26,13 @@
 |:--:|---|:--:|:--:|:--:|---|
 | 1 | 整体身份 | ✓ | ✓ | pi ✓ | ✓ L0（identity） |
 | 2 | inline agent prompt | ✓ | ✓ | — | ✓ L0（inline_prompt） |
-| 3 | **工具强制（act-don't-ask）** | ✓ | - | - | ✓ L0（tool_enforcement，恒定） |
-| 4 | **模型特定操作指导** | ✓ | - | - | ✓ L0（model_guidance，按 provider） |
-| 5 | **平台渲染格式（多渠道）** | ✓ | - | - | ✓ L0（platform_format，按 channel 参数） |
+| 3 | **工具强制（act-don't-ask）** | ✓ | - | - | ✓ L0（写在主提示词 `guides/base.md` 里） |
+| 4 | **模型特定操作指导** | ✓ | - | - | —（已删除：需要的模型单独一份主提示词） |
+| 5 | **平台渲染格式（多渠道）** | ✓ | - | - | ✓ L1（环境块里的一行，按 channel） |
 | 6 | computer-use 指导 | ✓ | - | - | -（仅该工具启用时适用） |
-| 7 | 技能索引 | ✓ | - | pi ✓ | ✓ L0（skills_index） |
+| 7 | 技能索引 | ✓ | - | pi ✓ | ✓ L1（capabilities） |
 | 8 | 工具 + MCP schema | ✓ | ✓ | oc/oclaw ✓ | ✓ L0 |
-| 9 | 全局/用户级记忆 | ✓ | - | - | ✓ L0（memory_global） |
+| 9 | 全局/用户级记忆 | ✓ | - | - | ✓ L1（memory） |
 | 10 | 环境信息（OS / shell / 远程后端） | ✓ | - | - | ✓ L0（environment: OS/shell；cwd 另由 tool-runtime 负责） |
 | 11 | 当前日期（日粒度，缓存友好） | ✓ | - | pi ✓ | ✓ L0（current_date，日粒度） |
 
@@ -47,12 +47,12 @@
 | # | 成分 | hermes | claude-code | 其余 | 我们 |
 |:--:|---|:--:|:--:|:--:|---|
 | 1 | 项目身份（AGENTS.md / .cursorrules） | ✓ | ✓ | oclaw ✓ | ✓ L1 |
-| 2 | **Prompt 注入检测**（在 1 加载进 prompt 前扫描） | ✓ | - | - | ✓ L1（pi_shield + detect_injection_patterns） |
+| 2 | **Prompt 注入检测**（在 1 加载进 prompt 前扫描） | ✓ | - | - | ✓（主提示词里的信任规则 + 每个文件 detect_injection_patterns） |
 | 3 | 上下文文件截断策略（约束 1 的大小） | ✓ | - | - | ✓ L1（AGENTS.md 链共用 32 KiB，agents_md.MAX_BYTES） |
 | 4 | 项目级记忆 | ✓ | - | - | ✓ L1 |
-| 5 | **用户档案 USER.md** | ✓ | - | - | ✓ L0（记忆 Core，memory_global） |
+| 5 | **用户档案 USER.md** | ✓ | - | - | ✓ L1（记忆 Core，memory） |
 | 6 | 工作目录 cwd | ✓ | - | pi ✓ | ✓ L1 |
-| 7 | 是否在 git 仓库 | ✓ | - | - | ✓ L1（git_repo_flag） |
+| 7 | 是否在 git 仓库 | ✓ | - | - | ✓ L1（环境块里的 Git repository 一行） |
 | 8 | session_id / model / thinking / tier | ✓ | - | - | ✓ L1 |
 | 9 | deferred tools catalog | - | - | - | ✓ L1 |
 | 10 | **历史消息（结果）+ 工具调用记录** | ✓ | - | - | ✓ L1（每轮追加，排最后） |

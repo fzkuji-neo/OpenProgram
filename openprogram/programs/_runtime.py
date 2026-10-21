@@ -1527,13 +1527,24 @@ register(tool_search,
                    "coding", "vision", "memory"])
 
 
+#: Deferred tool names listed in the prompt; the rest are counted.
+DEFERRED_NAMES_SHOWN = 80
+
+
 def deferred_catalog_text(catalog: list[tuple[str, str]]) -> str:
-    """Render count-only deferred-discovery guidance for the prompt."""
+    """Deferred-discovery guidance for the prompt: the tools' names, never
+    their descriptions or schemas, so the model knows what exists and loads
+    a schema with tool_search before calling it."""
     if not catalog:
         return ""
+    names = [name for name, _ in catalog]
+    shown = ", ".join(names[:DEFERRED_NAMES_SHOWN])
+    more = len(names) - DEFERRED_NAMES_SHOWN
+    if more > 0:
+        shown += f", and {more} more"
     return (
-        f"{len(catalog)} deferred tools are available via tool_search. "
-        "Their names and schemas are not loaded. Use tool_search with "
-        "descriptive keywords to find a small matching set; returned schemas "
-        "can be called in the same turn."
+        f"{len(catalog)} deferred tools are available via tool_search: {shown}. "
+        "Their schemas are not loaded. Call tool_search with a name or "
+        "descriptive keywords first; returned schemas can be called in the "
+        "same turn."
     )

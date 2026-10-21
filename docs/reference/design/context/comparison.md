@@ -26,13 +26,13 @@ Intra-layer order: identity (most stable) → guidance blocks → tools/skills �
 |:--:|---|:--:|:--:|:--:|---|
 | 1 | overall identity | ✓ | ✓ | pi ✓ | ✓ L0 (identity) |
 | 2 | inline agent prompt | ✓ | ✓ | — | ✓ L0 (inline_prompt) |
-| 3 | **tool enforcement (act-don't-ask)** | ✓ | - | - | ✓ L0 (tool_enforcement, constant) |
-| 4 | **model-specific operating guidance** | ✓ | - | - | ✓ L0 (model_guidance, per provider) |
-| 5 | **platform rendering format (multi-channel)** | ✓ | - | - | ✓ L0 (platform_format, per channel parameter) |
+| 3 | **tool enforcement (act-don't-ask)** | ✓ | - | - | ✓ L0 (in the base prompt, `guides/base.md`) |
+| 4 | **model-specific operating guidance** | ✓ | - | - | — (removed: a model that needs it gets its own base prompt) |
+| 5 | **platform rendering format (multi-channel)** | ✓ | - | - | ✓ L1 (a line of the environment block, per channel) |
 | 6 | computer-use guidance | ✓ | - | - | - (applies only when that tool is enabled) |
-| 7 | skills index | ✓ | - | pi ✓ | ✓ L0 (skills_index) |
+| 7 | skills index | ✓ | - | pi ✓ | ✓ L1 (capabilities) |
 | 8 | tools + MCP schema | ✓ | ✓ | oc/oclaw ✓ | ✓ L0 |
-| 9 | global/user-level memory | ✓ | - | - | ✓ L0 (memory_global) |
+| 9 | global/user-level memory | ✓ | - | - | ✓ L1 (memory) |
 | 10 | environment info (OS / shell / remote backend) | ✓ | - | - | ✓ L0 (environment: OS/shell; cwd handled separately by tool-runtime) |
 | 11 | current date (day granularity, cache-friendly) | ✓ | - | pi ✓ | ✓ L0 (current_date, day granularity) |
 
@@ -47,12 +47,12 @@ Intra-layer order: fixed project info (changes only when you switch projects, mo
 | # | Component | hermes | claude-code | others | us |
 |:--:|---|:--:|:--:|:--:|---|
 | 1 | project identity (AGENTS.md / .cursorrules) | ✓ | ✓ | oclaw ✓ | ✓ L1 |
-| 2 | **prompt-injection detection** (scan before 1 is loaded into the prompt) | ✓ | - | - | ✓ L1 (pi_shield + detect_injection_patterns) |
+| 2 | **prompt-injection detection** (scan before 1 is loaded into the prompt) | ✓ | - | - | ✓ (trust rule in the base prompt + detect_injection_patterns per file) |
 | 3 | context-file truncation policy (bounds the size of 1) | ✓ | - | - | ✓ L1 (one 32 KiB budget across the AGENTS.md chain, agents_md.MAX_BYTES) |
 | 4 | project-level memory | ✓ | - | - | ✓ L1 |
-| 5 | **user profile USER.md** | ✓ | - | - | ✓ L0 (Memory Core, memory_global) |
+| 5 | **user profile USER.md** | ✓ | - | - | ✓ L1 (Memory Core, memory) |
 | 6 | working directory cwd | ✓ | - | pi ✓ | ✓ L1 |
-| 7 | whether inside a git repo | ✓ | - | - | ✓ L1 (git_repo_flag) |
+| 7 | whether inside a git repo | ✓ | - | - | ✓ L1 (Git repository line of the environment block) |
 | 8 | session_id / model / thinking / tier | ✓ | - | - | ✓ L1 |
 | 9 | deferred tools catalog | - | - | - | ✓ L1 |
 | 10 | **history messages (results) + tool-call records** | ✓ | - | - | ✓ L1 (appended per turn, ordered last) |

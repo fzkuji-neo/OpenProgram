@@ -801,7 +801,6 @@ from openprogram.agent.internals._model_tools import (
     load_agent_profile as _load_agent_profile,
     is_anthropic_family as _is_anthropic_family,
     resolve_model as _resolve_model,
-    with_tool_runtime_prompt as _with_tool_runtime_prompt,
     log_resolved_tools as _log_resolved_tools,
     resolve_tools as _resolve_tools,
     history_to_agent_messages as _history_to_agent_messages,

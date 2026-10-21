@@ -272,6 +272,8 @@ namespaces = false
     "programs/workflow/browser/*.cjs",
     # computer_use_agent target guides, sent on a target's first call.
     "programs/tools/system/computer_use_agent/guides/*.md",
+    # Base prompt and on-demand channel guides (context/components.py).
+    "context/guides/*.md",
     # Provider registry — endpoints/model metadata read by
     # providers/_provider_meta.py and enabled_models.py.
     "providers/provider.json",
