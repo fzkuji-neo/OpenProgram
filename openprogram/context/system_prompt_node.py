@@ -58,6 +58,27 @@ def latest_recorded_prompt(
     Reads the RAW node list (``get_messages`` hides ``context/*`` machinery
     from conversation consumers); the newest by seq wins.
     """
+    node = _latest_prompt_node(store, session_id, head_id)
+    return None if node is None else _output_of(node)
+
+
+def latest_recorded_sections(
+    store: Any,
+    session_id: str,
+    head_id: str | None = None,
+) -> Optional[list[dict]]:
+    """The component lengths recorded with that prompt (``[{"name",
+    "chars"}]``), or None when the node predates them."""
+    node = _latest_prompt_node(store, session_id, head_id)
+    sections = None if node is None else _metadata_of(node).get("sections")
+    return list(sections) if isinstance(sections, list) and sections else None
+
+
+def _latest_prompt_node(
+    store: Any,
+    session_id: str,
+    head_id: str | None = None,
+) -> Any:
     try:
         nodes = store.get_nodes(session_id) or []
     except Exception:
@@ -73,7 +94,7 @@ def latest_recorded_prompt(
                     branch_anchors,
                     legacy_anchor=legacy_anchors.get(_id_of(msg)),
                 )):
-            return _output_of(msg)
+            return msg
     return None
 
 
@@ -94,6 +115,9 @@ def record_system_prompt(store: Any, session_id: str, text: str) -> Optional[str
         from openprogram.context.nodes import Call, ROLE_CODE
         from openprogram.store import SessionNodeWriter
 
+        from openprogram.context.components import prompt_sections
+
+        sections = prompt_sections(text)
         node = Call(
             id="ctxsp_" + uuid.uuid4().hex[:10],
             created_at=time.time(),
@@ -104,7 +128,8 @@ def record_system_prompt(store: Any, session_id: str, text: str) -> Optional[str
             predecessor=None,
             metadata={"display": "runtime",
                       "prompt_hash": prompt_hash(text),
-                      "anchor_head_id": anchor_head_id or ""},
+                      "anchor_head_id": anchor_head_id or "",
+                      **({"sections": sections} if sections else {})},
         )
         SessionNodeWriter(store, session_id).append(node)
         return node.id
@@ -223,6 +248,7 @@ __all__ = [
     "NODE_NAME",
     "CONTEXT_NAME_PREFIX",
     "prompt_hash",
+    "latest_recorded_sections",
     "is_context_node",
     "latest_recorded_prompt",
     "record_system_prompt",

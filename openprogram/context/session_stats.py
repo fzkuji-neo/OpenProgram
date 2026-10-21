@@ -82,7 +82,11 @@ def compute_breakdown(
     from openprogram.context.tool_snapshot_node import (
         latest_recorded_tool_snapshot,
     )
+    from openprogram.context.system_prompt_node import latest_recorded_sections
     latest_system = latest_recorded_prompt(db, session_id, head_id) or ""
+    recorded_sections = (
+        latest_recorded_sections(db, session_id, head_id) if latest_system else None
+    )
     tool_snapshot = latest_recorded_tool_snapshot(db, session_id, head_id)
     has_tool_snapshot = tool_snapshot is not None
     recorded_tool_rows = list((tool_snapshot or {}).get("tools") or [])
@@ -195,6 +199,7 @@ def compute_breakdown(
     except Exception:
         tools = []
 
+    agent_view = None
     # system_prompt：优先节点原料；没有就按会话 agent 重建（identity +
     # tool_use 指引 + skills…），让所有 provider 的 /context 都能显示
     # System 类真实 token，而非缺省 0。
@@ -214,6 +219,7 @@ def compute_breakdown(
             prof = load_agent_profile(sess.get("agent_id") or "main")
             if isinstance(prof, dict):
                 latest_system = build_system_prompt(_AgentView(prof))
+                agent_view = _AgentView(prof)
         except Exception:
             latest_system = ""
 
@@ -275,25 +281,22 @@ def compute_breakdown(
     except Exception:
         bd["skills_detail"] = []
 
-    # Memory files：只算真正**常驻进 system prompt** 的那块。
-    # OpenProgram 的 memory 里只有 core.md 是 always-on block
-    # （项目记忆开启时还有项目的 core.md），topics/sources 按需检索、不常驻，不该计入
-    # 当前 context（算全库会虚高到几十万 token）。对齐 Claude Code
-    # 只列实际加载进 prompt 的 memory 文件。
-    try:
-        from openprogram.memory import get_backend as _mprovider
-        block = ""
-        try:
-            block = _mprovider().system_prompt() or ""
-        except Exception:
-            block = ""
-        mem_items = []
-        if block and block in latest_system:
-            mem_items.append({"path": "core.md", "tokens": _t(block)})
-        bd["memory_detail"] = mem_items
-        bd["memory"] = sum(x["tokens"] for x in mem_items)
-    except Exception:
-        bd["memory_detail"] = []
+    # The system prompt by component (base prompt, environment, AGENTS.md,
+    # memory, capabilities, …). The turn records each block's length next
+    # to the prompt; an older node is split by locating the blocks of a
+    # fresh build in it.
+    sections = _prompt_sections(
+        latest_system, recorded_sections, agent_view,
+        sess.get("agent_id") or "main",
+    )
+
+    # Memory files: only what is always in the system prompt — each
+    # workspace's MEMORY.md map and core.md. Topics and sources are
+    # searched on demand and are not part of the context.
+    memory_block = "\n\n".join(
+        block for name, block in sections if name == "memory")
+    bd["memory"] = _t(memory_block)
+    bd["memory_detail"] = _memory_files(session_id, memory_block, _t)
 
     # Loaded/deferred and built-in/MCP are mutually exclusive top-level
     # categories. compute_call_breakdown already prices each tool with the
@@ -362,6 +365,11 @@ def compute_breakdown(
         + mcp_deferred
     )
     bd["system_prompt"] = max(0, full_system - nested_system)
+    bd["system_detail"] = _system_rows(
+        sections, _t,
+        nested={"capabilities": int(bd.get("skills") or 0)
+                + system_deferred + mcp_deferred},
+    )
 
     bd["unclassified"] = 0
     bd["input_used"] = sum(
@@ -374,6 +382,104 @@ def compute_breakdown(
     bd["free_space"] = max(0, ctx_window - bd["input_used"])
 
     return bd
+
+
+def _prompt_sections(
+    text: str,
+    recorded: Optional[list],
+    agent_view,
+    agent_id: str,
+) -> list[tuple[str, str]]:
+    """``(component, block)`` pairs for a system prompt."""
+    from openprogram.context.components import (
+        prompt_sections, split_sections,
+    )
+
+    if not text:
+        return []
+    known = recorded or prompt_sections(text)
+    if known:
+        return split_sections(text, known)
+    # No lengths on record: build the prompt now and find each block in
+    # the recorded text. A block that has changed since is left in
+    # ``other``.
+    try:
+        from openprogram.context.components import assemble_sections
+
+        if agent_view is None:
+            from openprogram.agent.internals._model_tools import load_agent_profile
+            profile = load_agent_profile(agent_id)
+            agent_view = type("_AgentView", (), dict(profile or {}))()
+        fresh = assemble_sections(agent_view, ["L0", "L1"])
+    except Exception:
+        _log.debug("system prompt sections unavailable", exc_info=True)
+        fresh = []
+    out: list[tuple[str, str]] = []
+    rest = text
+    for name, block in fresh:
+        if block and block in rest:
+            out.append((name, block))
+            rest = rest.replace(block, "", 1)
+    # Memory is fenced, so it is found even when its text has changed.
+    for fenced in re.findall(r"<memory-context>[\s\S]*?</memory-context>", rest):
+        out.append(("memory", fenced))
+        rest = rest.replace(fenced, "", 1)
+    rest = rest.strip()
+    if rest:
+        out.append(("other", rest))
+    return out
+
+
+def _system_rows(sections, count, *, nested: dict) -> list[dict]:
+    """Rows of the System prompt category. Memory has a category of its
+    own, and the skills index and deferred-tool catalog inside
+    ``capabilities`` have theirs, so those tokens leave these rows."""
+    totals: dict[str, int] = {}
+    for name, block in sections:
+        if name == "memory":
+            continue
+        totals[name] = totals.get(name, 0) + count(block)
+    rows = []
+    for name, tokens in totals.items():
+        tokens = max(0, tokens - int(nested.get(name) or 0))
+        if tokens > 0:
+            rows.append({"name": name, "tokens": tokens})
+    return rows
+
+
+def _memory_files(session_id: str, block: str, count) -> list[dict]:
+    """The memory block as files: each workspace's fence holds its
+    MEMORY.md map, then its core.md. Counts come from the recorded text,
+    not from the files as they are now."""
+    if not block:
+        return []
+    fences = re.findall(r"<memory-context>[\s\S]*?</memory-context>", block) or [block]
+    try:
+        from openprogram.memory import store
+        from openprogram.memory.project_layer import read_layers
+        from openprogram.memory.runtime.memory_guide import GUIDE_FILE, prompt_text
+
+        layers = list(read_layers(session_id, personal=store.root()).layers)
+    except Exception:
+        _log.debug("memory layers unavailable", exc_info=True)
+        layers, GUIDE_FILE, prompt_text = [], "MEMORY.md", None
+    if len(layers) != len(fences):
+        layers = []
+    rows = []
+    for index, fence in enumerate(fences):
+        layer = layers[index] if layers else None
+        prefix = f"{layer.name}/" if layer is not None and len(layers) > 1 else ""
+        total = count(fence)
+        guide = prompt_text(layer.root) if layer is not None and prompt_text else ""
+        if guide and guide in fence:
+            guide_tokens = min(total, count(guide))
+            rows.append({"path": prefix + GUIDE_FILE, "tokens": guide_tokens})
+            if total - guide_tokens > 0:
+                rows.append({"path": prefix + "core.md", "tokens": total - guide_tokens})
+        else:
+            rows.append({"path": prefix + "core.md" if layer is not None else "memory",
+                         "tokens": total})
+    return rows
 
 
 def estimate_total_used(session_id: str, head_id: Optional[str] = None) -> tuple[int, int]:

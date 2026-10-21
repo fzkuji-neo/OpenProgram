@@ -121,12 +121,28 @@ def assemble(
     ``channel`` / ``tools`` / ``additional_working_dirs`` / ``plan_mode`` are
     exposed to builders via contextvars so existing single-arg builders need
     no signature change."""
+    return [text for _name, text in assemble_sections(
+        agent, layers, channel=channel, tools=tools,
+        additional_working_dirs=additional_working_dirs, plan_mode=plan_mode,
+    )]
+
+
+def assemble_sections(
+    agent: Any,
+    layers: list[Layer],
+    *,
+    channel: str = "",
+    tools: Optional[list] = None,
+    additional_working_dirs: Optional[list] = None,
+    plan_mode: bool = False,
+) -> list[tuple[str, str]]:
+    """:func:`assemble`, with each block paired with its component name."""
     token = _channel_var.set(channel)
     t_tools = _tools_var.set(tools)
     t_dirs = _working_dirs_var.set(additional_working_dirs)
     t_plan = _plan_mode_var.set(plan_mode)
     try:
-        parts: list[str] = []
+        parts: list[tuple[str, str]] = []
         for layer in layers:
             for comp in sorted(_REGISTRY[layer], key=lambda c: c.order):
                 try:
@@ -138,7 +154,7 @@ def assemble(
                 except Exception:
                     continue
                 if text and str(text).strip():
-                    parts.append(str(text))
+                    parts.append((comp.name, str(text)))
         return parts
     finally:
         _plan_mode_var.reset(t_plan)
@@ -151,6 +167,46 @@ def assemble(
 
 _FENCE_OPEN = ""
 _FENCE_CLOSE = ""
+
+
+_SEPARATOR = "\n\n"
+#: Prompts built recently, by text, with the component behind each block:
+#: the turn records these lengths next to the prompt so /context can show
+#: the system prompt by component.
+_RECENT_SECTIONS: dict[str, list[dict]] = {}
+_RECENT_SECTIONS_MAX = 32
+
+
+def _remember_sections(text: str, sections: list[tuple[str, str]]) -> None:
+    _RECENT_SECTIONS.pop(text, None)
+    _RECENT_SECTIONS[text] = [
+        {"name": name, "chars": len(block)} for name, block in sections
+    ]
+    while len(_RECENT_SECTIONS) > _RECENT_SECTIONS_MAX:
+        _RECENT_SECTIONS.pop(next(iter(_RECENT_SECTIONS)))
+
+
+def prompt_sections(text: str) -> Optional[list[dict]]:
+    """``[{"name", "chars"}]`` for a prompt :func:`build_system_prompt` made
+    in this process, in order; None for any other text."""
+    found = _RECENT_SECTIONS.get(text)
+    return [dict(row) for row in found] if found else None
+
+
+def split_sections(text: str, sections: list[dict]) -> list[tuple[str, str]]:
+    """Cut a recorded prompt back into ``(component, block)`` pairs using
+    the lengths :func:`prompt_sections` gave. Text past the last section
+    (a turn may append to the recorded prompt) comes back as ``other``."""
+    out: list[tuple[str, str]] = []
+    pos = len(_FENCE_OPEN)
+    for row in sections:
+        chars = max(0, int(row.get("chars") or 0))
+        out.append((str(row.get("name") or "other"), text[pos:pos + chars]))
+        pos += chars + len(_SEPARATOR)
+    rest = text[pos - len(_SEPARATOR):].strip() if sections else text.strip()
+    if rest:
+        out.append(("other", rest))
+    return out
 
 
 def build_system_prompt(
@@ -172,16 +228,18 @@ def build_system_prompt(
     tool-runtime block and the deferred-tool catalog; ``plan_mode`` appends
     the plan-mode reminder."""
     try:
-        parts = assemble(
+        sections = assemble_sections(
             agent, ["L0", "L1"],
             channel=channel,
             tools=tools,
             additional_working_dirs=additional_working_dirs,
             plan_mode=plan_mode,
         )
-        if not parts:
+        if not sections:
             return ""
-        return _FENCE_OPEN + "\n\n".join(parts) + _FENCE_CLOSE
+        text = _FENCE_OPEN + _SEPARATOR.join(t for _n, t in sections) + _FENCE_CLOSE
+        _remember_sections(text, sections)
+        return text
     except MemoryPolicyError:
         raise
     except Exception:

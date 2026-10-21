@@ -235,6 +235,13 @@ tool 保护(OpenCode)。
 圆环从 store 读 `total_used / window`；面板的头行读同样的字段，并据此推出
 `Free space`，所以分项行永远不和总数打架。
 
+面板的明细列表把 System prompt 一行按组件拆开（基础提示词、输出风格、Agent 自己的
+系统提示、环境、AGENTS.md、工作流与工具说明、日期、计划模式），把 Memory 一行按文件
+拆开（每个工作区的 `MEMORY.md` 和 `core.md`）。每轮记录 `context/system_prompt` 节点时，
+节点 metadata 带 `sections: [{name, chars}]`，即各组件块的长度，`session_stats` 据此把
+记录下的文本精确切回各组件。更早记录的节点没有这项，就在其中查找一次新构建的各块；
+找不到的部分显示为“其他”。
+
 当前 WebSocket 聊天入口在每次 provider 请求结束时记录 prompt 用量，
 因此函数调用之间圆环和面板会更新。轮次结束时，它更新当前分支的 HEAD 并保存最终读数。加载会话时，如果旧轮次保存的
 provider 用量比已有统计新，且之后没有修改会话状态，会据此恢复实测统计。

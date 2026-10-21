@@ -237,6 +237,15 @@ serves it to `/context` and `server._broadcast_context_stats` pushes it over the
 panel reads the same fields for its headline and derives `Free space` from them,
 so its per-category rows never contradict the total.
 
+The panel's detail lists split the System prompt row by component (base prompt,
+output style, the agent's own prompt, environment, AGENTS.md, workflows and tool
+notes, date, plan mode) and the Memory row by file (each workspace's `MEMORY.md`
+and `core.md`). When a turn records its `context/system_prompt` node, the node's
+metadata carries `sections: [{name, chars}]`, the length of each component's block,
+so `session_stats` cuts the recorded text back into components exactly. A node
+recorded before that is split by locating the blocks of a fresh build in it; what
+cannot be located shows as Other.
+
 The canonical WebSocket chat runner records each provider request's prompt size
 as it finishes, so the ring and panel update between tool calls. At turn end it
 refreshes the active branch head and persists the final measurement. Session

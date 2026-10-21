@@ -478,3 +478,51 @@ def test_tool_snapshot_never_creates_a_conversation(tmp_path):
     assert record_tool_snapshot(db, "op-0123456789abcdef", []) is None
     assert db.get_session("op-0123456789abcdef") is None
     assert db.list_sessions() == []
+
+
+def test_recorded_prompt_carries_its_component_lengths(monkeypatch):
+    from openprogram.context import components
+    from openprogram.context.system_prompt_node import (
+        latest_recorded_sections, record_system_prompt,
+    )
+
+    nodes: list = []
+
+    class FakeStore:
+        def get_nodes(self, _sid):
+            return [{"name": n.name, "output": n.output, "metadata": n.metadata,
+                     "id": n.id} for n in nodes]
+
+    class Writer:
+        def __init__(self, _store, _sid):
+            pass
+
+        def append(self, node):
+            nodes.append(node)
+
+    import openprogram.store as store_mod
+    import openprogram.context.system_prompt_node as spn
+    monkeypatch.setattr(store_mod, "SessionNodeWriter", Writer)
+    monkeypatch.setattr(spn, "_active_head_id", lambda *_a: None)
+    monkeypatch.setattr(spn, "_branch_anchor_ids", lambda *_a: None)
+
+    text = components.build_system_prompt({"id": "main", "name": "bot"})
+    assert record_system_prompt(FakeStore(), "s", text)
+    sections = latest_recorded_sections(FakeStore(), "s")
+    assert sections and sections[0]["name"] == "base"
+    assert sum(r["chars"] for r in sections) + 2 * (len(sections) - 1) == len(text)
+
+
+def test_system_rows_leave_memory_and_nested_categories_out():
+    rows = stats._system_rows(
+        [("base", "aaaa"), ("memory", "mmmm"), ("capabilities", "cccccc")],
+        len, nested={"capabilities": 4},
+    )
+    assert rows == [{"name": "base", "tokens": 4}, {"name": "capabilities", "tokens": 2}]
+
+
+def test_an_older_prompt_still_finds_its_memory_fence():
+    text = "You are main.\n\n<memory-context>\nfact\n</memory-context>\n\nold rules"
+    pairs = stats._prompt_sections(text, None, object(), "main")
+    names = [name for name, _ in pairs]
+    assert "memory" in names and names[-1] == "other"

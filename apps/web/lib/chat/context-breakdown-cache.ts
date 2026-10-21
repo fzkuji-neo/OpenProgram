@@ -18,6 +18,8 @@ export interface ContextBreakdown {
   tools?: Array<{ name: string; tokens: number; deferred: boolean }>;
   skills_detail?: Array<{ name: string; source: string; tokens: number }>;
   memory_detail?: Array<{ path: string; tokens: number }>;
+  /** The System prompt row by component (base, environment, AGENTS.md…). */
+  system_detail?: Array<{ name: string; tokens: number }>;
   mcp_detail?: Array<{ server: string; name: string; tokens: number; deferred: boolean }>;
   context_window?: number;
   model?: string;

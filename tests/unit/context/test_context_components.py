@@ -190,3 +190,22 @@ def test_date_still_reaches_the_system_prompt():
     import datetime
     prompt = comp.build_system_prompt({"id": "main"})
     assert datetime.date.today().strftime("%B %d, %Y") in prompt
+
+
+def test_a_built_prompt_splits_back_into_its_components():
+    from openprogram.context.components import prompt_sections, split_sections
+
+    out = build_system_prompt({"id": "main", "name": "bot"})
+    sections = prompt_sections(out)
+    pairs = split_sections(out, sections)
+    assert [name for name, _ in pairs] == [row["name"] for row in sections]
+    assert "\n\n".join(block for _, block in pairs) == out
+    assert pairs[0][0] == "base" and pairs[0][1].startswith("You are bot")
+
+
+def test_text_appended_after_the_recorded_sections_is_other():
+    from openprogram.context.components import split_sections
+
+    pairs = split_sections("AAA\n\nBB\n\nextra goal",
+                           [{"name": "base", "chars": 3}, {"name": "environment", "chars": 2}])
+    assert pairs == [("base", "AAA"), ("environment", "BB"), ("other", "extra goal")]

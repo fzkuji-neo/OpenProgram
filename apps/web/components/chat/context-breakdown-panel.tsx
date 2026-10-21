@@ -3,7 +3,8 @@
 /**
  * /context 面板 —— 当前会话的 input token 分类分解，对齐 Claude Code /context：
  * 总览（System prompt / System tools loaded+deferred / MCP / Memory / Skills /
- * Messages / Free space）+ Skills / Memory / MCP 各自的明细列表。
+ * Messages / Free space）+ System prompt 各组件 / 工具 / MCP / Memory / Skills
+ * 各自的明细列表。
  *
  * Snapshot is warmed when the session is focused. This panel never shows
  * a loading spinner — it paints cache (or zeros) immediately.
@@ -27,6 +28,26 @@ interface Props {
   headId?: string | null;
   /** 保留兼容旧调用；面板本身不再渲染关闭按钮（点外面即关）。*/
   onClose?: () => void;
+}
+
+/** Names of the system prompt's components (context/components.py). A
+ *  component a plugin registers shows under its own name. */
+function systemSectionLabel(
+  name: string,
+  text: (en: string, zh: string) => string,
+): string {
+  switch (name) {
+    case "base": return text("Base prompt", "基础提示词");
+    case "output_style": return text("Output style", "输出风格");
+    case "inline_prompt": return text("Agent system prompt", "Agent 系统提示");
+    case "environment": return text("Environment", "环境");
+    case "agents_md": return "AGENTS.md";
+    case "capabilities": return text("Workflows and tool notes", "工作流与工具说明");
+    case "current_date": return text("Date", "日期");
+    case "plan_mode": return text("Plan mode", "计划模式");
+    case "other": return text("Other", "其他");
+    default: return name;
+  }
 }
 
 function fmt(n: number): string {
@@ -309,7 +330,9 @@ export function ContextBreakdownPanel({ sessionId, headId }: Props) {
     }));
   }, [data, text, win, totalUsed]);
 
-  const toggle = (k: string) => setOpen((o) => ({ ...o, [k]: !o[k] }));
+  const toggle = (k: string) => setOpen((o) => ({
+    ...o, [k]: !(o[k] ?? k === "system"),
+  }));
 
   const compactButton = (
     <button
@@ -422,6 +445,22 @@ export function ContextBreakdownPanel({ sessionId, headId }: Props) {
             </div>
 
             <div className="mt-3 mb-1 h-px shrink-0 bg-[var(--border)]" />
+
+            {/* System prompt by component; open unless the user closed it. */}
+            <Section
+              open={open["system"] ?? true}
+              onToggle={() => toggle("system")}
+              title={text("System prompt", "系统提示")}
+              count={data?.system_detail?.length || 0}
+            >
+              {(data?.system_detail || []).map((row) => (
+                <Row
+                  key={row.name}
+                  name={systemSectionLabel(row.name, text)}
+                  tokens={row.tokens}
+                />
+              ))}
+            </Section>
 
             {/* Per-tool */}
             <Section
