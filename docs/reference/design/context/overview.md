@@ -237,10 +237,15 @@ serves it to `/context` and `server._broadcast_context_stats` pushes it over the
 panel reads the same fields for its headline and derives `Free space` from them,
 so its per-category rows never contradict the total.
 
-The panel's detail lists split the System prompt row by component (base prompt,
-output style, the agent's own prompt, environment, AGENTS.md, workflows and tool
-notes, date, plan mode) and the Memory row by file (each workspace's `MEMORY.md`
-and `core.md`). When a turn records its `context/system_prompt` node, the node's
+The panel has two levels. The overview shows four parts (system prompt, tools,
+memory, conversation); clicking one, or its bar segment, opens its detail. The
+system prompt detail lists components (base prompt, output style, the agent's own
+prompt, environment, AGENTS.md, skills index, workflows and tool notes, date, plan
+mode) with their text; tools are grouped loaded / on demand / MCP; memory lists each
+workspace's `MEMORY.md` and `core.md`; the conversation is split by kind
+(`messages_detail.groups`) with its largest messages (`messages_detail.top`), each
+linking to its transcript row. Detail rows are scaled with their category, so they
+add up to it. When a turn records its `context/system_prompt` node, the node's
 metadata carries `sections: [{name, chars}]`, the length of each component's block,
 so `session_stats` cuts the recorded text back into components exactly. A node
 recorded before that is split by locating the blocks of a fresh build in it; what

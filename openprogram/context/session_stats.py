@@ -223,9 +223,12 @@ def compute_breakdown(
         except Exception:
             latest_system = ""
 
+    message_rows: list[dict] = []
     try:
         from openprogram.context.compaction_view import load_compaction_view
-        msgs = load_compaction_view(db, session_id, head_id).messages
+        view = load_compaction_view(db, session_id, head_id)
+        msgs = view.messages
+        message_rows = view.history
     except (AttributeError, KeyError, TypeError):
         _log.debug("DAG view unavailable; using legacy message estimate", exc_info=True)
 
@@ -370,6 +373,8 @@ def compute_breakdown(
         nested={"capabilities": int(bd.get("skills") or 0)
                 + system_deferred + mcp_deferred},
     )
+    _describe_tools(bd.get("tools") or [], mcp_items, tools)
+    bd["messages_detail"] = _message_detail(message_rows, branch)
 
     bd["unclassified"] = 0
     bd["input_used"] = sum(
@@ -435,16 +440,89 @@ def _system_rows(sections, count, *, nested: dict) -> list[dict]:
     own, and the skills index and deferred-tool catalog inside
     ``capabilities`` have theirs, so those tokens leave these rows."""
     totals: dict[str, int] = {}
+    texts: dict[str, list[str]] = {}
     for name, block in sections:
         if name == "memory":
             continue
         totals[name] = totals.get(name, 0) + count(block)
+        texts.setdefault(name, []).append(block)
     rows = []
     for name, tokens in totals.items():
         tokens = max(0, tokens - int(nested.get(name) or 0))
         if tokens > 0:
-            rows.append({"name": name, "tokens": tokens})
+            rows.append({"name": name, "tokens": tokens,
+                         "text": _preview("\n\n".join(texts[name]))})
     return rows
+
+
+#: How much of a block the panel shows when a row is opened.
+PREVIEW_CHARS = 4_000
+
+
+def _preview(text: str) -> str:
+    text = (text or "").strip()
+    return text if len(text) <= PREVIEW_CHARS else text[:PREVIEW_CHARS].rstrip() + "\n…"
+
+
+def _describe_tools(rows: list, mcp_rows: list, tools: list) -> None:
+    """Give tool rows the first line of their description."""
+    by_name = {getattr(t, "name", ""): t for t in tools or []}
+    missing = [r.get("name") for r in [*rows, *mcp_rows]
+               if r.get("name") and r.get("name") not in by_name]
+    if missing:
+        try:
+            from openprogram.programs import agent_tools
+            by_name.update({getattr(t, "name", ""): t
+                            for t in agent_tools(names=list(dict.fromkeys(missing)))})
+        except Exception:
+            _log.debug("tool descriptions unavailable", exc_info=True)
+    for row in [*rows, *mcp_rows]:
+        tool = by_name.get(row.get("name"))
+        text = (getattr(tool, "description", "") or "").strip() if tool else ""
+        if text:
+            row["description"] = text.splitlines()[0][:200]
+
+
+#: Largest messages the Messages detail lists.
+TOP_MESSAGES = 8
+
+
+def _message_detail(rows: list[dict], branch: list[dict]) -> dict:
+    """Messages by kind, and the largest ones with a line of their text."""
+    visible = {m.get("id"): (m.get("content") or "") for m in branch or []}
+    groups: dict[str, dict] = {}
+    items = []
+    for row in rows or []:
+        tokens = max(0, int(row.get("_context_tokens") or 0))
+        if not tokens:
+            continue
+        kind = _message_kind(row)
+        group = groups.setdefault(kind, {"kind": kind, "tokens": 0, "count": 0})
+        group["tokens"] += tokens
+        group["count"] += 1
+        text = " ".join(str(visible.get(row.get("id")) or "").split())
+        items.append({"id": row.get("id") or "", "kind": kind,
+                      "tokens": tokens, "preview": text[:120]})
+    items.sort(key=lambda item: -item["tokens"])
+    return {
+        "groups": sorted(groups.values(), key=lambda g: -g["tokens"]),
+        "top": items[:TOP_MESSAGES],
+    }
+
+
+def _message_kind(row: dict) -> str:
+    from openprogram.context.persistence import SUMMARY_NODE_NAME
+
+    if (row.get("name") or "") == SUMMARY_NODE_NAME:
+        return "summary"
+    role = row.get("role") or ""
+    return role if role in ("user", "assistant") else "other"
+
+
+def _unfence(text: str) -> str:
+    """The recalled text inside a ``<memory-context>`` fence."""
+    text = re.sub(r"</?memory-context>", "", text)
+    return re.sub(r"\[System note:[^\]]*\]", "", text).strip()
 
 
 def _memory_files(session_id: str, block: str, count) -> list[dict]:
@@ -473,12 +551,14 @@ def _memory_files(session_id: str, block: str, count) -> list[dict]:
         guide = prompt_text(layer.root) if layer is not None and prompt_text else ""
         if guide and guide in fence:
             guide_tokens = min(total, count(guide))
-            rows.append({"path": prefix + GUIDE_FILE, "tokens": guide_tokens})
+            rows.append({"path": prefix + GUIDE_FILE, "tokens": guide_tokens,
+                         "text": _preview(guide)})
             if total - guide_tokens > 0:
-                rows.append({"path": prefix + "core.md", "tokens": total - guide_tokens})
+                rows.append({"path": prefix + "core.md", "tokens": total - guide_tokens,
+                             "text": _preview(_unfence(fence.replace(guide, "", 1)))})
         else:
             rows.append({"path": prefix + "core.md" if layer is not None else "memory",
-                         "tokens": total})
+                         "tokens": total, "text": _preview(_unfence(fence))})
     return rows
 
 
@@ -608,6 +688,16 @@ def finalize_breakdown(breakdown: dict, occupancy: dict) -> dict:
         result[detail] = [
             {**row, "tokens": scaled[i]} for i, row in enumerate(rows)
         ]
+    detail = breakdown.get("messages_detail")
+    if isinstance(detail, dict) and detail.get("groups"):
+        source = sum(int(g.get("tokens") or 0) for g in detail["groups"])
+        ratio = values.get("messages", 0) / source if source else 0
+        result["messages_detail"] = {
+            "groups": [{**g, "tokens": round(int(g.get("tokens") or 0) * ratio)}
+                       for g in detail["groups"]],
+            "top": [{**m, "tokens": round(int(m.get("tokens") or 0) * ratio)}
+                    for m in detail.get("top") or []],
+        }
     result["classified_estimate"] = classified_estimate
     result["classified_used"] = sum(values.values())
     result["classification_scale"] = round(scale, 6)

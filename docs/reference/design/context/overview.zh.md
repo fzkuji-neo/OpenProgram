@@ -235,9 +235,12 @@ tool 保护(OpenCode)。
 圆环从 store 读 `total_used / window`；面板的头行读同样的字段，并据此推出
 `Free space`，所以分项行永远不和总数打架。
 
-面板的明细列表把 System prompt 一行按组件拆开（基础提示词、输出风格、Agent 自己的
-系统提示、环境、AGENTS.md、工作流与工具说明、日期、计划模式），把 Memory 一行按文件
-拆开（每个工作区的 `MEMORY.md` 和 `core.md`）。每轮记录 `context/system_prompt` 节点时，
+面板分两层。总览显示四类（系统提示、工具、记忆、对话），点一类或它在分段条上的那一段
+进入详情。系统提示详情按组件列出（基础提示词、输出风格、Agent 自己的系统提示、环境、
+AGENTS.md、技能索引、工作流与工具说明、日期、计划模式）并附原文；工具分为已加载 /
+按需加载 / MCP；记忆列出每个工作区的 `MEMORY.md` 和 `core.md`；对话按类型拆分
+（`messages_detail.groups`）并列出最大的几条消息（`messages_detail.top`），每条链接到
+聊天里对应的那一行。明细行随所属类别一起缩放，加起来等于类别总数。每轮记录 `context/system_prompt` 节点时，
 节点 metadata 带 `sections: [{name, chars}]`，即各组件块的长度，`session_stats` 据此把
 记录下的文本精确切回各组件。更早记录的节点没有这项，就在其中查找一次新构建的各块；
 找不到的部分显示为“其他”。

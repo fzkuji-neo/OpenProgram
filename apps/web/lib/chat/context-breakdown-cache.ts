@@ -15,12 +15,20 @@ export interface ContextBreakdown {
   total_used?: number;
   window?: number;
   basis?: string;
-  tools?: Array<{ name: string; tokens: number; deferred: boolean }>;
+  tools?: Array<{ name: string; tokens: number; deferred: boolean; description?: string }>;
   skills_detail?: Array<{ name: string; source: string; tokens: number }>;
-  memory_detail?: Array<{ path: string; tokens: number }>;
+  /** Each workspace's MEMORY.md and core.md, with the text injected. */
+  memory_detail?: Array<{ path: string; tokens: number; text?: string }>;
   /** The System prompt row by component (base, environment, AGENTS.md…). */
-  system_detail?: Array<{ name: string; tokens: number }>;
-  mcp_detail?: Array<{ server: string; name: string; tokens: number; deferred: boolean }>;
+  system_detail?: Array<{ name: string; tokens: number; text?: string }>;
+  mcp_detail?: Array<{
+    server: string; name: string; tokens: number; deferred: boolean; description?: string;
+  }>;
+  /** Messages by kind, and the largest messages on the branch. */
+  messages_detail?: {
+    groups: Array<{ kind: string; tokens: number; count: number }>;
+    top: Array<{ id: string; kind: string; tokens: number; preview: string }>;
+  };
   context_window?: number;
   model?: string;
   error?: string;

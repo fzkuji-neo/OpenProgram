@@ -518,7 +518,8 @@ def test_system_rows_leave_memory_and_nested_categories_out():
         [("base", "aaaa"), ("memory", "mmmm"), ("capabilities", "cccccc")],
         len, nested={"capabilities": 4},
     )
-    assert rows == [{"name": "base", "tokens": 4}, {"name": "capabilities", "tokens": 2}]
+    assert [(r["name"], r["tokens"]) for r in rows] == [("base", 4), ("capabilities", 2)]
+    assert rows[0]["text"] == "aaaa"
 
 
 def test_an_older_prompt_still_finds_its_memory_fence():
@@ -537,3 +538,16 @@ def test_detail_rows_add_up_to_their_calibrated_category():
     )
     assert sum(r["tokens"] for r in result["system_detail"]) == result["system_prompt"] == 50
     assert sum(r["tokens"] for r in result["memory_detail"]) == result["memory"] == 50
+
+
+def test_message_detail_groups_by_kind_and_lists_the_largest():
+    rows = [
+        {"id": "u1", "role": "user", "_context_tokens": 10},
+        {"id": "a1", "role": "assistant", "_context_tokens": 40},
+        {"id": "s1", "role": "user", "name": "context/summary", "_context_tokens": 25},
+    ]
+    detail = stats._message_detail(rows, [{"id": "a1", "content": "long   reply"}])
+    assert [(g["kind"], g["tokens"]) for g in detail["groups"]] == [
+        ("assistant", 40), ("summary", 25), ("user", 10)]
+    assert detail["top"][0] == {"id": "a1", "kind": "assistant", "tokens": 40,
+                                "preview": "long reply"}
