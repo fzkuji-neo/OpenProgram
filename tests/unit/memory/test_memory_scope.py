@@ -959,8 +959,9 @@ def test_semantic_recall_respects_source_trust_and_promotion(
 
 
 def test_core_renders_only_blocks_whose_sources_are_trusted(tmp_path):
-    """core.md is injected unasked, so pending evidence must not reach it."""
+    """The core is injected unasked, so pending evidence must not reach it."""
     from openprogram.memory.runtime.derived_views import render_core_block
+    from openprogram.memory.runtime.memory_guide import split
 
     root = tmp_path / "memory"
     trusted = _record("m1", "vouched", trust="trusted", tier="owner")
@@ -979,7 +980,8 @@ def test_core_renders_only_blocks_whose_sources_are_trusted(tmp_path):
     )
 
     block = render_core_block(root, budget_tokens=10_000)
-    rendered = (root / "core.md").read_text(encoding="utf-8")
+    rendered = split((root / "MEMORY.md").read_text(encoding="utf-8"))[1]
+    assert not (root / "core.md").exists()
     assert "a vouched always-on fact" in rendered
     assert "an unvouched always-on fact" not in rendered
     assert "dropme" in block.dropped

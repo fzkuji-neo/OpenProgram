@@ -166,7 +166,8 @@ def _pending_core_blocks(memory_dir: Path) -> set[str]:
 
 
 def render_core_block(memory_dir: Path, *, budget_tokens: int) -> CoreBlock:
-    """Rebuild ``core.md`` from ``topics/core.md`` under a token budget.
+    """Rebuild the core section of ``MEMORY.md`` from ``topics/core.md``
+    under a token budget.
 
     The budget is a rendering limit, not a gate. Paragraphs go in in file
     order until the next one does not fit; what is left out stays in the
@@ -212,9 +213,14 @@ def render_core_block(memory_dir: Path, *, budget_tokens: int) -> CoreBlock:
             break
         kept.append(chunk)
         tokens += size
-    (memory_dir / CORE_TOPIC).write_text(
-        "\n\n".join(kept).rstrip() + "\n", encoding="utf-8"
-    )
+    from . import memory_guide
+
+    text = "\n\n".join(kept).strip()
+    body = "\n".join(
+        line for line in text.splitlines() if not line.startswith("# ")).strip()
+    # The core lives in MEMORY.md; a root core.md is the old place for it.
+    memory_guide.write_core(memory_dir, text if body else "")
+    (memory_dir / CORE_TOPIC).unlink(missing_ok=True)
     return CoreBlock(tokens, tuple(dropped))
 
 

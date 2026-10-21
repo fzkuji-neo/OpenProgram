@@ -693,7 +693,7 @@ io 已释放** —— 它是历史的安全网,不是删光。整会话上下文
 - 对话和函数调用统一走 `render_context`（`context/nodes.py`）+ `render_dag_messages` 渲染管道。对话场景 `frame_entry_seq=None`（顶层，全可见），函数调用场景由 `callers`/`subcalls`/`expose` 控制可见范围。
 - L2 处境（`_situational_prefix` + `_compute_call_path`）在 step 6a/6b 运行。
 - computer-use 指导与 token 预算提示未注册。
-- 第八节是设计，代码还没跟上。当前 `memory` 用 `fence_memory` 包 `MEMORY.md` 和 `core.md`，常驻块带的是召回围栏和召回那句话，`fence_core` 还不存在。`_build_memory` 对关掉 / 空 / 取不到三态一律返回空串。六个 `memory_*` 一个都不在 `DEFAULT_TOOLS` 里，只能经 `toolset="memory"` 或 `toolset="full"` 到达会话。`<environment>` 报机器、工作目录和仓库，不报记忆。四处改动、各自落点、实测 token 代价见 [`memory-introspection.html`](memory-introspection.zh.html)。
+- 第八节是设计，代码还没跟上。当前 `memory` 用 `fence_memory` 包每一层的 `MEMORY.md`（地图和核心段），常驻块带的是召回围栏和召回那句话，`fence_core` 还不存在。`_build_memory` 对关掉 / 空 / 取不到三态一律返回空串。六个 `memory_*` 一个都不在 `DEFAULT_TOOLS` 里，只能经 `toolset="memory"` 或 `toolset="full"` 到达会话。`<environment>` 报机器、工作目录和仓库，不报记忆。四处改动、各自落点、实测 token 代价见 [`memory-introspection.html`](memory-introspection.zh.html)。
 
 ---
 

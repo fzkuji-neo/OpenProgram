@@ -701,7 +701,7 @@ CORE = (
 
 
 def test_core_save_lands_on_the_master_and_is_rendered(client, memory):
-    """The editor edits ``topics/core.md``; the root file is the render.
+    """The editor edits ``topics/core.md``; ``MEMORY.md`` carries the render.
 
     Editing the render instead would hand the browser a copy cut to the
     token budget and save that truncated text back as the whole thing.
@@ -711,7 +711,8 @@ def test_core_save_lands_on_the_master_and_is_rendered(client, memory):
     assert "Always on." in (
         memory / "topics" / "core.md"
     ).read_text(encoding="utf-8")
-    assert "Always on." in (memory / "core.md").read_text(encoding="utf-8")
+    assert "Always on." in (memory / "MEMORY.md").read_text(encoding="utf-8")
+    assert not (memory / "core.md").exists()
 
     read_back = client.get("/api/memory/core")
     payload = read_back.json()
@@ -720,11 +721,9 @@ def test_core_save_lands_on_the_master_and_is_rendered(client, memory):
     ).read_text(encoding="utf-8")
     assert payload["size"] == (memory / "topics/core.md").stat().st_size
     assert payload["mtime"] == (memory / "topics/core.md").stat().st_mtime
-    assert payload["rendered_content"] == (
-        memory / "core.md"
-    ).read_text(encoding="utf-8")
-    assert payload["rendered_size"] == (memory / "core.md").stat().st_size
-    assert payload["rendered_mtime"] == (memory / "core.md").stat().st_mtime
+    assert "Always on." in payload["rendered_content"]
+    assert payload["rendered_size"] == (memory / "MEMORY.md").stat().st_size
+    assert payload["rendered_mtime"] == (memory / "MEMORY.md").stat().st_mtime
     assert 0 < payload["rendered_tokens"] <= payload["budget_tokens"]
     assert payload["budget_tokens"] == 2_000
 

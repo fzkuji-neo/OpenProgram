@@ -108,8 +108,11 @@ def has_notes(root: Path) -> bool:
     try:
         if any(path.suffix == ".md" for path in topics.rglob("*.md")):
             return True
-        core = Path(root) / "core.md"
-        return core.is_file() and bool(core.read_text(encoding="utf-8").strip())
+        return any(
+            (Path(root) / name).is_file()
+            and bool((Path(root) / name).read_text(encoding="utf-8").strip())
+            for name in ("MEMORY.md", "core.md")
+        )
     except OSError:
         return False
 

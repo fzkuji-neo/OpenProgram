@@ -243,10 +243,10 @@ def validate_writable_path(path: str) -> None:
 
     Two rules, and both are about where bytes may land: nothing may climb
     out of the workspace, and inside it only Topic Markdown is authored by
-    hand. ``sources/`` is the append-only evidence record, and ``core.md``
-    is rendered from ``topics/core.md`` like the rest of the derived views,
-    so an edit to either is refused rather than overwritten on the next
-    write.
+    hand. ``sources/`` is the append-only evidence record, and the core
+    section of ``MEMORY.md`` is rendered from ``topics/core.md`` like the
+    rest of the derived views, so an edit there is refused rather than
+    overwritten on the next write.
     """
     candidate = Path(path)
     if candidate.is_absolute() or ".." in candidate.parts:

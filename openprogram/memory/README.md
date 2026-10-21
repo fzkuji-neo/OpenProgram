@@ -15,7 +15,9 @@ Memory is a workspace of Markdown files under `<state>/memory/`:
 2. `topics/**/*.md` — the editable semantic memory, one file per subject.
    Every paragraph ends in a stable `^block-id` and cites a footnote
    pointing at the source it rests on.
-3. `core.md` — the small always-on block injected into every session.
+3. `MEMORY.md` — the entry point injected into every session: a map of the
+   workspace kept by the memory agents, then a core section rendered from
+   `topics/core.md` (only trusted blocks, within `core_max_tokens`).
 
 `timeline/`, `recent_events.jsonl` and `relations.json` are derived and
 rebuilt after every write. Memory does not own scheduled work. Scheduler tasks

@@ -494,7 +494,7 @@ export function MemoryPage({
                       aria-pressed={coreView === "injected"}
                       onClick={() => setCoreView("injected")}
                     >
-                      {text("Prompt preview", "提示词预览")}
+                      {text("MEMORY.md as injected", "注入的 MEMORY.md")}
                     </button>
                     <button
                       className={coreView === "records" ? styles.coreViewButtonActive : styles.coreViewButton}
@@ -559,7 +559,7 @@ export function MemoryPage({
                     <div className={styles.editorHeader}>
                       <div className={styles.editorHeaderLeft}>
                         <SparklesIcon size={14} />
-                        <span className={styles.editorTitle}>{text("Prompt preview", "提示词预览")}</span>
+                        <span className={styles.editorTitle}>{text("MEMORY.md as injected", "注入的 MEMORY.md")}</span>
                       </div>
                     </div>
                     <div className={styles.preview}>

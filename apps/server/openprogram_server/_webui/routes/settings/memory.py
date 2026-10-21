@@ -5,7 +5,7 @@ Four surfaces plus a stable read-only reference API:
   topics/   the editable semantic memory, one file per subject
   timeline/ the derived time axis
   recent    the last units written, derived
-  core.md   the always-on block, rendered from topics/core.md
+  MEMORY.md the entry point: the map, then the core rendered from topics/core.md
 
 ``sources/`` is deliberately absent: it is the append-only evidence
 record, reachable through the footnotes of whatever cites it, and a
@@ -583,11 +583,11 @@ def register(app):
     def _core_master() -> Path:
         """The file the always-on block is rendered from.
 
-        Reading and editing both land on ``topics/core.md``. The root
-        ``core.md`` is the render, cut to a token budget, so editing that
-        would hand back a truncated file and save it as the whole thing.
-        A workspace whose block has not been rendered yet still has its
-        content at the root.
+        Reading and editing both land on ``topics/core.md``. The core
+        section of ``MEMORY.md`` is the render, cut to a token budget, so
+        editing that would hand back a truncated file and save it as the
+        whole thing. A workspace from before the core moved into
+        ``MEMORY.md`` may still have it in a root ``core.md``.
         """
         from openprogram.memory import store
         master = store.topics_dir() / "core.md"
@@ -603,21 +603,18 @@ def register(app):
 
         config = load_memory_config()
         with workspace_write_lock(store.root(), timeout_s=WRITE_LOCK_TIMEOUT_S):
+            from openprogram.memory.runtime.memory_guide import prompt_text
+
             master = _core_master()
-            rendered = store.core()
+            rendered = store.guide()
             master_text = (
                 master.read_text(encoding="utf-8") if master.is_file() else ""
             )
-            rendered_text = (
-                rendered.read_text(encoding="utf-8") if rendered.is_file() else ""
-            )
+            # What every session reads: MEMORY.md's map, then its core.
+            rendered_text = prompt_text(store.root())
             master_stat = master.stat() if master.is_file() else None
             rendered_stat = rendered.stat() if rendered.is_file() else None
-        body = "\n".join(
-            line for line in rendered_text.splitlines()
-            if not line.startswith("# ")
-        ).strip()
-        injected_text = rendered_text if config.core_inject and body else ""
+        injected_text = rendered_text if config.core_inject else ""
         encoding = tiktoken.get_encoding("o200k_base")
         return JSONResponse(content={
             # Compatibility: the editable master remains in the original fields.

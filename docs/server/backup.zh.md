@@ -30,7 +30,7 @@ checkout 保留状态目录继承的 NTFS ACL，不改写 ACL 继承。归档先
 
 | 包含 | 内容 |
 |---|---|
-| `memory/` | 记忆工作区：`core.md`、主题、时间线、来源 |
+| `memory/` | 记忆工作区：`MEMORY.md`、主题、时间线、来源 |
 | `sessions/`、`sessions.db`、`session_aliases.json` | 聊天历史及其索引 |
 | `config.json`、`cli-config.json` | 你的配置 |
 | `agents/`、`agents.json` | agent 定义 |

@@ -17,7 +17,7 @@ export interface ContextBreakdown {
   basis?: string;
   tools?: Array<{ name: string; tokens: number; deferred: boolean; description?: string }>;
   skills_detail?: Array<{ name: string; source: string; tokens: number }>;
-  /** Each workspace's MEMORY.md and core.md, with the text injected. */
+  /** Each layer's MEMORY.md, with the text injected. */
   memory_detail?: Array<{ path: string; tokens: number; text?: string }>;
   /** The System prompt row by component (base, environment, AGENTS.md…). */
   system_detail?: Array<{ name: string; tokens: number; text?: string }>;

@@ -241,8 +241,8 @@ The panel has two levels. The overview shows four parts (system prompt, tools,
 memory, conversation); clicking one, or its bar segment, opens its detail. The
 system prompt detail lists components (base prompt, output style, the agent's own
 prompt, environment, AGENTS.md, skills index, workflows and tool notes, date, plan
-mode) with their text; tools are grouped loaded / on demand / MCP; memory lists each
-workspace's `MEMORY.md` and `core.md`; the conversation is split by kind
+mode) with their text; tools are grouped loaded / on demand / MCP; memory lists the
+`MEMORY.md` of each layer; the conversation is split by kind
 (`messages_detail.groups`) with its largest messages (`messages_detail.top`), each
 linking to its transcript row. Detail rows are scaled with their category, so they
 add up to it. A chat with no session yet reads `GET /api/context/draft?provider=&model=`

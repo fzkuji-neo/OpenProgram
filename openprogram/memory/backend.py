@@ -263,7 +263,7 @@ class MemoryBackend(ABC):
     def system_prompt(self, *, tier: str | None = None) -> str:
         """Static text injected into the system prompt at session start.
 
-        The shipped backend returns ``core.md``. A plugin can return a
+        The shipped backend returns ``MEMORY.md``. A plugin can return a
         brief backend-specific instruction line instead. Fence anything
         recalled from memory with ``fence_memory`` before returning it.
         Empty string skips injection.

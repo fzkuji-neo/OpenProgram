@@ -162,7 +162,8 @@ def test_recall_reads_the_layers_of_its_own_conversation(setup, monkeypatch):
     assert asked == ["s-project"]
 
 
-def test_core_of_the_project_comes_first(setup):
+def test_layers_join_general_to_specific(setup):
+    """Like ``AGENTS.md``: the personal layer first, the project after."""
     from openprogram.memory.local_backend import LocalMemoryBackend
 
     _seed_project(setup)
@@ -171,7 +172,7 @@ def test_core_of_the_project_comes_first(setup):
     assert "Project core." not in LocalMemoryBackend().system_prompt()
     _turn_on(setup)
     prompt = LocalMemoryBackend().system_prompt()
-    assert prompt.index("Project core.") < prompt.index("Personal core.")
+    assert prompt.index("Personal core.") < prompt.index("Project core.")
 
 
 def test_update_names_its_layer_and_status_names_the_default(setup, monkeypatch):

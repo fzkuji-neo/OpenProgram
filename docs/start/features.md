@@ -89,7 +89,7 @@ in `~/.openprogram/projects/<project>/memory/`, laid out the same way.
 
 | Path | What it holds |
 |---|---|
-| `core.md` | A short always-on block, injected into every session's system prompt |
+| `MEMORY.md` | The entry file, injected into every session's system prompt: a map of where things are, then a short always-on core rendered from `topics/core.md`. Like `AGENTS.md`, each layer has its own, and the personal one comes first, then the project's |
 | `topics/` | One file per subject, such as `topics/people/dave.md`. Every paragraph carries an ID and cites where the fact came from |
 | `sources/` | The conversation turns those citations point at. Added to, never rewritten |
 | `timeline/` | The same facts arranged by date, rebuilt from `topics/` |

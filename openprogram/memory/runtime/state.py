@@ -125,7 +125,9 @@ class RuntimeStateStore:
                 "commitments.jsonl",
                 "relations.json", "sources", "topics", "timeline",
             )
-            if (self.memory_dir / value).exists()
+            # A removed file is still staged so its deletion is committed
+            # (the old root core.md, now part of MEMORY.md).
+            if (self.memory_dir / value).exists() or _tracked(self.memory_dir, value)
         ]
         if not candidates:
             return None
@@ -152,6 +154,13 @@ class RuntimeStateStore:
         return subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=self.memory_dir, text=True
         ).strip()
+
+
+def _tracked(memory_dir: Path, path: str) -> bool:
+    return subprocess.run(
+        ["git", "ls-files", "--error-unmatch", "--", path],
+        cwd=memory_dir, capture_output=True,
+    ).returncode == 0
 
 
 def should_incremental_write(

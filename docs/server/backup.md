@@ -32,7 +32,7 @@ added by a future release cannot silently start bloating your archives.
 
 | Included | What it holds |
 |---|---|
-| `memory/` | The memory workspace: `core.md`, topics, timeline, sources |
+| `memory/` | The memory workspace: `MEMORY.md`, topics, timeline, sources |
 | `sessions/`, `sessions.db`, `session_aliases.json` | Chat history and its index |
 | `config.json`, `cli-config.json` | Your configuration |
 | `agents/`, `agents.json` | Agent definitions |

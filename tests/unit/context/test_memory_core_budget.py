@@ -21,6 +21,7 @@ from openprogram.memory.runtime.derived_views import (
     promote_legacy_core,
     render_core_block,
 )
+from openprogram.memory.runtime.memory_guide import split as _split_guide
 
 REF = "openprogram/thread-1/msg-1"
 ANCHOR = "source-" + hashlib.sha256(REF.encode()).hexdigest()[:16]
@@ -60,13 +61,18 @@ def _master(space: MemoryWorkspace, paragraphs: int) -> None:
     )
 
 
+def _rendered(root: Path) -> str:
+    """The core section ``MEMORY.md`` carries."""
+    return _split_guide((root / "MEMORY.md").read_text(encoding="utf-8"))[1]
+
+
 def test_a_block_within_budget_is_rendered_whole(tmp_path: Path):
     space = _workspace(tmp_path, limit=2_000)
     _master(space, 3)
 
     block = render_core_block(space.stage_dir, budget_tokens=2_000)
 
-    rendered = (space.stage_dir / "core.md").read_text(encoding="utf-8")
+    rendered = _rendered(space.stage_dir)
     assert block.dropped == ()
     assert "Stable fact number 2." in rendered
     assert 0 < block.tokens <= 2_000
@@ -78,7 +84,7 @@ def test_what_does_not_fit_stays_in_the_master(tmp_path: Path):
 
     block = render_core_block(space.stage_dir, budget_tokens=200)
 
-    rendered = (space.stage_dir / "core.md").read_text(encoding="utf-8")
+    rendered = _rendered(space.stage_dir)
     master = (space.stage_dir / "topics" / "core.md").read_text(encoding="utf-8")
     assert block.dropped, "a 200-token budget cannot hold eight paragraphs"
     assert block.tokens <= 200
@@ -94,7 +100,7 @@ def test_a_footnote_follows_the_paragraph_it_belongs_to(tmp_path: Path):
 
     render_core_block(space.stage_dir, budget_tokens=200)
 
-    rendered = (space.stage_dir / "core.md").read_text(encoding="utf-8")
+    rendered = _rendered(space.stage_dir)
     for index in range(8):
         citation = f"[^e-1f4c7a2b{index:02d}]"
         assert (citation in rendered) == (f"{citation}:" in rendered), (

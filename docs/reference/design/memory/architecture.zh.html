@@ -742,8 +742,8 @@
 
   <!-- ══════════ 05 常驻块 ══════════ -->
   <h2 id="core"><span class="num">05</span>常驻块：谁在维护它</h2>
-  <p class="lead"><code>core.md</code>是每次会话开头都注入的那一小块。它现在是
-    <code>topics/core.md</code>的渲染结果，2000 token是渲染预算而不是闸门。
+  <p class="lead">核心是每次会话开头都注入的那一小块。它现在是
+    <code>topics/core.md</code>渲染进<code>MEMORY.md</code>核心段的结果，每一层注入的只有这一个入口文件，2000 token是渲染预算而不是闸门。
     改之前它是被写的正本，顶到上限的那一刻就是它最后一次改变的时刻，而且此后每一笔事务都被它拒掉。</p>
 
   <div class="card">
@@ -812,7 +812,7 @@
     <text x="858" y="168" fill="#9d6fe0" font-size="10.5" text-anchor="middle">渲染</text>
 
     <rect x="888" y="106" width="240" height="140" rx="8" fill="#12110b" stroke="#9d6fe0" stroke-width="1.5"/>
-    <text x="904" y="128" fill="#9d6fe0" font-size="12" font-weight="700">core.md派生</text>
+    <text x="904" y="128" fill="#9d6fe0" font-size="12" font-weight="700">核心段派生</text>
     <text x="904" y="147" fill="#8a8675" font-size="11">每次写入装成之后跟着重建</text>
     <rect x="904" y="158" width="208" height="20" rx="3" fill="#2a2a1c"/>
     <text x="914" y="172" fill="#bdb9a6" font-size="10.5">段落^a1</text>
@@ -888,7 +888,7 @@
     <g>
       <rect x="216" y="86" width="196" height="94" rx="9" fill="#101a10" stroke="#5aad4e" stroke-width="1.5"/>
       <text x="234" y="110" fill="#5aad4e" font-size="12.5" font-weight="700" font-family="Menlo,monospace">system_prompt()</text>
-      <text x="234" y="132" fill="#bdb9a6" font-size="11">会话开始注入 core.md</text>
+      <text x="234" y="132" fill="#bdb9a6" font-size="11">会话开始注入 MEMORY.md</text>
       <text x="234" y="152" fill="#8a8675" font-size="11">包在 memory-context 里，</text>
       <text x="234" y="170" fill="#8a8675" font-size="11">免得被当成用户现在说的</text>
 

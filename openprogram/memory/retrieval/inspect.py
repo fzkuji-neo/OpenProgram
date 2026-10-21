@@ -149,7 +149,7 @@ def status(
         ),
         "recent_events": recent_count,
         "relations": relation_count,
-        "core_exists": (root / "core.md").is_file(),
+        "core_exists": _has_core(root),
         "embedding_available": (
             embedding_is_available()
             if embedding_available is None
@@ -549,3 +549,15 @@ def _present(hit: dict[str, Any]) -> dict[str, Any]:
     if isinstance(result.get("content"), str):
         result["content"] = result["content"][:MAX_SNIPPET_CHARS * 4]
     return result
+
+
+def _has_core(root) -> bool:
+    """Whether ``MEMORY.md`` carries a rendered core (or an old root
+    ``core.md`` still does)."""
+    from ..runtime.memory_guide import GUIDE_FILE, split
+
+    try:
+        text = (root / GUIDE_FILE).read_text(encoding="utf-8")
+    except OSError:
+        text = ""
+    return bool(split(text)[1]) or (root / "core.md").is_file()

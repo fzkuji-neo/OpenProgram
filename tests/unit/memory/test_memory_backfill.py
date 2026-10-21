@@ -244,7 +244,8 @@ def test_backfill_ignores_markers_and_sends_only_uncited_trusted_sources(
     assert pending.source_id not in (root / "topics/core.md").read_text(
         encoding="utf-8"
     )
-    for path in (root / "topics/core.md", root / "core.md"):
+    assert not (root / "core.md").exists(), "the legacy file folds into MEMORY.md"
+    for path in (root / "topics/core.md", root / "MEMORY.md"):
         assert "Legacy core without citations or block IDs" in path.read_text(
             encoding="utf-8"
         )
@@ -505,7 +506,8 @@ def test_first_batch_failure_preserves_the_only_legacy_core_and_source(
 
     assert report["remaining"] == 0
     assert migration_sources[0].read_bytes() == migration_before
-    for path in (root / "topics/core.md", root / "core.md"):
+    assert not (root / "core.md").exists(), "the legacy file folds into MEMORY.md"
+    for path in (root / "topics/core.md", root / "MEMORY.md"):
         assert "the only legacy core copy" in path.read_text(encoding="utf-8")
 
 

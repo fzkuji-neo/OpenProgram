@@ -30,25 +30,17 @@ WRITE_TOKEN_THRESHOLD = 16_000
 
 
 def _core_block(root: Any) -> str:
-    """One workspace's ``MEMORY.md`` map then its ``core.md``, fenced;
-    empty when neither holds anything."""
+    """One workspace's ``MEMORY.md`` (its map, then its core), fenced;
+    empty when it holds nothing."""
     from .runtime.memory_guide import prompt_text
 
     try:
-        text = (root / "core.md").read_text(encoding="utf-8").strip()
-    except FileNotFoundError:
-        text = ""
+        text = prompt_text(root)
     except OSError as exc:
         from .policy import require_or_empty
         require_or_empty(exc)
         return ""
-    # A bare heading is the empty state, not content worth injecting.
-    body = "\n".join(
-        line for line in text.splitlines() if not line.startswith("# ")
-    ).strip()
-    guide = prompt_text(root)
-    parts = [part for part in (guide, text if body else "") if part]
-    return fence_memory("\n\n".join(parts)) if parts else ""
+    return fence_memory(text) if text else ""
 
 
 class LocalMemoryBackend(MemoryBackend):
@@ -68,17 +60,19 @@ class LocalMemoryBackend(MemoryBackend):
     def system_prompt(
         self, *, tier: str | None = None, session_id: str = "",
     ) -> str:
-        """The memory map and core memory, injected into every session.
+        """``MEMORY.md``, injected into every session.
 
-        ``MEMORY.md`` comes first: where things are, kept by the memory
-        agents. ``core.md`` is rendered only from blocks whose evidence is
-        trusted, so what lands here is already filtered by trust. ``tier``
+        Its map says where things are and is kept by the memory agents;
+        its core section is rendered only from blocks whose evidence is
+        trusted, so what lands there is already filtered by trust. ``tier``
         is accepted so the caller's resolved authority reaches the
         backend rather than being looked up again here; per-tier
         redaction of the block itself is not yet rendered.
 
-        In a project with project Memory on, the project's map and
-        ``core.md`` come first, then the personal ones.
+        Layers stack like ``AGENTS.md``: each workspace keeps its own
+        ``MEMORY.md`` and they are joined general to specific, the personal
+        one first and the project's after it, so the narrower layer is
+        read last.
         """
         if not load_memory_config().core_inject:
             return ""
@@ -94,7 +88,8 @@ class LocalMemoryBackend(MemoryBackend):
             require_or_empty(exc)
             return ""
         blocks = [
-            block for block in (_core_block(layer.root) for layer in layers)
+            # ``read_layers`` lists narrowest first for retrieval.
+            block for block in (_core_block(layer.root) for layer in reversed(layers))
             if block
         ]
         return "\n\n".join(blocks)

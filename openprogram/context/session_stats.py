@@ -592,41 +592,27 @@ def _unfence(text: str) -> str:
     return re.sub(r"\[System note:[^\]]*\]", "", text).strip()
 
 
-def _memory_files(session_id: str, block: str, count) -> list[dict]:
-    """The memory block as files: each workspace's fence holds its
-    MEMORY.md map, then its core.md. Counts come from the recorded text,
-    not from the files as they are now."""
+def _memory_files(session_id: Optional[str], block: str, count) -> list[dict]:
+    """The memory block as files: one ``MEMORY.md`` per workspace (its map,
+    then its core), counted from the recorded text."""
     if not block:
         return []
     fences = re.findall(r"<memory-context>[\s\S]*?</memory-context>", block) or [block]
     try:
         from openprogram.memory import store
         from openprogram.memory.project_layer import read_layers
-        from openprogram.memory.runtime.memory_guide import GUIDE_FILE, prompt_text
 
-        layers = list(read_layers(session_id, personal=store.root()).layers)
+        # Injected general to specific, the reverse of the read order.
+        layers = list(reversed(read_layers(session_id, personal=store.root()).layers))
     except Exception:
         _log.debug("memory layers unavailable", exc_info=True)
-        layers, GUIDE_FILE, prompt_text = [], "MEMORY.md", None
-    if len(layers) != len(fences):
         layers = []
-    rows = []
-    for index, fence in enumerate(fences):
-        layer = layers[index] if layers else None
-        prefix = f"{layer.name}/" if layer is not None and len(layers) > 1 else ""
-        total = count(fence)
-        guide = prompt_text(layer.root) if layer is not None and prompt_text else ""
-        if guide and guide in fence:
-            guide_tokens = min(total, count(guide))
-            rows.append({"path": prefix + GUIDE_FILE, "tokens": guide_tokens,
-                         "text": _preview(guide)})
-            if total - guide_tokens > 0:
-                rows.append({"path": prefix + "core.md", "tokens": total - guide_tokens,
-                             "text": _preview(_unfence(fence.replace(guide, "", 1)))})
-        else:
-            rows.append({"path": prefix + "core.md" if layer is not None else "memory",
-                         "tokens": total, "text": _preview(_unfence(fence))})
-    return rows
+    named = len(layers) == len(fences) and len(layers) > 1
+    return [
+        {"path": (f"{layers[i].name}/" if named else "") + "MEMORY.md",
+         "tokens": count(fence), "text": _preview(_unfence(fence))}
+        for i, fence in enumerate(fences)
+    ]
 
 
 def estimate_total_used(session_id: str, head_id: Optional[str] = None) -> tuple[int, int]:

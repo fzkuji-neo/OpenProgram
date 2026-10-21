@@ -4,7 +4,8 @@ The personal memory is the home project's workspace,
 ``<state>/projects/default/memory``; a project's own memory is
 ``<state>/projects/<project-id>/memory`` (see :mod:`.project_layer`).
 Inside a workspace, ``sources/`` and ``topics/`` hold the memory and
-``core.md`` at the root is rendered from ``topics/core.md``.
+``MEMORY.md`` at the root is the entry point; its core section is
+rendered from ``topics/core.md``.
 """
 
 from __future__ import annotations
@@ -49,7 +50,15 @@ def timeline_dir() -> Path:
     return root() / "timeline"
 
 
+def guide() -> Path:
+    """``MEMORY.md``: the map, then the core rendered from
+    ``topics/core.md``."""
+    return root() / "MEMORY.md"
+
+
 def core() -> Path:
+    """The old root ``core.md``, read only until the next write moves its
+    content into ``MEMORY.md``."""
     return root() / "core.md"
 
 

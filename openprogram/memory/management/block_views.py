@@ -198,13 +198,15 @@ class BlockViewsMixin:
         )
         state.creation_order = derived.creation_order
         state_store.save(state)
-        # The always-on block is a view of one topic file, rebuilt beside
-        # the others. Nothing writes it: an edit there is replaced here.
+        # The core section of MEMORY.md is a view of one topic file,
+        # rebuilt beside the others: an edit there is replaced here.
         if (
             not (self.stage_dir / "topics" / "core.md").is_file()
             and (self.memory_dir / "topics" / "core.md").is_file()
         ):
             (self.stage_dir / "core.md").unlink(missing_ok=True)
+            if (self.stage_dir / memory_guide.GUIDE_FILE).is_file():
+                memory_guide.write_core(self.stage_dir, "")
         self.last_core_block = render_core_block(
             self.stage_dir, budget_tokens=self.config.core_max_tokens
         )
@@ -237,6 +239,7 @@ class BlockViewsMixin:
             Path("recent_events.jsonl"),
             Path("commitments.jsonl"),
             Path("relations.json"),
+            # The old root core.md: listed so installing removes it.
             Path("core.md"),
             Path(memory_guide.GUIDE_FILE),
             Path(runtime_dir(self.memory_dir).name) / "runtime.json",

@@ -31,8 +31,8 @@ Two properties we care about:
 
 ```
 <state>/memory/
-    MEMORY.md                the map of this memory, kept by the memory agents
-    core.md                  always-on block, rendered from topics/core.md
+    MEMORY.md                the entry file: the map, kept by the memory agents,
+                             then the core section rendered from topics/core.md
     topics/                  the editable semantic memory
         core.md              what must be visible in every conversation
         people/dave.md
@@ -68,8 +68,8 @@ Craig is building a budget tracker in Flask, due 2024-04-15.[^e-1175dea39c] ^f88
 The block ID is how other views and links reach that paragraph; it
 survives edits and moves. The footnote is how a claim is traced back.
 
-`core.md`, `timeline/`, `recent_events.jsonl` and `relations.json` are
-derived — rebuilt from topics after every successful write. Editing
+The core section of `MEMORY.md`, `timeline/`, `recent_events.jsonl` and
+`relations.json` are derived — rebuilt from topics after every successful write. Editing
 them by hand accomplishes nothing.
 
 ## When writing happens
@@ -430,8 +430,8 @@ and only the first one answers to a rule.
 `MEMORY.md` at the workspace root says where things are. It describes
 what each part of the workspace holds, which subjects `topics/` covers
 and how they nest, and what has been active lately, so a session knows
-when a search is worth making and which file to open. `core.md` says
-what every session must know; `MEMORY.md` says where the rest is.
+when a search is worth making and which file to open. Its core section
+says what every session must know; its map says where the rest is.
 
 The Runtime writes the first one. A commit that finds no `MEMORY.md`
 generates it from the staged tree (`runtime/memory_guide.py`): a fixed
@@ -442,18 +442,22 @@ file. It is staged and installed with the rest of the workspace and is
 never regenerated; the writer adds a line when it starts a Topic file or
 directory, and the nightly organizer brings it in line with the tree,
 replacing the generated quoted sentences with short descriptions of what
-each file covers. It is plain Markdown without block IDs or evidence
+each file covers. The map is plain Markdown without block IDs or evidence
 footnotes, so the contract is that it names files and never states facts:
-a fact on it would reach every session without the trust filter
-`core.md` applies.
+a fact on it would reach every session without the trust filter the core
+section applies. The agents edit the map and leave the section between
+`<!-- core: … -->` and `<!-- /core -->` alone.
 
 ## The always-on block
 
-`core.md` is what every session starts with, and it is derived. Its
-content is `topics/core.md`, a subject file like any other, rendered
-under a 2,000-token budget after every successful write. Nothing writes
-to `core.md`: an edit there is replaced by the next render, the same
-way an edit to `timeline/` is.
+The core section at the end of `MEMORY.md` is what every session
+starts with, and it is derived. Its content is `topics/core.md`, a
+subject file like any other, rendered under a 2,000-token budget after
+every successful write into the section between `<!-- core: … -->` and
+`<!-- /core -->`; the map above it is kept as it is. Nothing writes to
+that section: an edit there is replaced by the next render, the same
+way an edit to `timeline/` is. There is no separate root `core.md`; one
+entry file per workspace is what gets injected.
 
 A subject file, because a fact that must be visible in every
 conversation is still a fact about something, and it carries the same
@@ -480,13 +484,14 @@ dropping a line destroys it. Here the preference lives in the order
 instead — a paragraph earlier in the file is rendered first, and moving
 one is an ordinary edit that a person or the nightly pass can make.
 
-A workspace that has a hand-written `core.md` and no `topics/core.md`
-has that file moved into place the first time the block is rendered. It
-already carries block IDs and evidence footnotes, so it is a valid
-topic file exactly as it stands. A workspace that has both keeps
-`topics/core.md` and lets the render overwrite the loose file, because
-that is what being derived means and the content is not at risk either
-way.
+A workspace that has a hand-written root `core.md` and no
+`topics/core.md` has that file moved into place the first time the
+block is rendered. It already carries block IDs and evidence footnotes,
+so it is a valid topic file exactly as it stands. A workspace that has
+both keeps `topics/core.md`. Either way the render then removes the
+root `core.md`, because its content now lives in `topics/core.md` and
+in the core section of `MEMORY.md`. Until a workspace is rendered again,
+injection falls back to a root `core.md` that is still there.
 
 ### What this does not settle
 
@@ -507,10 +512,11 @@ way.
 
 ## What the model sees
 
-- **Every session**: `MEMORY.md` (cut to 6 KB) then `core.md`, injected
-  as one fenced `<memory-context>` block so recalled facts are never
-  mistaken for the user talking now. With project Memory on, the
-  project's pair comes before the personal one.
+- **Every session**: each layer's `MEMORY.md` (its map cut to 6 KB, its
+  core section whole), fenced as a `<memory-context>` block so recalled
+  facts are never mistaken for the user talking now. Layers stack like
+  `AGENTS.md`: general to specific, the personal `MEMORY.md` first and,
+  with project Memory on, the project's after it.
 - **Every turn**: whatever `search` finds for that message, ranked by the
   recall method in Settings (five records by default), also fenced.
 - **On demand**: the `memory_*` tools.
@@ -579,10 +585,12 @@ path the tools return names its layer (`project:topics/api.md`,
 `personal:topics/me.md`); an unqualified path means the default layer.
 `memory_status` lists both layers and a combined revision
 (`project=… personal=…`), and `memory_update` takes the layer to write as
-`layer`. Core memory comes from both: the project's `core.md` first.
+`layer`. The injected `MEMORY.md` comes from both, joined like `AGENTS.md`:
+the personal one first, the project's after it. Recall ranks the project
+first; injection reads it last, as the narrower layer.
 
 A project with no memory yet adds no layer: a workspace counts as a layer
-once it holds a topic or a non-empty `core.md`. Opening a project's Memory
+once it holds a topic or a `MEMORY.md`. Opening a project's Memory
 page initialises an empty workspace, which still adds no layer until
 something is written to it.
 
@@ -724,8 +732,8 @@ and `scheduler.start_nightly_reorganizer(model=...)` override it.
 
 The workspace kept its location, so an existing installation finds
 memory in the same place. What is inside changed: `journal/` and `wiki/`
-are gone, replaced by `sources/` and `topics/`; root `core.md` is now a
-derived view rendered from `topics/core.md`.
+are gone, replaced by `sources/` and `topics/`; root `core.md` is gone; its
+content is `topics/core.md`, rendered into the core section of `MEMORY.md`.
 
 On first use, `store.ensure()` moves `journal/`, `wiki/`, `.state/` and
 `index.sqlite` to `<state>/memory-superseded/`. Moved, not deleted, and
@@ -861,7 +869,7 @@ workspace has been read and stamps it on the event. The rule is
 all-or-nothing: one pending or unresolvable citation makes the whole block
 pending, because a paragraph is a single claim and there is no way to tell
 from the prose which half rests on which citation. Pending blocks are excluded
-from `search` recall and from the rendered `core.md`; they are neither deleted
+from `search` recall and from the rendered core section; they are neither deleted
 nor auto-promoted, and promoting the Sources under them restores them with no
 further bookkeeping. Trust eligibility and audience visibility are separate:
 visibility is expressed with the `AuthorityTier` vocabulary on the event's

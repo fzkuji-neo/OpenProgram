@@ -83,7 +83,7 @@ docstring 与 `content` 的拆分、一份基于规则的校验清单，
 
 | 路径 | 放什么 |
 |---|---|
-| `core.md` | 一小段常驻内容，注入每个会话的system prompt |
+| `MEMORY.md` | 入口文件，注入每个会话的system prompt：先是一张"什么在哪"的地图，再是从`topics/core.md`渲染出的一小段常驻核心。和`AGENTS.md`一样每层各有一份，个人的在前，项目的在后 |
 | `topics/` | 一个主题一个文件，比如`topics/people/dave.md`。每个段落带一个ID，并标注这条事实的出处 |
 | `sources/` | 那些出处指向的对话原文。只追加，不改写 |
 | `timeline/` | 同一批事实按日期排列，从`topics/`重建 |

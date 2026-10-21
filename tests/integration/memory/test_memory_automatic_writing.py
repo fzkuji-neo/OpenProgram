@@ -173,8 +173,9 @@ def test_idle_writer_composes_real_runtime_and_installs_topic(
             "backlinks": {}, "outbound": {block.group(1): []},
         }
         assert "B prefers exact answers." in (
-            memory / "core.md"
+            memory / "MEMORY.md"
         ).read_text(encoding="utf-8")
+        assert not (memory / "core.md").exists()
 
         branch = db.get_branch(SESSION_ID)
         assert branch[0]["memory_written_scriptorium"] == store.workspace_id()

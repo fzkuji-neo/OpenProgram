@@ -1,6 +1,6 @@
 """The names the runtime owns inside a memory workspace.
 
-A workspace holds the memory — `core.md`, `topics/`, `sources/` and the
+A workspace holds the memory — `MEMORY.md`, `topics/`, `sources/` and the
 derived views — and beside it a small runtime area: cursors, the write lock,
 staged backups, retrieval caches. A workspace kept under version control also
 holds that tool's own directory. Neither is memory: both are hidden from
