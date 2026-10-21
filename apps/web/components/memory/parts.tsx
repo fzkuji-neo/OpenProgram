@@ -62,7 +62,8 @@ export function TreeGroup({ folder, pages, expanded, onToggle, selected, onSelec
           depth={folder ? 1 : 0}
           icon={<DocGlyph />}
           label={page.title || page.path.split("/").pop()}
-          badge={page.type ? <RailBadge>{page.type}</RailBadge> : undefined}
+          // Inside its own type's folder the badge would only repeat the folder name.
+          badge={page.type && page.type !== folder ? <RailBadge>{page.type}</RailBadge> : undefined}
           trailing={<RailCount>{formatDate(page.mtime, locale)}</RailCount>}
           active={selected?.path === page.path}
           onClick={() => onSelect(page)}

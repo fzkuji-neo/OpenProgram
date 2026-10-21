@@ -79,7 +79,7 @@ assert.ok(cssRules(".editorHeader").some((rule) => /min-height:\s*76px/.test(rul
 // folder glyphs mark open / closed, counts and dates sit in the trailing slot.
 assert.match(memoryParts, /export function TabButton[\s\S]*<RailItem icon=\{icon\}/);
 assert.match(memoryParts, /<RailItem[\s\S]*icon=\{<FolderGlyph open=\{isExpanded\} \/>\}[\s\S]*trailing=\{<RailCount>\{pages\.length\}<\/RailCount>\}[\s\S]*aria-expanded=\{isExpanded\}/);
-assert.match(memoryParts, /depth=\{folder \? 1 : 0\}[\s\S]*badge=\{page\.type \? <RailBadge>/);
+assert.match(memoryParts, /depth=\{folder \? 1 : 0\}[\s\S]*badge=\{page\.type && page\.type !== folder \? <RailBadge>/);
 assert.equal((memoryPage.match(/<SecondaryRail\b/g) || []).length, 5);
 assert.match(memoryPage, /isTimelineOpen\(year\.year, yearIndex === 0\)/);
 assert.match(memoryPage, /isTimelineOpen\(month\.key, yearIndex === 0 && monthIndex === 0\)/);

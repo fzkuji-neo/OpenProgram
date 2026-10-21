@@ -62,7 +62,7 @@ stored choice a rail starts collapsed below 760px. Narrowing the window below
 | Agents | Agent list with search, two-line rows | yes |
 | Settings | Categories (`Link` rows) | yes |
 | Abilities → Programs | Catalog tree (`depth`) | no; the Abilities header belongs to all four tabs |
-| History → project → Memory | Sections, topics tree (folders, type badge, date), timeline (year › month › day) | no; it sits inside the project page |
+| History → project → Memory | Sections, topics tree (folders, a type badge when it differs from the folder, date), timeline (year › month › day) | no; it sits inside the project page |
 | Chat list (stand-alone) | Recency filters with counts | no |
 
 Pages without a list column (Scheduler, Applications, Abilities' Plugins,
