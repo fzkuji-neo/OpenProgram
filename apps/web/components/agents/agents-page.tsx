@@ -5,11 +5,17 @@ import { BotIcon, CheckIcon, CopyIcon, MessageCircleIcon, PlusIcon, SearchIcon, 
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ManageEmptyState, ManagePageHeader, managePageStyles, ManageSummary } from "@/components/ui/manage-page";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { HoverTip } from "@/components/ui/tooltip";
+import { CHECK_SLOT_PAD, MENU_ITEM_STATES, MENU_PANEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
+import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
 import { HttpError, jsonFetch } from "@/lib/net/fetch-client";
 import { startAgentConversation } from "@/lib/agents/start-conversation";
 import settingsStyles from "@/components/settings/settings-page.module.css";
-import { AgentButton, AgentListRow, AgentRoleIcon } from "./agent-controls";
+import { AgentButton, AgentRoleIcon } from "./agent-controls";
+import { RailBadge, RailItem, RailSearch, RailSplit, RailToggle, SecondaryRail } from "@/components/ui/secondary-rail";
 import { AdvancedPanel, ContextPanel, MemoryPanel, OverviewPanel } from "./agent-panels";
 import { CapabilityPanel } from "./agent-capabilities";
 import { AlwaysOnPanel } from "./always-on-panel";
@@ -17,7 +23,8 @@ import { wakeMinutesValid } from "@/lib/agents/always-on";
 import { ModelPicker, selectedModel, useAgentModels, type ModelSelection } from "./model-picker";
 import { clone, configuration, normalizeAgent, trialConfiguration, TABS, type Agent, type TabId } from "./agent-types";
 import styles from "./agents-page.module.css";
-import { SimpleSelect } from "@/components/ui/select";
+
+const AGENTS_RAIL = "agents";
 
 type CachedDraft = { draft: Agent; baseline: Agent; tab: TabId };
 // Keep unsaved edits across in-app navigation, including a trial conversation.
@@ -47,7 +54,7 @@ export function AgentsPage() {
   const [deleteId, setDeleteId] = useState("");
   const [dialogError, setDialogError] = useState("");
   const mounted = useRef(true);
-  const menu = useRef<HTMLDetailsElement>(null);
+  const menuTrigger = useRef<HTMLButtonElement>(null);
   const dialogOpener = useRef<HTMLElement | null>(null);
   const busyRef = useRef(false);
   const models = useAgentModels();
@@ -143,7 +150,8 @@ export function AgentsPage() {
   }
   function captureDialogOpener() {
     const active = document.activeElement as HTMLElement | null;
-    dialogOpener.current = menu.current?.contains(active) ? menu.current.querySelector("summary") : active;
+    // A menu item closes with its menu; focus goes back to the menu button.
+    dialogOpener.current = active?.closest("[role=menu]") ? menuTrigger.current : active;
   }
   function restoreDialogFocus(event: Event) {
     event.preventDefault();
@@ -166,7 +174,6 @@ export function AgentsPage() {
   }
   function openDialog(kind: NonNullable<typeof dialog>) {
     captureDialogOpener();
-    if (menu.current) menu.current.open = false;
     guard((saved) => {
       setNewModel({ model: { provider: "", id: "" }, thinking_effort: "" });
       setDialogError(""); setDeleteId(""); setNewName(kind === "duplicate" && saved ? `${saved.name} ${text("Copy", "副本")}` : ""); setDialog(kind);
@@ -234,18 +241,26 @@ export function AgentsPage() {
   const activeName = draft?.name || draft?.id || "";
   const canStart = !models.loading && !models.error && Boolean(model) && !effortInvalid;
   return <div className={`main ${styles.agentsMain}`}><div className={`${managePageStyles.view} ${styles.agentView}`}>
-    <ManagePageHeader title="Agents" toolbar={loading || loadError ? undefined : <ManageSummary>{text(`${agents.length} ${agents.length === 1 ? "Agent" : "Agents"}`, `${agents.length} 个 Agent`)}</ManageSummary>} actions={[{ label: text("New Agent", "新建 Agent"), onClick: () => openDialog("create"), icon: PlusIcon, disabled: busy || loading || Boolean(loadError), primary: true }]} />
+    <ManagePageHeader title="Agents" railToggle={<RailToggle railKey={AGENTS_RAIL} controls="agents-rail" label={{ collapse: text("Collapse Agent list", "收起 Agent 列表"), expand: text("Expand Agent list", "展开 Agent 列表") }} />} toolbar={loading || loadError ? undefined : <ManageSummary>{text(`${agents.length} ${agents.length === 1 ? "Agent" : "Agents"}`, `${agents.length} 个 Agent`)}</ManageSummary>} actions={[{ label: text("New Agent", "新建 Agent"), onClick: () => openDialog("create"), icon: PlusIcon, disabled: busy || loading || Boolean(loadError), primary: true }]} />
     {notice ? <div className={notice.tone === "error" ? styles.errorBanner : styles.successBanner} role={notice.tone === "error" ? "alert" : "status"}><span>{notice.message}</span></div> : null}
-    {loading ? <div className={managePageStyles.empty} role="status">{text("Loading Agents…", "正在加载 Agents…")}</div> : loadError ? <div className={styles.centerState} role="alert"><ManageEmptyState icon={<BotIcon size={20} />} title={text("Unable to load Agents", "无法加载 Agents")} description={loadError} action={<AgentButton variant="outline" onClick={() => { setLoading(true); void loadAgents().catch((error) => setLoadError(errorMessage(error))).finally(() => setLoading(false)); }}>{text("Retry", "重试")}</AgentButton>} /></div> : <div className={`${managePageStyles.splitBody} ${styles.agentSplit}`}>
-      <aside className={styles.agentNav} aria-label={text("Agent list", "Agent 列表")}>
-        <label className={styles.searchField}><SearchIcon size={15} aria-hidden /><input aria-label={text("Search Agents", "搜索 Agents")} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={text("Find an Agent…", "查找 Agent…")} /></label>
-        <label className={styles.mobileAgentSelect}>{text("Agent", "Agent")}<SimpleSelect label={"Agent"} className="min-w-0 flex-1" value={draft?.id || ""} disabled={busy} onValueChange={(value) => { const agent = agents.find((item) => item.id === value); if (agent) guard(() => applyAgent(agent, true)); }} options={agents.map((agent) => ({ value: agent.id, label: `${agent.name || agent.id}${agent.default ? ` (${text("Default", "默认")})` : ""}` }))} /></label>
-        <div className={styles.agentList}>{visible.map((agent) => <AgentListRow key={agent.id} className={`${styles.agentRow} ${agent.id === draft?.id ? styles.agentSelected : ""}`} roleId={agent.id} onClick={() => { if (agent.id !== draft?.id) guard(() => applyAgent(agent, true)); }} name={agent.name || agent.id} description={agent.description || text("General conversations and tasks", "通用对话与任务")} meta={agent.default ? <span className={managePageStyles.badge}>{text("Default", "默认")}</span> : null} />)}{!visible.length && agents.length ? <ManageEmptyState compact icon={<SearchIcon size={20} />} title={text("No matching Agents", "没有匹配的 Agent")} /> : null}</div>
-      </aside>
+    {loading ? <div className={managePageStyles.empty} role="status">{text("Loading Agents…", "正在加载 Agents…")}</div> : loadError ? <div className={styles.centerState} role="alert"><ManageEmptyState icon={<BotIcon size={20} />} title={text("Unable to load Agents", "无法加载 Agents")} description={loadError} action={<AgentButton variant="outline" onClick={() => { setLoading(true); void loadAgents().catch((error) => setLoadError(errorMessage(error))).finally(() => setLoading(false)); }}>{text("Retry", "重试")}</AgentButton>} /></div> : <RailSplit railKey={AGENTS_RAIL}>
+      <SecondaryRail railKey={AGENTS_RAIL} as="aside" id="agents-rail" label={text("Agent list", "Agent 列表")}>
+        <RailSearch aria-label={text("Search Agents", "搜索 Agents")} value={search} onChange={setSearch} placeholder={text("Find an Agent…", "查找 Agent…")} />
+        {visible.map((agent) => <RailItem key={agent.id} icon={<AgentRoleIcon roleId={agent.id} size={16} />} label={agent.name || agent.id} description={agent.description || text("General conversations and tasks", "通用对话与任务")} badge={agent.default ? <RailBadge>{text("Default", "默认")}</RailBadge> : undefined} active={agent.id === draft?.id} onClick={() => { if (agent.id !== draft?.id) guard(() => applyAgent(agent, true)); }} />)}
+        {!visible.length && agents.length ? <ManageEmptyState compact icon={<SearchIcon size={20} />} title={text("No matching Agents", "没有匹配的 Agent")} /> : null}
+      </SecondaryRail>
       <main className={styles.editor}>{!draft ? <ManageEmptyState compact icon={<BotIcon size={20} />} title={text("Create your first Agent", "创建第一个 Agent")} description={text("Configure a model, capabilities, and optional memory.", "配置模型、能力和可选的长期记忆。")} action={<AgentButton icon={PlusIcon} onClick={() => openDialog("create")}>{text("New Agent", "新建 Agent")}</AgentButton>} /> : <div className={`${settingsStyles.page} ${styles.editorPage}`}>
         <div className={`${settingsStyles.pageHeader} ${styles.agentPageHeader}`}><span className={styles.detailAvatar}><AgentRoleIcon roleId={draft.id} size={24} /></span><div className={styles.agentHeading}><h2 className={settingsStyles.pageTitle}>{activeName}</h2><p className={settingsStyles.pageMeta}>{draft.id}</p></div>
         <div className={styles.conversationActions}><AgentButton variant="default" icon={MessageCircleIcon} disabled={busy} onClick={() => guard((saved) => start(false, saved))}>{text("New conversation", "新对话")}</AgentButton><AgentButton variant="ghost" icon={MessageCircleIcon} disabled={busy || !canStart || Boolean(formError)} aria-label={text("Try in new conversation", "在新对话试运行")} title={text("Start a new conversation with the draft; memory is read only or off.", "使用草稿开始新对话；记忆只读或关闭。")} onClick={() => void start(true)}>{text("Try draft", "试运行草稿")}</AgentButton></div>
-          <details ref={menu} key={draft.id} className={styles.moreMenu}><summary aria-label={text("Agent actions", "Agent 操作")}><SettingsIcon size={18} aria-hidden /></summary><div><AgentButton icon={CheckIcon} variant="ghost" disabled={draft.default || busy} onClick={() => { if (menu.current) menu.current.open = false; guard(makeDefault); }}>{text("Set as default", "设为默认")}</AgentButton><AgentButton icon={CopyIcon} variant="ghost" disabled={busy} onClick={() => openDialog("duplicate")}>{text("Duplicate Agent", "复制 Agent")}</AgentButton><AgentButton variant="ghost" className={styles.danger} disabled={draft.default || busy} onClick={() => openDialog("delete")}>{text("Delete Agent", "删除 Agent")}</AgentButton></div></details>
+          <DropdownMenu key={draft.id}>
+            <HoverTip label={text("Agent actions", "Agent 操作")}><DropdownMenuTrigger asChild><Button ref={menuTrigger} variant="ghost" size="icon" className={styles.moreMenu} aria-label={text("Agent actions", "Agent 操作")}><SettingsIcon size={18} aria-hidden /></Button></DropdownMenuTrigger></HoverTip>
+            <DropdownMenuContent align="end" sideOffset={4} className={cn(MENU_PANEL, "min-w-[190px] text-[var(--text-primary)]")}>
+              <DropdownMenuItem className={cn(itemCls(false), MENU_ITEM_STATES)} disabled={draft.default || busy} onSelect={() => guard(makeDefault)}><CheckIcon size={16} aria-hidden />{text("Set as default", "设为默认")}</DropdownMenuItem>
+              <DropdownMenuItem className={cn(itemCls(false), MENU_ITEM_STATES)} disabled={busy} onSelect={() => openDialog("duplicate")}><CopyIcon size={16} aria-hidden />{text("Duplicate Agent", "复制 Agent")}</DropdownMenuItem>
+              <DropdownMenuSeparator className={MENU_SEPARATOR} />
+              <DropdownMenuItem className={cn(itemCls(false, true), MENU_ITEM_STATES)} disabled={draft.default || busy} onSelect={() => openDialog("delete")}><span className={CHECK_SLOT_PAD} aria-hidden />{text("Delete Agent", "删除 Agent")}</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <Tabs orientation="horizontal" className={styles.configTabs} value={tab} onValueChange={(value) => setTab(value as TabId)}><div className={`shadcn-scale ${styles.configTabsBar}`}><TabsList variant="line" aria-label={text("Agent configuration", "Agent 配置")}>{TABS.map((item) => <TabsTrigger value={item.id} key={item.id}>{text(item.en, item.zh)}</TabsTrigger>)}</TabsList></div>
           <div className={`${settingsStyles.pageBody} ${styles.editorBody}`}><fieldset className={styles.editorFields} disabled={busy}>
@@ -259,7 +274,7 @@ export function AgentsPage() {
         </Tabs>
         <div className={styles.saveBar}>{formError ? <span role="alert" className={styles.inlineError}>{formError}</span> : <span>{dirty ? text("Changes apply after saving.", "保存后生效。") : text("All changes saved", "修改已保存")}</span>}<AgentButton variant="ghost" disabled={!dirty || busy} onClick={discard}>{text("Discard changes", "放弃修改")}</AgentButton><AgentButton icon={CheckIcon} disabled={!dirty || busy || Boolean(formError)} onClick={() => void save()}>{busy ? text("Working…", "处理中…") : text("Save changes", "保存修改")}</AgentButton></div>
       </div>}</main>
-    </div>}
+    </RailSplit>}
     <Dialog open={pending !== null} onOpenChange={(open) => { if (!open && !busy) setPending(null); }}><DialogContent onCloseAutoFocus={restoreDialogFocus}><DialogHeader><DialogTitle>{text("Unsaved changes", "未保存的修改")}</DialogTitle><DialogDescription>{text("Save or discard your changes before continuing.", "继续前保存或放弃修改。")}</DialogDescription></DialogHeader><DialogFooter><AgentButton variant="outline" disabled={busy} onClick={() => setPending(null)}>{text("Cancel", "取消")}</AgentButton><AgentButton variant="outline" disabled={busy} onClick={() => void resolveLeave("discard")}>{text("Discard", "放弃")}</AgentButton><AgentButton disabled={busy || Boolean(formError)} onClick={() => void resolveLeave("save")}>{text("Save and continue", "保存并继续")}</AgentButton></DialogFooter></DialogContent></Dialog>
     <Dialog open={conflict !== null} onOpenChange={(open) => { if (!open) setConflict(null); }}><DialogContent className={styles.conflictDialog} onCloseAutoFocus={restoreDialogFocus}><DialogHeader><DialogTitle>{text("Configuration changed on the server", "服务端配置已更新")}</DialogTitle><DialogDescription>{text("Your draft has been kept. Compare the values before replacing either version.", "你的草稿已保留。比较字段后明确选择保留哪份配置。")}</DialogDescription></DialogHeader>
       {conflict && draft ? <div className={styles.conflictBody}><div className={styles.conflictLabels}><strong>{text("Your draft", "你的草稿")}</strong><strong>{text("Server configuration", "服务端配置")}</strong></div>{Object.entries(configuration(draft)).filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(configuration(conflict)[key as keyof ReturnType<typeof configuration>])).map(([key, value]) => <section key={key}><h4>{key}</h4><div className={styles.conflictValues}><pre>{typeof value === "string" ? value || "—" : JSON.stringify(value, null, 2)}</pre><pre>{typeof configuration(conflict)[key as keyof ReturnType<typeof configuration>] === "string" ? String(configuration(conflict)[key as keyof ReturnType<typeof configuration>]) || "—" : JSON.stringify(configuration(conflict)[key as keyof ReturnType<typeof configuration>], null, 2)}</pre></div></section>)}</div> : null}

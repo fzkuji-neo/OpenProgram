@@ -1,37 +1,6 @@
-/* 壳/分栏（view/topbar/title/body/profilesNav/profileItem/content/empty）复用
-   Programs 页的 module.css（import fx），保证高度/间距完全一致。这里只放
-   Projects 特有的类。 */
-
-/* The rail sits on the main surface; a background of its own matched the
-   window behind the card and swallowed the card's left edge. */
-.body > .rail {
-  background: transparent;
-}
-
-/* Rail rows are <button>s; reset the native button chrome so they keep the
-   shared profilesNav row geometry. */
-.railItem {
-  width: 100%;
-  border: 0;
-  background: transparent;
-  text-align: left;
-}
-/* base.css strips button outlines; mark keyboard focus with the hover
-   surface instead. */
-.railItem:focus-visible {
-  background: var(--bg-hover);
-  color: var(--nav-color-hover);
-}
-.railItem.railItemActive {
-  background: var(--bg-selected);
-  color: var(--text-bright);
-}
-.addRow {
-  color: var(--text-secondary);
-}
-.addRow:hover {
-  color: var(--text-primary);
-}
+/* 壳（view/topbar/title/content）复用 Programs 页的 module.css（import fx）；
+   项目列表是共享的 SecondaryRail（components/ui/secondary-rail.tsx）。
+   这里只放 Projects 特有的类。 */
 
 /* Detail header: same anatomy as the Agents editor header — icon tile,
    title over a monospace subtitle, actions on the right. */
@@ -207,26 +176,9 @@
   color: var(--accent-orange);
 }
 
-.statusSlotPad {
-  width: 14px;
-  flex-shrink: 0;
-}
-
-/* Narrow widths: stack the project list above the detail (as Memory does)
-   instead of squeezing the detail beside a 287px rail. Scoped to Projects;
-   the Functions page shares the base grid classes. */
+/* Narrow widths: the rail collapses to its icon column (SecondaryRail);
+   the detail tightens its padding. */
 @media (max-width: 760px) {
-  .body {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
-  }
-  .rail {
-    position: static;
-    max-height: 30vh;
-    overflow-y: auto;
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
-  }
   .content {
     padding: 14px 16px 16px;
   }

@@ -33,6 +33,7 @@ Web UI 界面 — 界面系统、指示点、附件处理、聊天轮次视觉�
 - [`icons.md`](icons.zh.md) — 图标体系：哪一族用在哪里（输入框区域 Solar、外壳动效线性图标、其余 lucide）、动效约定、署名
 - [`surface-system.md`](surface-system.zh.md) — Surface 系统
 - [`theme-system.html`](theme-system.zh.html) — 主题入口、完整 token 契约、组件消费与桌面浮层传播的权威设计
+- [`secondary-rail.md`](secondary-rail.zh.md) — 主侧栏与页面内容之间的那一列列表（历史项目、Agents、Programs 树、设置）：统一的行、收起、按钮分级
 - [`settings-collapsible-columns.html`](settings-collapsible-columns.zh.html) — 应用主侧栏与 Settings 分类栏的独立 49px 折叠；Provider 列表始终展开，搜索框通栏
 - [`avatar-randomization.html`](avatar-randomization.zh.html) — 用户头像选择器：先选类型，再进入同风格变体或字母字段
 - [`web-styles.md`](web-styles.zh.md) — Web 样式组织（一个组件一个文件，目录对齐组件树）

@@ -123,7 +123,9 @@ selected     `--bg-hover`  (same grey, never white / `--bg-input`)
 row, slightly muted text. Not italic, not a different add-style.
 
 Implementation: `.ui-list-item` in `apps/web/app/styles/base.css`
-is the source. MCP `.serverItem` must match those metrics (prefer
+is the source. A page's list column (History projects, Agents, the
+Programs tree, Settings) renders it through `RailItem`; see
+[secondary-rail.md](secondary-rail.md). MCP `.serverItem` must match those metrics (prefer
 composing `.ui-list-item` over a parallel recipe).
 
 ## Size system — list rows and Buttons

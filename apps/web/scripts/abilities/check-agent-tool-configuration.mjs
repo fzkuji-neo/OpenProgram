@@ -18,12 +18,12 @@ const route = read("../server/openprogram_server/_webui/routes/files/tree.py");
 
 // Structural boundaries, with user-visible flows covered by the real browser test.
 assert.match(page, /ManagePageHeader, managePageStyles/);
-assert.match(controls, /ManageRow/);
 assert.match(page, /settings-page\.module\.css/);
 assert.match(page, /from "@\/components\/ui\/tabs"/);
 assert.match(page, /from "@\/components\/ui\/dialog"/);
 assert.match(page, /<Tabs[\s\S]*value=\{tab\}/);
-assert.match(page, /<AgentListRow/);
+// The Agent list is the shared secondary rail, like every page's list column.
+assert.match(page, /<SecondaryRail railKey=\{AGENTS_RAIL\}[\s\S]*<RailSearch[\s\S]*<RailItem/);
 for (const name of ["overview", "programs", "skills", "mcp", "memory", "context", "advanced"]) {
   assert.match(types, new RegExp(`id: "${name}"`));
 }
@@ -42,7 +42,6 @@ assert.match(capabilities, /Tools[\s\S]*Connected Services[\s\S]*Applications[\s
 assert.match(controls, /useActionIconAnimation/);
 assert.doesNotMatch(source, /from ["']lucide-react["']|<svg\b|<path\b/,
   "Agent controls must reuse the existing animated icon repository");
-assert.match(pageStyles, /\.mobileAgentSelect/);
 assert.match(pageStyles, /@media\(max-width:680px\)/);
 const fontDeclarations = pageStyles.match(/\bfont(?:-size)?\s*:[^;}]+/g) ?? [];
 assert.ok(fontDeclarations.every((declaration) =>

@@ -4,7 +4,7 @@
  * /chats — list of past conversations.
  *
  * Shell mirrors /programs and /memory: sticky topbar with title +
- * toolbar (search, New chat), 287px nav rail on the left with quick
+ * toolbar (search, New chat), a SecondaryRail on the left with quick
  * date / channel filters, content column on the right showing chats
  * grouped by recency.
  *
@@ -15,9 +15,10 @@
  * (dropped `archived` / `updated_at`, so the status filter was dead and
  * recency was computed off creation time).
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import styles from "./chats-page.module.css";
 import { SearchInput } from "@/components/ui/search-input";
+import { RailCount, RailGroupLabel, RailItem, SecondaryRail } from "@/components/ui/secondary-rail";
 import { ManageEmptyState, ManageRow, managePageStyles as shared } from "@/components/ui/manage-page";
 import { useTranslation, type Locale } from "@/lib/i18n";
 import { parseAttachments } from "@/components/chat/messages/user-attachments";
@@ -36,7 +37,6 @@ import {
   labelFor,
 } from "@/components/sidebar/sessions-list/helpers";
 import {
-  type AnimatedNavIconHandle,
   ClockIcon,
   MessageCircleIcon,
 } from "@/components/animated-icons";
@@ -231,10 +231,10 @@ export function ChatsPage({
 
         <div className={rail ? styles.body : `${styles.body} ${styles.bodyNoRail}`}>
           {rail && (
-          <div className={styles.nav}>
+          <SecondaryRail label={text("Chat filters", "会话筛选")}>
             {navGroups.map((group) => (
               <div key={group.label}>
-                <div className={styles.navGroupLabel}>{group.label}</div>
+                <RailGroupLabel>{group.label}</RailGroupLabel>
                 {group.items.map((it) => (
                   <ChatsNavRow
                     key={it.id}
@@ -247,7 +247,7 @@ export function ChatsPage({
                 ))}
               </div>
             ))}
-          </div>
+          </SecondaryRail>
           )}
 
           <div className={styles.content}>
@@ -359,8 +359,7 @@ function ChatRow({
 }
 
 /** One left-rail filter row. "All chats" shows the chat-bubble glyph; the
- *  "by recency" buckets share the clock. The animated icon is driven from
- *  the whole row's hover (controlled mode), like the sidebar nav. */
+ *  "by recency" buckets share the clock. */
 function ChatsNavRow({
   id,
   name,
@@ -374,22 +373,14 @@ function ChatsNavRow({
   active: boolean;
   onSelect: () => void;
 }) {
-  const iconRef = useRef<AnimatedNavIconHandle>(null);
   const Icon = id === "all" ? MessageCircleIcon : ClockIcon;
   return (
-    <button
-      type="button"
-      className={styles.navItem + (active ? " " + styles.active : "")}
-      aria-current={active ? "true" : undefined}
+    <RailItem
+      icon={<Icon size={16} />}
+      label={name}
+      trailing={<RailCount>{count}</RailCount>}
+      active={active}
       onClick={onSelect}
-      onMouseEnter={() => iconRef.current?.startAnimation?.()}
-      onMouseLeave={() => iconRef.current?.stopAnimation?.()}
-    >
-      <span className={styles.navIcon}>
-        <Icon ref={iconRef} size={16} />
-      </span>
-      <span className={styles.navName}>{name}</span>
-      <span className={styles.navCount}>{count}</span>
-    </button>
+    />
   );
 }

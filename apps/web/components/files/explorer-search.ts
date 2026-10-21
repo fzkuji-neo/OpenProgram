@@ -1,6 +1,3 @@
-export const EXPLORER_INDENT = 27;
-export const EXPLORER_BASE_PAD = 16;
-
 export function matchingIndexes(
   value: string,
   query: string,

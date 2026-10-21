@@ -67,7 +67,7 @@ panel 表面上的组件就是按钮 / 胶囊 / 卡片：
 
 `+ Add server` 跟 `+ New chat` 是同一种行：普通列表行，字略淡。不要斜体，不要另做一种"添加"样式。
 
-实现：`apps/web/app/styles/base.css` 的 `.ui-list-item` 是唯一来源。MCP 的 `.serverItem` 必须对齐这些数（优先 compose `.ui-list-item`，不要平行再写一套）。
+实现：`apps/web/app/styles/base.css` 的 `.ui-list-item` 是唯一来源。页面的列表列（历史项目、Agents、Programs 树、设置）通过 `RailItem` 使用它，见 [secondary-rail.zh.md](secondary-rail.zh.md)。MCP 的 `.serverItem` 必须对齐这些数（优先 compose `.ui-list-item`，不要平行再写一套）。
 
 ## 尺寸系统——列表行与按钮
 

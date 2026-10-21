@@ -12,12 +12,13 @@ await build({
   absWorkingDir: web, entryPoints: ['components/programs/programs-page.tsx'], outfile: join(temp,'page.mjs'),
   bundle: true, packages: 'external', format: 'esm', platform: 'node', jsx: 'automatic',
   loader: { '.css': 'empty' }, plugins: [{ name: 'services', setup(b) {
-    b.onResolve({ filter: /(?:net\/fetch-client|lib\/i18n|runtime-bridge\/state|abilities\/functions-store|^next\/navigation$)/ }, a => ({ path: a.path, namespace: 'mock' }));
-    b.onLoad({ filter: /.*/, namespace: 'mock' }, a => ({ contents:
+    b.onResolve({ filter: /(?:net\/fetch-client|lib\/i18n|runtime-bridge\/state|abilities\/functions-store|^next\/navigation$|^next\/link$)/ }, a => ({ path: a.path, namespace: 'mock' }));
+    b.onLoad({ filter: /.*/, namespace: 'mock' }, a => ({ resolveDir: web, contents:
       a.path.includes('fetch-client') ? 'export const jsonFetch = (...args) => globalThis.programFetch(...args);'
       : a.path.includes('i18n') ? 'const text=(en)=>en; const t=(key)=>key; export const useTranslation=()=>({text,t});'
       : a.path.includes('functions-store') ? 'const state={meta:{favorites:[],folders:{},icons:{}},setMeta(m){this.meta=m}};export const useFunctions={getState:()=>state};'
       : a.path.includes('runtime-bridge') ? 'export const runtimeState={};'
+      : a.path === 'next/link' ? 'import {createElement} from "react"; export default function Link(props){return createElement("a",props);}'
       : 'export const useRouter=()=>({push(){}}); export const usePathname=()=>"/programs";'
     }));
   } }],

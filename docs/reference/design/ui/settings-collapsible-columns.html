@@ -14,7 +14,7 @@
   <header>
     <div class="k">OpenProgram · Web UI · current design</div>
     <h1>Settings secondary-navigation header</h1>
-    <p class="muted">Goal: retain the Settings secondary header. Align its button top edge and the vertical grid of category buttons with the main application sidebar. Provider pages keep the full large title above list and details. The list stays expanded; the third-level toolbar contains only a full-width search field.</p>
+    <p class="muted">Goal: Settings uses the same page header and secondary rail as every page with a list column (<a href="secondary-rail.md">secondary-rail.md</a>): the page header holds the collapse button and the <code>Settings</code> title, and the category rows below keep the main sidebar's vertical grid. Provider pages keep the full large title above list and details. The list stays expanded; the third-level toolbar contains only a full-width search field.</p>
   </header>
 
   <div class="status">
@@ -32,7 +32,7 @@
         <p class="muted">Both columns align the top edges of their 32px header buttons; the first and subsequent 32px navigation rows also align.</p>
         <div class="chrome">
           <div class="col"><div class="rail-head"><span class="label brand-title">OpenProgram</span><span class="toggle">‹</span></div><div class="row"><i class="ico"></i><span class="label">Programs</span></div></div>
-          <div class="col"><div class="rail-head"><span class="label settings-rail-title">Settings</span><span class="toggle">‹</span></div><div class="row"><i class="ico"></i><span class="label">General</span></div><div class="row"><i class="ico"></i><span class="label">LLM Providers</span></div></div>
+          <div class="col"><div class="rail-head"><span class="toggle" style="margin:0">‹</span><span class="label settings-rail-title">Settings</span></div><div class="row"><i class="ico"></i><span class="label">General</span></div><div class="row"><i class="ico"></i><span class="label">LLM Providers</span></div></div>
           <div class="col detail"><strong class="content-page-title">LLM Providers</strong><div class="rail-head"><span class="label">Search providers…</span></div><div class="block"></div><div class="block short"></div></div>
         </div>
       </div>
@@ -41,7 +41,7 @@
         <p class="muted">Settings still collapses to 49px. The Provider list stays expanded with full-width search and no list-collapse button.</p>
         <div class="chrome compact">
           <div class="col"><div class="rail-head"><span class="label brand-title">OpenProgram</span><span class="toggle">›</span></div><div class="row"><i class="ico"></i></div></div>
-          <div class="col"><div class="rail-head"><span class="label settings-rail-title">Settings</span><span class="toggle">›</span></div><div class="row"><i class="ico"></i></div><div class="row"><i class="ico"></i></div></div>
+          <div class="col"><div class="rail-head"><span class="toggle" style="margin:0">›</span><span class="label settings-rail-title">Settings</span></div><div class="row"><i class="ico"></i></div><div class="row"><i class="ico"></i></div></div>
           <div class="col detail"><strong class="content-page-title">LLM Providers</strong><div class="rail-head"><span class="label">Search providers…</span></div><div class="block"></div><div class="block short"></div></div>
         </div>
       </div>
@@ -81,7 +81,7 @@
     <div class="table-wrap"><table>
       <thead><tr><th>Region</th><th>Expanded</th><th>Collapsed</th><th>Persistence</th><th>Header</th></tr></thead>
       <tbody>
-        <tr><td>Settings category column</td><td><code>--sidebar-width - 1px</code></td><td>49px</td><td><code>settingsNavOpen</code></td><td><code>Settings</code> + collapse button</td></tr>
+        <tr><td>Settings category column</td><td><code>--sidebar-width - 1px</code></td><td>49px</td><td><code>settingsNavOpen</code></td><td>Page header: collapse button + <code>Settings</code></td></tr>
         <tr><td>Provider list column</td><td>Maximum <code>--sidebar-width - 1px</code>; at most 42% in narrow content areas</td><td>Always expanded; no 49px icon strip</td><td>None</td><td>Full-width search; always show Enabled / Not enabled groups and Add Custom Provider</td></tr>
         <tr><td>Content area</td><td colspan="3">Use remaining width. Memory controls wrap at narrow widths without changing navigation state.</td><td>Providers shows the full page title; Memory adds no duplicate header</td></tr>
       </tbody>
@@ -92,12 +92,12 @@
     <h2>Interaction and state boundaries</h2>
     <div class="flow">
       <b>Independent controls</b><span>Collapsing Settings categories does not affect the Provider list, which has no independent collapse control.</span>
-      <b>User state takes precedence</b><span>Resizing the window does not automatically expand or collapse Settings categories.</span>
+      <b>User state takes precedence</b><span>Narrowing the window below 760px collapses the categories without saving that; widening it never expands them, so the stored choice stands.</span>
       <b>Persistence</b><span>Restore the category column’s last choice after refresh or returning to Settings (<code>settingsNavOpen</code>).</span>
       <b>Keyboard and screen readers</b><span>The Settings collapse button retains native <code>button</code>, <code>aria-expanded</code>, <code>aria-controls</code> and an explicit name.</span>
       <b>Content adaptation</b><span>Narrow windows only cause form controls to wrap; detail data, selection, and scroll state remain unchanged.</span>
       <b>Provider details</b><span>The Provider list always stays expanded, shrinking continuously to at most 42% of narrow content areas and leaving remaining width for details. The Provider switch belongs in the title row, not a separate row. Each credential is an account card: name and validation status in the header, key in the body, usage state in the footer. Rename, replace, revalidate, and delete become icon actions at narrow widths. Adding credentials first shows a single entry point; the form appears only after expansion.</span>
-      <b>Visual hierarchy</b><span>The OpenProgram brand title is 20px. The Settings secondary-navigation title and right-side content title are 18px, one level below it. The Provider third level adds no separate named header.</span>
+      <b>Visual hierarchy</b><span>The OpenProgram brand title is 20px. The Settings page-header title and right-side content title are 18px, one level below it. The Provider third level adds no separate named header.</span>
       <b>Vertical grid</b><span>Move the entire Settings category list down 15px so General, LLM Providers, and subsequent rows align with New chat, Programs, and subsequent main-sidebar rows. Preserve row height and 1px gaps.</span>
       <b>Navigation order</b><span><code>General → LLM Providers → Memory → Web Search → Browser → Channels → Token Usage → System</code>; basic settings first, models and memory adjacent, statistics and system last.</span>
     </div>
@@ -106,7 +106,7 @@
   <section>
     <h2>Adopted and excluded</h2>
     <div class="grid">
-      <div class="card"><h3>Adopted</h3><ul><li>Reuse the existing two-state collapse behavior and icons in Settings categories.</li><li>Remove the global Settings topbar.</li><li>Add no duplicate Memory header; restore the complete Providers page header.</li><li>Show name and button only in the Settings secondary header; provide no Provider-list collapse control.</li></ul></div>
+      <div class="card"><h3>Adopted</h3><ul><li>Reuse the existing two-state collapse behavior and icons in Settings categories.</li><li>Use the shared 64px page header (<code>ManagePageHeader</code>) with the rail toggle before the title, as History and Agents do.</li><li>Add no duplicate Memory header; restore the complete Providers page header.</li><li>Provide no Provider-list collapse control.</li></ul></div>
       <div class="card"><h3>Excluded</h3><ul><li>No draggable column resizing.</li><li>No breakpoint-driven overrides of user state.</li><li>No changes to Memory, Provider, or model data.</li><li>No changes to the main application sidebar.</li></ul></div>
     </div>
   </section>
@@ -127,7 +127,7 @@
     <h2>Acceptance criteria</h2>
     <div class="card"><ul>
       <li>Settings no longer renders a separate global Settings topbar.</li>
-      <li>The OpenProgram brand title is 20px; the Settings category <code>Settings</code> and right-side <code>LLM Providers</code> content title are both 18px. Button and name share one row; button tops align with main-sidebar buttons.</li>
+      <li>The OpenProgram brand title is 20px; the page-header <code>Settings</code> and right-side <code>LLM Providers</code> content title are both 18px. The collapse button sits before the title in the header, its icon on the same axis as the category icons below.</li>
       <li>The first four Settings category rows and main-sidebar rows have identical <code>y</code> coordinates, 32px heights, and 1px gaps.</li>
       <li>Settings category links appear in <code>General / LLM Providers / Memory / Web Search / Browser / Channels / Token Usage / System</code> order; URLs, icons, active state, and keyboard order follow the same array.</li>
       <li>The LLM Providers list has no additional named header or collapse button. Search spans the column; group labels and Add Custom Provider remain visible.</li>

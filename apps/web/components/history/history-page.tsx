@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { SettingsIcon } from "@/components/animated-icons";
 
-import { ProjectsPage, type ProjectTab } from "@/components/projects/projects-page";
+import { PROJECTS_RAIL, ProjectsPage, type ProjectTab } from "@/components/projects/projects-page";
+import { RailToggle } from "@/components/ui/secondary-rail";
 import { SearchInput } from "@/components/ui/search-input";
 import { ManagePage, ManagePageHeader, managePageStyles as shared } from "@/components/ui/manage-page";
 import { useTranslation } from "@/lib/i18n";
@@ -49,6 +50,13 @@ export function HistoryPage() {
     <ManagePage className={styles.page}>
       <ManagePageHeader
         title={t("nav.history")}
+        railToggle={(
+          <RailToggle
+            railKey={PROJECTS_RAIL}
+            controls="projects-rail"
+            label={{ collapse: text("Collapse projects", "收起项目列表"), expand: text("Expand projects", "展开项目列表") }}
+          />
+        )}
         toolbar={(
           <SearchInput
             className="min-w-[96px] flex-1 min-[761px]:flex-none min-[761px]:min-w-[140px] min-[761px]:w-[clamp(150px,24vw,280px)]"

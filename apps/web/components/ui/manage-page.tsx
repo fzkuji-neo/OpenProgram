@@ -26,6 +26,7 @@ import type {
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { HoverTip } from "@/components/ui/tooltip";
 import { isManageActionIcon } from "./manage-action-icon";
 import styles from "./manage-page.module.css";
 
@@ -116,14 +117,12 @@ export interface ManageAction {
 function ManageActionButton({ a }: { a: ManageAction }) {
   const iconRef = useRef<AnimatedNavIconHandle>(null);
   const Icon = isManageActionIcon(a.icon) ? a.icon as ManageTabIcon : null;
-  return (
+  const button = (
     <Button
       size={a.iconOnly ? "icon" : "default"}
       variant={a.primary ? "default" : "outline"}
-      className={a.primary ? undefined : "border border-[var(--border)] text-[var(--text-primary)]"}
       onClick={a.onClick}
       disabled={a.disabled}
-      title={a.iconOnly ? a.label : undefined}
       aria-label={a.iconOnly ? a.label : undefined}
       onMouseEnter={() => iconRef.current?.startAnimation?.()}
       onMouseLeave={() => iconRef.current?.stopAnimation?.()}
@@ -132,6 +131,7 @@ function ManageActionButton({ a }: { a: ManageAction }) {
       {!a.iconOnly && a.label}
     </Button>
   );
+  return a.iconOnly ? <HoverTip label={a.label}>{button}</HoverTip> : button;
 }
 
 /**
@@ -184,7 +184,7 @@ export function ManageEmptyState({
   );
 }
 
-/** 28px icon-only row action (pause, delete, ...) with a tooltip label. */
+/** Icon-only row action (pause, delete, ...): a ghost Button with a tooltip. */
 export function ManageIconButton({
   label,
   tooltip,
@@ -203,16 +203,18 @@ export function ManageIconButton({
   danger?: boolean;
 }) {
   return (
-    <button
-      type="button"
-      className={cn(styles.iconAction, danger && styles.iconActionDanger)}
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      title={tooltip ?? label}
-    >
-      {children}
-    </button>
+    <HoverTip label={tooltip ?? label}>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        className={cn("text-text-secondary", danger && "hover:text-destructive")}
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+      >
+        {children}
+      </Button>
+    </HoverTip>
   );
 }
 
@@ -223,6 +225,7 @@ export function ManageIconButton({
  */
 export function ManagePageHeader({
   title,
+  railToggle,
   tabs,
   activeTab,
   onTabChange,
@@ -232,6 +235,8 @@ export function ManagePageHeader({
   actions = [],
 }: {
   title: string;
+  /** The page's <RailToggle>, shown before the title. */
+  railToggle?: ReactNode;
   tabs?: ManageTab[];
   activeTab?: string;
   onTabChange?: (id: string) => void;
@@ -254,7 +259,8 @@ export function ManagePageHeader({
   }
 
   return (
-    <div className={styles.topbar}>
+    <div className={cn(styles.topbar, railToggle !== undefined && styles.topbarWithToggle)}>
+      {railToggle}
       <span className={styles.title}>{title}</span>
       {tabs && tabs.length > 0 && (
         <div className={styles.tabs} role="tablist" aria-label={tabLabel}>

@@ -530,6 +530,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/ui/right-sidebar-files.html",
             "reference/design/ui/right-sidebar-typography.html",
             "reference/design/ui/sidebars-resizing.html",
+            "reference/design/ui/secondary-rail.md",
         ]),
         ('CLI and TUI', '命令行与终端界面', [
             "reference/design/cli/README.md",

@@ -31,6 +31,7 @@ Web UI surfaces — the surface system, indicator dots, attachment handling, cha
 - [`icons.md`](icons.md) — icon system: which family goes where (Solar in the composer, animated line icons in the chrome, lucide elsewhere), motion contract, attribution
 - [`surface-system.md`](surface-system.md) — surface system
 - [`theme-system.html`](theme-system.html) — authoritative theme entry, complete token contract, component consumption, and desktop-overlay propagation
+- [`secondary-rail.md`](secondary-rail.md) — the one list column between the main sidebar and a page's content (History projects, Agents, Programs tree, Settings): shared rows, collapse, button roles
 - [`settings-collapsible-columns.html`](settings-collapsible-columns.html) — independent 49px collapse for the app and Settings nav; Providers list stays expanded with a full-width search field
 - [`avatar-randomization.html`](avatar-randomization.html) — the user avatar picker: type first, then same-style variants or letter fields
 - [`web-styles.md`](web-styles.md) — web style organization (one component, one file; directories mirror the component tree)

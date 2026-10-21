@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bot,
@@ -13,26 +12,17 @@ import {
   Search,
   SlidersHorizontal,
 } from "lucide-react";
-import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import styles from "./settings-page.module.css";
 import { useTranslation } from "@/lib/i18n";
-import { ChromeIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "../animated-icons";
-import { sidebarToggleClass } from "../sidebar/nav-classes";
+import { ChromeIcon } from "../animated-icons";
+import { ManagePageHeader } from "../ui/manage-page";
+import { RailItem, RailSplit, RailToggle, SecondaryRail } from "../ui/secondary-rail";
 
 export type SettingsTab = "providers" | "usage" | "search" | "environments" | "channels" | "browser" | "voice" | "memory" | "general" | "system";
 
-function readSettingsNavOpen(): boolean {
-  if (typeof window === "undefined") return true;
-  try {
-    const stored = localStorage.getItem("settingsNavOpen");
-    // No stored choice: a 288px labelled nav would leave the page only a
-    // sliver at narrow widths, so start on the icon rail there.
-    if (stored === null) return !window.matchMedia?.("(max-width: 760px)").matches;
-    return stored !== "0";
-  } catch {
-    return true;
-  }
-}
+/** Keeps the pre-rail storage key, `settingsNavOpen`. */
+const SETTINGS_RAIL = "settings";
 
 /**
  * Shell for the Settings tabs — labeled nav column and content slot.
@@ -50,26 +40,6 @@ export function SettingsTabsLayout({
   children: ReactNode;
 }) {
   const { t, text } = useTranslation();
-  const [navOpen, setNavOpen] = useState(true);
-  useLayoutEffect(() => { setNavOpen(readSettingsNavOpen()); }, []);
-  // Shrinking the window below 760px collapses the nav to its icon rail
-  // (not persisted), so a stored "open" from a wide window cannot squeeze
-  // the page into a sliver.
-  useEffect(() => {
-    const query = window.matchMedia?.("(max-width: 760px)");
-    if (!query) return;
-    const onChange = (event: MediaQueryListEvent) => { if (event.matches) setNavOpen(false); };
-    query.addEventListener("change", onChange);
-    return () => query.removeEventListener("change", onChange);
-  }, []);
-
-  function toggleNav() {
-    setNavOpen((current) => {
-      const next = !current;
-      try { localStorage.setItem("settingsNavOpen", next ? "1" : "0"); } catch { /* ignore */ }
-      return next;
-    });
-  }
 
   // Derive the active tab from the current URL instead of taking it
   // as a prop. Each page now only renders the section body; the
@@ -91,8 +61,6 @@ export function SettingsTabsLayout({
     return "general";
   })();
 
-  const isWide =
-    active === "providers" || active === "search" || active === "channels";
   const tabs = [
     { id: "general" as const, href: "/settings/general", label: t("settings.tab.general"), Icon: SlidersHorizontal },
     { id: "providers" as const, href: "/settings/providers", label: t("settings.tab.providers"), Icon: Bot },
@@ -108,50 +76,27 @@ export function SettingsTabsLayout({
   return (
     <div className="main">
       <div className={styles.view}>
-        <div
-          className={
-            styles.body +
-            (isWide ? " " + styles.providersWide : "") +
-            (!navOpen ? " " + styles.settingsNavCollapsed : "")
-          }
-        >
-          {/* Landmark + current-page marker: these are real <Link>s, so
-              they already tab and activate; what was missing is a screen
-              reader being able to find the tab column and hear which
-              tab is open. */}
-          <nav className={styles.nav} aria-label={t("settings.title")}>
-            <div className={styles.railHeader}>
-              <span className={styles.railTitle}>{t("settings.title")}</span>
-              <button
-                type="button"
-                className={sidebarToggleClass}
-                onClick={toggleNav}
-                aria-expanded={navOpen}
-                aria-controls="settings-nav-items"
-                aria-label={text(navOpen ? "Collapse settings navigation" : "Expand settings navigation", navOpen ? "收起设置导航" : "展开设置导航")}
-                title={text(navOpen ? "Collapse settings navigation" : "Expand settings navigation", navOpen ? "收起设置导航" : "展开设置导航")}
-              >
-                {navOpen ? <PanelLeftCloseIcon size={20} /> : <PanelLeftOpenIcon size={20} />}
-              </button>
-            </div>
-            <div id="settings-nav-items" className={styles.railItems}>
-              {tabs.map(({ id, href, label, Icon }) => (
-                <Link
-                  key={id}
-                  href={href}
-                  className={styles.navItem + (active === id ? " " + styles.active : "")}
-                  aria-current={active === id ? "page" : undefined}
-                  aria-label={label}
-                  title={!navOpen ? label : undefined}
-                >
-                  <span className={styles.railItemIcon}><Icon size={16} /></span>
-                  <span className={styles.railItemLabel}>{label}</span>
-                </Link>
-              ))}
-            </div>
-          </nav>
+        <ManagePageHeader
+          title={t("settings.title")}
+          railToggle={(
+            <RailToggle
+              railKey={SETTINGS_RAIL}
+              controls="settings-nav-items"
+              label={{
+                collapse: text("Collapse settings navigation", "收起设置导航"),
+                expand: text("Expand settings navigation", "展开设置导航"),
+              }}
+            />
+          )}
+        />
+        <RailSplit railKey={SETTINGS_RAIL}>
+          <SecondaryRail railKey={SETTINGS_RAIL} id="settings-nav-items" label={t("settings.title")}>
+            {tabs.map(({ id, href, label, Icon }) => (
+              <RailItem key={id} href={href} icon={<Icon size={16} />} label={label} active={active === id} />
+            ))}
+          </SecondaryRail>
           <div className={styles.content + " shadcn-scale"}>{children}</div>
-        </div>
+        </RailSplit>
       </div>
     </div>
   );

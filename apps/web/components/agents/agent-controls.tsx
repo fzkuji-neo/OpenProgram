@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, type ComponentProps } from "react";
-import { ManageRow, type ManageTabIcon } from "@/components/ui/manage-page";
+import { type ManageTabIcon } from "@/components/ui/manage-page";
 import { BotIcon, ZapIcon, WorkflowIcon, type AnimatedNavIconHandle } from "@/components/animated-icons";
 import { Button } from "@/components/ui/button";
 import { useActionIconAnimation } from "@/components/chat/messages/use-action-icon-animation";
@@ -19,7 +19,3 @@ export const AgentRoleIcon = forwardRef<AnimatedNavIconHandle, { roleId: string;
   return <Icon ref={ref} size={size} aria-hidden />;
 });
 
-export function AgentListRow({ roleId = "", ...props }: ComponentProps<typeof ManageRow> & { roleId?: string }) {
-  const animation = useActionIconAnimation();
-  return <div {...animation.handlers}><ManageRow {...props} icon={<AgentRoleIcon ref={animation.ref} roleId={roleId} />} /></div>;
-}

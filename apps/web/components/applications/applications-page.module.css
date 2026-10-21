@@ -14,8 +14,6 @@
 .checks label { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 12px; cursor: pointer; }
 .checks input { accent-color: var(--accent-blue); }
 .installFooter { display: flex; justify-content: flex-end; margin-top: 4px; }
-.outlineButton { border: 1px solid var(--border); color: var(--text-primary); }
-
 /* Installed list: one bordered card per application. */
 .list { display: flex; flex-direction: column; gap: 8px; }
 .application { display: flex; align-items: flex-start; gap: 12px; padding: 14px; border: 1px solid var(--border); border-radius: var(--ui-list-radius); transition: border-color 150ms ease-out, background 150ms ease-out; }
@@ -30,9 +28,6 @@
 .toggles label { display: inline-flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 12px; cursor: pointer; }
 .switch { transform: scale(0.8); transform-origin: left center; margin-right: -6px; }
 .appActions { display: flex; align-items: center; gap: 6px; flex: none; }
-.uninstall { color: var(--text-secondary); }
-.uninstall:hover { color: var(--accent-red); }
-
 @media (max-width: 760px) {
   .directory { flex-direction: column; }
   .directory input { flex: none; }

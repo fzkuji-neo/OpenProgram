@@ -16,6 +16,7 @@ import { SearchInput } from "@/components/ui/search-input";
 import { useFolderPicker } from "@/components/ui/folder-picker";
 import styles from "./projects-page.module.css";
 import { ManageEmptyState, managePageStyles as shared } from "@/components/ui/manage-page";
+import { RailBadge, RailItem, RailSeparator, RailSplit, SecondaryRail } from "@/components/ui/secondary-rail";
 import { useTranslation } from "@/lib/i18n";
 import { EarthIcon, FoldersIcon, FolderPlusIcon } from "@/components/animated-icons";
 import { wsRequest } from "@/lib/net/ws-request";
@@ -45,6 +46,9 @@ interface Project extends EditableProject {
   custom_name?: boolean;
   status: string;
 }
+
+/** The History page's project rail; its header shows the toggle. */
+export const PROJECTS_RAIL = "projects";
 
 export type ProjectTab = "chats" | "memory" | "settings" | "info";
 const PROJECT_TABS: ProjectTab[] = ["chats", "memory", "settings", "info"];
@@ -228,43 +232,38 @@ export function ProjectsPage({
 
         {error && <div className={shared.errorBar} role="alert">{error}</div>}
 
-        <div className={cls(fx.body, styles.body)}>
-          {/* 左栏：项目列表（复用 Functions 的 profilesNav） */}
-          <div className={cls(fx.profilesNav, styles.rail)}>
-            {projects.map((p) => (
-              <button
-                type="button"
-                key={p.id}
-                className={cls(fx.profileItem, styles.railItem, p.id === selectedId && fx.active, p.id === selectedId && styles.railItemActive)}
-                aria-current={p.id === selectedId ? "true" : undefined}
-                onClick={() => setSelectedId(p.id)}
-              >
-                <span className={fx.profileIcon}>{p.icon || (p.is_default ? <EarthIcon size={16} /> : <FoldersIcon size={16} />)}</span>
-                <span className={fx.profileName}>{label(p)}</span>
-                {p.hidden && <span className={shared.badge}>{text("Hidden", "已隐藏")}</span>}
-                {(p.path_missing || p.path_replaced ||
-                  ["missing", "replaced", "migrating", "pending", "error"].includes(p.location_state ?? "")) ? (
-                  <AlertTriangle
-                    size={14}
-                    strokeWidth={2}
-                    className={styles.statusSlot}
-                    aria-label={text("Folder missing", "目录缺失")}
-                  />
-                ) : (
-                  <span className={styles.statusSlotPad} aria-hidden="true" />
-                )}
-              </button>
-            ))}
-            <div className={fx.profileSep} />
-            <button
-              type="button"
-              className={cls(fx.profileItem, styles.railItem, styles.addRow)}
+        <RailSplit railKey={PROJECTS_RAIL}>
+          <SecondaryRail railKey={PROJECTS_RAIL} id="projects-rail" label={text("Projects", "项目")}>
+            {projects.map((p) => {
+              const unavailable = p.path_missing || p.path_replaced ||
+                ["missing", "replaced", "migrating", "pending", "error"].includes(p.location_state ?? "");
+              return (
+                <RailItem
+                  key={p.id}
+                  icon={p.icon || (p.is_default ? <EarthIcon size={16} /> : <FoldersIcon size={16} />)}
+                  label={label(p)}
+                  badge={p.hidden ? <RailBadge>{text("Hidden", "已隐藏")}</RailBadge> : undefined}
+                  trailing={unavailable ? (
+                    <AlertTriangle
+                      size={14}
+                      strokeWidth={2}
+                      className={styles.statusSlot}
+                      aria-label={text("Folder missing", "目录缺失")}
+                    />
+                  ) : undefined}
+                  active={p.id === selectedId}
+                  onClick={() => setSelectedId(p.id)}
+                />
+              );
+            })}
+            <RailSeparator />
+            <RailItem
+              quiet
+              icon={<FolderPlusIcon size={16} />}
+              label={text("Add project folder…", "添加项目文件夹…")}
               onClick={addProject}
-            >
-              <span className={fx.profileIcon}><FolderPlusIcon size={16} /></span>
-              <span className={fx.profileName}>{text("Add project folder…", "添加项目文件夹…")}</span>
-            </button>
-          </div>
+            />
+          </SecondaryRail>
 
           {/* 右栏：选中项目的内容 */}
           <div className={cls(fx.content, styles.content, selected && (tab === "chats" || tab === "memory") ? styles.contentFill : undefined)}>
@@ -437,7 +436,7 @@ export function ProjectsPage({
               </>
             )}
           </div>
-        </div>
+        </RailSplit>
       </div>
   );
 

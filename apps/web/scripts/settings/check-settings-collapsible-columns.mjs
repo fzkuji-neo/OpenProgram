@@ -31,14 +31,15 @@ const modelList = source("components/settings/providers/model-list.tsx");
 const sidebar = source("components/sidebar/sidebar.tsx");
 const css = source("components/settings/settings-page.module.css");
 
-assert.match(layout, /localStorage\.getItem\("settingsNavOpen"\)/);
-assert.match(layout, /localStorage\.setItem\("settingsNavOpen",/);
-assert.match(layout, /aria-expanded=\{navOpen\}/);
-assert.match(layout, /styles\.settingsNavCollapsed/);
-assert.match(layout, /styles\.railItemIcon/);
-assert.match(layout, /styles\.railItemLabel/);
-assert.match(layout, /styles\.railHeader[\s\S]*styles\.railTitle[\s\S]*settings\.title[\s\S]*sidebarToggleClass/);
-assert.doesNotMatch(layout, /styles\.topbar/);
+// The Settings tabs are a SecondaryRail; the page header carries the title
+// and the collapse toggle, as on every other page with a rail. The rail key
+// "settings" keeps the stored `settingsNavOpen` choice.
+const rail = source("components/ui/secondary-rail.tsx");
+assert.match(layout, /const SETTINGS_RAIL = "settings"/);
+assert.match(rail, /return `\$\{railKey\}NavOpen`/);
+assert.match(layout, /<ManagePageHeader[\s\S]*title=\{t\("settings\.title"\)\}[\s\S]*railToggle=\{[\s\S]*<RailToggle[\s\S]*railKey=\{SETTINGS_RAIL\}/);
+assert.match(layout, /<RailSplit railKey=\{SETTINGS_RAIL\}>[\s\S]*<SecondaryRail railKey=\{SETTINGS_RAIL\}[\s\S]*<RailItem key=\{id\} href=\{href\}/);
+assert.doesNotMatch(layout, /localStorage|styles\.nav\b|styles\.railHeader/);
 
 const tabsBlock = layout.match(/const tabs = \[([\s\S]*?)\n  \];/)?.[1] ?? "";
 const tabOrder = [...tabsBlock.matchAll(/id: "([^"]+)"/g)].map((match) => match[1]);
@@ -100,16 +101,14 @@ assert.match(loading, /memory: "settings\.tab\.memory"/);
 assert.match(loading, /styles\.pageHeader/);
 assert.match(providerItem, /title=\{p\.label\}/);
 
-assert.match(css, /\.body\.settingsNavCollapsed\s*\{[^}]*grid-template-columns:\s*var\(--rail-collapsed-w\) minmax\(0, 1fr\)/s);
-assert.match(css, /\.railHeader\s*\{[^}]*height:\s*32px/s);
-assert.match(css, /\.railTitle\s*\{[^}]*font-size:\s*18px[^}]*line-height:\s*1\.2(?:;|\s)/s);
+const railCss = source("components/ui/secondary-rail.module.css");
+assert.match(railCss, /\.split\[data-rail="collapsed"\]\s*\{[^}]*grid-template-columns:\s*var\(--rail-collapsed-w\) minmax\(0, 1fr\)/s);
+assert.doesNotMatch(css, /\.railHeader|\.railTitle|\.settingsNavCollapsed/);
 assert.match(css, /\.pageTitle\s*\{[^}]*font-size:\s*18px[^}]*overflow-wrap:\s*anywhere/s);
 assert.match(sidebar, /className="text-\[20px\] font-bold tracking-\[-0\.01em\] whitespace-nowrap"/);
-assert.match(css, /\.railItems\s*\{[^}]*margin-top:\s*15px/s);
 assert.doesNotMatch(css, /\.providerListCollapsed/);
 assert.match(css, /\.providersLayout\s*\{[^}]*grid-template-columns:\s*min\(calc\(var\(--sidebar-width\) - 1px\),\s*42%\) minmax\(0,\s*1fr\)/s);
-assert.match(css, /\.settingsNavCollapsed\s+\.railItemLabel\s*\{[^}]*display:\s*none/s);
-assert.match(css, /\.settingsNavCollapsed\s+\.nav\s*>\s*\.railHeader\s+\.railTitle\s*\{[^}]*display:\s*none/s);
+assert.match(railCss, /\.rail\[data-collapsed\] \.text/);
 assert.match(css, /\.providersToolbar\s*\{[^}]*display:\s*flex[^}]*width:\s*100%/s);
 assert.match(css, /\.providerSearch\s*\{[^}]*width:\s*100%/s);
 assert.match(css, /\.detail\s*\{[^}]*min-width:\s*0[^}]*container-type:\s*inline-size/s);

@@ -12,15 +12,6 @@
   grid-template-columns: var(--programs-explorer-width) minmax(0, 1fr);
 }
 
-.explorer {
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid var(--border);
-  background: var(--bg-secondary);
-}
-
 .viewSwitch button {
   border: 0;
   color: inherit;
@@ -500,7 +491,7 @@
     grid-template-rows: minmax(190px, 36vh) minmax(0, 1fr);
   }
 
-  .explorer {
+  .catalog {
     border-right: 0;
     border-bottom: 1px solid var(--border);
   }

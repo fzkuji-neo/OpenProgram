@@ -25,6 +25,12 @@
   flex-shrink: 0;
 }
 
+.topbarWithToggle {
+  /* The toggle's left edge lines up with the rail rows below it. */
+  gap: 8px;
+  padding-left: 8px;
+}
+
 .title {
   display: inline-flex;
   align-items: center;
@@ -193,41 +199,6 @@
   margin-top: 12px;
 }
 
-/* 28px icon-only row action. */
-.iconAction {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--ui-list-radius);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: background 150ms ease-out, color 150ms ease-out;
-}
-.iconAction:hover:not(:disabled) {
-  background: var(--bg-hover);
-  color: var(--text-bright);
-}
-.iconActionDanger:hover:not(:disabled) {
-  color: var(--accent-red);
-}
-.iconAction:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-/* base.css removes outlines from every button, so show keyboard focus
-   with the hover surface instead. */
-.iconAction:focus-visible {
-  background: var(--bg-hover);
-  color: var(--text-bright);
-}
-.iconAction svg {
-  width: 15px;
-  height: 15px;
-}
 
 /* Section label above a list ("Installed · 3"). */
 .sectionHeader {

@@ -73,7 +73,7 @@ export function ApplicationsPage() {
           <label className={styles.fieldLabel} htmlFor="application-directory">{text("Application directory", "应用目录")}</label>
           <div className={styles.directory}>
             <input id="application-directory" value={directory} onChange={event => { setDirectory(event.target.value); setTrust(false); }} placeholder={text("Local directory containing application.json", "包含 application.json 的本地目录")} required disabled={busy} />
-            <Button type="button" variant="outline" className={styles.outlineButton} disabled={busy} onClick={() => void chooseDirectory()}>
+            <Button type="button" variant="outline" disabled={busy} onClick={() => void chooseDirectory()}>
               <FolderOpenIcon size={16} aria-hidden />{text("Browse", "浏览")}
             </Button>
           </div>
@@ -95,7 +95,7 @@ export function ApplicationsPage() {
             icon={<BoxesIcon size={20} />}
             title={text("Applications are unavailable", "暂时无法加载应用")}
             description={text("Check the error above, then try again.", "请查看上方错误后重试。")}
-            action={<Button variant="outline" className={styles.outlineButton} disabled={busy} onClick={() => void change(refresh, "")}>{text("Retry", "重试")}</Button>}
+            action={<Button variant="outline" disabled={busy} onClick={() => void change(refresh, "")}>{text("Retry", "重试")}</Button>}
           />
         ) : applications.length === 0 ? (
           <ManageEmptyState
@@ -130,8 +130,8 @@ export function ApplicationsPage() {
                 </div>
                 <div className={styles.appActions}>
                   <Button disabled={busy || !application.enabled} onClick={() => void launcher.launch(application)}>{text("Open", "打开")}</Button>
-                  <Button variant="outline" className={styles.outlineButton} disabled={busy} onClick={() => { setDirectory(application.source); setReplace(true); setTrust(false); setNotice(text("Review the source and use the installation form to update.", "请审查来源，并使用安装表单完成更新。")); document.getElementById("application-directory")?.focus(); }}>{text("Update", "更新")}</Button>
-                  <Button variant="ghost" className={styles.uninstall} disabled={busy} onClick={() => void change(() => applicationRequest(`/api/applications/${encodeURIComponent(application.id)}`, "DELETE"), text("Application uninstalled; saved data retained", "应用已卸载，已保存的数据保留"))}>{text("Uninstall", "卸载")}</Button>
+                  <Button variant="outline" disabled={busy} onClick={() => { setDirectory(application.source); setReplace(true); setTrust(false); setNotice(text("Review the source and use the installation form to update.", "请审查来源，并使用安装表单完成更新。")); document.getElementById("application-directory")?.focus(); }}>{text("Update", "更新")}</Button>
+                  <Button variant="destructive" disabled={busy} onClick={() => void change(() => applicationRequest(`/api/applications/${encodeURIComponent(application.id)}`, "DELETE"), text("Application uninstalled; saved data retained", "应用已卸载，已保存的数据保留"))}>{text("Uninstall", "卸载")}</Button>
                 </div>
               </section>;
             })}

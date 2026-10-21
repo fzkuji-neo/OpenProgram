@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   Boxes,
@@ -19,14 +19,13 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { ManageEmptyState, ManagePageHeader, managePageStyles } from "@/components/ui/manage-page";
+import { RailItem, SecondaryRail } from "@/components/ui/secondary-rail";
 import {
   ExplorerHeader,
   ExplorerMatchText,
   type ExplorerSearchMode,
 } from "@/components/files/explorer-header";
 import {
-  EXPLORER_BASE_PAD,
-  EXPLORER_INDENT,
   matchingIndexes,
   visibleSearchPaths,
 } from "@/components/files/explorer-search";
@@ -391,7 +390,7 @@ export function ProgramsPage({
   function renderProgramDirectory(path: string, depth: number): ReactNode {
     const entries = directories[path];
     if (!entries) {
-      return <div className={fileStyles.treeHint} style={{ paddingLeft: EXPLORER_BASE_PAD + 28 + depth * EXPLORER_INDENT }}>{text("Loading…", "加载中…")}</div>;
+      return <div className={fileStyles.treeHint} style={{ paddingLeft: 32 + depth * 16 }}>{text("Loading…", "加载中…")}</div>;
     }
     return entries.map((entry) => {
       if (search.trim() && searchMode === "filter" && !visiblePaths.has(entry.path)) return null;
@@ -401,10 +400,14 @@ export function ProgramsPage({
       const current = currentSearchPath === entry.path;
       const isBranch = entry.kind === "folder" && !entry.program_kind;
       return (
-        <div className={fileStyles.treeNode} key={entry.path}>
-          <div
-            className={`${fileStyles.treeRow} ${selected === (entry.logic_path || entry.path) || selected === entry.path ? fileStyles.treeRowSelected : ""}`}
-            style={{ paddingLeft: EXPLORER_BASE_PAD + depth * EXPLORER_INDENT }}
+        <Fragment key={entry.path}>
+          <RailItem
+            depth={depth}
+            icon={<EntryIcon entry={entry} expanded={displayOpen} />}
+            label={<ExplorerMatchText value={catalogLabel(entry, text)} query={search} fuzzy={fuzzySearch} current={current} />}
+            name={catalogLabel(entry, text)}
+            active={selected === (entry.logic_path || entry.path) || selected === entry.path}
+            aria-expanded={isBranch ? displayOpen : undefined}
             data-program-path={entry.path}
             data-tip={entry.path}
             onClick={() => {
@@ -413,19 +416,9 @@ export function ProgramsPage({
               }
               if (isBranch) toggleDirectory(entry);
             }}
-          >
-            <EntryIcon entry={entry} expanded={displayOpen} />
-            <ExplorerMatchText className={fileStyles.treeName} value={catalogLabel(entry, text)} query={search} fuzzy={fuzzySearch} current={current} />
-          </div>
-          {isBranch && displayOpen ? (
-            <div
-              className={fileStyles.treeKids}
-              style={{ "--guide-x": `${EXPLORER_BASE_PAD + 8 + depth * EXPLORER_INDENT}px` } as CSSProperties}
-            >
-              {renderProgramDirectory(entry.path, depth + 1)}
-            </div>
-          ) : null}
-        </div>
+          />
+          {isBranch && displayOpen ? renderProgramDirectory(entry.path, depth + 1) : null}
+        </Fragment>
       );
     });
   }
@@ -457,7 +450,7 @@ export function ProgramsPage({
 
   const workspace = (
         <div className={styles.workspace}>
-          <aside ref={explorerRef} className={styles.explorer} data-testid="programs-explorer">
+          <SecondaryRail ref={explorerRef} as="aside" label={text("Programs catalog", "Programs 目录")} className={styles.catalog} data-testid="programs-explorer">
             {/* Embedded: the hub header owns search + refresh, so the
                 48px explorer header would only repeat the refresh button. */}
             {!embedded && <ExplorerHeader
@@ -482,14 +475,12 @@ export function ProgramsPage({
                 </button>
               }
             />}
-            <div className={fileStyles.treeBody} aria-label={text("Programs catalog", "Programs 目录")}>
-              {loadingTree
-                ? <div className={fileStyles.treeHint}>{text("Loading…", "加载中…")}</div>
-                : search.trim() && searchMode === "filter" && searchMatches.length === 0
-                  ? <div className={fileStyles.treeHint}>{text("No matches", "无匹配")}</div>
-                  : renderProgramDirectory("", 0)}
-            </div>
-          </aside>
+            {loadingTree
+              ? <div className={fileStyles.treeHint}>{text("Loading…", "加载中…")}</div>
+              : search.trim() && searchMode === "filter" && searchMatches.length === 0
+                ? <div className={fileStyles.treeHint}>{text("No matches", "无匹配")}</div>
+                : renderProgramDirectory("", 0)}
+          </SecondaryRail>
           <section className={styles.logicPane}>
             {error ? (
               <div role="alert">
