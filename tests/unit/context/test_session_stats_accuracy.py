@@ -526,3 +526,14 @@ def test_an_older_prompt_still_finds_its_memory_fence():
     pairs = stats._prompt_sections(text, None, object(), "main")
     names = [name for name, _ in pairs]
     assert "memory" in names and names[-1] == "other"
+
+
+def test_detail_rows_add_up_to_their_calibrated_category():
+    result = stats.finalize_breakdown(
+        {"system_prompt": 100, "memory": 100, "messages": 0,
+         "system_detail": [{"name": "base", "tokens": 70}, {"name": "environment", "tokens": 40}],
+         "memory_detail": [{"path": "MEMORY.md", "tokens": 60}, {"path": "core.md", "tokens": 60}]},
+        {"total_used": 100, "window": 1000},
+    )
+    assert sum(r["tokens"] for r in result["system_detail"]) == result["system_prompt"] == 50
+    assert sum(r["tokens"] for r in result["memory_detail"]) == result["memory"] == 50

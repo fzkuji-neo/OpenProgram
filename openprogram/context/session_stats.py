@@ -565,6 +565,14 @@ def _scale_categories(values: dict[str, int], target: int) -> dict[str, int]:
     return scaled
 
 
+#: Detail lists whose rows divide one category between them.
+_DETAIL_OF = {
+    "system_detail": "system_prompt",
+    "memory_detail": "memory",
+    "skills_detail": "skills",
+}
+
+
 def finalize_breakdown(breakdown: dict, occupancy: dict) -> dict:
     """Merge one local breakdown with the matching occupancy snapshot.
 
@@ -588,6 +596,18 @@ def finalize_breakdown(breakdown: dict, occupancy: dict) -> dict:
         values = _scale_categories(values, total)
 
     result.update(values)
+    # A category's detail rows add up to the category as shown.
+    for detail, key in _DETAIL_OF.items():
+        rows = breakdown.get(detail)
+        if not isinstance(rows, list) or not rows:
+            continue
+        scaled = _scale_categories(
+            {i: max(0, int(row.get("tokens") or 0)) for i, row in enumerate(rows)},
+            values.get(key, 0),
+        )
+        result[detail] = [
+            {**row, "tokens": scaled[i]} for i, row in enumerate(rows)
+        ]
     result["classified_estimate"] = classified_estimate
     result["classified_used"] = sum(values.values())
     result["classification_scale"] = round(scale, 6)
