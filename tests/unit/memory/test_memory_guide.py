@@ -74,3 +74,18 @@ def test_the_prompt_cuts_a_long_map(tmp_path):
     text = memory_guide.prompt_text(tmp_path)
     assert text.endswith("read it for the rest)")
     assert text.count("x") == memory_guide.GUIDE_MAX_BYTES
+
+
+def test_git_history_records_the_map(tmp_path):
+    import subprocess
+
+    from openprogram.memory.runtime.state import RuntimeStateStore
+
+    root = _root(tmp_path)
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=root, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=root, check=True)
+    _commit(root)
+    RuntimeStateStore(root).git_commit("memory: test")
+    tracked = subprocess.run(["git", "ls-files"], cwd=root, capture_output=True, text=True).stdout
+    assert "MEMORY.md" in tracked.splitlines()

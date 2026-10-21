@@ -121,7 +121,7 @@ class RuntimeStateStore:
             return None
         candidates = [
             value for value in (
-                "core.md", "recent_events.jsonl",
+                "core.md", "MEMORY.md", "recent_events.jsonl",
                 "commitments.jsonl",
                 "relations.json", "sources", "topics", "timeline",
             )
