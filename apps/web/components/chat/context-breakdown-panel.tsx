@@ -15,7 +15,18 @@ import { ArrowLeft, ChevronDown, ChevronRight, FoldVertical } from "lucide-react
 import { useTranslation } from "@/lib/i18n";
 import { HoverTip } from "@/components/ui/tooltip";
 import { useSessionStore } from "@/lib/session-store";
+import { cn } from "@/lib/utils";
+import {
+  CHECK_SLOT_PAD,
+  GROUP_LABEL,
+  MENU_PANEL,
+  MENU_SEPARATOR,
+  MENU_TRAILING,
+  SHORTCUT,
+  itemCls,
+} from "@/components/chat/top-bar/menu-styles";
 import { getSocket } from "@/lib/runtime-bridge/state";
+import { loadSessionHistoryWindow } from "@/lib/runtime-bridge/session-history-loader";
 import {
   readContextBreakdownCache,
   subscribeContextBreakdownCache,
@@ -56,6 +67,8 @@ interface Item {
 interface Group {
   key: string;
   title?: string;
+  /** The rows overlap other groups, so their sum isn't shown. */
+  noTotal?: boolean;
   items: Item[];
 }
 
@@ -94,12 +107,28 @@ function messageKindLabel(kind: string, text: Text): string {
   }
 }
 
-/** Scroll the transcript to a message and flash it. */
-function revealMessage(id: string): void {
-  const esc = typeof window.CSS?.escape === "function" ? CSS.escape(id) : id;
-  const el = document.querySelector<HTMLElement>(
-    `[data-msg-id="${esc}"], [data-msg-ids~="${esc}"]`,
+/** A message preview without Markdown punctuation. */
+function plain(textValue: string): string {
+  return textValue.replace(/[*_`#>]+/g, "").replace(/\s+/g, " ").trim();
+}
+
+/** Scroll the transcript to a message and flash it, loading the page of
+ *  history around it first when it isn't in the transcript yet (the same
+ *  route find-in-conversation takes). */
+async function revealMessage(sessionId: string, id: string): Promise<void> {
+  const loaded = useSessionStore.getState().messageOrder[sessionId]?.includes(id);
+  if (!loaded) await loadSessionHistoryWindow(sessionId, "around", id);
+  const esc = CSS.escape(id);
+  const find = () => document.querySelector<HTMLElement>(
+    `#chatMessages [data-msg-id="${esc}"], #chatMessages [data-msg-ids~="${esc}"]`,
   );
+  // A recycled row is a sized slot until it is live; bring it near first.
+  for (let i = 0; i < 20 && !find(); i += 1) {
+    document.querySelector<HTMLElement>(`[data-msg-slot="${esc}"]`)
+      ?.scrollIntoView({ block: "center" });
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+  }
+  const el = find();
   if (!el) return;
   el.scrollIntoView({ behavior: "smooth", block: "center" });
   el.classList.add("dag-flash");
@@ -146,10 +175,12 @@ function buildCategories(d: Breakdown, text: Text, onReveal: (id: string) => voi
       key: g.kind, label: messageKindLabel(g.kind, text), tokens: g.tokens,
       hint: text(`${g.count} messages`, `${g.count} 条`),
     })) },
-    { key: "top", title: text("Largest messages", "最大的消息"),
+    { key: "top", title: text("Largest messages", "最大的消息"), noTotal: true,
       items: (messages?.top || []).map((m) => ({
-        key: m.id, label: m.preview || m.id, tokens: m.tokens,
-        hint: messageKindLabel(m.kind, text), onOpen: () => onReveal(m.id),
+        key: m.id, label: plain(m.preview) || m.id, tokens: m.tokens,
+        hint: m.kind === "user" ? text("You", "你")
+          : m.kind === "summary" ? text("Summary", "摘要") : text("Reply", "回复"),
+        onOpen: () => onReveal(m.id),
       })) },
   ];
 
@@ -237,9 +268,13 @@ function StackedBar({
   );
 }
 
-function Swatch({ color }: { color: string }) {
+/** A category colour in the row's icon column, so labels line up with
+ *  every other menu's icon + text rows. */
+function Swatch({ color }: { color?: string }) {
   return (
-    <span className="h-2 w-2 shrink-0 rounded-[2px]" style={{ background: color }} />
+    <span className="flex size-4 shrink-0 items-center justify-center">
+      {color && <span className="size-2 rounded-[2px]" style={{ background: color }} />}
+    </span>
   );
 }
 
@@ -248,59 +283,57 @@ function shade(color: string, index: number): string {
   return `color-mix(in srgb, ${color} ${strength}%, var(--usage-track))`;
 }
 
+/** Trailing token count, then the row's chevron (or its empty slot). */
+function Trailing({ value, chevron }: { value: string; chevron?: "right" | "down" | null }) {
+  return (
+    <span className={MENU_TRAILING}>
+      <span className={SHORTCUT}>{value}</span>
+      {chevron === "right" ? <ChevronRight className="size-4 text-text-muted" />
+        : chevron === "down" ? <ChevronDown className="size-4 text-text-muted" />
+        : <span className={CHECK_SLOT_PAD} />}
+    </span>
+  );
+}
+
 function ItemRow({
   item,
   color,
   open,
   onToggle,
-  hovered,
   onHover,
 }: {
   item: Item;
   color?: string;
   open: boolean;
   onToggle: () => void;
-  hovered: boolean;
   onHover: (on: boolean) => void;
 }) {
   const expandable = Boolean(item.text);
-  const clickable = expandable || Boolean(item.onOpen);
-  const Tag = clickable ? "button" : "div";
   return (
-    <div className="rounded-[6px]" style={{ background: hovered || open ? "var(--bg-hover)" : undefined }}>
-      <Tag
-        type={clickable ? "button" : undefined}
+    <>
+      <button
+        type="button"
         onClick={item.onOpen ?? (expandable ? onToggle : undefined)}
         onPointerEnter={() => onHover(true)}
         onPointerLeave={() => onHover(false)}
-        className="flex w-full min-w-0 items-center gap-2 px-1.5 py-[5px] text-left text-[12px]"
-        style={{ color: "var(--text-primary)", cursor: clickable ? "pointer" : "default" }}
+        className={cn(itemCls(open), "w-full text-left",
+          !expandable && !item.onOpen && "cursor-default")}
       >
-        {color && <Swatch color={color} />}
+        <Swatch color={color} />
         <span className="min-w-0 flex-1 truncate">{item.label}</span>
-        {item.hint && (
-          <span className="shrink-0 text-[11px]" style={{ color: "var(--text-muted)" }}>
-            {item.hint}
-          </span>
-        )}
-        <span className="shrink-0 tabular-nums" style={{ color: "var(--text-muted)" }}>
-          {fmt(item.tokens)}
-        </span>
-        <span className="w-3 shrink-0" style={{ color: "var(--text-muted)" }}>
-          {expandable && (open
-            ? <ChevronDown className="h-3 w-3" />
-            : <ChevronRight className="h-3 w-3" />)}
-        </span>
-      </Tag>
+        {item.hint && <span className="shrink-0 text-xs text-text-muted">{item.hint}</span>}
+        <Trailing
+          value={fmt(item.tokens)}
+          chevron={expandable ? (open ? "down" : "right") : null}
+        />
+      </button>
       {expandable && open && (
-        <pre
-          className="scroll-overlay mx-1.5 mb-1.5 max-h-[220px] overflow-auto whitespace-pre-wrap break-words rounded-[6px] px-2 py-1.5 font-mono text-[11px] leading-[1.5]"
-          style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}
-        >
+        // Starts under the label (row padding + icon column + gap).
+        <pre className="max-h-48 shrink-0 overflow-y-auto whitespace-pre-wrap break-words py-1 pr-1.5 pl-7 font-mono text-xs text-text-muted">
           {item.text}
         </pre>
       )}
-    </div>
+    </>
   );
 }
 
@@ -383,9 +416,9 @@ export function ContextBreakdownPanel({ sessionId, headId, onClose }: Props) {
   const categories = useMemo(
     () => buildCategories(data ?? ({} as Breakdown), text, (id) => {
       onClose?.();
-      window.setTimeout(() => revealMessage(id), 60);
+      if (sessionId) void revealMessage(sessionId, id);
     }),
-    [data, text, onClose],
+    [data, text, onClose, sessionId],
   );
   const shown = categories.filter((c) => c.tokens > 0 || c.key !== "unclassified");
   const current = view ? categories.find((c) => c.key === view) ?? null : null;
@@ -405,139 +438,112 @@ export function ContextBreakdownPanel({ sessionId, headId, onClose }: Props) {
       sock.send(JSON.stringify({ action: "compact", session_id: sessionId }));
     }
   };
-  // Quiet footer action: text-only until hovered, muted while unavailable.
-  const compactButton = (
+  const compactRow = (
     <button
       type="button"
       aria-disabled={!canCompact}
       aria-busy={compacting}
       onClick={compact}
-      className={"inline-flex items-center gap-1 rounded-[6px] px-1.5 py-[3px] text-[11px] transition-colors"
-        + (canCompact ? " hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]" : "")}
-      style={{
-        color: "var(--text-muted)",
-        cursor: canCompact ? "pointer" : "default",
-        opacity: canCompact ? 1 : 0.55,
-      }}
+      className={cn(itemCls(false), "w-full text-left text-text-muted",
+        !canCompact && "cursor-default opacity-50 hover:bg-transparent")}
     >
-      <FoldVertical className="h-3 w-3" />
-      {compacting ? text("Compacting…", "正在压缩…") : text("Compact", "压缩")}
+      <FoldVertical />
+      <span className="flex-1">
+        {compacting ? text("Compacting…", "正在压缩…") : text("Compact conversation", "压缩对话")}
+      </span>
     </button>
   );
 
+  const detailBar = (category: Category) => {
+    const segments = category.key === "tools"
+      ? category.groups.map((g, i) => ({
+        key: g.key, label: g.title || g.key,
+        tokens: g.items.reduce((sum, item) => sum + item.tokens, 0),
+        color: shade(category.color, i * 2),
+      }))
+      : (category.groups[0]?.items ?? []).map((item, i) => ({
+        key: item.key, label: item.label, tokens: item.tokens,
+        color: shade(category.color, i),
+      }));
+    const total = segments.reduce((sum, seg) => sum + seg.tokens, 0);
+    if (total <= 0 || category.key === "messages") return null;
+    return (
+      <div className="px-1.5 py-1">
+        <StackedBar segments={segments} total={total} hovered={hovered} onHover={setHovered} />
+      </div>
+    );
+  };
+
   return (
-    <div
-      className="context-breakdown-panel flex max-h-[70vh] w-[380px] flex-col overflow-hidden"
-      style={{
-        // Grammar C 卡片：白卡 + 10px 圆角（=输入框刻度）+ 真 border
-        // + 投影——弹层统一配方。
-        background: "var(--surface-popover)",
-        borderRadius: 10,
-        border: "1px solid var(--border-popover)",
-        boxShadow: "var(--shadow-popover)",
-      }}
-    >
-      <div
-        className="scroll-overlay min-h-0 flex-1 overflow-y-auto"
-        style={{ padding: "12px 14px" }}
-      >
-        {data?.error ? (
-          <div className="p-4 text-[12px]" style={{ color: "var(--accent-red)" }}>
-            {data.error}
-          </div>
-        ) : current ? (
-          <>
-            <div className="mb-[10px] flex items-center gap-2">
-              <button
-                type="button"
-                aria-label={text("Back", "返回")}
-                onClick={() => { setView(null); setHovered(null); }}
-                className="-ml-1 rounded-[6px] p-1 hover:bg-[var(--bg-hover)]"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                <ArrowLeft className="h-3.5 w-3.5" />
-              </button>
-              <Swatch color={current.color} />
-              <span className="flex-1 text-[13px] font-medium" style={{ color: "var(--text-bright)" }}>
-                {current.label}
-              </span>
-              <span className="text-[12px] tabular-nums" style={{ color: "var(--text-muted)" }}>
-                {fmt(current.tokens)} · {pct(current.tokens, totalUsed)}
-              </span>
+    <div className={cn(MENU_PANEL, "context-breakdown-panel w-[320px]")}>
+      {data?.error ? (
+        <div className="px-1.5 py-1 text-sm text-[var(--accent-red)]">{data.error}</div>
+      ) : current ? (
+        <>
+          <button
+            type="button"
+            aria-label={text("Back", "返回")}
+            onClick={() => { setView(null); setHovered(null); }}
+            className={cn(itemCls(false), "w-full text-left")}
+          >
+            <ArrowLeft />
+            <span className="min-w-0 flex-1 truncate text-text-bright">{current.label}</span>
+            <Trailing value={`${fmt(current.tokens)} · ${pct(current.tokens, totalUsed)}`} />
+          </button>
+          {detailBar(current)}
+          {current.groups.every((g) => g.items.length === 0) && (
+            <div className="px-1.5 py-1 text-sm text-text-muted">
+              {text("Nothing recorded for this part yet.", "这一部分还没有记录。")}
             </div>
-            {(() => {
-              const top = current.groups[0]?.items ?? [];
-              const segments = (current.key === "tools"
-                ? current.groups.map((g, i) => ({
-                  key: g.key, label: g.title || g.key,
-                  tokens: g.items.reduce((sum, item) => sum + item.tokens, 0),
-                  color: shade(current.color, i * 2),
-                }))
-                : top.map((item, i) => ({
-                  key: item.key, label: item.label, tokens: item.tokens,
-                  color: shade(current.color, i),
-                })));
-              const total = segments.reduce((sum, seg) => sum + seg.tokens, 0);
-              return total > 0 && current.key !== "messages" ? (
-                <div className="mb-2">
-                  <StackedBar segments={segments} total={total} hovered={hovered} onHover={setHovered} />
-                </div>
-              ) : null;
-            })()}
-            {current.groups.every((g) => g.items.length === 0) && (
-              <div className="py-3 text-center text-[12px]" style={{ color: "var(--text-muted)" }}>
-                {text("Nothing recorded for this part yet.", "这一部分还没有记录。")}
-              </div>
-            )}
-            {current.groups.map((group, gi) => group.items.length > 0 && (
-              <div key={group.key} className={gi > 0 ? "mt-3" : undefined}>
-                {group.title && (
-                  <div className="mb-1 flex items-baseline justify-between px-1.5 text-[11px]" style={{ color: "var(--text-muted)" }}>
-                    <span>{group.title}</span>
+          )}
+          {current.groups.map((group, gi) => group.items.length > 0 && (
+            <React.Fragment key={group.key}>
+              {(gi > 0 || group.title) && <div className={MENU_SEPARATOR} />}
+              {group.title && (
+                <div className={GROUP_LABEL}>
+                  <span className="flex-1">{group.title}</span>
+                  {!group.noTotal && (
                     <span className="tabular-nums">
                       {fmt(group.items.reduce((sum, item) => sum + item.tokens, 0))}
                     </span>
-                  </div>
-                )}
-                {group.items.map((item, i) => {
-                  const id = `${group.key}/${item.key}`;
-                  return (
-                    <ItemRow
-                      key={id}
-                      item={item}
-                      color={current.key === "tools" || group.key === "top"
-                        ? undefined
-                        : shade(current.color, i)}
-                      open={Boolean(expanded[id])}
-                      onToggle={() => setExpanded((e) => ({ ...e, [id]: !e[id] }))}
-                      hovered={hovered === item.key || hovered === group.key}
-                      onHover={(on) => setHovered(on ? item.key : null)}
-                    />
-                  );
-                })}
-              </div>
-            ))}
-          </>
-        ) : (
-          <>
-            {/* 标题行 —— Claude grammar C：muted 维度名 + 右对齐 BRIGHT 总量。*/}
-            <div className="mb-[10px] flex items-baseline justify-between">
-              <span className="text-[13px]" style={{ color: "var(--text-muted)" }}>
-                {text("Context window", "上下文窗口")}
-                {/* 和圆环 tooltip 同一个标记：估算值标 est.，实测不标。*/}
-                {data?.basis === "estimated" && (
-                  <span className="ml-1 text-[11px]">{text("(est.)", "（估算）")}</span>
-                )}
+                  )}
+                </div>
+              )}
+              {group.items.map((item, i) => {
+                const id = `${group.key}/${item.key}`;
+                return (
+                  <ItemRow
+                    key={id}
+                    item={item}
+                    color={current.key === "tools" || group.key === "top"
+                      ? undefined
+                      : shade(current.color, i)}
+                    open={Boolean(expanded[id])}
+                    onToggle={() => setExpanded((e) => ({ ...e, [id]: !e[id] }))}
+                    onHover={(on) => setHovered(on ? item.key : null)}
+                  />
+                );
+              })}
+            </React.Fragment>
+          ))}
+        </>
+      ) : (
+        <>
+          <div className={GROUP_LABEL}>
+            <span className="flex-1">{text("Context window", "上下文窗口")}</span>
+            {/* 和圆环 tooltip 同一个标记：估算值标 est.，实测不标。*/}
+            {data?.basis === "estimated" && (
+              <span>
+                {text("est.", "估算")}
+                {lastMeasured ? ` · ${text("last measured", "上次实测")} ${fmt(lastMeasured)}` : ""}
               </span>
-              <span className="text-[13px] font-medium" style={{ color: "var(--text-bright)" }}>
-                {fmt(totalUsed)} / {fmt(win)} ({(usedPct * 100).toFixed(1)}%)
-              </span>
-            </div>
-            {data?.basis === "estimated" && Boolean(lastMeasured) && (
-              <div className="mb-2 text-[11px]" style={{ color: "var(--text-muted)" }}>
-                {text("Last request measured", "上次请求实测")} {fmt(lastMeasured || 0)}
-              </div>
             )}
+          </div>
+          <div className="flex items-baseline gap-1.5 px-1.5 pt-0.5 text-sm">
+            <span className="tabular-nums text-text-bright">{fmt(totalUsed)} / {fmt(win)}</span>
+            <span className="text-xs tabular-nums text-text-muted">{(usedPct * 100).toFixed(1)}%</span>
+          </div>
+          <div className="px-1.5 pt-1.5 pb-1">
             <StackedBar
               segments={[
                 ...shown,
@@ -549,50 +555,39 @@ export function ContextBreakdownPanel({ sessionId, headId, onClose }: Props) {
               onHover={setHovered}
               onPick={openView}
             />
-            <div className="mt-3 space-y-[2px]">
-              {shown.map((category) => {
-                const clickable = category.key !== "unclassified";
-                return (
-                  <button
-                    key={category.key}
-                    type="button"
-                    onClick={() => openView(category.key)}
-                    onPointerEnter={() => setHovered(category.key)}
-                    onPointerLeave={() => setHovered(null)}
-                    data-tip={clickable ? undefined : text(
-                      "The difference between the total input usage and locally classified estimates. It can change after a request or compaction.",
-                      "总输入用量与本地分类估算之和的差额。请求完成或压缩后，这个差额可能变化。",
-                    )}
-                    className="flex w-full items-center gap-2 rounded-[6px] px-1.5 py-[6px] text-left text-[12px]"
-                    style={{
-                      background: hovered === category.key ? "var(--bg-hover)" : undefined,
-                      color: category.tokens > 0 ? "var(--text-primary)" : "var(--text-muted)",
-                      cursor: clickable ? "pointer" : "default",
-                    }}
-                  >
-                    <Swatch color={category.color} />
-                    <span className="flex-1">{category.label}</span>
-                    <span className="tabular-nums" style={{ color: "var(--text-muted)" }}>
-                      {fmt(category.tokens)} · {pct(category.tokens, totalUsed)}
-                    </span>
-                    <span className="w-3 shrink-0" style={{ color: "var(--text-muted)" }}>
-                      {clickable && <ChevronRight className="h-3 w-3" />}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </div>
-      {!data?.error && !current && (
-        <div className="flex shrink-0 justify-end" style={{ padding: "0 10px 8px" }}>
+          </div>
+          {shown.map((category) => {
+            const clickable = category.key !== "unclassified";
+            return (
+              <button
+                key={category.key}
+                type="button"
+                onClick={() => openView(category.key)}
+                onPointerEnter={() => setHovered(category.key)}
+                onPointerLeave={() => setHovered(null)}
+                data-tip={clickable ? undefined : text(
+                  "The difference between the total input usage and locally classified estimates. It can change after a request or compaction.",
+                  "总输入用量与本地分类估算之和的差额。请求完成或压缩后，这个差额可能变化。",
+                )}
+                className={cn(itemCls(hovered === category.key), "w-full text-left",
+                  !clickable && "cursor-default")}
+              >
+                <Swatch color={category.color} />
+                <span className="min-w-0 flex-1 truncate">{category.label}</span>
+                <Trailing
+                  value={`${fmt(category.tokens)} · ${pct(category.tokens, totalUsed)}`}
+                  chevron={clickable ? "right" : null}
+                />
+              </button>
+            );
+          })}
+          <div className={MENU_SEPARATOR} />
           {recentlyCompacted ? (
             <HoverTip label={text("Recently compacted", "最近已压缩")}>
-              <span className="inline-flex">{compactButton}</span>
+              <span className="block">{compactRow}</span>
             </HoverTip>
-          ) : compactButton}
-        </div>
+          ) : compactRow}
+        </>
       )}
     </div>
   );
