@@ -222,7 +222,7 @@ In narrow windows (900px wide or less) the left sidebar starts collapsed to its 
 
 ### Welcome animation
 
-A new, empty chat shows only the input box. Turn on **Welcome animation** in Settings → General to play a code rain behind it: green columns of letters, digits, symbols and katakana falling down the chat area. It is off by default and saved in this browser. When the system asks for reduced motion, the rain is drawn as a still frame.
+A new, empty chat shows only the input box. Turn on **Welcome animation** in Settings → General to play a code rain behind it: green columns of letters, digits, symbols and katakana falling down the chat area. It is off by default and saved in this browser. Once it is on, **Code rain density** sets how many streams fall at once, from 10% to 100% (40% by default), and applies while you drag. When the system asks for reduced motion, the rain is drawn as a still frame.
 
 ### Tab drag appearance
 

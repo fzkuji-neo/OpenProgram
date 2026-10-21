@@ -2,7 +2,8 @@
  * WelcomeBackdrop — the code rain behind the empty chat.
  *
  * Shown only when the "Welcome animation" setting is on (off by default,
- * see welcome-backdrop-pref.ts). Reduced-motion draws a single still frame.
+ * see welcome-backdrop-pref.ts), as dense as that setting says.
+ * Reduced-motion draws a single still frame.
  */
 "use client";
 
@@ -15,6 +16,8 @@ import styles from "./welcome-screen.module.css";
 type Palette = { dark: boolean };
 type Scene = {
   init(width: number, height: number): void;
+  /** Percent of the full rain (about 1.35 drops per column at 100). */
+  setDensity(percent: number): void;
   draw(ctx: CanvasRenderingContext2D, t: number, width: number, height: number, pal: Palette): void;
 };
 
@@ -24,7 +27,7 @@ type Scene = {
  *  but never again within MIN_GAP seconds of its last change; after that it
  *  rolls once per frame (however many drops light it) so that, gap
  *  included, it changes about every MEAN_GAP seconds. Always green. */
-function codeRain(): Scene {
+function codeRain(initialDensity: number): Scene {
   const GLYPHS =
     "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ" +
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:.=*+-<>|\"_";
@@ -39,28 +42,38 @@ function codeRain(): Scene {
   let grid: Cell[][] = [];
   let drops: Drop[] = [];
   let rows = 0;
+  let cols = 0;
+  let density = initialDensity;
   let last = 0;
   let frame = 0;
   const glyph = () => GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
   const cell = (): Cell => ({ ch: glyph(), rolled: -1, changed: -Infinity });
-  const spawn = (col: number, scatter: boolean): Drop => {
+  // 每滴落到底后换一列重落，稀疏时空出来的列也会轮流下雨。
+  const spawn = (scatter: boolean): Drop => {
     const len = 18 + Math.floor(Math.random() * 30);
     return {
-      col,
+      col: Math.floor(Math.random() * cols),
       // 首帧把雨点散在整屏，之后从顶端上方落下。
       y: scatter ? Math.random() * (rows + len) : -Math.random() * rows * 0.6,
       speed: 7 + Math.random() * 12,
       len,
     };
   };
+  const target = () => Math.max(1, Math.round(cols * 1.35 * density / 100));
   return {
     init(w, h) {
       last = 0;
-      const cols = Math.ceil(w / CELL);
+      cols = Math.ceil(w / CELL);
       rows = Math.ceil(h / CELL);
       grid = Array.from({ length: cols }, () => Array.from({ length: rows }, cell));
-      // 约三分之一的列同时有两滴，疏密不一。
-      drops = Array.from({ length: Math.round(cols * 1.35) }, (_, i) => spawn(i % cols, true));
+      drops = Array.from({ length: target() }, () => spawn(true));
+    },
+    setDensity(percent) {
+      density = percent;
+      if (!cols) return;
+      const want = target();
+      if (drops.length > want) drops.length = want;
+      while (drops.length < want) drops.push(spawn(true));
     },
     draw(ctx, t, _w, _h, pal) {
       const dt = last ? Math.min(0.05, t - last) : 0.016;
@@ -74,7 +87,7 @@ function codeRain(): Scene {
       ctx.textBaseline = "middle";
       for (const d of drops) {
         d.y += d.speed * dt;
-        if (d.y - d.len > rows) Object.assign(d, spawn(d.col, false));
+        if (d.y - d.len > rows) Object.assign(d, spawn(false));
         const top = Math.floor(d.y);
         const x = d.col * CELL + CELL / 2;
         for (let k = 0; k < d.len; k++) {
@@ -123,18 +136,29 @@ function readPalette(): Palette {
 }
 
 export function WelcomeBackdrop() {
-  const { enabled } = useWelcomeBackdropPref();
-  return enabled ? <CodeRainCanvas /> : null;
+  const { enabled, density } = useWelcomeBackdropPref();
+  return enabled ? <CodeRainCanvas density={density} /> : null;
 }
 
-function CodeRainCanvas() {
+function CodeRainCanvas({ density }: { density: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const sceneRef = useRef<Scene | null>(null);
+  const densityRef = useRef(density);
+  const stillRef = useRef<(() => void) | null>(null);
+
+  // 拖滑块时只增删雨滴，不重建画面。
+  useEffect(() => {
+    densityRef.current = density;
+    sceneRef.current?.setDensity(density);
+    stillRef.current?.();
+  }, [density]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
-    const scene = codeRain();
+    const scene = codeRain(densityRef.current);
+    sceneRef.current = scene;
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let width = 0, height = 0, frame = 0, raf = 0;
     let palette = readPalette();
@@ -161,6 +185,7 @@ function CodeRainCanvas() {
       scene.init(width, height);
       if (still) render(4000);
     };
+    if (still) stillRef.current = () => render(4000);
     const observer = new ResizeObserver(resize);
     observer.observe(canvas);
     resize();
@@ -168,6 +193,8 @@ function CodeRainCanvas() {
     return () => {
       observer.disconnect();
       cancelAnimationFrame(raf);
+      sceneRef.current = null;
+      stillRef.current = null;
     };
   }, []);
 

@@ -242,9 +242,11 @@ assert.doesNotMatch(markdownRenderer, /return "<pre>" \+ escHtml\(str\) \+ "<\/p
 // The empty chat is a rotating animated backdrop only: no mark, tagline or starter buttons.
 assert.match(welcome, /<WelcomeBackdrop \/>/);
 assert.doesNotMatch(welcome, /icon\.svg|styles\.(?:mark|tagline|starter)/);
-assert.match(welcomeBackdrop, /return enabled \? <CodeRainCanvas \/> : null;/);
+assert.match(welcomeBackdrop, /return enabled \? <CodeRainCanvas density=\{density\} \/> : null;/);
 assert.doesNotMatch(welcomeBackdrop, /callGraph|SCENES/);
-assert.match(welcomeBackdropPref, /let current = false;/, "the welcome code rain is off by default");
+assert.match(welcomeBackdropPref, /let current: State = \{ enabled: false,/, "the welcome code rain is off by default");
+assert.match(welcomeBackdropPref, /CODE_RAIN_DENSITY = \{ min: 10, max: 100, default: 40 \}/);
+assert.match(generalSettings, /id="welcome-code-rain-density"/);
 assert.match(generalSettings, /useWelcomeBackdropPref\(\)[\s\S]*id="welcome-code-rain"/);
 assert.match(welcomeBackdrop, /prefers-reduced-motion: reduce/);
 assert.match(welcomeCss, /\.backdrop\s*\{[^}]*position:\s*absolute;[^}]*pointer-events:\s*none;/s);

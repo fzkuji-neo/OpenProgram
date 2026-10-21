@@ -32,7 +32,7 @@ import {
   type ThemeStyle,
 } from "@/lib/prefs/theme-pref";
 import { useVisualEffectsPref } from "@/lib/prefs/visual-effects-pref";
-import { useWelcomeBackdropPref } from "@/lib/prefs/welcome-backdrop-pref";
+import { CODE_RAIN_DENSITY, useWelcomeBackdropPref } from "@/lib/prefs/welcome-backdrop-pref";
 import { DRAG_SURFACE_STYLE, VISUAL_EFFECTS_LIMITS, type VisualEffectKey } from "@/lib/prefs/visual-effects-config";
 import styles from "./settings-page.module.css";
 import { DesktopAttentionSection } from "./desktop-attention-section";
@@ -458,6 +458,33 @@ export function GeneralSection() {
             onCheckedChange={welcomeBackdrop.setEnabled}
           />
         </SettingsRow>
+
+        {welcomeBackdrop.enabled && (
+          <SettingsRow
+            label={text("Code rain density", "代码雨密度")}
+            description={text(
+              "How many streams fall at once. Applies immediately.",
+              "同时落下的雨滴有多少。即时生效。",
+            )}
+            stacked
+          >
+            <Field>
+              <div className="flex items-center justify-between gap-2">
+                <FieldLabel htmlFor="welcome-code-rain-density">{text("Density", "密度")}</FieldLabel>
+                <span className="text-sm text-muted-foreground">{welcomeBackdrop.density}%</span>
+              </div>
+              <Slider
+                id="welcome-code-rain-density"
+                min={CODE_RAIN_DENSITY.min}
+                max={CODE_RAIN_DENSITY.max}
+                step={5}
+                value={[welcomeBackdrop.density]}
+                aria-valuetext={`${welcomeBackdrop.density}%`}
+                onValueChange={([value]) => welcomeBackdrop.setDensity(value)}
+              />
+            </Field>
+          </SettingsRow>
+        )}
 
         <SettingsRow
           label={text("Tab drag appearance", "标签拖动外观")}
