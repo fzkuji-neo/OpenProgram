@@ -551,3 +551,16 @@ def test_message_detail_groups_by_kind_and_lists_the_largest():
         ("assistant", 40), ("summary", 25), ("user", 10)]
     assert detail["top"][0] == {"id": "a1", "kind": "assistant", "tokens": 40,
                                 "preview": "long reply"}
+
+
+def test_tool_rows_add_up_to_their_tool_category():
+    result = stats.finalize_breakdown(
+        {"tools_schema": 100, "tools_deferred_catalog": 20, "mcp_tools": 0,
+         "tools": [{"name": "a", "tokens": 80, "deferred": False},
+                   {"name": "b", "tokens": 40, "deferred": False},
+                   {"name": "c", "tokens": 20, "deferred": True}]},
+        {"total_used": 60, "window": 1000},
+    )
+    loaded = [r["tokens"] for r in result["tools"] if not r["deferred"]]
+    assert sum(loaded) == result["tools_schema"]
+    assert [r["tokens"] for r in result["tools"] if r["deferred"]] == [result["tools_deferred_catalog"]]

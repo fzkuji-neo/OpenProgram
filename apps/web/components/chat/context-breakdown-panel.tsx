@@ -177,7 +177,9 @@ function skillsItem(d: Breakdown, text: Text): Item {
   const names = (d.skills_detail || []).map((s) => s.name);
   return {
     key: "skills", label: systemSectionLabel("skills", text), tokens: d.skills || 0,
-    hint: names.length ? text(`${names.length} skills`, `${names.length} 个`) : undefined,
+    hint: names.length
+      ? text(names.length === 1 ? "1 skill" : `${names.length} skills`, `${names.length} 个`)
+      : undefined,
     text: names.length ? names.join("\n") : undefined,
   };
 }
@@ -222,6 +224,8 @@ function StackedBar({
               height: active ? 12 : 6,
               background: segment.color,
               zIndex: active ? 2 : 1,
+              // A hairline in the card colour keeps neighbouring shades apart.
+              boxShadow: "inset -1px 0 0 var(--surface-popover)",
               cursor: onPick ? "pointer" : undefined,
             }}
             onPointerEnter={() => onHover(segment.key)}

@@ -688,6 +688,25 @@ def finalize_breakdown(breakdown: dict, occupancy: dict) -> dict:
         result[detail] = [
             {**row, "tokens": scaled[i]} for i, row in enumerate(rows)
         ]
+    # Tool rows split four categories: built-in loaded / on demand, MCP
+    # loaded / on demand.
+    mcp_rows = [r for r in breakdown.get("mcp_detail") or [] if isinstance(r, dict)]
+    mcp_names = {r.get("name") for r in mcp_rows}
+    tool_rows = [r for r in breakdown.get("tools") or []
+                 if isinstance(r, dict) and r.get("name") not in mcp_names]
+    for rows_key, rows, loaded_key, deferred_key in (
+        ("tools", tool_rows, "tools_schema", "tools_deferred_catalog"),
+        ("mcp_detail", mcp_rows, "mcp_tools", "mcp_tools_deferred"),
+    ):
+        if not rows:
+            continue
+        scaled_rows = {}
+        for deferred, key in ((False, loaded_key), (True, deferred_key)):
+            part = {i: max(0, int(r.get("tokens") or 0))
+                    for i, r in enumerate(rows) if bool(r.get("deferred")) == deferred}
+            scaled_rows.update(_scale_categories(part, values.get(key, 0)) if part else {})
+        result[rows_key] = [{**r, "tokens": scaled_rows.get(i, r.get("tokens"))}
+                            for i, r in enumerate(rows)]
     detail = breakdown.get("messages_detail")
     if isinstance(detail, dict) and detail.get("groups"):
         source = sum(int(g.get("tokens") or 0) for g in detail["groups"])
