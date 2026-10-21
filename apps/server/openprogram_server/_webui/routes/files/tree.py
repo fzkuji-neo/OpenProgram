@@ -438,6 +438,31 @@ def register(app):
             "nodes": _coverage_nodes(db, session_id, node_ids),
         })
 
+    @app.get("/api/context/draft")
+    async def get_draft_context(
+        provider: str = "", model: str = "", agent_id: str = "main",
+    ):
+        """The /context breakdown of a chat that has no session yet: the
+        agent's system prompt and tools against the selected model."""
+        import asyncio
+        from openprogram.context import session_stats as _cs
+
+        try:
+            bd = await asyncio.to_thread(
+                _cs.compute_draft_breakdown, agent_id or "main", provider, model,
+            )
+        except Exception as e:
+            return JSONResponse(
+                status_code=200,
+                content={"error": f"{type(e).__name__}: {e}", "tools": []},
+            )
+        window = int(bd.get("context_window") or 0)
+        return JSONResponse(content=_cs.finalize_breakdown(bd, {
+            "total_used": int(bd.get("input_used") or 0),
+            "window": window,
+            "basis": "estimated",
+        }))
+
     @app.get("/api/sessions/{session_id}/context")
     async def get_session_context(session_id: str, head_id: str | None = None):
         """Per-category input-token breakdown for the session (Claude Code /context).

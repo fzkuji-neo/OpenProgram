@@ -147,3 +147,34 @@ export function warmContextBreakdown(
   if (latestRequest.has(key)) return;
   void refreshContextBreakdown(sessionId, headId, new AbortController().signal);
 }
+
+/** A chat with no session yet: the agent's system prompt and tools against
+ *  the selected model, from GET /api/context/draft. Keyed by the model, so
+ *  switching models refetches. */
+function draftKey(provider?: string, model?: string): string {
+  return JSON.stringify(["__draft__", provider || "", model || ""]);
+}
+
+export function readDraftContextBreakdown(
+  provider?: string,
+  model?: string,
+): ContextBreakdown | null {
+  return cache.get(draftKey(provider, model)) ?? null;
+}
+
+export function warmDraftContextBreakdown(provider?: string, model?: string): void {
+  const key = draftKey(provider, model);
+  if (latestRequest.has(key)) return;
+  const token = Symbol();
+  latestRequest.set(key, token);
+  const qs = new URLSearchParams({ provider: provider || "", model: model || "" });
+  void fetch(`/api/context/draft?${qs}`)
+    .then((response) => response.json() as Promise<ContextBreakdown>)
+    .then((data) => {
+      if (latestRequest.get(key) === token && !data.error) touch(key, data);
+    })
+    .catch(() => undefined)
+    .finally(() => {
+      if (latestRequest.get(key) === token) latestRequest.delete(key);
+    });
+}

@@ -245,7 +245,9 @@ mode) with their text; tools are grouped loaded / on demand / MCP; memory lists 
 workspace's `MEMORY.md` and `core.md`; the conversation is split by kind
 (`messages_detail.groups`) with its largest messages (`messages_detail.top`), each
 linking to its transcript row. Detail rows are scaled with their category, so they
-add up to it. When a turn records its `context/system_prompt` node, the node's
+add up to it. A chat with no session yet reads `GET /api/context/draft?provider=&model=`
+(`session_stats.compute_draft_breakdown`): the agent's prompt and full toolset
+against that model's window. When a turn records its `context/system_prompt` node, the node's
 metadata carries `sections: [{name, chars}]`, the length of each component's block,
 so `session_stats` cuts the recorded text back into components exactly. A node
 recorded before that is split by locating the blocks of a fresh build in it; what

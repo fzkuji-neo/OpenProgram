@@ -28,7 +28,10 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   readContextBreakdownCache,
+  readDraftContextBreakdown,
+  subscribeContextBreakdownCache,
   warmContextBreakdown,
+  warmDraftContextBreakdown,
   writeContextBreakdownCache,
 } from "@/lib/chat/context-breakdown-cache";
 
@@ -124,10 +127,24 @@ export function ContextBadge({ sessionId }: ContextBadgeProps) {
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [panelOpen, setPanelOpen]);
 
-  const usage = useSessionStore((s) => (sid ? s.tokens[sid] : undefined));
-  const ctxWindow = useSessionStore((s) => (sid ? s.contextWindow[sid] : undefined));
   const fallbackProvider = useSessionStore((s) => s.agentSettings.chat?.provider);
   const fallbackModel = useSessionStore((s) => s.agentSettings.chat?.model);
+  // No session yet: the ring and panel show what the first message would
+  // carry (system prompt, tools, memory) against the selected model.
+  const [draft, setDraft] = useState(() =>
+    sid ? null : readDraftContextBreakdown(fallbackProvider, fallbackModel));
+  useEffect(() => {
+    if (sid) return;
+    const sync = () => setDraft(readDraftContextBreakdown(fallbackProvider, fallbackModel));
+    sync();
+    warmDraftContextBreakdown(fallbackProvider, fallbackModel);
+    return subscribeContextBreakdownCache(sync);
+  }, [sid, fallbackProvider, fallbackModel]);
+  const sessionUsage = useSessionStore((s) => (sid ? s.tokens[sid] : undefined));
+  const sessionWindow = useSessionStore((s) => (sid ? s.contextWindow[sid] : undefined));
+  const usage = sid ? sessionUsage
+    : draft ? { total_used: draft.total_used, basis: "estimated" as const } : undefined;
+  const ctxWindow = sid ? sessionWindow : draft?.window || draft?.context_window;
 
   // 永远渲染圆环：还没有 usage 的会话（或还没有会话）显示 0 进度的空环，
   // 而不是整个消失（“圆环不见了”就是以前 return null 造成的）。

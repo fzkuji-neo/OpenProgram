@@ -564,3 +564,19 @@ def test_tool_rows_add_up_to_their_tool_category():
     loaded = [r["tokens"] for r in result["tools"] if not r["deferred"]]
     assert sum(loaded) == result["tools_schema"]
     assert [r["tokens"] for r in result["tools"] if r["deferred"]] == [result["tools_deferred_catalog"]]
+
+
+def test_a_draft_chat_counts_the_agent_prompt_against_the_model_window(monkeypatch):
+    import openprogram.agent.internals._model_tools as model_tools
+    import openprogram.programs as programs
+    import openprogram.context.tokens as tokens
+
+    monkeypatch.setattr(programs, "agent_tools", lambda **_kw: [])
+    monkeypatch.setattr(model_tools, "load_agent_profile",
+                        lambda _id: {"id": "main", "name": "Main"})
+    monkeypatch.setattr(tokens, "real_context_window", lambda _model: 400_000)
+
+    bd = stats.compute_draft_breakdown("main", "p", "m")
+    assert bd["draft"] and bd["context_window"] == 400_000
+    assert bd["system_prompt"] > 0 and bd["messages"] == 0
+    assert bd["system_detail"][0]["name"] == "base"

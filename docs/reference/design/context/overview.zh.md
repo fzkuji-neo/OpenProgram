@@ -240,7 +240,9 @@ tool 保护(OpenCode)。
 AGENTS.md、技能索引、工作流与工具说明、日期、计划模式）并附原文；工具分为已加载 /
 按需加载 / MCP；记忆列出每个工作区的 `MEMORY.md` 和 `core.md`；对话按类型拆分
 （`messages_detail.groups`）并列出最大的几条消息（`messages_detail.top`），每条链接到
-聊天里对应的那一行。明细行随所属类别一起缩放，加起来等于类别总数。每轮记录 `context/system_prompt` 节点时，
+聊天里对应的那一行。明细行随所属类别一起缩放，加起来等于类别总数。还没有会话的新对话读
+`GET /api/context/draft?provider=&model=`（`session_stats.compute_draft_breakdown`）：
+Agent 的提示词和完整工具集，窗口按该模型计算。每轮记录 `context/system_prompt` 节点时，
 节点 metadata 带 `sections: [{name, chars}]`，即各组件块的长度，`session_stats` 据此把
 记录下的文本精确切回各组件。更早记录的节点没有这项，就在其中查找一次新构建的各块；
 找不到的部分显示为“其他”。

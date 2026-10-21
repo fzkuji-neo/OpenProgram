@@ -71,7 +71,6 @@ def compute_breakdown(
     global head.
     """
     from openprogram.agent.session_db import default_db
-    from openprogram.context.breakdown import compute_call_breakdown
     from openprogram.context.tokens import real_context_window
 
     db = default_db()
@@ -232,6 +231,36 @@ def compute_breakdown(
     except (AttributeError, KeyError, TypeError):
         _log.debug("DAG view unavailable; using legacy message estimate", exc_info=True)
 
+    return _classify(
+        session_id=session_id, sess=sess, model_id=model_id,
+        latest_system=latest_system, recorded_sections=recorded_sections,
+        agent_view=agent_view, msgs=msgs, message_rows=message_rows,
+        branch=branch, tools=tools, latest_tools=latest_tools,
+        has_tool_snapshot=has_tool_snapshot,
+        recorded_tool_rows=recorded_tool_rows, ctx_window=ctx_window,
+    )
+
+
+def _classify(
+    *,
+    session_id: Optional[str],
+    sess: dict,
+    model_id: str,
+    latest_system: str,
+    recorded_sections: Optional[list],
+    agent_view,
+    msgs: list,
+    message_rows: list,
+    branch: list,
+    tools: list,
+    latest_tools: list,
+    has_tool_snapshot: bool,
+    recorded_tool_rows: list,
+    ctx_window: int,
+) -> dict:
+    """Categories and detail rows for one prompt, history and toolset."""
+    from openprogram.context.breakdown import compute_call_breakdown
+
     bd = compute_call_breakdown(
         system_prompt=latest_system,
         history=msgs,
@@ -386,6 +415,44 @@ def compute_breakdown(
     # Free space
     bd["free_space"] = max(0, ctx_window - bd["input_used"])
 
+    return bd
+
+
+def compute_draft_breakdown(
+    agent_id: str = "main",
+    provider: str = "",
+    model: str = "",
+    *,
+    channel: str = "web",
+) -> dict:
+    """What a new chat would send before its first message: the agent's
+    system prompt and toolset against the selected model's window."""
+    from openprogram.agent.internals._model_tools import load_agent_profile
+    from openprogram.context.components import build_system_prompt
+    from openprogram.context.tokens import real_context_window
+
+    try:
+        from openprogram.programs import agent_tools
+        tools = agent_tools(toolset="full")
+    except Exception:
+        tools = []
+    profile = load_agent_profile(agent_id or "main")
+    agent_view = type("_AgentView", (), dict(profile or {}))()
+    latest_system = build_system_prompt(agent_view, channel=channel, tools=tools)
+    try:
+        from openprogram.providers.models import get_model
+        model_obj = get_model(provider, model) if provider and model else None
+    except Exception:
+        model_obj = None
+    bd = _classify(
+        session_id=None, sess={"agent_id": agent_id}, model_id=model,
+        latest_system=latest_system, recorded_sections=None,
+        agent_view=agent_view, msgs=[], message_rows=[], branch=[],
+        tools=tools, latest_tools=[], has_tool_snapshot=False,
+        recorded_tool_rows=[], ctx_window=real_context_window(model_obj),
+    )
+    bd["basis"] = "estimated"
+    bd["draft"] = True
     return bd
 
 

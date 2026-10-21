@@ -29,6 +29,7 @@ import { getSocket } from "@/lib/runtime-bridge/state";
 import { loadSessionHistoryWindow } from "@/lib/runtime-bridge/session-history-loader";
 import {
   readContextBreakdownCache,
+  readDraftContextBreakdown,
   subscribeContextBreakdownCache,
   type ContextBreakdown as Breakdown,
 } from "@/lib/chat/context-breakdown-cache";
@@ -378,16 +379,20 @@ export function ContextBreakdownPanel({ sessionId, headId, onClose }: Props) {
     return false;
   });
   const canCompact = Boolean(sessionId) && !compacting && !recentlyCompacted;
-  const [data, setData] = useState<Breakdown | null>(() =>
-    readContextBreakdownCache(sessionId, headId),
-  );
+  const draftProvider = useSessionStore((s) => s.agentSettings.chat?.provider);
+  const draftModel = useSessionStore((s) => s.agentSettings.chat?.model);
+  // A chat with no session yet reads the draft estimate (the badge warms it).
+  const readCached = () => sessionId
+    ? readContextBreakdownCache(sessionId, headId)
+    : readDraftContextBreakdown(draftProvider, draftModel);
+  const [data, setData] = useState<Breakdown | null>(readCached);
   const [view, setView] = useState<Category["key"] | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [hovered, setHovered] = useState<string | null>(null);
 
   useEffect(() => {
     const sync = () => {
-      const cached = readContextBreakdownCache(sessionId, headId);
+      const cached = readCached();
       if (cached) {
         setData(cached);
         return;
@@ -403,7 +408,9 @@ export function ContextBreakdownPanel({ sessionId, headId, onClose }: Props) {
     };
     sync();
     return subscribeContextBreakdownCache(sync);
-  }, [sessionId, headId, ringUsed, ringWindow, ringBasis]);
+    // readCached reads only these.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, headId, ringUsed, ringWindow, ringBasis, draftProvider, draftModel]);
 
   // 窗口和总占用都用服务端 stats 里的那一份（圆环读的同一个字段）。
   // 分项仍是本次现场算出的 breakdown —— 明细可以是估算，但顶部的总数
