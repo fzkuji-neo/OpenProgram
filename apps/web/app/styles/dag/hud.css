@@ -42,7 +42,6 @@
 .dag-hud-zoom {
   min-width: 42px;
   padding: 0 3px;
-  font-variant-numeric: tabular-nums;
 }
 /* Segment hover = the outline Button's hover tint, scoped to the
    segment instead of the whole pill. */

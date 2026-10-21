@@ -60,9 +60,9 @@ export function SourceModal({ fn, onClose }: Props) {
         <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
           <div className="flex min-w-0 items-center gap-2">
             <FileCode className="size-4 shrink-0 text-muted-foreground" />
-            <DialogTitle className="font-mono text-sm">{fn.name}</DialogTitle>
+            <DialogTitle className="text-sm">{fn.name}</DialogTitle>
             {data?.filepath && (
-              <DialogDescription className="truncate font-mono text-xs">
+              <DialogDescription className="truncate text-xs">
                 {data.filepath.replace(/^.*\/openprogram\//, "openprogram/")}
               </DialogDescription>
             )}

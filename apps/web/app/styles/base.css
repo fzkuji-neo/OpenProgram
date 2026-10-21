@@ -69,8 +69,6 @@
      never defined; leading with it invalidated the whole declaration
      and first paint fell back to Times before the script caught up. */
   --font-sans: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', sans-serif;
-  /* The platform face (SF on macOS), for the +N −N pill as in the Claude app. */
-  --font-system: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
   /* Theme-owned primary colour family. The accent-orange names are legacy
      Custom CSS entry points, so keep them writable and derive semantic roles
@@ -455,12 +453,6 @@ select:focus-visible {
   outline: none !important;
   box-shadow: none !important;
   border-color: var(--accent-blue);
-}
-/* Display serif for hero text (welcome title). System serif only —
-   no font files shipped. */
-.display-serif {
-  font-family: ui-serif, Georgia, 'Times New Roman', serif;
-  letter-spacing: -0.01em;
 }
 
 /* ===== Layout: 3-column ===== */

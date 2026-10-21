@@ -97,7 +97,7 @@ export function FunctionRunDialog({ fn, onClose }: Props) {
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
         <DialogHeader className="border-b px-4 py-3 pr-12">
-          <DialogTitle className="font-mono">{fn.name}</DialogTitle>
+          <DialogTitle>{fn.name}</DialogTitle>
           <DialogDescription className="text-xs">{fn.description}</DialogDescription>
         </DialogHeader>
 
@@ -182,13 +182,13 @@ function ParamInput({
     <div>
       <div className="mb-1 flex items-center gap-2">
         <label
-          className="font-mono text-[12px] font-medium"
+          className="text-[12px] font-medium"
           style={{ color: "var(--text-bright)" }}
         >
           {p.name}
         </label>
         <span
-          className="font-mono text-[10px]"
+          className="text-[10px]"
           style={{ color: "var(--text-muted)" }}
         >
           {p.type}

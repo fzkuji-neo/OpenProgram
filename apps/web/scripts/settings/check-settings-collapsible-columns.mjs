@@ -206,15 +206,15 @@ assert.match(memoryCss, /\.controls\s*\{[^}]*flex:\s*0 1 auto;[^}]*justify-conte
 assert.match(memoryCss, /\.select\s*\{[^}]*min-width:\s*0/s);
 assert.doesNotMatch(memoryCss, /grid-template-columns:\s*minmax\(220px/);
 assert.match(memory, /styles\.chromeValue[\s\S]{0,80}Local workspace · Git enabled/);
-assert.match(memory, /styles\.monoValue[\s\S]{0,40}workspace_path/);
+assert.match(memory, /styles\.pathValue[\s\S]{0,40}workspace_path/);
 
 // Memory / Usage / Channels chrome follow the General font picker.
 assert.match(memory, /className=\{shared\.page\}/);
-assert.match(memoryCss, /\.monoValue\s*\{[^}]*font-family:\s*var\(--font-mono\)/s);
+assert.doesNotMatch(memoryCss, /\.pathValue\s*\{[^}]*font-family/s);
 assert.match(usagePage, /styles\.page[\s\S]*local\.usagePage/);
 assert.match(usageCss, /\.usagePage\s*\{[^}]*font-family:\s*var\(--font-sans\)/s);
-assert.match(usageCss, /\.cardValue\s*\{[^}]*font-family:\s*var\(--font-sans\)[^}]*font-variant-numeric:\s*tabular-nums/s);
-assert.match(usageCss, /\.modelCell\s*\{[^}]*font-family:\s*var\(--font-mono/s);
+assert.match(usageCss, /\.cardValue\s*\{[^}]*font-family:\s*var\(--font-sans\)/s);
+assert.doesNotMatch(usageCss, /\.modelCell\s*\{[^}]*font-family:\s*var\(--font-mono/s);
 assert.match(channelsPage, /shellStyles\.page[\s\S]*styles\.channelsPage/);
 assert.match(channelsCss, /\.channelsPage\s*\{[^}]*font-family:\s*var\(--font-sans\)/s);
 assert.match(channelsCss, /\.rowTable code\s*\{[^}]*font-family:\s*var\(--font-mono\)/s);

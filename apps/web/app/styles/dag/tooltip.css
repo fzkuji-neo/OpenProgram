@@ -100,8 +100,7 @@
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: anywhere;
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo,
-               Monaco, Consolas, monospace);
+  font-family: var(--font-mono);
   font-size: 11px;
   /* No filled panel here: every other value in this card is bare text on
      the card's own background, so a block of --bg-secondary read as a
@@ -140,8 +139,6 @@
 }
 .history-tooltip-kv-val {
   color: var(--text-primary);
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo,
-               Monaco, Consolas, monospace);
   word-break: break-all;
   flex: 1;
 }

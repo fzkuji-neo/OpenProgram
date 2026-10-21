@@ -106,7 +106,6 @@
   margin-bottom: 3px;
 }
 .cardName {
-  font-family: var(--font-mono);
   font-size: 14px;
   font-weight: 600;
   color: var(--accent-blue);

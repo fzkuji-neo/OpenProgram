@@ -135,7 +135,7 @@ export function AgentSelector({
                     <span className="truncate">{m.name}</span>
                     <CapIcons caps={m.capabilities} />
                     {m.context ? (
-                      <span className="shrink-0 font-mono text-[11px] text-text-muted">
+                      <span className="shrink-0 text-[11px] text-text-muted">
                         {fmtCtx(m.context)}
                       </span>
                     ) : null}

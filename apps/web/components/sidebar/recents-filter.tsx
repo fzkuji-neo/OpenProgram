@@ -248,7 +248,7 @@ function Row<T extends string>({
                 <DM.Item onSelect={() => onPick(val)} className={rowCls}>
                   <span className="flex-1 text-left">{optLabel}</span>
                   {counts?.[val] ? (
-                    <span className="shrink-0 text-text-muted tabular-nums">
+                    <span className="shrink-0 text-text-muted">
                       {counts[val]}
                     </span>
                   ) : null}

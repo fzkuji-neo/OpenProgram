@@ -168,7 +168,6 @@
 .contentToolbarLabel > span {
   color: var(--text-tertiary);
   font-weight: 500;
-  font-variant-numeric: tabular-nums;
 }
 
 /* Chat rows use the shared ManageRow; this only spaces them. */

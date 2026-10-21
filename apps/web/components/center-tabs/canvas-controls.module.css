@@ -375,7 +375,6 @@
   color: #fff;
   font-size: 11px;
   line-height: 14px;
-  font-variant-numeric: tabular-nums;
   pointer-events: none;
   white-space: nowrap;
 }

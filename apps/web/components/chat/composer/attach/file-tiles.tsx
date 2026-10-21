@@ -389,7 +389,6 @@ function LocalFilePreviewModal({
           }}
         >
           <span style={{
-            fontFamily: "var(--font-mono)",
             fontSize: 13,
             color: "var(--text-primary)",
             flex: 1,

@@ -417,7 +417,7 @@ export function AccountManager({ provider, onChanged }: { provider: Provider; on
               </div>
               <div className={`${styles.addCredentialFields} ${accounts.length === 0 ? styles.addCredentialFieldsSingle : ""}`}>
                 {accounts.length > 0 && (
-                  <Input className="font-mono" placeholder={text("Account name (optional)", "账号名称（可选）")}
+                  <Input  placeholder={text("Account name (optional)", "账号名称（可选）")}
                     value={newKeyName} onChange={(e) => setNewKeyName(e.target.value)} disabled={busy} />
                 )}
                 <Input className="font-mono" type="password" placeholder={text("Paste API key", "粘贴 API 密钥")}
@@ -433,12 +433,12 @@ export function AccountManager({ provider, onChanged }: { provider: Provider; on
       {/* Providers may advertise additional supported login methods. */}
       {state.add_mode === "api_key" && (provider.login_methods?.length ?? 0) > 0 && (
         <ProviderLogin provider={provider} accountLabel={newName.trim() || undefined} bare
-          leadingInput={<Input className="flex-1 font-mono" placeholder={text("name (optional)", "名字（可选）")} value={newName} onChange={(e) => setNewName(e.target.value)} />}
+          leadingInput={<Input className="flex-1" placeholder={text("name (optional)", "名字（可选）")} value={newName} onChange={(e) => setNewName(e.target.value)} />}
           onChanged={() => { setNewName(""); load(); onChanged?.(); }} />
       )}
       {state.add_mode === "login" && (
         <ProviderLogin provider={provider} accountLabel={newName.trim() || undefined} bare
-          leadingInput={<Input className="flex-1 font-mono" placeholder={text("name (optional)", "名字（可选）")} value={newName} onChange={(e) => setNewName(e.target.value)} />}
+          leadingInput={<Input className="flex-1" placeholder={text("name (optional)", "名字（可选）")} value={newName} onChange={(e) => setNewName(e.target.value)} />}
           onChanged={() => { setNewName(""); load(); }} />
       )}
       <div className={styles.accountHelp}>

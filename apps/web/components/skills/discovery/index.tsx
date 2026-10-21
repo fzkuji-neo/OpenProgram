@@ -415,7 +415,7 @@ export function DiscoverySources({ query }: { query?: string } = {}) {
                     {s.description && (
                       <p className="mt-1 text-xs text-[var(--text-secondary)] line-clamp-2">{s.description}</p>
                     )}
-                    <p className="mt-1 text-[11px] font-mono text-[var(--text-tertiary)] truncate">{s.url}</p>
+                    <p className="mt-1 text-[11px] text-[var(--text-tertiary)] truncate">{s.url}</p>
                   </div>
                   {(installed > 0 || uninstalledCount > 0 || s.origin === "custom") && (
                     <div

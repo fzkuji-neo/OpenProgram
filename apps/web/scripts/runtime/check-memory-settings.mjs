@@ -92,12 +92,12 @@ assert.match(settingsCss, /@media \(max-width: 820px\)[\s\S]*?\.settingsRow\s*\{
 assert.doesNotMatch(settingsCss, /\.select:focus/);
 assert.doesNotMatch(settingsCss, /\.select:focus-visible\s*,\s*\.saveButton:focus-visible/);
 assert.match(settingsCss, /\.chromeValue\s*\{[^}]*font-family:\s*var\(--font-sans\)/s);
-assert.match(settingsCss, /\.monoValue\s*\{[^}]*font-family:\s*var\(--font-mono\)/s);
+assert.doesNotMatch(settingsCss, /\.pathValue\s*\{[^}]*font-family/s);
 assert.doesNotMatch(settingsCss, /JetBrains Mono/);
 assert.doesNotMatch(settingsCss, /grid-template-columns:\s*minmax\(220px/);
 assert.match(settings, /styles\.chromeValue[\s\S]{0,80}Local workspace · Git enabled/);
-assert.match(settings, /styles\.monoValue[\s\S]{0,40}workspace_path/);
-assert.equal((settings.match(/styles\.monoValue/g) || []).length, 1);
+assert.match(settings, /styles\.pathValue[\s\S]{0,40}workspace_path/);
+assert.equal((settings.match(/styles\.pathValue/g) || []).length, 1);
 
 const settingRows = [...settings.matchAll(/<SettingsRow[\s\S]*?<\/SettingsRow>/g)].map((match) => match[0]);
 assert.ok(settingRows.length >= 4, "expected Memory setting rows");

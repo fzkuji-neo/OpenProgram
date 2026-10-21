@@ -25,7 +25,6 @@
 .context-card-header:hover { background: var(--bg-hover); }
 
 .context-card-title {
-  font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 600;
   color: var(--text-bright);

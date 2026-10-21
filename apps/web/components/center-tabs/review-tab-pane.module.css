@@ -9,7 +9,7 @@
 .titleRow h1{margin:0;font-size:14px;line-height:20px;font-weight:600;color:var(--text-bright)}
 .source{font-size:12px;color:var(--text-muted);white-space:nowrap}
 .linkedImpacts{flex:0 0 auto;border:1px solid var(--border);border-radius:999px;padding:2px 7px;color:var(--text-muted);font-size:11px;line-height:16px}
-.totals{margin-left:auto;display:flex;align-items:baseline;gap:6px;font-size:12px;color:var(--text-secondary);font-variant-numeric:tabular-nums;white-space:nowrap}
+.totals{margin-left:auto;display:flex;align-items:baseline;gap:6px;font-size:12px;color:var(--text-secondary);white-space:nowrap}
 .totals i,.counts i{font-style:normal;color:var(--accent-green)}.totals em,.counts em{font-style:normal;color:var(--accent-red)}
 
 .scopeTabs,.viewTabs{display:flex;align-items:center;gap:2px;padding:2px;border-radius:9px;background:var(--bg-tertiary)}
@@ -18,7 +18,7 @@
 .scope:hover:not(:disabled),.view:hover{color:var(--text-primary)}
 .scope:disabled{opacity:.45;cursor:default}
 .scopeActive,.viewActive{color:var(--text-bright);background:var(--bg-input);box-shadow:0 0 0 1px var(--border),var(--shadow-sm)}
-.menuButton{margin-left:auto;display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 8px 0 10px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-secondary);font-size:12px;cursor:pointer;white-space:nowrap;font-variant-numeric:tabular-nums}
+.menuButton{margin-left:auto;display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 8px 0 10px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-secondary);font-size:12px;cursor:pointer;white-space:nowrap;}
 .menuButton:hover,.menuButton[data-state="open"]{color:var(--text-bright);background:var(--bg-hover)}
 
 .body{display:grid;grid-template-columns:minmax(0,1fr);flex:1;min-height:0}
@@ -30,12 +30,12 @@
 .fileName,.fileFolder{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fileName{font-size:13px;line-height:18px}
 .fileFolder{font-size:11px;line-height:15px;color:var(--text-muted)}
-.counts{display:inline-flex;gap:4px;font-size:11px;font-family:var(--font-mono);white-space:nowrap}
+.counts{display:inline-flex;gap:4px;font-size:11px;white-space:nowrap}
 .pagination,.diffPagination{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 4px}
 .pagination button,.diffPagination button{height:26px;border:1px solid var(--border);border-radius:7px;padding:0 10px;background:transparent;color:var(--text-secondary);font-size:12px;cursor:pointer}
 .pagination button:hover:not(:disabled),.diffPagination button:hover:not(:disabled){background:var(--bg-hover);color:var(--text-bright)}
 .pagination button:disabled,.diffPagination button:disabled{opacity:.35;cursor:default}
-.pagination span{color:var(--text-muted);font:11px/1 var(--font-mono)}
+.pagination span{color:var(--text-muted);font:11px/1 var(--font-sans)}
 
 .diff{display:flex;flex-direction:column;min-width:0;min-height:0}
 .fileHeader{flex:0 0 auto;padding:10px 16px;border-bottom:1px solid var(--border)}

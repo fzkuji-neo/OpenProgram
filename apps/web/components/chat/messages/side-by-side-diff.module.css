@@ -51,7 +51,6 @@
   color: var(--text-dim, var(--text-muted));
   opacity: 0.7;
   user-select: none;
-  font-variant-numeric: tabular-nums;
 }
 
 /* grow so the tint reaches the column edge, no shrink so a long line

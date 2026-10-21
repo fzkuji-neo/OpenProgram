@@ -84,7 +84,7 @@ function _drawPill(
     "text-anchor": "middle",
     "dominant-baseline": "central",
     "font-size": small ? "9" : "10.5",
-    "font-family": "var(--font-sans, sans-serif)",
+    "font-family": "var(--font-sans)",
     "font-weight": isActive ? "600" : "500",
     fill: isActive
       ? "var(--text-bright, #1a1a17)"
@@ -200,7 +200,7 @@ export function drawBadges(
     node = deepestByLane[lane] ?? node;
     const p = pos(node);
     let bx = p.x;
-    let by = p.y + 28;
+    const by = p.y + 28;
     // 避让：锚位正下方有竖线穿过（对话延续 / 展开的执行子树在同一列往
     // 下走）时左偏半格——徽标永不压边。
     const hasLineBelow = maxYByX[p.x] !== undefined && maxYByX[p.x] > p.y;

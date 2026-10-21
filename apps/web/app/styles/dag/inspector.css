@@ -87,8 +87,7 @@
   background: var(--bg-secondary);
   border-radius: 6px;
   padding: 7px 9px;
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo,
-               Monaco, Consolas, monospace);
+  font-family: var(--font-mono);
   font-size: 10.5px;
   line-height: 1.45;
   white-space: pre-wrap;

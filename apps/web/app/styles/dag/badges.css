@@ -5,7 +5,7 @@
    淡灰、小号——它说明节点，不与节点争眼。hover 提亮做可点暗示。 */
 .history-thread-count {
   font-size: 9px;
-  font-family: var(--font-sans, sans-serif);
+  font-family: var(--font-sans);
   font-weight: 500;
   fill: var(--text-muted, #8a887f);
   dominant-baseline: middle;

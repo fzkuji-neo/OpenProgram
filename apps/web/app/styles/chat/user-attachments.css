@@ -96,7 +96,6 @@ button.user-attach-chip {
   flex: 1;
   overflow: hidden;
   color: var(--text-primary);
-  font-family: var(--font-mono);
   font-size: 13px;
   white-space: nowrap;
   text-overflow: ellipsis;

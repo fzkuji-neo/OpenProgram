@@ -76,7 +76,7 @@ function CommandRow({ text }: { text: string }) {
           border: "1px solid var(--border)",
           borderRadius: 4,
           fontSize: 11,
-          fontFamily: "var(--font-sans, inherit)",
+          fontFamily: "var(--font-sans)",
           cursor: "pointer",
           lineHeight: 1.4,
           transition: "background 120ms, color 120ms",

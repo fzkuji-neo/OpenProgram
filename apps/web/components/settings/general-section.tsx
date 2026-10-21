@@ -533,7 +533,7 @@ export function GeneralSection() {
                 <Field key={key}>
                   <div className="flex items-center justify-between gap-2">
                     <FieldLabel htmlFor={`visual-effect-${key}`}>{label}</FieldLabel>
-                    <span className="text-sm text-muted-foreground tabular-nums">{effects[key]}{unit}</span>
+                    <span className="text-sm text-muted-foreground">{effects[key]}{unit}</span>
                   </div>
                   <Slider
                     id={`visual-effect-${key}`}

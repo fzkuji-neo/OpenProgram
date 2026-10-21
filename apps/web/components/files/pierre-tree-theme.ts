@@ -24,7 +24,7 @@ export const pierreTreeCSS = `
 [data-item-section="decoration"] { width: 440px; }
 [data-item-section="decoration"] > span { display: grid; grid-template-columns: 100px 200px 140px; width: 440px; max-width: none; }
 [data-item-section="decoration"] > span > span { min-width: 0; box-sizing: border-box; padding: 0 10px 0 12px; overflow: hidden; text-overflow: ellipsis; text-align: left; }
-[data-item-section="decoration"] > span > span:first-child { text-align: right; font-variant-numeric: tabular-nums; }
+[data-item-section="decoration"] > span > span:first-child { text-align: right; }
 [data-item-section="decoration"] { flex: none; font-size: var(--right-panel-meta-size, 11px); line-height: var(--right-panel-line-height, normal); color: var(--text-tertiary); white-space: nowrap; }
 [data-item-section="decoration"] span[style*="--op-size-scanning"] { animation: folder-size-pulse 1.8s ease-in-out infinite; }
 @keyframes folder-size-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }

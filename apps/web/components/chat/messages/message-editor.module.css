@@ -27,7 +27,7 @@
   color: var(--text-bright);
   box-shadow: 0 2px 8px #0003, 0 8px 24px #0002;
   cursor: pointer;
-  font: 500 13px/1 var(--font-sans, system-ui);
+  font: 500 13px/1 var(--font-sans);
   white-space: nowrap;
   user-select: none;
   transition: background-color 120ms ease, box-shadow 120ms ease;

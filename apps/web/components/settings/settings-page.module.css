@@ -1158,7 +1158,6 @@
 .modelItemId {
   font-size: 12px;
   color: var(--text-muted);
-  font-family: var(--font-mono);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1233,7 +1232,6 @@
   color: var(--text-secondary);
   width: auto;
   padding: 0 6px;
-  font-family: var(--font-mono);
 }
 /* `.miniAction` — fetch / bulk-toggle buttons are the shadcn
    <Button variant="outline" size="sm"> now. */
@@ -1524,7 +1522,6 @@
 }
 .effectsSliderRow output {
   text-align: right;
-  font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
 }
 .effectsPreviewBackground {

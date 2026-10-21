@@ -54,7 +54,7 @@
 /* Inline row labels — message preview / function name beside each node. */
 .history-label {
   font-size: 11px;
-  font-family: var(--font-sans, sans-serif);
+  font-family: var(--font-sans);
   fill: var(--text-muted);
   dominant-baseline: middle;
   pointer-events: none;
@@ -76,7 +76,7 @@
    pill means. */
 .history-summary-label {
   font-size: 10px;
-  font-family: var(--font-sans, sans-serif);
+  font-family: var(--font-sans);
   fill: var(--text-muted, var(--text-secondary));
   dominant-baseline: middle;
 }

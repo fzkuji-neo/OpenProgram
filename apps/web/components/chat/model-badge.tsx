@@ -53,7 +53,7 @@ export function ModelBadge() {
         onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
         onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
       >
-        <span className="font-mono">{current}</span>
+        <span>{current}</span>
         <ChevronDown className="h-3 w-3" />
       </button>
       {open && (
@@ -95,7 +95,7 @@ export function ModelBadge() {
                 >
                   <span className="flex-1 truncate">{m.name}</span>
                   <span
-                    className="font-mono text-[10px]"
+                    className="text-[10px]"
                     style={{ color: "var(--text-muted)" }}
                   >
                     {m.id}

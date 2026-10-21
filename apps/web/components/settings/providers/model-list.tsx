@@ -327,12 +327,12 @@ function ModelDetailsPanel({ model }: { model: Model }) {
     <>
       {model.input_modalities &&
         fact(text("Input modalities", "输入模态"),
-          <span style={{ fontFamily: "var(--font-mono, monospace)" }}>
+          <span>
             {model.input_modalities.join(" · ")}
           </span>)}
       {model.output_modalities &&
         fact(text("Output modalities", "输出模态"),
-          <span style={{ fontFamily: "var(--font-mono, monospace)" }}>
+          <span>
             {model.output_modalities.join(" · ")}
           </span>)}
       {model.context_window != null &&

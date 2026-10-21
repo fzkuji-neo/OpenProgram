@@ -47,7 +47,7 @@ export function TodoPlanCard({ sessionId }: { sessionId: string | null }) {
     <section className={styles.card} data-todo-plan={sessionId} aria-label={text("Task list", "任务清单")}>
       <div className={styles.header}>
         <span>{text("Tasks", "任务")}</span>
-        <span className={styles.count}>{done}/{plan.length}</span>
+        <span>{done}/{plan.length}</span>
       </div>
       <ol className={styles.list}>
         {plan.map((item) => (

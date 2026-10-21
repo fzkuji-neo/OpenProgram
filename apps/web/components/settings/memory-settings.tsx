@@ -235,7 +235,7 @@ export function MemorySettings() {
             <SimpleSelect aria-label={text("Recent view size", "Recent 视图大小")} disabled={controlsDisabled} className={styles.select} value={String(draft["memory.recent.limit"] ?? 50)} onValueChange={(value) => update("memory.recent.limit", Number(value))} options={[25, 50, 100].map((value) => ({ value: String(value), label: `${value} ${text("records", "条记录")}` }))} />
           </SettingsRow>
           <SettingsRow label={text("Workspace", "工作区")} description={text("Current Memory data location. Runtime-managed files remain read-only.", "当前 Memory 数据位置；Runtime 管理的文件保持只读。") }>
-            <span className={styles.monoValue}>{memoryStatus?.workspace_path || "~/.openprogram/memory"}</span>
+            <span className={styles.pathValue}>{memoryStatus?.workspace_path || "~/.openprogram/memory"}</span>
           </SettingsRow>
         </SettingsSection>
       </div>

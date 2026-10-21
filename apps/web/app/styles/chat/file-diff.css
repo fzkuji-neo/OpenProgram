@@ -84,7 +84,6 @@
   color: var(--text-dim, var(--text-muted));
   opacity: 0.7;
   user-select: none;
-  font-variant-numeric: tabular-nums;
 }
 /* flex-grow so short lines still stretch the tint to the right edge, but
    flex-shrink: 0 so a long line pushes the row wider instead of being

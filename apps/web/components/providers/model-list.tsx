@@ -145,7 +145,7 @@ export function ModelList({ provider }: { provider: Provider }) {
                   {m.name}
                 </p>
                 <p
-                  className="truncate font-mono text-[11px]"
+                  className="truncate text-[11px]"
                   style={{ color: "var(--text-muted)" }}
                 >
                   {m.id}

@@ -164,7 +164,8 @@ assert.equal(
 );
 assert.match(
   contextBreakdownPanel,
-  /useState<Breakdown \| null>\(\(\)\s*=>\s*readContextBreakdownCache\(sessionId, headId\),?\s*\)/,
+  /const readCached = \(\) => sessionId\s*\?\s*readContextBreakdownCache\(sessionId, headId\)\s*:\s*readDraftContextBreakdown\([\s\S]{0,80}useState<Breakdown \| null>\(readCached\)/,
+  "the panel paints from the session snapshot, or the draft before the first message",
 );
 assert.match(contextBreakdownPanel, /subscribeContextBreakdownCache\(sync\)/);
 assert.doesNotMatch(
@@ -180,13 +181,13 @@ assert.doesNotMatch(
 );
 assert.match(
   contextBreakdownPanel,
-  /className="scroll-overlay min-h-0 flex-1 overflow-y-auto"/,
-  "context breakdown content must scroll without a native scrollbar",
+  /cn\(MENU_PANEL, "context-breakdown-panel w-\[320px\]"\)/,
+  "the panel uses the shared menu frame, which scrolls past 60vh",
 );
 assert.match(
   contextBreakdownPanel,
-  /className="shrink-0 border-t border-\[var\(--border\)\]"/,
-  "the compact action must live outside the scrolling content",
+  /\{sessionId && <div className=\{MENU_SEPARATOR\} \/>\}/,
+  "a chat with no session shows no compact row",
 );
 assert.match(contextBreakdownPanel, /message\.slot === "event"/);
 assert.match(contextBreakdownPanel, /!compacting && !recentlyCompacted/);

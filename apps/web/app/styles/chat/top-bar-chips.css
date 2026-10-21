@@ -245,8 +245,7 @@
   height: 18px;
   border-radius: 4.5px;
   overflow: hidden;
-  font: 500 11px/14px var(--font-system);
-  font-variant-numeric: tabular-nums lining-nums;
+  font: 500 11px/14px var(--font-sans);
 }
 .diff-badge > span { display: flex; align-items: center; gap: 1px; padding: 0 6px; }
 .diff-badge .is-add {
@@ -296,7 +295,6 @@
   padding: 0;
   list-style: none;
   color: var(--text-muted);
-  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 11.5px;
 }
 .git-menu-error-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
@@ -329,7 +327,7 @@
   margin: 4px 0 0;
   max-height: 120px;
   overflow: auto;
-  font-family: var(--font-mono, ui-monospace, monospace);
+  font-family: var(--font-mono);
   font-size: 11px;
   line-height: 15px;
   color: var(--text-muted);

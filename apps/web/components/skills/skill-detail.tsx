@@ -51,7 +51,7 @@ export function SkillDetail() {
             <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)] mb-2">
               {text("Resources", "资源")}
             </h3>
-            <ul className="space-y-1 text-xs font-mono text-[var(--text-secondary)]">
+            <ul className="space-y-1 text-xs text-[var(--text-secondary)]">
               {detail.resources.map((r) => (
                 <li key={r}>{r}</li>
               ))}

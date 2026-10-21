@@ -31,7 +31,6 @@
   font-weight: 600;
   color: var(--text-bright);
   font-family: var(--font-sans);
-  font-variant-numeric: tabular-nums;
 }
 
 .cardLabel {
@@ -183,7 +182,6 @@
 }
 
 .barValue {
-  font-variant-numeric: tabular-nums;
   color: var(--text-primary);
   text-align: right;
 }
@@ -228,12 +226,10 @@
 .table td.num {
   text-align: right;
   font-family: var(--font-sans);
-  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .modelCell {
-  font-family: var(--font-mono, monospace);
   color: var(--text-bright);
   overflow: hidden;
   text-overflow: ellipsis;

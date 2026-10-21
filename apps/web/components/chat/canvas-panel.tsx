@@ -53,7 +53,7 @@ export function CanvasPanel({ onClose }: { onClose: () => void }) {
               {text("Canvas", "画布")}
             </div>
             <div
-              className="text-[10px] truncate font-mono"
+              className="text-[10px] truncate"
               style={{ color: "var(--text-muted)" }}
             >
               {data?.path ?? "—"}
@@ -62,7 +62,7 @@ export function CanvasPanel({ onClose }: { onClose: () => void }) {
         </div>
         <div className="flex items-center gap-1">
           <span
-            className="text-[10px] tabular-nums"
+            className="text-[10px]"
             style={{ color: "var(--text-muted)" }}
           >
             {mtimeLabel}
@@ -93,7 +93,7 @@ export function CanvasPanel({ onClose }: { onClose: () => void }) {
           {data.blocks.map((b) => (
             <span
               key={b.id}
-              className="rounded px-1.5 py-0.5 font-mono"
+              className="rounded px-1.5 py-0.5"
               style={{ background: "var(--bg-tertiary)" }}
             >
               {b.id}

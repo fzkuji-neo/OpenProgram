@@ -24,10 +24,6 @@
   font-weight: 500;
 }
 
-.count {
-  font-variant-numeric: tabular-nums;
-}
-
 .list {
   display: flex;
   flex-direction: column;

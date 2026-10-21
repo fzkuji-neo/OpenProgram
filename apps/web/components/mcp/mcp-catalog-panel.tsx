@@ -224,7 +224,7 @@ export function CatalogPanel({
           </div>
 
           {err && (
-            <div className="rounded-md border p-2 font-mono text-xs"
+            <div className="rounded-md border p-2 text-xs"
                  style={{ borderColor: "var(--accent-red)", color: "var(--accent-red)" }}>
               {err}
             </div>
@@ -252,7 +252,7 @@ export function CatalogPanel({
                       subtitle={`${s.type}${s.auth?.kind && s.auth.kind !== "none" ? ` · ${s.auth.kind}` : ""}`}
                       description={s.description}
                       status={installed ? <span className={`${shared.badge} ${shared.badgeGreen}`}>{text("installed", "已安装")}</span> : undefined}
-                      meta={<span className="truncate font-mono">{s.type === "local" ? (s.command || []).join(" ") : s.url}</span>}
+                      meta={<span className="truncate">{s.type === "local" ? (s.command || []).join(" ") : s.url}</span>}
                       actions={<Button
                         size="sm"
                         variant={installed ? "outline" : "default"}

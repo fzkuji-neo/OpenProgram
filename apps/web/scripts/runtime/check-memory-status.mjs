@@ -43,7 +43,7 @@ assert.match(memoryPage, /data\.injected_content/);
 assert.match(memoryPage, /injectionEnabled/);
 assert.match(memoryMarkdown, /sanitizeHtml\(renderObsidianMarkdown\(/);
 assert.match(memoryMarkdown, /\(source\) => marked\.parse\(source/);
-assert.match(memoryPage, /Prompt preview/);
+assert.match(memoryPage, /MEMORY\.md as injected/);
 assert.match(memoryPage, /Source records/);
 assert.match(memoryPage, /Injection enabled/);
 assert.doesNotMatch(memoryPage, />\s*Injected\s*</);

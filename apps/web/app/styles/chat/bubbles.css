@@ -642,7 +642,6 @@
   margin-right: var(--avatar-gutter);
   color: var(--accent-red);
   font-size: 14px;
-  font-family: var(--font-mono);
   white-space: pre-wrap;
   word-break: break-word;
 }

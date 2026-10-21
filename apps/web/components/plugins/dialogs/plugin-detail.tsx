@@ -45,7 +45,7 @@ export function PluginDetailDialog({
               {Object.entries(plugin.contributions || {}).map(([kind, names]) => (
                 <div key={kind} className="contents">
                   <dt className="text-muted-foreground">{kind}</dt>
-                  <dd className="font-mono break-all">{names.join(", ")}</dd>
+                  <dd className="break-all">{names.join(", ")}</dd>
                 </div>
               ))}
             </dl>

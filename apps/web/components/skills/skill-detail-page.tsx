@@ -333,7 +333,7 @@ export function SkillDetailPage({ name }: { name: string }) {
             )}
             {tab === "files" && (
               <div className="flex gap-4 min-h-[40vh]">
-                <ul className="w-[260px] shrink-0 space-y-1 text-xs font-mono">
+                <ul className="w-[260px] shrink-0 space-y-1 text-xs">
                   <li>
                     <button
                       onClick={() => setOpenFile("SKILL.md")}
@@ -400,7 +400,7 @@ export function SkillDetailPage({ name }: { name: string }) {
           {/* right sidebar with metadata */}
           <aside className="border-l border-[var(--border)] bg-[var(--bg-secondary)]/40 overflow-y-auto p-4 text-sm">
             <SideField label={text("Source", "来源")}>
-              <span className="font-mono">{detail.source}</span>
+              <span>{detail.source}</span>
             </SideField>
 
             {detail.category && (
@@ -409,7 +409,7 @@ export function SkillDetailPage({ name }: { name: string }) {
 
             {namespace && (
               <SideField label={text("Namespace", "命名空间")}>
-                <span className="font-mono">{namespace}/</span>
+                <span>{namespace}/</span>
               </SideField>
             )}
 
@@ -418,7 +418,7 @@ export function SkillDetailPage({ name }: { name: string }) {
             )}
 
             <SideField label={text("Path", "路径")}>
-              <span className="font-mono text-xs break-all">{detail.path}</span>
+              <span className="text-xs break-all">{detail.path}</span>
             </SideField>
 
             <SideField label={text("Aliases", "别名")}>

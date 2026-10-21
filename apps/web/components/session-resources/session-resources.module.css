@@ -3,7 +3,6 @@
 .groupBlock { min-width: 0; }
 .groupMeta { display: flex; align-items: center; gap: 8px; }
 .groupCurrent, .groupCount { color: var(--text-muted); font-size: var(--right-panel-meta-size, 11px); }
-.groupCount { font-variant-numeric: tabular-nums; }
 .row { display: flex; align-items: center; border-radius: 7px; gap: 2px; padding: 0; min-height: 44px; }
 .row:hover { background: var(--bg-hover); }
 .row[data-active="true"] { background: var(--bg-selected); }

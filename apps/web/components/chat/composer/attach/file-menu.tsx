@@ -64,7 +64,6 @@ export function FileMenu({
         border: "0.5px solid var(--glass-ring)",
         borderRadius: "var(--glass-radius)",
         boxShadow: "var(--glass-shadow)",
-        fontFamily: "var(--font-mono)",
         fontSize: 12,
         lineHeight: "19px",
       }}

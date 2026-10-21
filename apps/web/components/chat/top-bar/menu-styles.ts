@@ -60,7 +60,7 @@ export const CHECK_SLOT_PAD = "size-4 shrink-0";
 /** Right-aligned single-key shortcut hint (e.g. the R / P / C / A / D in
  *  the Recents context menu). Stays muted — doesn't brighten with the
  *  row on hover. */
-export const SHORTCUT = "shrink-0 text-xs tracking-widest tabular-nums text-text-muted";
+export const SHORTCUT = "shrink-0 text-xs tracking-widest text-text-muted";
 
 /** Right column of a row (check, then key hint) after the content, one
  *  title line tall so on a two-line row it sits on the title. */

@@ -23,7 +23,6 @@
   text-align: right;
   color: var(--text-muted);
   opacity: 0.75;
-  font-variant-numeric: tabular-nums;
   user-select: none;
 }
 .sign { text-align: center; user-select: none; color: var(--text-muted); }

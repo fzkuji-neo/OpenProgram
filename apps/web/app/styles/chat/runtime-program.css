@@ -17,7 +17,7 @@
   border-radius: 8px;
   background: var(--bg-secondary);
   color: var(--accent-orange, #d19a66);
-  font: 14px/1 var(--font-mono);
+  font: 14px/1 var(--font-sans);
   user-select: none;
 }
 .runtime-program-content {
@@ -73,6 +73,5 @@
   padding: 0;
   font-size: 11px;
   color: var(--text-muted);
-  font-family: var(--font-mono);
   text-align: right;
 }

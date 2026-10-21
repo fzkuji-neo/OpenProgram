@@ -194,7 +194,7 @@ export function formatUsageBadge(
   const tip = ' title="' + escAttr(result.tooltip) + '"';
   return (
     '<span style="font-size:10px;color:var(--text-muted);' +
-    'font-family:var(--font-mono);margin-left:auto;padding-left:8px"' +
+    'margin-left:auto;padding-left:8px"' +
     tip +
     ">" +
     escHtml(result.text) +

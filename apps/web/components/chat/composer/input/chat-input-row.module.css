@@ -114,7 +114,7 @@
   background: color-mix(in srgb, var(--text-primary) 8%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-primary) 12%, transparent);
 }
-.chatInput :global(.cm-md-chip-file) { font-family: var(--font-mono); font-size: 12px; }
+.chatInput :global(.cm-md-chip-file) {  font-size: 12px; }
 .chatInput :global(.cm-md-chip-icon) {
   font-family: var(--font-sans);
   font-size: 11px;

@@ -239,7 +239,7 @@ export function EditDialog({
               disabled={!isAdd}
               onChange={(e) => setState({ ...state, name: e.target.value })}
               placeholder="drawio"
-              className="font-mono"
+              
             />
           </div>
 
@@ -247,7 +247,7 @@ export function EditDialog({
             <Label htmlFor="mcp-transport">{text("Transport", "传输")}</Label>
             <SimpleSelect label={text("Transport", "传输")}
               id="mcp-transport"
-              className="w-full font-mono"
+              className="w-full"
               value={state.transport}
               onValueChange={(value) => setState({ ...state, transport: value })}
               options={[
@@ -455,13 +455,13 @@ export function EditDialog({
           </div>
 
           {err && (
-            <div className="rounded-md border p-2 font-mono text-xs"
+            <div className="rounded-md border p-2 text-xs"
                  style={{ borderColor: "var(--accent-red)", color: "var(--accent-red)" }}>
               {err}
             </div>
           )}
           {note && (
-            <div className="rounded-md border p-2 font-mono text-xs"
+            <div className="rounded-md border p-2 text-xs"
                  style={{ borderColor: "var(--accent-green)", color: "var(--accent-green)" }}>
               {note}
             </div>

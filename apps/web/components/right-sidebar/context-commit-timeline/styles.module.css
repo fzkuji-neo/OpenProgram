@@ -76,7 +76,6 @@
   min-width: 0;
 }
 .itemLabel {
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
   color: var(--text-bright);
   font-size: var(--right-panel-meta-size, 12px);
   flex-shrink: 0;

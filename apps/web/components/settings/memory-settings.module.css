@@ -15,7 +15,7 @@
 .statusLive { color: var(--accent-green); background: color-mix(in srgb, var(--accent-green) 14%, transparent); }
 .statusMissing { color: var(--accent-red); background: color-mix(in srgb, var(--accent-red) 14%, transparent); }
 .chromeValue { max-width: 460px; color: var(--text-secondary); font-family: var(--font-sans); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.monoValue { max-width: 460px; color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pathValue { max-width: 460px; color: var(--text-secondary); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .error { flex-shrink: 0; margin: 0; color: var(--accent-red); font-size: 12px; font-family: var(--font-sans); }
 .installButton { height: 30px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--ui-button-radius); background: var(--bg-input); color: var(--text-primary); cursor: pointer; font: inherit; font-family: var(--font-sans); font-size: 12px; }
 .installButton:hover:not(:disabled) { border-color: var(--text-muted); }

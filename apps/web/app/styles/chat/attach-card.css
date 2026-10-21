@@ -105,7 +105,6 @@
   color: var(--accent-red, #e5534b);
 }
 .attach-card-sub {
-  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
   overflow: hidden;

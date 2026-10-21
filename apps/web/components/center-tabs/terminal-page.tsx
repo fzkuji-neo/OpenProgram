@@ -147,7 +147,8 @@ export function TerminalPage({ preset }: { preset: "shell" | "claude" }) {
         allowProposedApi: false,
         cursorBlink: true,
         cursorStyle: "bar",
-        fontFamily: '"JetBrains Mono Variable", "SFMono-Regular", Menlo, monospace',
+        // xterm draws on a canvas and needs the resolved stack, not var().
+        fontFamily: getComputedStyle(document.documentElement).getPropertyValue("--font-mono").trim() || "monospace",
         fontSize: 13,
         lineHeight: 1.25,
         scrollback: 10_000,

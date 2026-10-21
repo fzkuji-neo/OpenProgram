@@ -47,7 +47,6 @@
 .detail-field-value {
   font-size: var(--right-panel-text-size, 14px);
   color: var(--text-primary);
-  font-family: var(--font-mono);
   word-break: break-all;
 }
 

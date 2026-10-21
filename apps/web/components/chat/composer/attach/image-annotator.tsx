@@ -51,7 +51,7 @@ function drawMarks(ctx: CanvasRenderingContext2D, image: HTMLImageElement, marks
       ctx.lineTo(mark.to.x - head * Math.cos(angle + Math.PI / 6), mark.to.y - head * Math.sin(angle + Math.PI / 6));
       ctx.stroke();
     } else if (mark.kind === "text") {
-      ctx.font = `600 ${line * 8}px system-ui, sans-serif`;
+      ctx.font = `600 ${line * 8}px ${getComputedStyle(document.body).fontFamily}`;
       ctx.textBaseline = "top";
       ctx.fillText(mark.text, mark.at.x, mark.at.y);
     }

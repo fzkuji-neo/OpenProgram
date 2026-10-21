@@ -116,7 +116,7 @@ export function formatUsageBadge(usage: Usage): string {
     ? ' title="' + escAttr(result.tooltip) + '"'
     : "";
   return (
-    '<span style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono);margin-left:auto;padding-left:8px"' +
+    '<span style="font-size:10px;color:var(--text-muted);margin-left:auto;padding-left:8px"' +
     tip +
     ">" +
     escHtml(result.text) +

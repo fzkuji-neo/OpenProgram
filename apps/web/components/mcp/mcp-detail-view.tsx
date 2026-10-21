@@ -162,7 +162,7 @@ export function DetailView({
       <div className="flex items-center gap-3">
         <span className="text-xl"><PlugZapIcon size={20} /></span>
         <span style={{ color: "var(--accent-blue)" }}
-              className="font-mono text-lg font-semibold">
+              className="text-lg font-semibold">
           {server.name}
         </span>
         <Badge
@@ -239,7 +239,7 @@ export function DetailView({
             {server.error_kind === "fatal" && text("Connection failed", "连接失败")}
             {!server.error_kind && text("Error", "错误")}
           </div>
-          <div className="font-mono text-xs" style={{ color: "var(--accent-red)" }}>
+          <div className="text-xs" style={{ color: "var(--accent-red)" }}>
             {server.error}
           </div>
           {server.error_kind === "needs_reauth" && (
@@ -451,7 +451,7 @@ function ConfigChip({ k, v }: { k: string; v: React.ReactNode }) {
             style={{ color: "var(--text-muted)" }}>
         {k}
       </span>
-      <span className="font-mono">{v}</span>
+      <span>{v}</span>
     </span>
   );
 }
@@ -460,7 +460,7 @@ function ToolRow({ server, tool }: { server: string; tool: ToolSchema }) {
   return (
     <div className="rounded-md border px-3 py-2 transition-colors"
          style={{ borderColor: "var(--border)", background: "var(--bg-secondary)" }}>
-      <div className="truncate font-mono text-sm font-medium"
+      <div className="truncate text-sm font-medium"
            style={{ color: "var(--accent-blue)" }}>
         {server}__{tool.name}
       </div>
