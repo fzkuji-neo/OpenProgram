@@ -159,3 +159,21 @@ def test_a_root_block_the_topic_format_cannot_parse_is_left_alone(tmp_path: Path
     assert "A bare sentence" in (
         space.stage_dir / "core.md"
     ).read_text(encoding="utf-8")
+
+
+def test_a_heading_cut_off_from_its_paragraphs_is_not_rendered(tmp_path: Path):
+    space = _workspace(tmp_path, limit=2_000)
+    _master(space, 1)
+    master = space.stage_dir / "topics" / "core.md"
+    master.write_text(
+        master.read_text(encoding="utf-8")
+        + "\n## Tools\n\n" + "A long tools paragraph. " * 400 + "^toolsblock\n",
+        encoding="utf-8",
+    )
+
+    block = render_core_block(space.stage_dir, budget_tokens=200)
+
+    rendered = _rendered(space.stage_dir)
+    assert "toolsblock" in block.dropped
+    assert "## Tools" not in rendered
+    assert "Stable fact number 0." in rendered

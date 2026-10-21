@@ -198,7 +198,7 @@ def render_core_block(memory_dir: Path, *, budget_tokens: int) -> CoreBlock:
     )
     pending = _pending_core_blocks(memory_dir)
     encoding = tiktoken.get_encoding("o200k_base")
-    kept: list[str] = []
+    kept: list[tuple[str, int]] = []
     dropped: list[str] = []
     tokens = 0
     for index, (chunk, block_id) in enumerate(chunks):
@@ -211,11 +211,16 @@ def render_core_block(memory_dir: Path, *, budget_tokens: int) -> CoreBlock:
                 value for _chunk, value in chunks[index:] if value
             )
             break
-        kept.append(chunk)
+        kept.append((chunk, size))
         tokens += size
+    # A heading the budget cut off from everything under it heads nothing.
+    while kept and all(
+        line.startswith("#") for line in kept[-1][0].splitlines() if line.strip()
+    ):
+        tokens -= kept.pop()[1]
     from . import memory_guide
 
-    text = "\n\n".join(kept).strip()
+    text = "\n\n".join(chunk for chunk, _size in kept).strip()
     body = "\n".join(
         line for line in text.splitlines() if not line.startswith("# ")).strip()
     # The core lives in MEMORY.md; a root core.md is the old place for it.
