@@ -15,7 +15,7 @@
  *   - parts.tsx          TabButton, TreeGroup, EditorPanel,
  *                        LoadingSkeleton, EmptyState, Placeholder
  */
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { Fragment, useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { Settings2 } from "lucide-react";
 
@@ -24,7 +24,6 @@ import { formatDate, formatSize, groupByFolder, groupTimelineDays } from "./form
 import { ClockIcon, TypeBadge } from "./icons";
 import { useTranslation } from "@/lib/i18n";
 import {
-  type AnimatedNavIconHandle,
   ActivityIcon,
   ClockIcon as TimelineIcon,
   FileTextIcon,
@@ -32,8 +31,9 @@ import {
   SparklesIcon,
 } from "@/components/animated-icons";
 import {
-  DisclosureChevron,
+  DocGlyph,
   EmptyState,
+  FolderGlyph,
   LoadingSkeleton,
   Placeholder,
   TabButton,
@@ -46,9 +46,8 @@ import type {
   TopicPage,
 } from "./types";
 import styles from "./memory-page.module.css";
-import { SearchInput } from "@/components/ui/search-input";
+import { RailAction, RailCount, RailGroupLabel, RailItem, RailSearch, SecondaryRail } from "@/components/ui/secondary-rail";
 import { ManageEmptyState } from "@/components/ui/manage-page";
-import { sidebarToggleClass } from "@/components/sidebar/nav-classes";
 import { MemorySourcePreview } from "./source-preview";
 import { MemoryDocument } from "./document";
 import { MemoryProjectContext, memoryUrl } from "./api";
@@ -67,8 +66,13 @@ export function MemoryPage({
 } = {}) {
   const { t, text, locale } = useTranslation();
   const api = useCallback((path: string) => memoryUrl(path, projectId), [projectId]);
-  const refreshIconRef = useRef<AnimatedNavIconHandle>(null);
   const [tab, setTab] = useState<Tab>("topics");
+  // Timeline years / months the user opened or closed; the rest use their
+  // default (the newest year and its newest month start open).
+  const [timelineOpen, setTimelineOpen] = useState<Record<string, boolean>>({});
+  const isTimelineOpen = (key: string, fallback: boolean) => timelineOpen[key] ?? fallback;
+  const toggleTimeline = (key: string, fallback: boolean) =>
+    setTimelineOpen((current) => ({ ...current, [key]: !(current[key] ?? fallback) }));
 
   // Topics state
   const [topicPages, setTopicPages] = useState<TopicPage[]>([]);
@@ -121,6 +125,11 @@ export function MemoryPage({
       })
       .catch(() => setTopicsLoading(false));
   }, [api]);
+  const refreshTopics = (
+    <RailAction label={t("sidebar.refresh")} onClick={fetchTopics}>
+      <RefreshCwIcon size={14} />
+    </RailAction>
+  );
 
   useEffect(() => { fetchTopics(); }, [fetchTopics]);
 
@@ -259,45 +268,32 @@ export function MemoryPage({
           the topbar, ignoring the tab bar's height). */}
       <div className={styles.body}>
         <div className={styles.layout}>
-          <nav className={styles.tabBar} aria-label={text("Memory sections", "记忆分区")}>
-            <TabButton active={tab === "topics"} onClick={() => setTab("topics")} icon={<FileTextIcon size={13} />}>{text("Topics", "主题")}</TabButton>
-            <TabButton active={tab === "timeline"} onClick={() => setTab("timeline")} icon={<TimelineIcon size={13} />}>{text("Timeline", "时间线")}</TabButton>
-            <TabButton active={tab === "recent"} onClick={() => setTab("recent")} icon={<ActivityIcon size={13} />}>{text("Recent", "最近")}</TabButton>
-            <TabButton active={tab === "core"} onClick={() => setTab("core")} icon={<SparklesIcon size={13} />}>{text("Core", "核心")}</TabButton>
-          </nav>
+          <SecondaryRail className={styles.tabBar} label={text("Memory sections", "记忆分区")}>
+            <TabButton active={tab === "topics"} onClick={() => setTab("topics")} icon={<FileTextIcon size={16} />}>{text("Topics", "主题")}</TabButton>
+            <TabButton active={tab === "timeline"} onClick={() => setTab("timeline")} icon={<TimelineIcon size={16} />}>{text("Timeline", "时间线")}</TabButton>
+            <TabButton active={tab === "recent"} onClick={() => setTab("recent")} icon={<ActivityIcon size={16} />}>{text("Recent", "最近")}</TabButton>
+            <TabButton active={tab === "core"} onClick={() => setTab("core")} icon={<SparklesIcon size={16} />}>{text("Core", "核心")}</TabButton>
+          </SecondaryRail>
 
           {/* ── Topics ── */}
           {tab === "topics" && (
             <>
-              <div className={styles.tree}>
-              {/* Search + refresh */}
-              <div className={styles.treeToolbar}>
-                {query === undefined ? (
-                <SearchInput
-                  className="flex-1"
+              <SecondaryRail as="aside" className={styles.tree} label={text("Topics", "主题")}>
+              {query === undefined ? (
+                <RailSearch
                   placeholder={text("Search topics...", "搜索主题...")}
                   value={search}
                   onChange={setSearch}
+                  action={refreshTopics}
                 />
-                ) : (
-                  // The hub header owns search; label the row so the
-                  // refresh button does not float on its own.
-                  <span className={styles.treeToolbarLabel}>
-                    {text("Topics", "主题")}
-                    {!topicsLoading && <span>{filteredTopics.length}</span>}
-                  </span>
-                )}
-                <button
-                  className={sidebarToggleClass}
-                  onClick={fetchTopics}
-                  title={t("sidebar.refresh")}
-                  aria-label={t("sidebar.refresh")}
-                  onMouseEnter={() => refreshIconRef.current?.startAnimation?.()}
-                  onMouseLeave={() => refreshIconRef.current?.stopAnimation?.()}
-                >
-                  <RefreshCwIcon ref={refreshIconRef} size={13} />
-                </button>
-              </div>
+              ) : (
+                // The hub header owns search; label the row so the
+                // refresh button does not float on its own.
+                <RailGroupLabel action={refreshTopics}>
+                  {text("Topics", "主题")}
+                  {!topicsLoading && <RailCount>{filteredTopics.length}</RailCount>}
+                </RailGroupLabel>
+              )}
               {topicsLoading ? <LoadingSkeleton /> : filteredTopics.length === 0 ? (
                 // Only the search miss lives in the rail; the plain empty
                 // state is the right pane's emptyPanel — showing both said
@@ -310,7 +306,7 @@ export function MemoryPage({
                   />
                 ) : null
               ) : (
-                <div className={styles.treeContent}>
+                <>
                   {Array.from(topicGroups.entries()).map(([folder, pages]) => (
                     <TreeGroup
                       key={folder}
@@ -323,9 +319,9 @@ export function MemoryPage({
                       forceOpen={!!searchValue}
                     />
                   ))}
-                </div>
+                </>
               )}
-            </div>
+            </SecondaryRail>
               <div className={styles.rightPane}>
                 {selectedTopic ? (
                   <MemoryDocument
@@ -364,61 +360,77 @@ export function MemoryPage({
           {/* ── Timeline ── */}
           {tab === "timeline" && (
             <>
-              <div className={styles.tree}>
+              <SecondaryRail as="aside" className={styles.tree} label={text("Timeline", "时间线")}>
               {timelineLoading ? <LoadingSkeleton /> : timelineGroups.length === 0 ? (
                 <EmptyState
                   icon="clock"
                   text={text("No timeline yet", "还没有时间线")}
                   sub={text("Rebuilt from topics after every write", "每次写入后从主题重建")}
                 />
-              ) : (
-                <div className={styles.timelineTree}>
-                  {timelineGroups.map((year, yearIndex) => (
-                    <details key={year.year} className={styles.timelineYear} open={yearIndex === 0}>
-                      <summary className={`${styles.timelineYearSummary} ${styles.sidebarRow}`}>
-                        <DisclosureChevron className={styles.timelineChevron} />
-                        <span>{year.year}</span>
-                        <span className={styles.sidebarCount}>{year.entryCount}</span>
-                      </summary>
-                      <div className={styles.timelinePeriodEntries}>
-                        {year.entries.map((entry) => (
-                          <button key={entry.date} className={`${styles.timelinePeriod} ${styles.sidebarRow} ${selectedDate === entry.date ? `${styles.timelinePeriodActive} ${styles.sidebarRowActive}` : ""}`} onClick={() => openTimelineDay(entry.date)}>
-                            <span>{entry.label}</span><span className={styles.fileMeta}>{formatSize(entry.size)}</span>
-                          </button>
-                        ))}
-                      </div>
-                      {year.months.map((month, monthIndex) => (
-                        <details key={month.key} className={styles.timelineMonth} open={yearIndex === 0 && monthIndex === 0}>
-                          <summary className={`${styles.timelineMonthSummary} ${styles.sidebarRow}`}>
-                            <DisclosureChevron className={styles.timelineChevron} />
-                            <span>{month.label}</span>
-                            <span className={styles.sidebarCount}>{month.entries.length + month.days.length}</span>
-                          </summary>
-                          <div className={styles.timelineDays}>
-                            {month.entries.map((entry) => (
-                              <button key={entry.date} className={`${styles.timelinePeriod} ${styles.sidebarRow} ${selectedDate === entry.date ? `${styles.timelinePeriodActive} ${styles.sidebarRowActive}` : ""}`} onClick={() => openTimelineDay(entry.date)}>
-                                <span>{entry.label}</span><span className={styles.fileMeta}>{formatSize(entry.size)}</span>
-                              </button>
-                            ))}
-                            {month.days.map((day) => (
-                              <button
-                                key={day.date}
-                                className={`${styles.timelineDay} ${styles.sidebarRow} ${selectedDate === day.date ? `${styles.timelineDayActive} ${styles.sidebarRowActive}` : ""}`}
-                                onClick={() => openTimelineDay(day.date)}
-                              >
-                                <span className={styles.timelineDayNumber}>{day.dayLabel}</span>
-                                <span className={styles.timelineWeekday}>{day.weekday}</span>
-                                <span className={styles.fileMeta}>{formatSize(day.size)}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </details>
-                      ))}
-                    </details>
-                  ))}
-                </div>
-              )}
-            </div>
+              ) : timelineGroups.map((year, yearIndex) => {
+                const yearOpen = isTimelineOpen(year.year, yearIndex === 0);
+                return (
+                  <Fragment key={year.year}>
+                    <RailItem
+                      icon={<FolderGlyph open={yearOpen} />}
+                      label={year.year}
+                      trailing={<RailCount>{year.entryCount}</RailCount>}
+                      aria-expanded={yearOpen}
+                      onClick={() => toggleTimeline(year.year, yearIndex === 0)}
+                    />
+                    {yearOpen && year.entries.map((entry) => (
+                      <RailItem
+                        key={entry.date}
+                        depth={1}
+                        icon={<DocGlyph />}
+                        label={entry.label}
+                        trailing={<RailCount>{formatSize(entry.size)}</RailCount>}
+                        active={selectedDate === entry.date}
+                        onClick={() => openTimelineDay(entry.date)}
+                      />
+                    ))}
+                    {yearOpen && year.months.map((month, monthIndex) => {
+                      const monthOpen = isTimelineOpen(month.key, yearIndex === 0 && monthIndex === 0);
+                      return (
+                        <Fragment key={month.key}>
+                          <RailItem
+                            depth={1}
+                            icon={<FolderGlyph open={monthOpen} />}
+                            label={month.label}
+                            trailing={<RailCount>{month.entries.length + month.days.length}</RailCount>}
+                            aria-expanded={monthOpen}
+                            onClick={() => toggleTimeline(month.key, yearIndex === 0 && monthIndex === 0)}
+                          />
+                          {monthOpen && month.entries.map((entry) => (
+                            <RailItem
+                              key={entry.date}
+                              depth={2}
+                              icon={<DocGlyph />}
+                              label={entry.label}
+                              trailing={<RailCount>{formatSize(entry.size)}</RailCount>}
+                              active={selectedDate === entry.date}
+                              onClick={() => openTimelineDay(entry.date)}
+                            />
+                          ))}
+                          {monthOpen && month.days.map((day) => (
+                            <RailItem
+                              key={day.date}
+                              depth={2}
+                              icon={<DocGlyph />}
+                              label={<>{day.dayLabel} <span className={styles.timelineWeekday}>{day.weekday}</span></>}
+                              name={`${day.dayLabel} ${day.weekday}`}
+                              trailing={<RailCount>{formatSize(day.size)}</RailCount>}
+                              active={selectedDate === day.date}
+                              onClick={() => openTimelineDay(day.date)}
+                            />
+                          ))}
+                        </Fragment>
+                      );
+                    })}
+                  </Fragment>
+                );
+              })}
+            </SecondaryRail>
               <div className={styles.rightPane}>
                 {selectedDate ? (
                   <div className={styles.editor}>
@@ -445,7 +457,7 @@ export function MemoryPage({
           {/* ── Recent ── */}
           {tab === "recent" && (
             <>
-              <div className={`${styles.tree} ${styles.treeEmpty}`} />
+              <SecondaryRail as="aside" className={`${styles.tree} ${styles.treeEmpty}`} label={text("Recent", "最近")}>{null}</SecondaryRail>
               <div className={styles.rightPane}>
                 {recentLoading ? (
                   <LoadingSkeleton />
@@ -485,7 +497,7 @@ export function MemoryPage({
           {/* ── Core ── */}
           {tab === "core" && (
             <>
-              <div className={`${styles.tree} ${styles.treeEmpty}`} />
+              <SecondaryRail as="aside" className={`${styles.tree} ${styles.treeEmpty}`} label={text("Core", "核心")}>{null}</SecondaryRail>
               <div className={styles.rightPane}>
                 <div className={styles.coreControls}>
                   <div className={styles.coreViewSwitch} role="group" aria-label={text("Core view", "核心视图")}>

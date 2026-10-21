@@ -43,24 +43,14 @@
 .settingsLink:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
 
 /* ─── Tab bar ─────────────────────────────────────────── */
-/* Tabs occupy row 1 column 1 of .layout grid (240px column).
-   Editor in column 2 spans both rows so it starts right under the topbar. */
+/* The section rail and the tree below it are SecondaryRails stacked in
+   column 1 of .layout; the editor in column 2 spans both rows so it starts
+   right under the topbar. */
 .tabBar {
   grid-column: 1;
   grid-row: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 10px 9px;
-  border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-  background: var(--bg-secondary);
-  box-sizing: border-box;
 }
-
-.tabBtn { text-align: left; }
-.tabBtn[aria-current="page"] { background: var(--bg-hover); }
-.tabBtn:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: -2px; }
 
 /* ─── Main layout ─────────────────────────────────────── */
 .body {
@@ -81,11 +71,6 @@
 .tree {
   grid-column: 1;
   grid-row: 2;
-  border-right: 1px solid var(--border);
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
 }
 
 /* Right column spans both rows so editor starts at top of body, not below tabBar */
@@ -133,19 +118,17 @@
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(180px, .7fr) minmax(220px, 1.3fr);
   }
-  .tabBar {
-    grid-column: 1;
-    grid-row: 1;
+  /* One scrolling row of sections above the tree; `.layout >` outranks the
+     rail's own column rules. */
+  .layout > .tabBar {
     flex-direction: row;
     overflow-x: auto;
     border-right: 0;
   }
-  /* Descendant selector beats the nav item's w-full utility, so each tab
-     sizes to its label instead of filling the scroller. */
-  .tabBar .tabBtn { flex: 0 0 auto; width: auto; }
-  .tree {
-    grid-column: 1;
-    grid-row: 2;
+  .layout > .tabBar > button {
+    width: auto;
+  }
+  .layout > .tree {
     border-right: 0;
     border-bottom: 1px solid var(--border);
   }
@@ -182,10 +165,6 @@
   .skeleton { animation: none; }
 }
 
-.treeContent {
-  padding: 7px 6px 14px;
-}
-
 .treeLoading {
   padding: 12px 10px;
   display: flex;
@@ -206,92 +185,11 @@
   50% { opacity: 1; }
 }
 
-/* Folder row */
-.folderRow {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  font-weight: 500;
-  color: var(--text-primary);
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-  transition: color 0.1s;
-}
-
-.folderRow:hover {
-  color: var(--text-bright);
-}
-
-.disclosureChevron {
-  width: 14px;
-  height: 14px;
-  flex: 0 0 14px;
-  color: var(--text-muted);
-  transition: transform 0.15s;
-}
-
-.chevronOpen {
-  transform: rotate(90deg);
-}
-
-.chevron:not(.chevronOpen) {
-  transform: rotate(0deg);
-}
-
-.folderName {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Same quiet count as a SecondaryRail row's (RailCount). */
-.sidebarCount {
-  flex-shrink: 0;
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.folderChildren {
-  padding-left: 14px;
-}
-
-/* File row */
-.fileRow {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  color: var(--text-primary);
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.1s, color 0.1s;
-}
-
-.fileRow:hover {
-  background: var(--bg-hover);
-  color: var(--text-bright);
-}
-
-.fileRowActive {
-  background: var(--bg-hover) !important;
-  color: var(--text-bright) !important;
-}
-
 .fileIcon {
   width: 13px;
   height: 13px;
   flex-shrink: 0;
   /* color inherits from parent row → primary default, bright on hover/active */
-}
-
-.fileName {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: inherit;
 }
 
 .fileMeta {
@@ -646,180 +544,10 @@
   }
 }
 
-/* Timeline uses the semantic date encoded by each derived filename. Its mtime
-   is the rebuild time, so it is intentionally not displayed as event time. */
-.timelineTree {
-  padding: 7px 6px 14px;
-}
-
-.timelineYear {
-  margin: 0;
-}
-
-.timelineMonth {
-  margin: 0;
-}
-
-.timelineYearSummary,
-.timelineMonthSummary {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  list-style: none;
-  cursor: pointer;
-  color: var(--text-primary);
-  font-weight: 500;
-}
-
-.timelineMonthSummary {
-  color: var(--text-secondary);
-}
-
-.timelineYearSummary::-webkit-details-marker,
-.timelineMonthSummary::-webkit-details-marker {
-  display: none;
-}
-
-.timelineChevron {
-  transform: rotate(0deg);
-}
-
-.timelineYear[open] > .timelineYearSummary > .timelineChevron,
-.timelineMonth[open] > .timelineMonthSummary > .timelineChevron {
-  transform: rotate(90deg);
-}
-
-.timelineYearSummary > .sidebarCount,
-.timelineMonthSummary > .sidebarCount {
-  margin-left: auto;
-}
-
-.timelineDays {
-  padding: 0 0 5px 29px;
-}
-
-.timelinePeriodEntries {
-  padding: 0 6px 4px 29px;
-}
-
-.timelinePeriod {
-  position: relative;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--text-primary);
-  text-align: left;
-  cursor: pointer;
-}
-
-.timelineDay,
-.timelineDayActive {
-  position: relative;
-  width: 100%;
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--text-primary);
-  text-align: left;
-  cursor: pointer;
-}
-
-.timelineDay:hover {
-  background: var(--bg-hover);
-}
-
-.timelinePeriod:hover {
-  background: var(--bg-hover);
-}
-
-.timelinePeriodActive {
-  background: var(--bg-tertiary);
-  color: var(--text-bright);
-}
-
-.timelineDayActive {
-  background: var(--bg-tertiary);
-  color: var(--text-bright);
-}
-
-.timelineDayNumber {
-  font-size: 12px;
-  font-weight: 600;
-}
-
 .timelineWeekday {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11px;
-}
-
-.timelineYearSummary:focus-visible,
-.timelineMonthSummary:focus-visible {
-  outline: 2px solid var(--accent-blue);
-  outline-offset: -2px;
-}
-
-.timelineDay:focus-visible::after,
-.timelineDayActive:focus-visible::after,
-.timelinePeriod:focus-visible::after,
-.timelinePeriodActive:focus-visible::after {
-  content: "";
-  position: absolute;
-  inset: 2px;
-  border: 2px solid var(--accent-blue);
-  border-radius: 6px;
-  pointer-events: none;
-}
-
-.sidebarRow {
-  composes: ui-list-item from global;
-  color: var(--text-primary);
-  text-align: left;
-}
-.sidebarRowActive {
-  background: var(--bg-hover) !important;
-  color: var(--text-bright) !important;
-}
-
-.timelineMonthSummary.sidebarRow { padding-left: 22px; }
-
-/* ─── Tree toolbar (search + refresh) ─────────────────── */
-.treeToolbar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.treeToolbarLabel {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
-  padding-left: 6px;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   font-size: 12px;
-  font-weight: 600;
 }
-.treeToolbarLabel > span {
-  color: var(--text-tertiary);
-  font-weight: 500;
-}
-
 
 .searchClear:hover {
   color: var(--text-bright);

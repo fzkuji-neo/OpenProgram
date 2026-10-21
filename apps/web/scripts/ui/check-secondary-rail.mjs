@@ -26,8 +26,9 @@ const pages = {
   "components/programs/programs-page.tsx": "components/programs/programs-page.module.css",
   "components/settings/settings-tabs-layout.tsx": "components/settings/settings-page.module.css",
   "components/chats/chats-page.tsx": "components/chats/chats-page.module.css",
+  "components/memory/index.tsx": "components/memory/memory-page.module.css",
 };
-const ownRows = /\.(?:navItem|navIcon|navName|navCount|navGroupLabel|railItem\w*|railHeader|railTitle|agentNav|agentRow|agentList|profilesNav|profileItem|explorer)\s*\{/;
+const ownRows = /\.(?:navItem|navIcon|navName|navCount|navGroupLabel|railItem\w*|railHeader|railTitle|agentNav|agentRow|agentList|profilesNav|profileItem|explorer|tabBtn|sidebarRow|sidebarCount|folderRow|fileRow)\s*\{/;
 for (const [page, css] of Object.entries(pages)) {
   const source = read(page);
   assert.match(source, /from "(?:@\/components|\.\.)\/ui\/secondary-rail"/, `${page} must use SecondaryRail`);

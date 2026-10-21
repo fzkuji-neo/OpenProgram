@@ -2,7 +2,8 @@
 
 A secondary rail is the list column a page shows between the main sidebar and
 its content: the project list on History, the Agent list, the Programs tree under
-Abilities, the Settings categories, and the recency filters of the chat list.
+Abilities, the Settings categories, the Memory column of a project (sections, topics tree,
+timeline), and the recency filters of the chat list.
 All of them are one component, `SecondaryRail`, in
 [`apps/web/components/ui/secondary-rail.tsx`](https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/ui/secondary-rail.tsx).
 No page styles its own rail rows.
@@ -28,8 +29,9 @@ No page styles its own rail rows.
 |---|---|---|
 | `RailSplit` | CSS grid | Rail column is `--sidebar-width - 1px`, so it lines up with the main sidebar; `--rail-collapsed-w` when collapsed. |
 | `SecondaryRail` | `nav` or `aside` | 8px padding, 1px rows gap, right hairline, no background of its own. |
-| `RailSearch` | `ui/search-input` | The one search box. Hidden when collapsed. |
-| `RailGroupLabel` | `GROUP_LABEL` from `menu-styles.ts` | Same section label as menus. |
+| `RailSearch` | `ui/search-input` | The one search box. Hidden when collapsed. An optional `action` sits beside it. |
+| `RailGroupLabel` | `GROUP_LABEL` from `menu-styles.ts` | Same section label as menus. An optional `action` sits at its right end. |
+| `RailAction` | `ui/button` `ghost` `icon-sm` | Icon action in a search or label `action` slot (Memory's refresh), with a `HoverTip`. |
 | `RailItem` | `.ui-list-item` | The main sidebar's row: 30px, 6px 8px padding, 12px gap, `--nav-color` text. A `description` makes it a two-line row (min 48px, clamped to two lines). `depth` indents a tree level by 16px. `href` renders a `Link`, otherwise a `button`. |
 | `RailBadge` | `ui/badge` outline | Small tag after the name ("Default", "Hidden"). |
 | `RailCount` | text | Quiet trailing count. |
@@ -60,6 +62,7 @@ stored choice a rail starts collapsed below 760px. Narrowing the window below
 | Agents | Agent list with search, two-line rows | yes |
 | Settings | Categories (`Link` rows) | yes |
 | Abilities → Programs | Catalog tree (`depth`) | no; the Abilities header belongs to all four tabs |
+| History → project → Memory | Sections, topics tree (folders, type badge, date), timeline (year › month › day) | no; it sits inside the project page |
 | Chat list (stand-alone) | Recency filters with counts | no |
 
 Pages without a list column (Scheduler, Applications, Abilities' Plugins,

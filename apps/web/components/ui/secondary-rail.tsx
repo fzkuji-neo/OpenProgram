@@ -38,6 +38,7 @@ import { PanelLeftCloseIcon, PanelLeftOpenIcon } from "@/components/animated-ico
 import { GROUP_LABEL } from "@/components/chat/top-bar/menu-styles";
 import { sidebarToggleClass } from "@/components/sidebar/nav-classes";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { Separator } from "@/components/ui/separator";
 import { HoverTip } from "@/components/ui/tooltip";
@@ -183,17 +184,40 @@ export const SecondaryRail = forwardRef<HTMLElement, {
 
 // ── parts ────────────────────────────────────────────────────────────
 
-export function RailSearch(props: {
+export function RailSearch({ action, ...props }: {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   "aria-label"?: string;
+  /** A control after the box, e.g. a refresh <RailAction>. */
+  action?: ReactNode;
 }) {
-  return <div className={styles.search}><SearchInput className="w-full" {...props} /></div>;
+  return (
+    <div className={cn(styles.search, action !== undefined && styles.withAction)}>
+      <SearchInput className="min-w-0 flex-1" {...props} />
+      {action}
+    </div>
+  );
 }
 
-export function RailGroupLabel({ children }: { children: ReactNode }) {
-  return <div className={cn(GROUP_LABEL, styles.groupLabel)}>{children}</div>;
+export function RailGroupLabel({ children, action }: { children: ReactNode; action?: ReactNode }) {
+  return (
+    <div className={cn(GROUP_LABEL, styles.groupLabel, action !== undefined && styles.withAction)}>
+      {children}
+      {action}
+    </div>
+  );
+}
+
+/** A small icon button in a rail's search or group-label row. */
+export function RailAction({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+  return (
+    <HoverTip label={label}>
+      <Button variant="ghost" size="icon-sm" className="ml-auto text-text-muted" onClick={onClick} aria-label={label}>
+        {children}
+      </Button>
+    </HoverTip>
+  );
 }
 
 export function RailSeparator() {

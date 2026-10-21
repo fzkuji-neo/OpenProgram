@@ -4,45 +4,34 @@
  * Memory page subcomponents — tab button, tree group rows,
  * editor panel, loading skeleton, empty state, placeholder.
  */
-import { cloneElement, isValidElement, useRef, type ReactElement } from "react";
+import { useRef } from "react";
+import { FileText, Folder, FolderOpen } from "lucide-react";
 
-import { sidebarNavItemClass, sidebarNavItemActiveClass, sidebarNavIconClass, sidebarNavLabelClass } from "@/components/sidebar/nav-classes";
+import fileStyles from "@/components/files/files-panel.module.css";
+import { RailBadge, RailCount, RailItem } from "@/components/ui/secondary-rail";
 import { parseFrontmatter, renderMarkdown } from "./markdown";
 import { formatDate } from "./format";
-import { DocIcon, TypeBadge } from "./icons";
+import { DocIcon } from "./icons";
 import { useTranslation } from "@/lib/i18n";
 import { type AnimatedNavIconHandle, ClockIcon, FileTextIcon, XIcon } from "@/components/animated-icons";
 import { ManageEmptyState } from "@/components/ui/manage-page";
 import type { EditorState, TopicPage } from "./types";
 import styles from "./memory-page.module.css";
 
+/** One Memory section (Topics, Timeline, …) in the rail. */
 export function TabButton({ active, onClick, icon, children }: { active: boolean; onClick: () => void; icon: React.ReactNode; children: React.ReactNode }) {
-  // Whole-tab hover drives the icon's animation (claude.ai-style): the
-  // button owns the hover target, the icon just listens via its ref.
-  const iconRef = useRef<AnimatedNavIconHandle>(null);
-  return (
-    <button
-      type="button"
-      className={`${sidebarNavItemClass} ${styles.tabBtn} ${active ? sidebarNavItemActiveClass : ""}`}
-      aria-current={active ? "page" : undefined}
-      onClick={onClick}
-      onMouseEnter={() => iconRef.current?.startAnimation?.()}
-      onMouseLeave={() => iconRef.current?.stopAnimation?.()}
-    >
-      <span className={sidebarNavIconClass}>{isValidElement(icon)
-        ? cloneElement(icon as ReactElement, { ref: iconRef, size: 16 } as Record<string, unknown>)
-        : icon}</span>
-      <span className={sidebarNavLabelClass}>{children}</span>
-    </button>
-  );
+  return <RailItem icon={icon} label={children} active={active} onClick={onClick} />;
 }
 
-export function DisclosureChevron({ className }: { className: string }) {
-  return (
-    <svg viewBox="0 0 10 10" fill="none" width="14" height="14" className={`${styles.disclosureChevron} ${className}`} aria-hidden="true" focusable="false">
-      <path d="M3 2l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
+/** The folder glyph is the disclosure state, as in the Programs tree. */
+export function FolderGlyph({ open }: { open: boolean }) {
+  return open
+    ? <FolderOpen size={15} className={fileStyles.treeIconFolder} />
+    : <Folder size={15} className={fileStyles.treeIconFolder} />;
+}
+
+export function DocGlyph() {
+  return <FileText size={15} className={fileStyles.treeIcon} />;
 }
 
 export function TreeGroup({ folder, pages, expanded, onToggle, selected, onSelect, forceOpen }: {
@@ -55,36 +44,31 @@ export function TreeGroup({ folder, pages, expanded, onToggle, selected, onSelec
   onSelect: (p: TopicPage) => void;
 }) {
   const { locale } = useTranslation();
-  const isExpanded = !folder || expanded.has(folder) || forceOpen;
+  const isExpanded = !folder || expanded.has(folder) || Boolean(forceOpen);
   return (
-    <div className={styles.treeGroup}>
+    <>
       {folder && (
-        <button className={`${styles.folderRow} ${styles.sidebarRow}`} onClick={() => onToggle(folder)} aria-expanded={isExpanded}>
-          <DisclosureChevron className={`${styles.chevron} ${isExpanded ? styles.chevronOpen : ""}`} />
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" width="12" height="12">
-            <path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h3l1.5 1.5H13A1.5 1.5 0 0 1 14.5 6v6A1.5 1.5 0 0 1 13 13.5H3.5A1.5 1.5 0 0 1 2 12V4.5z"/>
-          </svg>
-          <span className={styles.folderName}>{folder}</span>
-          <span className={styles.sidebarCount}>{pages.length}</span>
-        </button>
+        <RailItem
+          icon={<FolderGlyph open={isExpanded} />}
+          label={folder}
+          trailing={<RailCount>{pages.length}</RailCount>}
+          aria-expanded={isExpanded}
+          onClick={() => onToggle(folder)}
+        />
       )}
-      {isExpanded && (
-        <div className={folder ? styles.folderChildren : ""}>
-          {pages.map((page) => (
-            <button
-              key={page.path}
-              className={`${styles.fileRow} ${styles.sidebarRow} ${selected?.path === page.path ? `${styles.fileRowActive} ${styles.sidebarRowActive}` : ""}`}
-              onClick={() => onSelect(page)}
-            >
-              <DocIcon className={styles.fileIcon} />
-              <span className={styles.fileName}>{page.title || page.path.split("/").pop()}</span>
-              {page.type && <TypeBadge type={page.type} />}
-              <span className={styles.fileMeta}>{formatDate(page.mtime, locale)}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+      {isExpanded && pages.map((page) => (
+        <RailItem
+          key={page.path}
+          depth={folder ? 1 : 0}
+          icon={<DocGlyph />}
+          label={page.title || page.path.split("/").pop()}
+          badge={page.type ? <RailBadge>{page.type}</RailBadge> : undefined}
+          trailing={<RailCount>{formatDate(page.mtime, locale)}</RailCount>}
+          active={selected?.path === page.path}
+          onClick={() => onSelect(page)}
+        />
+      ))}
+    </>
   );
 }
 

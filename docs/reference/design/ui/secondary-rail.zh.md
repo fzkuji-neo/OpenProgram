@@ -1,7 +1,7 @@
 # 二级侧栏
 
 二级侧栏是页面在主侧栏和内容之间显示的那一列列表：历史页的项目列表、Agent 列表、
-能力页 Programs 下的目录树、设置的分类，以及会话列表的时间筛选。它们都是同一个组件
+能力页 Programs 下的目录树、设置的分类、项目里的记忆列（分区、主题树、时间线），以及会话列表的时间筛选。它们都是同一个组件
 `SecondaryRail`，位于
 [`apps/web/components/ui/secondary-rail.tsx`](https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/ui/secondary-rail.tsx)。
 页面不自己写侧栏行的样式。
@@ -27,8 +27,9 @@
 |---|---|---|
 | `RailSplit` | CSS grid | 侧栏列宽 `--sidebar-width - 1px`，与主侧栏对齐；收起时为 `--rail-collapsed-w`。 |
 | `SecondaryRail` | `nav` 或 `aside` | 8px 内边距，行间 1px，右侧细线，自身不设背景。 |
-| `RailSearch` | `ui/search-input` | 全站唯一的搜索框。收起时隐藏。 |
-| `RailGroupLabel` | `menu-styles.ts` 的 `GROUP_LABEL` | 与菜单相同的分组标题。 |
+| `RailSearch` | `ui/search-input` | 全站唯一的搜索框。收起时隐藏。可选的 `action` 放在旁边。 |
+| `RailGroupLabel` | `menu-styles.ts` 的 `GROUP_LABEL` | 与菜单相同的分组标题。可选的 `action` 放在右端。 |
+| `RailAction` | `ui/button` `ghost` `icon-sm` | 放进搜索框或分组标题 `action` 位的图标操作（记忆的刷新），带 `HoverTip`。 |
 | `RailItem` | `.ui-list-item` | 主侧栏的行：30px，内边距 6px 8px，间距 12px，文字 `--nav-color`。传 `description` 变成两行（最少 48px，最多两行）。`depth` 每层缩进 16px。传 `href` 渲染 `Link`，否则是 `button`。 |
 | `RailBadge` | `ui/badge` outline | 名称后的小标签（“默认”“已隐藏”）。 |
 | `RailCount` | 文字 | 尾部的浅色计数。 |
@@ -55,6 +56,7 @@
 | Agents | 带搜索的 Agent 列表，两行行 | 是 |
 | 设置 | 分类（`Link` 行） | 是 |
 | 能力 → Programs | 目录树（`depth`） | 否；能力页顶栏属于四个标签共用 |
+| 历史 → 项目 → 记忆 | 分区、主题树（文件夹、类型标签、日期）、时间线（年 › 月 › 日） | 否；它在项目页内部 |
 | 独立的会话列表 | 带计数的时间筛选 | 否 |
 
 没有列表列的页面（调度、应用，以及能力页的 Plugins、Skills、MCP）用页面顶栏的标签和

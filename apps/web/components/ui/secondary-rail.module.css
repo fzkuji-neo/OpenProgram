@@ -35,6 +35,12 @@
   margin-bottom: 7px;
 }
 
+.withAction {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .groupLabel {
   padding-top: 12px;
 }
