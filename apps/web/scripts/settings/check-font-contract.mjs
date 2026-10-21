@@ -49,8 +49,12 @@ for (const dir of ["app", "components", "lib"]) {
         if (stray(m[1])) problems.push(`${at} names a font: ${m[0].trim()}`);
       }
       if (path.endsWith(".css")) {
+        // The shorthand also resets font-variant-numeric, which silently
+        // switches equal-width digits off for the whole subtree.
         for (const m of line.matchAll(/(?:^|[;{\s])font\s*:\s*([^;}]*)/g)) {
-          if (stray(m[1])) problems.push(`${at} names a font: font: ${m[1].trim()}`);
+          if (!/^(?:inherit|revert-layer)$/.test(m[1].trim())) {
+            problems.push(`${at} uses the font shorthand; write font-size / font-family instead`);
+          }
         }
       }
       for (const m of line.matchAll(/fontFamily\s*:\s*(["'])([^"']*)\1/g)) {

@@ -46,8 +46,7 @@ assert.match(pageStyles, /\.mobileAgentSelect/);
 assert.match(pageStyles, /@media\(max-width:680px\)/);
 const fontDeclarations = pageStyles.match(/\bfont(?:-size)?\s*:[^;}]+/g) ?? [];
 assert.ok(fontDeclarations.every((declaration) =>
-  /^font-size:var\(--fs-(?:sm|base|md|lg)\)$/.test(declaration)
-  || /^font:var\(--fs-sm\) var\(--font-(?:sans|mono)\)$/.test(declaration)),
+  /^font-size:var\(--fs-(?:sm|base|md|lg)\)$/.test(declaration)),
   `Agents typography must use the shared scale, found: ${fontDeclarations.join(", ")}`);
 assert.match(primaryNav, /href:\s*"\/agents"[\s\S]*nav\.agents/);
 assert.match(sender, /toolsProfile\s*!==\s*"__agent__"[\s\S]*payload\.tools_profile\s*=\s*toolsProfile/);

@@ -1,4 +1,4 @@
-.panel { display: flex; flex-direction: column; min-height: 0; height: 100%; min-width: 0; padding: 0 8px 16px; gap: 12px; font: var(--right-panel-text-size, 14px)/var(--right-panel-line-height, 1.5) var(--font-sans); }
+.panel { display: flex; flex-direction: column; min-height: 0; height: 100%; min-width: 0; padding: 0 8px 16px; gap: 12px; font-size: var(--right-panel-text-size, 14px); line-height: var(--right-panel-line-height, 1.5); font-family: var(--font-sans); }
 .list { flex: 1; overflow-y: auto; min-height: 0; }
 .groupBlock { min-width: 0; }
 .groupMeta { display: flex; align-items: center; gap: 8px; }

@@ -78,7 +78,9 @@
   border-radius: 9px;
   background: transparent;
   color: inherit;
-  font: 13px/1 var(--font-sans);
+  font-size: 13px;
+  line-height: 1;
+  font-family: var(--font-sans);
   cursor: pointer;
 }
 .sub-agents-tab-go {
@@ -126,7 +128,9 @@
   background: var(--bg-input);
   box-shadow: var(--composer-shadow);
   color: var(--text-secondary);
-  font: 12.5px/1.55 var(--font-sans);
+  font-size: 12.5px;
+  line-height: 1.55;
+  font-family: var(--font-sans);
   text-align: left;
   cursor: pointer;
 }

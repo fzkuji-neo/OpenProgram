@@ -245,7 +245,10 @@
   height: 18px;
   border-radius: 4.5px;
   overflow: hidden;
-  font: 500 11px/14px var(--font-sans);
+  font-weight: 500;
+  font-size: 11px;
+  line-height: 14px;
+  font-family: var(--font-sans);
 }
 .diff-badge > span { display: flex; align-items: center; gap: 1px; padding: 0 6px; }
 .diff-badge .is-add {

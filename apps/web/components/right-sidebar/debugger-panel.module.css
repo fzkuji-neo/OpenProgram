@@ -6,7 +6,9 @@
   min-width: 0;
   overflow: hidden;
   color: var(--text);
-  font: var(--right-panel-text-size, 13px)/var(--right-panel-line-height, 1.5) var(--font-sans);
+  font-size: var(--right-panel-text-size, 13px);
+  line-height: var(--right-panel-line-height, 1.5);
+  font-family: var(--font-sans);
 }
 .connectionLine { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 0 12px 8px; color: var(--text-dim); font-size: var(--right-panel-meta-size, 12px); }
 .connectionLine > span:first-child { flex: 1; min-width: 0; }
@@ -55,7 +57,7 @@
 .definitionList > div { display: flex; justify-content: space-between; gap: 8px; }
 .definitionList dt { color: var(--text-dim); }
 .definitionList dd { margin: 0; overflow-wrap: anywhere; }
-.inspectorGrid code { overflow-wrap: anywhere; font: var(--right-panel-meta-size, 12px)/var(--right-panel-line-height, 1.5) var(--font-mono); }
+.inspectorGrid code { overflow-wrap: anywhere; font-size: var(--right-panel-meta-size, 12px); line-height: var(--right-panel-line-height, 1.5); font-family: var(--font-mono); }
 .inspectorWide { grid-column: 1 / -1; }
 .frontier, .receipts { display: flex; flex-wrap: wrap; gap: 8px; }
 .frontierItem small { font-size: var(--right-panel-meta-size, smaller); display: block; color: var(--text-dim); }

@@ -119,7 +119,7 @@ assert.match(cardCss, /\.turn-files-stat\.is-add\{color:var\(--git-added\)/);
 assert.match(cardCss, /\.turn-files-stat\.is-del\{color:var\(--git-removed\)/);
 assert.match(cardCss, /\.turn-files-name\{[^}]*font-size:13px/);
 assert.match(cardCss, /\.turn-files-dir\{color:var\(--text-muted\)\}\.turn-files-base\{color:var\(--text-bright\)\}/);
-assert.match(cardCss, /\.turn-files-diff\{[^}]*font:500 11px\/14px var\(--font-sans\)/);
+assert.match(cardCss, /\.turn-files-diff\{[^}]*font-weight:500;font-size:11px;line-height:14px;font-family:var\(--font-sans\)/);
 assert.doesNotMatch(cardCss, /\.turn-files-name\{[^}]*var\(--font-mono\)/);
 assert.doesNotMatch(cardCss, /\.turn-files-stat\{[^}]*var\(--font-mono\)/);
 assert.doesNotMatch(cardCss, /\.turn-files-op\{[^}]*var\(--font-mono\)/);

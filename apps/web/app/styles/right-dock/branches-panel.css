@@ -99,7 +99,9 @@
 }
 .branch-item-resource {
   flex: 0 0 auto;
-  font: 10px/12px var(--font-sans);
+  font-size: 10px;
+  line-height: 12px;
+  font-family: var(--font-sans);
   color: var(--text-muted);
 }
 .branch-item-resource[open] {
@@ -169,7 +171,9 @@
   margin-left: 16px;
   overflow: hidden;
   text-overflow: ellipsis;
-  font: 10px/12px var(--font-sans);
+  font-size: 10px;
+  line-height: 12px;
+  font-family: var(--font-sans);
   color: var(--text-muted);
 }
 .branch-item-badge {

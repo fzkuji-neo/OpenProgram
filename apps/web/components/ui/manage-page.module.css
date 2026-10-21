@@ -382,7 +382,9 @@
 .catalogSubtitle {
   margin-top: 2px;
   color: var(--text-tertiary);
-  font: 10px/1.4 var(--font-sans);
+  font-size: 10px;
+  line-height: 1.4;
+  font-family: var(--font-sans);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

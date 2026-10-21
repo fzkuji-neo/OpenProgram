@@ -52,7 +52,9 @@
   width: 88px;
   box-sizing: border-box;
   color: var(--text-primary);
-  font: 13px/1.2 var(--font-sans);
+  font-size: 13px;
+  line-height: 1.2;
+  font-family: var(--font-sans);
   transition: width 200ms cubic-bezier(.2, .8, .2, 1);
 }
 /* The grey sheet behind the buttons drops from the top edge: it grows
@@ -467,7 +469,9 @@
   border-radius: 7px;
   background: transparent;
   color: var(--text-secondary);
-  font: 11px/1.1 var(--font-sans);
+  font-size: 11px;
+  line-height: 1.1;
+  font-family: var(--font-sans);
   cursor: pointer;
 }
 .preset:hover,
@@ -493,7 +497,9 @@
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-primary);
-  font: 14px/20px var(--font-sans);
+  font-size: 14px;
+  line-height: 20px;
+  font-family: var(--font-sans);
   text-align: left;
   white-space: nowrap;
   cursor: pointer;

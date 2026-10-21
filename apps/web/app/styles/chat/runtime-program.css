@@ -17,7 +17,9 @@
   border-radius: 8px;
   background: var(--bg-secondary);
   color: var(--accent-orange, #d19a66);
-  font: 14px/1 var(--font-sans);
+  font-size: 14px;
+  line-height: 1;
+  font-family: var(--font-sans);
   user-select: none;
 }
 .runtime-program-content {

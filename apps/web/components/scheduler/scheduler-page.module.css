@@ -32,7 +32,10 @@
 
 .taskIndex {
   color: var(--text-tertiary);
-  font: 500 11px/1 var(--font-sans);
+  font-weight: 500;
+  font-size: 11px;
+  line-height: 1;
+  font-family: var(--font-sans);
 }
 
 .description {
@@ -53,7 +56,9 @@
   padding: 0;
   background: transparent;
   color: var(--text-muted);
-  font: 11px/1.4 var(--font-sans);
+  font-size: 11px;
+  line-height: 1.4;
+  font-family: var(--font-sans);
 }
 
 .memory {
