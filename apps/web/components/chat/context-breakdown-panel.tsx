@@ -588,12 +588,13 @@ export function ContextBreakdownPanel({ sessionId, headId, onClose }: Props) {
               </button>
             );
           })}
-          <div className={MENU_SEPARATOR} />
-          {recentlyCompacted ? (
+          {/* A chat with no session has nothing to compact. */}
+          {sessionId && <div className={MENU_SEPARATOR} />}
+          {sessionId && (recentlyCompacted ? (
             <HoverTip label={text("Recently compacted", "最近已压缩")}>
               <span className="block">{compactRow}</span>
             </HoverTip>
-          ) : compactRow}
+          ) : compactRow)}
         </>
       )}
     </div>
