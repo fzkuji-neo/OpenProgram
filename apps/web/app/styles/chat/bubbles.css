@@ -27,31 +27,9 @@
                   cards with their own border, NOT as message
                   bubbles, so they read as overlays). */
 /* GPT/Claude-style layout: user = right-aligned bubble with a clear
-   background; assistant = left, no bubble. The avatar/name header is
-   hidden in the stream (it only takes vertical space and pushes content
-   apart — the identity lives in the sidebar). The "one side has a bubble,
-   the other doesn't" + left/right makes the turn boundary obvious. */
-
-/* Avatar sits in the side margin, top-aligned with the message content,
-   taking NO vertical height of its own. The name text is dropped — only
-   the avatar glyph distinguishes the side. */
-.message.user .message-header,
-.message.assistant .message-header {
-  position: absolute;
-  top: 16px;                /* line up with the content's top (matches .message padding-top) */
-  margin: 0;
-  gap: 0;
-}
-.message.assistant .message-header { left: 8px; }   /* push the avatar outward so it sits further from the text */
-/* User avatar aligns to the FIRST LINE OF TEXT inside the bubble, not the
-   bubble's top border: .message padding-top(16) + bubble padding-top(10) = 26. */
-.message.user .message-header { right: 8px; top: 26px; }   /* push the avatar outward, further from the bubble */
-.message-sender { display: none; }                    /* no name line */
-/* Claude Code transcript style: no avatars at all. The bubble / no-bubble
-   split already marks whose turn it is, and the text column lines up with
-   the composer. Every former 36px avatar inset reads --avatar-gutter. */
-.message.user .message-header,
-.message.assistant .message-header { display: none; }
+   background; assistant = left, no bubble. No avatars: the "one side
+   has a bubble, the other doesn't" + left/right makes the turn boundary
+   obvious. */
 
 .message.user {
   padding-top: 6px;
@@ -77,7 +55,7 @@
   padding: 10px 16px;
   width: fit-content;
   max-width: 75%;
-  margin-right: var(--avatar-gutter);               /* align right edge to assistant text's right edge */
+  margin-right: 0;
   text-align: left;
   color: var(--text-bright);
 }
@@ -86,7 +64,7 @@
    on a quiet line above the bubble, since a group puts several people
    in one conversation. */
 .message.user .user-channel-speaker {
-  margin: 0 calc(var(--avatar-gutter) + 4px) 4px 0;
+  margin: 0 4px 4px 0;
   max-width: 75%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -319,44 +297,9 @@
   }
 }
 
-.message-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.message-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.message-avatar.user-avatar {
-  background: transparent;
-  color: var(--primary-foreground);
-}
-
-.message-avatar.bot-avatar {
-  background: var(--accent-green);
-  color: var(--primary-foreground);
-}
-
-.message-sender {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-bright);
-}
-
 .message-content {
-  padding-left: var(--avatar-gutter);
-  padding-right: var(--avatar-gutter);
+  padding-left: 0;
+  padding-right: 0;
   /* Transcript and embedded cards share the same text size. */
   font-size: var(--fs-chat);
   line-height: 1.7;
@@ -636,10 +579,10 @@
   border-radius: var(--radius);
   padding: 12px;
   margin: 8px 0;
-  margin-left: var(--avatar-gutter);
+  margin-left: 0;
   /* Right edge lines up with the user bubble's right edge (same 36px inset),
      not jammed against the message's own padding. */
-  margin-right: var(--avatar-gutter);
+  margin-right: 0;
   color: var(--accent-red);
   font-size: 14px;
   white-space: pre-wrap;
@@ -651,7 +594,7 @@
    reaching a clean "done", so they hint at it with a small inline
    strip rather than recolouring the whole bubble. */
 .bubble-badge {
-  margin: 8px 0 0 var(--avatar-gutter);
+  margin: 8px 0 0 0;
   padding: 6px 10px;
   border-radius: var(--radius);
   font-size: 12px;
@@ -679,8 +622,8 @@
    composer — --bg-input fill, 23px corners, resting --composer-shadow
    that deepens to --composer-shadow-focus on hover and while focused. */
 .message.user.is-editing .message-content {
-  width: calc(100% - var(--avatar-gutter));
-  max-width: calc(100% - var(--avatar-gutter));
+  width: 100%;
+  max-width: 100%;
   padding: 4px;
   background: var(--bg-input);
   border-radius: 23px;
@@ -810,27 +753,9 @@
 .message.user .user-md .md-code code { background: none; }
 
 /* Multi-agent sessions: replies from a named agent (not the default
-   "main") keep a compact identity line, since without avatars nothing
-   else says which agent wrote them. */
-.message.assistant[data-agent-id]:not([data-agent-id="main"]) > .message-header {
-  display: flex;
-  position: static;
-  align-items: center;
-  gap: 6px;
-  margin: 0 0 6px var(--avatar-gutter);
-}
-.message.assistant[data-agent-id]:not([data-agent-id="main"]) > .message-header .message-avatar {
-  width: 18px;
-  height: 18px;
-  border-radius: 5px;
-  overflow: hidden;
-}
-.message.assistant[data-agent-id]:not([data-agent-id="main"]) > .message-header .message-avatar :is(img, svg) {
-  width: 100%;
-  height: 100%;
-}
-.message.assistant[data-agent-id]:not([data-agent-id="main"]) > .message-header .message-sender {
-  display: block;
+   "main") carry its name, since nothing else says which agent wrote them. */
+.message-agent-name {
+  margin: 0 0 6px;
   font-size: 12.5px;
   font-weight: 500;
   color: var(--text-secondary);

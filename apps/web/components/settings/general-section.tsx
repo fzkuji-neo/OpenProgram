@@ -13,11 +13,7 @@ import {
   type DesktopUpdateState,
 } from "@/lib/desktop/desktop-bridge";
 import { useFontPref, useTabularNumsPref, FONT_LABELS, fontStack, type FontKey } from "@/lib/prefs/font-pref";
-import {
-  setAgentProfile,
-  useAgentProfile,
-} from "@/lib/format-utils/agent-style";
-import { setUserProfile, useUserProfile } from "@/lib/prefs/user-profile";
+import { setUserProfile, useUserProfile, type UserProfilePrefs } from "@/lib/prefs/user-profile";
 import {
   Avatar,
   AvatarPicker,
@@ -97,60 +93,34 @@ const LANG_OPTIONS: DropdownOption<Locale>[] = [
   { value: "zh", label: "中文" },
 ];
 
-/** Eighteen palette colours kept in sync with agent-style.PALETTE so
- *  the swatches in /settings match what bubbles can actually display. */
-const AGENT_COLORS = [
+/** Letter-avatar background swatches. */
+const PROFILE_COLORS = [
   "#4f8ef7", "#5aad4e", "#d4843a", "#9d6fe0", "#e0445a", "#2db3d5",
   "#e0b020", "#35b89a", "#e066b3", "#6b8dd6", "#8fbf3f", "#d9694f",
   "#52c4c4", "#b08be0", "#c79a4a", "#e08a3a", "#6fae6f", "#d05fa0",
 ];
 
-/** Profile fields shared by the Agent and You sections. */
-interface ProfilePrefs {
-  name: string;
-  initial: string;
-  color: string;
-  avatar?: AvatarConfig;
-}
-
-/** The avatar / name / colour editor body — reused by both the Agent
- *  and You sections (identical controls, different profile store). */
-function ProfileEditor({
-  profile,
-  onChange,
-  colors,
-  namePlaceholder,
-}: {
-  profile: ProfilePrefs;
-  onChange: (next: ProfilePrefs) => void;
-  colors: string[];
-  namePlaceholder: string;
-}) {
+/** The local user's name and avatar, shown at the bottom of the sidebar. */
+function UserSection() {
   const { t } = useTranslation();
+  const profile = useUserProfile();
+  const nameId = useId();
 
-  function updateName(name: string) {
-    onChange({ ...profile, name: name.slice(0, 32) });
+  function update(next: Partial<UserProfilePrefs>) {
+    setUserProfile({ ...profile, ...next });
   }
   function updateInitial(raw: string) {
     const cleaned = raw.trim();
-    const next =
+    const initial =
       cleaned.length === 0
         ? Array.from(profile.name.trim())[0]?.toUpperCase() ?? "?"
         : Array.from(cleaned)[0]!.toUpperCase();
-    onChange({ ...profile, initial: next });
+    update({ initial });
   }
-  function updateColor(color: string) {
-    onChange({ ...profile, color });
-  }
-  function updateAvatar(next: AvatarConfig) {
-    onChange({ ...profile, avatar: next });
-  }
-
-  const nameId = useId();
 
   return (
-    <>
-      <SettingsRow label={t("general.agent.preview")}>
+    <SettingsSection title={t("general.section.you")}>
+      <SettingsRow label={t("general.profile.preview")}>
         <span className="inline-flex items-center gap-2.5">
           <Avatar
             size={40}
@@ -168,58 +138,28 @@ function ProfileEditor({
           <span className="font-medium">{profile.name}</span>
         </span>
       </SettingsRow>
-      <SettingsRow label={t("general.agent.name")} htmlFor={nameId}>
+      <SettingsRow label={t("general.profile.name")} htmlFor={nameId}>
         <Input
           id={nameId}
           className="w-48"
           value={profile.name}
           maxLength={32}
-          placeholder={namePlaceholder}
-          onChange={(e) => updateName(e.target.value)}
+          placeholder={t("general.you.name.placeholder")}
+          onChange={(e) => update({ name: e.target.value.slice(0, 32) })}
         />
       </SettingsRow>
       <SettingsRow label={t("general.avatar")} stacked>
         <AvatarPicker
           value={profile.avatar}
-          onChange={updateAvatar}
+          onChange={(avatar: AvatarConfig) => update({ avatar })}
           name={profile.name}
           letterBg={profile.color}
           letterText={profile.initial}
-          onLetterBgChange={updateColor}
+          onLetterBgChange={(color) => update({ color })}
           onLetterTextChange={updateInitial}
-          colors={colors}
+          colors={PROFILE_COLORS}
         />
       </SettingsRow>
-    </>
-  );
-}
-
-function AgentSection() {
-  const { t } = useTranslation();
-  const profile = useAgentProfile();
-  return (
-    <SettingsSection title={t("general.section.agent")}>
-      <ProfileEditor
-        profile={profile}
-        onChange={setAgentProfile}
-        colors={AGENT_COLORS}
-        namePlaceholder={t("general.agent.name.placeholder")}
-      />
-    </SettingsSection>
-  );
-}
-
-function UserSection() {
-  const { t } = useTranslation();
-  const profile = useUserProfile();
-  return (
-    <SettingsSection title={t("general.section.you")}>
-      <ProfileEditor
-        profile={profile}
-        onChange={setUserProfile}
-        colors={AGENT_COLORS}
-        namePlaceholder={t("general.you.name.placeholder")}
-      />
     </SettingsSection>
   );
 }
@@ -650,8 +590,6 @@ export function GeneralSection() {
           <Switch id="composer-predictions" checked={predictions} onCheckedChange={setComposerPredictions} />
         </SettingsRow>
       </SettingsSection>
-
-      <AgentSection />
 
       <UserSection />
 

@@ -8,28 +8,14 @@
   gap: 4px;
   height: 24px;
 }
-/* Align with the text column in assistant bubbles (avatar takes 36px). */
-.message.assistant > .typing-indicator {
-  padding-left: var(--avatar-gutter);
-}
 /* Standalone "AI is thinking" indicator — full assistant-bubble
-   shape (avatar + Agentic header + body with breathing pulse)
-   while we're waiting on the real reply. Inherits the base
+   shape (body with breathing pulse) while we're waiting on the real reply. Inherits the base
    ``.message`` and ``.message.assistant`` styles for padding /
    background so it sits inline with neighbouring bubbles. */
 .pending-body {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  /* Match where chat text starts inside a normal assistant bubble:
-     avatar (28px) + flex gap (8px) = 36px past the bubble's left
-     padding. No further indent here — the parent ``.chat-stream-body``
-     already sits inside the bubble's natural padding. */
-  padding-left: 0;
-}
-/* The standalone row has symmetric vertical padding and a 28px avatar. */
-.message.assistant.pending-standalone > .message-header {
-  top: calc(50% - 14px);
 }
 .message.assistant.pending-standalone > .pending-body {
   display: flex;

@@ -33,9 +33,8 @@ test("profile operations update the same preferences used by General settings", 
   try {
     const profile = { name: "Operator", initial: "OP", color: "#123456" };
     await executeInterface("preferences.setUserProfile", [profile]);
-    await executeInterface("preferences.setAgentProfile", [{ ...profile, name: "Assistant" }]);
     assert.equal(JSON.parse(saved.get("user_profile")).name, "Operator");
-    assert.equal(JSON.parse(saved.get("agent_profile")).name, "Assistant");
+    assert.equal(definitions["preferences.setAgentProfile"], undefined);
   } finally { delete globalThis.window; }
 });
 test("framework view commands cannot operate a foreign private Page as human input", async () => {

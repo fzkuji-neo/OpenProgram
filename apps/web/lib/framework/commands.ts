@@ -7,7 +7,6 @@ import { setShowBookmarksBar } from "@/lib/browser/browser-prefs";
 import * as bookmarks from "@/lib/tabs/bookmarks";
 import { setLocale } from "@/lib/i18n";
 import { setUserProfile, getUserProfile } from "@/lib/prefs/user-profile";
-import { setAgentProfile, getAgentProfile } from "@/lib/format-utils/agent-style";
 import { agentCanAccessWebTab } from "@/lib/browser/web-page-management";
 import definitions from "../../../../openprogram/framework/interface_commands.json" with { type: "json" };
 
@@ -34,8 +33,8 @@ export async function executeInterface(operation: string, args: unknown[], page?
     return (action as (...values: unknown[]) => unknown)(...args);
   }
   if (group === "preferences") {
-    if (method === "get") return { theme: appearance.activeThemeId(), customCss: appearance.getCustomCss(), userProfile: getUserProfile(), agentProfile: getAgentProfile() };
-    const handlers = { ...appearance, setFont, setLocale, setShowBookmarksBar, setUserProfile, setAgentProfile };
+    if (method === "get") return { theme: appearance.activeThemeId(), customCss: appearance.getCustomCss(), userProfile: getUserProfile() };
+    const handlers = { ...appearance, setFont, setLocale, setShowBookmarksBar, setUserProfile };
     const action = handlers[method as keyof typeof handlers];
     if (typeof action !== "function") throw new Error("unsupported_preference_operation");
     return (action as (...values: unknown[]) => unknown)(...args);

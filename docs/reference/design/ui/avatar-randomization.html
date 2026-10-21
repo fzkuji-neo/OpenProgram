@@ -10,9 +10,9 @@
 </head>
 <body><main>
   <header>
-    <div class="eyebrow">Settings · Agent and user identity</div>
+    <div class="eyebrow">Settings · User identity</div>
     <h1>Avatar settings</h1>
-    <p>Agent and user avatars share one <code>AvatarPicker</code>. Select one of three types, then use that type's controls. Generated variants belong only to the current DiceBear style.</p>
+    <p>The user avatar is set with <code>AvatarPicker</code>, shown at the bottom of the sidebar. Select one of three types, then use that type's controls. Generated variants belong only to the current DiceBear style.</p>
   </header>
   <section>
     <h2>Problem and boundaries</h2>
@@ -44,14 +44,12 @@
         <tr><td>Variant grid spans all published styles</td><td class="out">Rejected</td><td>Selecting a variant changes the current style, conflicting with selecting the style first.</td></tr>
         <tr><td>Type → (style + same-style variants | letter fields | upload)</td><td class="status">Adopted</td><td>The three paths are independent; Regenerate changes only the seed for the current style.</td></tr>
         <tr><td>Variant grid <code>1fr</code>  fills the card</td><td class="out">Rejected</td><td>Tiles remain fixed at 48px and wrap in the right-hand cluster without stretching.</td></tr>
-        <tr><td>Separate implementations for agents and users</td><td class="out">Rejected</td><td>Both settings entry points already share <code>ProfileEditor</code>  and <code>AvatarPicker</code>.</td></tr>
       </tbody>
     </table>
   </section>
   <section>
     <h2>Acceptance contract</h2>
     <ol>
-      <li>Agent and user settings use the same picker.</li>
       <li>All variants belong to the current style; Regenerate does not change style.</li>
       <li>Selecting a variant writes <code>kind: "dicebear"</code>, the current style and that seed.</li>
       <li>Letter characters and colors are edited in the picker and remain stored in the profile's <code>initial</code> / <code>color</code>.</li>

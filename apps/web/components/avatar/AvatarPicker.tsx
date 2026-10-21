@@ -264,7 +264,7 @@ export function AvatarPicker({
         <FieldGroup className="w-full gap-4">
           <Field>
             <FieldLabel htmlFor="avatar-letter-initial">
-              {t("general.agent.initial")}
+              {t("general.avatar.initial")}
             </FieldLabel>
             <Input
               id="avatar-letter-initial"
@@ -274,10 +274,10 @@ export function AvatarPicker({
               onChange={(e) => onLetterTextChange?.(e.target.value)}
               className="w-16 text-center"
             />
-            <FieldDescription>{t("general.agent.initial.hint")}</FieldDescription>
+            <FieldDescription>{t("general.avatar.initial.hint")}</FieldDescription>
           </Field>
           <Field>
-            <FieldTitle>{t("general.agent.color")}</FieldTitle>
+            <FieldTitle>{t("general.avatar.color")}</FieldTitle>
             <ToggleGroup
               type="single"
               className="flex-wrap"
@@ -285,7 +285,7 @@ export function AvatarPicker({
               onValueChange={(next) => {
                 if (next) onLetterBgChange?.(next);
               }}
-              aria-label={t("general.agent.color")}
+              aria-label={t("general.avatar.color")}
             >
               {colors.map((c) => (
                 <ToggleGroupItem

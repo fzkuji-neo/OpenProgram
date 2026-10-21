@@ -80,18 +80,16 @@ const DICT = {
   "general.section.application": { en: "Application", zh: "应用信息" },
   "general.version": { en: "Version", zh: "版本" },
   "general.framework": { en: "Framework", zh: "框架" },
-  "general.section.agent": { en: "Agent", zh: "Agent" },
   "general.section.you": { en: "User", zh: "用户" },
   "general.you.name.placeholder": { en: "User", zh: "用户" },
-  "general.agent.name": { en: "Display name", zh: "显示名称" },
-  "general.agent.name.placeholder": { en: "Agent", zh: "Agent" },
-  "general.agent.initial": { en: "Avatar initial", zh: "头像字符" },
-  "general.agent.initial.hint": {
+  "general.profile.name": { en: "Display name", zh: "显示名称" },
+  "general.avatar.initial": { en: "Avatar initial", zh: "头像字符" },
+  "general.avatar.initial.hint": {
     en: "One character shown in the round avatar.",
     zh: "圆形头像里显示的一个字符。",
   },
-  "general.agent.color": { en: "Avatar color", zh: "头像颜色" },
-  "general.agent.preview": { en: "Preview", zh: "预览" },
+  "general.avatar.color": { en: "Avatar color", zh: "头像颜色" },
+  "general.profile.preview": { en: "Preview", zh: "预览" },
   "general.avatar": { en: "Avatar", zh: "头像" },
 
   // Settings shell + tab labels

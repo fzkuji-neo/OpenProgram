@@ -5,12 +5,11 @@
  *   * What kinds of avatar exist (``AvatarKind``).
  *   * Which DiceBear styles we ship (``AvatarStyle``).
  *   * The serialised config we persist (``AvatarConfig``) — used by
- *     ``<Avatar>``, ``<AvatarPicker>``, and the agent profile in
+ *     ``<Avatar>``, ``<AvatarPicker>``, and the user profile in
  *     localStorage.
  *
- * Keeping these decoupled from React lets the agent-style module (a
- * plain ``lib/`` file) reuse them on ``AgentProfilePrefs`` without
- * pulling in the React component tree.
+ * Keeping these decoupled from React lets ``lib/prefs/user-profile.ts``
+ * reuse them without pulling in the React component tree.
  */
 
 /** Render mode. ``letter`` and ``upload`` map to their own code paths
@@ -39,7 +38,7 @@ export type AvatarStyle =
   | "initials";
 
 /**
- * Serialisable avatar config. Saved on ``AgentProfilePrefs.avatar``
+ * Serialisable avatar config. Saved on ``UserProfilePrefs.avatar``
  * (i.e. localStorage). All fields are optional so old profiles
  * round-trip cleanly — see ``<Avatar>`` for the per-field defaults.
  */
@@ -59,9 +58,3 @@ export interface AvatarConfig {
   /** Background colour for letter mode (CSS colour). */
   bg?: string;
 }
-
-/** Alias kept for ``lib/agent-style.ts`` callers that referenced
- *  ``AgentAvatarConfig`` before the feature was extracted to this
- *  module. Same shape — the extra name documents that this is the
- *  config persisted under ``AgentProfilePrefs.avatar``. */
-export type AgentAvatarConfig = AvatarConfig;

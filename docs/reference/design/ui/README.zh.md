@@ -34,7 +34,7 @@ Web UI 界面 — 界面系统、指示点、附件处理、聊天轮次视觉�
 - [`surface-system.md`](surface-system.zh.md) — Surface 系统
 - [`theme-system.html`](theme-system.zh.html) — 主题入口、完整 token 契约、组件消费与桌面浮层传播的权威设计
 - [`settings-collapsible-columns.html`](settings-collapsible-columns.zh.html) — 应用主侧栏与 Settings 分类栏的独立 49px 折叠；Provider 列表始终展开，搜索框通栏
-- [`avatar-randomization.html`](avatar-randomization.zh.html) — Agent/用户共用的头像选择器：先选类型，再进入同风格变体或字母字段
+- [`avatar-randomization.html`](avatar-randomization.zh.html) — 用户头像选择器：先选类型，再进入同风格变体或字母字段
 - [`web-styles.md`](web-styles.zh.md) — Web 样式组织（一个组件一个文件，目录对齐组件树）
 - [`window-state.md`](window-state.zh.md) — 桌面窗口普通尺寸、最大化/全屏与标题栏缩放命中
 - [`window-lifecycle.md`](window-lifecycle.zh.md) — 一个主窗口：启动、Dock、二次启动共用同一次创建

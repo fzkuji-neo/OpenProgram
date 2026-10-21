@@ -43,13 +43,6 @@
 .peer-session-pane .message {
   padding: 12px 0;
 }
-/* Split panes hide the avatar column to save width, so EVERY 36px
-   avatar-gutter inset must go together: content padding, stream-body
-   margins, typing indicator, assistant footer. Missing any one of them
-   leaves that element misaligned by 36px against the rest. */
-.peer-session-pane .message-header {
-  display: none;
-}
 .peer-session-pane .message-content {
   min-width: 0;
   padding-left: 0;

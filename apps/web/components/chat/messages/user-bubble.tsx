@@ -12,11 +12,9 @@ import { useState } from "react";
 
 import { useSessionStore, type ChatMsg } from "@/lib/session-store";
 import { useTranslation } from "@/lib/i18n";
-import { Avatar } from "@/components/avatar";
 import { useUserProfile } from "@/lib/prefs/user-profile";
 
 import { MessageActions } from "./message-actions";
-import { useAvatarAlign } from "./use-avatar-align";
 import { AttachmentChips, parseAttachments } from "./user-attachments";
 import { MessageEditor } from "./message-editor";
 import { RecordingCard } from "../recording/recording-card";
@@ -109,14 +107,8 @@ export function UserBubble({ msg, sessionIdOverride }: { msg: ChatMsg; sessionId
     setRevealState({ sessionId, messageId: msg.id, proseText, indices: revealed });
   }
 
-  // Align the side avatar to the first line of text inside the bubble.
-  const { containerRef, avatarTop } = useAvatarAlign(
-    `${msg.id}:${msg.content?.length || 0}:${editing}`,
-  );
-
   return (
     <div
-      ref={containerRef}
       className={"message user" + (editing ? " is-editing" : "")}
       data-msg-id={msg.id}
       /* Same per-turn article semantics as the assistant bubble, so
@@ -125,20 +117,6 @@ export function UserBubble({ msg, sessionIdOverride }: { msg: ChatMsg; sessionId
       role="article"
       aria-label={sender || profile.name || text("User", "用户")}
     >
-      <div className="message-header" style={{ top: avatarTop }}>
-        {/* "You" avatar + name — from the local user profile
-            (/settings/general → You), the counterpart to the agent
-            profile. Defaults to a DiceBear glyph seeded "you" so it
-            looks identical until the user customises it. */}
-        <Avatar
-          className="message-avatar user-avatar"
-          size={28}
-          radius={8}
-          name={profile.name}
-          config={profile.avatar}
-        />
-        <div className="message-sender">{profile.name || text("User", "用户")}</div>
-      </div>
       {channel && !editing ? (
         <div className="user-channel-speaker">
           {[

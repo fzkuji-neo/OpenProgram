@@ -16,14 +16,7 @@ import {
   type AssistantBlock,
   type ChatMsg,
 } from "@/lib/session-store";
-import {
-  agentColor,
-  agentDisplayName,
-  agentInitial,
-  useAgentProfile,
-} from "@/lib/format-utils/agent-style";
 import { useTranslation } from "@/lib/i18n";
-import { Avatar } from "@/components/avatar";
 
 import { AttachCard } from "./attach-card";
 import {
@@ -36,7 +29,6 @@ import {
 } from "./execution-strip";
 import type { TNode } from "./tree-types";
 import { MessageActions, MessageTimestamp } from "./message-actions";
-import { useAvatarAlign } from "./use-avatar-align";
 import { typesetMath } from "@/lib/runtime-bridge/markdown-render";
 import { renderMermaidLazily } from "@/lib/chat/mermaid-lazy";
 import { renderMarkdown, useMarkdownReady } from "./markdown";
@@ -171,9 +163,6 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride, embedded = fa
   // Subscribed so the bubble re-renders once `renderMd` lands and the
   // markdown can be rendered for real instead of escaped.
   useMarkdownReady();
-  // Subscribed so the avatar/name pick up edits made in
-  // /settings/general → Agent without a reload.
-  const profile = useAgentProfile();
   const currentSessionId = useSessionStore((s) => s.currentSessionId);
   const bubbleSessionId = sessionIdOverride || currentSessionId || undefined;
   const { text } = useTranslation();
@@ -186,9 +175,6 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride, embedded = fa
   const settledExecution = useSessionStore((s) => Object.values(s.executionUpdateOrders).some((order) =>
     order.terminal && order.sessionId === bubbleSessionId && order.messageIds.includes(msg.id),
   ));
-  // Align the side avatar to the first line of text (re-measures as the
-  // message grows / blocks expand).
-  const { containerRef, avatarTop } = useAvatarAlign(msg.id);
   const streaming = !settledExecution && (
     msg.status === "streaming" ||
     msg.status === "pending" ||
@@ -265,12 +251,11 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride, embedded = fa
     || text("sub-agent", "子代理"));
   const spawnHeads = (cards: ChatMsg[]) =>
     cards.map((card) => card.attach?.head_id);
-  const color = agentColor(msg.agentId);
-  const initial = agentInitial(msg.agentId);
-  const sender = agentDisplayName(msg.agentId);
+  // A reply from a named agent (not the default "main") carries its name.
+  const namedAgent = msg.agentId && msg.agentId !== "main" ? msg.agentId : null;
+  const sender = namedAgent ?? text("Assistant", "助手");
   return (
     <div
-      ref={containerRef}
       className={embedded ? "message assistant sub-agent-reply" : "message assistant"}
       data-msg-id={msg.id}
       data-agent-id={msg.agentId || undefined}
@@ -283,40 +268,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride, embedded = fa
       role="article"
       aria-label={sender}
     >
-      {embedded ? null : <div className="message-header" style={{ top: avatarTop }}>
-        {/* Per-message agent avatar. Seeded on the sender's display
-            name (not the volatile agent_id) so the "Agent" / named
-            agent always renders the same glyph across sessions. Falls
-            back to the legacy coloured-letter chip when the profile
-            explicitly picks that mode in settings, and to upload mode
-            when the user has supplied a custom image. */}
-        <Avatar
-          className="message-avatar bot-avatar"
-          size={28}
-          radius={8}
-          name={sender}
-          config={
-            // Default profile (no agent_id / "main"): honour the user's
-            // configured avatar so the glyph doesn't change when the
-            // streaming bubble replaces the standalone pending indicator
-            // (which uses ``profile.avatar``). Named agents keep their
-            // deterministic shapes avatar seeded on the display name.
-            !msg.agentId || msg.agentId === "main"
-              ? (profile.avatar ?? {
-                  kind: "dicebear",
-                  style: "shapes",
-                  seed: profile.name,
-                })
-              : {
-                  kind: "dicebear",
-                  style: "shapes",
-                  seed: sender,
-                }
-          }
-        />
-        <div className="message-sender">{sender}</div>
-      </div>}
-
+      {!embedded && namedAgent ? <div className="message-agent-name">{namedAgent}</div> : null}
       {(
         <div className="chat-stream-body">
           {effBlocks ? (

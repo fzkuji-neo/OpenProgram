@@ -10,9 +10,9 @@
 </head>
 <body><main>
   <header>
-    <div class="eyebrow">设置 · Agent 与用户身份</div>
+    <div class="eyebrow">设置 · 用户身份</div>
     <h1>头像设置</h1>
-    <p>Agent 与用户头像共用一个 <code>AvatarPicker</code>。先选三种类型，再进入该类型自己的控件。生成类型的变体只属于当前 DiceBear 风格。</p>
+    <p>用户头像用 <code>AvatarPicker</code> 设置，显示在侧栏底部。先选三种类型，再进入该类型自己的控件。生成类型的变体只属于当前 DiceBear 风格。</p>
   </header>
   <section>
     <h2>问题与边界</h2>
@@ -44,14 +44,12 @@
         <tr><td>变体网格覆盖全部已发布风格</td><td class="out">拒绝</td><td>点选变体会改掉当前 style，和「先选风格」冲突。</td></tr>
         <tr><td>类型 →（风格 + 同风格变体 | 字母字段 | 上传）</td><td class="status">采用</td><td>三条路径互不交叉；Regenerate 只换当前风格的 seed。</td></tr>
         <tr><td>变体网格 <code>1fr</code> 拉满卡片</td><td class="out">拒绝</td><td>瓷砖保持固定 48px，作为右侧 cluster 换行，不拉伸。</td></tr>
-        <tr><td>为 Agent 和用户分别实现</td><td class="out">拒绝</td><td>两个设置入口已共用 <code>ProfileEditor</code> 与 <code>AvatarPicker</code>。</td></tr>
       </tbody>
     </table>
   </section>
   <section>
     <h2>验收合同</h2>
     <ol>
-      <li>Agent 和用户设置使用同一选择器。</li>
       <li>变体全部属于当前风格；Regenerate 不改 style。</li>
       <li>点击变体后写入 <code>kind: "dicebear"</code>、当前 style 与该 seed。</li>
       <li>Letter 的字符和颜色在选择器内编辑，仍落在 profile 的 <code>initial</code> / <code>color</code>。</li>

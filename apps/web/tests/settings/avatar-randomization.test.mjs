@@ -67,15 +67,15 @@ test("letter initial and color live inside the picker", () => {
 
   assert.match(picker, /onLetterTextChange/);
   assert.match(picker, /onLetterBgChange/);
-  assert.match(picker, /t\("general.agent.initial"\)/);
-  assert.match(picker, /t\("general.agent.color"\)/);
+  assert.match(picker, /t\("general.avatar.initial"\)/);
+  assert.match(picker, /t\("general.avatar.color"\)/);
   assert.match(picker, /source === "letter"/);
   assert.doesNotMatch(settings, /isLetterMode/);
-  assert.doesNotMatch(settings, /t\("general.agent.initial"\)/);
-  assert.doesNotMatch(settings, /t\("general.agent.color"\)/);
+  assert.doesNotMatch(settings, /t\("general.avatar.initial"\)/);
+  assert.doesNotMatch(settings, /t\("general.avatar.color"\)/);
 });
 
-test("Agent and user settings share the picker and its style registry", () => {
+test("User settings use the shared picker and its style registry", () => {
   const settings = readFileSync(
     new URL("../../components/settings/general-section.tsx", import.meta.url),
     "utf8",
@@ -88,9 +88,8 @@ test("Agent and user settings share the picker and its style registry", () => {
     /export const STYLES = \{([\s\S]*?)\}\s+as const/,
   )?.[1];
 
-  assert.equal((settings.match(/<ProfileEditor/g) ?? []).length, 2);
-  assert.match(settings, /function AgentSection\(\)[\s\S]*<ProfileEditor/);
-  assert.match(settings, /function UserSection\(\)[\s\S]*<ProfileEditor/);
+  assert.doesNotMatch(settings, /AgentSection|setAgentProfile/);
+  assert.match(settings, /function UserSection\(\)[\s\S]*<AvatarPicker/);
   assert.match(settings, /t\("general.avatar"\)/);
   assert.match(settings, /<AvatarPicker/);
   assert.doesNotMatch(settings, /styles\.avatarBlock/);
@@ -108,18 +107,12 @@ test("Thumbs omits its generated outer background instead of cropping artwork", 
     new URL("../../components/avatar/Avatar.tsx", import.meta.url),
     "utf8",
   );
-  const chatCss = readFileSync(
-    new URL("../../app/styles/chat/bubbles.css", import.meta.url),
-    "utf8",
-  );
   const footerCss = readFileSync(
     new URL("../../components/user-menu-footer.module.css", import.meta.url),
     "utf8",
   );
 
   assert.match(avatar, /backgroundColor:\s*style === "thumbs" \? \["transparent"\]/);
-  assert.match(chatCss, /\.message-avatar\.user-avatar\s*\{[^}]*background:\s*transparent/s);
   assert.match(footerCss, /\.avatar\s*\{[^}]*background:\s*transparent/s);
-  assert.doesNotMatch(chatCss, /\.user-avatar[^}]*transform:/s);
   assert.doesNotMatch(footerCss, /\.avatar[^}]*transform:/s);
 });

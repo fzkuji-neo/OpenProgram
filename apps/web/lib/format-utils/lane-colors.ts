@@ -1,8 +1,8 @@
 /**
- * LANE_COLORS — the single categorical branch/agent palette.
+ * LANE_COLORS — the single categorical branch palette.
  *
- * 三处消费者共用同一份：DAG lane 描边（lib/runtime-bridge/dag）、右栏
- * branches 面板的兜底色、chat 头像哈希色。以前各存一份副本，index 4
+ * 两处消费者共用同一份：DAG lane 描边（lib/runtime-bridge/dag）、右栏
+ * branches 面板的兜底色。以前各存一份副本，index 4
  * 曾漂成红色和错误描边撞色。
  *
  * 这是**叶子模块**：不 import 任何东西。dag/types.ts 在模块作用域就取

@@ -25,7 +25,6 @@ export { AVATAR_STYLES } from "./style-options";
 export { STYLES } from "./styles";
 export { UPLOAD_ACCEPT, UPLOAD_MAX_BYTES, fileToDataUrl } from "./upload";
 export type {
-  AgentAvatarConfig,
   AvatarConfig,
   AvatarKind,
   AvatarStyle,

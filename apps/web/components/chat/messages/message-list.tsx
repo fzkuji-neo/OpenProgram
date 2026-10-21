@@ -42,7 +42,6 @@ import { messageArrivedWithin } from "@/lib/session-store/message-arrivals";
 
 import { useTranslation } from "@/lib/i18n";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
-import { useAgentProfile } from "@/lib/format-utils/agent-style";
 import {
   RECYCLE_MIN_ROWS,
   collectAlwaysLive,
@@ -54,7 +53,6 @@ import {
   setRowHeight,
   type WindowNode,
 } from "@/lib/chat/message-window";
-import { Avatar } from "@/components/avatar";
 import { showToast } from "@/lib/format-utils/toast";
 import { renderMarkdown, useMarkdownReady } from "./markdown";
 
@@ -555,33 +553,11 @@ export const RecyclableRow = memo(function RecyclableRow({
  */
 function PendingReplyIndicator({ timestamp }: { timestamp?: number }) {
   const { text } = useTranslation();
-  // Same avatar as the assistant bubble that replaces this on the first
-  // delta (same .message-header placement, same profile config), so the
-  // agent identity is continuous from the moment the user hits send —
-  // no logo blink-out during the transient "thinking…" state.
-  const profile = useAgentProfile();
   const [fallbackTimestamp] = useState(() => Date.now());
   return (
     <div className="message assistant pending-standalone">
-      <div className="message-header">
-        <Avatar
-          className="message-avatar bot-avatar"
-          size={28}
-          radius={8}
-          name={profile.name}
-          config={
-            profile.avatar ?? {
-              kind: "dicebear",
-              style: "shapes",
-              seed: profile.name,
-            }
-          }
-        />
-      </div>
       <div
         className="pending-body"
-        /* Same text column as the assistant reply that replaces this row. */
-        style={{ paddingLeft: "var(--avatar-gutter)" }}
         /* Short, discrete turn status ("thinking…") — the one thing in
            the transcript worth announcing. Streaming token deltas are
            deliberately left silent (see assistant-bubble). */

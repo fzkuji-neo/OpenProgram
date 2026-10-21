@@ -82,7 +82,7 @@ Sessions are matched on their title, latest message preview and project name, th
 
 ### Message streaming
 
-After a message is written to the connection, its text appears in the conversation and the submitted composer text clears immediately. The message remains pending until the server confirms receipt; confirmation updates the same message. A reply placeholder then appears, and text, thinking, and tool-call blocks stream over WebSocket in arrival order. When several agents write into one session, each assistant message carries the producing agent's avatar and name.
+After a message is written to the connection, its text appears in the conversation and the submitted composer text clears immediately. The message remains pending until the server confirms receipt; confirmation updates the same message. A reply placeholder then appears, and text, thinking, and tool-call blocks stream over WebSocket in arrival order. When several agents write into one session, each reply from an agent other than the default carries that agent's name above it.
 
 ### Cards and laid-out views in replies
 
