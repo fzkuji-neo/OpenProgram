@@ -56,6 +56,8 @@ def bash(command: str,
     """
     from openprogram.processes import current_owner
 
+    if not (command or "").strip():
+        return "Error: command is empty. Pass the shell command to run in command."
     try:
         current_owner()
     except RuntimeError:

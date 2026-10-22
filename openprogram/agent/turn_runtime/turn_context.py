@@ -307,8 +307,12 @@ class TurnBindings:
             self._sandbox_token = None
         return self
 
-    def release(self) -> None:
+    def release(self, *, suspended: bool = False) -> None:
         """Reset every ContextVar bound by :meth:`bind`.
+
+        ``suspended`` means the execution handed off at a durable wait (an
+        approval) and resumes in a new frame of the same turn, so its Web
+        Use sessions are kept for that frame instead of released.
 
         Guarded because attach may have silently failed (no provider
         configured). ValueError is what ContextVar.reset raises when the
@@ -341,9 +345,13 @@ class TurnBindings:
                 tool_runtime._frozen_turn_tools.reset(self._frozen_tools_token)
             if self._web_use_owner_id is not None:
                 from openprogram.programs.workflow.browser.web_use_runtime import (
+                    park_owner_if_initialized as _park_web_use_owner,
                     release_owner_if_initialized as _release_web_use_owner,
                 )
-                _release_web_use_owner(self._web_use_owner_id)
+                if suspended:
+                    _park_web_use_owner(self._web_use_owner_id)
+                else:
+                    _release_web_use_owner(self._web_use_owner_id)
             if self._surface_token is not None:
                 from openprogram.agent.surface_context import (
                     current as _current_surface,

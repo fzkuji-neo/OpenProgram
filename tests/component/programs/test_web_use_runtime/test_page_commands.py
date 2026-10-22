@@ -1381,13 +1381,32 @@ def test_act_with_url_rejects_non_http_scheme(monkeypatch):
     )
     result = module.web_use(
         command="act",
-        arguments={"action": "navigate", "url": "file:///etc/passwd"},
+        arguments={"action": "navigate", "url": "ftp://example.com/file.txt"},
     )
     assert result.is_error is True
     result = result.json_data
     assert result["ok"] is False
     assert result["reason_code"] == "unsupported_url"
     assert "SCHEME_FORBIDDEN" in result["error"]
+
+
+def test_file_url_opens_only_a_readable_local_file(monkeypatch, tmp_path):
+    from openprogram.agent import surface_context
+    import openprogram.sandbox as sandbox
+
+    missing = surface_context._local_file_url((tmp_path / "gone.html").as_uri())
+    assert missing["reason_code"] == "unsupported_url"
+    assert "not found" in missing["error"]
+
+    page = tmp_path / "report page.html"
+    page.write_text("<h1>ok</h1>")
+    opened = surface_context._local_file_url(page.as_uri() + "#results")
+    assert opened == {"ok": True, "url": page.resolve().as_uri() + "#results"}
+
+    monkeypatch.setattr(sandbox, "validate_read_path", lambda _path: "outside the workspace")
+    denied = surface_context._local_file_url(page.as_uri())
+    assert denied["error"] == "sandbox policy: outside the workspace"
+    assert surface_context._local_file_url("https://example.com") is None
 
 
 def test_act_with_url_reports_desktop_unavailable(monkeypatch):

@@ -318,6 +318,9 @@ class WebUseSessionRegistry:
         self._tombstones: OrderedDict[str, dict[str, str]] = OrderedDict()
         self._closing_all = False
         self._closing_owners: set[str] = set()
+        # Turns suspended at a durable wait (an approval) keep their sessions
+        # for the resumed frame; a later owner releases them (see _unpark).
+        self._parked_owners: set[str] = set()
         if release_context is None:
             from openprogram.agent.surface_context import release_bindings
             release_context = release_bindings
@@ -336,6 +339,34 @@ class WebUseSessionRegistry:
         self._binding_revision_resolver = binding_revision_resolver
         self._binding_validator = binding_validator
         self._lock = threading.RLock()
+
+    def park_owner(self, owner_id: str) -> None:
+        """Keep one turn's sessions while its execution waits to resume."""
+        if owner_id:
+            with self._lock:
+                self._parked_owners.add(owner_id)
+
+    def _unpark(self, owner_id: str, page_key: str = "") -> None:
+        """Release parked owners this caller supersedes.
+
+        A chat runs one turn at a time, so another turn of the same chat
+        means the parked one settled without resuming; a parked owner's
+        lease on the requested Page also yields to the live caller.
+        """
+        scope = _owner_scope(owner_id)
+        with self._lock:
+            if not self._parked_owners:
+                return
+            leased = self._sessions.get(self._page_leases.get(page_key, "")) if page_key else None
+            stale = [
+                parked for parked in self._parked_owners
+                if parked != owner_id and (
+                    (scope.startswith("turn:") and _owner_scope(parked) == scope)
+                    or (leased is not None and leased.owner_id == parked)
+                )
+            ]
+        for parked in stale:
+            self.release_owner(parked)
 
     def _latest_owner_session_id(self, owner_id: str) -> str:
         if not owner_id:
@@ -513,6 +544,7 @@ class WebUseSessionRegistry:
 
     def list_pages(self, *, context: dict, owner_id: str) -> dict[str, Any]:
         """Issue opaque, single-use capabilities for exact Page bindings."""
+        self._unpark(owner_id)
         pages = []
         with self._lock:
             if self._closing_all or owner_id in self._closing_owners:
@@ -604,6 +636,7 @@ class WebUseSessionRegistry:
         before_dispatch: Callable[[], None] | None = None,
     ) -> dict[str, Any]:
         params = dict(normalize_web_use_arguments({"arguments": arguments}).get("arguments") or {})
+        self._unpark(owner_id)
         if _unresolved_session_id(web_session_id):
             web_session_id = ""
         stale_session_id = ""
@@ -698,6 +731,7 @@ class WebUseSessionRegistry:
             if not binding_id:
                 return {"ok": False, "reason_code": "page_context_required"}
             page_key = page_key or self._page_key_resolver(binding_id) or binding_id
+            self._unpark(owner_id, page_key)
             revisions = revisions or self._binding_revision_resolver(binding_id)
             if not revisions and page_context:
                 revisions = next((
@@ -1260,6 +1294,7 @@ class WebUseSessionRegistry:
         with self._lock:
             if owner_id in self._closing_owners:
                 return
+            self._parked_owners.discard(owner_id)
             self._closing_owners.add(owner_id)
             sessions = [s for s in self._sessions.values() if s.owner_id == owner_id]
             capabilities = []
@@ -1332,10 +1367,19 @@ def release_owner_if_initialized(owner_id: str) -> None:
         registry.release_owner(owner_id)
 
 
+def park_owner_if_initialized(owner_id: str) -> None:
+    """Keep a suspended turn's sessions for the frame that resumes it."""
+    with _registry_lock:
+        registry = _registry
+    if registry is not None:
+        registry.park_owner(owner_id)
+
+
 __all__ = [
     "WebUseSessionRegistry",
     "DEFAULT_BACKEND",
     "SUPPORTED_BACKENDS",
     "get_registry",
+    "park_owner_if_initialized",
     "release_owner_if_initialized",
 ]

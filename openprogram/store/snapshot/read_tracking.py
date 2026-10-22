@@ -129,14 +129,14 @@ def stale_message(abs_path: str, outcome: str) -> str:
     """The Claude-Code-style refusal text for a failed freshness check."""
     if outcome == NEVER_READ:
         return (
-            f"Error: {abs_path} has not been read in this session. "
-            f"Read the file first so you're editing its current contents, "
-            f"then retry."
+            f"Error: {abs_path} already exists but has not been read in this "
+            f"session (a shell command may have created it). Read the file "
+            f"first so you're editing its current contents, then retry."
         )
     # STALE
     return (
         f"Error: {abs_path} has changed on disk since you last read it "
-        f"(edited by the user, a linter, or another process). Re-read the "
+        f"(by a shell command, the user, a linter, or another process). Re-read the "
         f"file to see the current contents, then redo your edit. Your edit "
         f"was NOT applied, so nothing was overwritten."
     )

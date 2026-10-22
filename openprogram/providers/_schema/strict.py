@@ -194,10 +194,18 @@ def _make_nullable(prop: dict[str, Any]) -> None:
     Handles three input shapes:
       * ``{"type": "string"}``      → ``{"type": ["string", "null"]}``
       * ``{"type": ["string","integer"]}`` adds ``"null"`` to the list.
-      * ``{"enum": [...]}`` without a type — leave alone; strict accepts
-        bare-enum properties.
+      * ``{"enum": [...]}`` without a type — no type to widen; strict
+        accepts bare-enum properties (the enum still gains ``None``).
       * ``{"anyOf": [...]}`` — append ``{"type": "null"}`` to the union.
+
+    An ``enum`` also gains ``None``: the enum constrains the value on top
+    of the type, so a nullable type with a null-free enum still forces the
+    model to pick a member (memory tools' optional ``space`` was always
+    sent as ``"self"`` and denied).
     """
+    enum = prop.get("enum")
+    if isinstance(enum, list) and None not in enum:
+        enum.append(None)
     t = prop.get("type")
     if isinstance(t, str):
         if t == "null":

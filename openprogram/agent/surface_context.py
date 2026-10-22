@@ -450,6 +450,33 @@ DESKTOP_UNAVAILABLE_ERROR = (
 )
 
 
+def _local_file_url(url: str) -> dict | None:
+    """A file:// Page the agent may read, as a canonical URL; None for other schemes.
+
+    Desktop tabs show local files like the address bar does; the agent opens
+    one only where its sandbox lets it read the file directly.
+    """
+    from urllib.parse import unquote, urlsplit
+    from pathlib import Path
+
+    if not isinstance(url, str) or not url[:7].lower() == "file://":
+        return None
+    parts = urlsplit(url)
+    if parts.netloc not in {"", "localhost"}:
+        return {"ok": False, "reason_code": "unsupported_url",
+                "error": "file:// URLs must name a local path (file:///...)."}
+    path = os.path.realpath(unquote(parts.path))
+    from openprogram.sandbox import validate_read_path
+    violation = validate_read_path(path)
+    if violation:
+        return {"ok": False, "reason_code": "unsupported_url",
+                "error": f"sandbox policy: {violation}"}
+    if not os.path.exists(path):
+        return {"ok": False, "reason_code": "unsupported_url",
+                "error": f"local file not found: {path}"}
+    return {"ok": True, "url": Path(path).as_uri() + (f"#{parts.fragment}" if parts.fragment else "")}
+
+
 def open_page(
     url: str,
     *,
@@ -465,14 +492,20 @@ def open_page(
     from openprogram.webui import server as _server
     from openprogram.webui.ws_actions import webtab
 
-    try:
-        normalized = normalize_url(url).normalized_url
-    except URLPolicyError as exc:
-        return {
-            "ok": False,
-            "reason_code": "unsupported_url",
-            "error": f"unsupported url ({exc.reason}): {exc.safe_url}",
-        }
+    local = _local_file_url(url)
+    if local is not None:
+        if local.get("ok") is False:
+            return local
+        normalized = local["url"]
+    else:
+        try:
+            normalized = normalize_url(url).normalized_url
+        except URLPolicyError as exc:
+            return {
+                "ok": False,
+                "reason_code": "unsupported_url",
+                "error": f"unsupported url ({exc.reason}): {exc.safe_url}",
+            }
 
     from openprogram.agent.run_control import get_current_session_id
 

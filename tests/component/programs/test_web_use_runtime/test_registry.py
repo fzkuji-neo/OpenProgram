@@ -460,6 +460,50 @@ def test_registry_leases_one_exact_page_to_one_session_until_close():
 
 
 
+def test_parked_turn_keeps_sessions_until_superseded():
+    from openprogram.programs.workflow.browser.web_use_runtime import (
+        WebUseSessionRegistry,
+    )
+
+    adapters = {name: _Adapter(name) for name in (
+        "playwright_mcp", "chrome_devtools_mcp", "open_claude_chrome",
+    )}
+    registry = WebUseSessionRegistry(
+        adapters=adapters,
+        page_key_resolver=lambda binding: {
+            "binding-1": "page-1", "binding-2": "page-1", "binding-3": "page-1",
+        }[binding],
+        binding_validator=_allow_binding,
+    )
+    owner = "turn:chat-1:turn-1"
+    first = registry.execute(
+        command="observe", backend="playwright_mcp",
+        binding_id="binding-1", owner_id=owner,
+    )
+
+    # An approval wait suspends the turn; the resumed frame still acts on
+    # the session without naming it.
+    registry.park_owner(owner)
+    acted = registry.execute(
+        command="act", owner_id=owner, arguments={"action": "evaluate"},
+    )
+    assert acted["web_session_id"] == first["web_session_id"]
+
+    # A parked lease yields to another chat that needs the Page.
+    registry.park_owner(owner)
+    other = registry.execute(
+        command="observe", backend="playwright_mcp",
+        binding_id="binding-2", owner_id="turn:chat-2:turn-1",
+    )
+    assert other["frame_id"] == "frame-1"
+    assert first["web_session_id"] not in registry._sessions
+
+    # The next turn of a chat releases that chat's parked turn.
+    registry.park_owner("turn:chat-2:turn-1")
+    registry.list_pages(context={"surfaces": []}, owner_id="turn:chat-2:turn-2")
+    assert registry._sessions == {}
+
+
 def test_page_lease_remains_held_until_close_cleanup_finishes():
     from openprogram.programs.workflow.browser.web_use_runtime import (
         WebUseSessionRegistry,

@@ -86,6 +86,13 @@ def _one(action: str, step: dict, args: dict, session: str = "") -> Any:
     if chosen:
         return _in_user_browser(chosen, action, merged, session)
     call = {field: str(merged.pop(field) or "") for field in _CALL_FIELDS if field in merged}
+    if action == "select":
+        # Playwright's own select_option takes ``values``; accept that spelling.
+        values = merged.pop("values", None)
+        if not merged.get("value") and values:
+            merged["value"] = str(values[0] if isinstance(values, list) else values)
+        if not str(merged.get("value") or "").strip():
+            return ToolReturn(text="Error: select needs value, the option's value or label text.", is_error=True)
     if action in COMMANDS:
         command, arguments = action, merged
         if action == "verify":

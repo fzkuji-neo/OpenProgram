@@ -269,7 +269,7 @@ def execute_continuation(
         )
     finally:
         _on_event_persist.flush()
-        _bindings.release()
+        _bindings.release(suspended=bool(context.get("safe_point_committed")))
     if context.get("safe_point_committed"):
         result = TurnResult(
             final_text="",
@@ -629,7 +629,10 @@ def _process_turn_once(
         # Release the Agent method runtime hook. Runs on success,
         # exception, AND inside the early-return above (finally fires
         # before return is actually executed).
-        _bindings.release()
+        _bindings.release(suspended=bool(
+            execution_context is not None
+            and execution_context.get("safe_point_committed")
+        ))
 
     if execution_context is not None and execution_context.get("safe_point_committed"):
         result = TurnResult(

@@ -35,8 +35,10 @@ def _argument_branches(schema: dict) -> list[dict]:
 def _closed_string(schema: dict, value: str) -> bool:
     if schema.get("const") == value:
         return True
+    # An optional discriminator is nullable in strict schemas: null joins
+    # the enum, and a null still selects no other value.
     enum = schema.get("enum")
-    return isinstance(enum, list) and enum == [value]
+    return isinstance(enum, list) and [item for item in enum if item is not None] == [value]
 
 
 def _verify_argument_branch(schema: dict) -> dict:

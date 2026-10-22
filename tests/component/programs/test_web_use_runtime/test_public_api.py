@@ -133,7 +133,8 @@ def test_public_web_use_schema_is_command_based_and_legacy_name_is_hidden():
     assert "action" not in consumed["properties"]
     verify_branch = next(
         branch for branch in consumed["properties"]["arguments"]["anyOf"]
-        if (branch.get("properties") or {}).get("action", {}).get("enum") == ["verify"]
+        # Optional in the branch, so strict schemas add null to its enum.
+        if (branch.get("properties") or {}).get("action", {}).get("enum") in (["verify"], ["verify", None])
     )
 
     def fill_required(schema, payload):

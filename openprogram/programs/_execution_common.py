@@ -136,7 +136,7 @@ def _normalize_result(
     """Convert a tool's raw return value into an AgentToolResult.
 
     Accepted shapes:
-      - str → TextContent
+      - str → TextContent ("Error: ..." also sets is_error)
       - dict / list → JSON-serialized as TextContent
       - ToolReturn → text + images + json
       - AgentToolResult → passthrough (no cap)
@@ -171,6 +171,9 @@ def _normalize_result(
                  for clip in raw.audio if clip]
     elif isinstance(raw, str):
         text_part = raw
+        # Tools report a failure as an "Error: ..." string; mark it so the
+        # transcript and repeat-failure accounting see it as one.
+        is_error = raw.startswith("Error: ")
     elif raw is None:
         text_part = ""
     else:
