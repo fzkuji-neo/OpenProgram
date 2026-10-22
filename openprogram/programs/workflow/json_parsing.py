@@ -1,6 +1,6 @@
 """Parse JSON out of an LLM's text reply.
 
-Installed harnesses (GUI / Research / Wiki …) delegate here for the one
+Installed harnesses (GUI / Research …) delegate here for the one
 fiddly thing every one of them needs: pulling a JSON object out of a
 model reply that may be wrapped in ```json fences, prefixed with prose,
 or otherwise not clean ``json.loads``-able. One implementation, imported

@@ -16,7 +16,7 @@ Only artifacts attached to a published [GitHub Release](https://github.com/fzkuj
 
 ## Desktop installation
 
-Supported macOS and Windows desktop artifacts contain Electron and the platform product runtime. The runtime includes managed CPython, OpenProgram, the prebuilt Web UI, providers, channels, search, Playwright Chromium, the GPA detector weight, and the GUI, Research, and Wiki first-party Programs. The GUI Program is registered, but the product runtime deliberately excludes PyTorch, OpenCV, and EasyOCR; GUI perception paths that require those dependencies need a separately configured backend or development overlay. The runtime does not use a system Python or Node.js. Git is required for session and Memory history and is checked by `openprogram doctor`. Linux currently uses the same CLI/server runtime because the AppImage failed its packaging gate; no reduced Linux desktop artifact is published.
+Supported macOS and Windows desktop artifacts contain Electron and the platform product runtime. The runtime includes managed CPython, OpenProgram, the prebuilt Web UI, providers, channels, search, Playwright Chromium, the GPA detector weight, and the GUI and Research first-party Programs. The GUI Program is registered, but the product runtime deliberately excludes PyTorch, OpenCV, and EasyOCR; GUI perception paths that require those dependencies need a separately configured backend or development overlay. The runtime does not use a system Python or Node.js. Git is required for session and Memory history and is checked by `openprogram doctor`. Linux currently uses the same CLI/server runtime because the AppImage failed its packaging gate; no reduced Linux desktop artifact is published.
 
 ### macOS
 
@@ -101,7 +101,7 @@ The Web UI is served at `http://localhost:18100`. The runtime contains the prebu
 
 ## Included product and additional extensions
 
-The GUI, Research Agent, and Wiki Agent Programs are part of every supported release installation. The GUI Program registers no tools of its own; it supplies the visual grounding behind [`computer_use_agent`](../capabilities/computer-use.md#pointing-by-description)'s `describe`. Their Program packages, the GPA detector weight, and Playwright Chromium are included. The GUI Program is installed without dependency resolution: PyTorch, OpenCV, and EasyOCR are not in the product runtime, so GUI perception paths that use them require a separately configured backend or development overlay.
+The GUI and Research Agent Programs are part of every supported release installation. The GUI Program registers no tools of its own; it supplies the visual grounding behind [`computer_use_agent`](../capabilities/computer-use.md#pointing-by-description)'s `describe`. Their Program packages, the GPA detector weight, and Playwright Chromium are included. The GUI Program is installed without dependency resolution: PyTorch, OpenCV, and EasyOCR are not in the product runtime, so GUI perception paths that use them require a separately configured backend or development overlay.
 
 Third-party Programs are additional user-selected functionality and are stored separately from the read-only product runtime. Editable first-party Program sources, diagnostics, local frontend builds, and replacement OCR/browser backends are developer additions. Replacement backends or dependencies are required only for GUI perception paths that use libraries omitted from the product runtime; they do not change the base runtime manifest.
 

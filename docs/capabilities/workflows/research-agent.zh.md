@@ -6,7 +6,7 @@
 
 ## 可用性
 
-每个受支持的 release 都同时包含 Research、Wiki Programs 和用于 PDF 解析的 PyMuPDF。安装 OpenProgram 后不需要再安装 Program 或 PDF 依赖。开发者可以用 editable checkout 替换其中任一 Program。
+每个受支持的 release 都包含 Research Program 和用于 PDF 解析的 PyMuPDF。安装 OpenProgram 后不需要再安装 Program 或 PDF 依赖。开发者可以用 editable checkout 替换它。
 
 ## 怎么用
 

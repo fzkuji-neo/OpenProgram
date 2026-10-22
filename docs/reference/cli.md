@@ -153,7 +153,7 @@ requires an exact `OPENPROGRAM_MCP_TOKEN` match.
 | `run <name>` | Run a program; `--arg key=value` (repeatable), `--provider`, `--model` |
 | `list` | List saved programs |
 | `available` | List installable programs and installed third-party harnesses |
-| `install` / `uninstall` | Developer-only first-party source overlays (gui/research/wiki/all), or install/uninstall an additional third-party harness (git URL / owner/repo); supported releases already include all first-party Programs and reject mutation of their immutable runtime |
+| `install` / `uninstall` | Developer-only first-party source overlays (gui/research/all), or install/uninstall an additional third-party harness (git URL / owner/repo); supported releases already include all first-party Programs and reject mutation of their immutable runtime |
 
 ### skills
 

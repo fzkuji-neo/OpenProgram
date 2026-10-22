@@ -16,7 +16,7 @@ OpenProgram 分别提供桌面 release 安装和 CLI/server release 安装。所
 
 ## 桌面安装
 
-受支持的 macOS 和 Windows 桌面产物包含 Electron 和平台 product runtime。runtime 内含受控 CPython、OpenProgram、预构建 Web UI、providers、channels、search、Playwright Chromium、GPA detector 权重，以及 GUI、Research、Wiki 三项第一方 Programs。GUI Program 已注册，但 product runtime 明确不含 PyTorch、OpenCV 和 EasyOCR；需要这些依赖的 GUI perception 路径必须单独配置 backend 或 development overlay。runtime 不读取系统 Python 或 Node.js。Session 与 Memory 历史需要 Git，`openprogram doctor` 会检查 Git。Linux 当前使用同一套 CLI/server runtime，因为 AppImage 未通过打包门禁；不发布精简的 Linux 桌面产物。
+受支持的 macOS 和 Windows 桌面产物包含 Electron 和平台 product runtime。runtime 内含受控 CPython、OpenProgram、预构建 Web UI、providers、channels、search、Playwright Chromium、GPA detector 权重，以及 GUI、Research 两项第一方 Programs。GUI Program 已注册，但 product runtime 明确不含 PyTorch、OpenCV 和 EasyOCR；需要这些依赖的 GUI perception 路径必须单独配置 backend 或 development overlay。runtime 不读取系统 Python 或 Node.js。Session 与 Memory 历史需要 Git，`openprogram doctor` 会检查 Git。Linux 当前使用同一套 CLI/server runtime，因为 AppImage 未通过打包门禁；不发布精简的 Linux 桌面产物。
 
 ### macOS
 
@@ -95,7 +95,7 @@ Web UI 地址是 `http://localhost:18100`。runtime 已包含预构建 Web UI，
 
 ## 已包含产品能力与额外扩展
 
-GUI、Research Agent 和 Wiki Agent 三个 Program 属于每个受支持的 release 安装。GUI Program 不注册自己的工具，它为 [`computer_use_agent`](../capabilities/computer-use.zh.md#按描述定位) 的 `describe` 提供视觉定位。其 Program package、GPA detector 权重和 Playwright Chromium 已包含。GUI Program 使用不解析依赖的方式安装：product runtime 不含 PyTorch、OpenCV 和 EasyOCR，因此使用这些依赖的 GUI perception 路径需要单独配置 backend 或 development overlay。
+GUI 和 Research Agent 两个 Program 属于每个受支持的 release 安装。GUI Program 不注册自己的工具，它为 [`computer_use_agent`](../capabilities/computer-use.zh.md#按描述定位) 的 `describe` 提供视觉定位。其 Program package、GPA detector 权重和 Playwright Chromium 已包含。GUI Program 使用不解析依赖的方式安装：product runtime 不含 PyTorch、OpenCV 和 EasyOCR，因此使用这些依赖的 GUI perception 路径需要单独配置 backend 或 development overlay。
 
 第三方 Program 是用户主动增加的额外功能，存放在只读 product runtime 之外。第一方 Program editable source、诊断工具、本地前端构建，以及 OCR/Browser 后端替换属于开发者附加能力。只有使用 product runtime 未包含依赖的 GUI perception 路径才需要替换 backend 或补充依赖；这些附加项不会改变基础 runtime manifest。
 

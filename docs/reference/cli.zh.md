@@ -150,7 +150,7 @@ openprogram mcp serve
 | `run <name>` | 运行一个 program；`--arg key=value`（可重复）、`--provider`、`--model` |
 | `list` | 列出保存的 program |
 | `available` | 列出可安装的 program 与已装的第三方 harness |
-| `install` / `uninstall` | 开发者使用的第一方源码 overlay（gui/research/wiki/all），或安装/卸载额外第三方 harness（git URL / owner/repo）；受支持的 release 已包含全部第一方 Program，并拒绝修改 immutable runtime |
+| `install` / `uninstall` | 开发者使用的第一方源码 overlay（gui/research/all），或安装/卸载额外第三方 harness（git URL / owner/repo）；受支持的 release 已包含全部第一方 Program，并拒绝修改 immutable runtime |
 
 ### skills
 

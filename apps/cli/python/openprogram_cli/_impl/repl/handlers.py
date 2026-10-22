@@ -29,7 +29,7 @@ _BUILTIN_SPECS: list[tuple[str, tuple[str, ...], str, str]] = [
     ("skills", (), "", "list discovered skills"),
     ("functions", ("fns",), "", "list agentic functions (programs/workflow/)"),
     ("apps", ("applications",), "",
-     "list installed programs (gui/research/wiki agents)"),
+     "list installed programs (gui/research agents)"),
     ("mcp", (), "[verb]",
      "manage MCP servers: list (default), show <name>, restart <name>, "
      "enable <name>, disable <name>, rm <name>"),

@@ -18,7 +18,7 @@
 #   4. Web UI:   apps/web/ -> npm install && npm run build  (served on :18100)
 #   5. TUI:      apps/cli/ -> npm install && npm run build  (Ink TUI; POSIX)
 #   6. Product extras [all,search] + Playwright Chromium
-#   7. GUI / Research / Wiki first-party Programs, default OCR/model data,
+#   7. GUI and Research first-party Programs, default OCR/model data,
 #      and the Research PDF dependency
 #
 # The GUI harness's torch build is whatever pip resolves. If you need an
@@ -297,4 +297,4 @@ install_first_party_programs
 printf "\n${c_green}OpenProgram ready.${c_reset}\n"
 printf "  Start:     openprogram           # first run walks you through provider setup, then opens the chat\n"
 printf "  Web UI:    openprogram web        # -> http://localhost:18100\n"
-printf "  Programs:  GUI, Research, and Wiki are installed; developer backend flags are additive\n"
+printf "  Programs:  GUI and Research are installed; developer backend flags are additive\n"

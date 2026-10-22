@@ -11,7 +11,7 @@ OpenProgram 的底座是 Agentic Programming：**Python 控制流程，LLM 提�
 
 ## Agentic Workflows：现成的 agent
 
-基于该范式写成的成品工作流（代码里叫 harness / agentic program），装完即用：自主科研、个人知识库。用 `openprogram programs available` 查看可安装项、`openprogram programs install <name>` 安装、`openprogram programs list` 列出已注册的函数；函数注册后既能在聊天里作为工具触发，也能用 `openprogram programs run` 直接跑。
+基于该范式写成的成品工作流（代码里叫 harness / agentic program），装完即用：自主科研。用 `openprogram programs available` 查看可安装项、`openprogram programs install <name>` 安装、`openprogram programs list` 列出已注册的函数；函数注册后既能在聊天里作为工具触发，也能用 `openprogram programs run` 直接跑。
 
 - [Agentic Workflows 总览](workflows/README.zh.md)
 - [Research Agent](workflows/research-agent.zh.md) —— 从选题到可提交论文

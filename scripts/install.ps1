@@ -12,11 +12,11 @@
    4. Web + terminal UI: builds apps/web and the full Ink TUI in apps/cli
    5. Default extras [all]: browser tool (Playwright + Chromium) + channels
 
- Agentic programs (GUI / Research / Wiki) are NOT installed here - the
+ Agentic programs (GUI / Research) are NOT installed here - the
  first run of `openprogram` opens the setup wizard, whose "Agent
  programs" step lets the user pick which to install (sizes shown).
  Manual: openprogram programs install <gui|research|all>
- Non-interactive: pass -Programs <gui|research|wiki|all> (comma-separated
+ Non-interactive: pass -Programs <gui|research|all> (comma-separated
  or repeated) to install them right after the main install.
 
  -Minimal skips the Web build and optional extras - a bare host for servers; everything it
@@ -34,7 +34,7 @@
    iwr -useb https://raw.githubusercontent.com/fzkuji-neo/OpenProgram/main/scripts/install.ps1 | iex
  It clones OpenProgram to $HOME\OpenProgram (override with -Target DIR), then
  hands off to the cloned copy and offers a menu to pick which agentic programs
- (GUI / Research / Wiki) to install.
+ (GUI / Research) to install.
 
  Usage:
    .\scripts\install.ps1                  # full install (everything above)
@@ -55,7 +55,7 @@ param(
   [string]$Python = "",
   [switch]$Stealth,
   [switch]$AgentBrowser,
-  [string[]]$Programs = @(),       # install agentic programs non-interactively (gui|research|wiki|all)
+  [string[]]$Programs = @(),       # install agentic programs non-interactively (gui|research|all)
   [switch]$Minimal,               # bare host: skip web build / programs / default extras
   [string]$Target = "",           # clone destination when run off the web (default $HOME\OpenProgram)
   [switch]$Yes,                   # skip every prompt, use defaults
@@ -370,7 +370,7 @@ function Prompt-Programs {
   Write-Host "`nAgentic programs - pick which to install now (or later via the first-run wizard):"
   for ($i = 0; $i -lt $ProgramMenu.Count; $i++) { Write-Host ("  {0}) {1}" -f ($i+1), $ProgramMenu[$i]) }
   Write-Host "  all)  install every harness"
-  Write-Host '  none) skip (default - pick later, or: openprogram programs install <gui|research|wiki|all>)'
+  Write-Host '  none) skip (default - pick later, or: openprogram programs install <gui|research|all>)'
   while ($true) {
     $reply = Read-Host 'Choose (comma-separated numbers, "all", or "none") [none]'
     $picked = Convert-ProgramChoice $reply
@@ -403,5 +403,5 @@ Write-Host "`nOpenProgram ready." -ForegroundColor Green
 Write-Host "  Start:     openprogram           # first run walks you through provider setup, then opens the chat"
 Write-Host "  Web UI:    openprogram web        # -> http://localhost:18100"
 Write-Host "  Programs:  pick which agentic programs to install in the first-run wizard"
-Write-Host "             (or any time: openprogram programs install <gui|research|wiki|all>,"
+Write-Host "             (or any time: openprogram programs install <gui|research|all>,"
 Write-Host "              or non-interactively at install: .\scripts\install.ps1 -Programs all)"

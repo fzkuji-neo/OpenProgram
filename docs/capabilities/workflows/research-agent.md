@@ -4,7 +4,7 @@ An autonomous research agent: take a research topic and walk the full pipeline o
 
 ## Availability
 
-Every supported release contains the Research and Wiki Programs together with PyMuPDF for PDF parsing. No Program or PDF dependency installation is required after installing OpenProgram. Developers can replace either Program with an editable checkout.
+Every supported release contains the Research Program together with PyMuPDF for PDF parsing. No Program or PDF dependency installation is required after installing OpenProgram. Developers can replace it with an editable checkout.
 
 ## Usage
 

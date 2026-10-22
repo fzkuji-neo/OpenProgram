@@ -57,9 +57,9 @@ _ADVANCED_EXTRA_SECTIONS = [
      "SKILL.md instruction packs the agent can load on demand. "
      "QuickStart enables everything discovered.",
      run_skills_section),
-    ("programs", "Agent programs (GUI / Research / Wiki)",
-     "Install or remove the bundled agent harnesses. Research / Wiki "
-     "are light; the GUI agent downloads PyTorch (~300 MB, ~3 GB on "
+    ("programs", "Agent programs (GUI / Research)",
+     "Install or remove the bundled agent harnesses. Research "
+     "is light; the GUI agent downloads PyTorch (~300 MB, ~3 GB on "
      "CUDA boxes) and is not installed by default.",
      run_programs_section),
     ("channels", "Chat-channel bots (optional)",

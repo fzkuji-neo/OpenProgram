@@ -209,24 +209,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="Program arg as key=value (repeatable)")
     _add_provider_args(p_p_run)
     programs_sub.add_parser("list", help="List all saved programs")
-    # Optional first-party programs (gui / research / wiki agents) live in
+    # Optional first-party programs (gui / research agents) live in
     # their own repos; third-party harnesses install the same way by git URL.
     programs_sub.add_parser(
         "available",
         help="List installable programs + installed third-party harnesses")
     p_p_inst = programs_sub.add_parser(
         "install",
-        help="Install a program (gui/research/wiki/all) or any third-party "
+        help="Install a program (gui/research/all) or any third-party "
              "harness by git URL / owner/repo")
     p_p_inst.add_argument(
         "name",
-        help="gui | research | wiki | all — or a git URL / owner/repo "
+        help="gui | research | all — or a git URL / owner/repo "
              "for a third-party harness")
     p_p_inst.add_argument("--upgrade", "-U", action="store_true",
         help="Reinstall/upgrade even if already present")
     p_p_un = programs_sub.add_parser(
         "uninstall",
-        help="Uninstall a program (gui/research/wiki/all) or a third-party "
+        help="Uninstall a program (gui/research/all) or a third-party "
              "harness by its clone-dir name")
     p_p_un.add_argument("name", help="Program or harness dir name to uninstall")
 

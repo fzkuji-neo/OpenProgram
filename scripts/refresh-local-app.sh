@@ -291,7 +291,7 @@ while true; do
   product_runtime_stage="$attempt_dir/product-runtime.json"
 
   cp "$product_runtime_config" "$product_runtime_stage"
-  for program_name in gui research wiki; do
+  for program_name in gui research; do
     program_stage="$attempt_dir/program-$program_name"
     if test "$program_name" = gui; then
       "$local_python" "$repo_root/scripts/release/stage-program-source.py" \
@@ -398,7 +398,7 @@ PY
   # network (it fetches the build backend), so a dropped connection stops the
   # refresh here with the installed App unchanged instead of half refreshed.
   program_wheels=()
-  for program_name in gui research wiki; do
+  for program_name in gui research; do
     program_wheel_dir="$attempt_dir/program-wheels/$program_name"
     mkdir -p "$program_wheel_dir"
     "$local_python" -m pip wheel --disable-pip-version-check --no-deps \
@@ -489,6 +489,13 @@ for program_wheel in "${program_wheels[@]}"; do
     --no-deps --force-reinstall "$program_wheel"
   "$app_python" -I -m pip install --disable-pip-version-check \
     --break-system-packages --no-deps --force-reinstall "$program_wheel"
+done
+# The Wiki Program was removed; an earlier refresh may have installed it.
+for retired_program in wiki-agent-harness; do
+  "$local_python" -m pip uninstall --disable-pip-version-check -y \
+    "$retired_program" >/dev/null 2>&1 || true
+  "$app_python" -I -m pip uninstall --disable-pip-version-check -y \
+    --break-system-packages "$retired_program" >/dev/null 2>&1 || true
 done
 if test "$(uname -s)" = Darwin; then
   "$app_python" -I -c \

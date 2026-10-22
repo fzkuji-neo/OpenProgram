@@ -106,7 +106,7 @@ def test_local_app_refresh_installs_committed_program_snapshots() -> None:
     assert '--force-reinstall "$program_wheel"' in refresh
     assert '--force-reinstall "$program_stage"' not in refresh
     assert "from gui_harness.adapters.mac_window import window_support" in refresh
-    assert 'for program_name in gui research wiki; do' in refresh
+    assert 'for program_name in gui research; do' in refresh
     assert '"$repo_root/scripts/release/stage-program-source.py"' in refresh
     assert '"$program_name" "$program_stage" --checkout "$gui_harness_repo"' in refresh
     snapshot = refresh.index('cp "$product_runtime_config" "$product_runtime_stage"')
