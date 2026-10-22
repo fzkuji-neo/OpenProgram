@@ -179,7 +179,6 @@ def test_known_application_directories_resolve_to_registered_callables() -> None
     # The GUI Program is a library: it has no entry to resolve to.
     assert _callable_name("applications/gui_harness") == "gui_harness"
     assert _callable_name("applications/research_harness") == "research_agent"
-    assert _callable_name("applications/wiki_agent_harness") == "wiki_agent"
 
 
 def test_agentic_source_directory_resolves_to_registered_callable() -> None:

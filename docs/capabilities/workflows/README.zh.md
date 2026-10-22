@@ -13,7 +13,6 @@ Agentic Workflow 是用 [Agentic Programming](../agentic-programming/README.zh.m
 | Workflow | Release 状态 | 一句话 |
 |---|---|---|
 | [Research Agent](research-agent.zh.md) | 已包含 | 从研究选题到可提交论文，带确定性核查层 |
-| [Wiki Agent](wiki-agent.zh.md) | 已包含 | 把会话 / 笔记沉淀成模板化 HTML 知识库 |
 
 ## 管理命令
 
@@ -35,8 +34,8 @@ openprogram programs run <name> -a key=value  # 直接运行一个 program
 ## 用哪种方式触发
 
 - **Web 参数表单**：点击 Programs 中的 **Use** 或侧栏收藏。新标签页变成草稿聊天；已有聊天保留草稿和执行中的任务。填写任务要求后明确发送。打开或关闭表单不会执行 Workflow。
-- **聊天里**：入口函数以 `as_tool=True` 注册为工具，直接用自然语言描述任务，模型会调用它（如 `research_agent`、`wiki_agent`）。操作应用、内置浏览器 Page 和虚拟机用的是 [`computer_use_agent`](../computer-use.zh.md) 工具，不是 workflow。
-- **命令行**：`openprogram programs run wiki_agent -a task="把上面的笔记整理进知识库"`。
+- **聊天里**：入口函数以 `as_tool=True` 注册为工具，直接用自然语言描述任务，模型会调用它（如 `research_agent`）。操作应用、内置浏览器 Page 和虚拟机用的是 [`computer_use_agent`](../computer-use.zh.md) 工具，不是 workflow。
+- **命令行**：`openprogram programs run research_agent -a task="调研 agent 记忆的近期工作"`。
 - **Python 里**：harness 的函数就是普通可 import 的 Python 函数。
 
 ## 模型选择

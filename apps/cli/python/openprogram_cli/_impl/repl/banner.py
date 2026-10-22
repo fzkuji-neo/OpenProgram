@@ -60,7 +60,7 @@ def _function_inventory() -> tuple[int, list[str]]:
 def _application_inventory() -> tuple[int, list[str]]:
     """Return (count, [name, ...]) of installed first-party *programs*.
 
-    Programs (gui / research_agent / wiki_agent) ship as separate
+    Programs (gui / research_agent) ship as separate
     pip-installable packages rather than in-tree symlinks; list the ones
     actually installed on this machine. Install more with
     ``openprogram programs install <name>``. See

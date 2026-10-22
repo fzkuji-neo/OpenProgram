@@ -660,7 +660,7 @@ export const SearchIcon = forwardRef<AnimatedNavIconHandle, AnimatedNavIconProps
 );
 SearchIcon.displayName = "SearchIcon";
 
-// ─── book-text (Welcome: wiki_agent) ─────────────────────────────────
+// ─── book-text (user menu: Docs) ─────────────────────────────────────
 export const BookTextIcon = forwardRef<AnimatedNavIconHandle, AnimatedNavIconProps>(
   ({ onMouseEnter, onMouseLeave, className, size = 28, ...props }, ref) => {
     const controls = useAnimation();

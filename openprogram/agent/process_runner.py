@@ -943,7 +943,7 @@ def _child_entry(
     # triggered this tool), but the parent's call_kind is typically "chat"
     # which is wrong for an Agent method subprocess. Set it to "exec"
     # with the tool's name as call_label so metering can distinguish
-    # research_agent / wiki_agent etc.
+    # research_agent etc.
     try:
         from openprogram.usage.context import (
             apply_snapshot as _apply_uctx,

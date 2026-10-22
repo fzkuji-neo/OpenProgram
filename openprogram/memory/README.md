@@ -56,7 +56,6 @@ beside the personal one (`layers.*`), and a self-check after each write
 | `prompts/` | What the writer, the organizer and the verifier are told |
 | `runtime/` | Node marks, thresholds, derived views, writer status, legacy commitment migration parser |
 | `agent_runtime/` | The process that performs a write |
-| `index.py`, `journal.py`, `schema.py` | The previous layer's short-term store, kept only for the `wiki_agent` program |
 
 ## Working here
 

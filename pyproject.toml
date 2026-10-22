@@ -181,7 +181,7 @@ embedding = [
     "sentence-transformers>=6.1,<7; sys_platform != 'darwin' or platform_machine != 'x86_64'",
     "torch>=2.13,<3; sys_platform != 'darwin' or platform_machine != 'x86_64'",
 ]
-# NOTE: the agentic *programs* (gui / research / wiki harnesses) no
+# NOTE: the agentic *programs* (gui / research harnesses) no
 # longer have extras here. Each harness is self-describing — its own
 # pyproject.toml declares its third-party deps, and ``openprogram
 # programs install <name>`` clones it and prepares its isolated environment, so
@@ -225,7 +225,7 @@ all = [
     "slack_sdk>=3.27.0",
     # Browser tool (run `playwright install chromium` after install)
     "playwright>=1.45.0",
-    # NOTE: agentic programs (gui/research/wiki) are NOT here — they're
+    # NOTE: agentic programs (gui/research) are NOT here — they're
     # installed via ``openprogram programs install <name>``, which pulls
     # each harness's own declared deps. See the note by ``channels``.
 ]

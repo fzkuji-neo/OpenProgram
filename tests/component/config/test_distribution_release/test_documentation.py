@@ -258,8 +258,6 @@ def test_public_docs_describe_one_release_product_runtime() -> None:
         ROOT / "docs" / "capabilities" / "computer-use.zh.md",
         ROOT / "docs" / "capabilities" / "workflows" / "research-agent.md",
         ROOT / "docs" / "capabilities" / "workflows" / "research-agent.zh.md",
-        ROOT / "docs" / "capabilities" / "workflows" / "wiki-agent.md",
-        ROOT / "docs" / "capabilities" / "workflows" / "wiki-agent.zh.md",
         ROOT / "docs" / "capabilities" / "tools.md",
         ROOT / "docs" / "capabilities" / "tools.zh.md",
         ROOT / "docs" / "capabilities" / "README.md",

@@ -12,7 +12,7 @@ Every call names a `target`:
 | `browser` | Web pages, in the browser named by `args.browser`: the App's built-in browser by default (tabs in the App's windows and tabs it opens in the background), or your own Chrome or Edge | The App; for Chrome or Edge, see [Your own Chrome or Edge](#your-own-chrome-or-edge) |
 | `vm` | A remote machine behind an OSWorld-compatible server | `computer_use.vm_url`, see [Virtual machine](#virtual-machine) |
 
-The tool's description is only this list. The first call to a target in a conversation returns that target's guide, its actions and their arguments, together with the target's current state, so the model learns the actions of the screen it is about to use and nothing else. `action="guide"` shows the guide again.
+The tool's description is only this list. The first call to a target in a conversation returns that target's guide, its actions and their arguments, together with the target's current state, so the model learns the actions of the screen it is about to use and nothing else. `action="guide"` shows the guide again. Every call is checked against the guide before anything runs: an unknown action or argument fails at once and the error spells out that action's arguments, so nothing is silently dropped. A few names carried over from Playwright are accepted as ours, such as `select_option` for `select`, `values` for `value` and `expression` for `script`.
 
 ## What a step looks like
 

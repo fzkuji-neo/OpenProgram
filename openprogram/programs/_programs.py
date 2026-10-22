@@ -2,11 +2,10 @@
 git repositories and get installed **in-tree** under
 ``openprogram/programs/packages/``.
 
-The three flagship welcome-screen functions are big enough to keep their
-own repos (own deps, tests, docs, release cadence):
+The flagship welcome-screen function is big enough to keep its own repo
+(own deps, tests, docs, release cadence):
 
     research_agent  <- research_harness      (Research-Agent-Harness)
-    wiki_agent      <- wiki_agent_harness    (Wiki-Agent-Harness)
 
 The GUI program (gui_harness, GUI-Agent-Harness) has no entry: it is a
 library for computer_use_agent's describe grounding.
@@ -42,13 +41,13 @@ Install / remove with::
     openprogram programs install gui      # git clone into programs/packages/
     openprogram programs install all
     openprogram programs install https://github.com/owner/Some-Harness
-    openprogram programs uninstall wiki
+    openprogram programs uninstall research
     openprogram programs uninstall Some-Harness
 
 The clone directories are git-ignored by the parent repo (see
 ``.gitignore``) — they remain independent checkouts of their own repos.
 
-Installing a THIRD-PARTY harness (any repo, not just these three) uses
+Installing a THIRD-PARTY harness (any repo, not just these) uses
 the same CLI command. The installer verifies the package contract and records
 the approved source; unrecorded directories are not imported. Full
 procedure (the canonical install flow, written to be agent-executable):
@@ -434,7 +433,7 @@ class Program:
             <package>``). Its ``__init__`` imports the entry point so the
             decorator self-registers on import.
         extra: Short selector name used on the CLI (``openprogram
-            programs install <extra>`` → ``gui`` / ``research`` / ``wiki``).
+            programs install <extra>`` → ``gui`` / ``research``).
             Just a handle — it does NOT map to an ``openprogram[...]``
             extra anymore; a harness's runtime deps live in the harness's
             own pyproject and are installed from the clone (see
@@ -573,7 +572,6 @@ def _has_installed_distribution(package: str) -> bool:
     distribution_name = {
         "gui_harness": "gui-agent-harness",
         "research_harness": "research-agent-harness",
-        "wiki_agent_harness": "wiki-agent-harness",
     }.get(package, package.replace("_", "-"))
     try:
         from importlib.metadata import PackageNotFoundError, distribution
@@ -612,17 +610,6 @@ KNOWN_PROGRAMS: list[Program] = [
         heavy=False,  # only depends on openprogram itself
         public=True,
         install_dir="research_harness",
-    ),
-    Program(
-        function="wiki_agent",
-        package="wiki_agent_harness",
-        extra="wiki",
-        repo=f"{_GH}/Wiki-Agent-Harness",
-        summary="Personal wiki agent — ingest sessions and organise a knowledge vault.",
-        heavy=False,
-        public=True,
-        size_note="repo < 1 MB; deps: Jinja2 + PyYAML (tiny)",
-        install_dir="wiki_agent_harness",
     ),
 ]
 

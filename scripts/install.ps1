@@ -15,7 +15,7 @@
  Agentic programs (GUI / Research / Wiki) are NOT installed here - the
  first run of `openprogram` opens the setup wizard, whose "Agent
  programs" step lets the user pick which to install (sizes shown).
- Manual: openprogram programs install <gui|research|wiki|all>
+ Manual: openprogram programs install <gui|research|all>
  Non-interactive: pass -Programs <gui|research|wiki|all> (comma-separated
  or repeated) to install them right after the main install.
 
@@ -341,13 +341,12 @@ function Install-Extras {
 
 # ---- 8a. interactive program menu -------------------------------------------
 # Sizes mirror KNOWN_PROGRAMS (openprogram/programs/_programs.py).
-$ProgramKeys = @("gui","research","wiki")
+$ProgramKeys = @("gui","research")
 $ProgramMenu = @(
   "GUI harness      - autonomous desktop agent (downloads PyTorch: ~300 MB CPU / ~3 GB CUDA; ~1.5 GB on disk)",
-  "Research harness - topic -> submission-ready paper (repo < 1 MB, only depends on openprogram)",
-  "Wiki harness     - ingest sessions into a knowledge vault (repo < 1 MB; Jinja2 + PyYAML)"
+  "Research harness - topic -> submission-ready paper (repo < 1 MB, only depends on openprogram)"
 )
-# Parse "1,3" / "all" / "none" / "" -> string[] of keys, or $null on invalid.
+# Parse "1,2" / "all" / "none" / "" -> string[] of keys, or $null on invalid.
 function Convert-ProgramChoice([string]$raw) {
   $r = ($raw -replace '\s','').ToLower()
   if ($r -eq '' -or $r -eq 'none') { return @() }

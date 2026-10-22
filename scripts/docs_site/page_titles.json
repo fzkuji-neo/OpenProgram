@@ -135,10 +135,6 @@
     "en": "Research Agent",
     "zh": "研究智能体"
   },
-  "capabilities/workflows/wiki-agent.md": {
-    "en": "Wiki Agent",
-    "zh": "知识库智能体"
-  },
   "comparisons/ai-agent-frameworks.md": {
     "en": "Framework comparison",
     "zh": "框架对比"

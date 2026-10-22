@@ -168,7 +168,7 @@ Invoke-Native $Uv pip install --python $PythonBin --strict --break-system-packag
 $ProgramStaging = Join-Path ([IO.Path]::GetTempPath()) ("openprogram-programs-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $ProgramStaging | Out-Null
 try {
-    foreach ($ProgramName in @("gui", "research", "wiki")) {
+    foreach ($ProgramName in @("gui", "research")) {
         $Program = $Product.programs.$ProgramName
         $ProgramDir = Join-Path $ProgramStaging $ProgramName
         Invoke-Native git.exe init -q $ProgramDir
@@ -178,12 +178,9 @@ try {
         if ($ProgramName -eq "gui") {
             Invoke-Native $Uv pip install --python $PythonBin --strict `
                 --break-system-packages --no-deps $ProgramDir
-        } elseif ($ProgramName -eq "research") {
-            Invoke-Native $Uv pip install --python $PythonBin --strict `
-                --break-system-packages "${ProgramDir}[pdf]"
         } else {
             Invoke-Native $Uv pip install --python $PythonBin --strict `
-                --break-system-packages $ProgramDir
+                --break-system-packages "${ProgramDir}[pdf]"
         }
     }
 } finally {

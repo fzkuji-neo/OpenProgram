@@ -131,12 +131,11 @@ DEFAULT_TOOLS: list[str] = [
     *MEMORY_TOOL_NAMES,
     "scheduler",
     # Agentic harness entry points — these are the user-facing
-    # programs (research_agent / wiki_agent) that the LLM should know
+    # programs (research_agent) that the LLM should know
     # about by default. Without them in DEFAULT_TOOLS the model has no
     # idea these exist and resorts to bash-grepping the filesystem when
     # asked to "use research_agent" or similar.
     "research_agent",
-    "wiki_agent",
 ]
 
 

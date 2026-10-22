@@ -388,7 +388,7 @@ _WRITE_TOOLS = {
 }
 _PROCESS_TOOLS = {
     "bash", "exec", "shell", "execute_code", "write_stdin", "agent",
-    "research_agent", "wiki_agent", "browser_agent",
+    "research_agent", "browser_agent",
     "playwright_browser",
 }
 _BROWSER_CONTROL_TOOLS = {"web_use"}

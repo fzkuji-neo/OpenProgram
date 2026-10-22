@@ -15,7 +15,6 @@ Complete workflows written on top of the paradigm (called harnesses / agentic pr
 
 - [Agentic workflows overview](workflows/README.md)
 - [Research Agent](workflows/research-agent.md) — from topic selection to a submittable paper
-- [Wiki Agent](workflows/wiki-agent.md) — distills sessions into an HTML knowledge base
 - [Installing and writing harnesses](installing-harnesses.md) — the install mechanism and directory contract for third-party harnesses
 
 ## Extension mechanisms

@@ -138,8 +138,8 @@ def _cmd_list():
     for name, desc in sorted(entries):
         print(f"  {name:24s}  {desc}")
 
-    # Also surface the optional first-party *programs* (gui / research /
-    # wiki agents) and whether each is installed on this machine.
+    # Also surface the optional first-party *programs* (gui / research
+    # agents) and whether each is installed on this machine.
     _print_programs_status()
 
 
@@ -207,7 +207,7 @@ def _cmd_programs_available() -> None:
 
 
 def _resolve_programs(name: str):
-    """Resolve a program selector ('gui'/'research'/'wiki'/'all') to a list."""
+    """Resolve a program selector ('gui'/'research'/'all') to a list."""
     from openprogram.programs._programs import KNOWN_PROGRAMS, get_program
 
     if name in ("all", "*"):
@@ -514,7 +514,7 @@ def _cmd_uninstall(name: str) -> None:
                 except OSError as e:
                     print(f"[x] {name}: could not remove {dest}: {e}")
             return
-        print(f"Unknown program: {name!r}. First-party: gui/research/wiki; "
+        print(f"Unknown program: {name!r}. First-party: gui/research; "
               f"third-party harnesses by clone-dir name "
               f"(see `openprogram programs available`).")
         sys.exit(1)

@@ -249,7 +249,7 @@ install_extras() {
 
 # ---- 9. complete first-party Programs ---------------------------------------
 install_first_party_programs() {
-  step "installing GUI, Research, and Wiki Programs"
+  step "installing GUI and Research Programs"
   "$PY" -m openprogram programs install all
   local gui_source research_source
   gui_source="$("$PY" -c 'from openprogram.programs._programs import get_program; print(get_program("gui").clone_dir())')"
@@ -276,7 +276,7 @@ from openprogram.programs._programs import import_installed_programs
 if not any(Path(easyocr.config.MODULE_PATH).rglob("*.pth")):
     raise SystemExit("default EasyOCR model data is missing")
 import gui_harness  # a library for computer_use_agent; it registers no entries
-required = {"research_agent", "wiki_agent"}
+required = {"research_agent"}
 registered = set(import_installed_programs())
 missing = required - registered
 if missing:

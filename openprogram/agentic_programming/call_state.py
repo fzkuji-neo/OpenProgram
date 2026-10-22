@@ -54,14 +54,14 @@ _render_range_override: ContextVar[Optional[dict]] = ContextVar(
 )
 
 # Self-recursion safety net. The primary guard against an agentic
-# function re-entering itself (wiki_agent calling wiki_agent →
+# function re-entering itself (research_agent calling research_agent →
 # unbounded nesting) is the situational prompt injected in
 # ``runtime._render_history_messages`` — the model is told it is
 # already running inside the function and should not call it. This
 # depth counter is only a backstop: if a runaway model ignores the
 # guidance and re-enters the SAME function past the limit, we abort
 # instead of burning tokens forever. Per-function-name depth, so
-# distinct functions (wiki_agent → research_agent → …) never collide.
+# distinct functions (research_agent → agent → …) never collide.
 _MAX_AGENTIC_RECURSION_DEPTH = 5
 _recursion_depth: ContextVar[Optional[dict]] = ContextVar(
     '_recursion_depth', default=None,

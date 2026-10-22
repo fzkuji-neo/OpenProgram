@@ -276,7 +276,7 @@ def test_product_runtime_installs_complete_default_capabilities() -> None:
     assert "Salesforce/GPA-GUI-Detector" in product_config
     assert "GUI-Agent-Harness" in product_config
     assert "Research-Agent-Harness" in product_config
-    assert "Wiki-Agent-Harness" in product_config
+    assert "Wiki-Agent-Harness" not in product_config
 
 
 def test_posix_runtime_build_has_stable_python_and_bundled_tui_launchers() -> None:
@@ -534,9 +534,8 @@ def test_product_manifest_requires_one_complete_capability_set() -> None:
         "model.gpa_detector",
         "program.gui",
         "program.research",
-        "program.wiki",
     }
-    assert set(manifest["programs"]) == {"gui", "research", "wiki"}
+    assert set(manifest["programs"]) == {"gui", "research"}
     assert "torch" not in manifest["programs"]["gui"]
     assert "torchvision" not in manifest["programs"]["gui"]
     assert "numpy" not in manifest["programs"]["gui"]

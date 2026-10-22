@@ -24,7 +24,7 @@ def test_gui_application_uses_current_agentic_namespace(monkeypatch):
 
 def test_application_production_code_has_no_removed_agentic_namespace():
     offenders = []
-    for package in ("gui_harness", "research_harness", "wiki_agent_harness"):
+    for package in ("gui_harness", "research_harness"):
         source_root = APPLICATIONS / package / package
         offenders.extend(
             str(path.relative_to(APPLICATIONS))

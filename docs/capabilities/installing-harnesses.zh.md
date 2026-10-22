@@ -5,8 +5,8 @@
 程序包显示在 **能力 → Programs → Packages**。Tools 和 Workflows 是可调用能力，软件 Applications 由独立页面管理。新克隆使用 `programs/packages/`；已经登记在 `programs/applications/` 的源码保留原位置和调用名，升级、卸载使用登记位置。分类改名不会重新下载或移动源码。
 
 **harness**（一个 *agentic program*）是一个自包含的、由 agentic
-function 组成的 git 仓库。每个受支持的 release 已经包含 GUI、Research、Wiki
-三项第一方 Program package 与受支持的 runtime 资产。GUI package 不包含
+function 组成的 git 仓库。每个受支持的 release 已经包含 GUI、Research
+两项第一方 Program package 与受支持的 runtime 资产。GUI package 不包含
 PyTorch、OpenCV 或 EasyOCR，具体边界见下文。`openprogram programs install`
 用于额外第三方 Program 或开发者 source overlay，不是补齐 release 安装的步骤。
 immutable product runtime 拒绝原地安装、升级和卸载 Program。
@@ -64,12 +64,11 @@ openprogram programs install <ref> --upgrade    # git pull + 重新解析依赖
 但不修改链接目标；同名且不是Git克隆的目录仍会被拒绝。对symlink执行`uninstall`
 只删除链接，不删除它指向的检出。
 
-## 第一方 Programs（gui / research / wiki）
+## 第一方 Programs（gui / research）
 
 | Program | Release 状态 | 说明 |
 |---|---|---|
 | [Research Agent](https://github.com/Fzkuji/Research-Agent-Harness) | 已包含 | product manifest 记录固定 source commit；builder 安装声明的 PDF 依赖，runtime manifest 记录解析后的 distributions。 |
-| [Wiki Agent](https://github.com/Fzkuji/Wiki-Agent-Harness) | 已包含 | product manifest 记录固定 source commit；builder 安装声明的依赖，runtime manifest 记录解析后的 distributions。 |
 | [GUI](https://github.com/Fzkuji/GUI-Agent-Harness) | 已包含 | 作为 [`computer_use_agent`](computer-use.zh.md#按描述定位) 的 `describe` 所用的库，不注册工具。附带 GPA detector 权重。产品 runtime 不含 PyTorch、OpenCV 或 EasyOCR。 |
 
 release 用户不执行 `programs install all`、首次启动 Program wizard 或 GUI

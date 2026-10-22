@@ -247,7 +247,6 @@ def _probe(
     expected_programs = {
         "gui": None,
         "research": "research_agent",
-        "wiki": "wiki_agent",
     }
     for name, function in expected_programs.items():
         program = product["programs"][name]

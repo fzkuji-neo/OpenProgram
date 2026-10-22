@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Pinned first-party inputs are declared beside this script in product-runtime.json:
-# GUI-Agent-Harness, Research-Agent-Harness, and Wiki-Agent-Harness.
+# GUI-Agent-Harness and Research-Agent-Harness.
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 product_config="$repo_root/scripts/release/product-runtime.json"
@@ -103,24 +103,21 @@ test -n "$wheel" || {
 
 # Product runtimes do not ship torch. GUI perception (ultralytics / EasyOCR)
 # pulls it, so the harness is installed without those extras; it still
-# registers. Research PDF and Wiki do not need torch.
+# registers. Research PDF does not need torch.
 program_staging="$(mktemp -d "${TMPDIR:-/tmp}/openprogram-programs.XXXXXX")"
 cleanup() { rm -rf "$program_staging"; restore_previous_runtime; }
 trap cleanup EXIT HUP INT TERM
 
-for program_name in gui research wiki; do
+for program_name in gui research; do
   program_dir="$program_staging/$program_name"
   "$json_python" "$repo_root/scripts/release/stage-program-source.py" \
     "$program_name" "$program_dir"
   if test "$program_name" = gui; then
     "$uv_bin" pip install --python "$python_bin" --strict \
       --break-system-packages --no-deps "$program_dir"
-  elif test "$program_name" = research; then
-    "$uv_bin" pip install --python "$python_bin" --strict \
-      --break-system-packages "${program_dir}[pdf]"
   else
     "$uv_bin" pip install --python "$python_bin" --strict \
-      --break-system-packages "$program_dir"
+      --break-system-packages "${program_dir}[pdf]"
   fi
 done
 

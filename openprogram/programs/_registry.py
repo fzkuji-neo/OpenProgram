@@ -72,11 +72,11 @@ def load_program_modules(
         _debug_registry_error("workflows", e)
 
     # 3. First-party *programs* — the agentic harnesses shipped as
-    #    separate pip-installable packages (gui_harness / research_harness
-    #    / wiki_agent_harness). Importing an installed package fires its
+    #    separate pip-installable packages (gui_harness / research_harness).
+    #    Importing an installed package fires its
     #    explicit exports register the entry point.
     #    Absent packages are skipped silently — this is the supported way
-    #    to ship research_agent / wiki_agent, replacing the
+    #    to ship research_agent, replacing the
     #    old per-machine symlinks under agentics/. See functions/_programs.py.
     try:
         from openprogram.programs._programs import import_installed_programs
@@ -128,7 +128,7 @@ def _iter_external_harness_dirs(applications_dir: str) -> Iterator[tuple[str, st
     Accepting real directories is what makes "install a third-party
     harness = clone it into agentics/, done" work without symlinks
     (symlinks need admin/developer mode on Windows). A hyphenated name
-    like ``Wiki-Agent-Harness`` is the canonical shape — Python can't
+    like ``Research-Agent-Harness`` is the canonical shape — Python can't
     import it directly, so the PROGRAM_MODULES loop ignores it, but this
     loop picks it up via its inner Python package (see
     :func:`_find_python_package`).
@@ -220,7 +220,7 @@ def _import_external_harness(harness_root: str) -> None:
         return  # harness exists but doesn't expose any agentics — fine
 
     # Put the harness's package root on sys.path so its internal absolute
-    # imports (e.g. ``from wiki_agent_harness.foo import bar``) resolve.
+    # imports (e.g. ``from research_harness.foo import bar``) resolve.
     sys_path_root = os.path.dirname(pkg_dir)
     if sys_path_root not in sys.path:
         sys.path.insert(0, sys_path_root)

@@ -15,7 +15,6 @@ OpenProgram 的底座是 Agentic Programming：**Python 控制流程，LLM 提�
 
 - [Agentic Workflows 总览](workflows/README.zh.md)
 - [Research Agent](workflows/research-agent.zh.md) —— 从选题到可提交论文
-- [Wiki Agent](workflows/wiki-agent.zh.md) —— 把会话沉淀成 HTML 知识库
 - [安装与编写 Harness](installing-harnesses.zh.md) —— 第三方 harness 的安装机制与目录契约
 
 ## 扩展机制

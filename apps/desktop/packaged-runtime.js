@@ -50,7 +50,6 @@ function resolvePackagedWorker(
     "model.gpa_detector",
     "program.gui",
     "program.research",
-    "program.wiki",
   ];
   for (const capability of requiredCapabilities) {
     const state = manifest.capabilities?.[capability];

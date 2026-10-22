@@ -381,7 +381,7 @@ def main() -> int:
         "Build agents that program their own workflows.",
         "Use an agent or build your own.",
         "Everything you need to run agents.",
-        "GUI Agent", "Research Agent", "Wiki Agent",
+        "GUI Agent", "Research Agent",
     ):
         require(phrase in visible_text, f"missing product copy: {phrase}", failures)
     require('<span class="program-word">program</span>' in source,
@@ -390,7 +390,6 @@ def main() -> int:
     for harness_url in (
         "https://github.com/Fzkuji/GUI-Agent-Harness",
         "https://github.com/Fzkuji/Research-Agent-Harness",
-        "https://github.com/Fzkuji/Wiki-Agent-Harness",
     ):
         require(harness_url in page.anchors,
                 f"missing harness link {harness_url}", failures)

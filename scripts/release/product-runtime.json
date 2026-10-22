@@ -20,8 +20,7 @@
     "browser.playwright",
     "model.gpa_detector",
     "program.gui",
-    "program.research",
-    "program.wiki"
+    "program.research"
   ],
   "programs": {
     "gui": {
@@ -39,14 +38,6 @@
       "commit": "d324eb4b3b2c2ccc0954e7432e112ba13b818bb7",
       "sourcePatch": "program-patches/research_harness.patch",
       "sourcePatchSha256": "44d5d83850f359d15454a1dd2b799193356ed45a127c75100a89e3c666a76d4b"
-    },
-    "wiki": {
-      "distribution": "wiki-agent-harness",
-      "import": "wiki_agent_harness",
-      "repository": "https://github.com/Fzkuji/Wiki-Agent-Harness.git",
-      "commit": "18c459256888431e9d925a98c02559d4bd2be7ca",
-      "sourcePatch": "program-patches/wiki_agent_harness.patch",
-      "sourcePatchSha256": "30985396260d836e812cc07a25562da98ebdc104c5b0ea9b9b7a17218bf53da9"
     }
   },
   "assets": {

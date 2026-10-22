@@ -30,7 +30,6 @@ try {
       "model.gpa_detector",
       "program.gui",
       "program.research",
-      "program.wiki",
     ].map((name) => [name, { present: true, verified: true }]),
   );
   fs.writeFileSync(

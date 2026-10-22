@@ -101,12 +101,11 @@ def test_program_meta_migrates_application_directory_favorites(meta_app):
 
     assert client.get("/api/programs/meta").json()["favorites"] == [
         "research_agent",
-        "wiki_agent",
     ]
     stored = json.loads(
         (home / ".openprogram" / "programs_meta.json").read_text(encoding="utf-8")
     )
-    assert stored["favorites"] == ["research_agent", "wiki_agent"]
+    assert stored["favorites"] == ["research_agent"]
 
 
 def test_toolset_resolution_reads_the_active_profile_state(

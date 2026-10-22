@@ -16,7 +16,7 @@ from openprogram.programs._execution_common import ToolReturn
 from openprogram.programs._runtime import function
 
 from . import code as code_mode
-from . import fresh, grounding
+from . import fresh, grounding, params
 from .targets import app, browser, vm
 
 NAME = "computer_use_agent"
@@ -233,6 +233,9 @@ def computer_use_agent(
         steps = _steps(action, call_args, actions)
     except ValueError as exc:
         return ToolReturn(text=f"Error: {exc}.", is_error=True)
+    steps, call_args, problem = params.check(target, steps, call_args)
+    if problem:
+        return ToolReturn(text=f"Error: {problem}", is_error=True)
     first = _first_time(session, target)
     with _in_use(target, call_args):
         if code:

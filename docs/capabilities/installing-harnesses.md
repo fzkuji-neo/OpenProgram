@@ -3,8 +3,8 @@
 Program packages appear under **Abilities → Programs → Packages**. Tools and Workflows are their callable capabilities; software Applications have a separate management page. New clones use `programs/packages/`. Previously registered `programs/applications/` checkouts retain their locations and call names; upgrading or removing them uses their recorded locations. No source is downloaded or moved just to rename its category.
 
 A **harness** (an *agentic program*) is a self-contained git repo of
-agentic functions. Every supported release already contains the GUI, Research,
-and Wiki first-party Program packages and their supported runtime assets.
+agentic functions. Every supported release already contains the GUI and Research
+first-party Program packages and their supported runtime assets.
 The GUI package is installed without PyTorch, OpenCV, or EasyOCR, as described
 below. `openprogram programs install` is for additional third-party Programs
 or developer source overlays; it is not a step required to complete a release
@@ -63,12 +63,11 @@ contract and records the link without modifying its target. It refuses a
 same-named non-git directory. `uninstall` on a symlink removes only the link,
 never the checkout it points to.
 
-## First-party Programs (gui / research / wiki)
+## First-party Programs (gui / research)
 
 | Program | Release status | Notes |
 |---|---|---|
 | [Research Agent](https://github.com/Fzkuji/Research-Agent-Harness) | Included | The product manifest records the fixed source commit; the builder installs the declared PDF dependencies, and the runtime manifest records the resolved distributions. |
-| [Wiki Agent](https://github.com/Fzkuji/Wiki-Agent-Harness) | Included | The product manifest records the fixed source commit; the builder installs the declared dependencies, and the runtime manifest records the resolved distributions. |
 | [GUI](https://github.com/Fzkuji/GUI-Agent-Harness) | Included | A library for [`computer_use_agent`](computer-use.md#pointing-by-description)'s `describe`; it registers no tools. The GPA detector weight is shipped. PyTorch, OpenCV, and EasyOCR are not in the product runtime. |
 
 Release users do not run `programs install all`, a first-run Program wizard,

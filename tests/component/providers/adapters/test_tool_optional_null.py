@@ -67,8 +67,19 @@ def test_native_nullable_values_are_not_omitted(prop, required):
     assert _validate(schema, {"value": None}) == {"value": None}
 
 
-def test_null_not_allowed_by_strict_enum_is_still_invalid():
+def test_optional_strict_enum_null_means_omitted():
+    # Strict mode makes every property required, so an optional enum needs
+    # null to say "omitted"; without it the model must pick a value.
     schema = {"type": "object", "properties": {"space": {"type": "string", "enum": ["self"]}}}
+    tool = Tool(name="fixture", description="Fixture", parameters=schema)
+    args = {"space": None}
+    assert Draft7Validator(_wire(tool)["parameters"]).is_valid(args)
+    assert validate_tool_call([tool], ToolCall(id="fixture", name="fixture", arguments=args)) == {}
+
+
+def test_null_not_allowed_by_required_enum_is_still_invalid():
+    schema = {"type": "object", "properties": {"space": {"type": "string", "enum": ["self"]}},
+              "required": ["space"]}
     tool = Tool(name="fixture", description="Fixture", parameters=schema)
     args = {"space": None}
     assert not Draft7Validator(_wire(tool)["parameters"]).is_valid(args)

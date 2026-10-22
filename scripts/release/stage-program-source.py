@@ -60,7 +60,7 @@ def stage(name: str, destination: Path, checkout: Path | None = None):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('name', choices=('gui', 'research', 'wiki'))
+    parser.add_argument('name', choices=('gui', 'research'))
     parser.add_argument('destination', type=Path)
     parser.add_argument('--checkout', type=Path)
     args = parser.parse_args()

@@ -11,7 +11,6 @@ Two first-party workflows:
 | Workflow | Release status | In one line |
 |---|---|---|
 | [Research Agent](research-agent.md) | Included | From research topic to submission-ready paper, with a deterministic verification layer |
-| [Wiki Agent](wiki-agent.md) | Included | Distills sessions and notes into a templated HTML knowledge base |
 
 ## Management commands
 
@@ -33,8 +32,8 @@ First-party Programs are immutable product components. In a mutable extension or
 ## How to trigger them
 
 - **Web parameter form**: click **Use** in Programs or a sidebar favorite. A new-tab page becomes a draft chat; an existing chat keeps its draft and running task. Fill in the task requirements and send explicitly. Opening or closing the form does not run the Workflow.
-- **In chat**: entry functions register as tools (`as_tool=True`). Describe the task in natural language and the model calls them (e.g. `research_agent`, `wiki_agent`). Operating apps, built-in browser Pages and a VM is the [`computer_use_agent`](../computer-use.md) tool, not a workflow.
-- **From the command line**: `openprogram programs run wiki_agent -a task="Ingest the notes above into the wiki"`.
+- **In chat**: entry functions register as tools (`as_tool=True`). Describe the task in natural language and the model calls them (e.g. `research_agent`). Operating apps, built-in browser Pages and a VM is the [`computer_use_agent`](../computer-use.md) tool, not a workflow.
+- **From the command line**: `openprogram programs run research_agent -a task="Survey recent work on agent memory"`.
 - **From Python**: harness functions are ordinary importable Python functions.
 
 ## Model selection

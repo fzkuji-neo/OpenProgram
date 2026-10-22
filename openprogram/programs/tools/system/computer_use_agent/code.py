@@ -20,6 +20,7 @@ from typing import Any, Callable
 
 from openprogram.programs._execution_common import ToolReturn
 
+from . import params
 from .targets import app as app_target
 from .targets import browser as browser_target
 from .targets import vm as vm_target
@@ -112,11 +113,13 @@ def close(session: str) -> None:
 def _adapter(target, action: str, call_args: dict, session: str) -> Callable:
     def method(arguments: dict, observation, context) -> ToolReturn:
         context.check()
-        step = dict(arguments)
-        if target is app_target and action == "get_app_state":
+        name, step, problem = params.check_step(target.NAME, action, dict(arguments))
+        if problem:
+            return ToolReturn(text=f"Error: {problem}", is_error=True)
+        if target is app_target and name == "get_app_state":
             # Code parses what it reads, so a read is the whole tree, not the change since the last one.
             step.setdefault("full", True)
-        result = target.run([(action, step)], call_args, session)
+        result = target.run([(name, step)], call_args, session)
         # Code reads text and data; screenshots come back to a model through action calls.
         return ToolReturn(text=result.text, json_data=result.json_data, is_error=result.is_error)
     return method

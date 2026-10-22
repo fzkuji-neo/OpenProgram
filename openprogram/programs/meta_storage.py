@@ -101,9 +101,10 @@ def load_programs_meta(default: dict[str, Any]) -> dict[str, Any]:
             for program in KNOWN_PROGRAMS if program.function
             for alias in (program.install_dir, program.package, program.repo_dir_name)
         }
-        # A library Program has nothing to run, so a favorite of it, or of
-        # the GUI Program's retired gui_agent entry, is dropped.
-        libraries = {"gui_agent"} | {
+        # A library Program has nothing to run, so a favorite of it, of the
+        # GUI Program's retired gui_agent entry, or of the removed Wiki
+        # Program, is dropped.
+        libraries = {"gui_agent", "wiki_agent", "wiki_agent_harness", "Wiki-Agent-Harness"} | {
             alias
             for program in KNOWN_PROGRAMS if not program.function
             for alias in (program.install_dir, program.package, program.repo_dir_name)

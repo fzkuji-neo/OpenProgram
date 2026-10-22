@@ -60,7 +60,7 @@ def _discover_functions() -> list[dict]:
             result.extend(infos)
 
     # First-party *programs* — pip-installed harnesses (gui_harness /
-    # research_harness / wiki_agent_harness). These register into the
+    # research_harness). These register into the
     # Agent method registry on import but their source lives in
     # site-packages, not under agentics/, so the filesystem walk above
     # misses them. Surface each installed program's entry point by
