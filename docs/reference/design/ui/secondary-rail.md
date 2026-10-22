@@ -39,7 +39,8 @@ No page styles its own rail rows.
 
 Folders are one glyph everywhere: the main sidebar's Solar `folder` /
 `folder-open` (duotone, in the row's own colour), in the project rail, the
-Memory topics tree and the Programs tree; pages are Solar `file-text`, and a
+Memory topics tree and the Programs tree. A tree folder is open while
+expanded, and the selected project in the rail shows the open folder; pages are Solar `file-text`, and a
 missing folder shows Solar `danger-triangle`. Section rows (Memory's Topics,
 Timeline, …) keep the main sidebar's line nav icons.
 

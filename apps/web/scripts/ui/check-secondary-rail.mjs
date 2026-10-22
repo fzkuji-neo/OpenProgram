@@ -55,4 +55,7 @@ for (const file of ["components/projects/projects-page.tsx", "components/memory/
   assert.ok(!/\b(?:FolderOpen|FoldersIcon|treeIconFolder)\b/.test(source), `${file} draws a second folder style`);
 }
 
+// The selected project's folder is open, as an expanded sidebar group's is.
+assert.match(read("components/projects/projects-page.tsx"), /<ProjectGlyph size=\{16\} open=\{p\.id === selectedId\} \/>/);
+
 console.log("secondary rail: ok");

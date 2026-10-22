@@ -244,7 +244,7 @@ export function ProjectsPage({
               return (
                 <RailItem
                   key={p.id}
-                  icon={p.icon || <ProjectGlyph size={16} />}
+                  icon={p.icon || <ProjectGlyph size={16} open={p.id === selectedId} />}
                   label={label(p)}
                   badge={p.hidden ? <RailBadge>{text("Hidden", "已隐藏")}</RailBadge> : undefined}
                   trailing={unavailable ? (
@@ -433,9 +433,10 @@ export function ProjectsPage({
 }
 
 /** A project without its own icon shows the main sidebar's Solar folder,
-    so the sidebar, this rail and the Memory tree draw one folder. */
-function ProjectGlyph({ size }: { size: number }) {
-  return <SolarIcon name="folder" size={size} motionPreset="none" aria-hidden="true" />;
+    so the sidebar, this rail and the Memory tree draw one folder; the
+    selected project's folder is open, like an expanded sidebar group. */
+function ProjectGlyph({ size, open = false }: { size: number; open?: boolean }) {
+  return <SolarIcon name={open ? "folder-open" : "folder"} size={size} motionPreset="none" aria-hidden="true" />;
 }
 
 /** A read-only path or id on the Info tab. */
