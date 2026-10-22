@@ -98,7 +98,7 @@ function isMenuGlyph(value: unknown): value is MenuGlyph {
 
 function ItemIcon({ item }: { item: ContextMenuItem }) {
   if (isMenuGlyph(item.glyph)) return <MenuIcon glyph={item.glyph} />;
-  if (item.icon === "folder") return <SolarIcon name="folder" size={16} motionPreset="none" className="text-[var(--folder-color)]" aria-hidden="true" />;
+  if (item.icon === "folder") return <SolarIcon name="folder" size={16} motionPreset="none" className="menu-row-icon text-[var(--folder-color)]" aria-hidden="true" />;
   if (!item.iconUrl) return null;
   return <TabFavicon url={item.iconUrl} fallbackUrl={item.iconFallbackUrl} />;
 }
@@ -139,7 +139,7 @@ function NestedMenuItems({ items, persistent = false }: { items: ContextMenuItem
               </span>
             ) : null}
             <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
-            <ChevronRight size={13} className="ml-auto shrink-0" aria-hidden="true" />
+            <ChevronRight className="menu-row-chevron ml-auto size-4 shrink-0 text-text-muted" aria-hidden="true" />
           </DropdownMenuPrimitive.SubTrigger>
           <DropdownMenuPrimitive.Portal>
             <DropdownMenuPrimitive.SubContent

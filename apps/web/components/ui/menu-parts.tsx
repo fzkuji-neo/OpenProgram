@@ -51,7 +51,7 @@ export function MenuKey({ keys }: { keys: MenuKeys }) {
 }
 
 export function MenuIcon({ glyph, className }: { glyph: MenuGlyph; className?: string }) {
-  return <SolarIcon name={glyph} size={16} motionPreset="none" className={cn("shrink-0 text-text-muted", className)} aria-hidden="true" />;
+  return <SolarIcon name={glyph} size={16} motionPreset="none" className={cn("menu-row-icon shrink-0 text-text-muted", className)} aria-hidden="true" />;
 }
 
 /** The inside of a row. `checked` undefined: not checkable; false keeps
@@ -74,7 +74,7 @@ export function MenuRow({ glyph, icon, label, keys, checked, submenu, danger, ic
       <span className="min-w-0 flex-1 truncate text-left">{label}</span>
       {keys ? <MenuKey keys={keys} /> : null}
       {checked === undefined ? null : checked ? <MenuCheck /> : <span className={CHECK_SLOT_PAD} aria-hidden="true" />}
-      {submenu ? <ChevronRight className="size-4 shrink-0 text-text-muted" aria-hidden="true" /> : null}
+      {submenu ? <ChevronRight className="menu-row-chevron size-4 shrink-0 text-text-muted" aria-hidden="true" /> : null}
     </>
   );
 }

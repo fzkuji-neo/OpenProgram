@@ -250,6 +250,11 @@ right:
 - **check**: `MenuCheck` at the row end; an uncheckable row in a
   checkable group keeps the column empty (`CHECK_SLOT_PAD`).
 - **submenu**: a trailing chevron; submenus nest to any depth.
+- **lit row**: hover, keyboard highlight, an open submenu or the
+  active row light the whole row, not only the label: the muted icon,
+  key badge and chevron turn bright and the icon pops to 1.12, as the
+  composer's icons do. A tinted icon (folder, destructive) keeps its
+  colour and only pops.
 
 The desktop overlay receives the same fields as data:
 `DesktopContextMenuItem` carries `glyph` and `keys`, and the overlay

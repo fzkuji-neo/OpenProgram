@@ -30,6 +30,10 @@
  *    content, check then key hint (SHORTCUT, text-xs tracking-widest) ·
  *    check (MenuCheck, accent) with CHECK_SLOT_PAD reserving the column
  *    on unselected rows.
+ *  A lit row (hover, keyboard highlight, open submenu, active) lights
+ *    its parts with it: the muted icon, key badge and chevron turn
+ *    bright and the icon pops to 1.12 like the composer's icons
+ *    (`.menu-row` rules in app/styles/chat/top-bar-chips.css).
  *
  *  The radix PopoverContent wrapper MUST be transparent
  *  (`border-0 bg-transparent p-0 shadow-none`) — the frame is always
@@ -57,14 +61,12 @@ export const CHECK = "shrink-0 text-[var(--accent-blue)]";
 export const CHECK_SLOT = "shrink-0 text-[var(--accent-blue)]";
 export const CHECK_SLOT_PAD = "size-4 shrink-0";
 
-/** Right-aligned single-key shortcut hint (e.g. the R / P / C / A / D in
- *  the Recents context menu). Stays muted — doesn't brighten with the
- *  row on hover. */
+/** Right-aligned single-key shortcut hint. Stays muted. */
 export const SHORTCUT = "shrink-0 text-xs tracking-widest text-text-muted";
 /** A row's key as a key-cap badge (MenuKey): a menu-local letter (R) or
  *  a system shortcut (⌘T / Ctrl+T), so a single letter reads as a key. */
 export const MENU_KEY =
-  "inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-[5px] " +
+  "menu-row-key inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-[5px] " +
   "border border-[var(--border)] px-[5px] font-sans text-[11px] leading-none text-text-muted";
 
 /** Right column of a row (check, then key hint) after the content, one
@@ -107,7 +109,7 @@ export function itemCls(active: boolean, danger = false): string {
     // Nova 的行：min-h-7、rounded-md、px-1.5 py-1、text-sm、gap-1.5，行首
     // 图标 size-4（纯 svg、只包一个 svg 的 SolarIcon、或只包一个 SolarIcon
     // 的槽），不再左移——图标和文字一样留官方的 6px 行内边距。
-    "flex min-h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-md " +
+    "menu-row flex min-h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-md " +
     "px-1.5 py-1 text-sm transition-colors duration-75 " +
     "[&>svg:first-child]:size-4 [&>:first-child:has(>svg:only-child)>svg]:size-4 " +
     "[&>:first-child:has(>:only-child>svg:only-child)>*>svg]:size-4 ";
@@ -121,7 +123,7 @@ export function itemCls(active: boolean, danger = false): string {
   return (
     base +
     (active
-      ? "bg-accent text-text-bright"
+      ? "menu-row-active bg-accent text-text-bright"
       : "text-text-primary hover:bg-accent hover:text-text-bright")
   );
 }

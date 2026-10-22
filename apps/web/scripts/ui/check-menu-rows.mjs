@@ -77,3 +77,15 @@ assert.match(mainMenu, /keys=\{\{ key: "T", mod: true \}\}/);
 assert.match(mainMenu, /keys=\{\{ key: ",", mod: true \}\}/);
 // Terminal copy/paste follow the terminal's keys: Ctrl+Shift off macOS.
 assert.match(read("components/center-tabs/terminal-context-menu.tsx"), /keys=\{\{ key: "C", mod: true, shift: !isMacPlatform\(\) \}\}/);
+// A lit row lights its parts: muted icon, key badge and chevron turn
+// bright, and the icon pops like the composer's icons.
+const styles = read("components/chat/top-bar/menu-styles.ts");
+assert.match(styles, /"menu-row flex min-h-7/);
+assert.match(styles, /"menu-row-active bg-accent text-text-bright"/);
+assert.match(styles, /"menu-row-key inline-flex/);
+assert.match(parts, /"menu-row-icon shrink-0 text-text-muted"/);
+assert.match(parts, /"menu-row-chevron size-4 shrink-0 text-text-muted"/);
+const chips = read("app/styles/chat/top-bar-chips.css");
+const lit = String.raw`:is\(\.menu-row:hover, \.menu-row\[data-highlighted\], \.menu-row\[data-state="open"\], \.menu-row-active\):not\(\[data-disabled\]\)`;
+assert.match(chips, new RegExp(`${lit} \\.menu-row-icon \\{\\s*transform: scale\\(1\\.12\\);`));
+assert.match(chips, new RegExp(`${lit} :is\\(\\.menu-row-icon, \\.menu-row-key, \\.menu-row-chevron\\)\\.text-text-muted \\{\\s*color: var\\(--text-bright\\);`));
