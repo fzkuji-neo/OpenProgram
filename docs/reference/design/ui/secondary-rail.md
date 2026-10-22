@@ -37,6 +37,12 @@ No page styles its own rail rows.
 | `RailCount` | text | Quiet trailing count. |
 | `RailSeparator` | `ui/separator` | Above an "Add …" row. |
 
+Folders are one glyph everywhere: the main sidebar's Solar `folder` /
+`folder-open` (duotone, in the row's own colour), in the project rail, the
+Memory topics tree and the Programs tree; pages are Solar `file-text`, and a
+missing folder shows Solar `danger-triangle`. Section rows (Memory's Topics,
+Timeline, …) keep the main sidebar's line nav icons.
+
 States follow the list-row recipe in [surface-system.md](surface-system.md):
 hover and keyboard focus use `--bg-hover`; the selected row uses `--bg-hover`
 with `--text-bright`; an "Add …" row is `quiet` (muted text). There is one

@@ -7,8 +7,6 @@ import {
   ChevronDown,
   ChevronRight,
   FileCode,
-  Folder,
-  FolderOpen,
   GitBranch,
   Network,
   RefreshCw,
@@ -17,6 +15,7 @@ import {
   Wrench,
 } from "lucide-react";
 
+import { SolarIcon } from "@/components/solar-icons";
 import { Button } from "@/components/ui/button";
 import { ManageEmptyState, ManagePageHeader, managePageStyles } from "@/components/ui/manage-page";
 import { RailItem, SecondaryRail } from "@/components/ui/secondary-rail";
@@ -116,9 +115,8 @@ function EntryIcon({ entry, expanded }: { entry: ExplorerEntry; expanded: boolea
   if (entry.entity_kind === "package") return <Boxes size={15} className={fileStyles.treeIcon} />;
   if (entry.program_kind?.endsWith("function")) return <Wrench size={15} className={fileStyles.treeIcon} />;
   if (entry.kind === "folder") {
-    return expanded
-      ? <FolderOpen size={15} className={fileStyles.treeIconFolder} />
-      : <Folder size={15} className={fileStyles.treeIconFolder} />;
+    // The main sidebar's Solar folder, as in the project rail and Memory tree.
+    return <SolarIcon name={expanded ? "folder-open" : "folder"} size={16} motionPreset="none" aria-hidden="true" />;
   }
   return <FileCode size={15} className={fileStyles.treeIcon} />;
 }

@@ -332,7 +332,13 @@ The Settings and Info tabs of a History project use the same blocks inside
 (Chats, Memory, Settings, Info) share one layout: the project head and tab
 bar stay put, the panel fills the rest edge to edge, and each tab scrolls
 inside it (Settings and Info with a 24px edge, like the Chats toolbar).
-`npm run check:project-tabs` guards this.
+The Chats tab groups chats by recency, one titled `Card` per group with
+hairline-divided rows. Each group title is a disclosure: Today, Last 7 days
+and the newest group start open, older months and years start folded, and
+the viewer's choice per group is remembered in this browser. An open group
+lists 8 chats, then "Show all N" (a group of 10 or fewer lists them all); a toolbar button expands or folds every
+group, and a search opens them all. `npm run check:project-tabs` guards
+this.
 
 ## Button variant guidance
 

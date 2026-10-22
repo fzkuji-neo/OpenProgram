@@ -5,9 +5,8 @@
  * editor panel, loading skeleton, empty state, placeholder.
  */
 import { useRef } from "react";
-import { FileText, Folder, FolderOpen } from "lucide-react";
 
-import fileStyles from "@/components/files/files-panel.module.css";
+import { SolarIcon } from "@/components/solar-icons";
 import { RailBadge, RailCount, RailItem } from "@/components/ui/secondary-rail";
 import { parseFrontmatter, renderMarkdown } from "./markdown";
 import { formatDate } from "./format";
@@ -23,15 +22,14 @@ export function TabButton({ active, onClick, icon, children }: { active: boolean
   return <RailItem icon={icon} label={children} active={active} onClick={onClick} />;
 }
 
-/** The folder glyph is the disclosure state, as in the Programs tree. */
+/** The folder glyph is the disclosure state, as in the main sidebar's
+    project list: the same Solar folder, in the row's own colour. */
 export function FolderGlyph({ open }: { open: boolean }) {
-  return open
-    ? <FolderOpen size={15} className={fileStyles.treeIconFolder} />
-    : <Folder size={15} className={fileStyles.treeIconFolder} />;
+  return <SolarIcon name={open ? "folder-open" : "folder"} size={16} motionPreset="none" aria-hidden="true" />;
 }
 
 export function DocGlyph() {
-  return <FileText size={15} className={fileStyles.treeIcon} />;
+  return <SolarIcon name="file-text" size={16} motionPreset="none" className="text-text-muted" aria-hidden="true" />;
 }
 
 export function TreeGroup({ folder, pages, expanded, onToggle, selected, onSelect, forceOpen }: {

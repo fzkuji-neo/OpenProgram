@@ -19,7 +19,9 @@ import { useEffect, useMemo, useState } from "react";
 import styles from "./chats-page.module.css";
 import { SearchInput } from "@/components/ui/search-input";
 import { RailCount, RailGroupLabel, RailItem, SecondaryRail } from "@/components/ui/secondary-rail";
-import { ManageEmptyState } from "@/components/ui/manage-page";
+import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, ChevronUp } from "lucide-react";
+import { ManageEmptyState, ManageIconButton } from "@/components/ui/manage-page";
+import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { useTranslation, type Locale } from "@/lib/i18n";
 import { parseAttachments } from "@/components/chat/messages/user-attachments";
@@ -47,6 +49,24 @@ type SortKey = "recent" | "oldest" | "title";
 type StatusFilter = "all" | "active" | "archived";
 
 type FilterId = "all" | "today" | "past7" | "older";
+
+/** An open group lists this many chats, then "Show all N". */
+const GROUP_PREVIEW = 8;
+const GROUP_CHOICE_KEY = "chatsGroupsOpen";
+
+function readGroupChoice(): Record<string, boolean> {
+  try {
+    const raw = window.localStorage.getItem(GROUP_CHOICE_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, boolean>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeGroupChoice(choice: Record<string, boolean>) {
+  try { window.localStorage.setItem(GROUP_CHOICE_KEY, JSON.stringify(choice)); } catch { /* per-viewer convenience only */ }
+}
 
 export function ChatsPage({
   embedded,
@@ -146,6 +166,23 @@ export function ChatsPage({
       bucketSortKey(a[0]).localeCompare(bucketSortKey(b[0])),
     );
   }, [items, filter, nowTs]);
+
+  // Which recency groups are open. The viewer's own choices are kept per
+  // bucket; a group with no choice opens when it is this week's (Today,
+  // Last 7 days) or the newest one, so a long history starts folded.
+  const [groupChoice, setGroupChoice] = useState<Record<string, boolean>>(readGroupChoice);
+  const [showAll, setShowAll] = useState<Set<string>>(() => new Set());
+  const searching = query.trim() !== "";
+  const isGroupOpen = (b: BucketKey, index: number) =>
+    searching || (groupChoice[b] ?? (b === "today" || b === "past7" || index === 0));
+  const setGroupsOpen = (keys: BucketKey[], open: boolean) => setGroupChoice((current) => {
+    const next = { ...current };
+    for (const key of keys) next[key] = open;
+    writeGroupChoice(next);
+    return next;
+  });
+  const visibleGroups = grouped?.filter(([, rows]) => rows.length) ?? [];
+  const anyGroupClosed = visibleGroups.some(([b], index) => !isGroupOpen(b, index));
 
   // Same open path as the sidebar's switchTo: focus-or-create the
   // session's center tab, THEN navigate. Navigating alone left the chat
@@ -258,6 +295,14 @@ export function ChatsPage({
                   {navGroups.flatMap((group) => group.items).find((it) => it.id === filter)?.name}
                   <span className="text-sm font-normal text-muted-foreground">{items.length}</span>
                 </h3>
+                {visibleGroups.length > 1 && !searching && (
+                  <ManageIconButton
+                    label={anyGroupClosed ? text("Expand all groups", "展开全部分组") : text("Collapse all groups", "折叠全部分组")}
+                    onClick={() => setGroupsOpen(visibleGroups.map(([b]) => b), anyGroupClosed)}
+                  >
+                    {anyGroupClosed ? <ChevronsUpDown /> : <ChevronsDownUp />}
+                  </ManageIconButton>
+                )}
                 {selects}
               </div>
             )}
@@ -282,27 +327,63 @@ export function ChatsPage({
               />
             ) : grouped ? (
               <>
-                {grouped
-                  .filter(([, rows]) => rows.length)
-                  .map(([b, rows]) => (
+                {visibleGroups.map(([b, rows], index) => {
+                  const open = isGroupOpen(b, index);
+                  const all = showAll.has(b) || rows.length <= GROUP_PREVIEW + 2;
+                  const shown = all ? rows : rows.slice(0, GROUP_PREVIEW);
+                  const panelId = `chat-group-${b}`;
+                  return (
                     <section className="flex flex-col gap-3" key={b}>
-                      <h4 className="flex items-baseline gap-2 text-sm font-medium text-foreground">
-                        {bucketLabel(b, locale, fixedLabels)}
-                        <span className="font-normal text-muted-foreground">{rows.length}</span>
-                      </h4>
-                      <ChatCard>
-                        {rows.map((c) => (
-                          <ChatRow
-                            key={c.id}
-                            conv={c}
-                            locale={locale}
-                            untitled={untitled}
-                            onClick={() => openChat(c)}
+                      <h4 className="flex">
+                        <button
+                          type="button"
+                          aria-expanded={open}
+                          aria-controls={panelId}
+                          onClick={() => setGroupsOpen([b], !open)}
+                          className="group/head -mx-2 flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium text-foreground outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/50"
+                        >
+                          <ChevronRight
+                            aria-hidden="true"
+                            className={cn("size-4 text-muted-foreground transition-transform duration-150", open && "rotate-90")}
                           />
-                        ))}
-                      </ChatCard>
+                          {bucketLabel(b, locale, fixedLabels)}
+                          <span className="font-normal text-muted-foreground">{rows.length}</span>
+                        </button>
+                      </h4>
+                      {open && (
+                        <ChatCard id={panelId}>
+                          {shown.map((c) => (
+                            <ChatRow
+                              key={c.id}
+                              conv={c}
+                              locale={locale}
+                              untitled={untitled}
+                              onClick={() => openChat(c)}
+                            />
+                          ))}
+                          {rows.length > GROUP_PREVIEW + 2 && (
+                            <button
+                              type="button"
+                              onClick={() => setShowAll((current) => {
+                                const next = new Set(current);
+                                if (next.has(b)) next.delete(b); else next.add(b);
+                                return next;
+                              })}
+                              className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-muted-foreground outline-none hover:bg-muted/60 hover:text-foreground focus-visible:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset"
+                            >
+                              <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
+                                {all ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+                              </span>
+                              {all
+                                ? text("Show fewer", "收起")
+                                : text(`Show all ${rows.length}`, `显示全部 ${rows.length} 个`)}
+                            </button>
+                          )}
+                        </ChatCard>
+                      )}
                     </section>
-                  ))}
+                  );
+                })}
               </>
             ) : (
               <ChatCard>
@@ -364,9 +445,9 @@ function ChatRow({
 
 /** One recency group's chats on a Card, rows divided by hairlines, as on
  *  the Settings page (SettingsSection). */
-function ChatCard({ children }: { children: React.ReactNode }) {
+function ChatCard({ id, children }: { id?: string; children: React.ReactNode }) {
   return (
-    <Card className="gap-0 py-0">
+    <Card id={id} className="gap-0 py-0">
       <CardContent className="divide-y divide-border px-0">{children}</CardContent>
     </Card>
   );

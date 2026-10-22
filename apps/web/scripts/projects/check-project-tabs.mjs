@@ -37,4 +37,12 @@ for (const [file, parts] of Object.entries(sections)) {
 }
 assert.ok(!/<dl\b/.test(page), "Info is a SettingsSection, not a definition list");
 
+// A long history folds: each recency group is a disclosure, older groups
+// start closed, and an open group shows a preview before "Show all".
+const chats = read("components/chats/chats-page.tsx");
+assert.match(chats, /aria-expanded=\{open\}[\s\S]*?aria-controls=\{panelId\}/);
+assert.match(chats, /b === "today" \|\| b === "past7" \|\| index === 0/);
+assert.match(chats, /const GROUP_PREVIEW = \d+;/);
+assert.match(chats, /<Card id=\{id\} className="gap-0 py-0">/);
+
 console.log("project tabs: ok");

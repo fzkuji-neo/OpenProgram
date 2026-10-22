@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { AlertTriangle, FolderSearch } from "lucide-react";
+import { FolderSearch } from "lucide-react";
 
 import fx from "@/components/functions/functions-page.module.css";
 import { SearchInput } from "@/components/ui/search-input";
@@ -18,7 +18,7 @@ import styles from "./projects-page.module.css";
 import { ManageEmptyState, managePageStyles as shared } from "@/components/ui/manage-page";
 import { RailBadge, RailItem, RailSeparator, RailSplit, SecondaryRail } from "@/components/ui/secondary-rail";
 import { useTranslation } from "@/lib/i18n";
-import { EarthIcon, FoldersIcon, FolderPlusIcon } from "@/components/animated-icons";
+import { SolarIcon } from "@/components/solar-icons";
 import { wsRequest } from "@/lib/net/ws-request";
 import { ProjectEditor, type EditableProject } from "@/components/sidebar/project-editor";
 import { Button } from "@/components/ui/button";
@@ -244,14 +244,16 @@ export function ProjectsPage({
               return (
                 <RailItem
                   key={p.id}
-                  icon={p.icon || (p.is_default ? <EarthIcon size={16} /> : <FoldersIcon size={16} />)}
+                  icon={p.icon || <ProjectGlyph size={16} />}
                   label={label(p)}
                   badge={p.hidden ? <RailBadge>{text("Hidden", "已隐藏")}</RailBadge> : undefined}
                   trailing={unavailable ? (
-                    <AlertTriangle
+                    <SolarIcon
+                      name="danger-triangle"
                       size={14}
-                      strokeWidth={2}
+                      motionPreset="none"
                       className={styles.statusSlot}
+                      role="img"
                       aria-label={text("Folder missing", "目录缺失")}
                     />
                   ) : undefined}
@@ -263,7 +265,7 @@ export function ProjectsPage({
             <RailSeparator />
             <RailItem
               quiet
-              icon={<FolderPlusIcon size={16} />}
+              icon={<SolarIcon name="add-folder" size={16} motionPreset="none" aria-hidden="true" />}
               label={text("Add project folder…", "添加项目文件夹…")}
               onClick={addProject}
             />
@@ -276,15 +278,15 @@ export function ProjectsPage({
             ) : !selected ? (
               <ManageEmptyState
                 compact
-                icon={<FoldersIcon size={20} />}
+                icon={<ProjectGlyph size={20} />}
                 title={projects.length ? text("Select a project", "选择一个项目") : text("No projects yet", "还没有项目")}
                 description={text("A project is a folder on disk. Its chats, default settings and permission rules travel with it.", "项目对应磁盘上的一个文件夹，其会话、默认设置和权限规则随项目保存。")}
-                action={projects.length ? undefined : <Button onClick={addProject}><FolderPlusIcon size={16} aria-hidden />{text("Add project folder…", "添加项目文件夹…")}</Button>}
+                action={projects.length ? undefined : <Button onClick={addProject}><SolarIcon name="add-folder" size={16} motionPreset="none" aria-hidden="true" />{text("Add project folder…", "添加项目文件夹…")}</Button>}
               />
             ) : (
               <>
                 <div className={styles.detailHead}>
-                  <span className={styles.detailIcon} aria-hidden="true">{selected.icon || (selected.is_default ? <EarthIcon size={20} /> : <FoldersIcon size={20} />)}</span>
+                  <span className={styles.detailIcon} aria-hidden="true">{selected.icon || <ProjectGlyph size={20} />}</span>
                   <div className={styles.detailHeading}>
                     <h2 className={styles.detailTitle}>{label(selected)}</h2>
                     {selected.is_default ? (
@@ -300,7 +302,7 @@ export function ProjectsPage({
                 </div>
                 {(selected.path_missing || selected.path_replaced || (selected.location_state && selected.location_state !== "available")) && (
                   <div role="alert" className="my-2 flex items-center gap-2 text-xs text-[var(--accent-orange)]">
-                    <AlertTriangle size={14} strokeWidth={2} aria-hidden="true" />
+                    <SolarIcon name="danger-triangle" size={14} motionPreset="none" aria-hidden="true" />
                     <span>
                       {selected.path_replaced || selected.location_state === "replaced"
                         ? text(
@@ -428,6 +430,12 @@ export function ProjectsPage({
 
   if (embedded) return view;
   return <div className="main">{view}</div>;
+}
+
+/** A project without its own icon shows the main sidebar's Solar folder,
+    so the sidebar, this rail and the Memory tree draw one folder. */
+function ProjectGlyph({ size }: { size: number }) {
+  return <SolarIcon name="folder" size={size} motionPreset="none" aria-hidden="true" />;
 }
 
 /** A read-only path or id on the Info tab. */

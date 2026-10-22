@@ -47,4 +47,12 @@ for (const [page, header] of [
   assert.match(read(header), new RegExp(`railToggle=\\{[\\s\\S]*?<RailToggle[\\s\\S]*?railKey=\\{${key}\\}`), `${header} must show the ${key} toggle`);
 }
 
+// One folder glyph: the main sidebar's Solar folder, in the rows' colour,
+// in the project rail, the Memory tree and the Programs tree.
+for (const file of ["components/projects/projects-page.tsx", "components/memory/parts.tsx", "components/programs/programs-page.tsx"]) {
+  const source = read(file);
+  assert.ok(/<SolarIcon[^>]*"folder"/.test(source), `${file} must draw folders with the Solar folder`);
+  assert.ok(!/\b(?:FolderOpen|FoldersIcon|treeIconFolder)\b/.test(source), `${file} draws a second folder style`);
+}
+
 console.log("secondary rail: ok");
