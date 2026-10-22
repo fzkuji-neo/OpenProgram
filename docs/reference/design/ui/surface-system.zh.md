@@ -173,6 +173,8 @@ icon-sm     24.5 px                输入框周围的图标按钮
 
 里面的控件都是官方组件：`Switch`、`Input`、`Textarea`、`Slider`、`RadioGroup`（选择卡片）、`ToggleGroup`、`Checkbox`、`Button`、`SimpleSelect`。每个设置页不再带自己的行、标签或卡片 CSS。
 
+历史页项目的「设置」「信息」标签也用这三个积木，放在 `.shadcn-scale` 里，看起来和设置页一样。项目的四个标签（会话、记忆、设置、信息）用同一套布局：项目标题和标签栏固定，下面的面板铺满剩余空间、左右贴边，每个标签在面板里自己滚动（设置和信息左右留 24px，和会话工具栏对齐）。由 `npm run check:project-tabs` 守护。
+
 ## 按钮变体指南
 
 变体是 shadcn 原版，外加一个本应用自有的 `elevated`；颜色取 shadcn 那组变量（`--primary`、`--secondary`、`--muted`、`--input`、`--ring` 等），`apps/web/app/globals.css` 把它们桥接到每套主题的配色上——换主题就换了按钮配色，按钮本身不用动。

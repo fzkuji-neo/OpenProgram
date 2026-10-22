@@ -60,17 +60,13 @@
   white-space: nowrap;
 }
 
-/* Chats and Memory bring their own scrolling layout: the content column
-   stops scrolling and the panel fills what is left below the tabs, edge
-   to edge. */
+/* Every tab has one layout: head and tabs stay put, the panel fills what
+   is left below the tabs edge to edge, and each tab scrolls inside it. */
 .contentFill {
   display: flex;
   flex-direction: column;
   overflow: hidden;
   padding-bottom: 0;
-}
-.contentFill .tabs {
-  margin-bottom: 0;
 }
 .panelFill {
   flex: 1;
@@ -86,7 +82,7 @@
   align-items: stretch;
   gap: 18px;
   height: 46px;
-  margin: 8px -24px 20px;
+  margin: 8px -24px 0;
   padding: 0 24px;
   border-bottom: 1px solid var(--border);
 }
@@ -126,47 +122,6 @@
   height: 2px;
   border-radius: 2px 2px 0 0;
   background: var(--accent-blue);
-}
-
-.tabBody {
-  padding-top: 4px;
-}
-
-.sectionTitle {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-bright);
-  margin: 0 0 8px;
-}
-
-.sessionList {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.fields {
-  margin: 0;
-}
-
-.field {
-  margin-bottom: 16px;
-}
-
-.field dt {
-  margin-bottom: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-}
-
-.field dd {
-  margin: 0;
-  font-size: 14px;
-  color: var(--text-primary);
-  overflow-wrap: anywhere;
 }
 
 .statusSlot {

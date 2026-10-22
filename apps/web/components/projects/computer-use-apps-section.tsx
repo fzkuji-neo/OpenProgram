@@ -15,8 +15,10 @@ import { useTranslation } from "@/lib/i18n";
 import { wsRequest } from "@/lib/net/ws-request";
 
 import { computerUseRuleApp } from "@/lib/computer-use-rule";
-
-import styles from "./computer-use-apps-section.module.css";
+import { XIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ManageIconButton } from "@/components/ui/manage-page";
+import { SettingsSection } from "@/components/settings/settings-ui";
 
 type Reply = { project_id?: string; status?: string; error?: string; allow?: string[] };
 
@@ -66,43 +68,52 @@ export function ComputerUseAppsSection({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className={styles.section} aria-busy={pending}>
-      <p className={styles.lead}>
-        {text("The agent can operate these apps in the background without asking. The first use of any other app still asks you.",
+    <div aria-busy={pending} className="flex flex-col gap-3">
+      {notice && <p role="status" className="text-sm text-muted-foreground">{notice}</p>}
+      <SettingsSection
+        title={text("Computer use", "操控电脑")}
+        description={text("The agent can operate these apps in the background without asking. The first use of any other app still asks you.",
           "下面的应用可以直接在后台操作，不再询问。第一次操作其他应用时仍会先问你。")}
-      </p>
-      {notice && <p className={styles.notice} role="status">{notice}</p>}
-      {rules.length === 0 ? (
-        <div className={styles.empty}>
-          <span className={styles.emptyIcon} aria-hidden="true"><SolarIcon name="monitor" size={18} /></span>
-          <span>{text("No apps allowed yet. The first time the agent operates an app, it asks for your approval in the conversation.",
-            "还没有允许的应用。智能体第一次操作某个应用时，会先在对话里请你批准。")}</span>
-        </div>
-      ) : (
-        <ul className={styles.list}>
-          {rules.map((rule) => {
-            const query = computerUseRuleApp(rule) ?? rule;
-            const app = apps[query];
-            return (
-              <li key={rule} className={styles.row}>
-                {app?.icon
-                  ? <img className={styles.icon} src={app.icon} alt="" aria-hidden="true" />
-                  : <span className={styles.iconFallback} aria-hidden="true"><SolarIcon name="monitor" size={18} /></span>}
-                <div className={styles.names}>
-                  <span className={styles.name}>{app?.name || query}</span>
-                  <span className={styles.identity}>{app?.bundle_id || query}</span>
-                </div>
-                <span className={styles.badge}>{text("Always allowed in this project", "本项目始终允许")}</span>
-                <button type="button" className={styles.remove} disabled={pending}
-                  aria-label={text(`Remove ${app?.name || query}`, `移除${app?.name || query}`)}
-                  onClick={() => void remove(rule)}>
-                  <SolarIcon name="close-circle" size={16} aria-hidden="true" />
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      >
+        {rules.length === 0 ? (
+          <div className="flex items-center gap-3 py-4 text-sm text-muted-foreground">
+            <AppGlyph />
+            <span>{text("No apps allowed yet. The first time the agent operates an app, it asks for your approval in the conversation.",
+              "还没有允许的应用。智能体第一次操作某个应用时，会先在对话里请你批准。")}</span>
+          </div>
+        ) : rules.map((rule) => {
+          const query = computerUseRuleApp(rule) ?? rule;
+          const app = apps[query];
+          const name = app?.name || query;
+          return (
+            <div key={rule} className="flex min-w-0 items-center gap-3 py-4">
+              {app?.icon ? <img className="size-8 shrink-0" src={app.icon} alt="" aria-hidden="true" /> : <AppGlyph />}
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="truncate text-sm font-medium text-foreground">{name}</span>
+                <span className="truncate text-sm text-muted-foreground">{app?.bundle_id || query}</span>
+              </div>
+              <Badge variant="outline">{text("Always allowed in this project", "本项目始终允许")}</Badge>
+              <ManageIconButton
+                label={text(`Remove ${name}`, `移除${name}`)}
+                tooltip={text("Remove", "移除")}
+                disabled={pending}
+                danger
+                onClick={() => void remove(rule)}
+              >
+                <XIcon />
+              </ManageIconButton>
+            </div>
+          );
+        })}
+      </SettingsSection>
     </div>
+  );
+}
+
+function AppGlyph() {
+  return (
+    <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground" aria-hidden="true">
+      <SolarIcon name="monitor" size={18} />
+    </span>
   );
 }

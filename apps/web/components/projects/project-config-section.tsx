@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useTranslation } from "@/lib/i18n";
 import { SimpleSelect } from "@/components/ui/select";
+import { SettingsRow, SettingsSection } from "@/components/settings/settings-ui";
 import { wsRequest } from "@/lib/net/ws-request";
 import { getSocket } from "@/lib/runtime-bridge/state";
 
@@ -75,28 +76,20 @@ export function ProjectConfigSection({ projectId }: { projectId: string }) {
   ];
 
   return (
-    <div>
-      <p style={{ color: "var(--text-muted)", fontSize: 13, marginTop: 0 }}>
-        {text(
-          "New chats in this project start with these.",
-          "该项目的新会话默认用这些设置。",
-        )}
-      </p>
+    <SettingsSection
+      title={text("Default Settings", "默认设置")}
+      description={text("New chats in this project start with these.", "该项目的新会话默认用这些设置。")}
+    >
       {rows.map((r) => (
-        <div key={r.key} style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "8px 0", gap: 16,
-        }}>
-          <span style={{ fontSize: 14, color: "var(--text-primary)" }}>{r.label}</span>
+        <SettingsRow key={r.key} label={r.label}>
           <SimpleSelect
-            className="min-w-40"
             aria-label={r.label}
             value={cfg[r.key] || r.fallback}
             onValueChange={(value) => setField(r.key, value)}
             options={r.opts.map((o) => ({ value: o.v, label: o.label }))}
           />
-        </div>
+        </SettingsRow>
       ))}
-    </div>
+    </SettingsSection>
   );
 }

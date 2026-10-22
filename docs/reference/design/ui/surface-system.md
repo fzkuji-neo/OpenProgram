@@ -327,6 +327,13 @@ Controls inside are the official components: `Switch`, `Input`,
 `Checkbox`, `Button`, `SimpleSelect`. A tab carries no row, label or
 card CSS of its own.
 
+The Settings and Info tabs of a History project use the same blocks inside
+`.shadcn-scale`, so they read like a Settings page. All four project tabs
+(Chats, Memory, Settings, Info) share one layout: the project head and tab
+bar stay put, the panel fills the rest edge to edge, and each tab scrolls
+inside it (Settings and Info with a 24px edge, like the Chats toolbar).
+`npm run check:project-tabs` guards this.
+
 ## Button variant guidance
 
 The variants are shadcn's, plus one app-owned `elevated`; colours

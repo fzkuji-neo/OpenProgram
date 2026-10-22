@@ -28,6 +28,7 @@ import { useSessionStore, type ConvSummary } from "@/lib/session-store";
 import { PermissionsSection } from "./permissions-section";
 import { ComputerUseAppsSection } from "./computer-use-apps-section";
 import { ProjectConfigSection } from "./project-config-section";
+import { SettingsRow, SettingsSection } from "@/components/settings/settings-ui";
 
 interface Project extends EditableProject {
   id: string;
@@ -52,6 +53,9 @@ export const PROJECTS_RAIL = "projects";
 
 export type ProjectTab = "chats" | "memory" | "settings" | "info";
 const PROJECT_TABS: ProjectTab[] = ["chats", "memory", "settings", "info"];
+/** Settings and Info scroll inside the panel, under fixed head and tabs, on
+    the Settings page's blocks and scale (.shadcn-scale) and the Chats tab's 24px edge. */
+const TAB_SCROLL = "shadcn-scale flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto px-6 pt-5 pb-8 max-[760px]:px-4";
 
 function tabParam(value: string | null | undefined): ProjectTab | null {
   return PROJECT_TABS.find((tab) => tab === value) ?? null;
@@ -266,7 +270,7 @@ export function ProjectsPage({
           </SecondaryRail>
 
           {/* 右栏：选中项目的内容 */}
-          <div className={cls(fx.content, styles.content, selected && (tab === "chats" || tab === "memory") ? styles.contentFill : undefined)}>
+          <div className={cls(fx.content, styles.content, selected ? styles.contentFill : undefined)}>
             {!selected && !loaded ? (
               <div className={shared.empty}>{text("Loading…", "加载中…")}</div>
             ) : !selected ? (
@@ -295,14 +299,7 @@ export function ProjectsPage({
                   {!selected.is_default && <Button variant="outline" onClick={()=>setEditing(true)}>{text("Edit project", "编辑项目")}</Button>}
                 </div>
                 {(selected.path_missing || selected.path_replaced || (selected.location_state && selected.location_state !== "available")) && (
-                  <div
-                    role="alert"
-                    style={{
-                      display: "flex", alignItems: "center", gap: 8,
-                      margin: "8px 0", fontSize: 12,
-                      color: "var(--accent-orange)",
-                    }}
-                  >
+                  <div role="alert" className="my-2 flex items-center gap-2 text-xs text-[var(--accent-orange)]">
                     <AlertTriangle size={14} strokeWidth={2} aria-hidden="true" />
                     <span>
                       {selected.path_replaced || selected.location_state === "replaced"
@@ -336,20 +333,10 @@ export function ProjectsPage({
                                   "该目录已不在磁盘上。",
                                 )}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => locateProject(selected.id, selected.path)}
-                      style={{
-                        display: "inline-flex", alignItems: "center", gap: 4,
-                        cursor: "pointer", background: "none",
-                        border: "1px solid var(--accent-orange)",
-                        borderRadius: 6, padding: "2px 8px",
-                        color: "var(--accent-orange)", fontSize: 12,
-                      }}
-                    >
-                      <FolderSearch size={13} strokeWidth={2} aria-hidden="true" />
+                    <Button variant="outline" size="sm" onClick={() => locateProject(selected.id, selected.path)}>
+                      <FolderSearch aria-hidden="true" />
                       {text("Locate folder…", "定位文件夹…")}
-                    </button>
+                    </Button>
                   </div>
                 )}
 
@@ -382,7 +369,7 @@ export function ProjectsPage({
                   id="project-tabpanel"
                   role="tabpanel"
                   aria-labelledby={`project-tab-${tab}`}
-                  className={tab === "chats" || tab === "memory" ? styles.panelFill : undefined}
+                  className={styles.panelFill}
                 >
                 {tab === "chats" && (
                   <ChatsPage
@@ -404,33 +391,32 @@ export function ProjectsPage({
                 )}
 
                 {tab === "settings" && (
-                  <div className={styles.tabBody}>
-                    <div className={styles.sectionTitle}>{text("Default Settings", "默认设置")}</div>
+                  <div className={TAB_SCROLL}>
                     <ProjectConfigSection projectId={selected.id} />
-                    <div className={styles.sectionTitle} style={{ marginTop: 28 }}>
-                      {text("Computer use", "操控电脑")}
-                    </div>
                     <ComputerUseAppsSection projectId={selected.id} />
-                    <div className={styles.sectionTitle} style={{ marginTop: 28 }}>
-                      {text("Permission Rules", "权限规则")}
-                    </div>
                     <PermissionsSection projectId={selected.id} />
                   </div>
                 )}
 
                 {tab === "info" && (
-                  <dl className={cls(styles.tabBody, styles.fields)}>
-                    <Field label={text("Type", "类型")}>
-                      {selected.is_default ? text("System (global)", "系统（全局）") : text("Project folder", "项目文件夹")}
-                    </Field>
-                    <Field label={selected.is_default ? text("Working folder", "工作目录") : text("Path", "路径")}><code>{selected.path}</code></Field>
-                    <Field label={text("Stored in", "存放位置")}><code>{`~/.openprogram/projects/${selected.id}/`}</code></Field>
-                    <Field label={text("Status", "状态")}>
-                      {({ active: text("Active", "进行中"), paused: text("Paused", "已暂停"), done: text("Done", "已完成") } as Record<string, string>)[selected.status] ?? selected.status}
-                    </Field>
-                    <Field label={text("Chats", "会话数")}>{chatCounts.get(selected.id) ?? 0}</Field>
-                    <Field label="ID"><code>{selected.id}</code></Field>
-                  </dl>
+                  <div className={TAB_SCROLL}>
+                    <SettingsSection>
+                      <SettingsRow label={text("Type", "类型")}>
+                        <span className="text-sm text-muted-foreground">
+                          {selected.is_default ? text("System (global)", "系统（全局）") : text("Project folder", "项目文件夹")}
+                        </span>
+                      </SettingsRow>
+                      <SettingsRow label={selected.is_default ? text("Working folder", "工作目录") : text("Path", "路径")}><InfoCode>{selected.path}</InfoCode></SettingsRow>
+                      <SettingsRow label={text("Stored in", "存放位置")}><InfoCode>{`~/.openprogram/projects/${selected.id}/`}</InfoCode></SettingsRow>
+                      <SettingsRow label={text("Status", "状态")}>
+                        <span className="text-sm text-muted-foreground">
+                          {({ active: text("Active", "进行中"), paused: text("Paused", "已暂停"), done: text("Done", "已完成") } as Record<string, string>)[selected.status] ?? selected.status}
+                        </span>
+                      </SettingsRow>
+                      <SettingsRow label={text("Chats", "会话数")}><span className="text-sm text-muted-foreground">{chatCounts.get(selected.id) ?? 0}</span></SettingsRow>
+                      <SettingsRow label="ID"><InfoCode>{selected.id}</InfoCode></SettingsRow>
+                    </SettingsSection>
+                  </div>
                 )}
                 </div>
               </>
@@ -444,11 +430,7 @@ export function ProjectsPage({
   return <div className="main">{view}</div>;
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className={styles.field}>
-      <dt>{label}</dt>
-      <dd>{children}</dd>
-    </div>
-  );
+/** A read-only path or id on the Info tab. */
+function InfoCode({ children }: { children: React.ReactNode }) {
+  return <code className="min-w-0 truncate font-mono text-xs text-muted-foreground">{children}</code>;
 }
