@@ -66,10 +66,11 @@ export const SHORTCUT = "shrink-0 text-xs tracking-widest text-text-muted";
 /** A row's key as a price tag (MenuKey): a menu-local letter (R) or a
  *  system shortcut (⌘T / Ctrl+T). The tag is a fixed 10px tip — the
  *  right end of Solar's tag-horizontal outline, mirrored — joined to the
- *  shadcn Kbd as its plate. Both paint --menu-key-bg, so a lit row
- *  recolours the whole tag with one variable. */
+ *  shadcn Kbd as its plate. Both paint --menu-key-bg (set with the lit
+ *  state in app/styles/chat/top-bar-chips.css), so one variable colours
+ *  the whole tag. */
 export const MENU_KEY =
-  "menu-row-key inline-flex h-[18px] shrink-0 items-center [--menu-key-bg:var(--muted)]";
+  "menu-row-key inline-flex h-[18px] shrink-0 items-center";
 /** The tip: 18px tall at the outline's own proportions; it overlaps the
  *  plate by half a pixel so no seam shows when scaled. */
 export const MENU_KEY_TIP = "-mr-[0.5px] block h-[18px] w-[10.3px] -scale-x-100 fill-(--menu-key-bg)";

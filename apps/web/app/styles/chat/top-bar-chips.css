@@ -387,6 +387,15 @@
 .menu-row .menu-row-icon {
   transition: color 75ms, transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+/* A key tag at rest sits one step above the menu — the ink at 12% over
+   the popover — never sunk below it the way --muted is in dark themes;
+   its text sits between muted and primary. */
+.menu-row-key {
+  --menu-key-bg: color-mix(in oklab, var(--text-bright) 12%, var(--popover));
+}
+.menu-row-key [data-slot="kbd"] {
+  color: color-mix(in oklab, var(--muted-foreground) 80%, var(--text-primary));
+}
 .menu-row .menu-row-key :is(svg, [data-slot="kbd"]),
 .menu-row .menu-row-chevron {
   transition: color 75ms, fill 75ms, background-color 75ms;
@@ -399,7 +408,8 @@
 }
 :is(.menu-row:hover, .menu-row[data-highlighted], .menu-row[data-state="open"], .menu-row-active):not([data-disabled]) .menu-row-key {
   /* The row's hover fill is the ink at 9% over the popover; the lit tag
-     is the ink at 22% over it, so it stays a distinct step above the row.
+     is the ink at 22% over it (12% at rest), so it stays a distinct step
+     above the row.
      Opaque, so the tip and plate overlap without a seam. */
   --menu-key-bg: color-mix(in oklab, var(--text-bright) 22%, var(--popover));
 }

@@ -248,14 +248,15 @@ right:
   shadcn `Kbd` as its plate: 18px tall, square where it meets the tip,
   5px round on the right, 1px / 6px padding around at least 8px of
   text, so every single-letter tag is the same width and a longer key
-  only lengthens the plate. Both parts paint `--menu-key-bg` (`--muted`
-  at rest). The key text comes
+  only lengthens the plate. Both parts paint `--menu-key-bg`: the ink at
+  12% over the popover at rest, one step above the menu (`--muted` sits
+  below the menu in dark themes). The key text comes
   from `formatMenuKeys`: `⌘T`, `⇧⌘C` on macOS, `Ctrl+T`,
   `Ctrl+Shift+C` elsewhere. A menu shows only keys that already work:
   real shortcuts, or single letters the open menu answers (the chat
   menus' R/P/C/A/D). No global shortcut exists just to fill a tag.
-  A lit row lifts `--menu-key-bg` toward `--muted-foreground` and
-  turns the text bright.
+  A lit row lifts `--menu-key-bg` to the ink at 22%, a step above
+  the row's 9% hover fill, and turns the text bright.
 - **check**: `MenuCheck` at the row end; an uncheckable row in a
   checkable group keeps the column empty (`CHECK_SLOT_PAD`).
 - **submenu**: a trailing chevron; submenus nest to any depth.
