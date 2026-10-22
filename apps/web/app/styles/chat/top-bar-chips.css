@@ -398,7 +398,10 @@
   color: var(--text-bright);
 }
 :is(.menu-row:hover, .menu-row[data-highlighted], .menu-row[data-state="open"], .menu-row-active):not([data-disabled]) .menu-row-key {
-  --menu-key-bg: color-mix(in oklab, var(--muted-foreground) 35%, var(--muted));
+  /* The row's hover fill is the ink at 9% over the popover; the lit tag
+     is the ink at 22% over it, so it stays a distinct step above the row.
+     Opaque, so the tip and plate overlap without a seam. */
+  --menu-key-bg: color-mix(in oklab, var(--text-bright) 22%, var(--popover));
 }
 :is(.menu-row:hover, .menu-row[data-highlighted], .menu-row[data-state="open"], .menu-row-active):not([data-disabled]) .menu-row-key [data-slot="kbd"] {
   color: var(--text-bright);

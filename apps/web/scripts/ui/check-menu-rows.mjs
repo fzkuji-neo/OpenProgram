@@ -91,5 +91,5 @@ assert.match(parts, /"menu-row-chevron size-4 shrink-0 text-text-muted"/);
 const chips = read("app/styles/chat/top-bar-chips.css");
 const lit = String.raw`:is\(\.menu-row:hover, \.menu-row\[data-highlighted\], \.menu-row\[data-state="open"\], \.menu-row-active\):not\(\[data-disabled\]\)`;
 assert.match(chips, new RegExp(`${lit} \\.menu-row-icon \\{\\s*transform: scale\\(1\\.12\\);`));
-assert.match(chips, new RegExp(`${lit} \\.menu-row-key \\{\\s*--menu-key-bg: color-mix`));
+assert.match(chips, new RegExp(`${lit} \\.menu-row-key \\{[\\s\\S]*?--menu-key-bg: color-mix\\(in oklab, var\\(--text-bright\\) 22%, var\\(--popover\\)\\);`));
 assert.match(chips, new RegExp(`${lit} :is\\(\\.menu-row-icon, \\.menu-row-chevron\\)\\.text-text-muted \\{\\s*color: var\\(--text-bright\\);`));
