@@ -6,7 +6,6 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
-  FolderOpen,
   Highlighter,
   ListFilter,
   ScanSearch,
@@ -14,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 
+import { SolarIcon } from "@/components/solar-icons";
 import { copyText } from "@/lib/clipboard";
 import { useTranslation } from "@/lib/i18n";
 import { matchingIndexes } from "./explorer-search";
@@ -134,7 +134,7 @@ export function ExplorerHeader({
         {!pathNavigation ? leading : null}
         {showRootPath && !pathNavigation ? (
           <div className={styles.treeRootPath}>
-            <FolderOpen className={styles.treeRootIcon} aria-hidden="true" />
+            <SolarIcon name="folder-open" size={16} motionPreset="none" className={styles.treeRootIcon} aria-hidden="true" />
             <button
               className={styles.treeRootLabel}
               type="button"

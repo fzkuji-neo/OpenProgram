@@ -35,7 +35,7 @@
 | `RailCount` | 文字 | 尾部的浅色计数。 |
 | `RailSeparator` | `ui/separator` | 放在“添加…”行上方。 |
 
-文件夹在所有地方只用一种图标：主侧栏的 Solar `folder` / `folder-open`（双色，跟随行的文字颜色），项目栏、记忆主题树和 Programs 目录树都用它。目录树里展开的文件夹显示为打开状态，项目栏里选中的项目也显示打开的文件夹；页面用 Solar `file-text`，目录缺失用 Solar `danger-triangle`。分区行（记忆的 Topics、Timeline 等）沿用主侧栏的线框导航图标。
+文件夹在所有地方只用一种图标：主侧栏的 Solar `folder` / `folder-open`（双色，跟随行的文字颜色），项目栏、记忆主题树、Programs 目录树和文件面板的目录树（Pierre 的图标精灵和根路径）都用它。目录树里展开的文件夹显示为打开状态，项目栏里选中的项目也显示打开的文件夹；页面用 Solar `file-text`，目录缺失用 Solar `danger-triangle`。分区行（记忆的 Topics、Timeline 等）沿用主侧栏的线框导航图标。
 
 状态沿用 [surface-system.zh.md](surface-system.zh.md) 的列表行规则：悬停和键盘焦点用
 `--bg-hover`；选中行用 `--bg-hover` 配 `--text-bright`；“添加…”行是 `quiet`（浅色文字）。

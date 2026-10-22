@@ -565,14 +565,6 @@
   color: var(--text-dim);
 }
 
-/* Folders get the editor-conventional warm tint (filled) so directory
-   structure reads at a glance against the mono file glyphs. */
-.treeIconFolder {
-  justify-self: center;
-  color: var(--accent-yellow);
-  fill: color-mix(in srgb, var(--accent-yellow) 30%, transparent);
-}
-
 /* Command-line tree structure. Each direct child owns one vertical
    segment on its parent's icon axis. The last child stops that segment
    at its row midpoint; the short horizontal stroke meets the child
