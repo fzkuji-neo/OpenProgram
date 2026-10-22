@@ -161,13 +161,15 @@ export function FunctionsPage() {
   function programMenuItems(name: string): CtxItem[] {
     return [
         {
+          glyph: "star",
           label: meta.favorites.includes(name)
             ? text("Unfavorite", "取消收藏")
             : text("Favorite", "收藏"),
           action: () => toggleFavorite(name),
         },
-        { label: text("Change icon...", "更换图标..."), action: () => setIconPickerFor(name) },
+        { glyph: "palette", label: text("Change icon...", "更换图标..."), action: () => setIconPickerFor(name) },
         {
+          glyph: "pen",
           label: text("Edit...", "编辑..."),
           action: () => {
             setPendingRunFunction({ name: "edit", cat: "", fn: name });

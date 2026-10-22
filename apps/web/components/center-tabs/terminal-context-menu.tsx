@@ -12,7 +12,9 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { ClipboardPaste, Copy, MessageSquarePlus } from "lucide-react";
+// Terminal copy and paste are ⌘C / ⌘V on macOS and Ctrl+Shift+C / V
+// elsewhere, where Ctrl+C is the interrupt (terminal-page.tsx).
+import { isMacPlatform, MenuRow } from "@/components/ui/menu-parts";
 import type { Terminal } from "@xterm/xterm";
 
 import { appendToComposer } from "@/components/chat/messages/quote-to-chat";
@@ -60,16 +62,16 @@ export function TerminalContextMenu({ terminal, onPaste, canPaste = true, onClos
       </ContextMenuTrigger>
       <ContextMenuContent onCloseAutoFocus={(event) => event.preventDefault()} className="min-w-[200px]">
         <ContextMenuItem disabled={!selection} onSelect={copy}>
-          <Copy size={14} aria-hidden="true" />{text("Copy", "复制")}
+          <MenuRow glyph="copy" label={text("Copy", "复制")} keys={{ key: "C", mod: true, shift: !isMacPlatform() }} />
         </ContextMenuItem>
         {onPaste && (
           <ContextMenuItem disabled={!canPaste} onSelect={onPaste}>
-            <ClipboardPaste size={14} aria-hidden="true" />{text("Paste", "粘贴")}
+            <MenuRow glyph="clipboard-text" label={text("Paste", "粘贴")} keys={{ key: "V", mod: true, shift: !isMacPlatform() }} />
           </ContextMenuItem>
         )}
         <ContextMenuSeparator />
         <ContextMenuItem disabled={!selection.trim()} onSelect={addToChat}>
-          <MessageSquarePlus size={14} aria-hidden="true" />{text("Add selection to chat", "把选中内容加入对话")}
+          <MenuRow glyph="chat-round-dots" label={text("Add selection to chat", "把选中内容加入对话")} />
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

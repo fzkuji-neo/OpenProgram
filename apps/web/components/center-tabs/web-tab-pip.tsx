@@ -11,6 +11,7 @@ import { activeThemeId } from "@/lib/prefs/theme-pref";
 import { buttonVariants } from "@/components/ui/button";
 import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import { MenuOptionContent } from "@/components/ui/menu-option-content";
+import { MenuRow } from "@/components/ui/menu-parts";
 import { itemCls, MENU_PANEL } from "@/components/chat/top-bar/menu-styles";
 import {
   DropdownMenu,
@@ -245,10 +246,10 @@ function PipMoreMenu({
     "开启后，小窗随 Agent 的操作切换网页；关闭后，保持当前网页。只改变显示内容，不影响 Agent 执行。",
   );
   const items: SidebarMenuItem[] = [
-    { id: `${prefix}follow-page`, label: followLabel, description, checked: following, keepOpen: true, onSelect: onToggleFollow },
-    { id: `${prefix}show-actions`, label: showLabel, checked: showActionsEnabled(), keepOpen: true, onSelect: () => { toggleShowActions(); } },
-    { id: `${prefix}history`, label: historyLabel, separatorBefore: true,
-      children: historyItems.map(item => ({ ...item, id: `${prefix}history:${item.id}` })) },
+    { id: `${prefix}follow-page`, glyph: "eye", label: followLabel, description, checked: following, keepOpen: true, onSelect: onToggleFollow },
+    { id: `${prefix}show-actions`, glyph: "cursor", label: showLabel, checked: showActionsEnabled(), keepOpen: true, onSelect: () => { toggleShowActions(); } },
+    { id: `${prefix}history`, glyph: "history", label: historyLabel, separatorBefore: true,
+      children: historyItems.map(item => ({ glyph: "clock-circle" as const, ...item, id: `${prefix}history:${item.id}` })) },
   ];
   const serializedItems = JSON.stringify(items);
   useEffect(() => {
@@ -294,12 +295,12 @@ function PipMoreMenu({
     <DropdownMenuContent className={`${MENU_PANEL} w-[360px] max-w-[calc(100vw-16px)]`}>
       {items.slice(0, 2).map(item => <DropdownMenuItem key={item.id}
         role="menuitemcheckbox" aria-checked={item.checked} className={itemCls(false)} onSelect={event => { event.preventDefault(); item.onSelect?.(); }}>
-        <MenuOptionContent label={item.label} description={item.description} checked={item.checked} />
+        <MenuOptionContent glyph={item.glyph} label={item.label} description={item.description} checked={item.checked} />
       </DropdownMenuItem>)}
       <DropdownMenuSub>
-        <DropdownMenuSubTrigger className={itemCls(false)}>{historyLabel}</DropdownMenuSubTrigger>
+        <DropdownMenuSubTrigger className={itemCls(false)}><MenuRow glyph="history" label={historyLabel} submenu /></DropdownMenuSubTrigger>
         <DropdownMenuSubContent className={`${MENU_PANEL} max-w-[calc(100vw-16px)]`}>
-          {historyItems.map(item => <DropdownMenuItem key={item.id} disabled className={itemCls(false)}>{item.label}</DropdownMenuItem>)}
+          {historyItems.map(item => <DropdownMenuItem key={item.id} disabled className={itemCls(false)}><MenuRow glyph="clock-circle" label={item.label} /></DropdownMenuItem>)}
         </DropdownMenuSubContent>
       </DropdownMenuSub>
     </DropdownMenuContent>

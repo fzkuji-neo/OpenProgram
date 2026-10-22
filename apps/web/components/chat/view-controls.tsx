@@ -33,13 +33,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { HoverTip } from "@/components/ui/tooltip";
 import {
-  CHECK_SLOT_PAD,
   GROUP_LABEL,
+  MENU_ITEM_STATES,
   MENU_PANEL,
   MENU_SEPARATOR,
-  SHORTCUT,
   itemCls,
 } from "@/components/chat/top-bar/menu-styles";
+import { MenuRow, type MenuGlyph } from "@/components/ui/menu-parts";
+import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { RenameDialog } from "@/components/chat/rename-dialog";
 import {
@@ -54,7 +55,6 @@ import { runtimeState } from "@/lib/runtime-bridge/state";
 import { newSession } from "@/lib/runtime-bridge/conversations";
 import { wsSend } from "@/components/sidebar/sessions-list/helpers";
 import { showToast } from "@/lib/format-utils/toast";
-import { MenuCheck } from "@/components/chat/top-bar/menu-check";
 import {
   setDefaultTranscriptView,
   setSessionTranscriptView,
@@ -73,6 +73,7 @@ export function ViewControls() {
   const removeConversation = useSessionStore((s) => s.removeConversation);
   const [renaming, setRenaming] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const transcriptView = useTranscriptView(tab?.kind === "session" ? tab.sessionId : null);
   const defaultView = useDefaultTranscriptView();
 
@@ -141,6 +142,24 @@ export function ViewControls() {
     if (runtimeState.currentSessionId === sessionId) newSession();
   }
 
+  // The letters on the rows work while the menu is open, as in the
+  // sidebar's chat menu (conv-menu.tsx). A modifier leaves the key alone.
+  const actions: Record<"r" | "p" | "c" | "a" | "d", () => void> = {
+    r: () => setRenaming(true),
+    p: () => setFlags({ pinned: !conv?.pinned }),
+    c: copyLink,
+    a: () => setFlags({ archived: !conv?.archived }),
+    d: () => setConfirmDelete(true),
+  };
+  function onMenuKey(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const action = actions[e.key.toLowerCase() as keyof typeof actions];
+    if (!action) return;
+    e.preventDefault();
+    setMenuOpen(false);
+    action();
+  }
+
   return (
     <div className="chat-view-controls">
       <HoverTip label={toggleLabel} side="bottom">
@@ -159,83 +178,65 @@ export function ViewControls() {
       </HoverTip>
 
       {saved ? (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="chat-view-control-btn"
-              aria-label={text("Session actions", "会话操作")}
-              title={text("Session actions", "会话操作")}
-            >
-              <MoreHorizontal size={16} />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className={MENU_PANEL}>
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+          <HoverTip label={text("Session actions", "会话操作")} side="bottom">
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="chat-view-control-btn"
+                aria-label={text("Session actions", "会话操作")}
+              >
+                <MoreHorizontal size={16} />
+              </button>
+            </DropdownMenuTrigger>
+          </HoverTip>
+          <DropdownMenuContent align="end" className={MENU_PANEL} onKeyDown={onMenuKey}>
             <div className={GROUP_LABEL}>{text("View", "显示方式")}</div>
             {([
-              ["normal", text("Normal", "普通")],
-              ["thinking", text("Thinking", "显示思考")],
-              ["verbose", text("Verbose", "详细")],
-            ] as [TranscriptView, string][]).map(([view, label]) => (
+              ["normal", "chat-round-line", text("Normal", "普通")],
+              ["thinking", "lightbulb-bolt", text("Thinking", "显示思考")],
+              ["verbose", "document-text", text("Verbose", "详细")],
+            ] as [TranscriptView, MenuGlyph, string][]).map(([view, glyph, label]) => (
               <DropdownMenuItem
                 key={view}
-                className={itemCls(false)}
+                className={cn(itemCls(false), MENU_ITEM_STATES)}
                 onSelect={() => { if (sessionId) setSessionTranscriptView(sessionId, view); }}
               >
-                <span className="flex-1">{label}</span>
-                {transcriptView === view ? <MenuCheck /> : <span className={CHECK_SLOT_PAD} />}
+                <MenuRow glyph={glyph} label={label} checked={transcriptView === view} />
               </DropdownMenuItem>
             ))}
             <DropdownMenuItem
-              className={itemCls(false)}
+              className={cn(itemCls(false), MENU_ITEM_STATES)}
               disabled={transcriptView === defaultView}
               onSelect={() => setDefaultTranscriptView(transcriptView)}
             >
-              <span className="flex-1">{text("Use this view by default", "设为默认显示方式")}</span>
+              <MenuRow glyph="check-circle" label={text("Use this view by default", "设为默认显示方式")} />
             </DropdownMenuItem>
             <DropdownMenuSeparator className={MENU_SEPARATOR} />
-            <DropdownMenuItem
-              className={itemCls(false)}
-              onSelect={() => setRenaming(true)}
-            >
-              <span className="flex-1">{t("sidebar.rename")}</span>
-              <span className={SHORTCUT}>R</span>
+            <DropdownMenuItem className={cn(itemCls(false), MENU_ITEM_STATES)} onSelect={actions.r}>
+              <MenuRow glyph="pen" label={t("sidebar.rename")} keys={{ key: "R" }} />
             </DropdownMenuItem>
             <DropdownMenuItem
-              className={itemCls(false)}
+              className={cn(itemCls(false), MENU_ITEM_STATES)}
               onSelect={() => { if (sessionId) void autoRenameSession(sessionId); }}
             >
-              <span className="flex-1">{t("sidebar.auto_rename")}</span>
+              <MenuRow glyph="stars" label={t("sidebar.auto_rename")} />
             </DropdownMenuItem>
-            <DropdownMenuItem
-              className={itemCls(false)}
-              onSelect={() => setFlags({ pinned: !conv?.pinned })}
-            >
-              <span className="flex-1">
-                {conv?.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
-              </span>
-              <span className={SHORTCUT}>P</span>
+            <DropdownMenuItem className={cn(itemCls(false), MENU_ITEM_STATES)} onSelect={actions.p}>
+              <MenuRow glyph="pin" label={conv?.pinned ? t("sidebar.unpin") : t("sidebar.pin")} keys={{ key: "P" }} />
             </DropdownMenuItem>
-            <DropdownMenuItem className={itemCls(false)} onSelect={copyLink}>
-              <span className="flex-1">{t("sidebar.copy_link")}</span>
-              <span className={SHORTCUT}>C</span>
+            <DropdownMenuItem className={cn(itemCls(false), MENU_ITEM_STATES)} onSelect={actions.c}>
+              <MenuRow glyph="link" label={t("sidebar.copy_link")} keys={{ key: "C" }} />
             </DropdownMenuItem>
-            <DropdownMenuItem
-              className={itemCls(false)}
-              onSelect={() => setFlags({ archived: !conv?.archived })}
-            >
-              <span className="flex-1">
-                {conv?.archived ? t("sidebar.unarchive") : t("sidebar.archive")}
-              </span>
-              <span className={SHORTCUT}>A</span>
+            <DropdownMenuItem className={cn(itemCls(false), MENU_ITEM_STATES)} onSelect={actions.a}>
+              <MenuRow glyph={conv?.archived ? "archive-up" : "archive"} label={conv?.archived ? t("sidebar.unarchive") : t("sidebar.archive")} keys={{ key: "A" }} />
             </DropdownMenuItem>
             <DropdownMenuSeparator className={MENU_SEPARATOR} />
             <DropdownMenuItem
-              className={itemCls(false, true)}
-              onSelect={() => setConfirmDelete(true)}
+              className={cn(itemCls(false, true), MENU_ITEM_STATES, "data-[highlighted]:bg-[color-mix(in_srgb,var(--accent-red)_15%,transparent)] data-[highlighted]:text-[var(--accent-red)]")}
+              onSelect={actions.d}
             >
-              <span className="flex-1">{t("sidebar.delete")}</span>
-              <span className={SHORTCUT}>D</span>
+              <MenuRow glyph="trash-bin-trash" label={t("sidebar.delete")} keys={{ key: "D" }} danger />
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

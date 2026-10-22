@@ -16,14 +16,13 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plus, Settings } from "lucide-react";
 
 import {
   itemCls,
   MENU_PANEL,
   MENU_SEPARATOR,
-  SHORTCUT,
 } from "@/components/chat/top-bar/menu-styles";
+import { MenuRow, type MenuGlyph, type MenuKeys } from "@/components/ui/menu-parts";
 import { useTranslation } from "@/lib/i18n";
 import { isThemeId } from "@/lib/prefs/theme-pref";
 
@@ -45,9 +44,9 @@ function mainMenuBridge(): MainMenuBridge | null {
 
 interface Row {
   id: ActionId;
-  icon: typeof Plus;
+  glyph: MenuGlyph;
   label: string;
-  shortcut?: string;
+  keys?: MenuKeys;
 }
 
 function MainMenuOverlayPage() {
@@ -72,8 +71,8 @@ function MainMenuOverlayPage() {
   // desktop overlay never shows it — matches main-menu.tsx's canOpenWindow.
   const separators = new Set([0]); // divider AFTER these indices
   const rows: Row[] = [
-    { id: "new-tab", icon: Plus, label: text("New tab", "新标签页"), shortcut: "⌘T" },
-    { id: "settings", icon: Settings, label: text("Settings", "设置"), shortcut: "⌘," },
+    { id: "new-tab", glyph: "add-square", label: text("New tab", "新标签页"), keys: { key: "T", mod: true } },
+    { id: "settings", glyph: "settings", label: text("Settings", "设置"), keys: { key: ",", mod: true } },
   ];
 
   const choose = (id: ActionId) => {
@@ -133,7 +132,6 @@ function MainMenuOverlayPage() {
     >
       <div ref={panelRef} className={MENU_PANEL} style={{ minWidth: 200, width: "100%" }} role="menu">
         {rows.map((row, i) => {
-          const Icon = row.icon;
           return (
             <div key={row.id}>
               <div
@@ -143,9 +141,7 @@ function MainMenuOverlayPage() {
                 onMouseEnter={() => setActive(i)}
                 onClick={() => choose(row.id)}
               >
-                <Icon size={14} aria-hidden="true" />
-                <span className="flex-1">{row.label}</span>
-                {row.shortcut ? <span className={SHORTCUT}>{row.shortcut}</span> : null}
+                <MenuRow glyph={row.glyph} label={row.label} keys={row.keys} />
               </div>
               {separators.has(i) ? <div className={MENU_SEPARATOR} /> : null}
             </div>

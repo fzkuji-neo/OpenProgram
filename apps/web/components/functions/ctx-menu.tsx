@@ -15,10 +15,12 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { MenuRow, type MenuGlyph } from "@/components/ui/menu-parts";
 
 export interface CtxItem {
   type?: "sep";
   label?: string;
+  glyph?: MenuGlyph;
   action?: () => void;
 }
 
@@ -35,7 +37,7 @@ export function CtxMenu({ items, children }: { items: CtxItem[]; children: React
             <ContextMenuSeparator key={i} />
           ) : (
             <ContextMenuItem key={i} onSelect={() => it.action?.()}>
-              {it.label}
+              <MenuRow glyph={it.glyph} label={it.label} />
             </ContextMenuItem>
           ),
         )}

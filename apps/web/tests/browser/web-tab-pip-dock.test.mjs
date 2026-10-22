@@ -640,7 +640,7 @@ test("PiP More custom history is a reachable submenu, not a disabled parent", as
     assert.equal(history.disabled, undefined);
     assert.equal(history.label, "Operation history");
     assert.deepEqual(history.children, [
-      { id: history.children[0].id, label: "click · acknowledged", disabled: true },
+      { id: history.children[0].id, glyph: "clock-circle", label: "click · acknowledged", disabled: true },
     ]);
     assert.equal(document.querySelector("[data-native-view-occluder]"), null);
     assert.equal(document.querySelector('[role="menu"]'), null);

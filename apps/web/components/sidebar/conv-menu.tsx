@@ -16,27 +16,13 @@
  * where it lives, sharing it, archiving or deleting it. Items mirror
  * Claude.ai's conversation menu, minus the ones we have no backing infra
  * for (Open in / Mark as read / Share). While the menu is open, R / P /
- * C / A / D still fire Rename / Pin / Copy link / Archive / Delete
+ * C / A / D fire Rename / Pin / Copy link / Archive / Delete
  * (menu-local, see onKeyDown — it runs before Radix's typeahead, which
- * it replaces in the top-level menu); the rows no longer print them.
+ * it replaces in the top-level menu); each row shows its key as a badge.
+ * Rows are the shared menu row (components/ui/menu-parts.tsx).
  */
 
-import {
-  Archive,
-  ArchiveRestore,
-  ChevronRight,
-  Download,
-  FolderInput,
-  FolderTree,
-  Link,
-  Pencil,
-  Pin,
-  PinOff,
-  Sparkles,
-  Trash2,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { MenuRow, type MenuGlyph, type MenuKeys } from "@/components/ui/menu-parts";
 
 import { useTranslation } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -150,53 +136,55 @@ export function ConvMenu({
 
   return (
     <MenuContent onKeyDown={onKeyDown}>
-      <MenuItem icon={Pencil} label={t("sidebar.rename")} onSelect={onRename} />
-      <MenuItem icon={Sparkles} label={t("sidebar.auto_rename")} onSelect={onAutoRename} />
+      <MenuItem glyph="pen" label={t("sidebar.rename")} keys={{ key: "R" }} onSelect={onRename} />
+      <MenuItem glyph="stars" label={t("sidebar.auto_rename")} onSelect={onAutoRename} />
       <MenuItem
-        icon={conv.pinned ? PinOff : Pin}
+        glyph="pin"
         label={conv.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
+        keys={{ key: "P" }}
         onSelect={onTogglePin}
       />
 
       <DropdownMenuSeparator className={MENU_SEPARATOR} />
 
-      <Submenu icon={FolderTree} label={t("sidebar.move_to_group")}>
+      <Submenu glyph="layers" label={t("sidebar.move_to_group")}>
         {conv.group ? (
-          <MenuItem label={t("sidebar.remove_from_group")} onSelect={() => onMoveToGroup("")} />
+          <MenuItem glyph="close-circle" label={t("sidebar.remove_from_group")} onSelect={() => onMoveToGroup("")} />
         ) : null}
         {otherGroups.map((g) => (
-          <MenuItem key={g} label={g} onSelect={() => onMoveToGroup(g)} />
+          <MenuItem key={g} glyph="layers" label={g} onSelect={() => onMoveToGroup(g)} />
         ))}
         {/* The separator only divides New group… from rows above it. */}
         {conv.group || otherGroups.length > 0 ? <DropdownMenuSeparator className={MENU_SEPARATOR} /> : null}
-        <MenuItem label={t("sidebar.new_group")} onSelect={onNewGroup} />
+        <MenuItem glyph="add-circle" label={t("sidebar.new_group")} onSelect={onNewGroup} />
       </Submenu>
 
       {/* Dragging the row onto a project header does the same thing. */}
       {projects && onMoveToProject && projects.length > 0 && (
-        <Submenu icon={FolderInput} label={t("sidebar.move_to_project")}>
+        <Submenu glyph="folder-with-files" label={t("sidebar.move_to_project")}>
           {projects.map((project) => (
-            <MenuItem key={project.id} label={project.name} onSelect={() => onMoveToProject(project.id)} />
+            <MenuItem key={project.id} glyph="folder" folder label={project.name} onSelect={() => onMoveToProject(project.id)} />
           ))}
         </Submenu>
       )}
 
       <DropdownMenuSeparator className={MENU_SEPARATOR} />
 
-      <MenuItem icon={Link} label={t("sidebar.copy_link")} onSelect={onCopyLink} />
-      <Submenu icon={Download} label={t("sidebar.export")}>
-        <MenuItem label={t("sidebar.export_markdown")} onSelect={() => onExport("md")} />
-        <MenuItem label={t("sidebar.export_html")} onSelect={() => onExport("html")} />
+      <MenuItem glyph="link" label={t("sidebar.copy_link")} keys={{ key: "C" }} onSelect={onCopyLink} />
+      <Submenu glyph="file-download" label={t("sidebar.export")}>
+        <MenuItem glyph="file-text" label={t("sidebar.export_markdown")} onSelect={() => onExport("md")} />
+        <MenuItem glyph="code-square" label={t("sidebar.export_html")} onSelect={() => onExport("html")} />
       </Submenu>
 
       <DropdownMenuSeparator className={MENU_SEPARATOR} />
 
       <MenuItem
-        icon={conv.archived ? ArchiveRestore : Archive}
+        glyph={conv.archived ? "archive-up" : "archive"}
         label={conv.archived ? t("sidebar.unarchive") : t("sidebar.archive")}
+        keys={{ key: "A" }}
         onSelect={onToggleArchive}
       />
-      <MenuItem icon={Trash2} label={t("sidebar.delete")} danger onSelect={onDelete} />
+      <MenuItem glyph="trash-bin-trash" label={t("sidebar.delete")} keys={{ key: "D" }} danger onSelect={onDelete} />
     </MenuContent>
   );
 }
@@ -226,42 +214,35 @@ export function BulkConvMenu({
     <MenuContent>
       <div className={GROUP_LABEL}>{text(`${count} chats selected`, `已选 ${count} 个聊天`)}</div>
       {projects && onMoveToProject && projects.length > 0 && (
-        <Submenu icon={FolderInput} label={t("sidebar.move_to_project")}>
+        <Submenu glyph="folder-with-files" label={t("sidebar.move_to_project")}>
           {projects.map((project) => (
-            <MenuItem key={project.id} label={project.name} onSelect={() => onMoveToProject(project.id)} />
+            <MenuItem key={project.id} glyph="folder" folder label={project.name} onSelect={() => onMoveToProject(project.id)} />
           ))}
         </Submenu>
       )}
-      <Submenu icon={FolderTree} label={t("sidebar.move_to_group")}>
-        <MenuItem label={t("sidebar.remove_from_group")} onSelect={() => onMoveToGroup("")} />
+      <Submenu glyph="layers" label={t("sidebar.move_to_group")}>
+        <MenuItem glyph="close-circle" label={t("sidebar.remove_from_group")} onSelect={() => onMoveToGroup("")} />
         {groups.filter(Boolean).map((g) => (
-          <MenuItem key={g} label={g} onSelect={() => onMoveToGroup(g)} />
+          <MenuItem key={g} glyph="layers" label={g} onSelect={() => onMoveToGroup(g)} />
         ))}
       </Submenu>
       <DropdownMenuSeparator className={MENU_SEPARATOR} />
-      <MenuItem icon={Archive} label={t("sidebar.archive")} onSelect={onArchive} />
+      <MenuItem glyph="archive" label={t("sidebar.archive")} onSelect={onArchive} />
       <DropdownMenuSeparator className={MENU_SEPARATOR} />
-      <MenuItem icon={X} label={text("Clear selection", "取消选择")} onSelect={onClear} />
+      <MenuItem glyph="close-circle" label={text("Clear selection", "取消选择")} onSelect={onClear} />
     </MenuContent>
   );
 }
 
 /* ---- item primitives ------------------------------------------- */
 
-/** The leading icon of a row, muted like the project menu's. */
-function RowIcon({ icon: Icon }: { icon?: LucideIcon }) {
-  return Icon ? <Icon size={14} className="shrink-0 text-text-muted" aria-hidden="true" /> : null;
-}
-
 /** A row that opens its submenu to the right (hover, click or
  *  ArrowRight) — Nova's DropdownMenuSub with its trailing chevron. */
-function Submenu({ icon, label, children }: { icon?: LucideIcon; label: string; children: React.ReactNode }) {
+function Submenu({ glyph, label, children }: { glyph: MenuGlyph; label: string; children: React.ReactNode }) {
   return (
     <DropdownMenuSub>
       <DropdownMenuSubTrigger className={cn(itemCls(false), MENU_ITEM_STATES)}>
-        <RowIcon icon={icon} />
-        <span className="flex-1 truncate text-left">{label}</span>
-        <ChevronRight className="ml-auto size-4 shrink-0 text-text-muted" aria-hidden="true" />
+        <MenuRow glyph={glyph} label={label} submenu />
       </DropdownMenuSubTrigger>
       <DropdownMenuSubContent className={cn(MENU_PANEL, "text-[var(--text-primary)]")}>
         {children}
@@ -270,19 +251,24 @@ function Submenu({ icon, label, children }: { icon?: LucideIcon; label: string; 
   );
 }
 
-// Rows share the canonical `itemCls` from menu-styles, so this context
-// menu is pixel-identical to the topbar pickers. Delete is the one danger
-// row (red text and icon). Selecting a row closes the menu (Radix), which
-// reaches the parent through onOpenChange.
+// Rows share the canonical `itemCls` from menu-styles and the shared row
+// (MenuRow). Delete is the one danger row (red text and icon). Selecting
+// a row closes the menu (Radix), which reaches the parent through
+// onOpenChange.
 function MenuItem({
-  icon,
+  glyph,
   label,
+  keys,
   danger,
+  folder,
   onSelect,
 }: {
-  icon?: LucideIcon;
+  glyph: MenuGlyph;
   label: string;
+  keys?: MenuKeys;
   danger?: boolean;
+  /** A project row: its folder takes the folder colour. */
+  folder?: boolean;
   onSelect: () => void;
 }) {
   return (
@@ -291,11 +277,10 @@ function MenuItem({
       className={cn(
         itemCls(false, danger),
         MENU_ITEM_STATES,
-        danger && "data-[highlighted]:bg-[color-mix(in_srgb,var(--accent-red)_15%,transparent)] data-[highlighted]:text-[var(--accent-red)] [&_svg]:!text-[var(--accent-red)]",
+        danger && "data-[highlighted]:bg-[color-mix(in_srgb,var(--accent-red)_15%,transparent)] data-[highlighted]:text-[var(--accent-red)]",
       )}
     >
-      <RowIcon icon={icon} />
-      <span className="flex-1 truncate text-left">{label}</span>
+      <MenuRow glyph={glyph} label={label} keys={keys} danger={danger} iconClassName={folder ? "text-[var(--folder-color)]" : undefined} />
     </DropdownMenuItem>
   );
 }

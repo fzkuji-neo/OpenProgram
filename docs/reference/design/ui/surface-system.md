@@ -230,6 +230,32 @@ menu keeps only its placement (position, z-index, width) in the
 module and takes the frame and rows from those classes; it never
 restates their values.
 
+Every action menu opened from a small button or by right-click
+builds its rows with `MenuRow` (`apps/web/components/ui/menu-parts.tsx`),
+in the page and in the desktop overlay alike. A row reads, left to
+right:
+
+```
+[icon] label ············ [key] [check] [›]
+```
+
+- **icon**: a Solar Bold Duotone glyph (`MenuIcon`, 16px, muted),
+  the family the sidebar folder uses. Folder rows draw the folder in
+  `--folder-color`; destructive rows draw it red.
+- **key**: a key-cap badge (`MENU_KEY`) in the platform's notation,
+  from `formatMenuKeys`: `⌘T`, `⇧⌘C` on macOS, `Ctrl+T`,
+  `Ctrl+Shift+C` elsewhere. A menu shows only keys that already work:
+  real shortcuts, or single letters the open menu answers (the chat
+  menus' R/P/C/A/D). No global shortcut exists just to fill a badge.
+- **check**: `MenuCheck` at the row end; an uncheckable row in a
+  checkable group keeps the column empty (`CHECK_SLOT_PAD`).
+- **submenu**: a trailing chevron; submenus nest to any depth.
+
+The desktop overlay receives the same fields as data:
+`DesktopContextMenuItem` carries `glyph` and `keys`, and the overlay
+page renders them with the same parts. `scripts/ui/check-menu-rows.mjs`
+holds every menu file to this row.
+
 ```
 part        Nova, at the docs' scale
 ─────────────────────────────────────────────────────────────────
@@ -240,8 +266,8 @@ row         min-h-7 (28px) · rounded-md · px-1.5 py-1 ·
 hover       bg-accent (the ink at 9%) · text-bright
 label       px-1.5 py-1 · text-xs · font-medium · muted
 separator   -mx-1 my-1 · 1px · --border
-shortcut    text-xs · tracking-widest · muted
-chosen      accent check (MenuCheck), never a fill
+shortcut    key-cap badge (MENU_KEY) · text-[11px] · muted
+chosen      accent check (MenuCheck) at the row end, never a fill
 ─────────────────────────────────────────────────────────────────
 ```
 

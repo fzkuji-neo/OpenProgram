@@ -12,12 +12,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  CHECK_SLOT_PAD,
   itemCls,
   MENU_PANEL,
   MENU_SEPARATOR,
 } from "@/components/chat/top-bar/menu-styles";
-import { MENU_GLYPHS, type MenuGlyph } from "@/lib/menu/menu-glyphs";
+import { MenuRow, type MenuGlyph } from "@/components/ui/menu-parts";
 import { activeThemeId } from "@/lib/prefs/theme-pref";
 import {
   requestBrowserImport,
@@ -37,7 +36,6 @@ import styles from "./center-tabs.module.css";
 import { webToolbarButton } from "./toolbar-button";
 import { ToolbarTip } from "./browser-chrome";
 import { useBookmarksBarPreference } from "./bookmark-bar";
-import { MenuCheck } from "@/components/chat/top-bar/menu-check";
 
 type BrowserMenuActions = {
   home(): void;
@@ -195,26 +193,26 @@ export function BrowserMenu({
             anchor: { right: rect.right, y: rect.bottom + 4, align: "end", vw: innerWidth, vh: innerHeight },
             theme: activeThemeId(),
             items: [
-              item("new-tab", "plus", "New browser tab", "新建浏览器标签页"),
+              item("new-tab", "add-square", "New browser tab", "新建浏览器标签页"),
               ...(actions.collapseToPip
-                ? [item("collapse-to-pip", "picture-in-picture", "Collapse to floating window", "收起到悬浮窗")]
+                ? [item("collapse-to-pip", "pip-2", "Collapse to floating window", "收起到悬浮窗")]
                 : []),
-              ...(responsive.home ? [item("home", "house", "Home", "主页", { disabled: !canGoHome })] : []),
+              ...(responsive.home ? [item("home", "home-2", "Home", "主页", { disabled: !canGoHome })] : []),
               ...(responsive.forward ? [item("forward", "arrow-right", "Forward", "前进", { disabled: !canGoForward })] : []),
-              ...(responsive.openExternal ? [item("open-external", "external-link", "Open in browser", "在浏览器中打开", { disabled: !canOpenExternal })] : []),
-              item("find", "search", "Find in page", "在页面中查找", { separatorBefore: true, disabled: !actions.find }),
-              ...(actions.comment ? [item("comment", "message-plus", "Comment on the page…", "评论页面元素…")] : []),
+              ...(responsive.openExternal ? [item("open-external", "square-arrow-right-up", "Open in browser", "在浏览器中打开", { disabled: !canOpenExternal })] : []),
+              item("find", "magnifier", "Find in page", "在页面中查找", { separatorBefore: true, disabled: !actions.find }),
+              ...(actions.comment ? [item("comment", "chat-round-dots", "Comment on the page…", "评论页面元素…")] : []),
               ...(actions.regionShot ? [item("region-shot", "crop", "Screenshot a region…", "区域截图…")] : []),
-              item("zoom-in", "zoom-in", "Zoom in", "放大", { disabled: !actions.zoomIn }),
-              item("zoom-out", "zoom-out", "Zoom out", "缩小", { disabled: !actions.zoomOut }),
-              item("reset-zoom", "rotate-ccw", "Reset zoom", "重置缩放", { disabled: !actions.resetZoom }),
+              item("zoom-in", "magnifer-zoom-in", "Zoom in", "放大", { disabled: !actions.zoomIn }),
+              item("zoom-out", "magnifer-zoom-out", "Zoom out", "缩小", { disabled: !actions.zoomOut }),
+              item("reset-zoom", "restart", "Reset zoom", "重置缩放", { disabled: !actions.resetZoom }),
               item("print", "printer", "Print", "打印", { disabled: !actions.print }),
               item("bookmarks", "bookmark", "Bookmarks", "书签", { separatorBefore: true }),
-              item("history", "clock", "History", "历史"),
-              item("downloads", "download", "Downloads", "下载内容"),
-              item("toggle-bookmarks-bar", "panel-top", "Show bookmarks bar", "显示书签栏", { checked: visible }),
+              item("history", "history", "History", "历史"),
+              item("downloads", "download-minimalistic", "Downloads", "下载内容"),
+              item("toggle-bookmarks-bar", "bookmark-square", "Show bookmarks bar", "显示书签栏", { checked: visible }),
               item("import", "import", "Import browser data", "导入浏览器资料", { separatorBefore: true, disabled: !canImport }),
-              item("clear-data", "trash", "Clear browsing data", "清除浏览数据"),
+              item("clear-data", "trash-bin-minimalistic", "Clear browsing data", "清除浏览数据"),
               item("settings", "settings", "Browser settings", "浏览器设置", { separatorBefore: true }),
             ],
           });
@@ -233,20 +231,15 @@ export function BrowserMenu({
     chinese: string,
     checked?: boolean,
     disabled = false,
-  ) => {
-    const Icon = MENU_GLYPHS[glyph];
-    return (
-      <DropdownMenuItem
-        className={itemCls(false)}
-        disabled={disabled}
-        onSelect={() => runBrowserAction(id, router, actions)}
-      >
-        <Icon size={14} aria-hidden="true" />
-        <span className="flex-1">{text(english, chinese)}</span>
-        {checked === undefined ? null : checked ? <MenuCheck /> : <span className={CHECK_SLOT_PAD} />}
-      </DropdownMenuItem>
-    );
-  };
+  ) => (
+    <DropdownMenuItem
+      className={itemCls(false)}
+      disabled={disabled}
+      onSelect={() => runBrowserAction(id, router, actions)}
+    >
+      <MenuRow glyph={glyph} label={text(english, chinese)} checked={checked} />
+    </DropdownMenuItem>
+  );
 
   return (
     <DropdownMenu>
@@ -258,29 +251,29 @@ export function BrowserMenu({
         </DropdownMenuTrigger>
       </ToolbarTip>
       <DropdownMenuContent className={MENU_PANEL}>
-        {row("new-tab", "plus", "New browser tab", "新建浏览器标签页")}
+        {row("new-tab", "add-square", "New browser tab", "新建浏览器标签页")}
         {actions.collapseToPip
-          ? row("collapse-to-pip", "picture-in-picture", "Collapse to floating window", "收起到悬浮窗")
+          ? row("collapse-to-pip", "pip-2", "Collapse to floating window", "收起到悬浮窗")
           : null}
-        {responsive.home ? row("home", "house", "Home", "主页", undefined, !canGoHome) : null}
+        {responsive.home ? row("home", "home-2", "Home", "主页", undefined, !canGoHome) : null}
         {responsive.forward ? row("forward", "arrow-right", "Forward", "前进", undefined, !canGoForward) : null}
-        {responsive.openExternal ? row("open-external", "external-link", "Open in browser", "在浏览器中打开", undefined, !canOpenExternal) : null}
+        {responsive.openExternal ? row("open-external", "square-arrow-right-up", "Open in browser", "在浏览器中打开", undefined, !canOpenExternal) : null}
         <DropdownMenuSeparator className={MENU_SEPARATOR} />
-        {row("find", "search", "Find in page", "在页面中查找", undefined, !actions.find)}
-        {actions.comment ? row("comment", "message-plus", "Comment on the page…", "评论页面元素…") : null}
+        {row("find", "magnifier", "Find in page", "在页面中查找", undefined, !actions.find)}
+        {actions.comment ? row("comment", "chat-round-dots", "Comment on the page…", "评论页面元素…") : null}
         {actions.regionShot ? row("region-shot", "crop", "Screenshot a region…", "区域截图…") : null}
-        {row("zoom-in", "zoom-in", "Zoom in", "放大", undefined, !actions.zoomIn)}
-        {row("zoom-out", "zoom-out", "Zoom out", "缩小", undefined, !actions.zoomOut)}
-        {row("reset-zoom", "rotate-ccw", "Reset zoom", "重置缩放", undefined, !actions.resetZoom)}
+        {row("zoom-in", "magnifer-zoom-in", "Zoom in", "放大", undefined, !actions.zoomIn)}
+        {row("zoom-out", "magnifer-zoom-out", "Zoom out", "缩小", undefined, !actions.zoomOut)}
+        {row("reset-zoom", "restart", "Reset zoom", "重置缩放", undefined, !actions.resetZoom)}
         {row("print", "printer", "Print", "打印", undefined, !actions.print)}
         <DropdownMenuSeparator className={MENU_SEPARATOR} />
         {row("bookmarks", "bookmark", "Bookmarks", "书签")}
-        {row("history", "clock", "History", "历史")}
-        {row("downloads", "download", "Downloads", "下载内容")}
-        {row("toggle-bookmarks-bar", "panel-top", "Show bookmarks bar", "显示书签栏", visible)}
+        {row("history", "history", "History", "历史")}
+        {row("downloads", "download-minimalistic", "Downloads", "下载内容")}
+        {row("toggle-bookmarks-bar", "bookmark-square", "Show bookmarks bar", "显示书签栏", visible)}
         <DropdownMenuSeparator className={MENU_SEPARATOR} />
         {canImport ? row("import", "import", "Import browser data", "导入浏览器资料") : null}
-        {row("clear-data", "trash", "Clear browsing data", "清除浏览数据")}
+        {row("clear-data", "trash-bin-minimalistic", "Clear browsing data", "清除浏览数据")}
         <DropdownMenuSeparator className={MENU_SEPARATOR} />
         {row("settings", "settings", "Browser settings", "浏览器设置")}
       </DropdownMenuContent>

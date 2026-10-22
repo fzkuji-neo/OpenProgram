@@ -28,6 +28,8 @@ import {
 import { browserConnectionOpen, useBrowserResourceStore } from "@/lib/chat/session-resources";
 import { useTranslation } from "@/lib/i18n";
 import { MENU_PANEL } from "@/components/chat/top-bar/menu-styles";
+import { itemCls } from "@/components/chat/top-bar/menu-styles";
+import { MenuRow } from "@/components/ui/menu-parts";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -232,10 +234,10 @@ export function BrowserControlBar({
         </DropdownMenuTrigger>
         <DropdownMenuContent className={MENU_PANEL}>
           {history.length === 0
-            ? <DropdownMenuItem disabled>{text("No operations yet.", "尚无操作。")}</DropdownMenuItem>
+            ? <DropdownMenuItem disabled className={itemCls(false)}><MenuRow glyph="history" label={text("No operations yet.", "尚无操作。")} /></DropdownMenuItem>
             : history.map(item => (
-              <DropdownMenuItem key={item.id} disabled>
-                {item.action} · {item.phase}{item.error ? ` · ${item.error}` : ""}
+              <DropdownMenuItem key={item.id} disabled className={itemCls(false)}>
+                <MenuRow glyph="clock-circle" label={`${item.action} · ${item.phase}${item.error ? ` · ${item.error}` : ""}`} />
               </DropdownMenuItem>
             ))}
         </DropdownMenuContent>

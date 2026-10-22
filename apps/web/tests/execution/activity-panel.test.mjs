@@ -357,7 +357,7 @@ test("a filter with nothing to show says so and keeps the menu reachable", async
 
 test("the view menu is built from the composer menu's pieces", () => {
   const menu = readFileSync(new URL("../../components/right-sidebar/agents-view-menu.tsx", import.meta.url), "utf8");
-  for (const piece of ["DropdownMenuSubTrigger", "MENU_PANEL", "MENU_SEPARATOR", "PlusMenuRow", "HoverTip"]) assert.match(menu, new RegExp(piece));
+  for (const piece of ["DropdownMenuSubTrigger", "MENU_PANEL", "MENU_SEPARATOR", "MenuRow", "HoverTip"]) assert.match(menu, new RegExp(piece));
   assert.doesNotMatch(menu, /\btitle=/, "tooltips come from HoverTip, never a native title");
 });
 

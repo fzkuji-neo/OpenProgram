@@ -163,40 +163,51 @@ export function useTabMenu({
         items: [
           {
             id: "tabmenu:move-left",
+            glyph: "square-arrow-left",
             label: text("Move left", "向左移动"),
             disabled: !canMoveMenuTab(tabId, -1),
           },
           {
             id: "tabmenu:move-right",
+            glyph: "square-arrow-right",
             label: text("Move right", "向右移动"),
             disabled: !canMoveMenuTab(tabId, 1),
           },
           {
             id: "tabmenu:close",
+            glyph: "close-square",
+            keys: { key: "W", mod: true },
+            separatorBefore: true,
             label: text("Close tab", "关闭标签页"),
           },
           {
             id: "tabmenu:close-others",
+            glyph: "close-circle",
             label: text("Close other tabs", "关闭其他标签页"),
             disabled: closableTabsAround(tabId, false).length === 0,
           },
           {
             id: "tabmenu:close-right",
+            glyph: "arrow-right",
             label: text("Close tabs to the right", "关闭右侧标签页"),
             disabled: closableTabsAround(tabId, true).length === 0,
           },
           {
             id: "tabmenu:split",
+            glyph: "widget-2",
+            separatorBefore: true,
             label: text("New split view with this tab", "与此标签页新建分屏"),
             disabled: !canOpenSplitPicker(tabId),
           },
           {
             id: "tabmenu:ungroup",
+            glyph: "exit",
             label: text("Remove from group", "移出分组"),
             disabled: !findCenterTabGroup(useCenterTabs.getState().groups, tabId),
           },
           {
             id: "tabmenu:new-window",
+            glyph: "window-frame",
             label: text("Move to new window", "移至新窗口"),
             disabled: !canMoveToNewWindow,
           },

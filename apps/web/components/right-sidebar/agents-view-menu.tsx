@@ -8,11 +8,12 @@
  */
 import { useRef, useState } from "react";
 import { type AnimatedNavIconHandle, GalleryVerticalEndIcon } from "@/components/animated-icons";
-import { SolarIcon, type SolarIconName } from "@/components/solar-icons";
+import { MenuRow, type MenuGlyph } from "@/components/ui/menu-parts";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuSeparator,
+  DropdownMenuItem,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -20,7 +21,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { HoverTip } from "@/components/ui/tooltip";
 import { MENU_ITEM_STATES, MENU_PANEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
-import { PlusMenuRow } from "@/components/chat/composer/controls/menu-pieces";
 import { useTranslation } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import {
@@ -32,19 +32,18 @@ import {
 } from "@/lib/prefs/activity-view";
 
 function ValueSubmenu<T extends string>({ icon, label, value, options, onPick }: {
-  icon: SolarIconName; label: string; value: T; options: [T, string][]; onPick: (value: T) => void;
+  icon: MenuGlyph; label: string; value: T; options: [T, string, MenuGlyph][]; onPick: (value: T) => void;
 }) {
   return <DropdownMenuSub>
     <DropdownMenuSubTrigger className={cn(itemCls(false), MENU_ITEM_STATES)}>
-      <span className="flex h-[16px] w-[16px] shrink-0 items-center justify-center" aria-hidden="true">
-        <SolarIcon name={icon} size={16} />
-      </span>
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      <span className="shrink-0 text-text-muted">{options.find(([key]) => key === value)?.[1]}</span>
-      <SolarIcon name="alt-arrow-right" size={14} className="shrink-0 text-text-muted" />
+      <MenuRow glyph={icon} label={<span className="flex min-w-0 items-center gap-1.5"><span className="min-w-0 flex-1 truncate">{label}</span><span className="shrink-0 text-text-muted">{options.find(([key]) => key === value)?.[1]}</span></span>} submenu />
     </DropdownMenuSubTrigger>
     <DropdownMenuSubContent className={cn(MENU_PANEL, "z-[201]")}>
-      {options.map(([key, name]) => <PlusMenuRow key={key} active={key === value} icon={null} label={name} onSelect={() => onPick(key)} />)}
+      {options.map(([key, name, glyph]) => (
+        <DropdownMenuItem key={key} className={cn(itemCls(false), MENU_ITEM_STATES)} onSelect={() => onPick(key)}>
+          <MenuRow glyph={glyph} label={name} checked={key === value} />
+        </DropdownMenuItem>
+      ))}
     </DropdownMenuSubContent>
   </DropdownMenuSub>;
 }
@@ -79,7 +78,7 @@ export function AgentsViewMenu() {
         icon="eye"
         label={text("Show", "显示")}
         value={view.show}
-        options={[["all", text("All", "全部")], ["attention", text("Needs you", "需要处理")], ["running", text("Running", "正在运行")]]}
+        options={[["all", text("All", "全部"), "list"], ["attention", text("Needs you", "需要处理"), "question-circle"], ["running", text("Running", "正在运行"), "play"]]}
         onPick={show => setActivityView({ show })}
       />
       <DropdownMenuSeparator className={MENU_SEPARATOR} />
@@ -87,7 +86,7 @@ export function AgentsViewMenu() {
         icon="structure"
         label={text("Arrange", "排列")}
         value={view.arrange}
-        options={[["structure", text("By structure", "按结构")], ["time", text("By time", "按时间")]]}
+        options={[["structure", text("By structure", "按结构"), "structure"], ["time", text("By time", "按时间"), "clock-circle"]]}
         onPick={arrange => setActivityView({ arrange })}
       />
     </DropdownMenuContent>

@@ -61,6 +61,11 @@ export const CHECK_SLOT_PAD = "size-4 shrink-0";
  *  the Recents context menu). Stays muted — doesn't brighten with the
  *  row on hover. */
 export const SHORTCUT = "shrink-0 text-xs tracking-widest text-text-muted";
+/** A row's key as a key-cap badge (MenuKey): a menu-local letter (R) or
+ *  a system shortcut (⌘T / Ctrl+T), so a single letter reads as a key. */
+export const MENU_KEY =
+  "inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-[5px] " +
+  "border border-[var(--border)] px-[5px] font-sans text-[11px] leading-none text-text-muted";
 
 /** Right column of a row (check, then key hint) after the content, one
  *  title line tall so on a two-line row it sits on the title. */

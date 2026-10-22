@@ -1,14 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BotIcon, CheckIcon, CopyIcon, MessageCircleIcon, PlusIcon, SearchIcon, SettingsIcon } from "@/components/animated-icons";
+import { BotIcon, CheckIcon, MessageCircleIcon, PlusIcon, SearchIcon, SettingsIcon } from "@/components/animated-icons";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ManageEmptyState, ManagePageHeader, managePageStyles, ManageSummary } from "@/components/ui/manage-page";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { MenuRow } from "@/components/ui/menu-parts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { HoverTip } from "@/components/ui/tooltip";
-import { CHECK_SLOT_PAD, MENU_ITEM_STATES, MENU_PANEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
+import { MENU_ITEM_STATES, MENU_PANEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
 import { HttpError, jsonFetch } from "@/lib/net/fetch-client";
@@ -255,10 +256,10 @@ export function AgentsPage() {
           <DropdownMenu key={draft.id}>
             <HoverTip label={text("Agent actions", "Agent 操作")}><DropdownMenuTrigger asChild><Button ref={menuTrigger} variant="ghost" size="icon" className={styles.moreMenu} aria-label={text("Agent actions", "Agent 操作")}><SettingsIcon size={18} aria-hidden /></Button></DropdownMenuTrigger></HoverTip>
             <DropdownMenuContent align="end" sideOffset={4} className={cn(MENU_PANEL, "min-w-[190px] text-[var(--text-primary)]")}>
-              <DropdownMenuItem className={cn(itemCls(false), MENU_ITEM_STATES)} disabled={draft.default || busy} onSelect={() => guard(makeDefault)}><CheckIcon size={16} aria-hidden />{text("Set as default", "设为默认")}</DropdownMenuItem>
-              <DropdownMenuItem className={cn(itemCls(false), MENU_ITEM_STATES)} disabled={busy} onSelect={() => openDialog("duplicate")}><CopyIcon size={16} aria-hidden />{text("Duplicate Agent", "复制 Agent")}</DropdownMenuItem>
+              <DropdownMenuItem className={cn(itemCls(false), MENU_ITEM_STATES)} disabled={draft.default || busy} onSelect={() => guard(makeDefault)}><MenuRow glyph="check-circle" label={text("Set as default", "设为默认")} /></DropdownMenuItem>
+              <DropdownMenuItem className={cn(itemCls(false), MENU_ITEM_STATES)} disabled={busy} onSelect={() => openDialog("duplicate")}><MenuRow glyph="copy" label={text("Duplicate Agent", "复制 Agent")} /></DropdownMenuItem>
               <DropdownMenuSeparator className={MENU_SEPARATOR} />
-              <DropdownMenuItem className={cn(itemCls(false, true), MENU_ITEM_STATES)} disabled={draft.default || busy} onSelect={() => openDialog("delete")}><span className={CHECK_SLOT_PAD} aria-hidden />{text("Delete Agent", "删除 Agent")}</DropdownMenuItem>
+              <DropdownMenuItem className={cn(itemCls(false, true), MENU_ITEM_STATES)} disabled={draft.default || busy} onSelect={() => openDialog("delete")}><MenuRow glyph="trash-bin-trash" label={text("Delete Agent", "删除 Agent")} danger /></DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

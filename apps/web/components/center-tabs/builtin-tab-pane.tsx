@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 
 import { bookmarkFaviconSources } from "@/lib/tabs/bookmarks";
+import { MenuRow } from "@/components/ui/menu-parts";
 import { TabFavicon } from "./tab-favicon";
 import { ChromeIcon } from "@/components/animated-icons";
 import {
@@ -385,11 +386,11 @@ function BookmarksPage() {
                   setDraftTitle(node.title);
                 }}
               >
-                {editLabel}
+                <MenuRow glyph="pen" label={editLabel} />
               </DropdownMenuItem>
               <DropdownMenuSeparator className={MENU_SEPARATOR} />
               <DropdownMenuItem className={itemCls(false, true)} onSelect={() => deleteNode(node.id)}>
-                {deleteLabel}
+                <MenuRow glyph="trash-bin-trash" label={deleteLabel} danger />
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -447,7 +448,7 @@ function BookmarksPage() {
               className={itemCls(false)}
               onSelect={() => createFolder(newFolderLabel, selectedFolder.id)}
             >
-              {newFolderLabel}
+              <MenuRow glyph="add-folder" label={newFolderLabel} />
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

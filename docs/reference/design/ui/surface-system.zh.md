@@ -113,6 +113,19 @@ icon-sm     24.5 px                输入框周围的图标按钮
 
 其余所有菜单弹层——Radix `DropdownMenu`、各种弹出选择器、侧栏底部菜单、标签页右键菜单、函数右键菜单——共用一个外框和一种行，都取自 `apps/web/components/chat/top-bar/menu-styles.ts` 里的 `MENU_PANEL`、`itemCls`、`GROUP_LABEL` 和 `MENU_SEPARATOR`。用 CSS module 写的菜单在 module 里只留位置（定位、层级、宽度），外框和行直接用这些类，不再自己抄一遍数值。
 
+从小按钮或右键打开的操作菜单，每一行都用 `MenuRow`（`apps/web/components/ui/menu-parts.tsx`）搭，页面内和桌面覆盖层一样。一行从左到右：
+
+```
+[图标] 标签 ············ [按键] [勾选] [›]
+```
+
+- **图标**：Solar Bold Duotone 图标（`MenuIcon`，16px，弱化色），和侧栏文件夹同一系列。文件夹行用 `--folder-color` 画文件夹；危险操作的图标是红色。
+- **按键**：按键徽标（`MENU_KEY`），按平台写法显示，由 `formatMenuKeys` 生成：macOS 上是 `⌘T`、`⇧⌘C`，其他系统是 `Ctrl+T`、`Ctrl+Shift+C`。菜单只显示已经能用的按键：真正的快捷键，或菜单打开时响应的单个字母（对话菜单的 R/P/C/A/D）。不为了填徽标去新增全局快捷键。
+- **勾选**：`MenuCheck` 放在行尾；可勾选分组里没勾的行留空这一列（`CHECK_SLOT_PAD`）。
+- **子菜单**：行尾一个右箭头；子菜单可以任意层级嵌套。
+
+桌面覆盖层以数据形式拿到同样的字段：`DesktopContextMenuItem` 带 `glyph` 和 `keys`，覆盖层页面用同一套部件渲染。`scripts/ui/check-menu-rows.mjs` 检查每个菜单文件都用这种行。
+
 ```
 部分        Nova，文档站尺寸
 ─────────────────────────────────────────────────────────────────
@@ -123,8 +136,8 @@ icon-sm     24.5 px                输入框周围的图标按钮
 悬停        bg-accent（墨色 9%）· text-bright
 分组标题    px-1.5 py-1 · text-xs · font-medium · 弱化色
 分隔线      -mx-1 my-1 · 1px · --border
-快捷键      text-xs · tracking-widest · 弱化色
-选中        强调色对勾（MenuCheck），不铺底色
+快捷键      按键徽标（MENU_KEY）· text-[11px] · 弱化色
+选中        强调色对勾（MenuCheck）放在行尾，不铺底色
 ─────────────────────────────────────────────────────────────────
 ```
 

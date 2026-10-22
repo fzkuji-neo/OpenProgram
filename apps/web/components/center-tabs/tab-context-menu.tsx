@@ -9,7 +9,8 @@ import type { CenterTab } from "@/lib/tabs/center-tabs-store";
 import { useTranslation } from "@/lib/i18n";
 import type { TabMenuState } from "./use-tab-menu";
 import { cn } from "@/lib/utils";
-import { MENU_PANEL, itemCls } from "@/components/chat/top-bar/menu-styles";
+import { MENU_PANEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
+import { MenuRow } from "@/components/ui/menu-parts";
 import styles from "./center-tabs.module.css";
 
 export interface TabContextMenuProps {
@@ -57,7 +58,7 @@ export function TabContextMenu({
         disabled={!canMoveMenuTab(tabMenu.tabId, -1)}
         onClick={() => moveMenuTab(tabMenu.tabId, -1)}
       >
-        {text("Move left", "向左移动")}
+        <MenuRow glyph="square-arrow-left" label={text("Move left", "向左移动")} />
       </button>
       <button
         type="button"
@@ -66,15 +67,16 @@ export function TabContextMenu({
         disabled={!canMoveMenuTab(tabMenu.tabId, 1)}
         onClick={() => moveMenuTab(tabMenu.tabId, 1)}
       >
-        {text("Move right", "向右移动")}
+        <MenuRow glyph="square-arrow-right" label={text("Move right", "向右移动")} />
       </button>
+      <div className={MENU_SEPARATOR} role="separator" />
       <button
         type="button"
         role="menuitem"
         className={cn(itemCls(false), styles.tabMenuItem)}
         onClick={() => closeMenuTab(tabMenu.tabId)}
       >
-        {text("Close tab", "关闭标签页")}
+        <MenuRow glyph="close-square" label={text("Close tab", "关闭标签页")} keys={{ key: "W", mod: true }} />
       </button>
       <button
         type="button"
@@ -83,7 +85,7 @@ export function TabContextMenu({
         disabled={closableTabsAround(tabMenu.tabId, false).length === 0}
         onClick={() => closeMenuTabs(tabMenu.tabId, false)}
       >
-        {text("Close other tabs", "关闭其他标签页")}
+        <MenuRow glyph="close-circle" label={text("Close other tabs", "关闭其他标签页")} />
       </button>
       <button
         type="button"
@@ -92,8 +94,9 @@ export function TabContextMenu({
         disabled={closableTabsAround(tabMenu.tabId, true).length === 0}
         onClick={() => closeMenuTabs(tabMenu.tabId, true)}
       >
-        {text("Close tabs to the right", "关闭右侧标签页")}
+        <MenuRow glyph="arrow-right" label={text("Close tabs to the right", "关闭右侧标签页")} />
       </button>
+      <div className={MENU_SEPARATOR} role="separator" />
       <button
         type="button"
         role="menuitem"
@@ -101,7 +104,7 @@ export function TabContextMenu({
         disabled={!canOpenSplitPicker(tabMenu.tabId)}
         onClick={() => openSplitPicker(tabMenu.tabId)}
       >
-        {text("New split view with this tab", "与此标签页新建分屏")}
+        <MenuRow glyph="widget-2" label={text("New split view with this tab", "与此标签页新建分屏")} />
       </button>
       <button
         type="button"
@@ -110,7 +113,7 @@ export function TabContextMenu({
         disabled={!findCenterTabGroup(groups, tabMenu.tabId)}
         onClick={() => removeMenuTabFromGroup(tabMenu.tabId)}
       >
-        {text("Remove from group", "移出分组")}
+        <MenuRow glyph="exit" label={text("Remove from group", "移出分组")} />
       </button>
       <button
         type="button"
@@ -119,7 +122,7 @@ export function TabContextMenu({
         disabled={!canMoveToNewWindow}
         onClick={() => moveMenuTabToNewWindow(tabMenu.tabId)}
       >
-        {text("Move to new window", "移至新窗口")}
+        <MenuRow glyph="window-frame" label={text("Move to new window", "移至新窗口")} />
       </button>
     </div>
   );

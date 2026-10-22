@@ -40,6 +40,7 @@ import { hunkRange, lineCommentText, type DiffLine, type ReviewHunk } from "./re
 import { appendToComposer } from "@/components/chat/messages/quote-to-chat";
 import { showToast } from "@/lib/format-utils/toast";
 import { MenuCheck } from "@/components/chat/top-bar/menu-check";
+import { MenuRow, type MenuGlyph } from "@/components/ui/menu-parts";
 
 /** What a Review pane last showed, by its source. A pane mounts again
  *  whenever its window comes back (a tab switch, a merge), and starting
@@ -53,6 +54,14 @@ type ReviewMemory = {
   scopeState: ScopeState;
   diffState: DiffState;
 };
+const CATEGORY_GLYPHS: Record<"All" | "Code" | "Tests" | "Docs" | "Large", MenuGlyph> = {
+  All: "list",
+  Code: "code-square",
+  Tests: "checklist",
+  Docs: "document-text",
+  Large: "database",
+};
+
 const MEMORY_LIMIT = 16;
 const remembered = new Map<string, ReviewMemory>();
 function remember(key: string, memory: ReviewMemory) {
@@ -493,10 +502,7 @@ const data = await requestReviewScope({
                   className={`${itemCls(false)} ${MENU_ITEM_STATES}`}
                   onSelect={() => chooseCategory(value)}
                 >
-                  <span className="min-w-0 flex-1 truncate">{categoryLabels[value]}</span>
-                  {category === value
-                    ? <MenuCheck />
-                    : <span className={CHECK_SLOT_PAD} />}
+                  <MenuRow glyph={CATEGORY_GLYPHS[value]} label={categoryLabels[value]} checked={category === value} />
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -624,14 +630,14 @@ const data = await requestReviewScope({
                             disabled={scopeState.prev_cursor == null}
                             onSelect={() => setFileCursor(scopeState.prev_cursor ?? null)}
                           >
-                            {text("Previous page", "上一页")}
+                            <MenuRow glyph="arrow-left" label={text("Previous page", "上一页")} />
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className={`${itemCls(false)} ${MENU_ITEM_STATES}`}
                             disabled={scopeState.next_cursor == null}
                             onSelect={() => setFileCursor(scopeState.next_cursor ?? null)}
                           >
-                            {text("Next page", "下一页")}
+                            <MenuRow glyph="arrow-right" label={text("Next page", "下一页")} />
                           </DropdownMenuItem>
                         </>
                       ) : null}

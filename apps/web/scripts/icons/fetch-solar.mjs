@@ -86,6 +86,57 @@ const ICONS = {
   "plug-circle": "bold-duotone",
   "sledgehammer": "bold-duotone",
   "cpu": "bold-duotone",
+  // menu rows (components/ui/menu-parts.tsx): every action menu's icons
+  "pen": "bold-duotone",
+  "pin": "bold-duotone",
+  "link": "bold-duotone",
+  "archive": "bold-duotone",
+  "archive-up": "bold-duotone",
+  "trash-bin-trash": "bold-duotone",
+  "trash-bin-minimalistic": "bold-duotone",
+  "file-download": "bold-duotone",
+  "layers": "bold-duotone",
+  "close-square": "bold-duotone",
+  "add-square": "bold-duotone",
+  "widget-add": "bold-duotone",
+  "settings": "bold-duotone",
+  "home-2": "bold-duotone",
+  "arrow-right": "bold-duotone",
+  "arrow-left": "bold-duotone",
+  "crop": "bold-duotone",
+  "magnifer-zoom-in": "bold-duotone",
+  "magnifer-zoom-out": "bold-duotone",
+  "restart": "bold-duotone",
+  "printer": "bold-duotone",
+  "bookmark": "bold-duotone",
+  "bookmark-square": "bold-duotone",
+  "history": "bold-duotone",
+  "download-minimalistic": "bold-duotone",
+  "import": "bold-duotone",
+  "export": "bold-duotone",
+  "clipboard-text": "bold-duotone",
+  "scissors": "bold-duotone",
+  "info-circle": "bold-duotone",
+  "document-add": "bold-duotone",
+  "document-text": "bold-duotone",
+  "chat-round-line": "bold-duotone",
+  "square-arrow-left": "bold-duotone",
+  "square-arrow-right": "bold-duotone",
+  "window-frame": "bold-duotone",
+  "exit": "bold-duotone",
+  "play": "bold-duotone",
+  "pause": "bold-duotone",
+  "question-circle": "bold-duotone",
+  "sort-vertical": "bold-duotone",
+  "sort-from-top-to-bottom": "bold-duotone",
+  "sort-from-bottom-to-top": "bold-duotone",
+  "clock-circle": "bold-duotone",
+  "users-group-rounded": "bold-duotone",
+  "list": "bold-duotone",
+  "widget-2": "bold-duotone",
+  "square-share-line": "bold-duotone",
+  "star": "bold-duotone",
+  "palette": "bold-duotone",
 };
 
 // A few glyphs come from other Iconify sets where Solar has no good fit;
@@ -111,11 +162,16 @@ const ADJUST = {
 };
 
 const ids = Object.entries(ICONS).map(([name, style]) => `${name}-${style}`);
-const url = `https://api.iconify.design/solar.json?icons=${ids.join(",")}`;
-const res = await fetch(url);
-if (!res.ok) throw new Error(`Iconify API ${res.status} for ${url}`);
-const data = await res.json();
-if (data.not_found?.length) throw new Error(`Not in Solar: ${data.not_found.join(", ")}`);
+// Batched: one URL with every id grows past what the API accepts.
+const data = { icons: {} };
+for (let at = 0; at < ids.length; at += 40) {
+  const url = `https://api.iconify.design/solar.json?icons=${ids.slice(at, at + 40).join(",")}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Iconify API ${res.status} for ${url}`);
+  const batch = await res.json();
+  if (batch.not_found?.length) throw new Error(`Not in Solar: ${batch.not_found.join(", ")}`);
+  Object.assign(data.icons, batch.icons);
+}
 
 const lines = Object.entries(ICONS).map(([name, style]) => {
   const fetched = data.icons[`${name}-${style}`]?.body;

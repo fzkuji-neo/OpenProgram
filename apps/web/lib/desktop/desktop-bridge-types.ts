@@ -1,7 +1,7 @@
 import type { ThemeId, ThemeMode, ThemeStyle } from "@/lib/prefs/theme-pref";
 import type { PickedElement } from "@/lib/browser/page-comment";
 import type { PickedRegion } from "@/lib/browser/region-shot";
-import type { MenuGlyph } from "@/lib/menu/menu-glyphs";
+import type { MenuGlyph, MenuKeys } from "@/components/ui/menu-parts";
 
 export interface DesktopThemeChrome {
   theme: ThemeId;
@@ -356,8 +356,10 @@ export interface DesktopContextMenuItem {
   iconUrl?: string;
   iconFallbackUrl?: string;
   icon?: "folder";
-  /** A row icon from lib/menu/menu-glyphs.ts, drawn by the overlay. */
+  /** The row's Solar icon (components/ui/menu-parts.tsx), drawn by the overlay. */
   glyph?: MenuGlyph;
+  /** The row's key badge: a menu-local letter or a system shortcut. */
+  keys?: MenuKeys;
   disabled?: boolean;
   checked?: boolean;
   separatorBefore?: boolean;

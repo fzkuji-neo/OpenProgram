@@ -12,7 +12,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { MoreVertical, Plus, Settings, SquarePlus } from "lucide-react";
+import { MoreVertical } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -23,10 +23,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   itemCls,
+  MENU_ITEM_STATES,
   MENU_PANEL,
   MENU_SEPARATOR,
-  SHORTCUT,
 } from "@/components/chat/top-bar/menu-styles";
+import { MenuRow } from "@/components/ui/menu-parts";
+import { HoverTip } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";
 import { activeThemeId } from "@/lib/prefs/theme-pref";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
@@ -64,10 +67,10 @@ export function MainMenu() {
 
   if (mainMenu) {
     return (
+      <HoverTip label={label} side="bottom">
       <button
         type="button"
         className={styles.menuBtn}
-        title={label}
         aria-label={label}
         onClick={(e) => {
           const trigger = e.currentTarget.getBoundingClientRect();
@@ -83,45 +86,41 @@ export function MainMenu() {
       >
         <MoreVertical size={16} />
       </button>
+      </HoverTip>
     );
   }
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className={styles.menuBtn}
-          title={label}
-          aria-label={label}
-        >
-          <MoreVertical size={16} />
-        </button>
-      </DropdownMenuTrigger>
+      <HoverTip label={label} side="bottom">
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className={styles.menuBtn}
+            aria-label={label}
+          >
+            <MoreVertical size={16} />
+          </button>
+        </DropdownMenuTrigger>
+      </HoverTip>
       <DropdownMenuContent className={MENU_PANEL}>
-        <DropdownMenuItem className={itemCls(false)} onSelect={() => openNewTabPage()}>
-          <Plus size={14} aria-hidden="true" />
-          <span className="flex-1">{text("New tab", "新标签页")}</span>
-          <span className={SHORTCUT}>⌘T</span>
+        <DropdownMenuItem className={cn(itemCls(false), MENU_ITEM_STATES)} onSelect={() => openNewTabPage()}>
+          <MenuRow glyph="add-square" label={text("New tab", "新标签页")} keys={{ key: "T", mod: true }} />
         </DropdownMenuItem>
         {canOpenWindow ? (
           <DropdownMenuItem
-            className={itemCls(false)}
+            className={cn(itemCls(false), MENU_ITEM_STATES)}
             onSelect={() => window.open(window.location.origin, "_blank")}
           >
-            <SquarePlus size={14} aria-hidden="true" />
-            <span className="flex-1">{text("New window", "新窗口")}</span>
-            <span className={SHORTCUT}>⌘N</span>
+            <MenuRow glyph="widget-add" label={text("New window", "新窗口")} keys={{ key: "N", mod: true }} />
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuSeparator className={MENU_SEPARATOR} />
         <DropdownMenuItem
-          className={itemCls(false)}
+          className={cn(itemCls(false), MENU_ITEM_STATES)}
           onSelect={() => router.push("/settings/general")}
         >
-          <Settings size={14} aria-hidden="true" />
-          <span className="flex-1">{text("Settings", "设置")}</span>
-          <span className={SHORTCUT}>⌘,</span>
+          <MenuRow glyph="settings" label={text("Settings", "设置")} keys={{ key: ",", mod: true }} />
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

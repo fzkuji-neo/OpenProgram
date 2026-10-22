@@ -7,11 +7,11 @@ import { wsRequest } from "@/lib/net/ws-request";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { HoverTip } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { CHECK_SLOT_PAD, MENU_ITEM_STATES, MENU_PANEL, GROUP_LABEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
+import { MENU_ITEM_STATES, MENU_PANEL, GROUP_LABEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
+import { MenuRow, type MenuGlyph } from "@/components/ui/menu-parts";
 import { copyText } from "./explorer-header";
 import styles from "./files-panel.module.css";
-import { MenuCheck } from "@/components/chat/top-bar/menu-check";
 
 const DEFAULT_SORT = "name:asc:folders:hidden:ignored";
 const SORT_PATTERN = /^(name|mtime|size|kind):(asc|desc):(folders|mixed):(hidden|visible):(ignored|tracked)$/;
@@ -48,16 +48,16 @@ export function FileSortMenu({ value, onChange }: { value: string; onChange: (va
     if (index === 0) updated[1] = next === "size" || next === "mtime" ? "desc" : "asc";
     onChange(updated.join(":"));
   };
-  const option = (index: number, key: string, label: string, alternate?: string) => <DropdownMenuItem key={key} role={alternate ? "menuitemcheckbox" : "menuitemradio"} aria-checked={fields[index] === key} className={`${itemCls(false)} outline-none data-[highlighted]:bg-accent data-[highlighted]:text-text-bright`} onSelect={event => { event.preventDefault(); change(index, alternate && fields[index] === key ? alternate : key); }}><span className="flex-1">{label}</span>{fields[index] === key ? <MenuCheck /> : <span className={CHECK_SLOT_PAD} />}</DropdownMenuItem>;
+  const option = (index: number, key: string, glyph: MenuGlyph, label: string, alternate?: string) => <DropdownMenuItem key={key} role={alternate ? "menuitemcheckbox" : "menuitemradio"} aria-checked={fields[index] === key} className={`${itemCls(false)} outline-none data-[highlighted]:bg-accent data-[highlighted]:text-text-bright`} onSelect={event => { event.preventDefault(); change(index, alternate && fields[index] === key ? alternate : key); }}><MenuRow glyph={glyph} label={label} checked={fields[index] === key} /></DropdownMenuItem>;
   return <DropdownMenu modal={false}><HoverTip label={text("Sort and display", "排序与显示")}><DropdownMenuTrigger asChild><button type="button" className={styles.iconBtn} aria-label={text("Sort and display", "排序与显示")}><ArrowDownWideNarrow /></button></DropdownMenuTrigger></HoverTip>
     <DropdownMenuContent align="start" className={`${MENU_PANEL} w-[240px]`}>
       <div role="group" aria-label={text("Sort by", "排序依据")}><div className={GROUP_LABEL}>{text("Sort by", "排序依据")}</div>
-        {option(0, "name", text("Name", "名称"))}{option(0, "mtime", text("Modified", "修改时间"))}{option(0, "size", text("Size", "大小"))}{option(0, "kind", text("Type", "类型"))}
+        {option(0, "name", "pen", text("Name", "名称"))}{option(0, "mtime", "clock-circle", text("Modified", "修改时间"))}{option(0, "size", "database", text("Size", "大小"))}{option(0, "kind", "file-text", text("Type", "类型"))}
       </div><DropdownMenuSeparator className={MENU_SEPARATOR} />
       <div role="group" aria-label={text("Order", "顺序")}>
-        {option(1, "asc", text("Ascending", "升序"))}{option(1, "desc", text("Descending", "降序"))}
+        {option(1, "asc", "sort-from-bottom-to-top", text("Ascending", "升序"))}{option(1, "desc", "sort-from-top-to-bottom", text("Descending", "降序"))}
       </div><DropdownMenuSeparator className={MENU_SEPARATOR} />
-      {option(2, "folders", text("Folders first", "文件夹优先"), "mixed")}{option(3, "hidden", text("Show hidden files", "显示隐藏文件"), "visible")}{option(4, "ignored", text("Show Git-ignored files", "显示 Git 忽略文件"), "tracked")}
+      {option(2, "folders", "folder", text("Folders first", "文件夹优先"), "mixed")}{option(3, "hidden", "eye", text("Show hidden files", "显示隐藏文件"), "visible")}{option(4, "ignored", "git-branch", text("Show Git-ignored files", "显示 Git 忽略文件"), "tracked")}
     </DropdownMenuContent></DropdownMenu>;
 
 }
@@ -85,9 +85,9 @@ export function FileBreadcrumb({ root, path, absolutePath, onLocate }: { root: s
     return <ContextMenu>
       <ContextMenuTrigger asChild>{segment}</ContextMenuTrigger>
       <ContextMenuContent className="min-w-40">
-        <ContextMenuItem onSelect={() => { void copy(target || "."); }}>{text("Copy relative path", "复制相对路径")}</ContextMenuItem>
-        <ContextMenuItem disabled={absolute === undefined} onSelect={() => { if (absolute !== undefined) void copy(absolute); }}>{text("Copy absolute path", "复制绝对路径")}</ContextMenuItem>
-        <ContextMenuItem onSelect={() => { void copy(name); }}>{text("Copy name", "复制名称")}</ContextMenuItem>
+        <ContextMenuItem onSelect={() => { void copy(target || "."); }}><MenuRow glyph="copy" label={text("Copy relative path", "复制相对路径")} /></ContextMenuItem>
+        <ContextMenuItem disabled={absolute === undefined} onSelect={() => { if (absolute !== undefined) void copy(absolute); }}><MenuRow glyph="copy" label={text("Copy absolute path", "复制绝对路径")} /></ContextMenuItem>
+        <ContextMenuItem onSelect={() => { void copy(name); }}><MenuRow glyph="pen" label={text("Copy name", "复制名称")} /></ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>;
   }
