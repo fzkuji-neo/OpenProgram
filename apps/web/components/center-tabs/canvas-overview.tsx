@@ -476,11 +476,10 @@ export function CanvasOverview() {
                       width: (r.width - inset * 2) * k, height: (r.height - inset * 2) * k,
                       borderRadius: split ? PANE_RADIUS * k : 0,
                     }}>
+                      {/* Not pictured yet: the tab's icon alone, as Mission Control
+                          shows an app icon. The name is the caption under the card. */}
                       {shot ? <img className={styles.shot} src={shot} alt="" draggable={false} /> : tab && !tab.canvasAnchor ? (
-                        <>
-                          <span className={styles.paneTitle}><CompoundMemberIcon tab={tab} animate={false} /><span>{labelOf(tab, t, text)}</span></span>
-                          <i className={styles.line} /><i className={styles.line} style={{ width: "62%" }} />
-                        </>
+                        <span className={styles.paneGlyph}><CompoundMemberIcon tab={tab} animate={false} /></span>
                       ) : null}
                     </span>
                   );
