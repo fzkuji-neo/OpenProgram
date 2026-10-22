@@ -11,7 +11,9 @@ import { addressDisplayParts, shortcutHint } from "@/lib/browser/browser-layout"
 import styles from "./center-tabs.module.css";
 
 /** Toolbar control tip. It opens above the control: the page below is a
- *  native view in the desktop App and would cover a tip drawn there. */
+ *  native view in the desktop App and would cover a tip drawn there. So it
+ *  never flips, and it keeps to one line (a long session title truncates)
+ *  so it fits in the room above the toolbar. */
 export function ToolbarTip({
   label,
   shortcut,
@@ -25,12 +27,13 @@ export function ToolbarTip({
   return (
     <HoverTip
       side="top"
-      label={shortcut ? (
+      avoidCollisions={false}
+      label={
         <span className={styles.toolbarTip}>
-          {label}
-          <kbd>{shortcutHint(shortcut.key, { shift: shortcut.shift, mac })}</kbd>
+          <span className={styles.toolbarTipLabel}>{label}</span>
+          {shortcut ? <kbd>{shortcutHint(shortcut.key, { shift: shortcut.shift, mac })}</kbd> : null}
         </span>
-      ) : label}
+      }
     >
       {children}
     </HoverTip>

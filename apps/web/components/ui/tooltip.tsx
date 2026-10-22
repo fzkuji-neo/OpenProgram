@@ -48,12 +48,15 @@ interface HoverTipProps {
   label: React.ReactNode
   children: React.ReactElement
   side?: "top" | "right" | "bottom" | "left"
+  /** false keeps the tip on `side` even when it is short of room, for
+   *  controls whose other sides are covered (a native web view). */
+  avoidCollisions?: boolean
 }
 /** Hover dwell before a tip shows: long enough that passing the pointer
  *  over the controls never flashes tips, short enough to still help. */
 const HOVER_TIP_DELAY_MS = 1500
 
-function HoverTip({ label, children, side = "top" }: HoverTipProps) {
+function HoverTip({ label, children, side = "top", avoidCollisions }: HoverTipProps) {
   const [open, setOpen] = React.useState(false)
   const triggerRef = React.useRef<HTMLElement | null>(null)
   // 指针是否真的悬在 trigger 上。radix 在 trigger 拿到焦点时也会请求
@@ -94,7 +97,7 @@ function HoverTip({ label, children, side = "top" }: HoverTipProps) {
         >
           {children}
         </TooltipTrigger>
-        <TooltipContent side={side}>{label}</TooltipContent>
+        <TooltipContent side={side} avoidCollisions={avoidCollisions}>{label}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   )

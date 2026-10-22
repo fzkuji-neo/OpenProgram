@@ -2,28 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Bookmark,
-  ArrowRight,
-  Clock3,
-  Crop,
-  Download,
-  House,
-  Import,
-  Library,
-  MessageSquarePlus,
-  MoreVertical,
-  PictureInPicture2,
-  Plus,
-  Printer,
-  RotateCcw,
-  Search,
-  Settings,
-  Trash2,
-  ZoomIn,
-  ZoomOut,
-  ExternalLink,
-} from "lucide-react";
+import { Library, MoreVertical } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -33,10 +12,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  CHECK_SLOT_PAD,
   itemCls,
   MENU_PANEL,
   MENU_SEPARATOR,
 } from "@/components/chat/top-bar/menu-styles";
+import { MENU_GLYPHS, type MenuGlyph } from "@/lib/menu/menu-glyphs";
 import { activeThemeId } from "@/lib/prefs/theme-pref";
 import {
   requestBrowserImport,
@@ -200,11 +181,13 @@ export function BrowserMenu({
           const rect = event.currentTarget.getBoundingClientRect();
           const item = (
             id: string,
+            glyph: MenuGlyph,
             english: string,
             chinese: string,
             extra?: Pick<DesktopContextMenuItem, "separatorBefore" | "checked" | "disabled">,
           ): DesktopContextMenuItem => ({
             id: `${actionPrefix}${id}`,
+            glyph,
             label: text(english, chinese),
             ...extra,
           });
@@ -212,27 +195,27 @@ export function BrowserMenu({
             anchor: { right: rect.right, y: rect.bottom + 4, align: "end", vw: innerWidth, vh: innerHeight },
             theme: activeThemeId(),
             items: [
-              item("new-tab", "New browser tab", "新建浏览器标签页"),
+              item("new-tab", "plus", "New browser tab", "新建浏览器标签页"),
               ...(actions.collapseToPip
-                ? [item("collapse-to-pip", "Collapse to floating window", "收起到悬浮窗")]
+                ? [item("collapse-to-pip", "picture-in-picture", "Collapse to floating window", "收起到悬浮窗")]
                 : []),
-              ...(responsive.home ? [item("home", "Home", "主页", { disabled: !canGoHome })] : []),
-              ...(responsive.forward ? [item("forward", "Forward", "前进", { disabled: !canGoForward })] : []),
-              ...(responsive.openExternal ? [item("open-external", "Open in browser", "在浏览器中打开", { disabled: !canOpenExternal })] : []),
-              item("find", "Find in page", "在页面中查找", { separatorBefore: true, disabled: !actions.find }),
-              ...(actions.comment ? [item("comment", "Comment on the page…", "评论页面元素…")] : []),
-              ...(actions.regionShot ? [item("region-shot", "Screenshot a region…", "区域截图…")] : []),
-              item("zoom-in", "Zoom in", "放大", { disabled: !actions.zoomIn }),
-              item("zoom-out", "Zoom out", "缩小", { disabled: !actions.zoomOut }),
-              item("reset-zoom", "Reset zoom", "重置缩放", { disabled: !actions.resetZoom }),
-              item("print", "Print", "打印", { disabled: !actions.print }),
-              item("bookmarks", "Bookmarks", "书签", { separatorBefore: true }),
-              item("history", "History", "历史"),
-              item("downloads", "Downloads", "下载内容"),
-              item("toggle-bookmarks-bar", "Show bookmarks bar", "显示书签栏", { checked: visible }),
-              item("import", "Import browser data", "导入浏览器资料", { separatorBefore: true, disabled: !canImport }),
-              item("clear-data", "Clear browsing data", "清除浏览数据"),
-              item("settings", "Browser settings", "浏览器设置", { separatorBefore: true }),
+              ...(responsive.home ? [item("home", "house", "Home", "主页", { disabled: !canGoHome })] : []),
+              ...(responsive.forward ? [item("forward", "arrow-right", "Forward", "前进", { disabled: !canGoForward })] : []),
+              ...(responsive.openExternal ? [item("open-external", "external-link", "Open in browser", "在浏览器中打开", { disabled: !canOpenExternal })] : []),
+              item("find", "search", "Find in page", "在页面中查找", { separatorBefore: true, disabled: !actions.find }),
+              ...(actions.comment ? [item("comment", "message-plus", "Comment on the page…", "评论页面元素…")] : []),
+              ...(actions.regionShot ? [item("region-shot", "crop", "Screenshot a region…", "区域截图…")] : []),
+              item("zoom-in", "zoom-in", "Zoom in", "放大", { disabled: !actions.zoomIn }),
+              item("zoom-out", "zoom-out", "Zoom out", "缩小", { disabled: !actions.zoomOut }),
+              item("reset-zoom", "rotate-ccw", "Reset zoom", "重置缩放", { disabled: !actions.resetZoom }),
+              item("print", "printer", "Print", "打印", { disabled: !actions.print }),
+              item("bookmarks", "bookmark", "Bookmarks", "书签", { separatorBefore: true }),
+              item("history", "clock", "History", "历史"),
+              item("downloads", "download", "Downloads", "下载内容"),
+              item("toggle-bookmarks-bar", "panel-top", "Show bookmarks bar", "显示书签栏", { checked: visible }),
+              item("import", "import", "Import browser data", "导入浏览器资料", { separatorBefore: true, disabled: !canImport }),
+              item("clear-data", "trash", "Clear browsing data", "清除浏览数据"),
+              item("settings", "settings", "Browser settings", "浏览器设置", { separatorBefore: true }),
             ],
           });
         }}
@@ -245,21 +228,25 @@ export function BrowserMenu({
 
   const row = (
     id: string,
-    icon: React.ReactNode,
+    glyph: MenuGlyph,
     english: string,
     chinese: string,
-    checked = false,
+    checked?: boolean,
     disabled = false,
-  ) => (
-    <DropdownMenuItem
-      className={itemCls(false)}
-      disabled={disabled}
-      onSelect={() => runBrowserAction(id, router, actions)}
-    >
-      {checked ? <MenuCheck /> : icon}
-      <span className="flex-1">{text(english, chinese)}</span>
-    </DropdownMenuItem>
-  );
+  ) => {
+    const Icon = MENU_GLYPHS[glyph];
+    return (
+      <DropdownMenuItem
+        className={itemCls(false)}
+        disabled={disabled}
+        onSelect={() => runBrowserAction(id, router, actions)}
+      >
+        <Icon size={14} aria-hidden="true" />
+        <span className="flex-1">{text(english, chinese)}</span>
+        {checked === undefined ? null : checked ? <MenuCheck /> : <span className={CHECK_SLOT_PAD} />}
+      </DropdownMenuItem>
+    );
+  };
 
   return (
     <DropdownMenu>
@@ -271,31 +258,31 @@ export function BrowserMenu({
         </DropdownMenuTrigger>
       </ToolbarTip>
       <DropdownMenuContent className={MENU_PANEL}>
-        {row("new-tab", <Plus size={14} />, "New browser tab", "新建浏览器标签页")}
+        {row("new-tab", "plus", "New browser tab", "新建浏览器标签页")}
         {actions.collapseToPip
-          ? row("collapse-to-pip", <PictureInPicture2 size={14} />, "Collapse to floating window", "收起到悬浮窗")
+          ? row("collapse-to-pip", "picture-in-picture", "Collapse to floating window", "收起到悬浮窗")
           : null}
-        {responsive.home ? row("home", <House size={14} />, "Home", "主页", false, !canGoHome) : null}
-        {responsive.forward ? row("forward", <ArrowRight size={14} />, "Forward", "前进", false, !canGoForward) : null}
-        {responsive.openExternal ? row("open-external", <ExternalLink size={14} />, "Open in browser", "在浏览器中打开", false, !canOpenExternal) : null}
+        {responsive.home ? row("home", "house", "Home", "主页", undefined, !canGoHome) : null}
+        {responsive.forward ? row("forward", "arrow-right", "Forward", "前进", undefined, !canGoForward) : null}
+        {responsive.openExternal ? row("open-external", "external-link", "Open in browser", "在浏览器中打开", undefined, !canOpenExternal) : null}
         <DropdownMenuSeparator className={MENU_SEPARATOR} />
-        {row("find", <Search size={14} />, "Find in page", "在页面中查找", false, !actions.find)}
-        {actions.comment ? row("comment", <MessageSquarePlus size={14} />, "Comment on the page…", "评论页面元素…") : null}
-        {actions.regionShot ? row("region-shot", <Crop size={14} />, "Screenshot a region…", "区域截图…") : null}
-        {row("zoom-in", <ZoomIn size={14} />, "Zoom in", "放大", false, !actions.zoomIn)}
-        {row("zoom-out", <ZoomOut size={14} />, "Zoom out", "缩小", false, !actions.zoomOut)}
-        {row("reset-zoom", <RotateCcw size={14} />, "Reset zoom", "重置缩放", false, !actions.resetZoom)}
-        {row("print", <Printer size={14} />, "Print", "打印", false, !actions.print)}
+        {row("find", "search", "Find in page", "在页面中查找", undefined, !actions.find)}
+        {actions.comment ? row("comment", "message-plus", "Comment on the page…", "评论页面元素…") : null}
+        {actions.regionShot ? row("region-shot", "crop", "Screenshot a region…", "区域截图…") : null}
+        {row("zoom-in", "zoom-in", "Zoom in", "放大", undefined, !actions.zoomIn)}
+        {row("zoom-out", "zoom-out", "Zoom out", "缩小", undefined, !actions.zoomOut)}
+        {row("reset-zoom", "rotate-ccw", "Reset zoom", "重置缩放", undefined, !actions.resetZoom)}
+        {row("print", "printer", "Print", "打印", undefined, !actions.print)}
         <DropdownMenuSeparator className={MENU_SEPARATOR} />
-        {row("bookmarks", <Bookmark size={14} />, "Bookmarks", "书签")}
-        {row("history", <Clock3 size={14} />, "History", "历史")}
-        {row("downloads", <Download size={14} />, "Downloads", "下载内容")}
-        {row("toggle-bookmarks-bar", <span className="w-[16px] shrink-0" />, "Show bookmarks bar", "显示书签栏", visible)}
+        {row("bookmarks", "bookmark", "Bookmarks", "书签")}
+        {row("history", "clock", "History", "历史")}
+        {row("downloads", "download", "Downloads", "下载内容")}
+        {row("toggle-bookmarks-bar", "panel-top", "Show bookmarks bar", "显示书签栏", visible)}
         <DropdownMenuSeparator className={MENU_SEPARATOR} />
-        {canImport ? row("import", <Import size={14} />, "Import browser data", "导入浏览器资料") : null}
-        {row("clear-data", <Trash2 size={14} />, "Clear browsing data", "清除浏览数据")}
+        {canImport ? row("import", "import", "Import browser data", "导入浏览器资料") : null}
+        {row("clear-data", "trash", "Clear browsing data", "清除浏览数据")}
         <DropdownMenuSeparator className={MENU_SEPARATOR} />
-        {row("settings", <Settings size={14} />, "Browser settings", "浏览器设置")}
+        {row("settings", "settings", "Browser settings", "浏览器设置")}
       </DropdownMenuContent>
     </DropdownMenu>
   );

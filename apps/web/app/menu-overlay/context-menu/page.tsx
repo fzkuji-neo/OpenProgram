@@ -21,7 +21,8 @@ import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { ChevronRight, Folder } from "lucide-react";
 
 import { TabFavicon } from "@/components/center-tabs/tab-favicon";
-import { itemCls, MENU_PANEL, MENU_SEPARATOR } from "@/components/chat/top-bar/menu-styles";
+import { CHECK_SLOT_PAD, itemCls, MENU_PANEL, MENU_SEPARATOR } from "@/components/chat/top-bar/menu-styles";
+import { isMenuGlyph, MENU_GLYPHS, type MenuGlyph } from "@/lib/menu/menu-glyphs";
 import { MenuOptionContent } from "@/components/ui/menu-option-content";
 import { isThemeId } from "@/lib/prefs/theme-pref";
 import { MenuCheck } from "@/components/chat/top-bar/menu-check";
@@ -34,6 +35,7 @@ interface ContextMenuItem {
   iconUrl?: string;
   iconFallbackUrl?: string;
   icon?: "folder";
+  glyph?: MenuGlyph;
   disabled?: boolean;
   checked?: boolean;
   separatorBefore?: boolean;
@@ -88,14 +90,24 @@ function parseItems(raw: string | null): ContextMenuItem[] {
 }
 
 function ItemIcon({ item }: { item: ContextMenuItem }) {
-  if (item.checked) return <MenuCheck />;
+  if (isMenuGlyph(item.glyph)) {
+    const Glyph = MENU_GLYPHS[item.glyph];
+    return <Glyph size={14} aria-hidden="true" />;
+  }
   if (item.icon === "folder") return <Folder size={13} fill="currentColor" aria-hidden="true" />;
   if (!item.iconUrl) return null;
   return <TabFavicon url={item.iconUrl} fallbackUrl={item.iconFallbackUrl} />;
 }
 
 function hasItemIcon(item: ContextMenuItem) {
-  return Boolean(item.checked || item.icon === "folder" || item.iconUrl);
+  return Boolean(isMenuGlyph(item.glyph) || item.icon === "folder" || item.iconUrl);
+}
+
+/** A checkable row's check sits at the row's end, as in every app menu;
+ *  unchecked rows keep the column so labels stay aligned. */
+function ItemCheck({ item }: { item: ContextMenuItem }) {
+  if (typeof item.checked !== "boolean") return null;
+  return item.checked ? <MenuCheck /> : <span className={CHECK_SLOT_PAD} aria-hidden="true" />;
 }
 
 function NestedMenuItems({ items, persistent = false }: { items: ContextMenuItem[]; persistent?: boolean }) {
@@ -402,7 +414,8 @@ function ContextMenuOverlayPage() {
                   : "flex-1 whitespace-nowrap"}
               >
                 {item.label}
-              </span></>}
+              </span>
+              <ItemCheck item={item} /></>}
 
             </div>
           </div>

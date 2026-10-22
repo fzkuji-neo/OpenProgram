@@ -1122,6 +1122,14 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  max-width: 18rem;
+}
+.toolbarTipLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .toolbarTip kbd {
   font: inherit;

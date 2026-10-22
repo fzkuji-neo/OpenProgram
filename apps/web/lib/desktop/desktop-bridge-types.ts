@@ -1,6 +1,7 @@
 import type { ThemeId, ThemeMode, ThemeStyle } from "@/lib/prefs/theme-pref";
 import type { PickedElement } from "@/lib/browser/page-comment";
 import type { PickedRegion } from "@/lib/browser/region-shot";
+import type { MenuGlyph } from "@/lib/menu/menu-glyphs";
 
 export interface DesktopThemeChrome {
   theme: ThemeId;
@@ -355,6 +356,8 @@ export interface DesktopContextMenuItem {
   iconUrl?: string;
   iconFallbackUrl?: string;
   icon?: "folder";
+  /** A row icon from lib/menu/menu-glyphs.ts, drawn by the overlay. */
+  glyph?: MenuGlyph;
   disabled?: boolean;
   checked?: boolean;
   separatorBefore?: boolean;

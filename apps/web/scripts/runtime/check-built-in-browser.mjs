@@ -120,10 +120,15 @@ assert.match(browserPrefs, /BROWSER_IMPORT_PROMPT_FINISHED_KEY/);
 assert.match(browserControls, /function BrowserMenu/);
 assert.match(browserControls, /canGoHome = true/);
 assert.match(browserControls, /canOpenExternal = true/);
-assert.match(browserControls, /item\("home", "Home", "主页", \{ disabled: !canGoHome \}\)/);
-assert.match(browserControls, /item\("open-external", "Open in browser", "在浏览器中打开", \{ disabled: !canOpenExternal \}\)/);
-assert.match(browserControls, /row\("home", <House size=\{14\} \/>, "Home", "主页", false, !canGoHome\)/);
-assert.match(browserControls, /row\("open-external", <ExternalLink size=\{14\} \/>, "Open in browser", "在浏览器中打开", false, !canOpenExternal\)/);
+assert.match(browserControls, /item\("home", "house", "Home", "主页", \{ disabled: !canGoHome \}\)/);
+assert.match(browserControls, /item\("open-external", "external-link", "Open in browser", "在浏览器中打开", \{ disabled: !canOpenExternal \}\)/);
+assert.match(browserControls, /row\("home", "house", "Home", "主页", undefined, !canGoHome\)/);
+assert.match(browserControls, /row\("open-external", "external-link", "Open in browser", "在浏览器中打开", undefined, !canOpenExternal\)/);
+// Every browser menu row has its icon, in the desktop overlay and the Web
+// fallback alike, and the bookmarks-bar check sits at the row's end.
+assert.equal(browserControls.match(/\bitem\("[a-z-]+", "[a-z-]+", "/g)?.length, 19, "every desktop browser menu row names a glyph");
+assert.equal(browserControls.match(/\brow\("[a-z-]+", "[a-z-]+", "/g)?.length, 19, "every Web browser menu row names a glyph");
+assert.match(browserControls, /<Icon size=\{14\} aria-hidden="true" \/>\s*<span className="flex-1">[\s\S]*?<MenuCheck \/> : <span className=\{CHECK_SLOT_PAD\} \/>/);
 assert.match(bookmarkBar, /function BookmarkBar/);
 assert.match(bookmarkBar, /bookmarkBarLayout\(tree\)/);
 assert.doesNotMatch(bookmarkBar, /setNodes\(readBookmarkTree\(\)\.children\)/);
@@ -172,7 +177,7 @@ assert.match(browserControls, /Collapse to floating window/);
 assert.match(browserControls, /openBuiltinTab\("bookmarks"\)/);
 assert.match(browserControls, /openBuiltinTab\("history"\)/);
 assert.match(browserControls, /openBuiltinTab\("downloads"\)/);
-assert.match(browserControls, /row\("downloads", <Download/);
+assert.match(browserControls, /row\("downloads", "download", /);
 assert.match(browserControls, /requestBrowserImport/);
 assert.match(browserControls, /disabled: !canImport/);
 assert.match(browserControls, /separatorBefore/);
@@ -189,11 +194,13 @@ assert.doesNotMatch(browserSettings, /<input type="checkbox"/);
 assert.match(settingsLayout, /\/settings\/browser/);
 assert.match(browserSettingsRoute, /<BrowserSettings/);
 assert.match(contextMenu, /item\.checked/);
+assert.doesNotMatch(contextMenu, /if \(item\.checked\) return <MenuCheck \/>/, "a menu check never takes the icon slot");
+assert.match(contextMenu, /\{item\.label\}\s*<\/span>\s*<ItemCheck item=\{item\} \/>/, "a flat row's check sits after its label");
 assert.match(contextMenu, /item\.iconUrl/);
 assert.match(contextMenu, /item\.icon === "folder"/);
 assert.match(
   contextMenu,
-  /function hasItemIcon[\s\S]*?Boolean\(item\.checked \|\| item\.icon === "folder" \|\| item\.iconUrl\)/,
+  /function hasItemIcon[\s\S]*?Boolean\(isMenuGlyph\(item\.glyph\) \|\| item\.icon === "folder" \|\| item\.iconUrl\)/,
   "context menus must reserve a slot only for icon kinds that ItemIcon renders",
 );
 assert.equal(

@@ -250,6 +250,8 @@
       <div class="decision"><strong>分屏属于 Pane</strong><p>分屏、退出分屏和 Pane 排列适用于 Files、Chat、Browser、Terminal，不属于当前网页动作。它们放在 Tab/Pane 控件或 Tab 上下文菜单，不出现在浏览器工具栏。</p></div>
       <div class="decision"><strong>导入保留来源结构</strong><p>Chromium 的 bookmark bar、other bookmarks 以及嵌套文件夹按原有层级和顺序进入 OpenProgram bookmark tree；导入不得把书签压平成主页下方的独立条目。</p></div>
       <div class="decision"><strong>菜单分别绑定触发按钮</strong><p>浏览器 <code>⋯</code> 和窗口 <code>⋯</code> 都使用各自触发按钮的实际屏幕矩形定位，菜单右边缘与按钮右边缘对齐，垂直间距为 4px；二者不能共用位置或内容。</p></div>
+      <div class="decision"><strong>菜单行带图标，勾选在行尾</strong><p>浏览器 <code>⋯</code> 菜单的每一行都以平面线条图标开头，和窗口 <code>⋯</code> 菜单一致。桌面覆盖层是另一个文档，所以打开方只传图标名（<code>glyph</code>），由覆盖层从 <code>lib/menu/menu-glyphs.ts</code> 取出绘制；Web 后备菜单使用同一张表。“显示书签栏”这类可勾选行保留图标，勾选显示在标签之后，和应用里其他菜单一致；未勾选的行留空这一列，标签保持对齐。</p></div>
+      <div class="decision"><strong>工具栏提示始终在工具栏上方</strong><p>桌面 App 中工具栏下方的网页是原生视图，会盖住画在它上面的内容，所以工具栏提示始终在按钮上方打开，不会翻到下方。提示保持一行，过长的标签（例如“浮动到”里的会话标题）截断，以放进工具栏上方的空间。</p></div>
       <div class="decision"><strong>History 使用紧凑行</strong><p>记录按本地日期分组，每行只显示时间、favicon、标题、域名和操作；完整 URL 不再单独占用第二行。</p></div>
       <div class="decision"><strong>导入必须显式触发</strong><p>来源浏览器、profile 和数据类型分别确认。OpenProgram 不读取或修改用户正在使用的源 profile。</p></div>
     </section>
