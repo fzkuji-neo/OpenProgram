@@ -8,7 +8,7 @@
  *   [Solar icon]  label                [key badge | check | ›]
  *
  * The icon is a Solar Bold Duotone glyph, the family of the folder icons.
- * The trailing column holds a key badge (MenuKey) for a key that works
+ * The trailing column holds a key price tag (MenuKey) for a key that works
  * while the menu is open or a system shortcut, the row's check when it is
  * checkable, and the chevron when it opens a submenu. The rows themselves
  * are each menu's radix item with itemCls (menu-styles.ts).
@@ -18,7 +18,8 @@ import { ChevronRight } from "lucide-react";
 
 import { SolarIcon } from "@/components/solar-icons";
 import type { SolarIconName } from "@/components/solar-icons/bodies";
-import { CHECK_SLOT_PAD, MENU_KEY } from "@/components/chat/top-bar/menu-styles";
+import { CHECK_SLOT_PAD, MENU_KEY, MENU_KEY_PLATE, MENU_KEY_TIP } from "@/components/chat/top-bar/menu-styles";
+import { Kbd } from "@/components/ui/kbd";
 import { MenuCheck } from "@/components/chat/top-bar/menu-check";
 import { cn } from "@/lib/utils";
 
@@ -46,8 +47,19 @@ export function formatMenuKeys(keys: MenuKeys, mac = isMacPlatform()): string {
   return [keys.mod && "Ctrl", keys.alt && "Alt", keys.shift && "Shift", key].filter(Boolean).join("+");
 }
 
+/** The right end of Solar's tag-horizontal outline (bold), cut where its
+ *  straight top and bottom edges begin. */
+const TAG_TIP_PATH =
+  "M12.858 20H10.221C6.3456 20 4.40789 20 3.20394 18.8284C2 17.6569 2 15.7712 2 12C2 8.22876 2 6.34315 3.20394 5.17157C4.40789 4 6.34561 4 10.221 4H12.858C15.0854 4 16.1992 4 17.1289 4.50143C18.0586 5.00286 18.6488 5.92191 19.8294 7.76001L20.5102 8.82001C21.5034 10.3664 22 11.1396 22 12C22 12.8604 21.5034 13.6336 20.5102 15.18L19.8294 16.24C18.6488 18.0781 18.0586 18.9971 17.1289 19.4986C16.1992 20 15.0854 20 12.858 20Z";
+
+/** A key as a price tag: the rounded Solar tip, then the shadcn Kbd. */
 export function MenuKey({ keys }: { keys: MenuKeys }) {
-  return <kbd className={MENU_KEY}>{formatMenuKeys(keys)}</kbd>;
+  return (
+    <span className={MENU_KEY}>
+      <svg viewBox="12.858 4 9.142 16" className={MENU_KEY_TIP} aria-hidden="true"><path d={TAG_TIP_PATH} /></svg>
+      <Kbd className={MENU_KEY_PLATE}>{formatMenuKeys(keys)}</Kbd>
+    </span>
+  );
 }
 
 export function MenuIcon({ glyph, className }: { glyph: MenuGlyph; className?: string }) {

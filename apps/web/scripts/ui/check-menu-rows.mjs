@@ -15,10 +15,13 @@ assert.match(parts, /<SolarIcon name=\{glyph\}/, "row icons are Solar, the folde
 assert.match(parts, /export type MenuGlyph = SolarIconName;/);
 assert.match(parts, /if \(mac\) return `\$\{keys\.alt \? "⌥" : ""\}\$\{keys\.shift \? "⇧" : ""\}\$\{keys\.mod \? "⌘" : ""\}\$\{key\}`;/);
 assert.match(parts, /\[keys\.mod && "Ctrl", keys\.alt && "Alt", keys\.shift && "Shift", key\]/);
-assert.match(parts, /<kbd className=\{MENU_KEY\}>/, "a key is a badge");
+assert.match(parts, /<span className=\{MENU_KEY\}>\s*<svg viewBox="12\.858 4 9\.142 16" className=\{MENU_KEY_TIP\}[\s\S]*?<Kbd className=\{MENU_KEY_PLATE\}>\{formatMenuKeys\(keys\)\}<\/Kbd>/, "a key is a price tag: the Solar tip, then the shadcn Kbd");
+assert.match(parts, /const TAG_TIP_PATH =\s*"M12\.858 20H10\.221/, "the tip is Solar's tag-horizontal outline");
 // Trailing column order: key, check, chevron.
 assert.match(parts, /\{keys \? <MenuKey keys=\{keys\} \/> : null\}\s*\{checked === undefined \? null : checked \? <MenuCheck \/>[\s\S]*?\{submenu \? <ChevronRight/);
-assert.match(read("components/chat/top-bar/menu-styles.ts"), /export const MENU_KEY =[\s\S]*?rounded-\[5px\][\s\S]*?border/);
+const keyStyles = read("components/chat/top-bar/menu-styles.ts");
+assert.match(keyStyles, /export const MENU_KEY_TIP = "-mr-\[0\.5px\] block h-\[18px\] w-\[10\.3px\] -scale-x-100 fill-\(--menu-key-bg\)";/);
+assert.match(keyStyles, /export const MENU_KEY_PLATE =\s*"box-content h-\[18px\] min-w-\[8px\] rounded-none rounded-r-\[5px\] bg-\(--menu-key-bg\) py-0 pr-\[6px\] pl-\[1px\]/);
 
 const MENUS = [
   "components/sidebar/conv-menu.tsx",
@@ -88,4 +91,5 @@ assert.match(parts, /"menu-row-chevron size-4 shrink-0 text-text-muted"/);
 const chips = read("app/styles/chat/top-bar-chips.css");
 const lit = String.raw`:is\(\.menu-row:hover, \.menu-row\[data-highlighted\], \.menu-row\[data-state="open"\], \.menu-row-active\):not\(\[data-disabled\]\)`;
 assert.match(chips, new RegExp(`${lit} \\.menu-row-icon \\{\\s*transform: scale\\(1\\.12\\);`));
-assert.match(chips, new RegExp(`${lit} :is\\(\\.menu-row-icon, \\.menu-row-key, \\.menu-row-chevron\\)\\.text-text-muted \\{\\s*color: var\\(--text-bright\\);`));
+assert.match(chips, new RegExp(`${lit} \\.menu-row-key \\{\\s*--menu-key-bg: color-mix`));
+assert.match(chips, new RegExp(`${lit} :is\\(\\.menu-row-icon, \\.menu-row-chevron\\)\\.text-text-muted \\{\\s*color: var\\(--text-bright\\);`));

@@ -63,11 +63,20 @@ export const CHECK_SLOT_PAD = "size-4 shrink-0";
 
 /** Right-aligned single-key shortcut hint. Stays muted. */
 export const SHORTCUT = "shrink-0 text-xs tracking-widest text-text-muted";
-/** A row's key as a key-cap badge (MenuKey): a menu-local letter (R) or
- *  a system shortcut (⌘T / Ctrl+T), so a single letter reads as a key. */
+/** A row's key as a price tag (MenuKey): a menu-local letter (R) or a
+ *  system shortcut (⌘T / Ctrl+T). The tag is a fixed 10px tip — the
+ *  right end of Solar's tag-horizontal outline, mirrored — joined to the
+ *  shadcn Kbd as its plate. Both paint --menu-key-bg, so a lit row
+ *  recolours the whole tag with one variable. */
 export const MENU_KEY =
-  "menu-row-key inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-[5px] " +
-  "border border-[var(--border)] px-[5px] font-sans text-[11px] leading-none text-text-muted";
+  "menu-row-key inline-flex h-[18px] shrink-0 items-center [--menu-key-bg:var(--muted)]";
+/** The tip: 18px tall at the outline's own proportions; it overlaps the
+ *  plate by half a pixel so no seam shows when scaled. */
+export const MENU_KEY_TIP = "-mr-[0.5px] block h-[18px] w-[10.3px] -scale-x-100 fill-(--menu-key-bg)";
+/** Kbd overrides for the plate: square where it meets the tip, 5px round
+ *  on the right, 1px / 6px padding around at least 8px of text. */
+export const MENU_KEY_PLATE =
+  "box-content h-[18px] min-w-[8px] rounded-none rounded-r-[5px] bg-(--menu-key-bg) py-0 pr-[6px] pl-[1px] text-[11px] leading-none";
 
 /** Right column of a row (check, then key hint) after the content, one
  *  title line tall so on a two-line row it sits on the title. */

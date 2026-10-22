@@ -242,17 +242,26 @@ right:
 - **icon**: a Solar Bold Duotone glyph (`MenuIcon`, 16px, muted),
   the family the sidebar folder uses. Folder rows draw the folder in
   `--folder-color`; destructive rows draw it red.
-- **key**: a key-cap badge (`MENU_KEY`) in the platform's notation,
+- **key**: a price tag (`MenuKey`) in the platform's notation. The
+  tag is a fixed 10px tip, the rounded right end of Solar's
+  `tag-horizontal` outline mirrored to point left, joined to the
+  shadcn `Kbd` as its plate: 18px tall, square where it meets the tip,
+  5px round on the right, 1px / 6px padding around at least 8px of
+  text, so every single-letter tag is the same width and a longer key
+  only lengthens the plate. Both parts paint `--menu-key-bg` (`--muted`
+  at rest). The key text comes
   from `formatMenuKeys`: `⌘T`, `⇧⌘C` on macOS, `Ctrl+T`,
   `Ctrl+Shift+C` elsewhere. A menu shows only keys that already work:
   real shortcuts, or single letters the open menu answers (the chat
-  menus' R/P/C/A/D). No global shortcut exists just to fill a badge.
+  menus' R/P/C/A/D). No global shortcut exists just to fill a tag.
+  A lit row lifts `--menu-key-bg` toward `--muted-foreground` and
+  turns the text bright.
 - **check**: `MenuCheck` at the row end; an uncheckable row in a
   checkable group keeps the column empty (`CHECK_SLOT_PAD`).
 - **submenu**: a trailing chevron; submenus nest to any depth.
 - **lit row**: hover, keyboard highlight, an open submenu or the
   active row light the whole row, not only the label: the muted icon,
-  key badge and chevron turn bright and the icon pops to 1.12, as the
+  key tag and chevron turn bright and the icon pops to 1.12, as the
   composer's icons do. A tinted icon (folder, destructive) keeps its
   colour and only pops.
 
@@ -271,7 +280,7 @@ row         min-h-7 (28px) · rounded-md · px-1.5 py-1 ·
 hover       bg-accent (the ink at 9%) · text-bright
 label       px-1.5 py-1 · text-xs · font-medium · muted
 separator   -mx-1 my-1 · 1px · --border
-shortcut    key-cap badge (MENU_KEY) · text-[11px] · muted
+shortcut    price tag (MenuKey: Solar tip + Kbd) · text-[11px] · muted
 chosen      accent check (MenuCheck) at the row end, never a fill
 ─────────────────────────────────────────────────────────────────
 ```

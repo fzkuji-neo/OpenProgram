@@ -381,24 +381,27 @@
 
 /* A lit menu row lights its parts with it (MenuRow, menu-parts.tsx):
    hover, keyboard highlight, an open submenu or the active row turn the
-   muted icon, key badge and chevron bright, and the icon pops to 1.12
+   muted icon, key tag and chevron bright, and the icon pops to 1.12
    with a small overshoot — the composer icons' "pop". A tinted icon (a
    folder, a destructive row) keeps its colour and only pops. */
 .menu-row .menu-row-icon {
   transition: color 75ms, transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.menu-row .menu-row-key,
+.menu-row .menu-row-key :is(svg, [data-slot="kbd"]),
 .menu-row .menu-row-chevron {
-  transition: color 75ms, border-color 75ms;
+  transition: color 75ms, fill 75ms, background-color 75ms;
 }
 :is(.menu-row:hover, .menu-row[data-highlighted], .menu-row[data-state="open"], .menu-row-active):not([data-disabled]) .menu-row-icon {
   transform: scale(1.12);
 }
-:is(.menu-row:hover, .menu-row[data-highlighted], .menu-row[data-state="open"], .menu-row-active):not([data-disabled]) :is(.menu-row-icon, .menu-row-key, .menu-row-chevron).text-text-muted {
+:is(.menu-row:hover, .menu-row[data-highlighted], .menu-row[data-state="open"], .menu-row-active):not([data-disabled]) :is(.menu-row-icon, .menu-row-chevron).text-text-muted {
   color: var(--text-bright);
 }
 :is(.menu-row:hover, .menu-row[data-highlighted], .menu-row[data-state="open"], .menu-row-active):not([data-disabled]) .menu-row-key {
-  border-color: color-mix(in srgb, var(--text-bright) 35%, transparent);
+  --menu-key-bg: color-mix(in oklab, var(--muted-foreground) 35%, var(--muted));
+}
+:is(.menu-row:hover, .menu-row[data-highlighted], .menu-row[data-state="open"], .menu-row-active):not([data-disabled]) .menu-row-key [data-slot="kbd"] {
+  color: var(--text-bright);
 }
 @media (prefers-reduced-motion: reduce) {
   .menu-row .menu-row-icon { transition: color 75ms; }
