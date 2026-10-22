@@ -54,55 +54,16 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
-/* Main content column */
+/* Main content column: the toolbar, then one Card per recency group,
+   on the Settings tab's rhythm (24px edge, 20px from the tabs). */
 .content {
   min-width: 0;
   overflow-y: auto;
-  padding: 16px 24px 24px;
-}
-
-/* Embedded (History hub) list toolbar: current range + count on the
-   left, sort and status selects on the right. */
-.contentToolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 10px;
-  margin-bottom: 12px;
-}
-.contentToolbarLabel {
-  display: flex;
-  flex: 1 1 auto;
-  align-items: center;
-  gap: 8px;
-  margin-right: auto;
-  min-width: 0;
-  white-space: nowrap;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-}
-.contentToolbarLabel > span {
-  color: var(--text-tertiary);
-  font-weight: 500;
-}
-
-/* Chat rows use the shared ManageRow; this only spaces them. */
-.rowList {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 24px;
+  padding: 20px 24px 32px;
 }
-
-/* Section header — date grouping inside content */
-.section {
-  margin-bottom: 20px;
-}
-.section:last-child {
-  margin-bottom: 0;
-}
-
-
 
 /* Narrow widths: the range filters stack above the list instead of a
    287px rail beside it. */

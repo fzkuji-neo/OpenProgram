@@ -19,7 +19,8 @@ import { useEffect, useMemo, useState } from "react";
 import styles from "./chats-page.module.css";
 import { SearchInput } from "@/components/ui/search-input";
 import { RailCount, RailGroupLabel, RailItem, SecondaryRail } from "@/components/ui/secondary-rail";
-import { ManageEmptyState, ManageRow, managePageStyles as shared } from "@/components/ui/manage-page";
+import { ManageEmptyState } from "@/components/ui/manage-page";
+import { Card, CardContent } from "@/components/ui/card";
 import { useTranslation, type Locale } from "@/lib/i18n";
 import { parseAttachments } from "@/components/chat/messages/user-attachments";
 import { formatRelativeTime } from "@/lib/format-utils/format";
@@ -250,13 +251,13 @@ export function ChatsPage({
           </SecondaryRail>
           )}
 
-          <div className={styles.content}>
+          <div className={`shadcn-scale ${styles.content}`}>
             {embedded && (
-              <div className={styles.contentToolbar}>
-                <span className={styles.contentToolbarLabel}>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="mr-auto flex min-w-0 items-baseline gap-2 text-base font-medium text-foreground">
                   {navGroups.flatMap((group) => group.items).find((it) => it.id === filter)?.name}
-                  <span>{items.length}</span>
-                </span>
+                  <span className="text-sm font-normal text-muted-foreground">{items.length}</span>
+                </h3>
                 {selects}
               </div>
             )}
@@ -284,12 +285,12 @@ export function ChatsPage({
                 {grouped
                   .filter(([, rows]) => rows.length)
                   .map(([b, rows]) => (
-                    <div className={styles.section} key={b}>
-                      <div className={shared.sectionHeader}>
-                        <span>{bucketLabel(b, locale, fixedLabels)}</span>
-                        <span>{rows.length}</span>
-                      </div>
-                      <div className={styles.rowList}>
+                    <section className="flex flex-col gap-3" key={b}>
+                      <h4 className="flex items-baseline gap-2 text-sm font-medium text-foreground">
+                        {bucketLabel(b, locale, fixedLabels)}
+                        <span className="font-normal text-muted-foreground">{rows.length}</span>
+                      </h4>
+                      <ChatCard>
                         {rows.map((c) => (
                           <ChatRow
                             key={c.id}
@@ -299,12 +300,12 @@ export function ChatsPage({
                             onClick={() => openChat(c)}
                           />
                         ))}
-                      </div>
-                    </div>
+                      </ChatCard>
+                    </section>
                   ))}
               </>
             ) : (
-              <div className={styles.rowList}>
+              <ChatCard>
                 {items.map((c) => (
                   <ChatRow
                     key={c.id}
@@ -314,7 +315,7 @@ export function ChatsPage({
                     onClick={() => openChat(c)}
                   />
                 ))}
-              </div>
+              </ChatCard>
             )}
           </div>
         </div>
@@ -343,18 +344,31 @@ function ChatRow({
   // chat is about now. An untitled chat already shows it as its name.
   const latest = displayTitle(conv) && conv.preview ? parseAttachments(String(conv.preview)) : null;
   const asked = latest ? latest.text.trim() || latest.attachments[0]?.filename || "" : "";
-  // Shared management row: a real <button> to open, same anatomy as the
-  // Projects > Chats list. The count slot is last activity — the same
-  // timestamp the list sorts and buckets by, so the row's own time can't
-  // contradict its date section.
+  // A real <button> to open; the time is last activity, the same timestamp
+  // the list sorts and buckets by, so a row can't contradict its section.
   return (
-    <ManageRow
-      icon={<MessageCircleIcon size={16} />}
-      name={title}
-      description={asked || undefined}
-      count={formatRelativeTime(activityTs(conv), locale)}
+    <button
+      type="button"
       onClick={onClick}
-    />
+      className="flex w-full min-w-0 items-center gap-3 px-4 py-3 text-left transition-colors outline-none hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset"
+    >
+      <span className="flex shrink-0 text-muted-foreground" aria-hidden="true"><MessageCircleIcon size={16} /></span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-sm font-medium text-foreground">{title}</span>
+        {asked ? <span className="truncate text-sm text-muted-foreground">{asked}</span> : null}
+      </span>
+      <span className="shrink-0 text-xs text-muted-foreground">{formatRelativeTime(activityTs(conv), locale)}</span>
+    </button>
+  );
+}
+
+/** One recency group's chats on a Card, rows divided by hairlines, as on
+ *  the Settings page (SettingsSection). */
+function ChatCard({ children }: { children: React.ReactNode }) {
+  return (
+    <Card className="gap-0 py-0">
+      <CardContent className="divide-y divide-border px-0">{children}</CardContent>
+    </Card>
   );
 }
 
