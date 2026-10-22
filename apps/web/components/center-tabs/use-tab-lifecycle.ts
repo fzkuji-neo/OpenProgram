@@ -302,10 +302,19 @@ export function useTabLifecycle({
     else releaseFrozenWidths();
     // 先播退场动画（.tabExit 收缩到 0），animationend 再 finishClose 真正
     // 移除 —— 和新建 tab 的挤压动画成镜像。
+    // A pane closed out of a split that stays open has no exit in the strip
+    // (the split's tab stays as it is) and the canvas plays its close, so it
+    // goes at once: waiting for a strip animation left the click dead.
+    const { groups } = useCenterTabs.getState();
+    const closingIds = new Set(ready.map(tab => tab.id));
+    const leavesSplit = (tab: CenterTab) =>
+      findCenterTabGroup(groups, tab.id)?.memberIds.some(id => !closingIds.has(id)) ?? false;
     for (const tab of ready) closingInstances.current.set(tab.id, tab);
-    setClosingIds((prev) => {
+    const animated = ready.filter(tab => !leavesSplit(tab));
+    for (const tab of ready) if (leavesSplit(tab)) finishClose(tab);
+    if (animated.length) setClosingIds((prev) => {
       const next = new Set(prev);
-      for (const tab of ready) next.add(tab.id);
+      for (const tab of animated) next.add(tab.id);
       return next;
     });
   }

@@ -758,9 +758,11 @@ assert.match(compoundItem, /styles\.compoundMemberClose/);
 assert.match(compoundItem, /onClose\(event, memberTabs/);
 assert.doesNotMatch(compoundItem, /<Columns2\b|\bColumns2\b/);
 assert.match(compoundItem, /closingTabs\.length === memberTabs\.length/);
-assert.match(compoundItem, /const memberClosingKey = closing \? "" : closingTabs\.map/);
-assert.match(compoundItem, /window\.setTimeout\(\(\) => closingTabs\.forEach\(onExited\), 160\)/);
-assert.match(compoundItem, /return \(\) => window\.clearTimeout\(timer\)/);
+// One pane closed out of a split that stays is removed at once: no timer
+// stands between the red button and the canvas close.
+assert.doesNotMatch(compoundItem, /memberClosingKey|window\.setTimeout/);
+assert.match(strip, /const leavesSplit = \(tab: CenterTab\) =>/);
+assert.match(strip, /for \(const tab of ready\) if \(leavesSplit\(tab\)\) finishClose\(tab\);/);
 assert.match(compoundItem, /closing \? styles\.tabExit : ""/);
 assert.match(compoundItem, /const \[hovered, setHovered\] = useState\(false\);/);
 assert.match(compoundItem, /onMouseEnter=\{\(\) => setHovered\(true\)\}/);

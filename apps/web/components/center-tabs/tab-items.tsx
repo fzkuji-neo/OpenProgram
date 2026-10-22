@@ -175,16 +175,10 @@ export function CompoundTabItem({
       el?.animate([{ opacity: 0, transform: "translateY(5px)" }, { opacity: 1, transform: "none" }], { duration: 200, easing: "cubic-bezier(.2, .8, .2, 1)" });
     }
   });
+  // One pane closing leaves the tab as it is and is removed at once
+  // (onTabsClose); only the whole split closing plays the exit.
   const closingTabs = memberTabs.filter((tab) => closingIds.has(tab.id));
   const closing = closingTabs.length > 0 && closingTabs.length === memberTabs.length;
-  // One pane closing leaves the tab as it is; it only has to finish.
-  const memberClosingKey = closing ? "" : closingTabs.map((tab) => tab.id).join("\n");
-  useEffect(() => {
-    if (!memberClosingKey) return;
-    const timer = window.setTimeout(() => closingTabs.forEach(onExited), 160);
-    return () => window.clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [memberClosingKey]);
   if (!canonicalTab) return null;
   const combinedLabel = memberTabs.map((tab) => labelOf(tab, t, text)).join(" · ");
   const label = labelOf(canonicalTab, t, text);
