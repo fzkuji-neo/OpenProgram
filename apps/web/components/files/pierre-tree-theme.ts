@@ -6,7 +6,7 @@ export const pierreTreeIcons: FileTreeIcons = {
   byFileName: Object.fromEntries(Object.getOwnPropertyNames(Object.prototype).map(name => [name.toLowerCase(), "file-tree-builtin-default"])),
   byFileExtension: Object.fromEntries(Object.getOwnPropertyNames(Object.prototype).map(name => [name.toLowerCase(), "file-tree-builtin-default"])),
   remap: { "file-tree-icon-chevron": "openprogram-folder" },
-  // The main sidebar's Solar folder (duotone, row colour); the row's
+  // The main sidebar's Solar folder (duotone, --folder-color); the row's
   // expanded state swaps in Solar folder-open.
   spriteSheet: `<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" aria-hidden="true"><symbol id="openprogram-folder" viewBox="0 0 24 24"><g style="display:var(--op-folder-closed,inline)">${SOLAR_BODIES.folder}</g><g style="display:var(--op-folder-open,none)">${SOLAR_BODIES["folder-open"]}</g></symbol></svg>`,
 };
@@ -16,7 +16,7 @@ export const fileColumnsWidth = "calc(var(--op-files-name-width, 220px) + 448px)
 
 export const pierreTreeCSS = `
 :host { --trees-font-family-override: var(--right-panel-font-family, var(--font-sans)); --trees-font-size-override: var(--right-panel-text-size, 13px); --trees-bg-override: var(--files-tree-bg, var(--bg-secondary)); --trees-padding-inline-override: 8px; --trees-fg-override: var(--text-secondary); font-family: inherit; }
-[data-item-type="folder"] > [data-item-section="icon"] > svg { transform: none !important; }
+[data-item-type="folder"] > [data-item-section="icon"] > svg { transform: none !important; color: var(--folder-color); }
 [data-item-type="folder"][aria-expanded="true"], [data-item-type="folder"][data-file-tree-sticky-row="true"] { --op-folder-closed: none; --op-folder-open: inline; }
 [data-item-selected="true"]::before { outline: none !important; }
 [data-file-tree-virtualized-scroll="true"] { padding-inline: 0; overflow-x: auto; }

@@ -134,7 +134,7 @@ export function ExplorerHeader({
         {!pathNavigation ? leading : null}
         {showRootPath && !pathNavigation ? (
           <div className={styles.treeRootPath}>
-            <SolarIcon name="folder-open" size={16} motionPreset="none" className={styles.treeRootIcon} aria-hidden="true" />
+            <SolarIcon name="folder-open" size={16} motionPreset="none" className={`${styles.treeRootIcon} text-[var(--folder-color)]`} aria-hidden="true" />
             <button
               className={styles.treeRootLabel}
               type="button"

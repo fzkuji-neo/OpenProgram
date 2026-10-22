@@ -23,9 +23,9 @@ export function TabButton({ active, onClick, icon, children }: { active: boolean
 }
 
 /** The folder glyph is the disclosure state, as in the main sidebar's
-    project list: the same Solar folder, in the row's own colour. */
+    project list: the same Solar folder, in --folder-color. */
 export function FolderGlyph({ open }: { open: boolean }) {
-  return <SolarIcon name={open ? "folder-open" : "folder"} size={16} motionPreset="none" aria-hidden="true" />;
+  return <SolarIcon name={open ? "folder-open" : "folder"} size={16} motionPreset="none" className="text-[var(--folder-color)]" aria-hidden="true" />;
 }
 
 export function DocGlyph() {

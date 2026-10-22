@@ -436,7 +436,7 @@ export function ProjectsPage({
     so the sidebar, this rail and the Memory tree draw one folder; the
     selected project's folder is open, like an expanded sidebar group. */
 function ProjectGlyph({ size, open = false }: { size: number; open?: boolean }) {
-  return <SolarIcon name={open ? "folder-open" : "folder"} size={size} motionPreset="none" aria-hidden="true" />;
+  return <SolarIcon name={open ? "folder-open" : "folder"} size={size} motionPreset="none" className="text-[var(--folder-color)]" aria-hidden="true" />;
 }
 
 /** A read-only path or id on the Info tab. */

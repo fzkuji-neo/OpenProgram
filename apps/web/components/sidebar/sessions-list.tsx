@@ -909,7 +909,7 @@ function ProjectGroupHeader({
         {/* The folder opens and closes with the group — the only
             expand/collapse cue on the row. A custom icon stays as set. */}
         {icon ? <span className="truncate" aria-hidden="true">{icon}</span>
-          : <SolarIcon name={collapsed ? "folder" : "folder-open"} size={18} motionPreset="none" aria-hidden="true" />}
+          : <SolarIcon name={collapsed ? "folder" : "folder-open"} size={18} motionPreset="none" className="text-[var(--folder-color)]" aria-hidden="true" />}
       </span>
       <span className={sidebarNavLabelClass}>{name}</span>
       {/* -mr-[4px]: the buttons end 4px inside the row, where a chat

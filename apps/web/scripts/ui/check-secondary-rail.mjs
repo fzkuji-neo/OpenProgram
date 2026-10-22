@@ -51,14 +51,14 @@ for (const [page, header] of [
 // in the project rail, the Memory tree and the Programs tree.
 for (const file of ["components/projects/projects-page.tsx", "components/memory/parts.tsx", "components/programs/programs-page.tsx"]) {
   const source = read(file);
-  assert.ok(/<SolarIcon[^>]*"folder"/.test(source), `${file} must draw folders with the Solar folder`);
+  assert.ok(/<SolarIcon[^>]*"folder"[^>]*text-\[var\(--folder-color\)\]/.test(source), `${file} must draw folders with the Solar folder in --folder-color`);
   assert.ok(!/\b(?:FolderOpen|FoldersIcon|treeIconFolder)\b/.test(source), `${file} draws a second folder style`);
 }
 
 // The Files panel's tree (Pierre) draws the same Solar folder through its sprite.
 const pierreTheme = read("components/files/pierre-tree-theme.ts");
 assert.ok(pierreTheme.includes("${SOLAR_BODIES.folder}") && pierreTheme.includes('${SOLAR_BODIES["folder-open"]}'), "the Files tree must use the Solar folder");
-assert.ok(!/#d4a73e|accent-yellow/.test(pierreTheme), "Files tree folders take the row colour");
+assert.ok(/svg \{ transform: none !important; color: var\(--folder-color\); \}/.test(pierreTheme), "Files tree folders use --folder-color");
 
 // The selected project's folder is open, as an expanded sidebar group's is.
 assert.match(read("components/projects/projects-page.tsx"), /<ProjectGlyph size=\{16\} open=\{p\.id === selectedId\} \/>/);

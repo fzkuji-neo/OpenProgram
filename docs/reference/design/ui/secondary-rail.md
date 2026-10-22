@@ -38,7 +38,8 @@ No page styles its own rail rows.
 | `RailSeparator` | `ui/separator` | Above an "Add …" row. |
 
 Folders are one glyph everywhere: the main sidebar's Solar `folder` /
-`folder-open` (duotone, in the row's own colour), in the project rail, the
+`folder-open` (duotone, in `--folder-color`: macOS Finder's light folder
+blue, one value per light/dark scheme), in the project rail, the
 Memory topics tree, the Programs tree and the Files panel tree (its Pierre
 sprite and root path). A tree folder is open while
 expanded, and the selected project in the rail shows the open folder; pages are Solar `file-text`, and a

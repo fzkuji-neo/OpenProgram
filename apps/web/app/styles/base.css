@@ -91,6 +91,10 @@
   --git-added: light-dark(#1e9e3c, #32d74b);
   --git-removed: light-dark(#cd2054, #ff2c56);
   --accent-yellow: #d4a346;
+  /* Folder glyphs everywhere (sidebar, rails, Memory, Programs, Files):
+     macOS Finder's light folder blue, picked by each theme's
+     color-scheme so every theme shares it. */
+  --folder-color: light-dark(#3f9fe8, #64b2f4);
   --accent-purple: #a371f7;
   --accent-cyan: #3bc9db;
   accent-color: var(--theme-accent); /* native checkbox/radio tint */

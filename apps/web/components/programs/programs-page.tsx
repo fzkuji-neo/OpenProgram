@@ -116,7 +116,7 @@ function EntryIcon({ entry, expanded }: { entry: ExplorerEntry; expanded: boolea
   if (entry.program_kind?.endsWith("function")) return <Wrench size={15} className={fileStyles.treeIcon} />;
   if (entry.kind === "folder") {
     // The main sidebar's Solar folder, as in the project rail and Memory tree.
-    return <SolarIcon name={expanded ? "folder-open" : "folder"} size={16} motionPreset="none" aria-hidden="true" />;
+    return <SolarIcon name={expanded ? "folder-open" : "folder"} size={16} motionPreset="none" className="text-[var(--folder-color)]" aria-hidden="true" />;
   }
   return <FileCode size={15} className={fileStyles.treeIcon} />;
 }
