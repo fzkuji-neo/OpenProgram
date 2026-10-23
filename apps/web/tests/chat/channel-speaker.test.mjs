@@ -18,9 +18,9 @@ test('only chat channels count as channel sources', () => {
 });
 
 test('a sender with no nickname shows a short id', () => {
-  assert.equal(shortSpeakerId(wechatId), 'o9cq…ZvkE');
+  assert.equal(shortSpeakerId(wechatId), 'oTes…0000');
   assert.equal(shortSpeakerId('701'), '701');
-  assert.equal(speakerName({ id: wechatId, display: wechatId }), 'o9cq…ZvkE');
+  assert.equal(speakerName({ id: wechatId, display: wechatId }), 'oTes…0000');
   assert.equal(speakerName({ id: '701', display: 'Ada' }), 'Ada');
   assert.equal(speakerName(undefined), '');
 });

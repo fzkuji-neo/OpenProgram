@@ -764,7 +764,7 @@ def save_project_settings(project_id: str, settings: dict) -> None:
 def get_default_project() -> Project:
     """The home project: the catch-all for chats with no bound directory.
 
-    Named after the home folder (``fzkuji`` for ``~``) unless
+    Named after the home folder (``alex`` for ``/Users/alex``) unless
     the user renamed it, and listed first. Its folder
     under ``<state>/projects/default/`` holds those chats and the personal
     memory every project reads. ``path`` stays the home folder, the
