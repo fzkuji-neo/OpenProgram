@@ -2,14 +2,20 @@
 
 The worker fires a due reminder task as one ``reminder.fired`` event on the
 process bus and does nothing else. Delivery is the subscriber installed
-here: every open client gets a ``reminder`` frame (an in-app toast and a
-desktop notification), a channel conversation (WeChat, Telegram, …) gets the
-text through its outbound path, and a waking reminder starts an owner turn
-in the conversation it was set in, so the agent acts on it there. Config
-``hooks`` and proactive policies can subscribe to the same event.
+here: every open client gets a ``reminder`` frame (an in-app toast; the
+desktop App also shows a system notification and answers ``reminder_shown``),
+a channel conversation (WeChat, Telegram, …) gets the text through its
+outbound path, and a waking reminder starts an owner turn in the
+conversation it was set in, so the agent acts on it there. When no desktop
+App answers, the worker posts the system notification itself, so a reminder
+still pops up with every App window closed. Config ``hooks`` and proactive
+policies can subscribe to the same event.
 """
 from __future__ import annotations
 
+import shutil
+import subprocess
+import sys
 import threading
 import time
 from datetime import datetime
@@ -19,6 +25,11 @@ EVENT = "reminder.fired"
 # A waking reminder waits this long for a running turn in its conversation.
 WAKE_WAIT_S = 600.0
 _POLL_S = 2.0
+# How long a desktop App has to answer that it showed the reminder.
+SHOWN_WAIT_S = 6.0
+
+_shown: dict[str, threading.Event] = {}
+_shown_lock = threading.Lock()
 
 _installed = False
 _install_lock = threading.Lock()
@@ -54,6 +65,41 @@ def fire(entry: dict[str, Any], spec: dict[str, Any]) -> dict[str, Any]:
     metadata = {"session": payload["session_id"]} if payload["session_id"] else {}
     get_event_bus().emit(make_event(EVENT, "system", payload, metadata))
     return payload
+
+
+def shown(reminder_id: str) -> None:
+    """A desktop App showed this reminder; the worker need not."""
+    with _shown_lock:
+        answered = _shown.get(reminder_id)
+    if answered is not None:
+        answered.set()
+
+
+def system_notify(title: str, message: str) -> bool:
+    """Post an operating-system notification from the worker itself."""
+    try:
+        if sys.platform == "darwin":
+            script = ('on run argv\n'
+                      'display notification (item 2 of argv) with title (item 1 of argv) '
+                      'sound name "Glass"\nend run')
+            command = ["osascript", "-e", script, title, message]
+        elif sys.platform.startswith("linux") and shutil.which("notify-send"):
+            command = ["notify-send", "--urgency=critical", "--app-name=OpenProgram", title, message]
+        else:
+            return False
+        return subprocess.run(command, capture_output=True, timeout=10).returncode == 0
+    except Exception as exc:  # noqa: BLE001 - the in-app paths still ran
+        print(f"[reminder] system notification failed: {type(exc).__name__}: {exc}")
+        return False
+
+
+def _notify_unless_shown(reminder_id: str, answered: threading.Event, title: str, message: str) -> None:
+    try:
+        if not answered.wait(SHOWN_WAIT_S):
+            system_notify(title, message)
+    finally:
+        with _shown_lock:
+            _shown.pop(reminder_id, None)
 
 
 def _session(session_id: str) -> dict[str, Any] | None:
@@ -112,6 +158,12 @@ def deliver(event: Any) -> None:
     payload = dict(event.payload)
     session = _session(payload.get("session_id") or "")
     wake = bool(payload.get("wake") and session)
+    # Registered before the frame goes out, so an answer cannot come first.
+    answered = threading.Event()
+    with _shown_lock:
+        _shown[event.id] = answered
+    threading.Thread(target=_notify_unless_shown, name="reminder-notify", daemon=True,
+                     args=(event.id, answered, "OpenProgram ⏰", payload["message"])).start()
     emit_ws_frame({"type": "reminder", "data": {
         **payload, "id": event.id, "wake": wake,
         "session_id": payload.get("session_id") if session else "",
@@ -123,4 +175,4 @@ def deliver(event: Any) -> None:
     threading.Thread(target=target, name=name, daemon=True).start()
 
 
-__all__ = ["EVENT", "deliver", "fire", "install", "wake_text"]
+__all__ = ["EVENT", "deliver", "fire", "install", "shown", "system_notify", "wake_text"]

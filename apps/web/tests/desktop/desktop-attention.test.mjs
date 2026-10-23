@@ -116,8 +116,9 @@ test("an always-on report notifies with the Agent's name and the report title", 
 
 test("a reminder notifies with its text even outside any conversation", () => {
   notified.length = 0;
-  attention.reportAttention({ kind: "reminder", sessionId: "", key: "reminder:r1", title: "Reminder", detail: "Send the invoice" });
-  attention.reportAttention({ kind: "reminder", sessionId: "", key: "reminder:r1", title: "Reminder", detail: "Send the invoice" });
-  attention.reportAttention({ kind: "done", sessionId: "", key: "execution:x:completed" });
-  assert.deepEqual(notified, [{ key: "reminder:r1", title: "Reminder", body: "Send the invoice", sessionId: "" }]);
+  assert.equal(attention.reportAttention({ kind: "reminder", sessionId: "", key: "reminder:r1", title: "Reminder", detail: "Send the invoice" }), true);
+  assert.equal(attention.reportAttention({ kind: "reminder", sessionId: "", key: "reminder:r1", title: "Reminder", detail: "Send the invoice" }), true,
+    "a repeat still counts as shown, so the worker does not post it again");
+  assert.equal(attention.reportAttention({ kind: "done", sessionId: "", key: "execution:x:completed" }), false);
+  assert.deepEqual(notified, [{ key: "reminder:r1", title: "Reminder", body: "Send the invoice", sessionId: "", urgent: true }]);
 });

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 import threading
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -127,6 +128,7 @@ def _patch_delivery(monkeypatch, session):
     done = threading.Event()
     monkeypatch.setattr(events, "emit_ws_frame", frames.append)
     monkeypatch.setattr(reminders, "_session", lambda _sid: session)
+    monkeypatch.setattr(reminders, "system_notify", lambda *_a: True)
 
     def send(channel, account_id, peer_id, text):
         sent.append((channel, account_id, peer_id, text))
@@ -238,3 +240,32 @@ def test_rest_api_creates_a_reminder(scheduler_env):
     })
     assert created.status_code == 201, created.text
     assert created.json()["reminder"] == "Send the invoice" and created.json()["wake"] is False
+
+
+@pytest.mark.parametrize("app_answers", [True, False])
+def test_worker_posts_the_system_notification_when_no_desktop_app_did(monkeypatch, app_answers):
+    import openprogram.events as events
+    from openprogram.scheduler import reminders
+
+    posted = threading.Event()
+    calls = []
+
+    def frame(value):
+        if app_answers:
+            reminders.shown(value["data"]["id"])
+    monkeypatch.setattr(events, "emit_ws_frame", frame)
+    monkeypatch.setattr(reminders, "_session", lambda _sid: None)
+    monkeypatch.setattr(reminders, "SHOWN_WAIT_S", 0.2)
+
+    def notify(title, message):
+        calls.append((title, message))
+        posted.set()
+        return True
+    monkeypatch.setattr(reminders, "system_notify", notify)
+    reminders.deliver(_event())
+    assert posted.wait(2) is not app_answers
+    assert calls == ([] if app_answers else [("OpenProgram ⏰", "Stand up")])
+    deadline = time.monotonic() + 2
+    while reminders._shown and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert reminders._shown == {}

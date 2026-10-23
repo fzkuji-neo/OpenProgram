@@ -151,10 +151,20 @@ function checkKeepAwake() {
   assert.equal(h.blocker.started.size, 1, "turning it back on while busy holds again");
 }
 
+function checkUrgentShowsWhileFocused() {
+  const h = harness();
+  h.setFocused(true);
+  assert.equal(h.service.notify(1, { key: "turn", title: "Chat", body: "Finished", sessionId: "s1" }), false);
+  assert.equal(h.service.notify(1, { key: "reminder:1", title: "Reminder", body: "Stretch", sessionId: "", urgent: true }), true,
+    "a reminder the user set shows even while the App has focus");
+  assert.equal(h.shown.length, 1);
+}
+
 checkDefaultsAndPersistence();
 checkOneNotificationPerKey();
 checkFocusedAppStaysQuiet();
 checkDisabledAndMalformed();
 checkKeepAwake();
 checkSounds();
+checkUrgentShowsWhileFocused();
 console.log("attention service checks passed");

@@ -25,6 +25,9 @@ export interface AttentionEvent {
   title?: string;
 }
 
+/** Reminders the user set notify even while the App has focus. */
+const URGENT_KINDS = new Set<AttentionKind>(["reminder"]);
+
 const MAX_SEEN = 500;
 const seen = new Set<string>();
 
@@ -54,12 +57,14 @@ function bodyFor(event: AttentionEvent): string {
   }
 }
 
-/** Ask the shell to notify about `event`. Repeats of a key are dropped here and in the shell. */
-export function reportAttention(event: AttentionEvent): void {
+/** Ask the shell to notify about `event`. Repeats of a key are dropped here
+ *  and in the shell. Returns whether a desktop shell received it. */
+export function reportAttention(event: AttentionEvent): boolean {
   const attention = desktopBridge()?.attention;
   // A reminder set outside any conversation still notifies; it opens nothing.
-  if (!attention || !event.key || seen.has(event.key)) return;
-  if (!event.sessionId && event.kind !== "reminder") return;
+  if (!attention || !event.key) return false;
+  if (seen.has(event.key)) return true;
+  if (!event.sessionId && event.kind !== "reminder") return false;
   if (seen.size >= MAX_SEEN) seen.clear();
   seen.add(event.key);
   attention.notify({
@@ -67,7 +72,9 @@ export function reportAttention(event: AttentionEvent): void {
     title: event.title || sessionTitle(event.sessionId),
     body: bodyFor(event),
     sessionId: event.sessionId,
+    ...(URGENT_KINDS.has(event.kind) ? { urgent: true } : {}),
   });
+  return true;
 }
 
 /** Terminal execution statuses that deserve a notification, by kind. */

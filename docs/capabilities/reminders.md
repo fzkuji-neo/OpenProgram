@@ -29,7 +29,7 @@ Whether a reminder only notifies you or wakes the agent follows from what you as
 A notification reminder:
 
 - shows a message in every open OpenProgram window;
-- shows a system notification in the desktop App while no App window has focus (clicking it opens the conversation);
+- posts a system notification, even while you are using the App. The desktop App posts it (clicking it opens the conversation). When no App window is open, the worker posts it itself; on macOS that notification is listed under Script Editor, and on Linux it needs `notify-send`;
 - is sent as a message when it was set in a [chat channel](../integrations/channels.md) conversation (Telegram, Slack, Discord or WeChat).
 
 A reminder that wakes the agent does all of the above, then starts a turn in the conversation it was set in. The turn's message begins with ⏰ and the reminder text, and it runs with that conversation's permission mode and rules. If a turn is already running there, it waits up to 10 minutes for that turn to end. In a chat channel conversation, the agent's answer is also sent to the channel.
@@ -43,7 +43,7 @@ Open **Scheduler** in the sidebar. Reminders are listed with the other scheduled
 ## Limits
 
 - Reminders run in the OpenProgram worker on this computer. If the worker is not running at the time, a one-time reminder fires as soon as it starts again; a repeating reminder skips the times it missed. Keep the worker running at login with `openprogram worker install`.
-- Notifications reach only windows that are open. A channel conversation gets its message even when no window is open.
+- System notifications follow your system settings: Focus or Do Not Disturb holds them in Notification Center. The App's **Notifications** setting turns off the App's own notifications too.
 - Only you, as the local owner in an interactive conversation, can set reminders.
 
 ## Run your own command

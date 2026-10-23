@@ -268,7 +268,7 @@ export interface DesktopAttentionApi {
   sounds?(): Promise<string[]>;
   previewSound?(sound: string): Promise<boolean>;
   onPrefs(cb: (prefs: DesktopAttentionPrefs) => void): () => void;
-  notify(request: { key: string; title: string; body: string; sessionId: string }): void;
+  notify(request: { key: string; title: string; body: string; sessionId: string; urgent?: boolean }): void;
   reportBusy(busy: boolean): void;
   onOpenSession(cb: (sessionId: string) => void): () => void;
 }

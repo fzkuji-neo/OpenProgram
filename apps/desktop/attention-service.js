@@ -4,7 +4,8 @@
 // so the same "turn finished" or "needs your input" arrives once per window.
 // This service is the one place that decides: it shows each event key once,
 // only while no OpenProgram window has focus, and holds the system awake
-// while any window reports a running session. Electron objects are injected
+// while any window reports a running session. An urgent request (a
+// reminder the user set) shows even while the App has focus. Electron objects are injected
 // so scripts/check-attention-service.js can drive it in plain Node.
 const crypto = require("crypto");
 const fs = require("fs");
@@ -71,6 +72,7 @@ function normalizeRequest(request) {
     title,
     body: clip(request.body, MAX_BODY),
     sessionId: clip(request.sessionId, 200),
+    urgent: request.urgent === true,
   };
 }
 
@@ -153,7 +155,7 @@ class DesktopAttentionService {
     for (const [key, at] of this.seen) if (now - at > DEDUPE_MS) this.seen.delete(key);
     if (this.seen.has(normalized.key)) return false;
     this.seen.set(normalized.key, now);
-    if (this.isAppFocused() || !this.notificationsSupported()) return false;
+    if ((!normalized.urgent && this.isAppFocused()) || !this.notificationsSupported()) return false;
     const notification = this.createNotification({
       title: normalized.title,
       body: normalized.body,

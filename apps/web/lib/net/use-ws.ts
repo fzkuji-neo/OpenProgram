@@ -920,10 +920,15 @@ export function useWS(): void {
             const sid = typeof d?.session_id === "string" ? d.session_id : "";
             void import("@/lib/format-utils/toast").then(({ showToast }) =>
               showToast(`⏰ ${message}`, { duration: 15000 }));
-            void import("@/lib/desktop/attention").then(({ reportAttention }) => reportAttention({
-              kind: "reminder", sessionId: sid, key: `reminder:${reminderId}`,
-              title: translateText("Reminder", "提醒"), detail: message,
-            }));
+            // The desktop App posts the system notification and says so;
+            // without that answer the worker posts it itself.
+            void import("@/lib/desktop/attention").then(({ reportAttention }) => {
+              const shown = reportAttention({
+                kind: "reminder", sessionId: sid, key: `reminder:${reminderId}`,
+                title: translateText("Reminder", "提醒"), detail: message,
+              });
+              if (shown) socket?.send(JSON.stringify({ action: "reminder_shown", id: reminderId }));
+            });
           }
           return true;
         }
