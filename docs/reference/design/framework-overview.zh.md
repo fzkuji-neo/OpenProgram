@@ -145,6 +145,7 @@ user 节点（`:298`）、assistant 占位、每个工具结果、`Agent` method
 | `context.compacted` | context 引擎 | UI / 旁观 | 压缩已发生 |
 | `file.changed` | functions watcher 等 | 旁观 | 文件变更 |
 | `channel.message_inbound` | channels | 旁观 | 入站消息 |
+| `reminder.fired` | scheduler worker | 旁观 | 提醒到点；`scheduler/reminders.py` 负责展示并唤醒 agent |
 | `memory.ingest_started` / `.ended` | memory | 旁观 | 记忆摄入 |
 | `skills.changed` / `plugins.update_available` / `sessions.listed` / `branches.listed` | 各子系统 | UI / 旁观 | 列表与可用更新 |
 | `ws.frame`（`openprogram/events/bus.py`） | 外部源 `emit_ws_frame`（`:118`） | `openprogram/webui/server.py`（原样广播） | 透传信封：外部源不直连 webui `_broadcast` |

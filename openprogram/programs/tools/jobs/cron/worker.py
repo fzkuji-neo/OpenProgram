@@ -3,7 +3,9 @@
 Reads the task file produced by the ``scheduler`` tool every minute. For
 each due entry, spawns a
 detached subprocess running the entry's ``prompt`` via
-``process_user_turn``. Per-entry stdout/stderr lands in
+``process_user_turn``; a ``reminder`` entry fires in-process as one
+``reminder.fired`` event (``openprogram/scheduler/reminders.py``).
+Per-entry stdout/stderr lands in
 ``<schedule_dir>/logs/<entry_id>-<timestamp>.log``. Last-fired minute per
 entry is persisted to ``<schedule_dir>/worker-state.json`` so a worker
 restart within the same minute doesn't re-fire already-fired entries.
@@ -45,6 +47,7 @@ import tempfile
 import time
 import threading
 import uuid
+from types import SimpleNamespace
 from typing import Any
 
 from openprogram._compat import no_window_creation_flags
@@ -304,7 +307,13 @@ def _spawn(entry: dict[str, Any], log_dir: str) -> Any | None:
         log_fh.write(f"# {kind}: {body}\n")
         log_fh.write(f"# cwd: {spec['cwd']}\n")
         log_fh.write(f"# policy_hash={spec['policy_hash']}\n\n")
-        if kind == "command":
+        if kind == "reminder":
+            from openprogram.scheduler import reminders
+
+            reminders.fire(entry, spec)
+            log_fh.write(f"# reminder fired (wake={spec['wake']})\n")
+            proc = SimpleNamespace(pid=os.getpid())
+        elif kind == "command":
             log_fh.flush()
             try:
                 args, use_shell, env, _sandboxed = _invocation(
@@ -587,6 +596,9 @@ def start_in_worker() -> tuple[threading.Event, threading.Thread]:
             )
     except Exception as exc:  # noqa: BLE001 — migration must not stop worker startup
         print(f"[scheduler] legacy migration skipped: {type(exc).__name__}: {exc}")
+    from openprogram.scheduler import reminders
+
+    reminders.install()
     stop = threading.Event()
     thread = threading.Thread(
         target=run_forever,

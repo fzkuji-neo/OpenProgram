@@ -3,7 +3,7 @@ export function filterTasks(tasks, filter, search) {
   return tasks.filter((task) => {
     if (filter !== "all" && task.type !== filter) return false;
     if (!query) return true;
-    return [task.title, task.prompt, task.command, task.cron]
+    return [task.title, task.prompt, task.command, task.reminder, task.cron]
       .filter(Boolean)
       .join(" ")
       .toLowerCase()

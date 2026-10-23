@@ -413,6 +413,8 @@ def capability_for_tool(tool_name: str, args: Mapping[str, Any] | None = None) -
         return "schedule.create" if action == "create" else (
             "schedule.manage" if action in {"update", "delete"} else "fs.read"
         )
+    if name == "remind":
+        return "schedule.create"
     if name == "memory_update":
         # memory_update requires the revision returned by memory_status;
         # both calls form the append handshake and expose no memory content.

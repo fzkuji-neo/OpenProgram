@@ -33,6 +33,7 @@ The Runtime layer composes these to build whatever agent behavior is needed.
 - **`history_ownership.py`** — Resolve owned child change sets for file-history operations
 - **`inbox.py`** — Per-session send_message inbox
 - **`messages.py`** — Custom message types and LLM converters for the agent layer
+- **`owner_turn.py`** — Start an owner chat turn in a conversation without a client sending it
 - **`plan_mode.py`** — Plan-mode session flag
 - **`process_runner.py`** — Run Agent method tools in an isolated subprocess so the stop
 - **`provider_lifecycle.py`** — Balanced diagnostic events for one provider request, independent of turn IDs

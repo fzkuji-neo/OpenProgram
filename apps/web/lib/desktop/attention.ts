@@ -12,14 +12,14 @@ import { translateText } from "@/lib/i18n";
 import { useSessionStore } from "@/lib/session-store";
 import { displayTitle } from "@/components/sidebar/sessions-list/helpers";
 
-export type AttentionKind = "done" | "failed" | "needs_input" | "system_access" | "report";
+export type AttentionKind = "done" | "failed" | "needs_input" | "system_access" | "report" | "reminder";
 
 export interface AttentionEvent {
   kind: AttentionKind;
   sessionId: string;
   /** Stable per occurrence: the same event replayed by another frame keeps its key. */
   key: string;
-  /** What the agent asked, for needs_input; the report title, for report. */
+  /** What the agent asked, for needs_input; the report title, for report; the text, for reminder. */
   detail?: string;
   /** Overrides the conversation title, e.g. the always-on Agent's name. */
   title?: string;
@@ -49,13 +49,17 @@ function bodyFor(event: AttentionEvent): string {
       return translateText("Waiting for system access", "等待系统权限");
     case "report":
       return (event.detail || "").trim() || translateText("New report", "新的报告");
+    case "reminder":
+      return (event.detail || "").trim() || translateText("Reminder", "提醒");
   }
 }
 
 /** Ask the shell to notify about `event`. Repeats of a key are dropped here and in the shell. */
 export function reportAttention(event: AttentionEvent): void {
   const attention = desktopBridge()?.attention;
-  if (!attention || !event.sessionId || !event.key || seen.has(event.key)) return;
+  // A reminder set outside any conversation still notifies; it opens nothing.
+  if (!attention || !event.key || seen.has(event.key)) return;
+  if (!event.sessionId && event.kind !== "reminder") return;
   if (seen.size >= MAX_SEEN) seen.clear();
   seen.add(event.key);
   attention.notify({

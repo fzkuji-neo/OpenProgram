@@ -218,6 +218,7 @@ to the front end.
 | `context.compacted` | context engine | UI / observers | compaction happened |
 | `file.changed` | functions watcher and others | observers | file change |
 | `channel.message_inbound` | channels | observers | inbound message |
+| `reminder.fired` | scheduler worker | observers | a reminder came due; `scheduler/reminders.py` shows it and wakes the agent |
 | `memory.ingest_started` / `.ended` | memory | observers | memory ingestion |
 | `skills.changed` / `plugins.update_available` / `sessions.listed` / `branches.listed` | various subsystems | UI / observers | lists and available updates |
 | `ws.frame` (`openprogram/events/bus.py`) | external sources via `emit_ws_frame` | `openprogram/webui/server.py` (broadcast verbatim) | passthrough envelope: external sources never touch webui `_broadcast` directly |

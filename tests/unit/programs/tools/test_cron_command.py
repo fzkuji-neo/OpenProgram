@@ -92,13 +92,13 @@ def test_paired_channel_cannot_create_or_delete_jobs(sched, monkeypatch):
 
 def test_create_rejects_both_prompt_and_command(sched):
     out = _create(cron="@daily", prompt="be productive", command="echo hi")
-    assert "either `prompt`" in out.lower() or "not both" in out.lower()
+    assert "exactly one of `prompt`" in out.lower()
     assert not cron_tool._load(str(sched))
 
 
 def test_create_rejects_neither(sched):
     out = _create(cron="@daily")
-    assert "required" in out.lower()
+    assert "exactly one of `prompt`" in out.lower()
     assert not cron_tool._load(str(sched))
 
 

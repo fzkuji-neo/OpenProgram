@@ -50,6 +50,7 @@ def register(app) -> None:
                 task_type=payload.get("type"),
                 prompt=payload.get("prompt"),
                 command=payload.get("command"),
+                reminder=payload.get("reminder"),
                 cron=payload.get("cron"),
                 run_at=payload.get("run_at"),
                 enabled=payload.get("enabled", True),

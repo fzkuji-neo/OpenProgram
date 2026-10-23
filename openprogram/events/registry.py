@@ -179,6 +179,13 @@ EVENTS: dict[str, EventSpec] = {
         payload_doc="{sessions, branches} — an agent enumerated available "
                     "collaboration targets",
     ),
+    "reminder.fired": EventSpec(
+        kind="notify",
+        payload_doc="{task_id, title, message, session_id, agent_id, wake, "
+                    "scheduled_for, fired_at} — a scheduled reminder came due; "
+                    "scheduler/reminders.py shows it and wakes the agent when "
+                    "wake is true",
+    ),
     "subagent.started": EventSpec(
         kind="notify",
         payload_doc="{job_id, label} — a background agent job entered its "

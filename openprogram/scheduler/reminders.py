@@ -1,0 +1,126 @@
+"""Reminders: a scheduled moment the user hears about, or the agent acts on.
+
+The worker fires a due reminder task as one ``reminder.fired`` event on the
+process bus and does nothing else. Delivery is the subscriber installed
+here: every open client gets a ``reminder`` frame (an in-app toast and a
+desktop notification), a channel conversation (WeChat, Telegram, …) gets the
+text through its outbound path, and a waking reminder starts an owner turn
+in the conversation it was set in, so the agent acts on it there. Config
+``hooks`` and proactive policies can subscribe to the same event.
+"""
+from __future__ import annotations
+
+import threading
+import time
+from datetime import datetime
+from typing import Any
+
+EVENT = "reminder.fired"
+# A waking reminder waits this long for a running turn in its conversation.
+WAKE_WAIT_S = 600.0
+_POLL_S = 2.0
+
+_installed = False
+_install_lock = threading.Lock()
+
+
+def install() -> bool:
+    """Subscribe delivery to the process bus once; True when this call did it."""
+    global _installed
+    with _install_lock:
+        if _installed:
+            return False
+        _installed = True
+    from openprogram.events import get_event_bus
+    get_event_bus().subscribe(deliver, types={EVENT})
+    return True
+
+
+def fire(entry: dict[str, Any], spec: dict[str, Any]) -> dict[str, Any]:
+    """Emit the event for a due reminder task from its verified spec."""
+    from openprogram.events import get_event_bus, make_event
+
+    install()
+    payload = {
+        "task_id": str(entry.get("id") or ""),
+        "title": str(entry.get("title") or ""),
+        "message": spec["reminder"],
+        "session_id": spec.get("session_id") or "",
+        "agent_id": spec.get("agent_id") or "main",
+        "wake": bool(spec.get("wake")),
+        "scheduled_for": entry.get("run_at") or entry.get("cron") or "",
+        "fired_at": time.time(),
+    }
+    metadata = {"session": payload["session_id"]} if payload["session_id"] else {}
+    get_event_bus().emit(make_event(EVENT, "system", payload, metadata))
+    return payload
+
+
+def _session(session_id: str) -> dict[str, Any] | None:
+    if not session_id:
+        return None
+    try:
+        from openprogram.agent.session_db import default_db
+        return default_db().get_session(session_id)
+    except Exception:
+        return None
+
+
+def _send_to_channel(session: dict[str, Any] | None, text: str) -> None:
+    """Send ``text`` to the channel conversation behind ``session``, if any."""
+    if not session or not text or not session.get("channel") or not session.get("peer_id"):
+        return
+    from openprogram.channels.outbound import send_full
+    try:
+        sent = send_full(str(session["channel"]), str(session.get("account_id") or ""),
+                         str(session["peer_id"]), text)
+        if not sent.ok:
+            print(f"[reminder] channel send failed: {sent.error_kind} {sent.error_detail or ''}")
+    except Exception as exc:  # noqa: BLE001 - a failed send must not stop delivery
+        print(f"[reminder] channel send failed: {type(exc).__name__}: {exc}")
+
+
+def wake_text(payload: dict[str, Any]) -> str:
+    """The user message a waking reminder starts its turn with."""
+    fired = datetime.fromtimestamp(payload["fired_at"]).astimezone()
+    return (f"⏰ {payload['message']}\n\n"
+            f"(A reminder you set fired at {fired:%Y-%m-%d %H:%M %Z}. Act on it now.)")
+
+
+def _wake(payload: dict[str, Any], session: dict[str, Any]) -> None:
+    from openprogram.agent.owner_turn import start_owner_turn
+    from openprogram.agent.run_control import is_turn_running
+
+    session_id = payload["session_id"]
+    deadline = time.monotonic() + WAKE_WAIT_S
+    while is_turn_running(session_id) and time.monotonic() < deadline:
+        time.sleep(_POLL_S)
+
+    def done(result: Any) -> None:
+        # A channel conversation hears the agent's answer, not only the reminder.
+        _send_to_channel(session, str(getattr(result, "final_text", "") or ""))
+
+    start_owner_turn(session_id, str(session.get("agent_id") or payload["agent_id"]),
+                     wake_text(payload), name=f"reminder-{payload['task_id']}",
+                     reason_code="reminder_activation_failed", on_done=done)
+
+
+def deliver(event: Any) -> None:
+    """Bus subscriber: show the reminder everywhere, then wake the agent if asked."""
+    from openprogram.events import emit_ws_frame
+
+    payload = dict(event.payload)
+    session = _session(payload.get("session_id") or "")
+    wake = bool(payload.get("wake") and session)
+    emit_ws_frame({"type": "reminder", "data": {
+        **payload, "id": event.id, "wake": wake,
+        "session_id": payload.get("session_id") if session else "",
+    }})
+    if wake:
+        target, name = (lambda: _wake(payload, session)), "reminder-wake"
+    else:
+        target, name = (lambda: _send_to_channel(session, f"⏰ {payload['message']}")), "reminder-send"
+    threading.Thread(target=target, name=name, daemon=True).start()
+
+
+__all__ = ["EVENT", "deliver", "fire", "install", "wake_text"]

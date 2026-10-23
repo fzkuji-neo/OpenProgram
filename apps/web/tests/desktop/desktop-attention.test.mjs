@@ -113,3 +113,11 @@ test("an always-on report notifies with the Agent's name and the report title", 
   assert.equal(notified.at(-1).body, "Found two broken links");
   assert.equal(notified.at(-1).sessionId, "s1");
 });
+
+test("a reminder notifies with its text even outside any conversation", () => {
+  notified.length = 0;
+  attention.reportAttention({ kind: "reminder", sessionId: "", key: "reminder:r1", title: "Reminder", detail: "Send the invoice" });
+  attention.reportAttention({ kind: "reminder", sessionId: "", key: "reminder:r1", title: "Reminder", detail: "Send the invoice" });
+  attention.reportAttention({ kind: "done", sessionId: "", key: "execution:x:completed" });
+  assert.deepEqual(notified, [{ key: "reminder:r1", title: "Reminder", body: "Send the invoice", sessionId: "" }]);
+});

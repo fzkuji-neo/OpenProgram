@@ -75,6 +75,7 @@ The registered events:
 | `context.compacted` | notify | `{ok, tokens_before, tokens_after, ...}` | `context/engine.py` |
 | `memory.ingest_started` / `memory.ingest_ended` | notify | `{messages}` / `{ok, retryable, reason}` | `memory/session_watcher.py` |
 | `channel.message_inbound` | notify | `{channel, peer_kind, chars}` | `channels/_conversation.py` |
+| `reminder.fired` | notify | `{task_id, title, message, session_id, agent_id, wake, scheduled_for, fired_at}` | `programs/tools/jobs/cron/worker.py` (delivered by `scheduler/reminders.py`) |
 | `branches.listed` / `sessions.listed` | notify | `{session, count}` / `{count}` | the agent-collab list tools |
 | `skills.changed` | notify | `{}` | the skills watcher (`server.py`) |
 | `plugins.update_available` | notify | `{plugin, current, latest}` | the plugin update checker (`server.py`) |

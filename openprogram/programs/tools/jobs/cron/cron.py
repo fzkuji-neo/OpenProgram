@@ -36,6 +36,8 @@ LEGACY_REL_PATH = "cron/schedule.json"
 
 DESCRIPTION = (
     "Create, list, update, and delete one-time, recurring, or monitor tasks. "
+    "A task runs a background agent prompt, a shell command, or a reminder "
+    "(the `remind` tool sets reminders in fewer words). "
     "Tasks run in the persistent OpenProgram worker and may attach stable, "
     "Memory references. For a task worth retaining in long-term Memory, use "
     "memory_update to create or update its record and attach that record here; "
@@ -43,6 +45,9 @@ DESCRIPTION = (
     "remains."
 )
 _STORE_THREAD_LOCK = threading.RLock()
+# What a task runs when it fires: an agent turn, a shell command, or a
+# reminder shown to the user (and optionally handed to the agent).
+EXECUTION_KINDS = ("prompt", "command", "reminder")
 
 
 SPEC: dict[str, Any] = {
@@ -98,6 +103,14 @@ SPEC: dict[str, Any] = {
             "command": {
                 "type": "string",
                 "description": "Shell command to run when the schedule fires — runs directly, no agent involved. Mutually exclusive with `prompt`. Example: `python backup.py` or `rsync -a ~/src /backup/`.",
+            },
+            "reminder": {
+                "type": "string",
+                "description": "Reminder text shown to the user in this conversation when the schedule fires. Mutually exclusive with `prompt` and `command`.",
+            },
+            "wake": {
+                "type": "boolean",
+                "description": "For a reminder: also start a turn in this conversation so the agent acts on the reminder text.",
             },
             "cwd": {
                 "type": "string",
@@ -279,9 +292,26 @@ def _authorize(action: str) -> tuple[dict[str, Any], str | None]:
     return authority, None
 
 
+def _origin_session() -> tuple[str, str]:
+    """The conversation creating the task and its Agent; no conversation is ""."""
+    from openprogram.agent.run_control import get_current_session_id
+
+    session_id = get_current_session_id() or ""
+    agent_id = "main"
+    if session_id:
+        try:
+            from openprogram.agent.session_db import default_db
+            session = default_db().get_session(session_id) or {}
+            agent_id = session.get("agent_id") or agent_id
+        except Exception:
+            pass
+    return session_id, agent_id
+
+
 def _build_execution_spec(
     *, kind: str, body: str, cwd: str, entry_id: str,
     authority: dict[str, Any], memory_refs: list[dict[str, str]] | None = None,
+    wake: bool = False, origin: tuple[str, str] | None = None,
 ) -> dict[str, Any]:
     from openprogram import sandbox
 
@@ -311,22 +341,19 @@ def _build_execution_spec(
     }
     job_authority["authority_hash"] = _json_hash(job_authority)
     spec["job_authority"] = job_authority
+    session_id, agent_id = origin or _origin_session()
     if kind == "prompt":
-        from openprogram.agent.run_control import get_current_session_id
-
-        session_id = get_current_session_id() or f"cron-{entry_id}"
-        agent_id = "main"
-        try:
-            from openprogram.agent.session_db import default_db
-            session = default_db().get_session(session_id) or {}
-            agent_id = session.get("agent_id") or agent_id
-        except Exception:
-            pass
         spec.update({
-            "session_id": session_id,
+            "session_id": session_id or f"cron-{entry_id}",
             "agent_id": agent_id,
             "permission_mode": "ask",
         })
+    elif kind == "reminder":
+        # A reminder belongs to the conversation it was set in: it is shown
+        # there, and a waking reminder starts its turn there.
+        if wake and not session_id:
+            raise ValueError("a reminder that wakes the agent must be set from a conversation")
+        spec.update({"session_id": session_id, "agent_id": agent_id, "wake": bool(wake)})
     spec["spec_hash"] = _json_hash(spec)
     spec["signature"] = _signature(spec, create_key=True)
     return spec
@@ -367,8 +394,8 @@ def _verify_execution_spec(
     ):
         return None, None, "sandbox policy hash mismatch"
     kind = value.get("kind")
-    if kind not in {"command", "prompt"}:
-        return None, None, "execution spec kind must be command or prompt"
+    if kind not in EXECUTION_KINDS:
+        return None, None, "execution spec kind must be command, prompt, or reminder"
     if not isinstance(value.get(kind), str) or not value[kind].strip():
         return None, None, f"execution spec {kind} is empty"
     cwd = value.get("cwd")
@@ -381,6 +408,12 @@ def _verify_execution_spec(
         for key in ("session_id", "agent_id")
     ):
         return None, None, "prompt execution spec needs session_id and agent_id"
+    if kind == "reminder" and not (
+        isinstance(value.get("session_id"), str)
+        and isinstance(value.get("wake"), bool)
+        and (value["session_id"] or not value["wake"])
+    ):
+        return None, None, "reminder execution spec needs a session to wake"
     try:
         from openprogram.memory.references import normalize as normalize_memory_refs
 
@@ -430,6 +463,8 @@ def execute(
     enabled: bool | None = None,
     memory_refs: list[dict[str, str]] | None = None,
     id: str | None = None,
+    reminder: str | None = None,
+    wake: bool | None = None,
     **kw: Any,
 ) -> str:
     action = action or read_string_param(kw, "action", "op")
@@ -439,6 +474,7 @@ def execute(
     run_at = run_at or read_string_param(kw, "run_at", "at")
     prompt = prompt or read_string_param(kw, "prompt", "task", "text")
     command = command or read_string_param(kw, "command", "cmd", "shell")
+    reminder = reminder or read_string_param(kw, "reminder", "message")
     cwd = cwd or read_string_param(kw, "cwd", "working_dir")
     notes = notes or read_string_param(kw, "notes", "note", "description")
     entry_id = id or read_string_param(kw, "id", "entry_id", "slug")
@@ -460,8 +496,8 @@ def execute(
             return f"No scheduled tasks in `{path}`."
         lines = [f"Scheduled tasks in `{path}`:"]
         for e in entries:
-            body = e.get("prompt") or e.get("command") or ""
-            kind = "$" if e.get("command") else ">"
+            body = e.get("prompt") or e.get("command") or e.get("reminder") or ""
+            kind = "$" if e.get("command") else "⏰" if e.get("reminder") else ">"
             schedule = e.get("run_at") or e.get("cron") or "unscheduled"
             line = f"- `{e.get('id','?')}`  {e.get('type','recurring')}  {schedule}  {kind} {body[:80]}"
             if e.get("notes"):
@@ -494,13 +530,13 @@ def execute(
         patch: dict[str, Any] = {}
         for key, value in (
             ("title", title), ("cron", cron_expr), ("run_at", run_at),
-            ("notes", notes), ("enabled", enabled),
+            ("notes", notes), ("enabled", enabled), ("wake", wake),
         ):
             if value is not None:
                 patch[key] = value
         for key, value in (
             ("prompt", prompt), ("command", command), ("cwd", cwd),
-            ("memory_refs", memory_refs),
+            ("memory_refs", memory_refs), ("reminder", reminder),
         ):
             if value is not None:
                 patch[key] = value
@@ -515,12 +551,10 @@ def execute(
         return json.dumps(updated, indent=2, ensure_ascii=False)
 
     if action == "create":
-        if prompt and command:
-            return "Error: pass either `prompt` (agent task) or `command` (shell), not both."
-        if not prompt and not command:
-            return "Error: either `prompt` or `command` is required for create."
+        if sum(bool(value) for value in (prompt, command, reminder)) != 1:
+            return "Error: pass exactly one of `prompt` (agent task), `command` (shell), or `reminder`."
         task_type = task_type or ("once" if run_at else "recurring")
-        task_title = title or notes or (prompt or command or "Scheduled task")[:80]
+        task_title = title or notes or (prompt or command or reminder or "Scheduled task")[:80]
         from openprogram.scheduler import service
 
         try:
@@ -529,6 +563,8 @@ def execute(
                 task_type=task_type,
                 prompt=prompt,
                 command=command,
+                reminder=reminder,
+                wake=bool(wake),
                 cron=cron_expr,
                 run_at=run_at,
                 enabled=True if enabled is None else enabled,
@@ -539,8 +575,8 @@ def execute(
             )
         except ValueError as exc:
             return f"Error: {exc}"
-        body_label = "prompt" if prompt else "command"
-        body_value = prompt or command or ""
+        body_label = "prompt" if prompt else "command" if command else "reminder"
+        body_value = prompt or command or reminder or ""
         schedule = new_entry.get("run_at") or new_entry.get("cron")
         return (
             f"Created scheduler task `{new_entry['id']}` in `{path}`:\n"

@@ -247,6 +247,9 @@ export function presentTool(name: string, input: string | undefined, text: Text)
     case "enter_plan_mode":
     case "exit_plan_mode":
       return { icon: "map", tone: "plan", title: name === "enter_plan_mode" ? text("Planning", "进入规划") : text("Plan ready", "规划完成") };
+    case "remind":
+      return { icon: "calendar", tone: "plan", title: text("Reminder", "提醒"),
+        target: firstLine(pick(args, "message")) };
     case "cron":
     case "scheduler":
     case "list_jobs":

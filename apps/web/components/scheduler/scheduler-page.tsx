@@ -42,6 +42,9 @@ interface Task {
   enabled: boolean;
   prompt?: string;
   command?: string;
+  /** Shown to the user when it fires; with wake, the agent acts on it too. */
+  reminder?: string;
+  wake?: boolean;
   cron?: string;
   run_at?: string;
   memory_refs: Array<Pick<MemoryRef, "workspace_id" | "memory_id">>;
@@ -252,12 +255,17 @@ export function SchedulerPage() {
                       description={(
                         <span className={styles.description}>
                           <code className={styles.schedule}>{formatSchedule(task, text, locale)}</code>
-                          {(task.prompt || task.command) && <span>{task.prompt || task.command}</span>}
+                          {(task.prompt || task.command || task.reminder) && <span>{task.prompt || task.command || task.reminder}</span>}
                         </span>
                       )}
                       meta={(
                         <>
                           <span className={shared.badge}>{typeLabel(task.type, text)}</span>
+                          {task.reminder !== undefined && (
+                            <span className={shared.badge}>
+                              {task.wake ? text("Reminder · wakes agent", "提醒 · 唤醒 Agent") : text("Reminder", "提醒")}
+                            </span>
+                          )}
                           <span className={`${shared.badge} ${task.enabled ? shared.badgeGreen : ""}`}>
                             {task.enabled ? text("Active", "已启用") : text("Paused", "已暂停")}
                           </span>

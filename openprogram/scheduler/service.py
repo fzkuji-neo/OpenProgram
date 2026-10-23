@@ -48,6 +48,8 @@ def create_task(
     task_type: str,
     prompt: str | None = None,
     command: str | None = None,
+    reminder: str | None = None,
+    wake: bool = False,
     cron: str | None = None,
     run_at: str | None = None,
     enabled: bool = True,
@@ -65,10 +67,13 @@ def create_task(
         raise ValueError("title is required and must be at most 200 characters")
     prompt = str(prompt or "").strip() or None
     command = str(command or "").strip() or None
-    if bool(prompt) == bool(command):
-        raise ValueError("pass exactly one of prompt or command")
-    if task_type == "monitor" and command:
+    reminder = str(reminder or "").strip() or None
+    if sum(bool(body) for body in (prompt, command, reminder)) != 1:
+        raise ValueError("pass exactly one of prompt, command, or reminder")
+    if task_type == "monitor" and not prompt:
         raise ValueError("monitor tasks require a prompt")
+    if wake and not reminder:
+        raise ValueError("wake applies only to reminders")
     if not enabled and task_type == "once" and not run_at:
         cron_value, run_at_value = None, None
     else:
@@ -90,8 +95,10 @@ def create_task(
     path = cron_tool._resolve_path()
     with cron_tool._store_lock(path):
         entry_id = cron_tool._mint_id()
-        body_kind, body = ("prompt", prompt) if prompt else ("command", command)
-        assert body is not None
+        body_kind, body = next(
+            (kind, value) for kind, value in
+            (("prompt", prompt), ("command", command), ("reminder", reminder)) if value
+        )
         now = int(time.time())
         entry: dict[str, Any] = {
             "id": entry_id,
@@ -104,6 +111,8 @@ def create_task(
             "memory_refs": refs,
             body_kind: body,
         }
+        if body_kind == "reminder":
+            entry["wake"] = bool(wake)
         if cron_value:
             entry["cron"] = cron_value
         if run_at_value:
@@ -120,6 +129,7 @@ def create_task(
             entry_id=entry_id,
             authority=authority,
             memory_refs=refs,
+            wake=bool(wake),
         )
         entries = cron_tool._load(path)
         entries.append(entry)
@@ -143,7 +153,7 @@ def update_task(
 ) -> dict[str, Any]:
     allowed = {
         "title", "enabled", "notes", "cron", "run_at", "prompt", "command",
-        "memory_refs", "cwd",
+        "reminder", "wake", "memory_refs", "cwd",
     }
     if not isinstance(patch, dict) or not set(patch).issubset(allowed):
         raise ValueError("unsupported scheduler update field")
@@ -173,23 +183,26 @@ def update_task(
                 if run_at_value:
                     updated["run_at"] = run_at_value
                     updated.pop("cron", None)
-            if "prompt" in patch and "command" in patch:
-                raise ValueError("update prompt or command, not both")
-            if "prompt" in patch:
-                prompt = str(patch.get("prompt") or "").strip()
-                if not prompt:
-                    raise ValueError("prompt must not be empty")
-                updated["prompt"] = prompt
-                updated.pop("command", None)
-            if "command" in patch:
-                command = str(patch.get("command") or "").strip()
-                if not command:
-                    raise ValueError("command must not be empty")
-                if task_type == "monitor":
+            bodies = [kind for kind in cron_tool.EXECUTION_KINDS if kind in patch]
+            if len(bodies) > 1:
+                raise ValueError("update one of prompt, command, or reminder")
+            for kind in bodies:
+                body = str(patch.get(kind) or "").strip()
+                if not body:
+                    raise ValueError(f"{kind} must not be empty")
+                if task_type == "monitor" and kind != "prompt":
                     raise ValueError("monitor tasks require a prompt")
-                updated["command"] = command
-                updated.pop("prompt", None)
-                updated["memory_refs"] = []
+                for other in cron_tool.EXECUTION_KINDS:
+                    updated.pop(other, None)
+                updated[kind] = body
+                if kind != "prompt":
+                    updated["memory_refs"] = []
+            if "reminder" in updated:
+                updated["wake"] = bool(updated.get("wake"))
+            else:
+                if patch.get("wake"):
+                    raise ValueError("wake applies only to reminders")
+                updated.pop("wake", None)
             refs = normalize_memory_refs(updated.get("memory_refs"))
             resolve_memory_refs(refs)
             if refs and "prompt" not in updated:
@@ -203,7 +216,16 @@ def update_task(
                 from openprogram.agent.authority import local_owner_authority
 
                 authority = local_owner_authority()
-            body_kind = "prompt" if "prompt" in updated else "command"
+            body_kind = next(
+                kind for kind in cron_tool.EXECUTION_KINDS if kind in updated
+            )
+            origin = None
+            if execution.get("session_id") is not None:
+                # An edit made outside the conversation keeps the task's home.
+                origin = (
+                    str(execution["session_id"]),
+                    str(execution.get("agent_id") or "main"),
+                )
             updated["execution"] = cron_tool._build_execution_spec(
                 kind=body_kind,
                 body=updated[body_kind],
@@ -211,6 +233,8 @@ def update_task(
                 entry_id=task_id,
                 authority=authority,
                 memory_refs=refs,
+                wake=bool(updated.get("wake")),
+                origin=origin,
             )
             updated.pop("cwd", None)
             entries[index] = updated

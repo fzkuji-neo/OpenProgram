@@ -206,7 +206,7 @@ Review 面板列出某一轮、当前分支或工作目录改动过的文件，�
 |---|---|
 | `/agents` | Agents：创建、配置 Agent（模型、能力、记忆、上下文），并用它开始对话 |
 | `/applications` | 应用：从本地文件夹安装软件，然后打开、启用、在新标签页隐藏、更新或卸载 |
-| `/scheduler` | 定时任务：一次性、周期和监控任务，按类型筛选；可暂停、恢复或删除每个任务 |
+| `/scheduler` | 定时任务：一次性、周期和监控任务以及[提醒](../capabilities/reminders.zh.md)，按类型筛选；可暂停、恢复或删除每个任务 |
 | `/chats` | History（`/history` 同页）：左侧是项目列表，主目录项目（以你的主目录文件夹命名）在最前；右侧是所选项目的 Chats、Memory、Settings、Info 标签页 |
 | `/programs` | Abilities 枢纽：Programs 目录（调用树 / 图）。Plugins、Skills、MCP 是旁边的 tab |
 | `/skills` | Abilities → Skills：浏览已装 SKILL.md、发现和新建；每个 skill 有详情页 |

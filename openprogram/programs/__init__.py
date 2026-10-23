@@ -130,6 +130,10 @@ DEFAULT_TOOLS: list[str] = [
     # only loads the full contracts when it needs to inspect or edit memory.
     *MEMORY_TOOL_NAMES,
     "scheduler",
+    # Resident: a reminder is asked for in passing ("remind me at 5"), so
+    # the model must see it without searching. The full scheduler stays
+    # deferred for listing and cancelling.
+    "remind",
     # Agentic harness entry points — these are the user-facing
     # programs (research_agent) that the LLM should know
     # about by default. Without them in DEFAULT_TOOLS the model has no

@@ -73,6 +73,7 @@ channel）根本没有意义。开放 dict 也让以后新增关联维度不用�
 | `context.compacted` | notify | `{ok, tokens_before, tokens_after, ...}` | `context/engine.py` |
 | `memory.ingest_started` / `memory.ingest_ended` | notify | `{messages}` / `{ok, retryable, reason}` | `memory/session_watcher.py` |
 | `channel.message_inbound` | notify | `{channel, peer_kind, chars}` | `channels/_conversation.py` |
+| `reminder.fired` | notify | `{task_id, title, message, session_id, agent_id, wake, scheduled_for, fired_at}` | `programs/tools/jobs/cron/worker.py`（由 `scheduler/reminders.py` 送达） |
 | `branches.listed` / `sessions.listed` | notify | `{session, count}` / `{count}` | agent-collab 的列表工具 |
 | `skills.changed` | notify | `{}` | skills watcher（`server.py`） |
 | `plugins.update_available` | notify | `{plugin, current, latest}` | 插件更新检查（`server.py`） |

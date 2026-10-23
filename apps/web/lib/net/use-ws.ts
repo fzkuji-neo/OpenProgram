@@ -912,6 +912,21 @@ export function useWS(): void {
           }
           return true;
         }
+        case "reminder": {
+          // A scheduled reminder came due (openprogram/scheduler/reminders.py).
+          const reminderId = typeof d?.id === "string" ? d.id : "";
+          const message = typeof d?.message === "string" ? d.message : "";
+          if (reminderId && message) {
+            const sid = typeof d?.session_id === "string" ? d.session_id : "";
+            void import("@/lib/format-utils/toast").then(({ showToast }) =>
+              showToast(`⏰ ${message}`, { duration: 15000 }));
+            void import("@/lib/desktop/attention").then(({ reportAttention }) => reportAttention({
+              kind: "reminder", sessionId: sid, key: `reminder:${reminderId}`,
+              title: translateText("Reminder", "提醒"), detail: message,
+            }));
+          }
+          return true;
+        }
         case "always_on_update": {
           if (typeof d?.agent_id === "string") {
             const agentId = d.agent_id;
