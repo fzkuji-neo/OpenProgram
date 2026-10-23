@@ -148,6 +148,14 @@ export const api = {
       { method: "POST", body: JSON.stringify(body) },
     ),
 
+  /** Tell the server a queued message waits for this conversation's next
+   *  turn, so an automatic Goal continuation yields to it. */
+  setGoalQueueWaiting: (sessionId: string, waiting: boolean) =>
+    jsonFetch<{ ok: true }>(
+      `/api/sessions/${encodeURIComponent(sessionId)}/goal/queue`,
+      { method: "POST", body: JSON.stringify({ waiting }) },
+    ),
+
   getGoal: (sessionId: string, signal?: AbortSignal) => jsonFetch<{
     goal: Record<string, unknown>;
     controls?: GoalControls;

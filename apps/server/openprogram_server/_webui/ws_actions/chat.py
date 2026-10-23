@@ -1001,7 +1001,10 @@ async def handle_chat(ws, cmd: dict):
     # see. A concurrent ordinary ``chat`` remains a queue fallback, never an
     # implicit steer, so the user's selected running-message mode stays exact.
     msg_id = str(uuid.uuid4())[:8]
+    from openprogram.programs.workflow.goal.chat import note_user_waiting
     if not _s._try_reserve_run(session_id, msg_id):
+        # The client re-queues this message; an automatic Goal turn yields to it.
+        note_user_waiting(session_id, True)
         await ws.send_text(json.dumps({
             "type": "chat_response",
             "data": {

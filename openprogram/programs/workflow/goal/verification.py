@@ -98,7 +98,7 @@ def prepare(store, execution, goal) -> None:
         return
     reason = blockers(store, sid, execution.execution_id, goal)
     if reason:
-        goal.update(status="paused_recoverable", phase="paused",
+        goal.update(status="paused_recoverable", phase="paused", pause_reason="verification_blocked",
                     last_reason=f"Completion cannot be verified: {reason}")
         return
     branch = goals._db().get_branch(sid)

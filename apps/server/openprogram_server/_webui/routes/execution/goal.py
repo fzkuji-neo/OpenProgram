@@ -19,6 +19,13 @@ def register(app):
             return JSONResponse(content={"error": "GoalNotFound"}, status_code=404)
         return JSONResponse(content=goal_module.goal_projection(goal, session_id))
 
+    @app.post("/api/sessions/{session_id}/goal/queue")
+    async def goal_queue(session_id: str, body: dict = None):
+        """The client's send queue holds a message for this conversation's next turn."""
+        from openprogram.programs.workflow.goal import chat
+        chat.note_user_waiting(session_id, bool((body or {}).get("waiting")))
+        return JSONResponse(content={"ok": True})
+
     @app.post("/api/sessions/{session_id}/goal")
     async def mutate_goal(session_id: str, body: dict = None):
         import openprogram.programs.workflow.goal as goal_module

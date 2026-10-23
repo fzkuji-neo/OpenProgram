@@ -146,6 +146,9 @@ def _apply_goal_action(session_id: str, action: str, **values) -> dict:
         goal["last_reason"] = "User answer saved for the next Goal boundary."
         _goal.save_goal(session_id, goal)
     elif action == "roles":
+        if goal.get("execution_mode") == "chat":
+            from .chat import ROLE_OPTIONS_ERROR
+            raise ValueError(ROLE_OPTIONS_ERROR)
         if goal.get("status") not in _goal.RESUMABLE_STATUSES:
             raise ValueError("Pause the Goal before changing its roles")
         from .roles import edit_role_requests
@@ -217,7 +220,8 @@ def _handle_goal_command(session_id: str, raw_args: str) -> dict:
             "/goal answer [question-id] <answer>\n"
             "/goal role <work|judge> <provider> <model> [effort=high] [timeout_s=300]\n"
             "/goal budget max_turns=10 max_tokens=10000 max_elapsed_s=3600 max_cost_usd=5\n"
-            "Role edits require a paused Goal. Zero removes a limit."
+            "Role edits apply to Python goal() Workflows and require a paused Goal; "
+            "chat Goals use the conversation's model. Zero removes a limit."
         ), "send_text": None}
     if head in {"role", "budget"}:
         try:

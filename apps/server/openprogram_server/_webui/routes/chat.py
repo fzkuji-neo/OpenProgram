@@ -360,7 +360,7 @@ def run_agent_method_call(
             if any(kwargs.get(key) not in (None, "") for key in (
                 "model", "effort", "judge_model", "judge_effort", "timeout_s", "judge_timeout_s",
             )) or kwargs.get("context_mode") == "isolated":
-                raise ValueError("Chat Goals use the current conversation model and context. Configure the conversation settings; separate Workflow role options require Python goal().")
+                raise ValueError(chat.ROLE_OPTIONS_ERROR)
             if kwargs.get("resume"):
                 chat.resume(session_id, kwargs.get("expected_goal"))
             else:

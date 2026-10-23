@@ -290,3 +290,130 @@ def test_shutdown_completion_is_durable_and_replays_goal_once(runtime, monkeypat
         chat.start_next(store, admission.execution_id, expected=chat.identity(resumed))
         assert done.wait(5), goals.load_goal("goal-chat")
         assert len(calls) == 2
+
+
+def _start_goal_chat(goals, chat, monkeypatch, runner, *, until):
+    """Run the real admission, driver and continuation path; stop when ``until`` holds."""
+    from openprogram.agent.production_driver import CanonicalAgentAdapter
+    from openprogram.agent.dispatcher.types import TurnRequest
+    done = threading.Event()
+    real_activate = CanonicalAgentAdapter.activate
+    async def activate(self, admission, **kwargs):
+        result = await real_activate(self, admission, **kwargs)
+        if until(goals.load_goal("goal-chat")):
+            done.set()
+        return result
+    monkeypatch.setattr(CanonicalAgentAdapter, "activate", activate)
+    monkeypatch.setattr("openprogram.agent.production_driver.CanonicalAgentAdapter",
+                        lambda **kw: CanonicalAgentAdapter(turn_runner=runner, **kw))
+    adapter = CanonicalAgentAdapter(turn_runner=runner)
+    request = TurnRequest("goal-chat", "work", "main", "web", permission_mode="ask")
+    admission = adapter.admit(request, trusted_actor={}, user_message_id="u1",
+                              assistant_message_id="u1_reply", config_snapshot_ref="session:goal-chat")
+    asyncio.run(adapter.activate(admission))
+    return adapter, done
+
+
+def test_automatic_turns_without_tools_stop_after_one_warning(runtime, monkeypatch):
+    goals, chat, store = runtime
+    calls = []
+    def runner(*, request, cancel_event):
+        calls.append(request)
+        if len(calls) > 4:
+            goals.apply_goal_action(request.session_id, "pause")
+        return SimpleNamespace(failed=False)
+    _, done = _start_goal_chat(goals, chat, monkeypatch, runner,
+                               until=lambda goal: goal["status"] != "active")
+    assert done.wait(5), goals.load_goal("goal-chat")
+    goal = goals.load_goal("goal-chat")
+    # The user's turn, one idle automatic turn, then the warned one that stops.
+    assert len(calls) == 3
+    assert calls[0].goal_trigger is not True
+    assert chat.IDLE_WARNING not in calls[1].user_text
+    assert chat.IDLE_WARNING in calls[2].user_text
+    assert goal["status"] == "stalled"
+    assert goal["pause_reason"] == "idle"
+    assert goal["status"] in goals.RESUMABLE_STATUSES
+    assert chat.resume("goal-chat")["idle_turns"] == 0
+
+
+def test_a_turn_with_tool_calls_resets_the_idle_count(runtime, monkeypatch):
+    goals, chat, store = runtime
+    calls = []
+    # Automatic turns: idle, tools, idle, idle -> stops on the fifth call.
+    tools = iter([False, True, False, False, False])
+    seen = {}
+    monkeypatch.setattr(chat, "used_tools", lambda _store, eid: seen.setdefault(eid, next(tools)))
+    def runner(*, request, cancel_event):
+        calls.append(request)
+        if len(calls) > 6:
+            goals.apply_goal_action(request.session_id, "pause")
+        return SimpleNamespace(failed=False)
+    _, done = _start_goal_chat(goals, chat, monkeypatch, runner,
+                               until=lambda goal: goal["status"] != "active")
+    assert done.wait(5), goals.load_goal("goal-chat")
+    assert len(calls) == 5
+    assert [chat.IDLE_WARNING in call.user_text for call in calls[1:]] == [False, True, False, True]
+    assert goals.load_goal("goal-chat")["status"] == "stalled"
+
+
+def test_a_queued_user_message_goes_before_the_next_automatic_turn(runtime, monkeypatch):
+    from openprogram.agent.production_driver import CanonicalAgentAdapter
+    from openprogram.agent.dispatcher.types import TurnRequest
+    goals, chat, store = runtime
+    monkeypatch.setattr(chat, "used_tools", lambda *_: True)
+    calls = []
+    def runner(*, request, cancel_event):
+        calls.append(request)
+        if len(calls) == 1:
+            # The user queues a message while the first turn runs.
+            chat.note_user_waiting("goal-chat", True)
+        if len(calls) == 3:
+            goals.apply_goal_action(request.session_id, "pause")
+        return SimpleNamespace(failed=False)
+    _, done = _start_goal_chat(goals, chat, monkeypatch, runner,
+                               until=lambda goal: goal["status"] == "paused")
+    # The continuation yields; the queued message is sent once the turn ends.
+    import time
+    time.sleep(1.2)
+    assert len(calls) == 1
+    adapter = CanonicalAgentAdapter(turn_runner=runner)
+    admission = adapter.admit(TurnRequest("goal-chat", "queued", "main", "web", permission_mode="ask"),
+                              trusted_actor={}, user_message_id="u2",
+                              assistant_message_id="u2_reply", config_snapshot_ref="session:goal-chat")
+    assert not chat.user_waiting("goal-chat")
+    asyncio.run(adapter.activate(admission))
+    assert done.wait(5), goals.load_goal("goal-chat")
+    assert [call.user_text for call in calls[:2]] == ["work", "queued"]
+    assert calls[2].goal_trigger is True
+    assert len(calls) == 3
+
+
+def test_an_unsent_queued_message_holds_the_goal_only_briefly(runtime, monkeypatch):
+    goals, chat, store = runtime
+    monkeypatch.setattr(chat, "used_tools", lambda *_: True)
+    monkeypatch.setattr(chat, "USER_TURN_GRACE_S", 0.6)
+    calls = []
+    def runner(*, request, cancel_event):
+        calls.append(request)
+        if len(calls) == 1:
+            chat.note_user_waiting("goal-chat", True)
+        if len(calls) == 2:
+            goals.apply_goal_action(request.session_id, "pause")
+        return SimpleNamespace(failed=False)
+    _, done = _start_goal_chat(goals, chat, monkeypatch, runner,
+                               until=lambda goal: goal["status"] == "paused")
+    assert done.wait(5), goals.load_goal("goal-chat")
+    assert calls[1].goal_trigger is True
+    assert not chat.user_waiting("goal-chat")
+
+
+def test_chat_goal_rejects_role_settings_it_would_not_use(runtime):
+    goals, chat, store = runtime
+    goals.apply_goal_action("goal-chat", "pause")
+    with pytest.raises(ValueError, match="current conversation model"):
+        goals.apply_goal_action("goal-chat", "roles", roles={"work": {"provider": "x", "model": "y"}})
+    from openprogram.programs.workflow.goal.command import handle_goal_command
+    reply = handle_goal_command("goal-chat", "role work x y")
+    assert "current conversation model" in reply["text"]
+    assert "role_requests" not in goals.load_goal("goal-chat")

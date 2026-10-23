@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 import time
 import uuid
 from contextlib import contextmanager
@@ -13,6 +14,19 @@ import openprogram.programs.workflow.goal as goals
 
 _turn_goal: ContextVar[dict | None] = ContextVar("chat_goal_turn", default=None)
 _locked_session: ContextVar[str | None] = ContextVar("chat_goal_lock", default=None)
+
+# A queued user message outranks an automatic continuation. The client says
+# when a conversation has one waiting; a continuation yields to it for at most
+# USER_TURN_GRACE_S, so a closed window cannot hold a Goal forever.
+USER_TURN_GRACE_S = 15.0
+_waiting_users: dict[str, float | None] = {}  # session -> first deferral time
+_waiting_lock = threading.Lock()
+
+
+ROLE_OPTIONS_ERROR = (
+    "Chat Goals use the current conversation model and context. Configure the conversation settings; "
+    "separate Workflow role options require Python goal()."
+)
 
 
 class ContinuationSuperseded(goals.GoalConflictError):
@@ -51,6 +65,33 @@ def publish(session_id: str, goal: dict) -> dict:
     goals.save_goal(session_id, goal)
     goals._emit_goal_update(None, session_id, goal)
     return goal
+
+
+def note_user_waiting(session_id: str, waiting: bool) -> None:
+    """Record whether a user message is waiting to start this conversation's next turn."""
+    with _waiting_lock:
+        if waiting:
+            _waiting_users.setdefault(session_id, None)
+        else:
+            _waiting_users.pop(session_id, None)
+
+
+def user_waiting(session_id: str) -> bool:
+    with _waiting_lock:
+        return session_id in _waiting_users
+
+
+def used_tools(store, execution_id: str) -> bool:
+    """Every tool call plans a durable ``tool.before`` effect, read-only ones too."""
+    from openprogram.execution.effects import EffectStore
+    return EffectStore(store).has_kind(execution_id, "tool.before")
+
+
+IDLE_WARNING = (
+    "The previous automatic Goal turn called no tool. Make real progress with tools in this turn, "
+    "or call update_goal if the objective is verifiably complete or blocked. "
+    "Another automatic turn without tool calls pauses the Goal."
+)
 
 
 def continuation_policy() -> dict:
@@ -193,7 +234,7 @@ def resume(session_id: str, expected: dict | None = None) -> dict:
             observed["execution_id"], expected_version=observed["status_version"])
     goal.update(execution_mode="chat", status="active", phase="idle",
                 control_version=int(goal.get("control_version") or 0) + 1,
-                run_id=uuid.uuid4().hex, run_turns=0, stop_requested=False,
+                run_id=uuid.uuid4().hex, run_turns=0, idle_turns=0, stop_requested=False,
                 pause_reason="", active_started_at=None, last_reason="")
     goal["goal_id"] = goal.get("goal_id") or uuid.uuid4().hex
     goal.pop("roles", None)
@@ -317,6 +358,10 @@ def admit(entry, **kwargs):
             or request.get("interaction") not in {None, "interactive"}):
         return entry._admit_without_goal(**kwargs)
     with locked(sid):
+        if not request.get("goal_trigger"):
+            # Under the Goal lock, so a yielding continuation sees this turn's
+            # admission and is superseded by it.
+            note_user_waiting(sid, False)
         goal = goals.load_goal(sid)
         active = goal and goal.get("execution_mode") == "chat" and goal.get("status") == "active"
         key = kwargs.get("admission_key")
@@ -401,13 +446,19 @@ def after_terminal(store, execution):
             goal["run_turns"] = int(goal.get("run_turns") or 0) + 1
             goal["accounted_execution_id"] = execution.execution_id
             goal["checklist"] = project_todos(sid, goal)
+            if not request.get("goal_verification"):
+                # Only an automatic turn can spin; a user turn starts the count over.
+                idle = (request.get("goal_trigger") and execution.status == ExecutionStatus.COMPLETED
+                        and not used_tools(store, execution.execution_id))
+                goal["idle_turns"] = int(goal.get("idle_turns") or 0) + 1 if idle else 0
             if execution.status != ExecutionStatus.COMPLETED and goal.get("status") == "active" and not stale_revision:
-                goal.update(status="paused_recoverable", phase="paused",
+                goal.update(status="paused_recoverable", phase="paused", pause_reason="execution_failed",
                             last_reason=execution.reason_code or execution.status.value)
             if goal.get("status") == "active" and not stale_revision:
                 exhausted = goals.budget_exhausted(goal)
                 if request.get("permission_mode") == "plan":
-                    goal.update(status="paused_recoverable", phase="paused", last_reason="plan mode")
+                    goal.update(status="paused_recoverable", phase="paused", pause_reason="plan_mode",
+                                last_reason="plan mode")
                 elif exhausted and not completed_verification:
                     goal.update(status="budget_exhausted", phase="terminal", last_reason=exhausted)
                 else:
@@ -427,6 +478,11 @@ def after_terminal(store, execution):
                 goal.update(status="budget_exhausted", phase="terminal", last_reason=exhausted)
         else:
             verification.prepare(store, execution, goal)
+            idle = int(goal.get("idle_turns") or 0)
+            if idle >= goals.IDLE_ROUND_LIMIT and (goal.get("verification") or {}).get("status") != "pending":
+                goal.update(status="stalled", phase="paused", pause_reason="idle",
+                            last_reason=f"{idle} consecutive automatic turns called no tool")
+                goals._emit_goal_notice(sid, f"[goal] {goals._TERMINAL_LABELS['stalled']}：{goal['last_reason']}")
         publish(sid, goal)
         if goal.get("status") != "active":
             return
@@ -487,6 +543,33 @@ def _continuation_ready(store, session_id: str, previous_execution_id: str, expe
         return True
 
 
+def _yield_to_user(store, previous_execution_id: str, expected: dict, session_id: str) -> bool:
+    """Wait off-thread for a queued user message; True when this call must stop.
+
+    The user's turn supersedes the continuation through admission (it moves
+    the Goal's execution_id). After the grace period the marker is dropped and
+    the continuation proceeds as usual.
+    """
+    with _waiting_lock:
+        if session_id not in _waiting_users:
+            return False
+        # The grace period runs from the first deferral, not from the enqueue.
+        deferred = _waiting_users[session_id] or time.time()
+        if time.time() - deferred >= USER_TURN_GRACE_S:
+            _waiting_users.pop(session_id, None)
+            return False
+        _waiting_users[session_id] = deferred
+
+    def retry():
+        time.sleep(0.5)
+        try:
+            start_next(store, previous_execution_id, expected=expected)
+        except Exception:
+            logging.getLogger(__name__).exception("Deferred Goal continuation failed")
+    threading.Thread(target=retry, daemon=True, name="goal-chat-yield").start()
+    return True
+
+
 def start_next(store, previous_execution_id: str, *, expected: dict):
     """Use the original trusted chat envelope; never elevate its authority."""
     import asyncio
@@ -501,13 +584,19 @@ def start_next(store, previous_execution_id: str, *, expected: dict):
     sid = source.session_id
     if not _continuation_ready(store, sid, previous_execution_id, expected):
         return
+    if _yield_to_user(store, previous_execution_id, expected, sid):
+        return
     key = "goal:" + json.dumps([previous_execution_id, expected], sort_keys=True)
     from . import verification
     with locked(sid):
         goal = goals.load_goal(sid)
         request, key = verification.continuation(goal, request, key)
     msg_id = store.admission_execution_id(sid, key) + "_user"
-    request.update(user_text=request["user_text"] if request.get("goal_verification") else "Continue the active Goal. Inspect the current todo plan and actual results, then do the remaining work or verify completion.",
+    prompt = ("Continue the active Goal. Inspect the current todo plan and actual results, "
+              "then do the remaining work or verify completion.")
+    if int(goal.get("idle_turns") or 0):
+        prompt += "\n\n" + IDLE_WARNING
+    request.update(user_text=request["user_text"] if request.get("goal_verification") else prompt,
                    user_msg_id=msg_id, user_already_persisted=False,
                    history_override=None, attachments=None, spawn_caller=None,
                    goal_context=expected, goal_trigger=True,

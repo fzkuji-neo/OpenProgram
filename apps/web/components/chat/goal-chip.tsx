@@ -6,6 +6,7 @@ import { CheckIcon, HistoryIcon } from "@/components/animated-icons";
 import { useActionIconAnimation } from "./messages/use-action-icon-animation";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import {
   Dialog,
@@ -112,6 +113,33 @@ function controlReason(reason: string | null | undefined, zh: boolean): string {
   return reason ? messages[reason]?.[zh ? 1 : 0] ?? reason : "";
 }
 
+/** Why a Goal stopped, from the structured pause_reason; the raw last_reason
+ *  is the fallback and the detail. */
+function stopReason(goal: GoalState, zh: boolean): string {
+  const raw = goal.last_reason ?? "";
+  const t = (en: string, cn: string) => (zh ? cn : en);
+  if (goal.status === "active") return raw;
+  switch (goal.pause_reason) {
+    case "user": return t("Paused by you.", "你暂停了此 Goal。");
+    case "edited": return t("The Goal was edited. Resume to work on the new revision.", "目标已修改，继续后按新版本执行。");
+    case "idle": {
+      const turns = Number.parseInt(raw, 10) || 2;
+      return t(`${turns} automatic turns in a row called no tool, so the Goal stopped. Resume to try again, or edit the Goal.`,
+        `连续 ${turns} 个自动轮次没有调用任何工具，Goal 已停下。可以继续重试，或修改目标。`);
+    }
+    case "execution_failed": return t(`The last turn did not finish (${raw}). Resume starts a new turn.`, `上一轮没有正常结束（${raw}），继续会开始新的轮次。`);
+    case "plan_mode": return t("A Goal does not continue on its own in Plan mode. Leave Plan mode, then resume.", "Plan 模式下 Goal 不会自动续跑。退出 Plan 模式后再继续。");
+    case "verification_blocked": {
+      const code = raw.replace(/^Completion cannot be verified:\s*/, "");
+      return `${t("Completion cannot be verified yet", "暂时无法验收")}: ${controlReason(code, zh)}`;
+    }
+    case "restart_policy": return t("OpenProgram restarted, and automatic continuation is off or its time window has passed. Resume to continue.", "OpenProgram 重启后，自动续跑已关闭或超出时限，请手动继续。");
+    case "restart_provenance_unknown": return t("This saved Goal has no record of where it last ran. Resume to continue.", "这个 Goal 缺少上次运行位置的记录，请手动继续。");
+    case "answer_received": return t("An answer arrived. Resume to apply it.", "已收到回答，继续后会用上它。");
+    default: return raw;
+  }
+}
+
 function formatElapsed(seconds: number | undefined): string {
   const total = Math.max(0, Math.round(seconds ?? 0));
   const hours = Math.floor(total / 3600);
@@ -171,7 +199,7 @@ function statusLabel(status: string | undefined, zh: boolean, phase?: string) {
   const labels: Record<string, [string, string]> = {
     refining: ["Refining", "完善中"], active: ["Active", "进行中"],
     running: ["Running", "执行中"], evaluating: ["Evaluating", "判定中"],
-    paused: ["Paused", "已暂停"], paused_recoverable: ["Paused after restart", "重启后可继续"],
+    paused: ["Paused", "已暂停"], paused_recoverable: ["Paused", "已暂停"],
     waiting_user: ["Waiting for you", "等待回答"], waiting_external: ["Waiting externally", "等待外部事件"],
     blocked: ["Blocked", "已阻塞"], stalled: ["Stalled", "无进展"],
     budget_exhausted: ["Budget exhausted", "预算已用尽"], achieved: ["Achieved", "已达成"],
@@ -265,6 +293,8 @@ export function GoalDetails({ sessionId, goal, historical = false }: { sessionId
     ? hasElapsed ? text(`Goal achieved in ${elapsedLabel}`, `目标已达成，用时 ${elapsedLabel}`) : text("Goal achieved", "目标已达成")
     : `${text("Goal", "目标")} · ${statusLabel(goal.status, zh, goal.phase)}`;
   const terminal = terminalStatuses.has(goal.status || "");
+  const budget = goal.budget ?? { max_turns: goal.max_turns };
+  const reason = stopReason(goal, zh);
   const unsaved = draft.dirty;
   const execution = useGoalExecution(sessionId, goal, !historical && (open || !!goal.stop_requested));
   const controls = execution.controls;
@@ -385,17 +415,20 @@ export function GoalDetails({ sessionId, goal, historical = false }: { sessionId
           <div className={styles.metrics}>
             <div><span>{text("Status", "状态")}</span><strong>{statusLabel(goal.status, zh, goal.phase)}</strong></div>
             {progress ? <div><span>{text("Progress", "进度")}</span><strong>{progress}</strong></div> : null}
+            <div><span>{text("Turns", "轮次")}</span><strong>{goal.turns_used ?? 0}{limitSuffix(budget.max_turns)}</strong></div>
             <div><span>{text("Tokens", "Token")}</span><strong>{goal.usage?.unknown_token_requests
               ? text(`Known ${goal.usage.total_tokens ?? 0}; ${goal.usage.unknown_token_requests} request(s) unknown`, `已知 ${goal.usage.total_tokens ?? 0}；另有 ${goal.usage.unknown_token_requests} 次请求未知`)
-              : goal.usage?.tokens_known === false ? text("Unknown", "未知") : goal.usage?.total_tokens ?? 0}</strong></div>
+              : goal.usage?.tokens_known === false ? text("Unknown", "未知") : goal.usage?.total_tokens ?? 0}{limitSuffix(budget.max_tokens)}</strong></div>
             <div><span>{text("Cost", "成本")}</span><strong>{goal.usage?.unknown_cost_requests && Number.isFinite(goal.usage.cost_usd)
               ? text(`Known $${goal.usage.cost_usd!.toFixed(4)}; ${goal.usage.unknown_cost_requests} request(s) unknown`, `已知 $${goal.usage.cost_usd!.toFixed(4)}；另有 ${goal.usage.unknown_cost_requests} 次请求未知`)
               : goal.usage?.cost_known === true && Number.isFinite(goal.usage.cost_usd)
-                ? `$${goal.usage.cost_usd!.toFixed(4)}` : text("Unknown", "未知")}</strong></div>
+                ? `$${goal.usage.cost_usd!.toFixed(4)}` : text("Unknown", "未知")}{limitSuffix(budget.max_cost_usd, (v) => `$${v}`)}</strong></div>
             <div><span>{text("Active time", "执行时间")}</span><strong>{goal.usage?.active_time_known === false
               ? text(`At least ${formatElapsed(goal.usage.active_elapsed_s)}; interrupted interval unknown`, `至少 ${formatElapsed(goal.usage.active_elapsed_s)}；中断时段未知`)
-              : formatElapsed(goal.usage?.active_elapsed_s)}</strong></div>
+              : formatElapsed(goal.usage?.active_elapsed_s)}{limitSuffix(budget.max_elapsed_s, formatElapsed)}</strong></div>
           </div>
+
+          {!historical && !terminal ? <GoalBudgetEditor budget={budget} busy={busy} onSave={(values) => void mutate("budget", values)} /> : null}
 
           {goal.usage?.accounting_pending ? <p role="status">{text("Usage from the interrupted run has not been reconciled. Unknown is not zero; session totals must not be treated as Goal costs.", "中断执行的用量尚未核对。未知不代表零，不能把整个会话的费用当作此 Goal 费用。")}</p> : null}
 
@@ -412,7 +445,7 @@ export function GoalDetails({ sessionId, goal, historical = false }: { sessionId
             {goal.roles_origin === "legacy-resolved" ? <p>{text("Roles resolved on first resume of this legacy Goal.", "旧目标在首次恢复时解析角色配置。")}</p> : null}
           </section> : null}
 
-          {goal.last_reason ? <p className={styles.reason}>{goal.last_reason}</p> : null}
+          {reason ? <p className={styles.reason}>{reason}</p> : null}
           {!historical && pendingQuestions.length ? (
             <section className={styles.questionQueue} aria-label={text("Pending Goal questions", "Goal 待答问题")}>
               <header>
@@ -511,5 +544,64 @@ export function GoalDetails({ sessionId, goal, historical = false }: { sessionId
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+/** " / limit" after a used amount; nothing when the Goal has no such limit. */
+function limitSuffix(limit: number | null | undefined, format: (value: number) => string = String): string {
+  return limit ? ` / ${format(limit)}` : "";
+}
+
+type GoalBudget = NonNullable<GoalState["budget"]>;
+const BUDGET_FIELDS: { key: keyof GoalBudget; en: string; zh: string; step: string; scale: number }[] = [
+  { key: "max_turns", en: "Turns", zh: "轮次", step: "1", scale: 1 },
+  { key: "max_tokens", en: "Tokens", zh: "Token", step: "1000", scale: 1 },
+  { key: "max_cost_usd", en: "Cost (USD)", zh: "成本（美元）", step: "0.5", scale: 1 },
+  { key: "max_elapsed_s", en: "Active time (min)", zh: "执行时间（分钟）", step: "1", scale: 60 },
+];
+
+/** The Goal's explicit limits, edited in place. An empty field is no limit. */
+function GoalBudgetEditor({ budget, busy, onSave }: { budget: GoalBudget; busy: boolean; onSave: (values: Record<string, number>) => void }) {
+  const { text } = useTranslation();
+  const shown = (key: keyof GoalBudget, scale: number) => {
+    const value = budget[key];
+    return value ? String(Math.round((value / scale) * 100) / 100) : "";
+  };
+  const source = BUDGET_FIELDS.map(({ key, scale }) => shown(key, scale)).join("|");
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [base, setBase] = useState(source);
+  if (base !== source) { setBase(source); setValues({}); }
+  const value = (key: keyof GoalBudget, scale: number) => values[key] ?? shown(key, scale);
+  const dirty = BUDGET_FIELDS.some(({ key, scale }) => value(key, scale) !== shown(key, scale));
+  const invalid = BUDGET_FIELDS.some(({ key, scale }) => {
+    const raw = value(key, scale).trim();
+    return raw !== "" && !(Number(raw) >= 0);
+  });
+  function save() {
+    // Zero removes a limit on the server.
+    onSave(Object.fromEntries(BUDGET_FIELDS.map(({ key, scale }) => {
+      const raw = value(key, scale).trim();
+      const number = raw ? Number(raw) * scale : 0;
+      return [key, key === "max_cost_usd" || key === "max_elapsed_s" ? number : Math.round(number)];
+    })));
+  }
+  return (
+    <section className={styles.budget} aria-label={text("Goal budget", "Goal 预算")}>
+      <header>
+        <strong>{text("Budget", "预算")}</strong>
+        <span>{text("Leave a field empty for no limit.", "留空表示不限。")}</span>
+      </header>
+      <div className={styles.budgetFields}>
+        {BUDGET_FIELDS.map(({ key, en, zh, step, scale }) => (
+          <label key={key}>
+            <span>{text(en, zh)}</span>
+            <Input type="number" min="0" step={step} inputMode="decimal" disabled={busy}
+              value={value(key, scale)} placeholder={text("No limit", "不限")}
+              onChange={(event) => setValues((current) => ({ ...current, [key]: event.target.value }))} />
+          </label>
+        ))}
+      </div>
+      <Button variant="outline" disabled={busy || !dirty || invalid} onClick={save}>{text("Save budget", "保存预算")}</Button>
+    </section>
   );
 }

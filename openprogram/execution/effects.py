@@ -293,6 +293,14 @@ class EffectStore:
             ).fetchone()
             return self._record(row) if row is not None else None
 
+    def has_kind(self, execution_id: str, kind: str) -> bool:
+        with closing(self.executions._connect()) as connection:
+            return connection.execute(
+                "SELECT 1 FROM effects WHERE execution_id = ? "
+                "AND json_extract(metadata_json, '$.kind') = ? LIMIT 1",
+                (execution_id, kind),
+            ).fetchone() is not None
+
     def list_unresolved(self, execution_id: str) -> list[EffectRecord]:
         values = tuple(status.value for status in UNRESOLVED_EFFECT_STATUSES)
         with closing(self.executions._connect()) as connection:

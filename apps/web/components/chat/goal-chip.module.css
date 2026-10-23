@@ -37,7 +37,7 @@
 
 .metrics {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
   gap: 8px;
 }
 
@@ -64,6 +64,14 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+
+.budget { display: grid; gap: 8px; font-size: 12px; }
+.budget > header { display: flex; justify-content: space-between; gap: 12px; }
+.budget > header span { color: hsl(var(--muted-foreground)); font-size: 11px; }
+.budget > button { justify-self: start; }
+.budgetFields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.budgetFields label { display: grid; gap: 4px; min-width: 0; }
+.budgetFields label > span { color: hsl(var(--muted-foreground)); font-size: 10px; }
 
 .roles {
   display: grid;
@@ -155,6 +163,7 @@
 @media (max-width: 560px) {
   .roles { grid-template-columns: 1fr; }
   .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .budgetFields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .actions { align-items: stretch; }
   .actions > button { width: 100%; }
 }

@@ -230,7 +230,7 @@ test("Goal progress shows todos, never execution rounds", async () => {
     await frame({ ...snapshot(3), checklist: [{ text: "Verify", done: true }] });
     assert.match(view.host.textContent, /Todos 1\/1/);
     await frame({ ...snapshot(4, "paused_recoverable"), checklist: [] });
-    assert.equal(view.host.querySelector(".badge-short").textContent, "Goal · Paused after restart");
+    assert.equal(view.host.querySelector(".badge-short").textContent, "Goal · Paused");
     await view.open();
     assert.doesNotMatch(view.host.textContent, /No todos yet|尚无待办|Progress/);
   } finally { await view.close(); }
@@ -418,16 +418,58 @@ test("Goal actions include the snapshot identity shown to the user", async () =>
   } finally { api.mutateGoal = original; await view.close(); }
 });
 
-test("Goal details have no execution parameter editors", async () => {
+test("Goal details edit the budget but have no role editors", async () => {
   reset();
   runtimeState.conversations.s1.goal = { ...snapshot(1, "paused"), budget: { max_turns: 5 } };
   const view = await mount();
   try {
     await view.open();
-    assert.equal(view.host.querySelector('[aria-label="Turns"]'), null);
     assert.equal(view.host.querySelector('[aria-label="Judge model"]'), null);
-    assert.doesNotMatch(view.host.textContent, /Configure agents|Execution limits|Save roles|Save limits/);
+    assert.doesNotMatch(view.host.textContent, /Configure agents|Save roles/);
+    assert.ok(view.host.querySelector('[aria-label="Goal budget"]'));
     assert.ok(view.host.querySelector('textarea'));
+  } finally { await view.close(); }
+});
+
+test("budget shows used against each limit and saves edits, empty meaning no limit", async () => {
+  reset();
+  runtimeState.conversations.s1.goal = { ...snapshot(1, "budget_exhausted"), turns_used: 5,
+    budget: { max_turns: 5, max_tokens: 8000, max_elapsed_s: 600 }, usage: { total_tokens: 1200, active_elapsed_s: 90 } };
+  const original = api.mutateGoal;
+  let sent;
+  api.mutateGoal = async (_sid, body) => { sent = body; return { goal: snapshot(2, "budget_exhausted") }; };
+  const view = await mount();
+  try {
+    await view.open();
+    assert.match(view.host.textContent, /Turns5 \/ 5/);
+    assert.match(view.host.textContent, /Tokens1200 \/ 8000/);
+    assert.match(view.host.textContent, /1m 30s \/ 10m 0s/);
+    const inputs = [...view.host.querySelectorAll('[aria-label="Goal budget"] input')];
+    assert.deepEqual(inputs.map((input) => input.value), ["5", "8000", "", "10"]);
+    await typeInto(inputs[0], "20");
+    await typeInto(inputs[3], "");
+    await view.click("Save budget");
+    assert.equal(sent.action, "budget");
+    assert.deepEqual({ ...sent, expected: undefined },
+      { action: "budget", max_turns: 20, max_tokens: 8000, max_cost_usd: 0, max_elapsed_s: 0, expected: undefined });
+  } finally { api.mutateGoal = original; await view.close(); }
+});
+
+test("a stopped Goal explains its stop reason instead of a raw code", async () => {
+  reset();
+  runtimeState.conversations.s1.goal = { ...snapshot(1, "stalled"), pause_reason: "idle",
+    last_reason: "2 consecutive automatic turns called no tool" };
+  const view = await mount();
+  try {
+    await view.open();
+    assert.match(view.host.textContent, /2 automatic turns in a row called no tool/);
+    await frame({ ...snapshot(2, "paused_recoverable"), pause_reason: "plan_mode", last_reason: "plan mode" });
+    assert.equal(view.host.querySelector(".badge-short").textContent, "Goal · Paused");
+    assert.match(view.host.textContent, /StatusPaused/);
+    assert.match(view.host.textContent, /does not continue on its own in Plan mode/);
+    await frame({ ...snapshot(3, "paused_recoverable"), pause_reason: "verification_blocked",
+      last_reason: "Completion cannot be verified: unfinished_todos" });
+    assert.match(view.host.textContent, /Completion cannot be verified yet: Complete the remaining todos/);
   } finally { await view.close(); }
 });
 
@@ -657,7 +699,7 @@ test("newer websocket snapshot persists and a late HTTP reply cannot overwrite i
   const original = api.mutateGoal;
   api.mutateGoal = async () => {
     window.dispatchEvent(new CustomEvent("op:ws-message", {
-      detail: { type: "goal_update", data: { session_id: "s1", goal: snapshot(4, "paused_recoverable") } },
+      detail: { type: "goal_update", data: { session_id: "s1", goal: snapshot(4, "waiting_user") } },
     }));
     return { goal: snapshot(2, "paused") };
   };
@@ -665,10 +707,10 @@ test("newer websocket snapshot persists and a late HTTP reply cannot overwrite i
   try {
     await view.open();
     await view.click("Pause");
-    assert.match(view.host.textContent, /Paused after restart/);
+    assert.match(view.host.textContent, /Waiting for you/);
     assert.equal(runtimeState.conversations.s1.goal.version, 4);
     await frame(snapshot(3, "active"));
-    assert.match(view.host.textContent, /Paused after restart/);
+    assert.match(view.host.textContent, /Waiting for you/);
     assert.equal(runtimeState.conversations.s1.goal.version, 4);
   } finally { api.mutateGoal = original; await view.close(); }
 });
@@ -696,9 +738,9 @@ test("late session hydration preserves the newest Goal while loading other sessi
     assert.match(view.host.textContent, /Paused/);
     await act(async () => loadSessionData({ id: "s1", messages: [], goal: null }));
     assert.equal(runtimeState.conversations.s1.goal.version, 5);
-    await act(async () => loadSessionData({ id: "s1", messages: [], goal: snapshot(6, "paused_recoverable") }));
+    await act(async () => loadSessionData({ id: "s1", messages: [], goal: snapshot(6, "waiting_user") }));
     assert.equal(runtimeState.conversations.s1.goal.version, 6);
-    assert.match(view.host.textContent, /Paused after restart/);
+    assert.match(view.host.textContent, /Waiting for you/);
   } finally { await view.close(); }
 });
 

@@ -99,12 +99,28 @@ interface SendQueueState {
 
 const EMPTY: QueuedMessage[] = [];
 
+// A queued message outranks an automatic Goal continuation, but the server
+// cannot see this queue. Tell it when a conversation's queue fills or is
+// emptied without sending; a drain's send is the server's own signal.
+const draining = new Set<string>();
+function hintGoalQueue(before: Record<string, QueuedMessage[]>, after: Record<string, QueuedMessage[]>): void {
+  for (const sessionId of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    const waiting = Boolean(after[sessionId]?.length);
+    if (waiting === Boolean(before[sessionId]?.length) || (!waiting && draining.has(sessionId))) continue;
+    void import("@/lib/net/api")
+      .then(({ api }) => api.setGoalQueueWaiting(sessionId, waiting))
+      .catch(() => {});
+  }
+}
+
 let seq = 0;
 
 export const useSendQueue = create<SendQueueState>((rawSet, get) => {
   const set = (patch: Partial<SendQueueState> | ((state: SendQueueState) => Partial<SendQueueState>)) => {
+    const before = get().queues;
     rawSet(patch);
     savePendingSteers(get().queues);
+    hintGoalQueue(before, get().queues);
   };
   return {
   queues: loadPendingSteers(),
@@ -229,11 +245,14 @@ export const useSendQueue = create<SendQueueState>((rawSet, get) => {
     // treat this one as a repeat of it and drop it, so wait: the ACK starts
     // that turn, and its clear drains again.
     if (hasPendingFirstAck(sessionId)) return;
+    // The server clears its waiting hint when this turn is admitted.
+    draining.add(sessionId);
     // Pop BEFORE sending: sendChatMessage re-enters the store (running
     // task, pending text) and a failed write re-queues at the head
     // below, so there is no window where the entry is both queued and
     // in flight.
     get().remove(sessionId, head.id);
+    draining.delete(sessionId);
     const payload = queuedMessagePayload(head);
     const restore = (deliveryError = false) => set((s) => {
       const rows = s.queues[sessionId] ?? EMPTY;
