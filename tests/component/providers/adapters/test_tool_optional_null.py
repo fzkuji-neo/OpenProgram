@@ -77,6 +77,21 @@ def test_optional_strict_enum_null_means_omitted():
     assert validate_tool_call([tool], ToolCall(id="fixture", name="fixture", arguments=args)) == {}
 
 
+def test_widening_an_optional_enum_leaves_a_shared_enum_list_alone():
+    # web_search names its providers once: the optional provider and the
+    # providers items share one list. Null belongs to the provider only; a
+    # string-typed item enum holding null makes Codex fail every request.
+    names = ["tavily", "exa"]
+    schema = {"type": "object", "properties": {
+        "provider": {"type": "string", "enum": names},
+        "providers": {"type": "array", "items": {"type": "string", "enum": names}},
+    }}
+    wire = _wire(Tool(name="fixture", description="Fixture", parameters=schema))["parameters"]
+    assert None in wire["properties"]["provider"]["enum"]
+    assert wire["properties"]["providers"]["items"]["enum"] == ["tavily", "exa"]
+    assert names == ["tavily", "exa"]
+
+
 def test_null_not_allowed_by_required_enum_is_still_invalid():
     schema = {"type": "object", "properties": {"space": {"type": "string", "enum": ["self"]}},
               "required": ["space"]}

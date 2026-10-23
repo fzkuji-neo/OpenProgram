@@ -203,9 +203,15 @@ def _make_nullable(prop: dict[str, Any]) -> None:
     model to pick a member (memory tools' optional ``space`` was always
     sent as ``"self"`` and denied).
     """
+    # Every widening builds a new list: a tool spec may share one list
+    # between several schemas (web_search's provider enum is also its
+    # providers items enum, and deepcopy keeps that sharing), and an
+    # in-place append would widen those too. A string-typed item enum
+    # holding null is a schema the Codex backend rejects with an empty
+    # error event on every attempt.
     enum = prop.get("enum")
     if isinstance(enum, list) and None not in enum:
-        enum.append(None)
+        prop["enum"] = [*enum, None]
     t = prop.get("type")
     if isinstance(t, str):
         if t == "null":
@@ -214,12 +220,12 @@ def _make_nullable(prop: dict[str, Any]) -> None:
         return
     if isinstance(t, list):
         if "null" not in t:
-            t.append("null")
+            prop["type"] = [*t, "null"]
         return
     # Type omitted but anyOf-style union present.
     if isinstance(prop.get("anyOf"), list):
         if not any(isinstance(b, dict) and b.get("type") == "null" for b in prop["anyOf"]):
-            prop["anyOf"].append({"type": "null"})
+            prop["anyOf"] = [*prop["anyOf"], {"type": "null"}]
         return
     # Pure-enum property (no type) — strict accepts this as-is; we'd
     # mangle it by adding {"type": "null"}. Leave alone.
