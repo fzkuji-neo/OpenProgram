@@ -36,6 +36,7 @@ from openprogram.memory import store
 from openprogram.memory.management import MemoryWorkspace
 from openprogram.memory.management.config import load_memory_config
 from openprogram.memory.management.transaction import (
+    VALID_ROLES,
     TransactionError,
     provenance_from_authority,
     workspace_write_lock,
@@ -397,7 +398,13 @@ UPDATE_SPEC: dict[str, Any] = {
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "source": {"type": "string"},
+                                    "source": {
+                                        "type": "string",
+                                        "description": (
+                                            "An archived source ID, or the label of an "
+                                            "entry in the top-level sources (new-source-…)."
+                                        ),
+                                    },
                                     "label": {
                                         "type": "string",
                                         "description": (
@@ -419,8 +426,32 @@ UPDATE_SPEC: dict[str, Any] = {
             },
             "sources": {
                 "type": "array",
-                "description": "quoted statements the edit rests on",
-                "items": {"type": "object"},
+                "description": (
+                    "quoted statements the edit rests on; a record cites one "
+                    "by putting its label in sources[].source"
+                ),
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "label": {
+                            "type": "string",
+                            "pattern": "^new-source-[a-z0-9-]+$",
+                            "description": (
+                                "This edit's handle for the quote: new-source- plus lowercase "
+                                "letters, digits and dashes, e.g. new-source-report-format."
+                            ),
+                        },
+                        "role": {
+                            "type": "string",
+                            "enum": list(VALID_ROLES),
+                            "description": "Who said it: user for the user's words.",
+                        },
+                        "content": {"type": "string", "description": "The quoted text, verbatim."},
+                        "observed_at": {"type": "string", "description": "ISO 8601 time it was said."},
+                    },
+                    "required": ["label", "role", "content"],
+                    "additionalProperties": False,
+                },
             },
             "commit_message": {"type": "string"},
             "layer": {
