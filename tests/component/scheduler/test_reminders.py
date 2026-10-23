@@ -126,7 +126,12 @@ def _patch_delivery(monkeypatch, session):
 
     frames, sent, turns = [], [], []
     done = threading.Event()
-    monkeypatch.setattr(events, "emit_ws_frame", frames.append)
+    def frame(value):
+        frames.append(value)
+        # A desktop App answers, so the notify thread ends with the test
+        # instead of posting a real notification after the patches are gone.
+        reminders.shown(value["data"]["id"])
+    monkeypatch.setattr(events, "emit_ws_frame", frame)
     monkeypatch.setattr(reminders, "_session", lambda _sid: session)
     monkeypatch.setattr(reminders, "system_notify", lambda *_a: True)
 
@@ -269,3 +274,16 @@ def test_worker_posts_the_system_notification_when_no_desktop_app_did(monkeypatc
     while reminders._shown and time.monotonic() < deadline:
         time.sleep(0.01)
     assert reminders._shown == {}
+
+
+@pytest.mark.parametrize("in_bundle", [True, False])
+def test_macos_notification_comes_from_the_app_bundle_when_there_is_one(monkeypatch, in_bundle):
+    from openprogram.scheduler import reminders
+
+    ran = []
+    monkeypatch.setattr(reminders.sys, "platform", "darwin")
+    monkeypatch.setattr(reminders, "_bundle_notify", lambda *_a: in_bundle)
+    monkeypatch.setattr(reminders.subprocess, "run",
+                        lambda cmd, **_kw: ran.append(cmd[0]) or SimpleNamespace(returncode=0))
+    assert reminders.system_notify("OpenProgram ⏰", "Stand up") is True
+    assert ran == ([] if in_bundle else ["osascript"])

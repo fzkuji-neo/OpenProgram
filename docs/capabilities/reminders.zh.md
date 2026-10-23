@@ -29,7 +29,7 @@ agent 用 `remind` 工具设置提醒。它的回复会写明提醒触发的确�
 通知类提醒会：
 
 - 在每个打开的 OpenProgram 窗口里弹出提示；
-- 发一条系统通知，即使你正在用 App 也会发。由桌面 App 发出（点击打开该对话）；没有打开任何 App 窗口时，由 worker 自己发，macOS 上这条通知归在“脚本编辑器”下，Linux 上需要 `notify-send`；
+- 发一条系统通知，即使你正在用 App 也会发。由桌面 App 发出（点击打开该对话）；没有打开任何 App 窗口时，由 worker 自己发，同样显示 OpenProgram 的名字和图标。不是随 App 安装、而是用 pip 安装的 worker，在 macOS 上通过“脚本编辑器”发，在 Linux 上需要 `notify-send`；
 - 如果是在[聊天渠道](../integrations/channels.zh.md)对话里设置的（Telegram、Slack、Discord 或微信），同时以消息发到那个对话。
 
 唤醒 agent 的提醒做完上面这些之后，会在设置它的那个对话里开始一轮。这一轮的消息以 ⏰ 和提醒内容开头，使用该对话的权限模式和规则。如果那里正有一轮在运行，它最多等 10 分钟，等那一轮结束再开始。在聊天渠道对话里，agent 的回答也会发到渠道。

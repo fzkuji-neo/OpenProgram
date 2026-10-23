@@ -75,10 +75,32 @@ def shown(reminder_id: str) -> None:
         answered.set()
 
 
+def _bundle_notify(title: str, message: str) -> bool:
+    """Post through the app bundle this process runs in, so the notification
+    carries OpenProgram's name and icon. False outside a bundle (a pip
+    install), where macOS has no center for the process."""
+    try:
+        import Foundation
+    except ImportError:
+        return False
+    center = Foundation.NSUserNotificationCenter.defaultUserNotificationCenter()
+    if center is None:
+        return False
+    note = Foundation.NSUserNotification.alloc().init()
+    note.setTitle_(title)
+    note.setInformativeText_(message)
+    note.setSoundName_("Glass")
+    center.deliverNotification_(note)
+    return True
+
+
 def system_notify(title: str, message: str) -> bool:
     """Post an operating-system notification from the worker itself."""
     try:
         if sys.platform == "darwin":
+            if _bundle_notify(title, message):
+                return True
+            # Script Editor posts it, under its own name and icon.
             script = ('on run argv\n'
                       'display notification (item 2 of argv) with title (item 1 of argv) '
                       'sound name "Glass"\nend run')
