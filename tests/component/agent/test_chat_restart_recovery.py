@@ -153,7 +153,7 @@ def test_restart_admits_one_new_turn_with_original_authority(runtime, monkeypatc
     assert "Inspect actual state" in calls[0].user_text
 
 
-@pytest.mark.parametrize("change", ["pause", "cancel", "revision", "budget", "turn_budget", "disabled", "expired", "child"])
+@pytest.mark.parametrize("change", ["pause", "cancel", "revision", "budget", "disabled", "expired", "child"])
 def test_restart_preserves_user_controls_limits_and_live_children(runtime, monkeypatch, change):
     from openprogram.execution import default_control_service
     from openprogram.execution.restart import reconcile
@@ -171,8 +171,6 @@ def test_restart_preserves_user_controls_limits_and_live_children(runtime, monke
         goal["budget"]["max_tokens"] = 1
         goal["usage"]["total_tokens"] = 2
         goal["legacy_usage"] = {"total_tokens": 2}
-    elif change == "turn_budget":
-        goal["budget"]["max_turns"] = 1
     elif change == "disabled":
         monkeypatch.setattr("openprogram.execution.restart.window_seconds", lambda: 0)
     elif change == "expired":

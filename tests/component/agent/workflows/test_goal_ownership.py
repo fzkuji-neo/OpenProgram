@@ -89,18 +89,3 @@ def test_abrupt_owner_exit_releases_lock(tmp_path):
         process.stdin.close()
         process.stdout.close()
 
-
-def test_public_goal_rejects_a_second_owner_before_model_work(tmp_path, monkeypatch):
-    import openprogram.programs.workflow.goal as goal_pkg
-
-    module = importlib.import_module("openprogram.programs.workflow.goal.goal")
-    ownership = importlib.import_module("openprogram.programs.workflow.goal.ownership")
-    db = SessionDB(tmp_path / "sessions")
-    db.create_session("s", "main")
-    monkeypatch.setattr(goal_pkg, "_db", lambda: db)
-    monkeypatch.setattr(
-        "openprogram.agentic_programming.call_state.current_session_id", lambda: "s"
-    )
-    with ownership.goal_owner(db, "s"):
-        with pytest.raises(ValueError, match="already executing"):
-            module.goal("do not start a duplicate")

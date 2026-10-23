@@ -91,12 +91,11 @@ def test_programs_treats_workflow_as_category_not_program() -> None:
     assert goal_by_name["goal"]["logic_path"] == "workflow/goal"
     assert goal_by_name["goal"]["program_kind"] == "workflow"
     assert {
+        "chat",
         "command",
-        "judge",
-        "loop",
         "notices",
-        "refinement",
         "state",
+        "verification",
     } <= set(goal_by_name)
     command = goal_by_name["command"]
     assert "callable_name" not in command
@@ -106,27 +105,20 @@ def test_programs_treats_workflow_as_category_not_program() -> None:
     command_logic = _program_logic("workflow/goal/command")
     assert command_logic["root"] == "workflow/goal/command"
     assert command_logic["nodes"][0]["program_kind"] is None
-    notices_logic = _program_logic("workflow/goal/notices")
-    # Package attribute calls must resolve to the defining helper, not goal().
-    # State now reaches presentation/verification/chat transitively, so absence
-    # from the entire graph is not the package-resolution contract.
-    notice_targets = {
+    # Package attribute calls (``_goal.positive_int``) must resolve to the
+    # defining helper module, not to the goal() entry.
+    command_targets = {
         edge["target"]
-        for edge in notices_logic["edges"]
-        if edge["source"] == "workflow/goal/notices"
+        for edge in command_logic["edges"]
+        if edge["source"] == "workflow/goal/command"
     }
-    assert notice_targets == {"workflow/goal/state"}
+    assert "workflow/goal/state" in command_targets
+    assert "workflow/goal" not in command_targets
     goal_logic = _program_logic("workflow/goal")
     goal_ids = {node["id"] for node in goal_logic["nodes"]}
     goal_edges = {(edge["source"], edge["target"]) for edge in goal_logic["edges"]}
-    assert "agentic_programming/agent" in goal_ids
-    assert "workflow/goal/judge" in goal_ids
-    assert "workflow/goal/refinement" in goal_ids
-    assert "workflow/goal/loop" in goal_ids
-    assert "workflow/goal/notices" in goal_ids
+    assert ("workflow/goal", "workflow/goal/chat") in goal_edges
     assert "workflow/goal/command" not in goal_ids
-    assert ("workflow/goal/loop", "workflow/goal/judge") not in goal_edges
-    assert ("workflow/goal", "workflow/goal/judge") in goal_edges
     docs_entry = _list_entries("workflow/docs_question")["entries"]
     assert [(entry["callable_name"], entry["logic_path"]) for entry in docs_entry] == [
         ("run_docs_question", "workflow/docs_question")
@@ -138,7 +130,7 @@ def test_programs_treats_workflow_as_category_not_program() -> None:
     assert not old_source.exists()
 
 
-def test_goal_form_keeps_prompt_primary_and_preserves_explicit_controls() -> None:
+def test_goal_form_takes_only_the_objective() -> None:
     source = Path(__file__).parents[4] / "openprogram/programs/workflow/goal/goal.py"
     goal = next(
         info
@@ -147,21 +139,7 @@ def test_goal_form_keeps_prompt_primary_and_preserves_explicit_controls() -> Non
     )
     visible = [p["name"] for p in goal["params_detail"] if not p.get("hidden")]
     assert visible == ["prompt"]
-    advanced = {p["name"] for p in goal["params_detail"] if p.get("advanced")}
-    assert advanced == {
-        "model",
-        "effort",
-        "judge_model",
-        "judge_effort",
-        "judge_timeout_s",
-        "max_rounds",
-        "max_tokens",
-        "max_elapsed_s",
-        "max_cost_usd",
-        "timeout_s",
-        "context_mode",
-    }
-    assert not advanced.intersection({"runtime", "resume", "expected_goal"})
+    assert not any(p.get("advanced") for p in goal["params_detail"])
 
 
 def test_function_info_preserves_advanced_input_metadata(tmp_path: Path) -> None:

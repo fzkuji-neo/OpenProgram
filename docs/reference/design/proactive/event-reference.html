@@ -80,7 +80,7 @@ const D=[
 ["Sessions and interaction","mcp.request.cancelled","notify","system","{request_id, session_id, client_id, reason}; the current payload also includes execution_id.","When the MCP service audits a cancellation.","openprogram/mcp/server/service.py:620-640","mc"],
 ["Policies and plugins","plugin.enable","notify","system","{plugin}.","After plugin loading, contributions, and hook registration.","openprogram/plugins/loader.py:392-404","pe"],
 ["Policies and plugins","plugin.disable","notify","system","{plugin}.","Before the plugin releases registrations.","openprogram/plugins/loader.py:414-428","pd"],
-["Policies and plugins","goal.update","notify","system","{session_id, goal:{text,status,turns_used,max_turns,last_reason,last_question}}.","When the goal state changes.","openprogram/programs/workflow/goal/state.py:376-380","gu"],
+["Policies and plugins","goal.update","notify","system","{session_id, goal:{goal_id,revision,text,status,phase,checklist,budget,usage,pause_reason,last_reason}}.","When the goal state changes.","openprogram/programs/workflow/goal/state.py:376-380","gu"],
 ["Policies and plugins","skills.changed","notify","system","{}.","When the skills watcher detects a SKILL.md change.","apps/server/openprogram_server/server.py:1833-1842","sc"],
 ["Policies and plugins","plugins.update_available","notify","system","{plugin, current, latest}; the current watcher tap also emits {count}.","When the update checker finds a new version.","apps/server/openprogram_server/server.py:1846-1867","pua"],
 ["Context and memory","context.compacted","notify","system","{ok, tokens_before, tokens_after, …}; the current call also includes reason.","After compact() completes.","openprogram/context/engine.py:447-454","cc"],

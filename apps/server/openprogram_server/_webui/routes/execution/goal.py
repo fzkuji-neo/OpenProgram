@@ -55,17 +55,4 @@ def register(app):
             return JSONResponse(content={**goal_module.goal_projection(exc.goal, session_id), "stop_error": str(exc)})
         except ValueError as exc:
             return JSONResponse(content={"error": str(exc)}, status_code=409)
-        response = goal_module.goal_projection(goal, session_id)
-        if (
-            action == "answer"
-            and goal.get("status") == "paused"
-            and goal.get("phase") == "answer_received"
-        ):
-            try:
-                from openprogram.programs.workflow.goal import chat
-                response["goal"] = chat.resume(session_id)
-                response["admission"] = chat.start_from_controls(session_id)
-                response.update(goal_module.goal_projection(goal_module.load_goal(session_id), session_id))
-            except goal_module.GoalConflictError as exc:
-                response["resume_error"] = str(exc)
-        return JSONResponse(content=response)
+        return JSONResponse(content=goal_module.goal_projection(goal, session_id))

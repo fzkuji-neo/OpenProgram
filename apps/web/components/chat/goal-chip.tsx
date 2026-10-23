@@ -6,7 +6,6 @@ import { CheckIcon, HistoryIcon } from "@/components/animated-icons";
 import { useActionIconAnimation } from "./messages/use-action-icon-animation";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import {
   Dialog,
@@ -30,18 +29,6 @@ export interface GoalState {
   end_records?: { anchor_id: string | null; goal: GoalState }[];
   execution_mode?: string;
   schema_version?: number;
-  roles?: Record<"work" | "judge", {
-    provider: string;
-    model: string;
-    model_provider: string;
-    effort: string;
-    timeout_s: number;
-  }>;
-  roles_origin?: string;
-  role_requests?: {
-    model?: string; effort?: string; timeout_s?: number;
-    judge_model?: string; judge_effort?: string; judge_timeout_s?: number;
-  };
   goal_id?: string;
   run_id?: string;
   execution_id?: string;
@@ -49,13 +36,9 @@ export interface GoalState {
   revision?: number;
   version?: number;
   text?: string;
-  spec?: string;
   status?: string;
   phase?: string;
-  turns_used?: number;
-  max_turns?: number;
   budget?: {
-    max_turns?: number | null;
     max_tokens?: number | null;
     max_elapsed_s?: number | null;
     max_cost_usd?: number | null;
@@ -71,21 +54,8 @@ export interface GoalState {
     active_elapsed_s?: number;
     active_time_known?: boolean;
   };
-  checkpoint?: { phase?: string; round?: number; at?: number };
   checklist?: { text: string; done: boolean }[] | null;
   last_reason?: string;
-  last_question?: string;
-  last_question_at?: number;
-  last_question_options?: { label: string; description: string }[];
-  questions?: {
-    id: string;
-    prompt: string;
-    reason?: string;
-    status: "pending" | "answered" | "superseded";
-    options?: { label: string; description?: string }[];
-    can_continue?: boolean;
-  }[];
-  interaction_mode?: "attended" | "unattended";
   recoverable?: boolean;
   pause_reason?: string;
 }
@@ -135,7 +105,6 @@ function stopReason(goal: GoalState, zh: boolean): string {
     }
     case "restart_policy": return t("OpenProgram restarted, and automatic continuation is off or its time window has passed. Resume to continue.", "OpenProgram 重启后，自动续跑已关闭或超出时限，请手动继续。");
     case "restart_provenance_unknown": return t("This saved Goal has no record of where it last ran. Resume to continue.", "这个 Goal 缺少上次运行位置的记录，请手动继续。");
-    case "answer_received": return t("An answer arrived. Resume to apply it.", "已收到回答，继续后会用上它。");
     default: return raw;
   }
 }
@@ -262,7 +231,6 @@ export function GoalDetails({ sessionId, goal, historical = false }: { sessionId
   const [open, setOpen] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const draft = useGoalDraft(goal.text ?? "", goal.revision ?? 1);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [stopError, setStopError] = useState("");
@@ -279,7 +247,6 @@ export function GoalDetails({ sessionId, goal, historical = false }: { sessionId
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
   const checklist = goal.checklist ?? [];
-  const pendingQuestions = (goal.questions ?? []).filter((item) => item.status === "pending");
   const done = checklist.filter((item) => item.done).length;
   const progress = checklist.length
     ? `${text("Todos", "待办")} ${done}/${checklist.length}`
@@ -293,7 +260,7 @@ export function GoalDetails({ sessionId, goal, historical = false }: { sessionId
     ? hasElapsed ? text(`Goal achieved in ${elapsedLabel}`, `目标已达成，用时 ${elapsedLabel}`) : text("Goal achieved", "目标已达成")
     : `${text("Goal", "目标")} · ${statusLabel(goal.status, zh, goal.phase)}`;
   const terminal = terminalStatuses.has(goal.status || "");
-  const budget = goal.budget ?? { max_turns: goal.max_turns };
+  const budget = goal.budget ?? {};
   const reason = stopReason(goal, zh);
   const unsaved = draft.dirty;
   const execution = useGoalExecution(sessionId, goal, !historical && (open || !!goal.stop_requested));
@@ -331,11 +298,7 @@ export function GoalDetails({ sessionId, goal, historical = false }: { sessionId
       updateSessionGoal(sessionId, result.goal);
       if (mounted.current) {
         if (action === "edit") draft.reset();
-        if (action === "answer") setAnswers((current) => {
-          const next = { ...current }; delete next[String(values.question_id)]; return next;
-        });
       }
-      if (result.resume_error) throw new Error(`${text("Answer saved.", "回答已保存。 ")} ${result.resume_error}`);
       if (mounted.current) void execution.refresh();
       if (result.stop_error) {
         if (mounted.current) setStopError(result.stop_error);
@@ -415,7 +378,6 @@ export function GoalDetails({ sessionId, goal, historical = false }: { sessionId
           <div className={styles.metrics}>
             <div><span>{text("Status", "状态")}</span><strong>{statusLabel(goal.status, zh, goal.phase)}</strong></div>
             {progress ? <div><span>{text("Progress", "进度")}</span><strong>{progress}</strong></div> : null}
-            <div><span>{text("Turns", "轮次")}</span><strong>{goal.turns_used ?? 0}{limitSuffix(budget.max_turns)}</strong></div>
             <div><span>{text("Tokens", "Token")}</span><strong>{goal.usage?.unknown_token_requests
               ? text(`Known ${goal.usage.total_tokens ?? 0}; ${goal.usage.unknown_token_requests} request(s) unknown`, `已知 ${goal.usage.total_tokens ?? 0}；另有 ${goal.usage.unknown_token_requests} 次请求未知`)
               : goal.usage?.tokens_known === false ? text("Unknown", "未知") : goal.usage?.total_tokens ?? 0}{limitSuffix(budget.max_tokens)}</strong></div>
@@ -428,67 +390,10 @@ export function GoalDetails({ sessionId, goal, historical = false }: { sessionId
               : formatElapsed(goal.usage?.active_elapsed_s)}{limitSuffix(budget.max_elapsed_s, formatElapsed)}</strong></div>
           </div>
 
-          {!historical && !terminal ? <GoalBudgetEditor budget={budget} busy={busy} onSave={(values) => void mutate("budget", values)} /> : null}
 
           {goal.usage?.accounting_pending ? <p role="status">{text("Usage from the interrupted run has not been reconciled. Unknown is not zero; session totals must not be treated as Goal costs.", "中断执行的用量尚未核对。未知不代表零，不能把整个会话的费用当作此 Goal 费用。")}</p> : null}
 
-          {goal.roles && goal.execution_mode !== "chat" ? <section className={styles.roles} aria-label={text("Goal roles", "Goal 角色")}>
-            {(["work", "judge"] as const).map((name) => {
-              const role = goal.roles![name];
-              if (!role) return <div key={name}>{name}: {text("Unavailable", "不可用")}</div>;
-              return <div key={name}>
-                <span>{name === "work" ? text("Working agent", "工作 Agent") : text("Judge", "判定 Agent")}</span>
-                <strong>{role.provider}/{role.model}</strong>
-                <span>{role.effort} · {role.timeout_s}s</span>
-              </div>;
-            })}
-            {goal.roles_origin === "legacy-resolved" ? <p>{text("Roles resolved on first resume of this legacy Goal.", "旧目标在首次恢复时解析角色配置。")}</p> : null}
-          </section> : null}
-
           {reason ? <p className={styles.reason}>{reason}</p> : null}
-          {!historical && pendingQuestions.length ? (
-            <section className={styles.questionQueue} aria-label={text("Pending Goal questions", "Goal 待答问题")}>
-              <header>
-                <strong>{text("Pending questions", "待答问题")} · {pendingQuestions.length}</strong>
-                <span>{goal.interaction_mode === "attended" ? text("Attended · asynchronous", "有人值守 · 异步") : text("Unattended · asynchronous", "无人值守 · 异步")}</span>
-              </header>
-              {pendingQuestions.map((question) => {
-                const answer = answers[question.id] ?? "";
-                return (
-                  <div className={styles.waiting} key={question.id}>
-                    <strong>{question.prompt}</strong>
-                    {question.reason ? <span>{question.reason}</span> : null}
-                    {question.options?.length ? (
-                      <div className={styles.answerOptions}>
-                        {question.options.map((option) => (
-                          <button
-                            key={option.label}
-                            type="button"
-                            disabled={busy}
-                            onClick={() => setAnswers((current) => ({ ...current, [question.id]: option.label }))}
-                          >{option.label}</button>
-                        ))}
-                      </div>
-                    ) : null}
-                    <textarea
-                      disabled={busy}
-                      aria-label={`${text("Answer", "回答")}: ${question.prompt}`}
-                      value={answer}
-                      onChange={(event) => setAnswers((current) => ({ ...current, [question.id]: event.target.value }))}
-                      rows={2}
-                      placeholder={text("Answer this question when convenient", "方便时回答这个问题")}
-                    />
-                    <Button
-                      disabled={busy || !answer.trim()}
-                      onClick={() => void mutate("answer", { question_id: question.id, answer: answer.trim() })}
-                    >
-                      <Play size={14} />{goal.status === "waiting_user" && !unsaved ? text("Answer and resume", "回答并继续") : text("Submit answer", "提交回答")}
-                    </Button>
-                  </div>
-                );
-              })}
-            </section>
-          ) : null}
           {checklist.length ? (
             <ul className={styles.checklist}>
               {checklist.map((item, index) => <li key={`${index}:${item.text}`} data-done={item.done}>{item.done ? "✓" : "○"} {item.text}</li>)}
@@ -552,56 +457,3 @@ function limitSuffix(limit: number | null | undefined, format: (value: number) =
   return limit ? ` / ${format(limit)}` : "";
 }
 
-type GoalBudget = NonNullable<GoalState["budget"]>;
-const BUDGET_FIELDS: { key: keyof GoalBudget; en: string; zh: string; step: string; scale: number }[] = [
-  { key: "max_turns", en: "Turns", zh: "轮次", step: "1", scale: 1 },
-  { key: "max_tokens", en: "Tokens", zh: "Token", step: "1000", scale: 1 },
-  { key: "max_cost_usd", en: "Cost (USD)", zh: "成本（美元）", step: "0.5", scale: 1 },
-  { key: "max_elapsed_s", en: "Active time (min)", zh: "执行时间（分钟）", step: "1", scale: 60 },
-];
-
-/** The Goal's explicit limits, edited in place. An empty field is no limit. */
-function GoalBudgetEditor({ budget, busy, onSave }: { budget: GoalBudget; busy: boolean; onSave: (values: Record<string, number>) => void }) {
-  const { text } = useTranslation();
-  const shown = (key: keyof GoalBudget, scale: number) => {
-    const value = budget[key];
-    return value ? String(Math.round((value / scale) * 100) / 100) : "";
-  };
-  const source = BUDGET_FIELDS.map(({ key, scale }) => shown(key, scale)).join("|");
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [base, setBase] = useState(source);
-  if (base !== source) { setBase(source); setValues({}); }
-  const value = (key: keyof GoalBudget, scale: number) => values[key] ?? shown(key, scale);
-  const dirty = BUDGET_FIELDS.some(({ key, scale }) => value(key, scale) !== shown(key, scale));
-  const invalid = BUDGET_FIELDS.some(({ key, scale }) => {
-    const raw = value(key, scale).trim();
-    return raw !== "" && !(Number(raw) >= 0);
-  });
-  function save() {
-    // Zero removes a limit on the server.
-    onSave(Object.fromEntries(BUDGET_FIELDS.map(({ key, scale }) => {
-      const raw = value(key, scale).trim();
-      const number = raw ? Number(raw) * scale : 0;
-      return [key, key === "max_cost_usd" || key === "max_elapsed_s" ? number : Math.round(number)];
-    })));
-  }
-  return (
-    <section className={styles.budget} aria-label={text("Goal budget", "Goal 预算")}>
-      <header>
-        <strong>{text("Budget", "预算")}</strong>
-        <span>{text("Leave a field empty for no limit.", "留空表示不限。")}</span>
-      </header>
-      <div className={styles.budgetFields}>
-        {BUDGET_FIELDS.map(({ key, en, zh, step, scale }) => (
-          <label key={key}>
-            <span>{text(en, zh)}</span>
-            <Input type="number" min="0" step={step} inputMode="decimal" disabled={busy}
-              value={value(key, scale)} placeholder={text("No limit", "不限")}
-              onChange={(event) => setValues((current) => ({ ...current, [key]: event.target.value }))} />
-          </label>
-        ))}
-      </div>
-      <Button variant="outline" disabled={busy || !dirty || invalid} onClick={save}>{text("Save budget", "保存预算")}</Button>
-    </section>
-  );
-}

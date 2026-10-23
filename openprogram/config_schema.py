@@ -775,30 +775,6 @@ SETTINGS: list[SettingSpec] = [
         help="Managed recording ID or an explicit replay file path; record mode accepts IDs only.",
     ),
     SettingSpec(
-        key="goal.max_turns", path=("goal", "max_turns"), group="Goal",
-        label="Goal max rounds", widget="number",
-        apply=APPLY_LIVE, default=None,
-        validate=lambda v: (None if v in (None, "")
-                            or str(v).lstrip("-").isdigit()
-                            else "must be empty (unlimited) or a "
-                                 "whole number (0 or negative = "
-                                 "unlimited)"),
-        help="Optional round budget for new Goals. Empty (default), zero or "
-             "negative means unlimited. Only an explicit positive value "
-             "sets a cap. Reaching a cap stops execution without completing "
-             "the Goal. Existing Goals retain their saved budget; use "
-             "/goal budget max_turns=0 to remove it.",
-    ),
-    SettingSpec(
-        key="goal.judge_model", path=("goal", "judge_model"), group="Goal",
-        label="Goal judge model", widget="text",
-        apply=APPLY_LIVE, default="",
-        help="Model the Goal completion judge runs on, as "
-             "`provider/model` or a bare model name. Empty (default) = "
-             "the session's picked model. Set a cheaper model to cut "
-             "the per-round judgment cost.",
-    ),
-    SettingSpec(
         key="agent.output_style", path=("agent", "output_style"),
         group="Agent", label="Output style", widget="enum",
         apply=APPLY_LIVE, default="default", choices=_output_styles,

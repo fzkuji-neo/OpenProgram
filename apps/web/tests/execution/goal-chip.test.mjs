@@ -418,41 +418,29 @@ test("Goal actions include the snapshot identity shown to the user", async () =>
   } finally { api.mutateGoal = original; await view.close(); }
 });
 
-test("Goal details edit the budget but have no role editors", async () => {
+test("Goal details have no execution parameter editors", async () => {
   reset();
-  runtimeState.conversations.s1.goal = { ...snapshot(1, "paused"), budget: { max_turns: 5 } };
+  runtimeState.conversations.s1.goal = { ...snapshot(1, "paused"), budget: { max_tokens: 5000 } };
   const view = await mount();
   try {
     await view.open();
-    assert.equal(view.host.querySelector('[aria-label="Judge model"]'), null);
-    assert.doesNotMatch(view.host.textContent, /Configure agents|Save roles/);
-    assert.ok(view.host.querySelector('[aria-label="Goal budget"]'));
+    assert.equal(view.host.querySelectorAll("input, select").length, 0);
+    assert.doesNotMatch(view.host.textContent, /Configure agents|Execution limits|Save roles|Save limits|Save budget/);
     assert.ok(view.host.querySelector('textarea'));
   } finally { await view.close(); }
 });
 
-test("budget shows used against each limit and saves edits, empty meaning no limit", async () => {
+test("usage shows each explicit limit next to it", async () => {
   reset();
-  runtimeState.conversations.s1.goal = { ...snapshot(1, "budget_exhausted"), turns_used: 5,
-    budget: { max_turns: 5, max_tokens: 8000, max_elapsed_s: 600 }, usage: { total_tokens: 1200, active_elapsed_s: 90 } };
-  const original = api.mutateGoal;
-  let sent;
-  api.mutateGoal = async (_sid, body) => { sent = body; return { goal: snapshot(2, "budget_exhausted") }; };
+  runtimeState.conversations.s1.goal = { ...snapshot(1, "budget_exhausted"),
+    budget: { max_tokens: 8000, max_elapsed_s: 600 }, usage: { total_tokens: 1200, active_elapsed_s: 90 } };
   const view = await mount();
   try {
     await view.open();
-    assert.match(view.host.textContent, /Turns5 \/ 5/);
     assert.match(view.host.textContent, /Tokens1200 \/ 8000/);
     assert.match(view.host.textContent, /1m 30s \/ 10m 0s/);
-    const inputs = [...view.host.querySelectorAll('[aria-label="Goal budget"] input')];
-    assert.deepEqual(inputs.map((input) => input.value), ["5", "8000", "", "10"]);
-    await typeInto(inputs[0], "20");
-    await typeInto(inputs[3], "");
-    await view.click("Save budget");
-    assert.equal(sent.action, "budget");
-    assert.deepEqual({ ...sent, expected: undefined },
-      { action: "budget", max_turns: 20, max_tokens: 8000, max_cost_usd: 0, max_elapsed_s: 0, expected: undefined });
-  } finally { api.mutateGoal = original; await view.close(); }
+    assert.doesNotMatch(view.host.textContent, /Turns/);
+  } finally { await view.close(); }
 });
 
 test("a stopped Goal explains its stop reason instead of a raw code", async () => {
@@ -552,28 +540,6 @@ test("completion keeps an already-open editor and its unsaved text", async () =>
   } finally { await view.close(); }
 });
 
-test("answering does not resume past unsaved edits", async () => {
-  reset();
-  runtimeState.conversations.s1.goal = { ...snapshot(1, "waiting_user"), questions: [
-    { id: "scope", prompt: "Scope?", status: "pending" },
-  ] };
-  const mutate = api.mutateGoal;
-  const run = api.runFunction;
-  let runs = 0;
-  api.mutateGoal = async () => ({ goal: snapshot(2, "paused"), invoke: { name: "goal", kwargs: { resume: true } } });
-  api.runFunction = async () => { runs++; return {}; };
-  const view = await mount();
-  try {
-    await view.open();
-    await typeInto(view.host.querySelector("textarea"), "Unsaved goal");
-    await typeInto(view.host.querySelector('[aria-label="Answer: Scope?"]'), "Editing");
-    await view.click("Submit answer");
-    assert.equal(runs, 0);
-    assert.equal(view.host.querySelector("textarea").value, "Unsaved goal");
-    assert.match(view.host.textContent, /Save or discard/);
-  } finally { api.mutateGoal = mutate; api.runFunction = run; await view.close(); }
-});
-
 test("a conflict fetches the latest Goal without replacing the local draft", async () => {
   reset();
   const { HttpError } = await import("../../lib/net/fetch-client.ts");
@@ -591,27 +557,6 @@ test("a conflict fetches the latest Goal without replacing the local draft", asy
     assert.equal(view.host.querySelector("textarea").value, "Local draft");
     assert.match(view.host.textContent, /changed elsewhere/);
   } finally { api.mutateGoal = mutate; api.getGoal = get; await view.close(); }
-});
-
-test("a saved answer reports an unfinished previous execution without starting work", async () => {
-  reset();
-  runtimeState.conversations.s1.goal = { ...snapshot(1, "waiting_user"), questions: [
-    { id: "scope", prompt: "Scope?", status: "pending" },
-  ] };
-  const mutate = api.mutateGoal;
-  const run = api.runFunction;
-  let runs = 0;
-  api.mutateGoal = async () => ({ goal: snapshot(2, "paused"), resume_error: "Previous Goal execution is cancelling" });
-  api.runFunction = async () => { runs++; return {}; };
-  const view = await mount();
-  try {
-    await view.open();
-    await typeInto(view.host.querySelector('[aria-label="Answer: Scope?"]'), "Editing");
-    await view.click("Answer and resume");
-    assert.equal(runs, 0);
-    assert.match(view.host.textContent, /Answer saved.*Previous Goal execution is cancelling/);
-    assert.equal(runtimeState.conversations.s1.goal.status, "paused");
-  } finally { api.mutateGoal = mutate; api.runFunction = run; await view.close(); }
 });
 
 test("ending a Goal requires explicit confirmation", async () => {
@@ -659,24 +604,6 @@ test("completion dismisses a pending end confirmation without changing the resul
   } finally { await view.close(); }
 });
 
-
-test("saved work and judge identities remain visible after remount", async () => {
-  reset();
-  runtimeState.conversations.s1.goal = { ...snapshot(2, "paused"), roles: {
-    work: { provider: "worker", model: "writer", model_provider: "worker", effort: "high", timeout_s: 17 },
-    judge: { provider: "judge", model: "reviewer", model_provider: "judge", effort: "low", timeout_s: 23 },
-  }};
-  for (let i = 0; i < 2; i++) {
-    const view = await mount();
-    try {
-      await view.open();
-      assert.match(view.host.textContent, /worker\/writer/);
-      assert.match(view.host.textContent, /judge\/reviewer/);
-      assert.match(view.host.textContent, /high · 17s/);
-      assert.match(view.host.textContent, /low · 23s/);
-    } finally { await view.close(); }
-  }
-});
 
 test("successful pause updates the visible Goal without a websocket and survives remount", async () => {
   reset();

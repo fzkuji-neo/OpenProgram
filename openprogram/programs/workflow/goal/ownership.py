@@ -1,10 +1,9 @@
-"""Single-host, cross-process ownership for a session's Goal controller."""
+"""Single-host, cross-process lock serializing a session's Goal admission and mutations."""
 from __future__ import annotations
 
 import errno
 import hashlib
 from contextlib import contextmanager
-from functools import wraps
 
 from openprogram import _compat as locking
 
@@ -32,18 +31,3 @@ def goal_owner(store, session_id: str):
         finally:
             locking.flock(handle.fileno(), locking.LOCK_UN)
 
-
-def exclusive_goal(function):
-    @wraps(function)
-    def run(*args, **kwargs):
-        from openprogram.agentic_programming.call_state import current_session_id
-        import openprogram.programs.workflow.goal as goal_pkg
-
-        session_id = current_session_id()
-        if not session_id:
-            return function(*args, **kwargs)
-        with goal_owner(goal_pkg._db(), session_id) as acquired:
-            if not acquired:
-                raise ValueError("A Goal controller is already executing for this session")
-            return function(*args, **kwargs)
-    return run

@@ -80,7 +80,7 @@ const D=[
 ["会话与交互","mcp.request.cancelled","notify","system","{request_id, session_id, client_id, reason}；当前 payload 还含 execution_id。","MCP service 审计取消时。","openprogram/mcp/server/service.py:620-640","mc"],
 ["策略与插件","plugin.enable","notify","system","{plugin}。","插件加载、贡献和 hook 注册后。","openprogram/plugins/loader.py:392-404","pe"],
 ["策略与插件","plugin.disable","notify","system","{plugin}。","插件释放 registrations 之前。","openprogram/plugins/loader.py:414-428","pd"],
-["策略与插件","goal.update","notify","system","{session_id, goal:{text,status,turns_used,max_turns,last_reason,last_question}}。","goal 状态变化时。","openprogram/programs/workflow/goal/state.py:376-380","gu"],
+["策略与插件","goal.update","notify","system","{session_id, goal:{goal_id,revision,text,status,phase,checklist,budget,usage,pause_reason,last_reason}}。","goal 状态变化时。","openprogram/programs/workflow/goal/state.py:376-380","gu"],
 ["策略与插件","skills.changed","notify","system","{}。","skills watcher 检测到 SKILL.md 变化时。","apps/server/openprogram_server/server.py:1833-1842","sc"],
 ["策略与插件","plugins.update_available","notify","system","{plugin, current, latest}；当前 watcher tap 还发送 {count}。","更新检查器发现新版时。","apps/server/openprogram_server/server.py:1846-1867","pua"],
 ["上下文与记忆","context.compacted","notify","system","{ok, tokens_before, tokens_after, …}；当前调用还带 reason。","compact() 完成后。","openprogram/context/engine.py:447-454","cc"],

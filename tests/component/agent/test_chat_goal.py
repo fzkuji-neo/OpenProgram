@@ -38,9 +38,6 @@ def test_completed_chat_continues_once_with_original_authority(runtime, monkeypa
     goals, chat, store = runtime
     # Disabling restart recovery must not disable live, same-process turns.
     monkeypatch.setattr("openprogram.execution.restart.window_seconds", lambda: 0)
-    goal = goals.load_goal("goal-chat")
-    goal["turns_used"] = 150
-    goals.save_goal("goal-chat", goal)
     calls = []
     finished = threading.Event()
     real_notify = chat.after_terminal
@@ -138,7 +135,6 @@ def test_terminal_retry_settles_pending_usage_before_continuing(runtime, monkeyp
     assert reads == [pending]
     assert settled["usage"]["total_tokens"] == 100
     assert settled["usage"]["cost_usd"] == 1
-    assert settled["turns_used"] == 1
     assert "usage_pending_until" not in settled
     assert len(continuations) == (0 if exhausted else 1)
     assert settled["status"] == ("budget_exhausted" if exhausted else "active")
@@ -407,13 +403,3 @@ def test_an_unsent_queued_message_holds_the_goal_only_briefly(runtime, monkeypat
     assert calls[1].goal_trigger is True
     assert not chat.user_waiting("goal-chat")
 
-
-def test_chat_goal_rejects_role_settings_it_would_not_use(runtime):
-    goals, chat, store = runtime
-    goals.apply_goal_action("goal-chat", "pause")
-    with pytest.raises(ValueError, match="current conversation model"):
-        goals.apply_goal_action("goal-chat", "roles", roles={"work": {"provider": "x", "model": "y"}})
-    from openprogram.programs.workflow.goal.command import handle_goal_command
-    reply = handle_goal_command("goal-chat", "role work x y")
-    assert "current conversation model" in reply["text"]
-    assert "role_requests" not in goals.load_goal("goal-chat")

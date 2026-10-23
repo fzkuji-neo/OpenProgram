@@ -18,17 +18,14 @@ def client(runtime):
 
 
 @pytest.mark.parametrize("state", ["untracked", "missing_execution", "budget_exhausted", "cancelled"])
-def test_goal_http_controls_explain_resume_without_guessing_execution_state(runtime, client, state):
+def test_goal_http_controls_explain_resume_without_guessing_execution_state(runtime, client, monkeypatch, state):
     goals, _, _ = runtime
     goal = goals.apply_goal_action("goal-chat", "pause")
     if state == "missing_execution":
         goal["execution_id"] = "missing-record"
         goals.save_goal("goal-chat", goal)
     elif state == "budget_exhausted":
-        goals.apply_goal_action("goal-chat", "budget", max_turns=1)
-        goal = goals.load_goal("goal-chat")
-        goal["turns_used"] = 1
-        goals.save_goal("goal-chat", goal)
+        monkeypatch.setattr(goals, "budget_exhausted", lambda goal, **_: "tokens")
     elif state == "cancelled":
         goals.apply_goal_action("goal-chat", "cancel")
     response = client.get("/api/sessions/goal-chat/goal")

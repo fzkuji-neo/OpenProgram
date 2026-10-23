@@ -47,9 +47,6 @@ def action_goal(tmp_path, monkeypatch):
             "status": "paused",
             "version": 0,
             "execution_id": "exec-a",
-            "questions": [
-                {"id": "scope", "prompt": "Which scope?", "status": "pending"}
-            ],
         },
     )
     app = FastAPI()
@@ -57,7 +54,7 @@ def action_goal(tmp_path, monkeypatch):
     return package, TestClient(app)
 
 
-@pytest.mark.parametrize("action", ["edit", "cancel", "answer", "resume"])
+@pytest.mark.parametrize("action", ["edit", "cancel", "resume"])
 def test_http_rejects_a_different_goal_identity(action_goal, action):
     package, client = action_goal
     before = package.load_goal("actions")
@@ -66,8 +63,6 @@ def test_http_rejects_a_different_goal_identity(action_goal, action):
         json={
             "action": action,
             "prompt": "replace",
-            "answer": "scope",
-            "question_id": "scope",
             "expected": {"goal_id": "old-goal", "revision": 1},
         },
     )
@@ -75,7 +70,7 @@ def test_http_rejects_a_different_goal_identity(action_goal, action):
     assert package.load_goal("actions") == before
 
 
-@pytest.mark.parametrize("action", ["edit", "cancel", "answer"])
+@pytest.mark.parametrize("action", ["edit", "cancel"])
 def test_conflicted_action_does_not_cancel_or_resolve(action_goal, monkeypatch, action):
     package, _client = action_goal
     command = importlib.import_module("openprogram.programs.workflow.goal.command")
@@ -94,11 +89,10 @@ def test_conflicted_action_does_not_cancel_or_resolve(action_goal, monkeypatch, 
     monkeypatch.setattr(package, "save_goal", concurrent_save)
     with pytest.raises(package.GoalConflictError):
         package.apply_goal_action(
-            "actions", action, prompt="edited", answer="answer", question_id="scope"
+            "actions", action, prompt="edited"
         )
     assert effects == []
     assert package.load_goal("actions")["text"] == "write an article"
-    assert package.load_goal("actions")["questions"][0]["status"] == "pending"
 
 
 def test_tui_resume_is_bound_to_the_observed_goal(action_goal, monkeypatch):
@@ -154,7 +148,7 @@ def test_http_rejects_stale_or_malformed_preconditions(action_goal, expected):
         "/api/sessions/actions/goal",
         json={
             "action": "budget",
-            "max_turns": 7,
+            "max_tokens": 7,
             "expected": expected,
         },
     )
@@ -236,7 +230,7 @@ def test_public_goal_does_not_start_when_saved_state_is_unreadable(
     monkeypatch.setattr(package._db(), "get_session", fail_read)
     monkeypatch.setattr(package._db(), "read_disk_meta", fail_read)
     with pytest.raises(package.GoalStateUnavailable, match="unavailable"):
-        package.goal(prompt="original", resume=True)
+        package.goal(prompt="original")
 
 
 def test_goal_absence_and_corrupt_record_are_distinct(action_goal):
@@ -246,96 +240,13 @@ def test_goal_absence_and_corrupt_record_are_distinct(action_goal):
     assert client.get("/api/sessions/actions/goal").status_code == 503
 
 
-def test_failed_goal_terminal_commit_does_not_publish_completion(
-    action_goal, monkeypatch
-):
+def test_tui_budget_command_updates_the_existing_goal(action_goal):
     package, _client = action_goal
-    before = package.load_goal("actions")
-    candidate = {**before, "status": "achieved"}
-    events = []
-    monkeypatch.setattr(package, "_emit_goal_update", lambda *args: events.append(args))
-    monkeypatch.setattr(package, "_emit_goal_notice", lambda *args: events.append(args))
-
-    def fail_commit():
-        raise OSError("private database path and details")
-
-    with pytest.raises(RuntimeError, match="unavailable"):
-        package._finish("actions", candidate, None, persist=fail_commit)
-    assert events == []
-    assert package.load_goal("actions") == before
-
-
-def test_tui_role_and_budget_commands_update_the_existing_goal(action_goal):
-    package, _client = action_goal
-    result = package.handle_goal_command(
-        "actions", "role work worker writer effort=high timeout_s=17"
-    )
-    assert "invoke" not in result
-    saved = package.load_goal("actions")
-    assert saved["role_requests"]["model"] == "worker:writer"
-    assert saved["role_requests"]["timeout_s"] == 17
-    result = package.handle_goal_command("actions", "budget max_tokens=123 max_turns=2")
+    result = package.handle_goal_command("actions", "budget max_tokens=123")
     assert "invoke" not in result
     assert package.load_goal("actions")["budget"]["max_tokens"] == 123
+    assert "Invalid" in package.handle_goal_command("actions", "budget max_turns=2")["text"]
     assert "unknown" in package.handle_goal_command("actions", "")["text"].lower()
-
-
-@pytest.mark.parametrize("status", ["active", "evaluating", "achieved", "cancelled"])
-def test_role_edit_rejects_running_or_terminal_goal(action_goal, status):
-    package, client = action_goal
-    state = package.load_goal("actions")
-    state["status"] = status
-    package.save_goal("actions", state)
-    before = package.load_goal("actions")
-    response = client.post(
-        "/api/sessions/actions/goal",
-        json={
-            "action": "roles",
-            "roles": {
-                "work": {
-                    "provider": "worker",
-                    "model": "writer",
-                    "effort": "high",
-                    "timeout_s": 17,
-                }
-            },
-        },
-    )
-    assert response.status_code == 409
-    assert package.load_goal("actions") == before
-
-
-@pytest.mark.parametrize(
-    "patch",
-    [
-        {"timeout_s": 0},
-        {"timeout_s": "nan"},
-        {"timeout_s": True},
-        {"effort": "unsupported"},
-        {"provider": ""},
-        {"api_key": "must-not-save"},
-    ],
-)
-def test_invalid_role_settings_do_not_change_saved_goal(action_goal, patch):
-    package, client = action_goal
-    before = package.load_goal("actions")
-    response = client.post(
-        "/api/sessions/actions/goal",
-        json={
-            "action": "roles",
-            "roles": {
-                "work": {
-                    "provider": "worker",
-                    "model": "writer",
-                    "effort": "high",
-                    "timeout_s": 17,
-                    **patch,
-                }
-            },
-        },
-    )
-    assert response.status_code == 409
-    assert package.load_goal("actions") == before
 
 
 def test_tui_help_and_zero_budget_do_not_start_a_goal(action_goal):

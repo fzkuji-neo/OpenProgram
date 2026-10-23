@@ -289,16 +289,13 @@ def resolve_agent_runtime(
         from openprogram.agent.always_on import agent_for_session
         if agent_for_session(req.session_id) is None:
             tools = [tool for tool in tools if tool.name != "always_on_report"]
-    saved_legacy_goal = saved_runtime_contract is not None and any(
-        tool["name"] == "goal" for tool in saved_runtime_contract["tools"]
-    )
     # chat_send posts into the chat a channel turn came from; no other
     # source has one.
     from openprogram.programs.tools.interaction.chat_send import CHANNEL_SOURCES
     if req.source not in CHANNEL_SOURCES:
         tools = [tool for tool in tools or [] if tool.name != "chat_send"]
-    if req.source in {"web", "tui", "acp"} and not saved_legacy_goal:
-        tools = [tool for tool in tools or [] if tool.name != "goal"]
+    # The goal Program is the Programs form's entry; agents use create_goal.
+    tools = [tool for tool in tools or [] if tool.name != "goal"]
     # Page inventory is transient. Keep this turn's browser-tool selection
     # through reconnects; each actual browser action still validates access.
     saved_web_use = None if saved_runtime_contract is None else any(

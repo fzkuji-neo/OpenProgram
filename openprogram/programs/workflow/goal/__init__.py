@@ -1,4 +1,4 @@
-"""Persistent chat Goals and the compatible Python Goal Workflow.
+"""Persistent chat Goals.
 
 Interactive ``/goal`` and Goal controls save objective state and execute normal
 chat turns. ``chat`` integrates admission, terminal accounting and continuation;
@@ -6,35 +6,20 @@ chat turns. ``chat`` integrates admission, terminal accounting and continuation;
 can carry the Goal identity and revision. Completion candidates are checked by
 an independent, read-only ordinary chat turn in ``verification``.
 
-Programs and Python may still call :func:`goal` with isolated pre-call context.
-That compatibility Workflow owns its refinement, work rounds and judgment.
-
-Evaluation is one ``judge`` role call: :func:`judge_goal` (brief in
-its docstring) reads the session's compacted context view plus the
-goal text and answers strict JSON with a typed verdict, reason, optional
-question, independent-work flag, options, and checklist. Only its ``met`` counts
-as completion. Deterministic responsibilities are split as
-
-* ``goal``: public :func:`goal` entry
+* ``goal``: the Programs form entry that starts a chat Goal
 * ``command``: ``/goal`` parsing plus status and mutation actions
-* ``judge``: :func:`judge_goal` and :func:`evaluate_goal`
-* ``refinement``: the one refinement operation used by :func:`goal`
-* ``loop``: deterministic transitions and next-round instructions
-* ``state``: goal meta read / write, stop-rule constants, event fan-out
-* ``notices``: transcript system rows, terminal finisher
+* ``state``: goal meta read / write, budgets, event fan-out
+* ``execution``: canonical execution state and action eligibility
+* ``notices``: transcript system rows
 
-The legacy ``judge`` implementation belongs only to the Python Workflow.
-Design doc:
-docs/reference/design/runtime/goal-and-recovery.html.
+Design doc: docs/reference/design/runtime/goal-and-recovery.html.
 
-Goal state is one versioned session snapshot. It contains the objective and
-refined checklist, typed lifecycle status, controller checkpoint, cumulative
-budgets and usage, an ordered question queue, and answers waiting for the next
-controller boundary. ``goal_id`` is stable across resume; each execution has a
-new ``run_id``. See the design document for the complete schema and states.
+Goal state is one versioned session snapshot: the objective, typed lifecycle
+status, optional token / active-time / cost limits and cumulative usage.
+``goal_id`` is stable across resume; each resume starts a new ``run_id``.
 
 Tests monkeypatch functions ON THIS PACKAGE (``monkeypatch.setattr(G,
-"evaluate_goal", ...)`` with ``G = openprogram.programs.workflow.goal``); the
+"load_goal", ...)`` with ``G = openprogram.programs.workflow.goal``); the
 submodules therefore call each other through the package object, and
 these re-exports are the single authoritative binding every internal
 call site resolves against.
@@ -44,24 +29,13 @@ from __future__ import annotations
 from . import chat_tools as _chat_tools  # noqa: F401
 
 from openprogram.programs.workflow.goal.goal import ENTRY_OPTIONS, PROGRAM_ENTRIES, goal  # noqa: F401
-from openprogram.programs.workflow.goal.judge import (  # noqa: F401
-    DECISION_TOOLS,
-    _parse_decision,
-    evaluate_goal,
-    judge_goal,
-    render_session_view,
-)
 from openprogram.programs.workflow.goal.state import (  # noqa: F401
-    DEFAULT_MAX_TURNS,
-    DEFAULT_PHASE_TIMEOUT_S,
     GOAL_SCHEMA_VERSION,
     GoalConflictError,
     GoalStateUnavailable,
     IDLE_ROUND_LIMIT,
-    JUDGE_PARSE_FAILURE_LIMIT,
     RESUMABLE_STATUSES,
     RUNNING_STATUSES,
-    STALL_ROUND_LIMIT,
     TERMINAL_STATUSES,
     WAITING_STATUSES,
     _CLEAR_VERBS,
@@ -71,19 +45,17 @@ from openprogram.programs.workflow.goal.state import (  # noqa: F401
     budget_exhausted,
     checkpoint_active_elapsed,
     check_goal_preconditions,
-    default_max_turns,
     goal_usage,
-    judge_model,
     load_goal,
     normalize_goal,
+    positive_float,
+    positive_int,
     reset_goal_usage_cursor,
     save_goal,
-    save_goal_progress,
 )
 from openprogram.programs.workflow.goal.notices import (  # noqa: F401
     _TERMINAL_LABELS,
     _emit_goal_notice,
-    _finish,
 )
 from openprogram.programs.workflow.goal.execution import (  # noqa: F401
     GoalStopUnconfirmed,
@@ -92,18 +64,6 @@ from openprogram.programs.workflow.goal.execution import (  # noqa: F401
     goal_projection,
     request_goal_stop,
     require_goal_execution_finished,
-)
-from openprogram.programs.workflow.goal.refinement import (  # noqa: F401
-    REFINE_TOOLS,
-    _parse_refinement,
-    refine_goal_spec_candidate,
-)
-from openprogram.programs.workflow.goal.loop import (  # noqa: F401
-    IDLE_WARNING,
-    apply_checklist_stall,
-    apply_goal_verdict,
-    apply_idle_spin,
-    next_work_prompt,
 )
 from openprogram.programs.workflow.goal.command import (  # noqa: F401
     _status_text,

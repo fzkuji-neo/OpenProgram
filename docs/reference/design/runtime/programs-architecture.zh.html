@@ -16,14 +16,17 @@
     │   ├── files/  web/  code/  planning/  ...
     ├── workflow/               # 所有模型推理、Agent 编排和复合能力
     │   ├── text/               # 小型 Workflow 包：一个角色、三个入口
-    │   ├── goal/               # 唯一 Goal Workflow 与会话 Goal 机制
+    │   ├── goal/               # 聊天 Goal：跨普通聊天轮次保持的目标
     │   │   ├── __init__.py
-    │   │   ├── goal.py         # 公开入口 goal()
-    │   │   ├── command.py      # /goal 命令适配
-    │   │   ├── judge.py        # 完成条件判定
-    │   │   ├── refinement.py   # 目标规格与验收清单
-    │   │   ├── loop.py         # 唯一循环的状态迁移、重试与停止规则
-    │   │   ├── state.py        # 同一 GoalRun 的持久状态与事件
+    │   │   ├── goal.py         # Programs 表单入口 goal(prompt)：启动聊天 Goal
+    │   │   ├── chat.py         # 准入、每轮结束后的续轮、空转检测
+    │   │   ├── chat_tools.py   # create_goal / get_goal / update_goal agent 工具
+    │   │   ├── verification.py # 独立只读完成验收轮次
+    │   │   ├── command.py      # /goal 命令与 HTTP 控制操作
+    │   │   ├── execution.py    # canonical execution 检查与停止请求
+    │   │   ├── ownership.py    # 每个会话的 Goal owner 锁
+    │   │   ├── presentation.py # 详情与完成行投影
+    │   │   ├── state.py        # 持久状态、预算、用量与事件
     │   │   └── notices.py      # 会话状态通知
     │   ├── browser/  document/  research/  ...
     ├── packages/               # 提供可调用能力的独立程序包
@@ -35,11 +38,10 @@
 </article><article class="card"><span class="path">programs/packages/</span><h3>包</h3><p>程序包是可调用能力的安装单位，包含自己的依赖和发布边界，可提供多个 Tool 或 Workflow。软件 Application 使用独立管理页、声明和注册目录，调用公开 Program 能力；它不属于此源码分类。旧 applications/ 程序包位置保留兼容读取。</p><section id="portable-application-sources"><h2>可迁移包来源</h2><p>项目内 Program 使用带 <code>programs</code> 范围的相对路径记录位置；一个外部安装绑定负责连接已安装 runtime 与源码 checkout。相对路径不使用聊天的工作目录。只有已授权的确切包名参与 Python 解析，不扩展整个外部目录的 import 范围。迁移、拒绝条件与发布规范以 <a href="workflow.zh.md">Workflow 包合同</a> 为准。</p></section>
 </article></div></section>
 
-<section><h2>3. 基础原语与 Workflow</h2><div class="flow" role="img" aria-label="Workflow、Agent、LLM 调用关系"><div class="node"><strong>工作流</strong><span>决定流程、状态和验收</span></div><div class="arrow">→</div><div class="node"><strong>agent()</strong><span>模型多轮推理并调用 Tools</span></div><div class="arrow">→</div><div class="node"><strong>llm()</strong><span>单次模型请求与结构化输出</span></div></div><table><thead><tr><th>入口</th><th>含义</th><th>唯一位置</th></tr></thead><tbody><tr><td><code>llm()</code></td><td>单次模型调用，不包含工具循环。</td><td><code>agentic_programming/llm.py</code></td></tr><tr><td><code>agent()</code></td><td>模型工具调用循环。</td><td><code>agentic_programming/agent.py</code></td></tr><tr><td><code>goal()</code></td><td>反复执行 Agent 并验证完成条件，是完整 Workflow，不是第三个基础原语。</td><td><code>programs/workflow/goal/</code></td></tr></tbody></table></section>
+<section><h2>3. 基础原语与 Workflow</h2><div class="flow" role="img" aria-label="Workflow、Agent、LLM 调用关系"><div class="node"><strong>工作流</strong><span>决定流程、状态和验收</span></div><div class="arrow">→</div><div class="node"><strong>agent()</strong><span>模型多轮推理并调用 Tools</span></div><div class="arrow">→</div><div class="node"><strong>llm()</strong><span>单次模型请求与结构化输出</span></div></div><table><thead><tr><th>入口</th><th>含义</th><th>唯一位置</th></tr></thead><tbody><tr><td><code>llm()</code></td><td>单次模型调用，不包含工具循环。</td><td><code>agentic_programming/llm.py</code></td></tr><tr><td><code>agent()</code></td><td>模型工具调用循环。</td><td><code>agentic_programming/agent.py</code></td></tr><tr><td><code>goal()</code></td><td>启动跨普通聊天轮次保持目标的聊天 Goal，属于会话状态，不是第三个基础原语。</td><td><code>programs/workflow/goal/</code></td></tr></tbody></table></section>
 
-<section><h2>4. Goal 只有一个执行函数</h2><div class="rules"><div class="rule"><strong>唯一 Workflow</strong><div><code>from openprogram.programs.workflow.goal import goal</code> 是唯一执行函数，唯一负责 GoalRun 初始化、spec refinement、Agent 轮次、完成判定、用户提问、停止规则、状态写入和终态。不得在 dispatcher、命令适配或其他模块保留第二个 Goal 循环。</div></div><div class="rule"><strong>Programs 表单</strong><div>表单直接调用 <code>goal(prompt, condition, context_mode="isolated", ...)</code>。运行记录可以归属当前 session，但 <code>goal()</code> 的模型上下文不读取调用前的聊天历史；它只读取表单参数和本次 GoalRun 内已经产生的调用。</div></div><div class="rule"><strong>Chat 命令</strong><div><code>/goal &lt;condition&gt;</code> 只是同一 Workflow 的会话适配：解析命令后调用 <code>goal(prompt=condition, condition=condition, context_mode="session", ...)</code>。<code>context_mode="session"</code> 在执行开始时读取当前会话视图；除此之外与表单使用同一状态机。</div></div><div class="rule"><strong>状态与控制</strong><div>两种入口产生相同 GoalState、进度事件、GoalChip、提问、取消、clear/status 和终态。<code>/goal clear</code> 控制当前 session 关联的 GoalRun，不启动或维护第二种 Goal 对象。</div></div><div class="rule"><strong>内部模块</strong><div><code>judge.py</code>、<code>refinement.py</code>、<code>state.py</code>、<code>loop.py</code> 只服务该函数。<code>command.py</code> 只解析 set/status/clear 并构造一次 <code>goal()</code> 调用，不创建状态、不完善目标、不运行 continuation。</div></div><div class="rule"><strong>禁止重复</strong><div class="bad">禁止保留 <code>continue_goal_turns()</code> 与 <code>goal()</code> 两套轮次控制；禁止从 session Goal 向 isolated Goal 复制 spec/checklist；禁止根据入口改变默认轮数、need_user 或终态语义。</div></div></div><table><thead><tr><th>公开路径</th><th>唯一允许差异</th><th>必须相同</th></tr></thead><tbody><tr><td>Programs → Use → Goal 表单</td><td><code>context_mode="isolated"</code></td><td rowspan="2">GoalState、refinement、judge、循环、轮次预算、提问、取消、事件、终态和返回值</td></tr><tr><td>聊天输入框 → <code>/goal</code></td><td><code>context_mode="session"</code></td></tr></tbody></table><div class="callout">结果归属与模型上下文是两个字段：表单运行可以把 DAG/runtime card 写进当前 session，但仍必须用 <code>render_range.callers=0</code> 隔离调用前历史；会话命令通过显式 session context 输入恢复当前聊天证据。</div></section>
+<section><h2>4. Goal 以普通聊天轮次运行</h2><div class="rules"><div class="rule"><strong>唯一机制</strong><div>Goal 是 <code>programs/workflow/goal/</code> 中的会话状态。每次聊天成功结束后，由 <code>chat.py</code> 决定是否为 active Goal 发起下一轮普通聊天。不存在独立的 Goal 循环、judge Workflow 或嵌套工作 agent。</div></div><div class="rule"><strong>Programs 表单</strong><div><code>goal(prompt)</code> 只接收目标，在当前会话保存聊天 Goal，路由通过与 <code>/goal</code> 相同的控制启动第一轮。表单没有轮数、角色、模型或上下文参数。</div></div><div class="rule"><strong>聊天命令与 agent 工具</strong><div><code>/goal &lt;目标&gt;</code> 和 agent 的 <code>create_goal</code> 工具创建同一种聊天 Goal。<code>goal</code> Program 不作为工具提供给 agent。</div></div><div class="rule"><strong>完成</strong><div><code>update_goal(status="complete")</code> 或 todo 计划全部完成只提交完成候选。<code>verification.py</code> 运行一次独立的只读验收轮次，通过后 Goal 才变为 achieved。</div></div><div class="rule"><strong>上限</strong><div>Goal 不限制轮数。连续两个自动轮次没有调用工具时，Goal 以“无进展”停下。可选的 token、执行时间和费用上限是仅有的预算。</div></div></div></section>
 
-<section><h2>4.1 实现与验证记录</h2><table><thead><tr><th>类型</th><th>已确认证据</th></tr></thead><tbody><tr><td>实现</td><td><code>0629e2fd</code> 及其前置提交已删除 dispatcher 的 Goal continuation；<code>/goal</code> 构造一次 <code>goal(..., context_mode="session")</code> forced call；Programs 表单仍调用同一函数并默认 <code>isolated</code>。</td></tr><tr><td>独立规格审查</td><td>通过。审查覆盖单一函数、两种上下文模式、refinement/judge 期间 clear 竞态、轮次预算和终态。</td></tr><tr><td>独立质量审查</td><td>通过。审查覆盖取消、异常、最后一轮提问、跨进程 Goal 事件与 Web/CLI 适配。</td></tr><tr><td>自动验证</td><td>Goal/Programs/Web/CLI/进程桥聚焦集 <code>116 passed</code>；Web 单元测试 <code>54 passed</code>；TypeScript <code>tsc --noEmit</code>、Ruff、文档链接和 <code>git diff --check</code> 通过。</td></tr></tbody></table><p class="note">本节只记录已审查的实现证据，不改变上方的设计合同。</p></section>
 
 <section><h2>5. 文件与目录的选择</h2><table><thead><tr><th>形态</th><th>使用条件</th><th>示例</th></tr></thead><tbody><tr><td>单个 <code>.py</code></td><td>一个公开入口和少量局部 helper，文件可以独立阅读。</td><td>小型内置 <code>workflow/&lt;name&gt;.py</code></td></tr><tr><td>同名包</td><td>存在多个明确职责模块、资源文件或会话适配。</td><td><code>workflow/goal/</code>、<code>workflow/browser/</code></td></tr><tr><td>内部目录</td><td>只服务于相邻 Workflow 的共享实现，以 <code>_</code> 开头，不成为 Programs UI 节点。</td><td><code>workflow/_runtime/</code></td></tr></tbody></table><p class="note">不为形式统一而给每个 Workflow 创建同名文件夹。文件数量与职责边界决定是否拆包。</p></section>
 

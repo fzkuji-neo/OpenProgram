@@ -114,9 +114,7 @@ def goal_control_state(goal: dict, session_id: str, observed: dict | None = None
                                      for wait in waits.list_open(execution_id=member.execution_id))
         controls["processes"] = verification.managed_work(store, session_id, goal)
         source = store.get_agent_turn_input(goal["execution_id"]) if goal.get("execution_id") else None
-        if goal.get("execution_mode") != "chat":
-            verify_reason = "ordinary_chat_required"
-        elif source and source.get("kind") == "chat" and observed.get("finished"):
+        if source and source.get("kind") == "chat" and observed.get("finished"):
             verify_reason = verification.blockers(store, session_id, goal["execution_id"], goal)
             if not verify_reason and any(item.get("status") != "completed" for item in chat.todos(session_id, goal)):
                 verify_reason = "unfinished_todos"
@@ -137,27 +135,12 @@ def goal_projection(goal: dict, session_id: str) -> dict:
     return {"goal": goal, "execution": observed, "controls": goal_control_state(goal, session_id, observed)}
 
 
-def require_goal_execution_finished(
-    goal: dict, session_id: str, *, current_execution_id: str | None = None,
-    allow_new_chat: bool = False,
-) -> None:
+def require_goal_execution_finished(goal: dict, session_id: str) -> None:
+    """A Goal resumes only after its last execution stopped or can start a new turn."""
     from .state import GoalConflictError
 
     observed = goal_execution_state(goal, session_id)
-    # Script-only Goals have no canonical record. The public entry's existing
-    # exclusive_goal lock is still required and excludes concurrent controllers.
-    if observed["status"] == "untracked" or observed["finished"]:
-        return
-    if allow_new_chat and observed.get("can_start_new_turn"):
-        return
-    if (
-        current_execution_id and current_execution_id == observed["execution_id"]
-        and observed["status"] == "running" and not observed.get("active_children")
-        and goal.get("pause_reason") not in {"user", "edited"}
-        and not goal.get("stop_requested")
-    ):
-        # Sequential invocations inside the same parent execution are not a
-        # second execution. A user stop must never take this exception.
+    if observed["status"] == "untracked" or observed["finished"] or observed.get("can_start_new_turn"):
         return
     raise GoalConflictError(
         f"Previous Goal execution is {observed['status']}; "

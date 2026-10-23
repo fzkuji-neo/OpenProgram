@@ -18,7 +18,7 @@ def digest(value) -> str:
 
 def control_snapshot(goal) -> dict:
     return {key: goal.get(key) for key in (
-        "goal_id", "revision", "run_id", "text", "budget", "pending_answers", "stop_requested", "control_version",
+        "goal_id", "revision", "run_id", "text", "budget", "stop_requested", "control_version",
     )}
 
 

@@ -168,7 +168,9 @@ def test_independent_verification_uses_real_read_and_persisted_result(runtime, m
                         lambda **kw: CanonicalAgentAdapter(turn_runner=runner, **kw))
     adapter = CanonicalAgentAdapter(turn_runner=runner)
     if limit:
-        goals.apply_goal_action("goal-chat", "budget", max_turns=limit)
+        # A limit reached after ``limit`` accounted turns.
+        monkeypatch.setattr(goals, "budget_exhausted",
+                            lambda goal, **_: "tokens" if int(goal.get("run_turns") or 0) >= limit else "")
     authority = local_owner_authority()
     request = TurnRequest("goal-chat", "work", "main", "web", permission_mode="bypass", model_override="openai/fake", **authority)
     first = adapter.admit(request, trusted_actor=authority, user_message_id="work-u", assistant_message_id="work-a",
@@ -233,7 +235,8 @@ def test_completion_prerequisites_prevent_verifier_admission(runtime, monkeypatc
     continuations = []
     monkeypatch.setattr(chat, "start_next", lambda *a, **kw: continuations.append(a))
     if limit == "budget":
-        goals.apply_goal_action("goal-chat", "budget", max_turns=1)
+        monkeypatch.setattr(goals, "budget_exhausted",
+                            lambda goal, **_: "tokens" if int(goal.get("run_turns") or 0) >= 1 else "")
     elif limit == "unknown_effect":
         orphan(store, session="goal-chat")
 

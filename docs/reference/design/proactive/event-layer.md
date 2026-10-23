@@ -67,7 +67,7 @@ The registered events:
 | `chat.before_send` | notify | `{session_id, msg_id, text, agent_id, attachments}` | `ws_actions/chat.py`, after the user message is persisted, before it enters the runtime |
 | `plugin.enable` | notify | `{plugin}` | `plugins/loader.py`, after the plugin loaded and its hook subscriptions registered |
 | `plugin.disable` | notify | `{plugin}` | `plugins/loader.py`, before the plugin's registrations are dropped |
-| `goal.update` | notify | `{session_id, goal: {text, status, turns_used, max_turns, last_reason, last_question}}` | `goal._emit_goal_update` |
+| `goal.update` | notify | `{session_id, goal: {goal_id, revision, text, status, phase, checklist, budget, usage, pause_reason, last_reason}}` | `goal._emit_goal_update` |
 | `user.prompt_submitted` | notify | `{msg_id, chars}` | `dispatcher/prep.py`, after the user row persists |
 | `model.response_started` / `model.response_completed` | notify | `{}` / `{is_error}` | `agent_loop`, per model response within the loop |
 | `file.changed` | notify | `{path, op}` | the write / edit / apply_patch tools |

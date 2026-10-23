@@ -5,8 +5,6 @@ import json
 import threading
 import pytest
 
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
 
 class _FakeWS:
@@ -17,13 +15,7 @@ class _FakeWS:
         self.sent.append(json.loads(payload))
 
 
-@pytest.mark.parametrize(
-    "unsupported",
-    [None, {"judge_model": "reviewer:model"}, {"context_mode": "isolated"}],
-)
-def test_goal_form_preserves_budgets_and_rejects_workflow_only_options(
-    tmp_path, monkeypatch, unsupported
-):
+def test_goal_form_starts_a_chat_goal_from_its_prompt(tmp_path, monkeypatch):
     from openprogram.agent.session_db import SessionDB
     from openprogram.webui import server
     from openprogram.webui.routes.chat import run_agent_method_call
@@ -47,29 +39,12 @@ def test_goal_form_preserves_budgets_and_rejects_workflow_only_options(
         or {"execution_id": "chat-form"},
     )
     try:
-        result = run_agent_method_call(
-            "goal",
-            {
-                "prompt": "test",
-                "max_rounds": 2,
-                "max_tokens": 1000,
-                "max_elapsed_s": 30,
-                "max_cost_usd": 0.1,
-                **(unsupported or {}),
-            },
-            session_id="form-goal",
-        )
-        if unsupported:
-            assert result["status_code"] == 409
-            assert not started and goals.load_goal("form-goal") is None
-        else:
-            assert result["execution_id"] == "chat-form"
-            assert started[0]["budget"] == {
-                "max_turns": 2,
-                "max_tokens": 1000,
-                "max_elapsed_s": 30.0,
-                "max_cost_usd": 0.1,
-            }
+        result = run_agent_method_call("goal", {"prompt": "test"}, session_id="form-goal")
+        assert result["execution_id"] == "chat-form"
+        assert started[0]["execution_mode"] == "chat"
+        assert started[0]["text"] == "test"
+        assert started[0]["budget"] == {"max_tokens": None, "max_elapsed_s": None, "max_cost_usd": None}
+        assert run_agent_method_call("goal", {"prompt": "again"}, session_id="form-goal")["status_code"] == 409
     finally:
         db.close()
 
@@ -169,122 +144,6 @@ def test_web_goal_set_saves_chat_state_without_forced_workflow(
     assert calls == []
     errors = [frame for frame in ws.sent if frame.get("type") == "chat_response"]
     assert errors[-1]["data"]["code"] == "page_context_stale"
-
-
-def test_user_forced_goal_fills_missing_context_mode_as_session() -> None:
-    from openprogram.webui.routes.chat import apply_user_goal_context_mode
-
-    filled = apply_user_goal_context_mode("goal", {"prompt": "do it"})
-    assert filled["context_mode"] == "session"
-    kept = apply_user_goal_context_mode(
-        "goal",
-        {"prompt": "do it", "context_mode": "isolated"},
-    )
-    assert kept["context_mode"] == "isolated"
-    other = apply_user_goal_context_mode("research", {"prompt": "do it"})
-    assert "context_mode" not in other
-
-
-def test_goal_http_answer_persists_and_returns_resume_invocation(
-    tmp_path,
-    monkeypatch,
-) -> None:
-    from openprogram.agent.session_db import SessionDB
-    import openprogram.programs.workflow.goal as goal_pkg
-    from openprogram.webui.routes.execution import goal as goal_routes
-
-    from openprogram.execution import ExecutionStore
-
-    execution_store = ExecutionStore(tmp_path / "executions.db")
-    monkeypatch.setattr("openprogram.execution.default_store", lambda: execution_store)
-    db = SessionDB(tmp_path / "sessions-git")
-    db.create_session("web-goal", "main")
-    monkeypatch.setattr(goal_pkg, "_db", lambda: db)
-    monkeypatch.setattr(goal_pkg, "_emit_goal_update", lambda *_a, **_k: None)
-    goal_pkg.save_goal(
-        "web-goal",
-        {
-            "text": "write survey",
-            "status": "waiting_user",
-            "version": 0,
-            "last_question": "Which scope?",
-            "last_question_id": "stale-after-restart",
-        },
-    )
-    app = FastAPI()
-    goal_routes.register(app)
-    monkeypatch.setattr(
-        "openprogram.programs.workflow.goal.chat.start_from_controls",
-        lambda sid: {"execution_id": "chat-execution"},
-    )
-    client = TestClient(app)
-
-    shown = client.get("/api/sessions/web-goal/goal")
-    assert shown.status_code == 200
-    assert shown.json()["goal"]["last_question"] == "Which scope?"
-
-    answered = client.post(
-        "/api/sessions/web-goal/goal",
-        json={"action": "answer", "answer": "Knowledge editing"},
-    )
-    assert answered.status_code == 200
-    body = answered.json()
-    assert body["goal"]["status"] == "active"
-    assert body["goal"]["pending_answers"][0]["answer"] == "Knowledge editing"
-    assert body["admission"]["execution_id"] == "chat-execution"
-    assert (
-        body["execution"]["status"] == "untracked"
-    )  # The admission stub saves no execution.
-    assert "invoke" not in body
-
-
-def test_goal_http_answer_resumes_newly_unblocked_work_with_other_questions_pending(
-    tmp_path,
-    monkeypatch,
-) -> None:
-    from openprogram.agent.session_db import SessionDB
-    import openprogram.programs.workflow.goal as goal_pkg
-    from openprogram.webui.routes.execution import goal as goal_routes
-
-    from openprogram.execution import ExecutionStore
-
-    execution_store = ExecutionStore(tmp_path / "executions.db")
-    monkeypatch.setattr("openprogram.execution.default_store", lambda: execution_store)
-    db = SessionDB(tmp_path / "sessions-git")
-    db.create_session("web-goal", "main")
-    monkeypatch.setattr(goal_pkg, "_db", lambda: db)
-    monkeypatch.setattr(goal_pkg, "_emit_goal_update", lambda *_a, **_k: None)
-    goal_pkg.save_goal(
-        "web-goal",
-        {
-            "text": "write survey",
-            "status": "waiting_user",
-            "version": 0,
-            "questions": [
-                {"id": "scope", "prompt": "Which scope?", "status": "pending"},
-                {"id": "venue", "prompt": "Which venue?", "status": "pending"},
-            ],
-        },
-    )
-    app = FastAPI()
-    goal_routes.register(app)
-    monkeypatch.setattr(
-        "openprogram.programs.workflow.goal.chat.start_from_controls",
-        lambda sid: {"execution_id": "chat-execution"},
-    )
-    client = TestClient(app)
-
-    answered = client.post(
-        "/api/sessions/web-goal/goal",
-        json={"action": "answer", "question_id": "scope", "answer": "Editing"},
-    )
-    assert answered.status_code == 200
-    body = answered.json()
-    assert body["goal"]["status"] == "active"
-    assert body["admission"]["execution_id"] == "chat-execution"
-    assert body["execution"]["status"] == "untracked"
-    assert "invoke" not in body
-    assert body["goal"]["questions"][1]["status"] == "pending"
 
 
 @pytest.mark.parametrize("mode", [None, "chat"])

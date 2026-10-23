@@ -4,10 +4,9 @@ import pytest
 
 
 @pytest.mark.parametrize("source", ["web", "tui", "acp"])
-@pytest.mark.parametrize("legacy", [False, True])
-def test_chat_runtime_keeps_goal_tool_membership_on_approval_resume(monkeypatch, source, legacy):
+def test_chat_runtime_keeps_goal_tool_membership_on_approval_resume(monkeypatch, source):
     from openprogram.agent import dispatcher
-    from openprogram.agent.continuation import runtime_contract_snapshot, validate_runtime_contract
+    from openprogram.agent.continuation import validate_runtime_contract
     from openprogram.agent.dispatcher import loop_runner
     from openprogram.agent.dispatcher.types import TurnRequest
     from openprogram.agent.types import AgentTool
@@ -28,11 +27,9 @@ def test_chat_runtime_keeps_goal_tool_membership_on_approval_resume(monkeypatch,
     request._execution_revision_id = "test-revision"
     initial = loop_runner.resolve_agent_runtime(request)[-1]
     assert "goal" not in {tool["name"] for tool in initial["tools"]}
-    saved = runtime_contract_snapshot(model=model, system_prompt="system", tools=tools,
-                                      request=request) if legacy else initial
-    resumed = loop_runner.resolve_agent_runtime(request, saved_runtime_contract=saved)[-1]
-    assert ("goal" in {tool["name"] for tool in resumed["tools"]}) is legacy
-    validate_runtime_contract(saved, resumed)
+    resumed = loop_runner.resolve_agent_runtime(request, saved_runtime_contract=initial)[-1]
+    assert "goal" not in {tool["name"] for tool in resumed["tools"]}
+    validate_runtime_contract(initial, resumed)
 
 
 def test_chat_runtime_keeps_saved_tools_when_live_catalog_grows(monkeypatch):
@@ -112,8 +109,7 @@ def test_slash_goal_starts_normal_chat(session):
     goal = goals.load_goal("chat-goal")
     assert goal["execution_mode"] == "chat"
     assert goal["text"] == "implement and verify the feature"
-    assert goal["max_turns"] is None
-    assert goal["budget"]["max_turns"] is None
+    assert "max_turns" not in goal["budget"]
 
 
 def test_chat_goal_completion_rejects_unfinished_todos(session, monkeypatch):

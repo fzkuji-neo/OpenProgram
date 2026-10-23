@@ -231,13 +231,6 @@ def register(app):
         return JSONResponse(content=result)
 
 
-def apply_user_goal_context_mode(name: str, kwargs: dict) -> dict:
-    """User-forced goal (form / slash / welcome / retry) defaults to session."""
-    if name == "goal" and "context_mode" not in kwargs:
-        kwargs["context_mode"] = "session"
-    return kwargs
-
-
 def run_agent_method_call(
     name: str,
     kwargs: dict,
@@ -328,7 +321,7 @@ def run_agent_method_call(
             "status_code": 409,
         }
 
-    kwargs = apply_user_goal_context_mode(name, dict(kwargs or {}))
+    kwargs = dict(kwargs or {})
     conv = _s._get_or_create_session(session_id)
     session_id = conv["id"]
     if project_id:
@@ -355,19 +348,10 @@ def run_agent_method_call(
         }
     msg_id = uuid.uuid4().hex[:8]
     if name == "goal":
+        # The Programs form starts a chat Goal and its first turn here.
         from openprogram.programs.workflow.goal import chat
         try:
-            if any(kwargs.get(key) not in (None, "") for key in (
-                "model", "effort", "judge_model", "judge_effort", "timeout_s", "judge_timeout_s",
-            )) or kwargs.get("context_mode") == "isolated":
-                raise ValueError(chat.ROLE_OPTIONS_ERROR)
-            if kwargs.get("resume"):
-                chat.resume(session_id, kwargs.get("expected_goal"))
-            else:
-                from openprogram.programs.workflow.goal.goal import _positive_int
-                chat.create(session_id, str(kwargs.get("prompt") or ""),
-                            _positive_int(kwargs.get("max_tokens"), name="max_tokens"),
-                            **{key: kwargs.get(key) for key in ("max_rounds", "max_elapsed_s", "max_cost_usd")})
+            chat.create(session_id, str(kwargs.get("prompt") or ""))
             return chat.start_from_controls(session_id)
         except ValueError as exc:
             return {"error": str(exc), "status_code": 409}
