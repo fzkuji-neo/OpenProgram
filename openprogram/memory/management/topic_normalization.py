@@ -36,6 +36,39 @@ def _is_local_label(value: str) -> bool:
     return bool(LOCAL_EVIDENCE_LABEL.fullmatch(value))
 
 
+def drop_leftover_definitions(text: str) -> str:
+    """Repair two mechanical slips instead of rejecting the edit.
+
+    A definition line written twice keeps one copy. A Runtime definition
+    (``[^e-…]``) that nothing in its file cites any more is left over from
+    a paragraph that was deleted or moved, and goes. A writer's own unused
+    ``[^eN]`` stays: it may be evidence whose citation the writer forgot,
+    and only the writer can say where it belongs.
+    """
+    lines = text.splitlines()
+    cited = {
+        label
+        for line in lines
+        if not definition_match(line)
+        for label in CITATION.findall(line)
+    }
+    kept: list[str] = []
+    seen: set[str] = set()
+    for line in lines:
+        match = definition_match(line)
+        if match:
+            label = match.group("id")
+            if line.strip() in seen or (
+                label not in cited and not _is_local_label(label)
+            ):
+                continue
+            seen.add(line.strip())
+        kept.append(line)
+    if len(kept) == len(lines):
+        return text
+    return "\n".join(kept) + ("\n" if text.endswith("\n") else "")
+
+
 def _source_identity_seed(value: str) -> str:
     links = LINK.findall(value)
     if links:
@@ -252,6 +285,9 @@ class TopicNormalizationMixin:
                 texts[path] = "\n".join(lines) + (
                     "\n" if text.endswith("\n") else ""
                 )
+
+        for path, text in list(texts.items()):
+            texts[path] = drop_leftover_definitions(text)
 
         # A writer may still invent a trailing ID out of habit. Anything that
         # was not already committed is stripped so the paragraph is treated as

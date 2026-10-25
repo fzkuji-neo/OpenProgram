@@ -30,6 +30,7 @@ from .management.agent import _run_agent
 from .management.api import render_writer_task
 from .management.transaction import (
     TransactionError,
+    git_commit_state,
     workspace_revision,
     workspace_write_lock,
 )
@@ -437,7 +438,7 @@ def write_session(
             agent = _agent(model)
         return agent
 
-    def writer(space: Any, batch: tuple[SourceRecord, ...]) -> list[str]:
+    def writer(space: Any, batch: tuple[SourceRecord, ...]) -> list[str] | None:
         observed = next(
             (
                 record.timestamp[:10]
@@ -459,7 +460,11 @@ def write_session(
             allowed_new_source_refs={record.source_id for record in batch},
         )
         changed = _changed_files(audit)
-        if changed and memory_config.writer_verify:
+        if not changed:
+            # Nothing installed. A writer that judged the batch not worth
+            # keeping is done with it; one whose edits kept failing is not.
+            return [] if _declined(audit) else None
+        if memory_config.writer_verify:
             from .management.verification import verify_after_write
 
             changed = sorted({*changed, *verify_after_write(
@@ -491,6 +496,7 @@ def write_session(
             local_manager=organizer,
             global_manager=organizer,
             force=force,
+            history_message=f"memory: write {_session_label(db, session_id)}",
         )
     if wrote:
         from .runtime.writer_status import record_success
@@ -680,6 +686,31 @@ def _changed_files(audit: list[dict[str, Any]]) -> list[str]:
     })
 
 
+def _session_label(db: Any, session_id: str) -> str:
+    """How a history commit names the conversation it wrote from."""
+    try:
+        title = str((db.get_session(session_id) or {}).get("title") or "").strip()
+    except Exception:  # noqa: BLE001 - a label must not fail the write
+        title = ""
+    title = " ".join(title.split())[:60]
+    return f'"{title}" ({session_id})' if title else session_id
+
+
+def _declined(audit: list[dict[str, Any]]) -> bool:
+    """The run ended normally having tried no edit that failed.
+
+    That is a writer deciding the batch holds nothing worth keeping. A run
+    that spent its turns on edits that kept failing also ends without a
+    change, and its batch is still owed to memory.
+    """
+    finished = any(entry.get("tool") == "agent" for entry in audit)
+    return finished and not any(
+        entry.get("status") == "error"
+        and entry.get("tool") in ("Write", "Edit", "shell", "commit")
+        for entry in audit
+    )
+
+
 def distill_promoted_source(
     memory_dir: str | Path,
     source_id: str,
@@ -733,6 +764,7 @@ def distill_promoted_source(
             stage="promote",
             allowed_new_source_refs={source_id},
         )
+        git_commit_state(root, f"memory: write promoted source {source_id}")
     return _changed_files(audit)
 
 
@@ -883,6 +915,7 @@ def backfill(
                 stage="backfill",
                 allowed_new_source_refs={ref for ref, _event in batch},
             )
+            git_commit_state(root, f"memory: backfill {len(batch)} archived sources")
             updated = _backfill_candidates(root)
             if {ref for ref, _event in updated} == {
                 ref for ref, _event in remaining
@@ -942,8 +975,11 @@ def reorganize(*, model: str | None = None) -> dict[str, Any]:
             # One pass over every file runs out before it reaches a large
             # file late in the list, so each oversized file gets a pass of
             # its own first, then the whole workspace gets the usual one.
+            # Each pass is its own commit, so one bad pass can be undone
+            # without losing the others.
             for path in oversized_topics(root):
                 audit += organize_topics(root, agent=agent, touched={path})
+                git_commit_state(root, f"memory: split {path}")
             audit += organize_topics(root, agent=agent)
             RuntimeStateStore(root).git_commit("memory: reorganize topics")
     except TransactionError as exc:

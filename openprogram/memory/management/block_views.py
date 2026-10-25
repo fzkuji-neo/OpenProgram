@@ -21,6 +21,7 @@ from ..markdown import (
     render_definition,
 )
 from ..workspace_layout import runtime_dir
+from .transaction import snapshot_outside_edits
 
 # Committed memory is owner-only, matching the source archive and the
 # profile root. One constant so the install path and the archive cannot
@@ -162,7 +163,9 @@ class BlockViewsMixin:
             if normalized != path.read_text(encoding="utf-8"):
                 path.write_text(normalized, encoding="utf-8")
 
-    def _synchronize_block_topics(self, units: list[Any]) -> str:
+    def _check_block_references(self, units: list[Any]) -> list[Any]:
+        """Rewrite block links after moves, then check every link and Source
+        reference. Raises on the first one that does not resolve."""
         self._rewrite_block_links(units)
         units = parse_topic_tree(self.stage_dir / "topics")
         ids = {unit.memory_id for unit in units}
@@ -186,7 +189,10 @@ class BlockViewsMixin:
                         "source reference is not evidence of this "
                         f"transaction: {ref}"
                     )
+        return units
 
+    def _synchronize_block_topics(self, units: list[Any]) -> str:
+        units = self._check_block_references(units)
         limit = self.config.recent_limit
         state_store = RuntimeStateStore(self.stage_dir)
         state = state_store.load()
@@ -223,7 +229,12 @@ class BlockViewsMixin:
         before_install = getattr(self, "_before_install", None)
         self._before_install = None
         if before_install is not None:
+            # The surface keeps its own history around this install.
             before_install()
+        else:
+            # Edits made outside this write get their own commit first, so
+            # this write's commit holds only what it changed.
+            snapshot_outside_edits(self.memory_dir)
         backup = self.memory_dir / f"{runtime_dir(self.memory_dir).name}-block-backup"
         if backup.exists():
             shutil.rmtree(backup)

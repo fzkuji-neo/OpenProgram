@@ -140,59 +140,81 @@ def parse_topic_tree(topics: Path, *, strict: bool = True) -> list[MemoryUnit]:
     seen: set[str] = set()
     source_lookup: dict[Path, dict[str, str]] = {}
     for path in sorted(topics.rglob("*.md")):
-        lines = path.read_text(encoding="utf-8").splitlines()
-        known_definitions = definitions(
-            lines,
-            topic_path=path,
-            topics=topics,
-            source_lookup=source_lookup,
+        try:
+            _parse_topic_file(
+                path, topics, units, seen, source_lookup, strict=strict,
+            )
+        except TopicFormatError as exc:
+            # Name the file: a writer told only "undefined footnote: e1" has
+            # every file it touched to search.
+            relative = path.relative_to(topics).as_posix()
+            if relative in str(exc):
+                raise
+            raise TopicFormatError(f"{exc} (in topics/{relative})") from exc
+    return units
+
+
+def _parse_topic_file(
+    path: Path,
+    topics: Path,
+    units: list[MemoryUnit],
+    seen: set[str],
+    source_lookup: dict[Path, dict[str, str]],
+    *,
+    strict: bool,
+) -> None:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    known_definitions = definitions(
+        lines,
+        topic_path=path,
+        topics=topics,
+        source_lookup=source_lookup,
+    )
+    used_definitions: set[str] = set()
+    for paragraph, headings in paragraphs(lines):
+        parsed = _block_unit(
+            paragraph,
+            headings,
+            path,
+            topics,
+            known_definitions,
+            len(units),
+            strict=strict,
         )
-        used_definitions: set[str] = set()
-        for paragraph, headings in paragraphs(lines):
-            parsed = _block_unit(
-                paragraph,
-                headings,
-                path,
-                topics,
-                known_definitions,
-                len(units),
-                strict=strict,
-            )
-            if parsed:
-                block_units, used = parsed
-                for unit in block_units:
-                    if unit.memory_id in seen:
-                        raise TopicFormatError(
-                            f"duplicate memory_id: {unit.memory_id}"
-                        )
-                    units.append(unit)
-                    seen.add(unit.memory_id)
-                used_definitions.update(used)
-                continue
-            legacy, used = _legacy_units(
-                paragraph,
-                headings,
-                path,
-                topics,
-                known_definitions,
-                len(units),
-            )
-            if strict and not legacy:
-                raise TopicFormatError(
-                    f"memory block ID required: {path.relative_to(topics)}"
-                )
-            for unit in legacy:
+        if parsed:
+            block_units, used = parsed
+            for unit in block_units:
                 if unit.memory_id in seen:
-                    raise TopicFormatError(f"duplicate memory_id: {unit.memory_id}")
+                    raise TopicFormatError(
+                        f"duplicate memory_id: {unit.memory_id}"
+                    )
                 units.append(unit)
                 seen.add(unit.memory_id)
             used_definitions.update(used)
-        unused = set(known_definitions) - used_definitions
-        if strict and unused:
+            continue
+        legacy, used = _legacy_units(
+            paragraph,
+            headings,
+            path,
+            topics,
+            known_definitions,
+            len(units),
+        )
+        if strict and not legacy:
             raise TopicFormatError(
-                f"unused footnote definition: {sorted(unused)[0]}"
+                f"memory block ID required: {path.relative_to(topics)}"
             )
-    return units
+        for unit in legacy:
+            if unit.memory_id in seen:
+                raise TopicFormatError(f"duplicate memory_id: {unit.memory_id}")
+            units.append(unit)
+            seen.add(unit.memory_id)
+        used_definitions.update(used)
+    unused = set(known_definitions) - used_definitions
+    if strict and unused:
+        raise TopicFormatError(
+            f"unused footnote definition: {sorted(unused)[0]}"
+        )
 
 
 def topic_prose(topics: Path) -> str:

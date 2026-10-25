@@ -10,6 +10,7 @@ from typing import Any, TYPE_CHECKING
 if TYPE_CHECKING:  # the SDK is only needed to actually run a writer
     from ..agent_runtime import ClaudeCodeAgent
 from .config import MemoryConfig
+from .guidance import repair_guidance
 from ..prompts import FEW_SHOT_INSTRUCTIONS, SYSTEM_PROMPT
 from .tools import management_tools
 from .transaction import TransactionError
@@ -77,26 +78,6 @@ def _commit_turn(
         "topic_paths": workspace.last_changed_topics,
     })
     return None
-
-
-def _repair_guidance(error: str) -> str:
-    """What to change, for the validation failures that recur.
-
-    The raw message names the rule that was broken; a writer that has just
-    broken it needs the correction instead.
-    """
-    if "memory source links required" in error or "undefined footnote" in error:
-        return (
-            "A citation needs its `[^eN]:` definition line in the same file. "
-            "Either add the definition or leave the existing `[^e-...]` "
-            "citation exactly as it was."
-        )
-    if "Source Memory is append-only" in error:
-        return (
-            "Nothing under sources/ may be edited. Write the fact into a "
-            "Topic file under topics/ instead."
-        )
-    return ""
 
 
 def _record_trajectory(
@@ -178,6 +159,8 @@ def _run_agent(
         # Edits made through the built-in file tools never pass through the
         # shell tool, so the transaction runs once the turn is over.
         baseline = _baseline(workspace)
+        # The Write and Edit tools check each edit against it as it lands.
+        workspace.turn_baseline = baseline
         stage = stage or ("write" if source_sessions else "organize")
         try:
             result = agent.run(
@@ -202,10 +185,11 @@ def _run_agent(
             # committed state. Snapshot it now: reading it after the repair
             # edits would parse the model's malformed text and raise.
             repair_baseline = _baseline(workspace)
+            workspace.turn_baseline = repair_baseline
             repair_prompt = (
                 "Your edits were rejected and discarded:\n\n"
                 f"{error}\n\n"
-                + (f"{_repair_guidance(error)}\n\n" if _repair_guidance(error) else "")
+                + (f"{repair_guidance(error)}\n\n" if repair_guidance(error) else "")
                 + "The workspace is back to its state before this turn. "
                 "Redo the work, fixing what the message reports.\n\n"
                 f"{task}"

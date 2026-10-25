@@ -122,9 +122,16 @@ class _WriterStatusStore:
         reason_code: MemoryWriteFailureCode | str | None,
         *,
         retryable: bool,
-    ) -> None:
+    ) -> bool:
+        """Record one failure; True when it starts a failure streak or
+        changes its reason, which is when someone should hear about it."""
         with _STATUS_WRITE_LOCK, _status_file_lock(self.path):
             payload = self.load()
+            previous = payload.get("last_failure") or {}
+            news = (
+                payload.get("last_outcome") != "failure"
+                or previous.get("reason_code") != _normalize_reason_code(reason_code)
+            )
             payload["last_outcome"] = "failure"
             payload["last_failure"] = {
                 "at": _now(),
@@ -132,6 +139,7 @@ class _WriterStatusStore:
                 "retryable": bool(retryable),
             }
             self._save(payload)
+        return news
 
 
 def record_success(memory_dir: Path) -> None:
@@ -148,11 +156,33 @@ def record_failure(
     retryable: bool,
 ) -> None:
     try:
-        _WriterStatusStore(memory_dir).record_failure(
+        news = _WriterStatusStore(memory_dir).record_failure(
             reason_code, retryable=retryable,
         )
     except Exception as exc:  # noqa: BLE001 - status cannot fail a write
         logger.debug("memory writer status failure was not persisted: %s", exc)
+        return
+    if news:
+        _announce_failure(reason_code, retryable=retryable)
+
+
+def _announce_failure(
+    reason_code: MemoryWriteFailureCode | str | None, *, retryable: bool,
+) -> None:
+    """Tell open clients that memory stopped being written.
+
+    Otherwise the only trace is ``memory_status``, which nobody reads until
+    they wonder why memory has not kept up.
+    """
+    try:
+        from openprogram.events import emit_ws_frame
+
+        emit_ws_frame({"type": "memory_writer_failed", "data": {
+            "reason_code": _normalize_reason_code(reason_code),
+            "retryable": bool(retryable),
+        }})
+    except Exception as exc:  # noqa: BLE001 - observability is non-blocking
+        logger.debug("memory writer failure was not announced: %s", exc)
 
 
 def record_active_workspace_failure(

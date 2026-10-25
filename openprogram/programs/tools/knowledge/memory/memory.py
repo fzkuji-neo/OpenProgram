@@ -527,7 +527,11 @@ def memory_update(
                 changes=changes,
                 memory_changes=memory_changes,
                 sources=sources,
-                commit_message=commit_message,
+                # History names the conversation the edit came from.
+                commit_message=(
+                    f"memory: {(commit_message or 'update').strip()}"
+                    + (f" (chat {session_id})" if session_id else " (chat)")
+                ),
                 provenance=provenance,
                 # Only an explicitly persisted owner turn may rewrite or
                 # delete existing memory. Missing context fails closed.

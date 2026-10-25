@@ -1,5 +1,6 @@
 """Transactional editable memory workspace."""
 
+import copy
 import hashlib
 import re
 import shutil
@@ -301,6 +302,45 @@ class MemoryWorkspace(
         except Exception:
             self._refresh_stage()
             raise
+
+    def check_edits(self, baseline: tuple[Any, ...] | None) -> str | None:
+        """Run the commit's checks on a copy of the stage, installing nothing.
+
+        Returns the first problem, or None when the staged edits would
+        commit. The Write and Edit tools call it after every change so a
+        writer hears about a broken rule while it can still fix it, instead
+        of losing the whole turn when it ends.
+        """
+        if baseline is None or not self._stage_usable:
+            return None
+        before_units, before_block_ids, _topics, _sources = baseline
+        probe_dir = Path(tempfile.mkdtemp(prefix=f"{TEMPORARY_PREFIX}check-"))
+        try:
+            shutil.copytree(
+                self.stage_dir, probe_dir, dirs_exist_ok=True,
+                ignore=shutil.ignore_patterns("sources"),
+            )
+            # The committed archive is what the commit validates against,
+            # including for a restricted writer whose stage hides it.
+            if (self.memory_dir / "sources").exists():
+                shutil.copytree(self.memory_dir / "sources", probe_dir / "sources")
+            probe = copy.copy(self)
+            probe.stage_dir = probe_dir
+            preserve_creation_order(probe, before_units)
+            probe._normalize_topic_edits(before_block_ids, before_units)
+            staged_ids = {
+                unit.memory_id for unit in parse_topic_tree(probe_dir / "topics")
+            }
+            probe._validate_topic_contract(
+                before_units, before_block_ids & staged_ids
+            )
+            probe._transaction_source_refs = self._allowed_new_source_refs
+            probe._check_block_references(parse_topic_tree(probe_dir / "topics"))
+        except Exception as exc:  # noqa: BLE001 - any failure is the answer
+            return f"{type(exc).__name__}: {exc}"
+        finally:
+            shutil.rmtree(probe_dir, ignore_errors=True)
+        return None
 
     def stage_is_dirty(self) -> bool:
         """Whether the stage differs from what is committed on disk."""

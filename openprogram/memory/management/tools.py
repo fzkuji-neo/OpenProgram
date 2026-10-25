@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .guidance import repair_guidance
 from .workspace import MemoryWorkspace
 
 
@@ -60,6 +61,27 @@ def management_tools(
             "content": [{"type": "text", "text": output or "(no output)"}],
             "is_error": record["status"] == "error",
         }
+
+    def _checked(relative: Path, output: str) -> str:
+        """Append what the memory checks say about the edit just made.
+
+        The turn is checked as a whole when it ends, and one broken rule
+        discards all of it. Checking here, while the writer still holds the
+        file, turns that into a fix in the next call.
+        """
+        if not relative.parts or relative.parts[0] != "topics":
+            return output
+        problem = workspace.check_edits(getattr(workspace, "turn_baseline", None))
+        if problem is None:
+            return output
+        advice = repair_guidance(problem)
+        return (
+            f"{output}\n\nThe edit is saved, but the topic files fail the "
+            f"memory checks as they stand:\n{problem}"
+            + (f"\n\n{advice}" if advice else "")
+            + "\n\nFix it before you finish: when the turn ends, every edit "
+            "in it is discarded if this is still wrong."
+        )
 
     def _path(raw: Any, *, writable: bool = False) -> tuple[Path, Path]:
         if not isinstance(raw, str) or not raw.strip():
@@ -164,7 +186,9 @@ def management_tools(
                 raise ValueError("content must be a string")
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content, encoding="utf-8")
-            return f"Wrote {len(content)} bytes to {relative.as_posix()}"
+            return _checked(
+                relative, f"Wrote {len(content)} bytes to {relative.as_posix()}"
+            )
 
         return _result("Write", arguments, operation)
 
@@ -201,7 +225,7 @@ def management_tools(
                 text.replace(old, new) if replace_all else text.replace(old, new, 1),
                 encoding="utf-8",
             )
-            return f"Edited {relative.as_posix()}"
+            return _checked(relative, f"Edited {relative.as_posix()}")
 
         return _result("Edit", arguments, operation)
 

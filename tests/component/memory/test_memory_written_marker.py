@@ -182,8 +182,8 @@ def test_records_refuse_to_invent_an_id_for_a_source_message():
         }])
 
 
-@pytest.mark.parametrize("outcome", ["raised", "rejected", "unchanged"])
-def test_failed_rejected_and_unchanged_batches_mark_nothing(
+@pytest.mark.parametrize("outcome", ["raised", "rejected", "unhandled"])
+def test_failed_rejected_and_unhandled_batches_mark_nothing(
     tmp_path: Path, outcome: str,
 ):
     from openprogram.memory.management.transaction import (
@@ -207,7 +207,7 @@ def test_failed_rejected_and_unchanged_batches_mark_nothing(
             raise RuntimeError("writer failed")
         if outcome == "rejected":
             raise TransactionError("COMMIT_REJECTED", "edit rejected")
-        return []
+        return None
 
     runtime = OnlineMemoryRuntime(tmp_path / "memory", token_counter=len)
     if outcome == "raised":
@@ -232,6 +232,37 @@ def test_failed_rejected_and_unchanged_batches_mark_nothing(
         ) is False
 
     assert marked == []
+
+
+def test_a_batch_the_writer_found_nothing_in_is_marked(tmp_path: Path):
+    from openprogram.memory.runtime.online import OnlineMemoryRuntime
+    from openprogram.memory.runtime.state import SourceRecord
+
+    record = SourceRecord(
+        provider="openprogram", thread_id="s1", message_id="m1",
+        ordinal=0, role="user", content="ok, thanks",
+    )
+    marked: list[str] = []
+    assert OnlineMemoryRuntime(tmp_path / "memory", token_counter=len).process(
+        [record], lambda workspace, batch: [],
+        mark=lambda batch: marked.extend(item.message_id for item in batch),
+        force=True,
+    ) is True
+    assert marked == ["m1"]
+
+
+@pytest.mark.parametrize("audit, declined", [
+    ([{"tool": "Read", "status": "ok"}, {"tool": "agent", "status": "ok"}], True),
+    # A Read of a missing file is not a failed edit.
+    ([{"tool": "Read", "status": "error"}, {"tool": "agent", "status": "ok"}], True),
+    ([{"tool": "Edit", "status": "error"}, {"tool": "agent", "status": "ok"}], False),
+    ([{"tool": "commit", "status": "error"}, {"tool": "agent", "status": "ok"}], False),
+    ([{"tool": "Write", "status": "ok"}], False),
+])
+def test_only_a_clean_finished_run_counts_as_nothing_to_record(audit, declined):
+    from openprogram.memory import writing
+
+    assert writing._declined(audit) is declined
 
 
 def test_process_archives_then_writes_then_marks(tmp_path: Path):

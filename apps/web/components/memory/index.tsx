@@ -51,6 +51,7 @@ import { ManageEmptyState } from "@/components/ui/manage-page";
 import { MemorySourcePreview } from "./source-preview";
 import { MemoryDocument } from "./document";
 import { MemoryProjectContext, memoryUrl } from "./api";
+import { WriterHealthBanner } from "./writer-health";
 import { confirmAction } from "@/components/ui/confirm-dialog";
 
 export function MemoryPage({
@@ -262,6 +263,7 @@ export function MemoryPage({
         </Link>
       </div>
       )}
+      <WriterHealthBanner statusUrl={api("/api/memory/status")} />
 
       {/* Body — single grid: tabBar (row 1 col 1) + tree (row 2 col 1) +
           editor/placeholder (col 2 spans both rows so it starts right at

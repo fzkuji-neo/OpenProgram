@@ -790,3 +790,24 @@
 @media (max-width: 700px) { .historyPanel { flex-direction: column; } .revisionList { width: 100%; max-height: 180px; border-right: 0; border-bottom: 1px solid var(--border); } }
 
 .sourceDialog { max-width: 800px; max-height: 80vh; overflow: auto; }
+
+/* ─── Writer health — shown while the background writer is failing ─── */
+.writerBanner {
+  min-height: 38px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 24px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--border);
+  color: var(--destructive);
+  background: color-mix(in srgb, var(--destructive) 7%, var(--bg-primary));
+  font-size: var(--fs-sm);
+}
+
+.writerBannerDetail {
+  margin-left: auto;
+  color: var(--text-muted);
+  white-space: nowrap;
+}

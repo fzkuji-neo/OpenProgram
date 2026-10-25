@@ -108,7 +108,10 @@ class RuntimeStateStore:
             Path(temporary).unlink(missing_ok=True)
             raise
 
-    def git_commit(self, message: str) -> str | None:
+    def git_commit(
+        self, message: str, *, paths: tuple[str, ...] | None = None,
+    ) -> str | None:
+        """Commit memory's tracked files, or only ``paths`` among them."""
         try:
             subprocess.run(
                 ["git", "rev-parse", "--is-inside-work-tree"],
@@ -127,7 +130,8 @@ class RuntimeStateStore:
             )
             # A removed file is still staged so its deletion is committed
             # (the old root core.md, now part of MEMORY.md).
-            if (self.memory_dir / value).exists() or _tracked(self.memory_dir, value)
+            if (paths is None or value in paths)
+            and ((self.memory_dir / value).exists() or _tracked(self.memory_dir, value))
         ]
         if not candidates:
             return None

@@ -692,6 +692,43 @@ a background write and a live chat write cannot interleave. Background
 writing takes the lock with a one-second timeout and gives up rather
 than making a user wait; the next turn brings it back around.
 
+### Checked as it is written
+
+A writer turn installs once, when it ends, and one broken rule discards
+the whole turn. So the writer's Write and Edit tools run the commit's
+checks after every change to a Topic file: `MemoryWorkspace.check_edits`
+copies the stage, normalizes it and validates it exactly as the commit
+would, and installs nothing. A failure is appended to the tool result
+with the correction for that rule (`management/guidance.py`, which the
+repair turn uses too), while the writer still holds the file. Every
+format error names the file it is in.
+
+Two slips are repaired by normalization instead of rejected: a footnote
+definition line written twice keeps one copy, and a Runtime definition
+(`[^e-…]`) that nothing in its file cites any more — left over from a
+paragraph that moved or was deleted — is dropped. A writer's own unused
+`[^eN]` is still an error, since it may be evidence whose citation the
+writer forgot.
+
+### History
+
+Every install is a Git commit named for what made it: a background write
+names its conversation and turn count, the reorganizing it triggers is a
+second commit, each nightly pass is its own commit (one per file it
+splits), a `memory_update` names the conversation it came from, and
+promotion and backfill commit their batches. Memory-page typing keeps its
+five-minute checkpoints.
+
+Edits made outside a transaction — another editor on the Memory folder,
+or Memory-page typing whose checkpoint is not due — would otherwise land
+in the next write's commit, and undoing that write would undo them. The
+install step commits them first: once a write has passed its checks,
+`snapshot_outside_edits` flushes any pending Memory-page checkpoint and
+commits the hand-edited paths (`topics/`, `MEMORY.md`, `core.md`) as
+`memory: edits made outside OpenProgram`. A surface that brings its own
+pre-install callback (autosave, restore) keeps its own history instead.
+A rejected write never reaches install, so it leaves history untouched.
+
 ## Code map
 
 The package holds the contract and one implementation of it.
@@ -753,6 +790,8 @@ the writer converts it to a valid Topic.
 | Another writer holds the lock | This pass writes nothing and says so; the next turn retries |
 | The writer's edits are rejected twice | The batch fails whole — one repair attempt, then nothing is installed and no source nodes are marked |
 | A hand edit breaks the format | The edit is validated in a staging copy and never installed; the committed file is untouched and the rejected text is kept for a retry |
+| The writer finds nothing worth keeping | A run that ended normally with no failed edit marks its batch written; a run whose edits kept failing marks nothing |
+| The writer starts failing | `writer-status.json` records it; a `memory_writer_failed` frame reaches open clients once per failure streak or change of reason, and the Memory page shows the last failure while it stands |
 
 Memory never takes a conversation down with it: every provider hook
 swallows its own failures and logs them. Swallowed is not forgotten.
@@ -818,8 +857,8 @@ strips the inner block and leaves an empty one.
 
 The branch-aware written marker and trusted speaker/v2 source protocol are
 implemented. `runtime/online.py` computes pending records from the current
-branch's node marks, and successful non-empty writes mark exactly their
-source batch. Forced session-boundary writing handles the current head first
+branch's node marks, and a write that changed a file, or a clean run that
+found nothing to keep, marks exactly its source batch. Forced session-boundary writing handles the current head first
 and then other live branch tips without re-writing a shared prefix.
 
 Old `runtime.json` files may still contain `cursors` until their first write.

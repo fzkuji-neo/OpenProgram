@@ -83,6 +83,7 @@ class OnlineMemoryRuntime:
         global_manager=None,
         now: datetime | None = None,
         force: bool = False,
+        history_message: str = "memory: incremental transaction",
     ) -> bool:
         now = now or datetime.now(timezone.utc)
         batch = tuple(self.pending(records, marked_ids))
@@ -119,13 +120,21 @@ class OnlineMemoryRuntime:
             )
             if trusted:
                 workspace.archive_source_records(list(trusted))
-                if not writer(workspace, trusted):
+                # None: the batch was not handled. An empty list is a writer
+                # that handled it and found nothing worth keeping.
+                if writer(workspace, trusted) is None:
                     return False
             if pending_records:
                 workspace.archive_source_records(list(pending_records))
 
             if mark is not None:
                 mark(batch)
+            # The write is one commit and any reorganizing it triggers is
+            # another, so either can be undone on its own.
+            self.store.git_commit(
+                f"{history_message} ({len(trusted)} turns)"
+                if trusted else history_message
+            )
 
             state = self.store.load()
             trusted_tokens = sum(
@@ -153,6 +162,6 @@ class OnlineMemoryRuntime:
                 state.last_global_at = now.isoformat()
                 state.write_commits_since_global = 0
         state.creation_order = self.store.load().creation_order
-        self.store.git_commit("memory: incremental transaction")
+        self.store.git_commit("memory: reorganize after writing")
         self.store.save(state)
         return True

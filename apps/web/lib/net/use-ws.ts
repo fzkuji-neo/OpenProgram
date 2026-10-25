@@ -932,6 +932,17 @@ export function useWS(): void {
           }
           return true;
         }
+        case "memory_writer_failed": {
+          // The background memory writer started failing
+          // (openprogram/memory/runtime/writer_status.py); said once per streak.
+          const reason = typeof d?.reason_code === "string" ? d.reason_code : "";
+          void import("@/components/memory/writer-health").then(({ writerFailureText }) =>
+            import("@/lib/format-utils/toast").then(({ showToast }) => showToast(
+              translateText("Conversations are not reaching memory: ", "对话没有写进记忆：") + writerFailureText(reason),
+              { tone: "error", duration: 12000, link: { label: translateText("Open Memory", "打开记忆"), href: "/memory" } },
+            )));
+          return true;
+        }
         case "always_on_update": {
           if (typeof d?.agent_id === "string") {
             const agentId = d.agent_id;

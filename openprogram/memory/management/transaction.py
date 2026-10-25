@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import errno
 import hashlib
+import logging
 import os
 import re
 import threading
@@ -519,5 +520,35 @@ def install_state(
     workspace._synchronize()
 
 
-def git_commit_state(memory_dir: Path, message: str) -> str | None:
-    return RuntimeStateStore(Path(memory_dir)).git_commit(message)
+def git_commit_state(
+    memory_dir: Path, message: str, *, paths: tuple[str, ...] | None = None,
+) -> str | None:
+    return RuntimeStateStore(Path(memory_dir)).git_commit(message, paths=paths)
+
+
+# What people edit by hand. Sources are archived by the write itself, and
+# the other tracked files are rebuilt from topics on every install.
+_HAND_EDITED = ("topics", "MEMORY.md", "core.md")
+
+
+def snapshot_outside_edits(memory_dir: Path) -> None:
+    """Give uncommitted hand edits their own commit before a write installs.
+
+    Files edited in another editor, and Memory-page edits still waiting for
+    their five-minute checkpoint, would otherwise land in the next write's
+    commit under its message, and undoing that write would undo them too.
+    The install step calls it once the write has passed its checks, so a
+    rejected write leaves history exactly as it was.
+    """
+    from ..checkpoints import checkpoint
+
+    try:
+        checkpoint(Path(memory_dir), force=True)
+        git_commit_state(
+            memory_dir, "memory: edits made outside OpenProgram",
+            paths=_HAND_EDITED,
+        )
+    except Exception as exc:  # noqa: BLE001 - history must not block a write
+        logging.getLogger(__name__).debug(
+            "memory: outside edits were not committed: %s", exc,
+        )

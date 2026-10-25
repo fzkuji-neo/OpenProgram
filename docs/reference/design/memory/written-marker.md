@@ -293,8 +293,10 @@ backlog is still written in several passes.
 
 ### When the mark goes on
 
-Two conditions, not one. The write transaction has to install, **and**
-it has to have changed a file.
+A batch is marked when the writer handled it: the write transaction
+installed and changed a file, **or** the writer judged the batch not
+worth keeping. Either way there is evidence; the absence of an error is
+not enough.
 
 A writer that spends every one of its turns on the same rejected edit
 finishes without raising anything and without touching a file, and a run
@@ -303,7 +305,19 @@ same writer: twenty turns spent on one rejected edit, a successful
 return, and a topic file one byte long. The audit already answers the
 question — `writing._changed_files(audit)` collects the topic paths of
 every `commit` entry with `status == "ok"` — so the writer closure
-returns that list and an empty list marks nothing.
+returns that list when it is not empty.
+
+An empty list has a second honest source. The writer prompt tells the
+writer to record only what will help later, and a batch of "ok, thanks"
+holds nothing: the writer reads it, writes nothing, and ends. Leaving
+that batch unmarked sends it back on every pass, forever, and the
+session reads as a failing writer (`WRITER_NO_PROGRESS`) while hundreds
+of turns pile up as pending. The audit separates the two cases as well:
+`writing._declined(audit)` holds when the run ended normally (the
+closing `agent` entry is present) and no `Write`, `Edit`, `shell` or
+`commit` entry failed. The closure returns `[]` then, which marks the
+batch, and `None` otherwise, which marks nothing. `OnlineMemoryRuntime.process`
+treats only `None` as unhandled.
 
 That rule is not special to the mark. Any state that says a thing is
 done has to be checkable against something the work produced, which is
@@ -667,9 +681,10 @@ not, and nothing is currently lost by waiting.
 As of 2026-08-11, Layer 1 describes the implementation that was replaced,
 Layer 2 remains the open-source framework audit, and Layer 3 is implemented.
 Session nodes carry `metadata.memory_written_scriptorium = <workspace-id>`;
-pending work is the unmarked suffix of each branch; a successful non-empty
-write marks exactly its source batch; and forced session-boundary writing
-handles the current head before other live branch tips.
+pending work is the unmarked suffix of each branch; a write that changed a
+file, or a clean run that found nothing to keep, marks exactly its source
+batch; and forced session-boundary writing handles the current head before
+other live branch tips.
 
 `RuntimeState.cursors` and `advance_cursor` have been removed. An installation
 that still has legacy `cursors` performs one migration before pending work is
