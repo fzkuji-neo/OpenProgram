@@ -60,8 +60,10 @@ class _HeldWS(_SequenceWS):
 
 
 class _FailingSendWS(_SequenceWS):
+    """The acknowledging window disconnects as its reply is sent."""
+
     async def send_text(self, text: str) -> None:
-        if len(self.sent) >= 2:
+        if json.loads(text).get("type") == "user_error_acknowledged":
             raise WebSocketDisconnect(1013)
         await super().send_text(text)
 

@@ -161,7 +161,7 @@ def test_persist_allow_read_appends(monkeypatch):
 def test_system_prompt_forbids_relocating_secrets():
     from openprogram.context.components import build_system_prompt
     out = build_system_prompt({"id": "main", "name": "bot"})
-    assert "never move or copy secrets" in out
+    assert "never move or copy secrets" in out.lower()
 
 
 def test_local_backend_attaches_matched_path_and_rule(monkeypatch):

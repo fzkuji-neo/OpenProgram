@@ -48,7 +48,8 @@ def test_registry_lists_the_wired_events_with_kinds():
     kinds = {name: spec.kind for name, spec in EVENTS.items()}
     assert kinds["tool.before"] == "gate"
     assert kinds["turn.stop"] == "gate"
-    notify_only = set(kinds) - {"tool.before", "turn.stop"}
+    assert kinds["tool.result"] == "transform"
+    notify_only = set(kinds) - {"tool.before", "turn.stop", "tool.result"}
     assert all(kinds[n] == "notify" for n in notify_only)
     for spec in EVENTS.values():
         assert isinstance(spec, EventSpec) and spec.payload_doc

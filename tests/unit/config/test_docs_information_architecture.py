@@ -319,7 +319,9 @@ def test_local_topic_titles_render_as_headings_after_compatibility_anchors() -> 
             build._SLUG_DEDUP = {}
             rendered = build.make_md().render(source)
             assert re.search(r'<h1\b[^>]*>[^<]+', rendered), name + language
-            assert not re.search(r'^# ', rendered, re.MULTILINE), name + language
+            # Code blocks quote prompts whose own headings start with "# ".
+            prose = re.sub(r'<pre>.*?</pre>', '', rendered, flags=re.DOTALL)
+            assert not re.search(r'^# ', prose, re.MULTILINE), name + language
 
 
 def test_previous_next_and_tabs_follow_document_language(tmp_path):
