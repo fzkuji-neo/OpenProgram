@@ -20,6 +20,7 @@ import { RailBadge, RailItem, RailSeparator, RailSplit, SecondaryRail } from "@/
 import { useTranslation } from "@/lib/i18n";
 import { SolarIcon } from "@/components/solar-icons";
 import { wsRequest } from "@/lib/net/ws-request";
+import { canConfirmInPlace, confirmProjectFolder, locationMessage, locationProblem, notifyProjectLocationChanged, relocateProject, type RelocateReply } from "@/lib/projects/project-location";
 import { ProjectEditor, type EditableProject } from "@/components/sidebar/project-editor";
 import { Button } from "@/components/ui/button";
 import { ChatsPage } from "@/components/chats/chats-page";
@@ -128,6 +129,7 @@ export function ProjectsPage({
     () => projects.find((p) => p.id === selectedId) || null,
     [projects, selectedId],
   );
+  const selectedProblem = locationProblem(selected);
 
   // A chat belongs to the first bound project that lists it; a chat no
   // project claims is the home project's, as on the server.
@@ -161,29 +163,25 @@ export function ProjectsPage({
   const label = useCallback((project: Project) => project.name, []);
 
   // 定位缺失项目的新目录：改项目 path、保留 id（relocate_project）。
-  const locateProject = useCallback(async (projectId: string, startPath = "") => {
+  const repairProject = useCallback(async (run: () => Promise<RelocateReply>) => {
     setError(null);
     try {
-      const path = await pickFolder(startPath);
-      if (!path) return;
-      const current = projects.find((project) => project.id === projectId);
-      const d = await wsRequest<{ ok: boolean; error?: string | null }>(
-        "relocate_project",
-        {
-          project_id: projectId,
-          path,
-          expected_path: current?.path || startPath,
-          expected_revision: current?.location_revision,
-          replace_identity: true,
-        },
-        "project_relocated",
-      );
-      if (d && !d.ok) setError(d.error || text("Could not relocate the project.", "重新定位项目失败。"));
+      const reply = await run();
+      if (!reply.ok) setError(reply.error || text("Could not relocate the project.", "重新定位项目失败。"));
+      else notifyProjectLocationChanged();
       refresh();
     } catch (e) {
       setError(String(e));
     }
-  }, [pickFolder, refresh, text]);
+  }, [refresh, text]);
+  const locateProject = useCallback(async (project: Project) => {
+    try {
+      const path = await pickFolder(project.path);
+      if (path) await repairProject(() => relocateProject(project, path));
+    } catch (e) {
+      setError(String(e));
+    }
+  }, [pickFolder, repairProject]);
 
   const addProject = useCallback(async () => {
     setError(null);
@@ -239,8 +237,7 @@ export function ProjectsPage({
         <RailSplit railKey={PROJECTS_RAIL}>
           <SecondaryRail railKey={PROJECTS_RAIL} id="projects-rail" label={text("Projects", "项目")}>
             {projects.map((p) => {
-              const unavailable = p.path_missing || p.path_replaced ||
-                ["missing", "replaced", "migrating", "pending", "error"].includes(p.location_state ?? "");
+              const unavailable = locationProblem(p) !== null;
               return (
                 <RailItem
                   key={p.id}
@@ -300,42 +297,16 @@ export function ProjectsPage({
                   {selected.hidden&&<Button variant="outline" onClick={async()=>{try{const result=await wsRequest<{ok:boolean;error?:string}>("restore_project",{project_id:selected.id},"restore_project_result");if(!result?.ok)throw new Error(result?.error||text("Could not restore project", "无法恢复项目"));await refresh();window.dispatchEvent(new Event("project-changed"));}catch(err){setError(err instanceof Error?err.message:String(err));}}}>{text("Restore to sidebar", "恢复到侧边栏")}</Button>}
                   {!selected.is_default && <Button variant="outline" onClick={()=>setEditing(true)}>{text("Edit project", "编辑项目")}</Button>}
                 </div>
-                {(selected.path_missing || selected.path_replaced || (selected.location_state && selected.location_state !== "available")) && (
-                  <div role="alert" className="my-2 flex items-center gap-2 text-xs text-[var(--accent-orange)]">
+                {selectedProblem && (
+                  <div role="alert" className="my-2 flex flex-wrap items-center gap-2 text-xs text-[var(--accent-orange)]">
                     <SolarIcon name="danger-triangle" size={14} motionPreset="none" aria-hidden="true" />
-                    <span>
-                      {selected.path_replaced || selected.location_state === "replaced"
-                        ? text(
-                            "The folder at this location has changed.",
-                            "该位置上的文件夹已更换。",
-                          )
-                        : selected.location_state === "migrating"
-                          ? text(
-                              "Migrating conversations. Tasks start after completion.",
-                              "正在迁移对话。完成前不能启动任务。",
-                            )
-                            : selected.location_state === "pending" &&
-                                selected.migration_error !== "directory identity unavailable"
-                              ? text(
-                                  "This legacy conversation has not migrated. Reconnect the original drive to finish.",
-                                  "这条旧对话尚未迁移。请接回原来的磁盘后再完成。",
-                                )
-                              : selected.location_state === "pending"
-                                ? text(
-                                    "This folder needs confirmation. Locate the original folder to continue.",
-                                    "该目录需要确认。请定位原来的目录后继续。",
-                                  )
-                            : selected.location_state === "error"
-                              ? text(
-                                  selected.migration_error || "Conversation migration failed.",
-                                  selected.migration_error || "对话迁移失败。",
-                                )
-                              : text(
-                                  "This folder no longer exists on disk.",
-                                  "该目录已不在磁盘上。",
-                                )}
-                    </span>
-                    <Button variant="outline" size="sm" onClick={() => locateProject(selected.id, selected.path)}>
+                    <span>{locationMessage(selectedProblem, selected, text)}</span>
+                    {canConfirmInPlace(selectedProblem) && (
+                      <Button variant="outline" size="sm" onClick={() => repairProject(() => confirmProjectFolder(selected))}>
+                        {text("Use the folder at this location", "就是这个位置的文件夹")}
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => locateProject(selected)}>
                       <FolderSearch aria-hidden="true" />
                       {text("Locate folder…", "定位文件夹…")}
                     </Button>

@@ -295,3 +295,76 @@ def test_a_present_project_cannot_move_onto_another_projects_folder(tmp_path, st
     with pytest.raises(projects.ProjectStoreError, match="already the project"):
         projects.relocate_project(one.id, second, replace_identity=True)
     assert projects.get_project(one.id).path == str(first.resolve())
+
+
+def test_moving_one_project_brings_back_the_ones_that_moved_with_it(tmp_path, store):
+    """A whole Projects folder moved: locating one finds the rest."""
+    old = tmp_path / "old" / "Projects"
+    paper, notes = old / "paper", old / "notes"
+    paper.mkdir(parents=True)
+    notes.mkdir()
+    first, second = projects.resolve_project(paper), projects.resolve_project(notes)
+    new = tmp_path / "Archive" / "Projects"
+    new.parent.mkdir()
+    old.rename(new)
+
+    projects.relocate_project(first.id, new / "paper", replace_identity=True)
+    assert projects.get_project(second.id).path == str((new / "notes").resolve())
+    assert projects.get_project(second.id).location_state == "available"
+
+
+def test_a_sibling_is_followed_only_where_its_own_marker_is(tmp_path, store):
+    old = tmp_path / "old"
+    paper, notes = old / "paper", old / "notes"
+    paper.mkdir(parents=True)
+    notes.mkdir()
+    first, second = projects.resolve_project(paper), projects.resolve_project(notes)
+    new = tmp_path / "new"
+    new.mkdir()
+    paper.rename(new / "paper")
+    shutil.rmtree(notes)
+    (new / "notes").mkdir()  # same name, a different folder
+
+    projects.relocate_project(first.id, new / "paper", replace_identity=True)
+    assert projects.get_project(second.id).path == str(notes)
+
+
+def test_opening_a_folder_inside_a_moved_project_reattaches_it(tmp_path, store):
+    folder = tmp_path / "paper"
+    (folder / "src").mkdir(parents=True)
+    project = projects.resolve_project(folder)
+    moved = tmp_path / "elsewhere" / "paper"
+    moved.parent.mkdir()
+    folder.rename(moved)
+
+    projects.resolve_project(moved / "src")
+    assert projects.get_project(project.id).path == str(moved.resolve())
+    assert projects.get_project(project.id).location_state == "available"
+
+
+def test_a_folder_inside_a_present_project_leaves_it_alone(tmp_path, store):
+    folder = tmp_path / "paper"
+    (folder / "src").mkdir(parents=True)
+    project = projects.resolve_project(folder)
+    inner = projects.resolve_project(folder / "src")
+    assert inner.id != project.id
+    assert projects.get_project(project.id).path == str(folder.resolve())
+
+
+def test_a_legacy_record_is_confirmed_at_its_own_path(tmp_path, store):
+    """A cloud-synced folder can change its inode; confirming the folder at
+    the recorded path gives it a portable identity in place."""
+    folder = tmp_path / "LLM Knowledge"
+    folder.mkdir()
+    project = projects.resolve_project(folder)
+    (folder / ".openprogram" / "project.json").unlink()
+    project = projects.get_project(project.id)
+    project.directory_identity = "1:999"
+    projects._upsert(project)
+    assert refresh_project_location(project.id) in {"replaced", "pending"}
+
+    confirmed = projects.relocate_project(project.id, folder, expected_path=project.path,
+                                          replace_identity=True)
+    assert confirmed.id == project.id
+    assert refresh_project_location(project.id) == "available"
+    assert projects.get_project(project.id).directory_identity.startswith("marker:")

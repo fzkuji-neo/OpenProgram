@@ -805,6 +805,10 @@ def resolve_project(path: str | Path | None = None, *, name: str | None = None) 
         return get_default_project()
 
     p = Path(path).expanduser()
+    try:
+        reattach_enclosing_project(p)
+    except Exception:  # noqa: BLE001 - reattaching is a courtesy, opening must not fail
+        _log.debug("enclosing project lookup failed for %s", p, exc_info=True)
     # The path/token decision and publication are one registry transaction.
     # Session relocation runs after releasing it so readers remain available.
     with _registry_transaction():
@@ -871,6 +875,7 @@ def relocate_project(
     expected_revision: int | None = None,
     require_identity: bool = False,
     replace_identity: bool = False,
+    follow_siblings: bool = True,
 ) -> Project:
     """Point an existing project at a new directory, keeping its id."""
     from .identity import captured_identity_matches
@@ -928,7 +933,89 @@ def relocate_project(
         set_location_state(project_id, "pending", error=str(e))
         raise ProjectStoreError(f"project location repair pending: {e}") from e
     current = set_location_state(project_id, "available")
+    if follow_siblings and old_path:
+        follow_sibling_moves(old_path, str(p.resolve()), moved_id=project_id)
     return current or moved
+
+
+def _missing(project: Project) -> bool:
+    from .identity import captured_identity_matches, is_portable
+
+    return (not project.is_default and bool(project.path) and is_portable(project)
+            and not captured_identity_matches(project, project.path))
+
+
+def follow_sibling_moves(old_path: str, new_path: str, *, moved_id: str = "") -> list[str]:
+    """Reattach other missing projects that moved the same way.
+
+    Folders usually move together: a whole ``Projects`` directory renamed,
+    or several repositories dragged into a new parent. When one project
+    is found at its new place, every missing project under the same old
+    parent is tried under the matching new parent, outermost names
+    included, and taken only where its own marker is found.
+    """
+    old, new = Path(old_path).expanduser(), Path(new_path).expanduser()
+    pairs = []
+    a, b = old.parent, new.parent
+    while a != b:
+        pairs.append((a, b))
+        if a.name != b.name or a == a.parent or b == b.parent:
+            break
+        a, b = a.parent, b.parent
+    if not pairs:
+        return []
+    from .identity import read_marker
+
+    followed = []
+    for project in list_projects():
+        if project.id == moved_id or not _missing(project):
+            continue
+        recorded = Path(project.path).expanduser()
+        for before, after in pairs:
+            try:
+                candidate = after / recorded.relative_to(before)
+            except ValueError:
+                continue
+            if not candidate.is_dir() or read_marker(candidate) != project.directory_identity:
+                continue
+            try:
+                relocate_project(project.id, candidate, expected_path=project.path,
+                                 require_identity=True, follow_siblings=False)
+                followed.append(project.id)
+            except ProjectStoreError as exc:
+                _log.info("sibling move not followed for %s: %s", project.id, exc)
+            break
+    return followed
+
+
+def reattach_enclosing_project(path: str | Path) -> str | None:
+    """A folder opened inside a moved project brings that project back.
+
+    The nearest ancestor carrying a marker decides. When the marker's
+    project is missing from its recorded place, it moves here; the folder
+    that was opened is resolved as usual afterwards.
+    """
+    from .identity import read_marker
+
+    folder = Path(path).expanduser()
+    home = Path.home()
+    for ancestor in folder.parents:
+        if ancestor == home or ancestor == ancestor.parent:
+            return None
+        marker = read_marker(ancestor)
+        if not marker:
+            continue
+        owner = next((project for project in list_projects()
+                      if not project.is_default and project.directory_identity == marker), None)
+        if owner is None or not _missing(owner):
+            return None
+        try:
+            relocate_project(owner.id, ancestor, expected_path=owner.path, require_identity=True)
+        except ProjectStoreError as exc:
+            _log.info("enclosing project not reattached for %s: %s", owner.id, exc)
+            return None
+        return owner.id
+    return None
 
 
 def bind_session(session_id: str, project_id: str) -> None:
@@ -1009,6 +1096,8 @@ __all__ = [
     "resolve_project",
     "bind_session",
     "relocate_project",
+    "follow_sibling_moves",
+    "reattach_enclosing_project",
     "set_location_state",
     "unbind_session",
     "prune_sessions",

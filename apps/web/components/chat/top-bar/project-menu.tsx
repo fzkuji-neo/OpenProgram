@@ -37,6 +37,7 @@ import { closeAllPopovers } from "@/lib/runtime-bridge/ui";
 import { useTranslation } from "@/lib/i18n";
 import { wsRequest } from "@/lib/net/ws-request";
 import { duplicateNamePrefixes } from "@/lib/projects/duplicate-names";
+import { canConfirmInPlace, confirmProjectFolder, locationMessage, locationProblem, relocateProject, type RelocateReply } from "@/lib/projects/project-location";
 import { useBoundChat } from "./bound-chat";
 import { CHECK_SLOT, CHECK_SLOT_PAD, GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR, itemCls } from "./menu-styles";
 import { MenuCheck } from "./menu-check";
@@ -132,44 +133,43 @@ export function ProjectMenu({
   // move, only the directory the project points at, which is why this
   // stays legal after the main directory has frozen.
   async function locateFolder(projectId: string) {
-    setBusy(true);
-    setErr(null);
+    const current = projects?.find((project) => project.id === projectId);
+    if (!current) return;
     try {
-      const path = await pickFolder(
-        projects?.find((project) => project.id === projectId)?.path,
-      );
-      if (path) {
-        const current = projects?.find((project) => project.id === projectId);
-        const reply = await wsRequest<{ ok: boolean; project_id?: string; error?: string | null }>(
-          "relocate_project",
-          {
-            session_id: sessionId ?? "",
-            project_id: projectId,
-            path,
-            expected_path: current?.path,
-            expected_revision: current?.location_revision,
-            replace_identity: true,
-          },
-          "project_relocated",
-        );
-        if (reply && !reply.ok) {
-          setErr(reply.error ?? text("Relocation failed.", "移动失败。"));
-        } else if (reply?.project_id && reply.project_id !== projectId) {
-          // The folder was already another project: the stale entry folded
-          // into it, so pick that project instead.
-          await refresh();
-          setBusy(false);
-          await switchTo(reply.project_id);
-          return;
-        } else {
-          await refresh();
-          notifyProjectChanged();
-          onClose();
-        }
-      }
+      const path = await pickFolder(current.path);
+      if (path) await repair(projectId, () => relocateProject(current, path, sessionId));
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       setErr(text(`Couldn't choose a folder: ${detail}`, `无法选择文件夹：${detail}`));
+    }
+  }
+
+  async function confirmFolder(projectId: string) {
+    const current = projects?.find((project) => project.id === projectId);
+    if (current) await repair(projectId, () => confirmProjectFolder(current, sessionId));
+  }
+
+  async function repair(projectId: string, run: () => Promise<RelocateReply>) {
+    setBusy(true);
+    setErr(null);
+    try {
+      const reply = await run();
+      if (!reply.ok) {
+        setErr(reply.error ?? text("Relocation failed.", "移动失败。"));
+      } else if (reply.project_id && reply.project_id !== projectId) {
+        // The folder was already another project: the stale entry folded
+        // into it, so pick that project instead.
+        await refresh();
+        setBusy(false);
+        await switchTo(reply.project_id);
+        return;
+      } else {
+        await refresh();
+        notifyProjectChanged();
+        onClose();
+      }
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : String(error));
     }
     setBusy(false);
   }
@@ -248,9 +248,8 @@ export function ProjectMenu({
   // the backend rejects a rebind anyway (FROZEN_ERROR).
   const frozen = sessionId !== null;
   const activeProject = list.find((p) => p.id === activeId) ?? null;
-  const locationState = activeProject?.location_state;
-  const missing = activeProject?.path_missing === true || activeProject?.path_replaced === true ||
-    ["missing", "replaced", "migrating", "pending", "error"].includes(locationState ?? "");
+  const problem = locationProblem(activeProject);
+  const missing = problem !== null;
 
   const errorLine = err ? (
     <div className="px-[8px] pb-[3px] pt-[1px] text-[11px] text-[var(--accent-orange)]">
@@ -278,39 +277,17 @@ export function ProjectMenu({
           <>
             <div className="project-menu-missing">
               <SolarIcon motionPreset="none" name="danger-triangle" size={13} aria-hidden="true" />
-              <span>
-                {locationState === "replaced" || activeProject?.path_replaced
-                  ? text(
-                      "The folder at this location has changed. Locate the original folder.",
-                      "该位置上的文件夹已更换。请定位原来的目录。",
-                    )
-                  : locationState === "migrating"
-                    ? text(
-                        "Migrating conversations. Tasks start after completion.",
-                        "正在迁移对话。完成前不能启动任务。",
-                      )
-                    : locationState === "pending" &&
-                        activeProject?.migration_error !== "directory identity unavailable"
-                      ? text(
-                          "This legacy conversation has not migrated. Reconnect the original drive to finish.",
-                          "这条旧对话尚未迁移。请接回原来的磁盘后再完成。",
-                        )
-                      : locationState === "pending"
-                        ? text(
-                            "This folder needs confirmation. Locate the original folder to continue.",
-                            "该目录需要确认。请定位原来的目录后继续。",
-                          )
-                      : locationState === "error"
-                        ? text(
-                            activeProject?.migration_error || "Conversation migration failed.",
-                            activeProject?.migration_error || "对话迁移失败。",
-                          )
-                        : text(
-                            "This folder no longer exists. Point the project at its new location.",
-                            "该目录已不存在。请把项目指向它的新位置。",
-                          )}
-              </span>
+              <span>{activeProject && problem ? locationMessage(problem, activeProject, text) : null}</span>
             </div>
+            {canConfirmInPlace(problem) ? (
+              <div
+                className={itemCls(false)}
+                onClick={() => !busy && activeProject && confirmFolder(activeProject.id)}
+              >
+                <SolarIcon name="check-circle" size={14} className="opacity-70" />
+                <span className="flex-1">{text("Use the folder at this location", "就是这个位置的文件夹")}</span>
+              </div>
+            ) : null}
             <div
               className={itemCls(false)}
               onClick={() => !busy && activeProject && locateFolder(activeProject.id)}
@@ -342,8 +319,7 @@ export function ProjectMenu({
         if (p.hidden && p.id !== activeId) return null;
         const parent = parents.get(p.id);
         const active = p.id === activeId;
-        const unavailable = p.path_missing === true || p.path_replaced === true ||
-          ["missing", "replaced", "migrating", "pending", "error"].includes(p.location_state ?? "");
+        const unavailable = locationProblem(p) !== null;
         return (
           <div
             key={p.id}
