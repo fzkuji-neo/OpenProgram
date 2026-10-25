@@ -450,6 +450,12 @@ def _shown_args(tool_name: str, args: dict, req) -> dict:
         return args
 
 
+def _json_form(value):
+    """Compare an approval as stored: the wait keeps JSON, the live call may hold tuples."""
+    import json
+    return json.loads(json.dumps(value, default=str))
+
+
 def _approval_detail(tool_name: str, args: dict) -> str:
     """批准卡片的危险摘要：工具名 + 参数全文（超长截断，首尾保留）。
     第一版不做危险 token 高亮（docs/design/ui/composer-interaction-modes.md 决策）。"""
@@ -500,7 +506,7 @@ async def await_user_approval(
         current_execution = get_current_execution_id()
         if (execution is None or execution.session_id != req.session_id
                 or wait.request.get("tool") != tool_name
-                or wait.request.get("args") != args
+                or _json_form(wait.request.get("shown_args", wait.request.get("args"))) != _json_form(args)
                 or (current_execution and current_execution != wait.execution_id)
                 or (tool_call_id and wait.request.get("tool_call_id") != tool_call_id)):
             return False, "approval does not authorize this operation", "once"

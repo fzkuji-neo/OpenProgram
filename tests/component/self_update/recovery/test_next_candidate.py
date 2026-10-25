@@ -135,6 +135,74 @@ def test_the_retry_approval_card_shows_the_candidate(diagnosis_environment, monk
 
 
 @pytest.mark.parametrize("diagnosis_environment", [{"required_tests": ["python -c 'assert True'"]}], indirect=True)
+@pytest.mark.parametrize("answer", ["approve", None])
+@native_sandbox
+def test_the_owner_answer_on_the_retry_card_reaches_the_retry(diagnosis_environment, monkeypatch, tmp_path, answer):
+    import time
+    from openprogram.agent.authority import local_owner_authority
+    from openprogram.agent.permissions import approval as _approval
+    from openprogram.agent.run_control import (reset_current_execution_id, reset_preapproved_wait_id,
+                                               set_current_execution_id, set_preapproved_wait_id)
+    from openprogram.execution import AttemptStore, ExecutionStore
+    from openprogram.execution.control import RuntimeControlService
+    from openprogram.execution.driver import DriverRegistry
+    from openprogram.execution.model import CapabilitySet
+    from openprogram.execution.waits import DurableWaitStore
+    from openprogram.programs.tools.system import self_update as tools
+    from tests.component.programs.tools.test_self_update_tools import _request
+    store, _, _, update_id = diagnosis_environment
+    _turn(diagnosis_environment, monkeypatch)
+    _start()
+    repaired = _result(diagnosis_environment)
+    req = _request(session_id="p1", user_msg_id="retry_user", permission_mode="bypass")
+    monkeypatch.setattr(tools, "_turn_context", lambda: (req, "retry_reply"))
+    launched = []
+    monkeypatch.setattr("openprogram.self_update.delivery.launcher.launch_supervisor", lambda uid, **kw: launched.append(uid))
+    executions = ExecutionStore(tmp_path / "executions.db")
+    monkeypatch.setattr("openprogram.execution.default_store", lambda: executions)
+    revision = executions.create_revision(manifest={"entrypoint": "test"})
+    execution = executions.create_execution(execution_id="exec_retry", run_id="run", session_id="p1",
+        revision_id=revision.revision_id, capabilities=CapabilitySet(pause=True))
+    attempts = AttemptStore(executions)
+    leased, reserved = attempts.lease(execution.execution_id, expected_version=execution.status_version,
+                                      owner_id="test", ttl_seconds=30)
+    active, _ = attempts.activate(leased.attempt_id, generation=leased.generation,
+                                  expected_execution_version=reserved.status_version)
+    args = dict(update_id=update_id, candidate_sha=repaired["candidate"]["candidate_sha"])
+    wrapped = _approval.wrap_with_approval(tools.self_update_retry, req, lambda _: None)
+    manifest = wrapped._interaction_manifest("retry", args)
+    wait = DurableWaitStore(executions).open_wait(wait_id="retry-approval", execution_id=execution.execution_id,
+        attempt_id=active.attempt_id, generation=active.generation, kind="approval",
+        request={"prompt": manifest["prompt"], "options": manifest["options"], "multi": False,
+                 "allow_custom": False, "detail": manifest["detail"], "schema": {}, "questions": [],
+                 **manifest["request_metadata"]}, policy_snapshot=manifest["policy_snapshot"], expires_at=time.time() + 60)
+    service = RuntimeControlService(executions, attempts, DriverRegistry())
+    current = executions.get_execution(execution.execution_id).status_version
+    if answer:
+        asyncio.run(service.request_wait_answer(command_id="answer", execution_id=execution.execution_id,
+            expected_version=current, actor=local_owner_authority(), wait_id=wait.wait_id,
+            generation=wait.claim_generation, answer={"answer": answer, "scope": "once"}))
+    else:
+        asyncio.run(service.request_wait_decline(command_id="decline", execution_id=execution.execution_id,
+            expected_version=current, actor=local_owner_authority(), wait_id=wait.wait_id,
+            generation=wait.claim_generation))
+    tokens = set_current_execution_id(execution.execution_id), set_preapproved_wait_id(wait.wait_id)
+    try:
+        outcome = asyncio.run(wrapped.execute("retry", args, None, None))
+    finally:
+        reset_preapproved_wait_id(tokens[1])
+        reset_current_execution_id(tokens[0])
+
+    text = outcome.content[0].text if outcome.content else ""
+    assert "does not authorize" not in text, "The card binds the candidate it displayed"
+    if answer:
+        assert not outcome.is_error, outcome
+        assert store.load_active().request.update_id in launched
+    else:
+        assert outcome.is_error and "declined" in text and not launched
+
+
+@pytest.mark.parametrize("diagnosis_environment", [{"required_tests": ["python -c 'assert True'"]}], indirect=True)
 @pytest.mark.parametrize("decision", ["allow", "deny", "dirty", "log", "log_link_race"])
 @native_sandbox
 def test_default_retry_requires_fresh_exact_one_shot_approval(diagnosis_environment, monkeypatch, decision):
