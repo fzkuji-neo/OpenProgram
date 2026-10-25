@@ -96,6 +96,8 @@ is refused once and the refusal carries that action's full instructions
 is made with them in view. `prepare` and `retry` always ask the owner for
 one-shot approval, even in bypass mode; `status` needs no approval.
 
+help("self_update") shows this workflow again at any time.
+
 ### What an update restarts
 
 An update rebuilds only what changed between the commit the installed App was

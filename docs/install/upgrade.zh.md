@@ -90,6 +90,8 @@ openprogram worker restart
 就带着这些说明进行。`prepare` 和 `retry` 即使在 bypass 下也总是请 owner 单次审批；
 `status` 不需要审批。
 
+help("self_update") 可以随时重新查看这段流程说明。
+
 ### 一次更新会重启什么
 
 更新只重新构建已安装 App 所基于的提交（`Contents/Resources/openprogram-source-revision`）
