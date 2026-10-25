@@ -191,6 +191,31 @@ def test_frozen_verifier_profile_reaches_real_loop_and_blocks_injected_browser(t
     assert messages[result.user_msg_id]["source"] == "self_update_verify"
 
 
+def test_verifier_tools_reach_the_provider_without_tool_search(tmp_db, monkeypatch):
+    from openprogram.agent.dispatcher import loop_runner
+    from openprogram.programs import get_agent_tool
+    observe = get_agent_tool("self_update_observe")
+    assert observe._defer, "The registry keeps the observer deferred for ordinary turns"
+    tmp_db.create_session("verifier", "main")
+    req = D.TurnRequest(
+        session_id="verifier", user_text="check", agent_id="main", source="self_update_verify",
+        profile_snapshot={"id": "main", "system_prompt": "Frozen verifier", "tools": []},
+        tools_override=[], model_override="frozen/model", branch_from=None, advance_head=False,
+    )
+    monkeypatch.setattr(loop_runner, "_configure_web_use_tools",
+                        lambda *_, **_kwargs: ([get_agent_tool("read"), observe], False))
+    text_stream = make_text_stream_fn(["verified"])
+    async def stream(model, context, options):
+        assert {tool.name for tool in context.tools} == {"read", "self_update_observe"}
+        async for event in text_stream(model, context, options):
+            yield event
+    original_loop = D._run_loop_blocking
+    monkeypatch.setattr(D, "_run_loop_blocking", lambda **kwargs: original_loop(**kwargs, stream_fn=stream))
+    result = D.process_user_turn(req)
+    assert not result.failed, result.error
+    assert observe._defer, "Promotion copies the tool instead of changing the registry"
+
+
 def test_real_loop_text_only(tmp_db: SessionDB, captured, collector) -> None:
     """One full turn with a streaming text reply, no tools.
 

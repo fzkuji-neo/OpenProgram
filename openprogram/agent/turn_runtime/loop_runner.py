@@ -50,6 +50,15 @@ if TYPE_CHECKING:
     from openprogram.agent.turn_runtime.types import EventCallback, TurnRequest
 
 
+def _undeferred(tool):
+    if not getattr(tool, "_defer", False):
+        return tool
+    from copy import copy
+
+    tool = copy(tool)
+    tool._defer = False
+    return tool
+
 def _ordered_block_from_content(block: object) -> dict | None:
     """Map one provider content block onto the persisted ordered-card shape."""
     btype = getattr(block, "type", None)
@@ -283,7 +292,7 @@ def resolve_agent_runtime(
     tools = _resolve_tools(agent_profile, req.tools_override, source=req.source)
     from openprogram.memory.policy import allowed as _memory_allowed
     from openprogram.programs.tools.knowledge.memory import MEMORY_TOOL_NAMES
-    tools = [tool for tool in tools or [] if tool.name not in MEMORY_TOOL_NAMES or _memory_allowed(write=tool.name in {"memory_update", "memory_promote"})]
+    tools = [tool for tool in tools or [] if tool.name not in MEMORY_TOOL_NAMES or _memory_allowed(write=tool.name == "memory_update")]
     # Reports belong to an always-on Agent's home conversation.
     if any(tool.name == "always_on_report" for tool in tools):
         from openprogram.agent.always_on import agent_for_session
@@ -315,6 +324,9 @@ def resolve_agent_runtime(
         verification.require_candidate(req.session_id, vars(req), execution_id=get_current_execution_id())
         tools = [tool for tool in tools or [] if _is_verifier_read_tool(tool) and tool.name != "self_update_observe"]
         web_use_enabled = False
+    if req.goal_verification or req.source in {"self_update_verify", "self_update_diagnose", "self_update_repair"}:
+        # These stages cannot search for tools, so their pinned tools ship with full schemas.
+        tools = [_undeferred(tool) for tool in tools or []]
     from openprogram.programs import install_allowed_tool_names
     install_allowed_tool_names({tool.name for tool in tools or []})
     _log_resolved_tools(req, tools)
