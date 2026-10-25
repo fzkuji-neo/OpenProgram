@@ -951,3 +951,21 @@ def test_incremental_build_clones_the_installed_app_and_runs_the_partial_entry(t
     assert calls[1][4:] == [str(script), "--app", str(artifact.path), "--components", "web,docs"]
     assert probes == ["protocols"]
     assert json.loads((root / "su_supervisor/activation.json").read_text()) == plan.to_dict()
+
+
+@pytest.mark.parametrize("finished", [True, False])
+def test_a_finished_supervisor_unloads_its_kept_alive_job(tmp_path, monkeypatch, finished) -> None:
+    from openprogram.self_update.control import supervisor
+    from openprogram.self_update.delivery import bootstrap, launcher
+
+    calls: list[tuple[str, ...]] = []
+    monkeypatch.setattr(supervisor, "run_supervisor", lambda *args, **kwargs: 0)
+    monkeypatch.setattr(supervisor, "_canonical_store",
+                        lambda root: SimpleNamespace(load=lambda update_id: "record"))
+    monkeypatch.setattr(bootstrap, "cleanup_bootstrap", lambda store, update_id: None)
+    monkeypatch.setattr(bootstrap, "_finished", lambda store, record: finished)
+    monkeypatch.setattr(launcher, "_launchctl", lambda *args: calls.append(args) or (0, ""))
+
+    assert supervisor.main(["--state-root", str(tmp_path), "--installer-sha256", "a" * 64, "su_done"]) == 0
+
+    assert calls == ([("remove", "ai.openprogram.self-update.su_done")] if finished else [])

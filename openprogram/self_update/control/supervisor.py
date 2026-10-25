@@ -1154,7 +1154,28 @@ def main(argv: list[str] | None = None) -> int:
         )
     finally:
         from ..delivery.bootstrap import cleanup_bootstrap
-        cleanup_bootstrap(_canonical_store(args.state_root), args.update_id)
+        store = _canonical_store(args.state_root)
+        cleanup_bootstrap(store, args.update_id)
+        _retire_finished_job(store, args.update_id)
+
+
+def _retire_finished_job(store: SelfUpdateStore, update_id: str) -> None:
+    """Unload this supervisor's launchd job once its update needs nothing more.
+
+    ``launchctl submit`` keeps the job alive, so a finished supervisor would
+    otherwise be restarted every few seconds, forever, contending for the
+    state lock with the next update. Removing the job stops this process too,
+    so it is the last thing the supervisor does.
+    """
+    from ..delivery.bootstrap import _finished
+    from ..delivery.launcher import _launchctl
+
+    try:
+        if not _finished(store, store.load(update_id)):
+            return
+    except Exception:  # noqa: BLE001 - an unreadable state keeps the job for recovery.
+        return
+    _launchctl("remove", f"ai.openprogram.self-update.{update_id}")
 
 
 if __name__ == "__main__":
