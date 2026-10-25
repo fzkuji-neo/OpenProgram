@@ -625,6 +625,9 @@ def create_app(*, owner_auth=None, port: int = 18100):
             checkpoint_stop, lambda: _broadcast(json.dumps({"type": "projects_changed", "data": {}}))))
         from openprogram.processes.notices import run_exit_notices
         notices_task = asyncio.create_task(run_exit_notices(checkpoint_stop))
+        from openprogram.webui.frontend import watch_frontend
+        frontend_task = asyncio.create_task(watch_frontend(
+            checkpoint_stop, lambda build: _broadcast(json.dumps({"type": "frontend_build", "data": {"id": build}}))))
         try:
             yield
         finally:
@@ -632,6 +635,7 @@ def create_app(*, owner_auth=None, port: int = 18100):
             await checkpoint_task
             await discovery_task
             await notices_task
+            await frontend_task
             for hook in reversed(_SHUTDOWN):
                 await hook()
 

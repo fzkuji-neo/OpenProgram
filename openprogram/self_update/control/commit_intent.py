@@ -31,7 +31,10 @@ def read_journal(transaction: Path) -> dict:
     if "reopen_update_id" in value:
         keys.add("reopen_update_id")
         _validate_update_id(value["reopen_update_id"])
+    if "restart" in value:
+        keys.add("restart")
     if (set(value) != keys
+        or value.get("restart", "app") not in {"hot", "worker", "app"}
         or type(value["schema"]) is not int or value["schema"] != 1
         or value["phase"] not in {"prepared", "activating", "activated", "rolling_back", "committing", "committed", "rolled_back"}
         or any(not isinstance(value[k], str) or not re.fullmatch(r"[0-9a-f]{64}", value[k])

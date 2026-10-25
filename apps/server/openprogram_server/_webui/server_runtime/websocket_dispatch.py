@@ -90,6 +90,11 @@ async def _websocket_handler(ws):
         await ws.send_text(state.json.dumps(
             {"type": "provider_info", "data": state._get_provider_info()}, default=str
         ))
+        # A page reconnecting to a worker that serves another export reloads.
+        from openprogram.webui.frontend import export_id
+        await ws.send_text(state.json.dumps(
+            {"type": "frontend_build", "data": {"id": export_id()}}
+        ))
 
         # Keep alive — receive pings/messages
         while True:

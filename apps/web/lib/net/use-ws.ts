@@ -14,6 +14,7 @@ import { useEffect } from "react";
 import { interfaceWindowId, receiveInterface } from "@/lib/framework/connection";
 import { createExecutionRecovery, shouldReloadAfterExecution } from "./execution-recovery";
 import { createHistoryFragmentDecoder } from "./history-fragments";
+import { noteFrontendBuild } from "./frontend-reload";
 import { executionMessageIds, pendingExecutionReplayRequests } from "./execution-message-recovery";
 import { useFunctions } from "@/lib/abilities/functions-store";
 
@@ -962,6 +963,10 @@ export function useWS(): void {
         }
         case "projects_changed":
           window.dispatchEvent(new Event("project-changed"));
+          return true;
+        case "frontend_build":
+          // Static import: after a swap this page's lazy chunks no longer exist.
+          noteFrontendBuild(d?.id);
           return true;
         case "session_updated":
           handleSessionUpdated((d ?? null) as never);

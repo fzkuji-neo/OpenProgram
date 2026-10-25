@@ -388,12 +388,18 @@ def _prepare_update(
                 f"supervisor launch failed: {exc}; request abort failed: {abort_exc}"
             ) from abort_exc
         raise SelfUpdateToolError(f"supervisor launch failed: {exc}") from exc
+    from openprogram.self_update.delivery.activation import predict
+    activation = predict(Path(request.app_path), candidate, candidate_sha)
     return {
         "update_id": request.update_id,
         "phase": state.phase.value,
         "candidate_sha": candidate_sha,
         "base_sha": base_sha,
         "changed_paths": list(changed),
+        # hot: nothing restarts; worker: the worker restarts, the App stays
+        # open; app: the App quits and reopens.
+        "restart": activation.restart,
+        "rebuild": list(activation.components) if activation.scope == "incremental" else "complete App",
         "turn_release_pending": True,
     }
 
@@ -474,7 +480,12 @@ def _turn_context() -> tuple[Any, str]:
     name="self_update_prepare",
     description=(
         "Prepare an owner-approved OpenProgram self-update from the exact clean HEAD "
-        "of this session's active linked worktree. Requires the macOS source-update controller; "
+        "of this session's active linked worktree. To change and install OpenProgram itself: create a worktree "
+        "of the OpenProgram repo with worktree_create, edit and test there, commit, then call this with that "
+        "worktree_id and the commit SHA; the supervisor builds, installs, verifies and rolls back on failure. "
+        "Requires the macOS source-update controller; "
+        "only the changed parts are rebuilt. Web, docs and terminal UI changes swap in while everything keeps "
+        "running; Python changes restart only the worker; Desktop shell or dependency changes restart the App. "
         "published CLI/Desktop upgrades use a separate updater. This persists intent only; it does "
         "not build, install, stop, or restart the App. Approval permits safe-point pause and resume of active tasks, "
         "and a background original-session follow-up after the update. It also permits isolated "

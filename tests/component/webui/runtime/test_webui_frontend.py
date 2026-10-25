@@ -300,3 +300,34 @@ def test_head_on_pages_matches_get_without_body(client):
 def test_head_on_unknown_api_path_is_404(client):
     r = client.head("/api/definitely-not-a-route")
     assert r.status_code == 404
+
+
+def test_watch_frontend_reports_a_replaced_export_once(tmp_path, monkeypatch):
+    import asyncio
+    import shutil
+    from openprogram.webui import frontend
+
+    out = tmp_path / "_frontend"
+    out.mkdir()
+    (out / "chat.html").write_text("old")
+    monkeypatch.setattr(frontend, "out_dir", lambda: out)
+    changes = []
+
+    async def scenario():
+        stop = asyncio.Event()
+        task = asyncio.create_task(frontend.watch_frontend(stop, changes.append, interval=0.02))
+        await asyncio.sleep(0.08)
+        assert changes == []
+        # A hot swap replaces the whole export directory.
+        staged = tmp_path / "staged"
+        staged.mkdir()
+        (staged / "chat.html").write_text("new export")
+        shutil.rmtree(out)
+        await asyncio.sleep(0.08)  # Mid-swap gap: nothing to report yet.
+        staged.rename(out)
+        await asyncio.sleep(0.1)
+        stop.set()
+        await task
+
+    asyncio.run(scenario())
+    assert changes == [frontend.export_id()] and changes[0]

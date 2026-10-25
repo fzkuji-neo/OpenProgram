@@ -81,6 +81,29 @@ openprogram worker restart
 已有更新的状态查询和取消仍然可用；仅有 worker 服务并不代表已经具备源码更新控制器的
 构建、激活、验证和恢复流程。
 
+### 一次更新会重启什么
+
+更新只重新构建已安装 App 所基于的提交（`Contents/Resources/openprogram-source-revision`）
+与候选之间改动的部分，并按需要做最小的重启：
+
+| 改动路径 | 重新构建 | 重启 |
+| --- | --- | --- |
+| `apps/web/**` | Web 导出 | 不重启。已打开的页面在没有未保存输入时自动刷新。 |
+| `docs/**`、`scripts/docs_site/**` | 文档站 | 不重启。 |
+| `apps/cli/**`（不含其 Python 包） | 终端 UI 包 | 不重启。新开的终端会话使用新版本。 |
+| `openprogram/**`、`apps/server/**`、`apps/cli/python/**`、`setup.py` | wheel 和文档 | 只重启 worker；App 窗口保持打开并显示正在更新。 |
+| `apps/desktop/**` | Desktop archive | App 退出后重新打开。 |
+| 依赖锁文件、各 `package.json`、`scripts/release/**`、`apps/desktop/scripts/**`、`apps/desktop/build/**` 以及其他路径 | 完整 App | App 退出后重新打开。 |
+
+测试和仓库元数据（`tests/**`、`README.md`、`.github/**` 等）不改变任何随 App 发布的
+内容。从未提交改动的 checkout 安装的 App（`-dirty`），或其提交不在该仓库中时，总是完整
+构建。`self_update_prepare` 的结果给出预计的 `restart` 和 `rebuild`；控制器在构建时
+重新判定，并把计划写入更新目录的 `activation.json`。
+
+各级别的安装方式相同：新 App bundle 先暂存在已安装 App 旁边，通过重命名换入，验证后
+提交或回退。不需要任何重启的更新也不进入维护，运行中的对话和 Job 照常继续。回退以同一
+重启级别恢复上一版 bundle。
+
 更新进入维护后，普通排队 Job 保持原有身份，等待维护结束。支持持久化暂停的运行任务
 在下一个检查点暂停；活动 attempt 和资源占用结束后才替换 App。验证提交或回退完成后，
 worker 只恢复由本次更新暂停的任务。用户原本暂停、等待输入的任务保持暂停。
@@ -97,8 +120,8 @@ worker 保留旧检查点，依据原任务及历史创建一个新的规划 Job
 `scripts/release/product-runtime.json` 完全一致；控制器使用保存 runtime 中固定版本的
 构建工具，以及既有 npm/uv/Electron-builder/node-gyp 缓存的私有副本。Electron 平台归档
 必须匹配可信控制器固定的版本、架构和发布 SHA-256，并作为 candidate 只读的
-`electronDist` 输入。候选的 Web、文档、wheel 和
-Desktop archive 仍重新构建。缓存缺失或依赖基线不匹配时，在激活前停止更新；
+`electronDist` 输入。完整构建打包候选的 Web、文档、wheel 和 Desktop archive；部分构建
+从已安装 App 的副本出发，只重新构建上表列出的部分。缓存缺失或依赖基线不匹配时，在激活前停止更新；
 不会因此允许联网下载或沿用不匹配依赖。该构建过程及真实已安装验收仍是发布条件。
 
 packaged worker smoke 只使用控制器选择的单个私有 loopback 端口，且不会使用默认端口

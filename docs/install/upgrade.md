@@ -85,6 +85,34 @@ CLI, or the Desktop release updater. Existing update status and cancellation
 remain available; a worker service alone does not provide the source-update
 controller's build, activation, verification and recovery workflow.
 
+### What an update restarts
+
+An update rebuilds only what changed between the commit the installed App was
+built from (`Contents/Resources/openprogram-source-revision`) and the
+candidate, then restarts as little as that needs:
+
+| Changed paths | Rebuilt | Restart |
+| --- | --- | --- |
+| `apps/web/**` | Web export | None. Open pages reload once nothing typed would be lost. |
+| `docs/**`, `scripts/docs_site/**` | Docs site | None. |
+| `apps/cli/**` (not its Python package) | Terminal UI bundle | None. New terminal sessions use it. |
+| `openprogram/**`, `apps/server/**`, `apps/cli/python/**`, `setup.py` | Wheel and docs | The worker restarts; the App window stays open and shows that it is updating. |
+| `apps/desktop/**` | Desktop archive | The App quits and reopens. |
+| Dependency locks, `package.json` files, `scripts/release/**`, `apps/desktop/scripts/**`, `apps/desktop/build/**`, any other path | The complete App | The App quits and reopens. |
+
+Tests and repository metadata (`tests/**`, `README.md`, `.github/**` and similar)
+change nothing that ships. An App installed from an uncommitted checkout
+(`-dirty`) or from a commit outside the repository always gets the complete
+build. The `self_update_prepare` result reports the expected `restart` and
+`rebuild`; the controller decides again at build time and records the plan in
+the update directory as `activation.json`.
+
+Every level installs the same way: the new App bundle is staged beside the
+installed one, swapped in by rename, verified, and then committed or rolled
+back. An update that restarts nothing also skips maintenance, so running
+conversations and Jobs continue during it. Rollback restores the previous
+bundle with the same restart level.
+
 During an approved update, ordinary queued Jobs retain their identities and
 wait for maintenance to end. Running executions that support durable pause
 stop at their next checkpoint. The update waits for active attempts and
@@ -111,9 +139,10 @@ candidate's `uv.lock` and `scripts/release/product-runtime.json`; the controller
 uses the saved runtime's pinned build tools and private copies of existing
 npm/uv/Electron-builder/node-gyp caches. The Electron platform archive must
 match the trusted controller's pinned version, architecture, and release
-SHA-256; the candidate receives it as a read-only `electronDist` input. It still
-builds the candidate's Web, docs, wheel and
-Desktop archive. Missing caches or a different dependency base stop the update
+SHA-256; the candidate receives it as a read-only `electronDist` input. A
+complete build packages the candidate's Web, docs, wheel and Desktop archive; a
+partial build starts from a copy of the installed App and rebuilds only the
+parts listed above. Missing caches or a different dependency base stop the update
 before activation; they do not authorize downloads or reuse of mismatched
 dependencies. This build path and real installed acceptance remain release gates.
 

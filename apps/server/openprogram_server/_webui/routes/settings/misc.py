@@ -13,30 +13,44 @@ from fastapi import Request
 _HEAD_SHA: str | None = None
 
 
+def _read_revision() -> str:
+    """The source identity on disk now, or empty without evidence."""
+    try:
+        import openprogram
+        root = Path(openprogram.__file__).resolve().parents[1]
+        if (root / ".git").exists():
+            res = subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=str(root),
+                capture_output=True, text=True, timeout=5,
+            )
+            return res.stdout.strip() if res.returncode == 0 else ""
+        marker = Path(openprogram.__file__).resolve().parent / "_build_revision.txt"
+        if marker.is_file() and not marker.is_symlink() and marker.stat().st_size < 128:
+            revision = marker.read_text(encoding="ascii").strip()
+            if re.fullmatch(r"[0-9a-f]{40}(?:-dirty)?", revision):
+                return revision
+    except Exception:
+        pass
+    return ""
+
+
 def _head_sha() -> str:
-    """Frozen source identity, or empty when a legacy build has no evidence."""
+    """Frozen identity of the code this worker loaded at startup."""
     global _HEAD_SHA
     if _HEAD_SHA is None:
-        _HEAD_SHA = ""
-        try:
-            import openprogram
-            root = Path(openprogram.__file__).resolve().parents[1]
-            if (root / ".git").exists():
-                res = subprocess.run(
-                    ["git", "rev-parse", "HEAD"], cwd=str(root),
-                    capture_output=True, text=True, timeout=5,
-                )
-                if res.returncode == 0:
-                    _HEAD_SHA = res.stdout.strip()
-            else:
-                marker = Path(openprogram.__file__).resolve().parent / "_build_revision.txt"
-                if marker.is_file() and not marker.is_symlink() and marker.stat().st_size < 128:
-                    revision = marker.read_text(encoding="ascii").strip()
-                    if re.fullmatch(r"[0-9a-f]{40}(?:-dirty)?", revision):
-                        _HEAD_SHA = revision
-        except Exception:
-            _HEAD_SHA = ""
+        _HEAD_SHA = _read_revision()
     return _HEAD_SHA
+
+
+def _installed_revision() -> str:
+    """Identity of the installed files, which a hot swap changes in place.
+
+    Requests read the Web export, docs and terminal UI from disk, so after a
+    hot swap this, not the startup revision, names what users are served.
+    """
+    import openprogram
+    root = Path(openprogram.__file__).resolve().parents[1]
+    return _head_sha() if (root / ".git").exists() else _read_revision()
 
 
 def register(app):
@@ -172,6 +186,7 @@ def register(app):
             "checked_at": _time.time(),
             "uptime_seconds": int(_time.time() - _s._SERVER_START_TIME),
             "revision": _head_sha(),
+            "installed_revision": _installed_revision(),
             "worker_pid": os.getpid(),
             "principal_id": getattr(request.state, "authority", {}).get("principal_id"),
         }

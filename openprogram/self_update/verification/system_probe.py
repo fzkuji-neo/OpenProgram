@@ -27,7 +27,8 @@ def probe_system(record: UpdateRecord) -> dict:
     external supervisor owns persistence, failure recovery and finalization.
     """
     return _probe_system(record, record.request.candidate_sha,
-                         min(60, record.request.created_at + record.request.timeout_seconds - time.time()))
+                         min(60, record.request.created_at + record.request.timeout_seconds - time.time()),
+                         require_loaded=_restarts_worker(record))
 
 
 def probe_current_system(record: UpdateRecord) -> dict:
@@ -36,16 +37,32 @@ def probe_current_system(record: UpdateRecord) -> dict:
                          min(60, record.request.created_at + record.request.timeout_seconds - time.time()))
 
 
+def _restarts_worker(record: UpdateRecord) -> bool:
+    """Whether activation restarts the worker, so it must run the new code.
+
+    A hot swap keeps the worker process and replaces only files it reads per
+    request; its startup revision then stays at the previous commit.
+    """
+    from ..delivery.activation import load_plan
+    from ..store import SelfUpdateStore
+
+    try:
+        plan = load_plan(SelfUpdateStore().root / record.request.update_id)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise SystemProbeError("system probe failed: activation plan") from exc
+    return plan is None or plan.restart != "hot"
+
+
 def probe_restored_system(record: UpdateRecord, revision: str) -> dict:
     """Recovery has its own bounded window even if the update timed out."""
     if not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{40}(?:-dirty)?", revision):
         raise SystemProbeError("system probe failed: expected revision")
-    return _probe_system(record, revision, 60)
+    return _probe_system(record, revision, 60, require_loaded=_restarts_worker(record))
 
 
 def probe_committed_system(record: UpdateRecord) -> dict:
     """Verify a previously committed candidate after its acceptance window ended."""
-    return _probe_system(record, record.request.candidate_sha, 60)
+    return _probe_system(record, record.request.candidate_sha, 60, require_loaded=_restarts_worker(record))
 
 
 def probe_unchanged_system(record: UpdateRecord) -> dict:
@@ -56,6 +73,35 @@ def probe_unchanged_system(record: UpdateRecord) -> dict:
     return gate
 
 
+def request_dispatch(record: UpdateRecord, *, timeout: float = 120) -> None:
+    """Ask the running worker to admit the verifier or diagnosis after a hot swap."""
+    from openprogram.backend_endpoint import read_active_web_access, read_web_token
+    from openprogram.paths import get_active_profile
+    from openprogram.security.safe_http import safe_client, OutboundSecurityConfig
+    from openprogram.security.url_policy import OwnerURLException
+
+    origin = f"http://127.0.0.1:{_PORT}"
+    try:
+        if get_active_profile() is not None:
+            raise ValueError
+        access = read_active_web_access()
+        if access.port != _PORT or origin not in access.effective_origins:
+            raise ValueError
+        token = read_web_token()
+        security = OutboundSecurityConfig(owner_exceptions=(OwnerURLException(consumer="runtime.local_probe", origin=origin),))
+        with safe_client("runtime.local_probe", configured_origin=origin, security=security,
+                         timeout=timeout, overall_timeout=timeout) as client:
+            response = client.post(
+                f"{origin}/api/self-updates/{record.request.update_id}/dispatch",
+                headers={"Authorization": f"Bearer {token}", "Origin": origin, "Accept-Encoding": "identity"},
+                timeout=timeout, follow_redirects=False,
+            )
+        if response.status_code != 200 or response.json() != {"dispatched": True}:
+            raise ValueError
+    except Exception:
+        raise SystemProbeError("hot-swap dispatch failed") from None
+
+
 def observe_system(record: UpdateRecord, entry: str, *, timeout_seconds: float = 60,
                    max_output_bytes: int = _OBSERVATION_BYTES) -> dict:
     """Read a reviewed local entry with identity checks before and after I/O."""
@@ -63,11 +109,16 @@ def observe_system(record: UpdateRecord, entry: str, *, timeout_seconds: float =
         raise ValueError("unsupported read-only observation entry")
     return _probe_system(record, record.request.candidate_sha,
                          min(60, timeout_seconds, record.request.created_at + record.request.timeout_seconds - time.time()),
-                         entry, max_output_bytes)
+                         entry, max_output_bytes, require_loaded=_restarts_worker(record))
 
 
 def _probe_system(record: UpdateRecord, revision: str | None, timeout: float, observation_entry: str | None = None,
-                  observation_bytes: int = _OBSERVATION_BYTES) -> dict:
+                  observation_bytes: int = _OBSERVATION_BYTES, *, require_loaded: bool = False) -> dict:
+    """Probe the worker; its identity is the installed revision it serves.
+
+    ``require_loaded`` additionally requires the worker's startup revision to
+    equal the installed one, i.e. the process restarted onto these files.
+    """
     import httpx
     from openprogram.agent.authority import owner_principal_id
     from openprogram.backend_endpoint import read_active_web_access, read_web_token, create_owner_challenge_proof
@@ -118,7 +169,8 @@ def _probe_system(record: UpdateRecord, revision: str | None, timeout: float, ob
             nonce = secrets.token_urlsafe(32)
             # Legacy/dirty old revisions use the same owner proof followed by
             # strict authenticated diagnostics. Candidate proof stays SHA-bound.
-            challenge_revision = revision if revision and re.fullmatch(r"[0-9a-f]{40}", revision) else ""
+            challenge_revision = (revision if require_loaded and revision and re.fullmatch(r"[0-9a-f]{40}", revision)
+                                  else "")
             proof = bounded_get("/api/auth/challenge", authenticated=False,
                                 params={"nonce": nonce, "revision": challenge_revision}, limit=4096)
             proof.raise_for_status()
@@ -138,12 +190,15 @@ def _probe_system(record: UpdateRecord, revision: str | None, timeout: float, ob
                 data = get("/api/diagnostics").json()
                 pid = data.get("worker_pid")
                 observed = data.get("checked_at")
-                observed_revision = data.get("revision")
+                loaded_revision = data.get("revision")
+                # Workers from before hot swaps report only their startup revision.
+                observed_revision = data.get("installed_revision", loaded_revision)
                 if (
                     data.get("status") != "ok" or data.get("database_ok") is not True
                     or not isinstance(observed_revision, str)
                     or not re.fullmatch(r"[0-9a-f]{40}(?:-dirty)?", observed_revision)
                     or (revision is not None and observed_revision != revision)
+                    or (require_loaded and loaded_revision != observed_revision)
                     or data.get("principal_id") != owner_principal_id()
                     or type(pid) is not int or pid <= 0 or pid != current_worker_pid()
                     or type(data.get("registered_tool_count")) is not int or data["registered_tool_count"] <= 0

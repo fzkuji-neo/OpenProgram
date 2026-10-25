@@ -60,16 +60,17 @@ def leave_maintenance(update_id: str) -> None:
 
 def _leave_maintenance_unlocked(store: SelfUpdateStore, update_id: str) -> None:
     current = load_maintenance(store)
-    if current is None:
-        return
-    if current.get("update_id") != update_id:
+    if current is not None and current.get("update_id") != update_id:
         raise RuntimeError("maintenance is owned by another self-update")
+    # A hot swap never entered maintenance but still needs its diagnosis.
     from ..repair.diagnosis import prepare_after_rollback
     try:
         prepare_after_rollback(store, store._load_unlocked(update_id))
     except Exception:
         import logging
         logging.getLogger(__name__).exception("Post-rollback diagnosis could not be prepared")
+    if current is None:
+        return
     _path(store).unlink()
     store._fsync_directory(store.root)
 

@@ -10,9 +10,14 @@ falls back to the SPA shell for client-routed paths — so every /api, /ws,
 startup, it rebuilds ``out/`` with ``npx next build`` when it is missing
 or older than the ``web/`` sources. Node is a build-time dependency only;
 a machine with a prebuilt ``out/`` never needs npm.
+
+``export_id`` names the export on disk; pages compare it on every WebSocket
+connect, and ``watch_frontend`` reports when a hot self-update replaces it
+under the running worker, so open pages can reload onto the new export.
 """
 from __future__ import annotations
 
+import asyncio
 import shutil
 import subprocess
 from pathlib import Path
@@ -39,6 +44,36 @@ def out_dir() -> Path:
     if (bundled / "index.html").is_file() and not (web_dir() / "package.json").is_file():
         return bundled
     return repo_out_dir()
+
+
+def export_id() -> str:
+    """Identity of the served export; empty while none is in place."""
+    try:
+        stat = (out_dir() / "chat.html").stat()
+    except OSError:
+        return ""
+    return f"{stat.st_ino}-{stat.st_mtime_ns}-{stat.st_size}"
+
+
+async def watch_frontend(stop: asyncio.Event, on_change, *, interval: float = 2.0) -> None:
+    """Call ``on_change(export_id)`` each time the served export is replaced.
+
+    Pages hold hashed chunk names from the export they loaded; a replaced
+    export no longer has them, so the page has to reload.
+    """
+    last = export_id()
+    while not stop.is_set():
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=interval)
+            return
+        except asyncio.TimeoutError:
+            pass
+        current = await asyncio.to_thread(export_id)
+        if not current:
+            continue  # Mid-swap: keep comparing against the last complete export.
+        if last and current != last:
+            on_change(current)
+        last = current
 
 
 # --- build gate -------------------------------------------------------------

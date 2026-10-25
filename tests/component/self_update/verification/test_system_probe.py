@@ -419,3 +419,26 @@ def test_supervisor_real_gate_controls_startup_job(store_fixture, live, monkeypa
                 if started.ident is not None:
                     started.join(timeout=5)
         runner.shutdown()
+
+
+@pytest.mark.parametrize("restart", ["hot", "worker", None])
+def test_hot_swap_identity_is_the_installed_revision(live, monkeypatch, restart):
+    from openprogram.self_update.verification.system_probe import probe_current_system
+    from openprogram.self_update.verification.system_probe import probe_system
+    from openprogram.self_update.verification.system_probe import SystemProbeError
+    from openprogram.webui.routes.settings import misc
+    record, _, _ = live
+    if restart is not None:
+        plan = {"schema": 1, "scope": "incremental", "restart": restart, "components": ["web"],
+                "installed_revision": "1" * 40, "reason": "fixture"}
+        (SelfUpdateStore().root / record.request.update_id / "activation.json").write_text(json.dumps(plan))
+    # The kept worker still reports the revision it started with.
+    monkeypatch.setattr(misc, "_HEAD_SHA", "1" * 40)
+    monkeypatch.setattr(misc, "_installed_revision", lambda: record.request.candidate_sha)
+    assert probe_current_system(record)["candidate_sha"] == record.request.candidate_sha
+    if restart == "hot":
+        assert probe_system(record)["candidate_sha"] == record.request.candidate_sha
+    else:
+        with pytest.raises(SystemProbeError):
+            probe_system(record)
+

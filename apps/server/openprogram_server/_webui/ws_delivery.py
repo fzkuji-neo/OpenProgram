@@ -37,6 +37,7 @@ _SNAPSHOT_TYPES = {
     "agents_list",
     "branches_list",
     "channels_list",
+    "frontend_build",
     "functions_list",
     "jobs_list",
     "permission_rules",

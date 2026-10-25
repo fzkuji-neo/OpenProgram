@@ -107,6 +107,21 @@ def register(app):
     def api_self_update_reopen_ack(request: Request, update_id: str, ack: ReopenAck):
         return _reopen_response(request, update_id, ack)
 
+    @app.post("/api/self-updates/{update_id}/dispatch")
+    def api_self_update_dispatch(request: Request, update_id: str):
+        """Start verification or diagnosis after a hot swap kept this worker."""
+        headers = {"Cache-Control": "no-store"}
+        try:
+            require_owner(request)
+        except ProjectionAccessError:
+            return JSONResponse({"reason": "owner_mismatch"}, status_code=403, headers=headers)
+        from openprogram.self_update.control.recovery import dispatch_hot_update
+        try:
+            dispatched = dispatch_hot_update(update_id)
+        except (SelfUpdateError, ValueError):
+            return JSONResponse({"reason": "nothing_to_dispatch"}, status_code=409, headers=headers)
+        return JSONResponse({"dispatched": dispatched}, status_code=200 if dispatched else 409, headers=headers)
+
     @app.get("/api/self-updates/{update_id}/evidence")
     def api_self_update_evidence(request: Request, update_id: str,
                                 session_id: str = Query(min_length=1, max_length=256),

@@ -255,3 +255,26 @@ def recover_pending_updates() -> bool:
             except Exception:
                 _log.exception("Could not persist self-update startup failure")
         return False
+
+
+
+def dispatch_hot_update(update_id: str) -> bool:
+    """Run startup dispatch for a hot-swapped update in this running worker.
+
+    A worker restart admits the verifier, or after a rollback the diagnosis,
+    from startup recovery. A hot swap keeps the worker, so the supervisor asks
+    for the same dispatch once it has published the phase that needs it.
+    """
+    from ..delivery.activation import load_plan
+
+    store = SelfUpdateStore()
+    record = store.load(update_id)
+    plan = load_plan(store.root / update_id)
+    if plan is None or plan.restart != "hot":
+        raise ValueError("update does not keep the running worker")
+    active = store.load_active()
+    if active is not None and active.request.update_id != update_id:
+        raise ValueError("another self-update is active")
+    if record.state.phase is not UpdatePhase.VERIFYING and record.state.phase not in TERMINAL_PHASES:
+        raise ValueError("update has nothing to dispatch yet")
+    return recover_pending_updates()

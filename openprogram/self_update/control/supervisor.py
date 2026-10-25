@@ -21,6 +21,8 @@ from openprogram import _compat as file_lock
 from openprogram.self_update.control.maintenance import enter_maintenance
 from openprogram.self_update.control.maintenance import leave_maintenance
 from openprogram.self_update.store import SelfUpdateStore
+from openprogram.self_update.delivery.activation import PLAN_FILE
+from openprogram.self_update.delivery.activation import load_plan
 from openprogram.self_update.delivery.package_protocol import validate_reopen_package
 from openprogram.self_update.types import (
     TERMINAL_PHASES,
@@ -388,8 +390,12 @@ def _build_candidate(_record: UpdateRecord, _update_dir: Path) -> Artifact:
     from ..delivery.local_signing import sign_app
     prepare_app(Path("/Applications/OpenProgram.app"))
 
+    plan = _activation_plan(record, update_dir, candidate)
+    atomic_write_text(update_dir / PLAN_FILE, json.dumps(plan.to_dict(), sort_keys=True) + "\n")
+    incremental = plan.scope == "incremental"
     sandbox = _sandbox_executable()
-    script = candidate / "apps/desktop/scripts/package-and-install-app.sh"
+    script = candidate / ("apps/desktop/scripts/package-incremental-app.sh" if incremental
+                          else "apps/desktop/scripts/package-and-install-app.sh")
     if not script.is_file() or script.is_symlink():
         raise RuntimeError("candidate packaging entry is unavailable")
     artifact_root = update_dir / "artifact"
@@ -403,6 +409,13 @@ def _build_candidate(_record: UpdateRecord, _update_dir: Path) -> Artifact:
         directory.chmod(0o700)
     if artifact.exists() or artifact.is_symlink():
         raise RuntimeError("candidate artifact path already exists")
+    if incremental:
+        # The sandbox cannot read the installed App; copy it out first.
+        # APFS clones share unchanged blocks, so this stays cheap.
+        cloned = subprocess.run(["/bin/cp", "-cR", DEFAULT_APP_PATH, str(artifact)],
+                                capture_output=True, text=True, timeout=300)
+        if cloned.returncode != 0 or _installed_revision(artifact) != plan.installed_revision:
+            raise RuntimeError("could not copy the installed App for an incremental build")
 
     smoke_port = _reserve_loopback_port()
     profile_path = update_dir / "sandbox.sb"
@@ -436,6 +449,8 @@ def _build_candidate(_record: UpdateRecord, _update_dir: Path) -> Artifact:
         remaining = record.request.created_at + record.request.timeout_seconds - time.time()
         if remaining <= 0:
             raise RuntimeError("candidate build deadline expired")
+        arguments = (["--app", str(artifact), "--components", ",".join(plan.components)] if incremental
+                     else ["--output", str(artifact)])
         result = subprocess.run(
             [
                 str(sandbox),
@@ -443,8 +458,7 @@ def _build_candidate(_record: UpdateRecord, _update_dir: Path) -> Artifact:
                 str(profile_path),
                 "/bin/bash",
                 str(script),
-                "--output",
-                str(artifact),
+                *arguments,
             ],
             cwd=str(candidate),
             env=environment,
@@ -456,17 +470,21 @@ def _build_candidate(_record: UpdateRecord, _update_dir: Path) -> Artifact:
             update_dir / "build.log",
             (result.stdout + result.stderr)[-200_000:],
         )
-        if result.returncode == 0:
+        if result.returncode == 0 and not incremental:
             _complete_icon_probe(
                 candidate,
                 update_dir,
                 deadline=record.request.created_at + record.request.timeout_seconds,
             )
+        if result.returncode == 0 and (not incremental or "python" in plan.components):
+            # A rebuilt runtime defers the browser probe to this trusted check.
             _complete_browser_probe(
                 artifact,
                 update_dir,
                 deadline=record.request.created_at + record.request.timeout_seconds,
             )
+        elif result.returncode == 0:
+            _validate_artifact_protocols(artifact)
     if result.returncode != 0:
         raise RuntimeError(f"candidate packaging failed with exit {result.returncode}")
     if not artifact.is_dir() or artifact.is_symlink():
@@ -492,6 +510,37 @@ def _build_candidate(_record: UpdateRecord, _update_dir: Path) -> Artifact:
         ) + "\n",
     )
     return Artifact(artifact, digest)
+
+
+def _installed_revision(app: Path) -> str | None:
+    from ..delivery.activation import installed_revision
+
+    return installed_revision(app)
+
+
+def _activation_plan(record: UpdateRecord, update_dir: Path, candidate: Path):
+    """Choose incremental or complete packaging and the restart it needs."""
+    from ..delivery.activation import full_plan
+    from ..delivery.activation import plan_for
+
+    installer = update_dir / "controller" / "install-app.sh"
+    try:
+        supports = b"--restart=" in installer.read_bytes()
+    except OSError:
+        supports = False
+    if not supports:
+        return full_plan("the installed App's installer predates partial restarts",
+                         _installed_revision(Path(DEFAULT_APP_PATH)))
+    return plan_for(Path(DEFAULT_APP_PATH), candidate, record.request.candidate_sha)
+
+
+def _validate_artifact_protocols(artifact: Path) -> None:
+    from ..delivery.package_protocol import validate_ui_package
+
+    validate_reopen_package(artifact)
+    ui_protocol = artifact / "Contents/Resources/update/ui-verification-protocol.json"
+    if ui_protocol.exists() or ui_protocol.is_symlink():
+        validate_ui_package(artifact)
 
 
 def _tree_digest(root: Path) -> str:
@@ -575,6 +624,9 @@ def _installer_command(
 ) -> str:
     installer = _installer_snapshot(update_dir, installer_sha256)
     prefix = [f"--reopen-update={_validate_update_id(update_dir.name)}"] if mode == "--prepare" else []
+    plan = load_plan(update_dir) if mode == "--prepare" else None
+    if plan is not None and plan.restart != "app":
+        prefix.append(f"--restart={plan.restart}")
     result = subprocess.run(
         ["/bin/bash", str(installer), *prefix, mode, str(argument)],
         capture_output=True,
@@ -723,6 +775,15 @@ def _rollback(store: SelfUpdateStore, update_id: str, installer_sha256: str, err
     except Exception as exc:
         detail["recovery_error"] = str(exc)[:2000]
     store.transition(update_id, target, expected_phase=record.state.phase, detail=detail)
+    plan = load_plan(store.root / update_id)
+    if target is UpdatePhase.ROLLED_BACK and plan is not None and plan.restart == "hot":
+        # The kept worker learns of the rollback only from this request.
+        from openprogram.self_update.verification.system_probe import request_dispatch
+        leave_maintenance(update_id)
+        try:
+            request_dispatch(store.load(update_id))
+        except Exception:
+            pass  # The next worker startup dispatches the diagnosis instead.
 
 
 def _finish_verification(store: SelfUpdateStore, update_id: str, installer_sha256: str, grant: dict) -> int:
@@ -933,6 +994,7 @@ def run_supervisor(
     """Build and activate a candidate, then release system-gated verification."""
     from openprogram.self_update.verification.system_probe import probe_system
     from openprogram.self_update.verification.system_probe import probe_current_system
+    from openprogram.self_update.verification.system_probe import request_dispatch
     from openprogram.self_update.verification.verification_channel import issue_grant
     from openprogram.self_update.verification.verification_channel import _digest
 
@@ -1007,14 +1069,18 @@ def run_supervisor(
             return 1
 
         maintenance_entered = False
+        plan = load_plan(update_dir)
+        hot = plan is not None and plan.restart == "hot"
         try:
-            enter_maintenance(update_id)
-            maintenance_entered = True
             deadline = min(
                 record.request.created_at + record.request.timeout_seconds,
                 state.updated_at + 600,
             )
-            if not _wait_for_quiescence(deadline):
+            # A hot swap stops nothing, so running turns need no safe point.
+            if not hot:
+                enter_maintenance(update_id)
+                maintenance_entered = True
+            if not hot and not _wait_for_quiescence(deadline):
                 _abort(store, update_id, state.phase, "quiescence timed out")
                 leave_maintenance(update_id)
                 return 1
@@ -1055,6 +1121,9 @@ def run_supervisor(
                     "verifier_grant_sha256": _digest(grant),
                 },
             )
+            if hot:
+                # No worker startup follows a hot swap to admit the verifier.
+                request_dispatch(store.load(update_id))
             return _finish_verification(store, update_id, installer_sha256, grant)
         except Exception as exc:
             current = store.load(update_id).state.phase
