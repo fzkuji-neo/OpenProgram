@@ -15,7 +15,7 @@ from openprogram.worktree.types import Worktree, WorktreeStatus
 
 from openprogram.programs.tools.system.self_update import (
     SelfUpdateToolError,
-    _cancel_update,
+    _cancel_iteration,
     _prepare_update,
     _status_update,
 )
@@ -130,8 +130,7 @@ def test_public_status_does_not_create_an_absent_store(
     monkeypatch.setattr(self_update_module, "_turn_context", lambda: (request, "turn-1_reply"))
     monkeypatch.setattr(self_update_module, "SelfUpdateStore", lambda: store)
 
-    result = asyncio.run(self_update_module.self_update_status.execute(
-        "status-empty", {}, None, None,
+    result = asyncio.run(self_update_module.self_update.execute("status-empty", {"action": "status"}, None, None,
     ))
 
     assert result.is_error
@@ -160,8 +159,7 @@ def test_public_status_projects_verified_runtime_not_unbound_detail(
     monkeypatch.setattr(self_update_module, "_turn_context", lambda: (request, "turn-1_reply"))
     monkeypatch.setattr(self_update_module, "SelfUpdateStore", lambda: store)
 
-    result = asyncio.run(self_update_module.self_update_status.execute(
-        "status-verifying", {"update_id": update_id}, None, None,
+    result = asyncio.run(self_update_module.self_update.execute("status-verifying", {"action": "status", "update_id": update_id}, None, None,
     ))
     assert not result.is_error, result.content
     status = json.loads(result.content[0].text)
@@ -185,8 +183,7 @@ def test_public_status_requires_private_verifier_config(tmp_path, monkeypatch, m
     path.chmod(mode)
     before = path.read_bytes(), path.stat().st_mtime_ns, path.stat().st_mode
 
-    result = asyncio.run(self_update_module.self_update_status.execute(
-        "status-private-config", {"update_id": update_id}, None, None,
+    result = asyncio.run(self_update_module.self_update.execute("status-private-config", {"action": "status", "update_id": update_id}, None, None,
     ))
 
     # Windows keeps inherited ACLs; POSIX mode bits are not access authority.
@@ -424,15 +421,11 @@ def test_status_and_cancel_are_scoped_to_origin_session(tmp_path: Path) -> None:
     foreign = _request(session_id="other")
     with pytest.raises(SelfUpdateToolError, match="origin session"):
         _status_update(update_id=prepared["update_id"], req=foreign, store=store)
-    with pytest.raises(SelfUpdateToolError, match="origin session"):
-        _cancel_update(
-            update_id=prepared["update_id"], reason="stop", req=foreign, store=store
-        )
+    with pytest.raises(SelfUpdateToolError, match="another session"):
+        _cancel_iteration(update_id=prepared["update_id"], req=foreign, store=store)
 
-    cancelled = _cancel_update(
-        update_id=prepared["update_id"], reason="owner requested", req=_request(), store=store
-    )
-    assert cancelled["phase"] == "aborted"
+    cancelled = _cancel_iteration(update_id=None, req=_request(), store=store)
+    assert cancelled == {"root_id": prepared["update_id"], "status": "stopped"}
     assert store.load(prepared["update_id"]).state.phase is UpdatePhase.ABORTED
 
 

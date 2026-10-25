@@ -8,10 +8,16 @@ if TYPE_CHECKING:
 
 
 # 即使 bypass 也强制审批的工具（提交计划要用户签字）。
-_FORCE_APPROVAL_TOOLS = {"exit_plan_mode", "self_update_prepare", "self_update_retry"}
-# These approvals bind one exact request and must never become a project-wide
-# allow rule. A later candidate always needs its own owner decision.
-_ONE_SHOT_FORCE_APPROVAL_TOOLS = {"self_update_prepare", "self_update_retry"}
+_FORCE_APPROVAL_TOOLS = {"exit_plan_mode"}
+
+
+def _self_update_install(name: str, args: dict | None) -> bool:
+    """A self_update prepare or retry: it binds one exact candidate and must never
+    become a project-wide allow rule; a later candidate needs its own owner decision."""
+    if name != "self_update":
+        return False
+    from openprogram.programs.tools.system.self_update import APPROVED_ACTIONS, action_of
+    return action_of(args) in APPROVED_ACTIONS
 
 
 def _web_use_evaluates(args: dict | None) -> bool:
@@ -40,7 +46,7 @@ def _session_poll(name: str, args: dict | None) -> bool:
 
 def force_approval(name: str, args: dict | None) -> bool:
     """Calls that ask in every mode, whatever the rules say."""
-    return name in _FORCE_APPROVAL_TOOLS or _page_script(name, args)
+    return name in _FORCE_APPROVAL_TOOLS or _self_update_install(name, args) or _page_script(name, args)
 
 
 def one_shot_approval(name: str, args: dict | None) -> bool:
@@ -49,7 +55,7 @@ def one_shot_approval(name: str, args: dict | None) -> bool:
     A page script reads everything a signed-in page holds, including what
     observations redact, so each one is shown to the user and approved alone.
     """
-    return name in _ONE_SHOT_FORCE_APPROVAL_TOOLS or _page_script(name, args)
+    return _self_update_install(name, args) or _page_script(name, args)
 
 
 # Desktop control is granted per application (and a VM per endpoint): in the
@@ -257,6 +263,10 @@ def permission_decision(agent_tool, req, args: dict) -> tuple[str, str, str, obj
     violation = _hard_constraint_violation(name, args, req)
     if violation:
         return "deny", "HARD_CONSTRAINT_DENIED", f"hard constraint: {violation}", None
+    from openprogram.programs import guides
+    unread = guides.missing_required(name, args if isinstance(args, dict) else {})
+    if unread:
+        return "deny", "GUIDE_REQUIRED", guides.refusal(name, unread), None
     from openprogram.agent.authority import decide_tool_authority
     authority = decide_tool_authority(req, name, args)
     if not authority.allowed:
@@ -295,8 +305,8 @@ def permission_decision(agent_tool, req, args: dict) -> tuple[str, str, str, obj
             return "allow", "BYPASS" if req.permission_mode == "bypass" else "PERMISSION_RULE_ALLOW", "", None
         if req.source in {"cron", "scheduler"} and name in _SCHEDULED_MEMORY_TOOLS:
             return "allow", "SCHEDULED_MEMORY", "", None
-        from openprogram.agent.permissions.classifier import SAFE_AUTO_ALLOWLIST
-        if name in SAFE_AUTO_ALLOWLIST:
+        from openprogram.agent.permissions.classifier import safe_call
+        if safe_call(name, args):
             return "allow", "SAFE_TOOL", "", None
         if req.permission_mode == "acceptEdits" and getattr(agent_tool, "_accept_edits_safe", False) and _path_is_safe(name, args, req):
             return "allow", "SAFE_EDIT", "", None

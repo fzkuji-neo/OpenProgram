@@ -166,5 +166,9 @@ Collaboration splits into four domains, one word each — see
 | `cron` | Register recurring agent tasks | Nothing |
 | `list_mcp_resources` / `read_mcp_resource` / `list_mcp_prompts` / `get_mcp_prompt` | Expose MCP resources / prompts primitives to the model (the `mcp_meta` directory) | A configured MCP server (see [MCP](mcp.md)) |
 | `tool_search` | Load a deferred tool on demand; its full schema is included in the next model request | Nothing |
+| `help` | Read a tool guide by name (`help("self_update.prepare")`), or a tool's overview by tool name | Nothing |
+| `self_update` | Install a committed change to OpenProgram itself from an isolated worktree and follow it through build, verification, rollback and repair. Actions: `status` (default), `prepare`, `retry`, `cancel`; `prepare` and `retry` always ask the owner. See [Upgrade](../install/upgrade.md#recovering-a-conversational-self-update) | A macOS source checkout of OpenProgram |
+
+Tools with many rules keep their schema short and hand the model the rest when a call needs it, as *tool guides*. The first result of `computer_use_agent` for a target, or of `self_update`, starts with that tool's guide and lists further guides by name. A call that needs a guide it has not seen, such as the first `self_update(action="prepare")` or the first `computer_use_agent` call with `code`, is refused once and the refusal carries the guide; the next call runs. A guide counts as seen only while it is in the conversation's context, so after compaction it is delivered again when needed.
 
 `canvas` and `agent_browser` registered tools mark explicit validation and dependency/process failures as errors. Successful Canvas content and successful CLI stdout remain successful even when the text begins with `Error:`. Plain Python `execute()` calls keep their string return values.

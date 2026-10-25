@@ -11,13 +11,22 @@ logger = logging.getLogger(__name__)
 # 明显安全的只读/无副作用工具——auto 档直接放行，永不调 LLM。
 SAFE_AUTO_ALLOWLIST = frozenset({
     "read", "grep", "glob", "list",
-    "web_search", "web_fetch", "tool_search",
+    "web_search", "web_fetch", "tool_search", "help",
     "todo_create", "todo_list", "todo_update",
     "ask_user_question", "send_message", "chat_send",
     "enter_plan_mode", "exit_plan_mode",
     "memory_search", "memory_get", "memory_update",
-    "self_update_status",
 })
+
+
+def safe_call(name: str, args) -> bool:
+    """A call that only reads: an allowlisted tool, or a single entry's read action."""
+    if name in SAFE_AUTO_ALLOWLIST:
+        return True
+    if name == "self_update":
+        from openprogram.programs.tools.system.self_update import action_of
+        return action_of(args) == "status"
+    return False
 
 @dataclass(frozen=True)
 class ReviewResult:

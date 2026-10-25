@@ -407,6 +407,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/function/README.md",
             "reference/design/function/agentic-program.html",
             "reference/design/function/calling-unification.md",
+            "reference/design/function/tool-guides.md",
             "reference/design/function/calling/code-call.md",
             "reference/design/runtime/application-runtime.html",
             "reference/design/runtime/programs-architecture.html",

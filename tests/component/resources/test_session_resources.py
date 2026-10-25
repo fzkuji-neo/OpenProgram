@@ -75,11 +75,9 @@ def test_vm_target_reports_attachment_during_the_call(tmp_path, monkeypatch):
     monkeypatch.setattr(vm, "run", run)
     token = set_current_session_id("session-vm")
     try:
-        tool._shown.add(("session-vm", 0, "vm"))
         assert tool.computer_use_agent(target="vm", action="click", args={"x": 1, "y": 2}).text == "ok"
         assert ResourceUseStore().list("session-vm") == []
     finally:
-        tool._shown.clear()
         reset_current_session_id(token)
 
 

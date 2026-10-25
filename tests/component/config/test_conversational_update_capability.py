@@ -19,9 +19,9 @@ def test_source_update_backend_is_separate_from_worker_service(monkeypatch, plat
 
 
 @pytest.mark.parametrize("name, arguments", [
-    ("self_update_prepare", dict(worktree_id="wt_example", candidate_sha="a" * 40,
+    ("prepare", dict(worktree_id="wt_example", candidate_sha="a" * 40,
                                  goal="Update", assertions=["Works"])),
-    ("self_update_retry", dict(update_id="su_example", candidate_sha="a" * 40)),
+    ("retry", dict(update_id="su_example", candidate_sha="a" * 40)),
 ])
 @pytest.mark.parametrize("backend", [None, "launchd"])
 def test_public_source_update_preflight_precedes_context_and_state(monkeypatch, name, arguments, backend):
@@ -38,8 +38,8 @@ def test_public_source_update_preflight_precedes_context_and_state(monkeypatch, 
     monkeypatch.setattr(update_tools, "_turn_context", context)
     monkeypatch.setattr(update_tools, "SelfUpdateStore", unexpected_state)
     monkeypatch.setattr(update_tools, "get_manager", unexpected_state)
-    tool = getattr(update_tools, name)
-    result = asyncio.run(tool.execute("capability-preflight", arguments, None, None))
+    result = asyncio.run(update_tools.self_update.execute(
+        "capability-preflight", {"action": name, **arguments}, None, None))
     assert result.is_error
     message = "\n".join(part.text for part in result.content)
     if backend is None:

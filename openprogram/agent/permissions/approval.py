@@ -336,7 +336,7 @@ def wrap_with_approval(
                 "APPROVAL_LOCAL_OWNER_REQUIRED",
             )
         approval_args = args
-        if name == "self_update_retry":
+        if _self_update_retry(name, args):
             from openprogram.self_update.repair.next_candidate import approval_preview
             try:
                 preview = approval_preview(args.get("update_id"), args.get("candidate_sha"), req)
@@ -438,9 +438,13 @@ def _risk_level(tool_name: str, args: dict) -> str:
     return "low"
 
 
+def _self_update_retry(tool_name: str, args) -> bool:
+    return tool_name == "self_update" and isinstance(args, dict) and args.get("action") == "retry"
+
+
 def _shown_args(tool_name: str, args: dict, req) -> dict:
     """A retry approves a candidate, so its card shows that candidate's paths, tests and budget."""
-    if tool_name != "self_update_retry":
+    if not _self_update_retry(tool_name, args):
         return args
     from openprogram.self_update.repair.next_candidate import approval_preview
     try:

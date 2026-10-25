@@ -12,6 +12,7 @@
 | 主题 | 来源 |
 |---|---|
 | 函数 / 工具调用框架（`@function` / `Agent` method、共享注册表、gating、延迟加载） | [`calling-unification.md`](calling-unification.zh.md) |
+| 工具指南：工具在调用需要时交给模型的说明、必读说明、压缩后重新送达、`help` 工具、单一入口工具 | [`tool-guides.md`](tool-guides.zh.md) |
 | Agentic program：工具、技能、agentic function统一成一个概念放在同一条谱上，该写哪一种的判据，两个装饰器要不要合并，模型眼里该是几种东西 | [`agentic-program.html`](agentic-program.zh.html) |
 | 装饰器用法、元数据规范、tool-call 循环、纯 Python 辅助函数 | 产品页在 [`capabilities/agentic-programming/`](../../../capabilities/agentic-programming/README.zh.md) —— 那里是唯一归属；这里原先的设计副本已删除 |
 

@@ -512,19 +512,36 @@ def test_a_batch_runs_in_order_stops_at_the_first_error_and_reports_the_state_on
 ])
 def test_steps_are_checked_before_any_step_runs(fake, steps, message):
     computer = fake()
-    entry._shown.add(("default", 0, "app"))
     result = entry.computer_use_agent(target="app", args={"app": "Notes"}, actions=steps)
     assert result.is_error and message in result.text and computer.calls == []
 
 
 def test_the_first_call_to_a_target_carries_its_guide_once(fake):
+    from openprogram.agent.types import AgentToolResult
+    from openprogram.programs import guides
+    from openprogram.providers.types import TextContent
     computer = fake()
     computer.list_apps = lambda: "Notes (running)"
-    entry._shown.clear()
-    first = entry.computer_use_agent(target="app", action="list_apps")
-    assert first.text.startswith('Guide: target "app"') and first.text.endswith("Notes (running)")
-    assert entry.computer_use_agent(target="app", action="list_apps").text == "Notes (running)"
-    assert entry.computer_use_agent(target="app", action="guide").text.startswith('Guide: target "app"')
+    args = {"target": "app", "action": "list_apps"}
+
+    def call():
+        result = entry.computer_use_agent(**args)
+        return guides.attach(entry.NAME, args, AgentToolResult(content=[TextContent(text=result.text)]))
+
+    def text(result):
+        return "".join(part.text for part in result.content)
+    token = guides.begin_loop()
+    try:
+        first = text(call())
+        assert first.startswith('<guide name="computer_use_agent.app">\nGuide: target "app"')
+        assert first.endswith("Notes (running)") and 'help("computer_use_agent.code")' in first
+        assert text(call()) == "Notes (running)"
+        # A request that no longer holds the guide (compacted, cleared) gets it again.
+        guides.observe_request([{"content": "earlier turns, summarized"}])
+        assert text(call()).startswith('<guide name="computer_use_agent.app">')
+        assert entry.computer_use_agent(target="app", action="guide").text.startswith('<guide name="computer_use_agent.app">')
+    finally:
+        guides.end_loop(token)
 
 
 def test_every_action_but_list_apps_needs_an_app(fake):

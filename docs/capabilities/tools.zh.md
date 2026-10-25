@@ -164,5 +164,9 @@ SSH 和 Docker 在后端文件系统中按 POSIX 路径解释显式目录，不�
 | `cron` | 登记周期性 agent 任务 | 无 |
 | `list_mcp_resources` / `read_mcp_resource` / `list_mcp_prompts` / `get_mcp_prompt` | 把 MCP 的 resources / prompts 原语暴露给模型（`mcp_meta` 目录） | 已配置的 MCP server（见 [MCP](mcp.zh.md)） |
 | `tool_search` | 按需加载延迟工具；下一次模型请求包含其完整 schema | 无 |
+| `help` | 按名字读取工具指南（`help("self_update.prepare")`），传工具名时读取该工具的概览 | 无 |
+| `self_update` | 从隔离 worktree 安装对 OpenProgram 自身的已提交修改，并跟进构建、验收、回退和修正。动作：`status`（默认）、`prepare`、`retry`、`cancel`；`prepare` 和 `retry` 总是请 owner 审批。见[升级](../install/upgrade.zh.md#恢复对话内自更新) | macOS 上的 OpenProgram 源码 checkout |
+
+规则较多的工具保持 schema 简短，在调用需要时把其余说明作为*工具指南*交给模型。`computer_use_agent` 对某个目标的第一次结果、`self_update` 的第一次结果，开头就是该工具的指南，并按名字列出更多指南。需要某份尚未看过的指南的调用——例如第一次 `self_update(action="prepare")`，或第一次带 `code` 的 `computer_use_agent` 调用——会被拒绝一次，拒绝结果里附上指南，下一次调用即可执行。指南只在仍处于对话上下文中时才算看过，所以压缩之后需要时会重新送达。
 
 已注册的 `canvas` 与 `agent_browser` 对明确的校验、依赖和进程失败设置错误标记。成功的 Canvas 正文与 CLI stdout 即使以 `Error:` 开头也保持成功。普通 Python `execute()` 调用仍返回字符串。

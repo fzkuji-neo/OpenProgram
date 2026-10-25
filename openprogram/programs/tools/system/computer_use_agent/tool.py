@@ -1,19 +1,21 @@
 """The ``computer_use_agent`` tool: one entry for every screen the model can operate.
 
-The description is a short catalogue of targets. The first call to a target
-in a conversation (per agent generation) returns that target's guide with its
-current state; later calls carry ``action`` + ``args``, a list of ``actions``,
-or ``code``. ``context="fresh"`` hands the task to a new agent instead.
+The description is a short catalogue of targets. Each target's guide is a
+tool guide (``openprogram.programs.guides``): the first call that operates a
+target carries it in front of the target's current state, and the code and
+description guides are read before their first use. Later calls carry
+``action`` + ``args``, a list of ``actions``, or ``code``. ``context="fresh"``
+hands the task to a new agent, whose prompt holds the guides.
 """
 from __future__ import annotations
 
 from contextlib import nullcontext
-import json
-import threading
 from typing import Any
 
 from openprogram.programs._execution_common import ToolReturn
 from openprogram.programs._runtime import function
+
+from openprogram.programs import guides
 
 from . import code as code_mode
 from . import fresh, grounding, params
@@ -32,8 +34,8 @@ Targets
 
 Calling
 1. The first call to a target returns its guide (actions and their arguments) with the target's current state: call with target (and args.app) alone to start. action="guide" shows the guide again.
-2. Then act with action + args, or actions=[{"action": …, "args": {…}}, …] (up to 20, in order, stopping at the first failure), or code: Python that loops and decides (see the guide).
-3. Point at things by element_index (app), ref (browser), or x,y pixels of the last screenshot; when there is none of these, describe="what it looks like and where" finds it by vision.
+2. Then act with action + args, or actions=[{"action": …, "args": {…}}, …] (up to 20, in order, stopping at the first failure), or code: Python that loops and decides (help("computer_use_agent.code")).
+3. Point at things by element_index (app), ref (browser), or x,y pixels of the last screenshot; when there is none of these, describe="what it looks like and where" finds it by vision (help("computer_use_agent.describe")).
 
 context="inherit" (default): you operate it here and see every result. context="fresh": a new agent of this model does the task from brief alone (the task, what is already known, what to report) and only its reply comes back; good for long operations whose intermediate screens you do not need, and it pairs well with describe.
 
@@ -62,11 +64,6 @@ _PARAMETERS = {
     "additionalProperties": False,
 }
 
-_shown_lock = threading.Lock()
-# (conversation, agent generation, target) whose guide this chain has seen.
-_shown: set[tuple[str, int, str]] = set()
-
-
 def _session_id() -> str:
     try:
         from openprogram.agent.run_control import get_current_session_id
@@ -75,37 +72,43 @@ def _session_id() -> str:
         return "default"
 
 
-def _generation() -> int:
-    try:
-        from openprogram.programs.tools.agents.send_message.send_message.depth import current_chain_generations
-        return int(current_chain_generations() or 0)
-    except Exception:
-        return 0
+def _uses_describe(args: dict) -> bool:
+    steps = [args.get("args"), *(args.get("actions") or [])]
+    for step in steps:
+        if isinstance(step, dict) and ("describe" in step or "describe" in _call_args(step.get("args"))):
+            return True
+    return False
 
 
-def _first_time(session: str, target: str) -> bool:
-    key = (session, _generation(), target)
-    with _shown_lock:
-        if key in _shown:
-            return False
-        _shown.add(key)
-        return True
+def _operates(target: str) -> Any:
+    return lambda args: args.get("target") == target and args.get("context", "inherit") != "fresh"
 
 
-def _forget_spawned(session: str) -> None:
-    """A new fresh agent has seen nothing: drop what earlier spawned agents were shown."""
-    with _shown_lock:
-        for key in [key for key in _shown if key[0] == session and key[1] >= 1]:
-            _shown.discard(key)
+def _describe_guide() -> str:
+    return grounding.GUIDE if grounding.describe_available() else grounding.GUIDE_UNAVAILABLE
+
+
+# Each target's guide arrives with the first call that operates it; code and
+# description grounding are read before the first call that uses them.
+_GUIDES = [
+    *(guides.Guide(f"{NAME}.{name}", module.guide, mode="included", when=_operates(name))
+      for name, module in TARGETS.items()),
+    guides.Guide(f"{NAME}.code", code_mode.guide, summary="Python that loops and decides over a target's actions",
+                 required_for=lambda args: bool(args.get("code"))),
+    guides.Guide(f"{NAME}.describe", _describe_guide, summary="point at something by what it looks like",
+                 when=lambda args: args.get("target") != "browser", required_for=_uses_describe),
+]
+guides.register(NAME, _GUIDES)
+
+
+def _target_guides(target: str) -> list[guides.Guide]:
+    names = {f"{NAME}.{target}", f"{NAME}.code", *(() if target == "browser" else (f"{NAME}.describe",))}
+    return [guide for guide in _GUIDES if guide.name in names]
 
 
 def guide(target: str) -> str:
     """The full guide of one target: its actions, then code and description grounding."""
-    module = TARGETS[target]
-    parts = [module.guide().strip(), code_mode.guide().strip()]
-    if target != "browser":
-        parts.append((grounding.GUIDE if grounding.describe_available() else grounding.GUIDE_UNAVAILABLE).strip())
-    return "\n\n".join(parts)
+    return "\n\n".join(guides.render(item) for item in _target_guides(target))
 
 
 def _steps(action: str, args: dict, actions: Any) -> list[tuple[str, dict]]:
@@ -185,15 +188,6 @@ def _in_use(target: str, call_args: dict):
     return nullcontext()
 
 
-def _with_guide(result: ToolReturn, target: str) -> ToolReturn:
-    body = result.text
-    if not body and result.json_data is not None:
-        body = json.dumps(result.json_data, ensure_ascii=False, default=str)
-    text = f"{guide(target)}\n\nCurrent state:\n{body or ''}".rstrip()
-    return ToolReturn(text=text, images=result.images, audio=result.audio, json_data=result.json_data,
-                      is_error=result.is_error)
-
-
 def computer_use_agent(
     target: str,
     action: str = "",
@@ -216,16 +210,11 @@ def computer_use_agent(
     session = _session_id()
 
     if context == "fresh":
-        _forget_spawned(session)
-        with _shown_lock:
-            _shown.add((session, _generation() + 1, target))
         return fresh.run(target, call_args, str(brief or ""), guide(target), session,
                          needs_grant=module is not browser or bool(browser.user_browser(call_args)), describe=target != "browser"
                          and grounding.describe_available())
     if action == "guide":
-        with _shown_lock:
-            _shown.add((session, _generation(), target))
-        return ToolReturn(text=guide(target))
+        return ToolReturn(text=guides.deliver(_target_guides(target)))
 
     if code and (action or actions):
         return ToolReturn(text="Error: send code, or action / actions, not both.", is_error=True)
@@ -236,7 +225,6 @@ def computer_use_agent(
     steps, call_args, problem = params.check(target, steps, call_args)
     if problem:
         return ToolReturn(text=f"Error: {problem}", is_error=True)
-    first = _first_time(session, target)
     with _in_use(target, call_args):
         if code:
             result = code_mode.run(str(code), call_args, session, timeout=timeout)
@@ -244,7 +232,7 @@ def computer_use_agent(
             result = module.run(steps, call_args, session)
         else:
             result = module.open_target(call_args, session)
-    return _with_guide(result, target) if first else result
+    return result
 
 
 function(

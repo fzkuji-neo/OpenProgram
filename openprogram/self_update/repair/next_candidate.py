@@ -465,12 +465,12 @@ def approval_preview(update_id, candidate_sha, req):
             max_attempts=record.request.iteration_policy.max_attempts, deadline=record.request.iteration_policy.deadline)
 
 
-def cancel(update_id, req):
+def cancel(update_id, req, store=None):
     from openprogram.programs.tools.system.self_update import _require_local_owner
     from openprogram.agent.job import get_runner
     from openprogram.agent.job.store import load_job
     _require_local_owner(req)
-    store = SelfUpdateStore()
+    store = store or SelfUpdateStore()
     jobs = []
     with store._locked():
         record = store._load_unlocked(_validate_update_id(update_id))

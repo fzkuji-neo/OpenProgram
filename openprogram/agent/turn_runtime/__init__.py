@@ -326,7 +326,7 @@ def execute_continuation(
             db.update_session(req.session_id, status="done", unread=True)
         else:
             db.update_session(req.session_id, status="idle")
-    # A turn resumed after an approval (self_update_prepare's own card among
+    # A turn resumed after an approval (self_update prepare's own card among
     # them) ends here, not in _process_turn_once.
     if turn_committed:
         _release_prepared_update(req.session_id, assistant_msg_id)

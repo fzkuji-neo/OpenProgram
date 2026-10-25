@@ -611,7 +611,7 @@ def test_self_update_prepare_forces_one_shot_approval_in_bypass(
         return AgentToolResult(content=[TextContent(text="prepared")])
 
     tool = AgentTool(
-        name="self_update_prepare", description="prepare", parameters={},
+        name="self_update", description="prepare", parameters={},
         label="prepare", execute=execute,
     )
     req = _owner_turn(
@@ -986,7 +986,7 @@ def test_full_result_artifacts_survive_reused_provider_ids(
 
 @pytest.mark.parametrize("turn_committed", [True, False])
 def test_resumed_turn_releases_its_prepared_update(monkeypatch, turn_committed):
-    # A self_update_prepare approved from its card finishes in the resumed turn.
+    # A self_update prepare approved from its card finishes in the resumed turn.
     from types import SimpleNamespace
 
     from openprogram.agent import turn_runtime as T

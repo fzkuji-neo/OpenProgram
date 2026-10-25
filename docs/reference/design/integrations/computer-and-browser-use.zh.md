@@ -11,7 +11,7 @@ OpenProgram 给模型一个处理屏幕上所有事情的工具：`computer_use_
 **OpenProgram** 取 Codex 的单一入口和 Claude Code 的结构化参数：
 
 - **一个工具。** `computer_use_agent` 是模型看到的唯一屏幕工具。它的 schema 很小，对每个目标都一样；动作及其参数放在各目标的指南里。
-- **指南随第一次调用到达。** 工具说明只是目标清单。对某个目标的第一次调用返回该目标的指南和它当前的状态（已安装和运行中的应用、打开的网页），所以指南不需要额外调用，也不依赖模型记得去读。
+- **指南随第一次调用到达。** 工具说明只是目标清单。对某个目标的第一次调用返回该目标的指南和它当前的状态（已安装和运行中的应用、打开的网页），所以指南不需要额外调用，也不依赖模型记得去读。这些指南是[工具指南](../function/tool-guides.zh.md)，由 agent loop 而不是工具本身送达。
 - **参数或代码。** 简单的步骤是结构化调用（`action` + `args`，或至多 20 个 `actions`）。带循环、条件或数据处理的步骤是一段 Python（`code`），在隔离解释器里运行，变量在调用之间保留。
 - **由模型选择上下文。** `context: "inherit"`（默认）在当前对话里执行；`context: "fresh"` 启动一个干净上下文、带书面简报的 agent，只返回它的结果。
 - **定位是一层。** 点击目标可以是元素序号、网页 ref、像素，或由视觉检测解析的文字描述。
@@ -44,7 +44,7 @@ computer_use_agent(target, action?, args?, actions?, code?, timeout?, context?, 
 | `browser` | `web_use` 运行时（App 的 Page、无头 Chromium）；`args.browser` 为 `chrome` 或 `edge` 时，是连接到用户浏览器的扩展模式 Playwright MCP | 网页列表（用户浏览器里是标签页列表） |
 | `vm` | `computer_use.vm_url` 指向的 OSWorld 兼容服务 | 一张截图 |
 
-每个目标有一份指南（`guides/<target>.md`；app 指南按 macOS、Linux、Windows 改写）：它的动作、参数、结果长什么样，以及确认策略。工具按对话和 agent 代记住已经发过哪些指南，把指南附在该目标的第一次结果上；`action: "guide"` 再次返回它，例如上下文压缩丢掉它之后。启动 fresh agent 时会忘掉那一代 agent 的指南记录，因为新 agent 只从自己的提示开始。
+每个目标有一份指南（`guides/<target>.md`；app 指南按 macOS、Linux、Windows 改写）：它的动作、参数、结果长什么样，以及确认策略。`tool.py` 把它们注册为工具指南：`computer_use_agent.<target>` 附在第一次操作该目标的调用结果里（`context` 不是 `fresh`）；`computer_use_agent.code` 和 `computer_use_agent.describe` 是查阅型指南，带 `code` 或步骤里带 `describe` 的调用需要它们，这样的调用先被拒绝一次并附上指南。指南是否已知取决于 agent loop 最近一次发出的请求，所以上下文压缩、工具结果被清理和 worker 重启都会让指南重新送达；fresh agent 的提示里已经带着带标记的指南，不会再收到第二遍。`action: "guide"` 和 `help("computer_use_agent.<target>")` 按需返回它们。
 
 `app` 的动作就是下文应用后端的动作，参数相同；`browser` 的动作是 `web_use` 运行时的命令：`list_pages`、`observe`、`verify` 和 `close` 保持原名，每个 `act` 动作（`navigate`、`click`、`type`……）各自成为一个动作。与 Codex 一样，先选浏览器，动作不随浏览器改变。不写 `args.browser` 是经由 `web_use` 的内置浏览器；`chrome` 或 `edge` 是用户自己的浏览器，`web_use` 的后端都到达不了它。对这两者，`targets/browser.py` 把每一步交给 `workflow/browser/extension_browser.py`，它通过 `_SyncMCPClient` 运行 `@playwright/mcp --extension --browser chrome|msedge`（与 `web_use` 固定的版本相同），每个会话、每个浏览器一个服务器，在调用之间保持。服务器在该浏览器里打开带有其中继地址的 `chrome-extension://<id>/connect.html`，Playwright Extension 回连，并为用户共享的标签页中继 CDP；设置了 `computer_use.chrome_extension_token` 时，服务器传入 `PLAYWRIGHT_MCP_EXTENSION_TOKEN`，扩展不再询问直接连接。`list_pages`、`observe`、`close`、`screenshot`、`upload`、`evaluate`、日志和 `verify` 映射到服务器的标签页、快照、截图、文件、evaluate 和日志工具；所有元素和指针动作都经过 `OfficialMCPPageBackend._action_call`，即 `playwright_mcp` 后端对 App Page 使用的同一套翻译。ref 是服务器快照里的 ref。代码模式不为用户的浏览器注册资源。
 
@@ -62,7 +62,7 @@ computer_use_agent(target, action?, args?, actions?, code?, timeout?, context?, 
 
 ### 代码
 
-`code` 在 `backend/gui_runner.py` 的常驻沙箱解释器里运行（macOS 上用 seatbelt，没有文件、网络和进程权限）。命名空间里有 `cu.app`、`cu.browser` 和 `cu.vm`；`await cu.app.click(app="Numbers", element_index=3)` 就是带这些参数的结构化步骤 `click`，由宿主经同样的目标代码、定位和检查派发，每一步一条 effect 回执（`backend/gui_broker.py`）。代码调用要指定 `target`，对 `app` 还要指定 `args.app`；审批覆盖这个应用，作用于其他应用的步骤会被拒绝。代码里不能用 `evaluate`，因为每段页面脚本都需要单独审批。一个解释器服务一次执行尝试，所以变量在本轮剩余时间里保留；失败或超时后解释器会被替换。每次调用最多运行 120 秒、100 步。代码模式需要 macOS 沙箱；在其他系统上代码调用会报告沙箱不可用。
+`code` 在 `backend/gui_runner.py` 的常驻沙箱解释器里运行（macOS 上用 seatbelt，没有文件、网络和进程权限）。命名空间里有 `cu.app`、`cu.browser` 和 `cu.vm`；`await cu.app.click(app="Numbers", element_index=3)` 就是带这些参数的结构化步骤 `click`，由宿主经同样的目标代码、定位和检查派发，每一步一条 effect 回执（`backend/gui_broker.py`）。前导代码把每个动作在指南里的那一行作为对应 `cu` 方法的 docstring，所以解释器里可以用 `dir(cu.app)` 和 `help(cu.app.click)`。代码调用要指定 `target`，对 `app` 还要指定 `args.app`；审批覆盖这个应用，作用于其他应用的步骤会被拒绝。代码里不能用 `evaluate`，因为每段页面脚本都需要单独审批。一个解释器服务一次执行尝试，所以变量在本轮剩余时间里保留；失败或超时后解释器会被替换。每次调用最多运行 120 秒、100 步。代码模式需要 macOS 沙箱；在其他系统上代码调用会报告沙箱不可用。
 
 ### 上下文
 
@@ -86,7 +86,7 @@ computer_use_agent(target, action?, args?, actions?, code?, timeout?, context?, 
 
 | 模块 | 作用 |
 |---|---|
-| `openprogram/programs/tools/system/computer_use_agent/tool.py` | 注册的工具：schema、目标清单、路由、指南记录、审批原因 |
+| `openprogram/programs/tools/system/computer_use_agent/tool.py` | 注册的工具：schema、目标清单、路由、指南注册、审批原因 |
 | `…/computer_use_agent/guides/` | 各目标的指南 |
 | `…/computer_use_agent/targets/app.py` | 基于 `openprogram/computer_use/` 的应用动作 |
 | `…/computer_use_agent/targets/browser.py` | 基于 `web_use` 运行时的网页动作 |

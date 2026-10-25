@@ -566,6 +566,8 @@ async def _run_loop(current_context, new_messages, config, cancel_event, ev_stre
     from openprogram.providers.structured_output import StructuredOutputError
     from openprogram.providers.utils.errors import ExecInterrupt
 
+    from openprogram.programs import guides
+    guides_token = guides.begin_loop()
     state = current_recovery.get()
     try:
         await _run_loop_with_recovery(current_context, new_messages, config, cancel_event, ev_stream, stream_fn)
@@ -576,6 +578,7 @@ async def _run_loop(current_context, new_messages, config, cancel_event, ev_stre
         state.mark_paused()
         raise
     finally:
+        guides.end_loop(guides_token)
         if token is not None:
             current_recovery.reset(token)
 
@@ -1161,6 +1164,8 @@ async def _stream_assistant_response(
             llm_messages = await result
         else:
             llm_messages = result
+    from openprogram.programs import guides
+    guides.observe_request(llm_messages)
 
     # Per-turn memory prefetch — extract the latest user message and ask the
     # memory subsystem for relevant snippets. The result is already fenced as
@@ -1717,6 +1722,8 @@ def _rewrite_tool_result(tool_call: Any, result: AgentToolResult) -> AgentToolRe
     """Let ``tool.result`` rewriters (plugins) change the text the model
     sees. Without a rewriter the result passes through untouched; a
     rewritten text replaces the text blocks and keeps images and audio."""
+    from openprogram.programs import guides
+    result = guides.attach(tool_call.name, tool_call.arguments, result)
     result = _attach_nested_agents_md(tool_call, result)
     bus = get_event_bus()
     if not bus.has_transforms("tool.result"):

@@ -104,6 +104,8 @@ DEFAULT_TOOLS: list[str] = [
     # Deferred (below) — the listing already names every skill, so the
     # schema only has to exist on the turn a skill is actually loaded.
     "skill",
+    # Reads a tool guide by name; results of guided tools point here.
+    "help",
     "playwright_browser",
     "browser_agent",
     # One entry for every screen: application windows, built-in browser

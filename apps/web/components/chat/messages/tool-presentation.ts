@@ -279,7 +279,7 @@ export function presentTool(name: string, input: string | undefined, text: Text)
   }
   if (name.startsWith("self_update")) {
     return { icon: "refresh", tone: "system", title: text("Self-update", "自我更新"),
-      target: name.replace(/^self_update_?/, "") || undefined };
+      target: pick(args, "action") || name.replace(/^self_update_?/, "") || undefined };
   }
   if (name.includes("mcp")) {
     return { icon: "plug-circle", tone: "system", title: "MCP", target: genericTarget(args) };
@@ -291,7 +291,8 @@ export function presentTool(name: string, input: string | undefined, text: Text)
 /** One readable line for a tool result. JSON objects and arrays are
  *  summarised by their telling fields instead of printed raw. */
 export function summarizeResult(raw: string, text: Text): string {
-  const trimmed = raw.trim();
+  // Tool guides delivered in front of a result are instructions, not the result.
+  const trimmed = raw.replace(/^(\s*<guide name="[^"]*">[\s\S]*?<\/guide>)+/, "").trim();
   if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return firstLine(trimmed) ?? "";
   let value: unknown;
   try {

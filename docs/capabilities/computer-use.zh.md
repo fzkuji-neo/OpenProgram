@@ -12,7 +12,7 @@
 | `browser` | 网页，在 `args.browser` 指定的浏览器里：默认是 App 内置浏览器（App 窗口里的标签页，以及它在后台打开的标签页），也可以是你自己的 Chrome 或 Edge | App；Chrome 或 Edge 见[你自己的 Chrome 或 Edge](#你自己的-chrome-或-edge) |
 | `vm` | 一台运行 OSWorld 兼容服务的远程机器 | `computer_use.vm_url`，见[虚拟机](#虚拟机) |
 
-工具说明里只有这张清单。一个对话第一次调用某个目标时，返回该目标的指南（它的动作及参数）和目标当前的状态，所以模型只学它马上要用的那块屏幕的动作。`action="guide"` 可以再次查看指南。每次调用在执行前都会按指南检查：动作或参数不认识就立即报错，错误里写明该动作的参数，不会被悄悄丢掉。几个沿用自 Playwright 的写法会被换成我们的名字，例如 `select_option` 对应 `select`、`values` 对应 `value`、`expression` 对应 `script`。
+工具说明里只有这张清单。一个对话第一次调用某个目标时，返回该目标的指南（它的动作及参数）和目标当前的状态，所以模型只学它马上要用的那块屏幕的动作。代码和按描述定位各有自己的指南 `computer_use_agent.code`、`computer_use_agent.describe`：第一次用到它们的调用会被拒绝并附上该指南，下一次调用即可执行。指南只在仍处于模型上下文中时才算读过；对话被压缩后，下一次需要它的调用会重新附上。`action="guide"` 或 `help("computer_use_agent.app")` 可以按需查看指南。每次调用在执行前都会按指南检查：动作或参数不认识就立即报错，错误里写明该动作的参数，不会被悄悄丢掉。几个沿用自 Playwright 的写法会被换成我们的名字，例如 `select_option` 对应 `select`、`values` 对应 `value`、`expression` 对应 `script`。
 
 ## 一步长什么样
 
@@ -87,7 +87,7 @@ computer_use_agent(target="app", args={"app": "Calculator"}, actions=[
 ])
 ```
 
-需要循环、条件判断和数据处理时，模型改为发送 `code`：带顶层 `await` 的 Python，在没有文件、网络和进程权限的隔离解释器里运行，变量在本轮内保留。每个目标是一个对象，它的方法就是它的动作：`await cu.app.click(app="Numbers", element_index=3)`、`await cu.browser.observe()`、`await cu.vm.screenshot()`。代码只能操作本次调用指定的应用，不能运行页面脚本、上传文件或打开新网站，每次调用最多运行 120 秒、执行 100 个动作。代码模式只支持 macOS。
+需要循环、条件判断和数据处理时，模型改为发送 `code`：带顶层 `await` 的 Python，在没有文件、网络和进程权限的隔离解释器里运行，变量在本轮内保留。每个目标是一个对象，它的方法就是它的动作：`await cu.app.click(app="Numbers", element_index=3)`、`await cu.browser.observe()`、`await cu.vm.screenshot()`。在代码里，`dir(cu.app)` 列出一个目标的动作，`help(cu.app.click)` 显示一个动作的参数。代码只能操作本次调用指定的应用，不能运行页面脚本、上传文件或打开新网站，每次调用最多运行 120 秒、执行 100 个动作。代码模式只支持 macOS。
 
 `context` 决定由谁来做。默认的 `inherit` 表示模型在这个对话里亲自操作，看到每一步结果。`fresh` 把任务交给一个使用相同模型和设置的新 agent：它从 `brief`（任务、已知信息、要汇报什么）和该目标的指南开始，用自己的 `computer_use_agent` 调用完成工作，只有最终回复回到对话。适合中间画面对话不需要看的长操作。新 agent 不能再启动新的 agent。
 

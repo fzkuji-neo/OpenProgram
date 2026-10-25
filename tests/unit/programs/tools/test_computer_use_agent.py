@@ -12,13 +12,6 @@ from openprogram.programs.tools.system.computer_use_agent.targets import browser
 PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 16
 
 
-@pytest.fixture(autouse=True)
-def no_guides_seen():
-    entry._shown.clear()
-    yield
-    entry._shown.clear()
-
-
 # ----------------------------------------------------------------- routing
 
 def test_steps_take_nested_or_flat_arguments():
@@ -41,14 +34,14 @@ def test_a_target_that_is_not_set_up_says_how(monkeypatch):
     assert result.is_error and "computer_use.vm_url" in result.text
 
 
-def test_json_results_keep_their_data_under_the_guide(monkeypatch):
+def test_json_results_keep_their_data(monkeypatch):
     monkeypatch.setattr(browser, "open_target", lambda args, session: ToolReturn(json_data={"pages": []}))
     result = entry.computer_use_agent(target="browser")
-    assert result.text.startswith('Guide: target "browser"') and result.text.endswith('{"pages": []}')
     assert result.json_data == {"pages": []}
 
 
-def test_a_spawned_agent_sees_the_guide_in_its_brief_not_again_on_first_call(monkeypatch):
+def test_a_spawned_agent_holds_the_marked_guides_in_its_brief(monkeypatch):
+    from openprogram.programs import guides
     seen = {}
 
     def spawn(target, args, brief, guide, session, **kwargs):
@@ -57,10 +50,18 @@ def test_a_spawned_agent_sees_the_guide_in_its_brief_not_again_on_first_call(mon
     monkeypatch.setattr(fresh, "run", spawn)
     # The app target is available whatever the host is.
     monkeypatch.setattr(backends, "support", lambda: {"available": True})
-    entry._shown.add(("default", 1, "browser"))  # an earlier spawned agent's record
     assert entry.computer_use_agent(target="app", context="fresh", brief="b", args={"app": "Notes"}).text == "done"
-    assert seen["guide"] == entry.guide("app") and seen["kwargs"]["needs_grant"] is True
-    assert entry._shown == {("default", 1, "app")}
+    assert seen["kwargs"]["needs_grant"] is True
+    # The spawned agent's first call finds every guide in its request already.
+    for name in ("computer_use_agent.app", "computer_use_agent.code", "computer_use_agent.describe"):
+        assert guides.marker(name) in seen["guide"]
+    token = guides.begin_loop()
+    try:
+        guides.observe_request([{"content": seen["guide"]}])
+        assert guides.due("computer_use_agent", {"target": "app", "code": "pass"}, failed=False) == []
+        assert guides.missing_required("computer_use_agent", {"target": "app", "code": "pass"}) == []
+    finally:
+        guides.end_loop(token)
 
 
 def test_fresh_needs_a_brief_and_cannot_nest(monkeypatch):

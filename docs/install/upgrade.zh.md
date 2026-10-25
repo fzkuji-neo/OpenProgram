@@ -81,6 +81,15 @@ openprogram worker restart
 已有更新的状态查询和取消仍然可用；仅有 worker 服务并不代表已经具备源码更新控制器的
 构建、激活、验证和恢复流程。
 
+### 聊天工具
+
+对话中模型只通过一个工具 `self_update` 操作更新，`action` 取 `status`（默认）、
+`prepare`、`retry` 或 `cancel`。它的 schema 保持简短；第一次调用的结果说明整个流程并
+列出各动作的说明。对话中第一次 `prepare` 或 `retry` 会先被拒绝一次，拒绝结果里附上该
+动作的完整说明（`help("self_update.prepare")`、`help("self_update.retry")`），下一次调用
+就带着这些说明进行。`prepare` 和 `retry` 即使在 bypass 下也总是请 owner 单次审批；
+`status` 不需要审批。
+
 ### 一次更新会重启什么
 
 更新只重新构建已安装 App 所基于的提交（`Contents/Resources/openprogram-source-revision`）
@@ -97,7 +106,7 @@ openprogram worker restart
 
 测试和仓库元数据（`tests/**`、`README.md`、`.github/**` 等）不改变任何随 App 发布的
 内容。从未提交改动的 checkout 安装的 App（`-dirty`），或其提交不在该仓库中时，总是完整
-构建。`self_update_prepare` 的结果给出预计的 `restart` 和 `rebuild`；控制器在构建时
+构建。`self_update(action="prepare")` 的结果给出预计的 `restart` 和 `rebuild`；控制器在构建时
 重新判定，并把计划写入更新目录的 `activation.json`。
 
 各级别的安装方式相同：新 App bundle 先暂存在已安装 App 旁边，通过重命名换入，验证后
@@ -130,7 +139,7 @@ candidate 所有可写路径之外，并要求候选浏览器资源树 hash 与�
 可写的构建 runtime 副本。两项检查都完成后才允许激活。
 固定的 macOS 图标渲染检查也由可信控制器执行，不向候选构建开放宿主图形服务。
 
-源码 checkout 的聊天工具 `self_update_prepare` 接受可选的 `verification_plan`
+源码 checkout 的聊天调用 `self_update(action="prepare")` 接受可选的 `verification_plan`
 参数。计划包含在强制 owner 审批中，并与不可变请求一起保存。例如：
 
 ```json
@@ -275,8 +284,8 @@ openprogram self-update repair UPDATE_ID
 也不覆盖原验收和回退结论。
 
 诊断期限最多为回退后的五分钟；原迭代授权期限更早时取更早值。重启不会重新计时，
-已终止的 Job 不重跑。通过普通 Job 取消入口停止诊断；`self_update_cancel` 仍只取消
-激活前的更新。新更新会取代待处理诊断。模型不可用或证据无效只终止诊断，不重新
+已终止的 Job 不重跑。通过普通 Job 取消入口或 `self_update(action="cancel")` 停止诊断。
+新更新会取代待处理诊断。模型不可用或证据无效只终止诊断，不重新
 限制已经恢复的服务。`self-update status --json` 在有结果时包含 `diagnosis_result`。
 缺少冻结诊断配置的旧请求保持原有行为。诊断报告本身不修改或安装代码。
 
@@ -291,10 +300,10 @@ App 写权限的原生沙箱运行冻结测试。原 worktree 不变。默认只
 
 修正和测试共用回退后的十分钟期限，原授权期限更早时取更早值。新更新、取消或
 超时停止本阶段及测试进程。模型运行时可使用普通 Job 取消；模型结束后，在原会话
-调用 `self_update_repair_cancel(update_id)` 取消仍运行的测试。重启不重放部分编辑、
+调用 `self_update(action="cancel", update_id=…)` 取消仍运行的测试。重启不重放部分编辑、
 提交或测试。失败 worktree 和证据保留供检查。缺少冻结修正配置的旧请求不获得此能力。
 
-`self_update_status` 和 `self-update status --json` 包含 `source_repair_result`。
+`self_update()`（status）和 `self-update status --json` 包含 `source_repair_result`。
 聊天工具与需要 owner 认证的 Web 历史接口
 （`GET /api/self-updates?session_id=…`）和详情接口
 （`GET /api/self-updates/{update_id}?session_id=…`）使用同一份只读投影。
@@ -319,7 +328,7 @@ Running 无法读取更新快照时返回 `self_update_error`。
 `awaiting_tests`。测试缺失、失败或源码漂移记录 `failed`；取消与超时分别为
 `cancelled`、`expired`。这些状态均不代表已安装。
 
-对已测试的修正版本，在原 owner 会话调用 `self_update_retry(update_id, candidate_sha)`。
+对已测试的修正版本，在原 owner 会话调用 `self_update(action="retry", update_id, candidate_sha)`。
 即使使用 bypass，也必须进行单次审批，显示精确 SHA、变更路径、测试和剩余预算。
 批准返回后重新检查 Git 内容和测试日志；任一内容变化都会拒绝提交。
 `awaiting_tests` 候选不能通过这个入口批准，需要 owner 发起明确测试的新请求。
@@ -330,11 +339,11 @@ Running 无法读取更新快照时返回 `self_update_error`。
 首次更新计为 attempt=1，最多三次包含首次。预留 child 就消耗一次预算，提交失败也不退还。
 重启复用原 child 和期限，不重置预算。
 
-`self_update_iteration_cancel(update_id)` 停止整个序列，包括待批准操作、诊断、源码修正和
+`self_update(action="cancel", update_id)` 停止整个序列，包括待批准操作、诊断、源码修正和
 候选测试。已进入激活或验收的 child 必须完成事务或安全回退，但不能再创建后续 attempt。
 其他普通 Job 不受影响。
 
-聊天工具 `self_update_status` 的 `iteration` 字段提供 root、parent、attempt 限制、总期限和
+聊天工具 status 结果的 `iteration` 字段提供 root、parent、attempt 限制、总期限和
 提交状态。`submitted` 只表示请求已交给外部 supervisor，不代表安装成功。
 child 仍须完成打包、系统检查、新验证 Job，以及 commit 或 rollback。
 真实已安装 App 的验收是独立发布条件；fixture 测试不能证明当前 App 已更新。

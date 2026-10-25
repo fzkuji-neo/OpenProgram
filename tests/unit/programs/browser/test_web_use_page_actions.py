@@ -264,7 +264,8 @@ def test_an_evaluate_approval_covers_that_call_only():
     from openprogram.agent.permissions.policy import one_shot_approval
     assert one_shot_approval("web_use", {"command": "act", "arguments": {"action": "evaluate"}})
     assert not one_shot_approval("web_use", {"command": "act", "arguments": {"action": "click"}})
-    assert one_shot_approval("self_update_prepare", {})
+    assert one_shot_approval("self_update", {"action": "prepare"})
+    assert not one_shot_approval("self_update", {})
 
 
 # ----------------------------------------------------------------- console and network

@@ -128,7 +128,7 @@ def test_aborted_prepared_transaction_recovers_without_activation(live, installa
         monkeypatch.setattr(public_tools, "owner_principal_id", authority.owner_principal_id)
         turn = _request(session_id=request.session_id)
         monkeypatch.setattr(public_tools, "_turn_context", lambda: (turn, "a1"))
-        result = asyncio.run(public_tools.self_update_cancel.execute("cancel-recovery", {"update_id": request.update_id}, None, None))
+        result = asyncio.run(public_tools.self_update.execute("cancel-recovery", {"action": "cancel", "update_id": request.update_id}, None, None))
         assert not result.is_error
     else:
         supervisor._abort(store, request.update_id, UpdatePhase.READY, "quiescence timed out")

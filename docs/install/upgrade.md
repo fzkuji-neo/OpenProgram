@@ -85,6 +85,17 @@ CLI, or the Desktop release updater. Existing update status and cancellation
 remain available; a worker service alone does not provide the source-update
 controller's build, activation, verification and recovery workflow.
 
+### The chat tool
+
+In a conversation the model drives an update through one tool, `self_update`,
+whose `action` is `status` (the default), `prepare`, `retry` or `cancel`. Its
+schema stays short; the first result explains the workflow and lists the
+action guides. Before the first `prepare` or `retry` in a conversation the call
+is refused once and the refusal carries that action's full instructions
+(`help("self_update.prepare")`, `help("self_update.retry")`), so the next call
+is made with them in view. `prepare` and `retry` always ask the owner for
+one-shot approval, even in bypass mode; `status` needs no approval.
+
 ### What an update restarts
 
 An update rebuilds only what changed between the commit the installed App was
@@ -103,7 +114,7 @@ candidate, then restarts as little as that needs:
 Tests and repository metadata (`tests/**`, `README.md`, `.github/**` and similar)
 change nothing that ships. An App installed from an uncommitted checkout
 (`-dirty`) or from a commit outside the repository always gets the complete
-build. The `self_update_prepare` result reports the expected `restart` and
+build. The `self_update(action="prepare")` result reports the expected `restart` and
 `rebuild`; the controller decides again at build time and records the plan in
 the update directory as `activation.json`.
 
@@ -155,7 +166,7 @@ Both checks must complete before activation.
 The fixed macOS icon render check also runs under the trusted controller instead
 of granting the candidate build access to host graphics services.
 
-The source-checkout `self_update_prepare` chat tool accepts an optional
+The source-checkout `self_update(action="prepare")` chat call accepts an optional
 `verification_plan` argument. The plan is included in the mandatory owner
 approval and stored with the immutable request. For example:
 
@@ -347,8 +358,8 @@ verification and rollback verdicts are retained.
 
 The Job has at most five minutes after rollback, shortened by any earlier approved
 iteration deadline. Restart does not reset that limit or repeat a terminal Job.
-Use the ordinary Job cancel action to stop diagnosis; `self_update_cancel` still
-only cancels a pre-activation update. A new update supersedes pending diagnosis.
+Use the ordinary Job cancel action or `self_update(action="cancel")` to stop
+diagnosis. A new update supersedes pending diagnosis.
 Unavailable models or invalid evidence stop diagnosis without restricting the
 restored service. `self-update status --json` includes `diagnosis_result` when one
 exists. Older requests without frozen diagnostic configuration keep their prior
@@ -371,12 +382,12 @@ you approved them. Invalid paths or non-unique old text stop repair.
 Repair and tests share at most ten minutes after rollback, shortened by an
 earlier approved deadline. A new update, cancellation or expiry stops this stage
 and its test processes. Use the ordinary Job cancel action while the model runs;
-after the model finishes, call `self_update_repair_cancel(update_id)` in the
+after the model finishes, call `self_update(action="cancel", update_id=…)` in the
 original conversation to cancel tests. Restart does not replay partial edits,
 commits or tests. Failed worktrees and evidence remain available for inspection.
 Old requests without frozen repair configuration do not gain this capability.
 
-`self_update_status` and `self-update status --json` expose `source_repair_result`.
+`self_update()` (status) and `self-update status --json` expose `source_repair_result`.
 The chat tool uses the same read-only projection as the owner-authenticated Web
 history (`GET /api/self-updates?session_id=…`) and detail
 (`GET /api/self-updates/{update_id}?session_id=…`) endpoints. History includes
@@ -406,7 +417,7 @@ Conversations display ordinary messages and tool results. They do not mount upda
 source drift produce `failed`; cancellation and expiry produce `cancelled` and
 `expired`. None means installed.
 
-For a tested repaired candidate, call `self_update_retry(update_id, candidate_sha)`
+For a tested repaired candidate, call `self_update(action="retry", update_id, candidate_sha)`
 in the original owner conversation. It always asks for one-shot approval, even
 in bypass mode. The approval displays the exact SHA, changed paths, tests and
 remaining budget. Git contents and test logs are checked again after approval;
@@ -422,12 +433,12 @@ first update counts as attempt 1; the maximum of three includes it. Reserving a
 child consumes one attempt, including failed submissions. Restart reuses the
 same child and deadline rather than resetting the budget.
 
-`self_update_iteration_cancel(update_id)` stops the whole sequence, including
+`self_update(action="cancel", update_id)` stops the whole sequence, including
 pending approval, diagnosis, source repair and candidate tests. A child already
 being activated or verified must finish its transaction or safe rollback; no
 subsequent attempt is allowed. This does not cancel unrelated jobs.
 
-The chat `self_update_status` result includes an `iteration` section with root,
+The chat status result includes an `iteration` section with root,
 parent, attempt limits, deadline and submission status. `submitted` means the
 request was handed to the external supervisor, not that installation succeeded.
 The child still goes through packaging, system checks, a new verification Job

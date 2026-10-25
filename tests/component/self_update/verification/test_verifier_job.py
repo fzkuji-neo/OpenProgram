@@ -103,7 +103,7 @@ def test_verifier_does_not_fall_back_to_live_configuration(runner, monkeypatch, 
 
 def test_verifier_policy_cannot_be_expanded_by_explicit_tools():
     from openprogram.programs import agent_tools, apply_tool_policy
-    tools = agent_tools(names=["read", "bash", "write", "agent", "send_message", "self_update_prepare"])
+    tools = agent_tools(names=["read", "bash", "write", "agent", "send_message", "self_update"])
     assert "bash" in {tool.name for tool in tools}
     assert {tool.name for tool in apply_tool_policy(tools, source="self_update_verify", exposure_filter=False)} == {"read"}
     assert {tool.name for tool in agent_tools(names=[t.name for t in tools], source="self_update_verify")} == {"read"}

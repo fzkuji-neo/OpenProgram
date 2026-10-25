@@ -31,8 +31,14 @@ _GUIDE = (Path(__file__).parent / "guides" / "code.md").read_text(encoding="utf-
 
 _PRELUDE = """
 class _CuTarget:
-    def __init__(self, handle):
+    # A target's actions as methods; dir() lists them and help() shows one.
+
+    def __init__(self, handle, docs):
         self._handle = handle
+        self._docs = docs
+
+    def __dir__(self):
+        return sorted(self._docs)
 
     def __getattr__(self, action):
         if action.startswith("_"):
@@ -41,6 +47,7 @@ class _CuTarget:
         async def call(**arguments):
             return (await ui.call(self._handle, action, arguments))["value"]
         call.__name__ = action
+        call.__doc__ = self._docs.get(action)
         return call
 
 
@@ -49,10 +56,26 @@ class _Cu:
 
 
 cu = _Cu()
-for _name, _handle in {handles}.items():
-    setattr(cu, _name, _CuTarget(_handle))
-del _name, _handle
+for _name, (_handle, _docs) in {handles}.items():
+    setattr(cu, _name, _CuTarget(_handle, _docs))
+del _name, _handle, _docs
 """
+
+
+def action_docs(guide_text: str, actions) -> dict[str, str]:
+    """Each action's line of a target guide, as the docstring of its ``cu`` method."""
+    import re
+    fragments = [part.strip() for line in guide_text.splitlines() if line.startswith("- ")
+                 for part in re.split(r";\s+|\.\s+(?=[a-z_]+[(:;]|[a-z_]+$)", line[2:])]
+    docs = {}
+    for action in actions:
+        for fragment in fragments:
+            if re.match(rf"{re.escape(action)}(\(|:|$|\s)", fragment):
+                docs[action] = fragment
+                break
+        else:
+            docs[action] = action
+    return docs
 
 _lock = threading.Lock()
 # conversation -> (execution identity, broker, runner)
@@ -160,12 +183,14 @@ def run(code: str, call_args: dict, session: str, *, timeout: float = 60) -> Too
         broker, runner = _runner(session)
     except (CodeError, SandboxUnavailable, PermissionError) as exc:
         return ToolReturn(text=f"Error: code is unavailable here: {exc}", is_error=True)
-    handles = {}
+    handles, docs = {}, {}
     try:
         for name, (target, actions) in _resources(call_args).items():
             methods = {action: _adapter(target, action, call_args, session) for action in actions}
             handles[name] = broker.register(target=name, methods=methods, validate=_validator(name, call_args))
-        prelude = runner.execute(_PRELUDE.replace("{handles}", json.dumps(handles)), timeout=10)
+            docs[name] = action_docs(target.guide(), actions)
+        bound = {name: [handle, docs[name]] for name, handle in handles.items()}
+        prelude = runner.execute(_PRELUDE.replace("{handles}", json.dumps(bound)), timeout=10)
         if prelude.error:
             raise GuiRunnerError(prelude.error)
         result = runner.execute(code, timeout=timeout)

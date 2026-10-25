@@ -372,7 +372,7 @@ def authority_from_message(session_id: str, message_id: str) -> dict[str, Any]:
 
 _READ_TOOLS = {
     "read", "read_file", "grep", "glob", "list", "list_files",
-    "read_conversation", "list_agents", "list_jobs", "self_update_status",
+    "read_conversation", "list_agents", "list_jobs",
 }
 # Reads that stay inside the memory workspace. They reach no other part
 # of the filesystem, so they are gated on ``memory.read`` rather than on
@@ -397,8 +397,8 @@ _NETWORK_TOOLS = {
 _CHAT_REPLY_TOOLS = {"chat_send"}
 _REPLY_LOCAL_TOOLS = {
     "todo_create", "todo_update", "todo_list", "enter_plan_mode",
-    "exit_plan_mode", "clarify", "skill", "tool_search", "job_output",
-    "job_stop", "self_update_cancel",
+    "exit_plan_mode", "clarify", "skill", "help", "tool_search", "job_output",
+    "job_stop",
 }
 
 
@@ -411,6 +411,11 @@ def capability_for_tool(tool_name: str, args: Mapping[str, Any] | None = None) -
         )
     if name == "remind":
         return "schedule.create"
+    if name == "self_update":
+        from openprogram.programs.tools.system.self_update import action_of
+        action = action_of(args)
+        return "fs.read" if action == "status" else (
+            "runtime.control" if action == "cancel" else "process.exec")
     if name == "memory_update":
         return "memory.source.append"
     if name in _CHAT_REPLY_TOOLS:

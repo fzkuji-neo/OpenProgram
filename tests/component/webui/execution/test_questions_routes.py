@@ -69,8 +69,8 @@ def test_list_reconnects_durable_question_with_exact_target(client):
 
 
 @pytest.mark.parametrize("client", [{
-    "tool": "self_update_retry", "args": {"update_id": "su_1"},
-    "shown_args": {"update_id": "su_1", "candidate": {"changed_paths": ["a.py"]}},
+    "tool": "self_update", "args": {"action": "retry", "update_id": "su_1"},
+    "shown_args": {"action": "retry", "update_id": "su_1", "candidate": {"changed_paths": ["a.py"]}},
 }], indirect=True)
 def test_a_reconnected_card_shows_what_the_live_card_showed(client):
     question = client.get("/api/questions", params={"session_id": "s"}).json()["questions"][0]

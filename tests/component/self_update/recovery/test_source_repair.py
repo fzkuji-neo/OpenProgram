@@ -123,7 +123,7 @@ def test_failed_test_or_source_drift_is_not_candidate_ready(diagnosis_environmen
 
 @pytest.mark.parametrize("diagnosis_environment", [{"required_tests": ["python -c " + shlex.quote(
     "import os,time; from pathlib import Path; Path('test-pid.tmp').write_text(str(os.getpid())); Path('test-pid.tmp').replace('test-pid'); time.sleep(30)")]}], indirect=True)
-@pytest.mark.parametrize("stop", ["owner", "iteration", "new_update", "timeout"])
+@pytest.mark.parametrize("stop", ["owner", "new_update", "timeout"])
 @native_sandbox
 def test_stopping_after_model_completion_reaps_test(diagnosis_environment, monkeypatch, stop):
     from dataclasses import replace
@@ -140,12 +140,11 @@ def test_stopping_after_model_completion_reaps_test(diagnosis_environment, monke
     pid_file = Path(candidate["worktree_path"]) / "test-pid"
     assert wait_until(pid_file.exists, timeout=5)
     pid = int(pid_file.read_text())
-    if stop in {"owner", "iteration"}:
+    if stop == "owner":
         monkeypatch.setattr(tool_module, "_turn_context", lambda: (_request(session_id="p1"), "a1"))
         # Execute the registered tool's ordinary wrapper, not a private cancel helper.
         import asyncio
-        tool = tool_module.self_update_repair_cancel if stop == "owner" else tool_module.self_update_iteration_cancel
-        asyncio.run(tool.execute("cancel", {"update_id": update_id}, None, None))
+        asyncio.run(tool_module.self_update.execute("cancel", {"action": "cancel", "update_id": update_id}, None, None))
     elif stop == "new_update":
         store.create(replace(store.load(update_id).request, update_id="su_next", pre_update_evidence=("new request",)))
     else:
@@ -307,7 +306,7 @@ def test_required_tests_cannot_write_outside_candidate_or_use_network(diagnosis_
 def test_source_repair_has_only_pinned_read_tools():
     from types import SimpleNamespace
     from openprogram.programs import agent_tools, apply_tool_policy
-    assert {t.name for t in agent_tools(names=["read", "bash", "write", "self_update_repair_cancel", "self_update_observe"],
+    assert {t.name for t in agent_tools(names=["read", "bash", "write", "self_update", "self_update_observe"],
                                       source="self_update_repair", include_disabled=True)} == {"read"}
     assert apply_tool_policy([SimpleNamespace(name="read", execute=lambda: None)],
                              source="self_update_repair", exposure_filter=False) == []

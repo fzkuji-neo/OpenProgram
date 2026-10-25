@@ -63,8 +63,8 @@ def test_iteration_approval_never_hides_envelope_after_a_long_goal():
     from openprogram.agent.permissions.approval import _approval_detail
     args = dict(goal="goal " * 1000, iteration_policy=dict(mode="bounded_auto", max_attempts=3,
                 deadline=12345, allowed_paths=["feature.txt"], required_tests=["python -m pytest"]))
-    for name in ("self_update_prepare", "self_update_retry"):
-        detail = _approval_detail(name, args)
+    for action in ("prepare", "retry"):
+        detail = _approval_detail("self_update", {"action": action, **args})
         assert "bounded_auto" in detail and "max_attempts" in detail and "12345" in detail
         assert "已截断" not in detail
 
@@ -121,8 +121,8 @@ def test_the_retry_approval_card_shows_the_candidate(diagnosis_environment, monk
     _start()
     repaired = _result(diagnosis_environment)
     req = _request(session_id="p1", user_msg_id="retry_user", permission_mode="bypass")
-    args = dict(update_id=update_id, candidate_sha=repaired["candidate"]["candidate_sha"])
-    wrapped = _approval.wrap_with_approval(tools.self_update_retry, req, lambda _: None)
+    args = dict(action="retry", update_id=update_id, candidate_sha=repaired["candidate"]["candidate_sha"])
+    wrapped = _approval.wrap_with_approval(tools.self_update, req, lambda _: None)
 
     manifest = wrapped._interaction_manifest("retry", args)
 
@@ -168,8 +168,8 @@ def test_the_owner_answer_on_the_retry_card_reaches_the_retry(diagnosis_environm
                                       owner_id="test", ttl_seconds=30)
     active, _ = attempts.activate(leased.attempt_id, generation=leased.generation,
                                   expected_execution_version=reserved.status_version)
-    args = dict(update_id=update_id, candidate_sha=repaired["candidate"]["candidate_sha"])
-    wrapped = _approval.wrap_with_approval(tools.self_update_retry, req, lambda _: None)
+    args = dict(action="retry", update_id=update_id, candidate_sha=repaired["candidate"]["candidate_sha"])
+    wrapped = _approval.wrap_with_approval(tools.self_update, req, lambda _: None)
     manifest = wrapped._interaction_manifest("retry", args)
     wait = DurableWaitStore(executions).open_wait(wait_id="retry-approval", execution_id=execution.execution_id,
         attempt_id=active.attempt_id, generation=active.generation, kind="approval",
@@ -246,8 +246,8 @@ def test_default_retry_requires_fresh_exact_one_shot_approval(diagnosis_environm
             monkeypatch.setattr(Path, "resolve", swap_after_resolve)
         return decision != "deny", None, "always"
     monkeypatch.setattr(_approval, "await_user_approval", approve)
-    wrapped = _approval.wrap_with_approval(tools.self_update_retry, req, lambda _: None)
-    args = dict(update_id=update_id, candidate_sha=repaired["candidate"]["candidate_sha"])
+    wrapped = _approval.wrap_with_approval(tools.self_update, req, lambda _: None)
+    args = dict(action="retry", update_id=update_id, candidate_sha=repaired["candidate"]["candidate_sha"])
     outcome = asyncio.run(wrapped.execute("retry", args, None, None))
     assert len(approvals) == 1 and not persisted
     assert approvals[0]["candidate"]["candidate_sha"] == args["candidate_sha"]
@@ -275,7 +275,7 @@ def test_whole_iteration_cancel_stops_waiting_candidate(diagnosis_environment, m
     repaired = _result(diagnosis_environment)
     req = _request(session_id="p1")
     monkeypatch.setattr(tools, "_turn_context", lambda: (req, "stop_reply"))
-    result = asyncio.run(tools.self_update_iteration_cancel.execute("stop", {"update_id": update_id}, None, None))
+    result = asyncio.run(tools.self_update.execute("stop", {"action": "cancel", "update_id": update_id}, None, None))
     assert not result.is_error, result
     _start()
     with pytest.raises(ValueError, match="cancelled"):
@@ -757,7 +757,7 @@ def test_submission_and_cancellation_boundaries(diagnosis_environment, monkeypat
     reservation = (store.root / uid / "iteration-next.json")
     reserved_bytes = reservation.read_bytes() if reservation.exists() else None
     monkeypatch.setattr(tool_module, "_turn_context", lambda: (_request(session_id="p1"), "cancel-reply"))
-    outcome = asyncio.run(tool_module.self_update_iteration_cancel.execute("cancel", {"update_id": uid}, None, None))
+    outcome = asyncio.run(tool_module.self_update.execute("cancel", {"action": "cancel", "update_id": uid}, None, None))
     assert not outcome.is_error, outcome
     assert store.load(uid) == original_root
     if case in {"cancel_pending", "cancel_preparing"}:
@@ -793,7 +793,7 @@ def test_iteration_cancel_reaps_owned_running_job(diagnosis_environment, monkeyp
     _start()
     assert entered.wait(5)
     monkeypatch.setattr(tools, "_turn_context", lambda: (_request(session_id="p1"), "cancel-reply"))
-    outcome = asyncio.run(tools.self_update_iteration_cancel.execute("cancel", {"update_id": uid}, None, None))
+    outcome = asyncio.run(tools.self_update.execute("cancel", {"action": "cancel", "update_id": uid}, None, None))
     assert not outcome.is_error, outcome
     job_id = f"self-update:{uid}:{stage}:1"
     job = runner.await_job(job_id, timeout=5)
@@ -898,8 +898,8 @@ def test_first_startup_resumes_durable_repair_result_without_retesting(diagnosis
             approvals.append(kwargs["args"])
             return True, None, "once"
         monkeypatch.setattr(_approval, "await_user_approval", approve)
-        wrapped = _approval.wrap_with_approval(tools.self_update_retry, req, lambda _: None)
-        outcome = asyncio.run(wrapped.execute("retry", dict(update_id=uid,
+        wrapped = _approval.wrap_with_approval(tools.self_update, req, lambda _: None)
+        outcome = asyncio.run(wrapped.execute("retry", dict(action="retry", update_id=uid,
             candidate_sha=result["candidate"]["candidate_sha"]), None, None))
         assert not outcome.is_error and len(approvals) == 1, outcome
         assert store.load_active().state.phase.value == "preparing"

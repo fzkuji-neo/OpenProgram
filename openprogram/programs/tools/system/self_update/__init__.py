@@ -430,40 +430,6 @@ def _status_update(
         raise SelfUpdateToolError("self-update state is unavailable or inconsistent") from None
 
 
-def _cancel_update(
-    *, update_id: str | None, reason: str, req: Any, store: SelfUpdateStore
-) -> dict[str, Any]:
-    _require_local_owner(req)
-    try:
-        record = _resolve_record(update_id, store)
-    except SelfUpdateError as exc:
-        raise SelfUpdateToolError(str(exc)) from exc
-    if record.request.session_id != req.session_id:
-        raise SelfUpdateToolError("self-update belongs to another origin session")
-    if record.state.phase not in {
-        UpdatePhase.PREPARING,
-        UpdatePhase.STAGING,
-        UpdatePhase.READY,
-    }:
-        raise SelfUpdateToolError(
-            f"cannot cancel self-update in {record.state.phase.value}"
-        )
-    try:
-        state = store.transition(
-            record.request.update_id,
-            UpdatePhase.ABORTED,
-            expected_phase=record.state.phase,
-            detail={
-                **record.state.detail,
-                "reason": str(reason or "owner requested cancellation").strip()[:1000],
-                "cancelled_by_session": req.session_id,
-            },
-        )
-    except SelfUpdateError as exc:
-        raise SelfUpdateToolError(str(exc)) from exc
-    return {"update_id": record.request.update_id, "phase": state.phase.value}
-
-
 def _turn_context() -> tuple[Any, str]:
     req = get_turn_request()
     if req is None:
@@ -476,96 +442,192 @@ def _turn_context() -> tuple[Any, str]:
     return req, assistant_id
 
 
+ACTIONS = ("status", "prepare", "retry", "cancel")
+# Actions the owner signs on a card, even in bypass; each binds one exact candidate.
+APPROVED_ACTIONS = frozenset({"prepare", "retry"})
+
+
+def action_of(args: Mapping[str, Any] | None) -> str:
+    """The action a ``self_update`` call names; an omitted action reads status."""
+    value = (args or {}).get("action") if isinstance(args, Mapping) else None
+    return str(value or "status")
+
+
+def _overview() -> str:
+    return """
+        Change and install OpenProgram itself, from a commit in an isolated worktree.
+
+        1. worktree_create a worktree of the OpenProgram repo; edit, test and commit there.
+        2. self_update(action="prepare", ...) with that worktree and commit. The owner approves
+           a card; the supervisor then rebuilds only the changed parts, installs, verifies the
+           assertions and rolls back on failure. The call returns once the request is saved.
+        3. self_update() reads status. After a rollback the supervisor diagnoses, repairs the
+           source in isolation and tests it; a tested repair is installed with action="retry".
+        4. self_update(action="cancel") stops this session's update and everything it started.
+           A transaction that already activated still finishes verification or rollback.
+
+        What restarts depends on the changed paths: web, docs and terminal UI swap in while
+        everything runs; Python restarts only the worker; the Desktop shell or dependencies
+        restart the App. Published CLI/Desktop releases use `openprogram upgrade` instead.
+    """
+
+
+def _prepare_guide() -> str:
+    from openprogram.self_update.verification.native_checks import NATIVE_ENTRIES
+    from openprogram.self_update.verification.system_probe import OBSERVATION_ENTRIES
+    entries = ", ".join(sorted({*OBSERVATION_ENTRIES, *NATIVE_ENTRIES, "ui:main"}))
+    return f"""
+        self_update(action="prepare", worktree_id, candidate_sha, goal, assertions,
+                    iteration_policy=None, verification_plan=None)
+
+        - worktree_id: an active worktree this session created of the OpenProgram repo.
+        - candidate_sha: the full 40-character lowercase SHA of its clean HEAD; it must be
+          based on the source checkout HEAD and change at least one path.
+        - goal: one sentence on what the change is for.
+        - assertions: non-empty list of observable facts the installed App must satisfy.
+          They are numbered acceptance-1, acceptance-2, ... in order.
+        - iteration_policy: {{"mode": "approve_each_activation" | "bounded_auto",
+          "max_attempts": 1-3 (default 3), "deadline": unix seconds, "allowed_paths": [globs],
+          "required_tests": [test paths]}}. The default mode asks the owner for each new SHA.
+          bounded_auto lets repairs install without another card, inside the attempt budget,
+          a future deadline, allowed_paths (the first candidate must fit them too) and
+          non-empty required_tests.
+        - verification_plan: {{"schema": 1, "checks": [...]}} with one check per assertion:
+          {{"id", "assertion_id": "acceptance-N", "entry", "timeout_seconds": 1-60,
+          "max_output_bytes"}}. entry is one of: {entries}.
+          "test:python" adds "argv": [relative script.py, ...] run in the candidate;
+          "ui:main" captures the main window (the model needs image input) and may add
+          "interaction": {{"kind": "scroll", "delta_y": -1200..1200}} or
+          {{"kind": "view", "target": "session" | "dag"}}.
+          Without a plan the verifier judges the assertions from its own observations.
+
+        The approval also permits pausing and resuming active tasks at a safe point, a
+        follow-up turn in this session after the update, and isolated repair with the listed
+        tests after a rollback. The result names the update_id, the predicted restart
+        (hot / worker / app) and what will be rebuilt.
+    """
+
+
+def _retry_guide() -> str:
+    return """
+        self_update(action="retry", update_id, candidate_sha)
+
+        After a rollback, status shows the repaired candidate the supervisor tested. retry
+        submits exactly that SHA as the next attempt of the same update: the original goal,
+        assertions, scope, model and attempt budget carry over. The owner approves a card
+        that shows the candidate's changed paths, tests and remaining budget. The result is
+        the new child request, not proof that it installed; read status afterwards.
+    """
+
+
+def _requires_approval(action: str = "status", **_: Any) -> bool:
+    return str(action or "status") in APPROVED_ACTIONS
+
+
 @function(
-    name="self_update_prepare",
+    name="self_update",
     description=(
-        "Prepare an owner-approved OpenProgram self-update from the exact clean HEAD "
-        "of this session's active linked worktree. To change and install OpenProgram itself: create a worktree "
-        "of the OpenProgram repo with worktree_create, edit and test there, commit, then call this with that "
-        "worktree_id and the commit SHA; the supervisor builds, installs, verifies and rolls back on failure. "
-        "Requires the macOS source-update controller; "
-        "only the changed parts are rebuilt. Web, docs and terminal UI changes swap in while everything keeps "
-        "running; Python changes restart only the worker; Desktop shell or dependency changes restart the App. "
-        "published CLI/Desktop upgrades use a separate updater. This persists intent only; it does "
-        "not build, install, stop, or restart the App. Approval permits safe-point pause and resume of active tasks, "
-        "and a background original-session follow-up after the update. It also permits isolated "
-        "source repair and listed tests after verified rollback. Default mode requires approval for each new SHA; "
-        "bounded_auto explicitly permits further installations within the original attempt, deadline, path and test limits."
+        "Install a committed change to OpenProgram itself and follow it through build, "
+        "verification, rollback and repair. Actions: status (default), prepare, retry, cancel. "
+        "The first result explains the workflow; each action's parameters come from help."
     ),
     toolset=["core"],
-    requires_approval=True,
+    requires_approval=_requires_approval,
     path_params={},
 )
-def self_update_prepare(
-    worktree_id: str,
-    candidate_sha: str,
-    goal: str,
-    assertions: list[str],
+def self_update(
+    action: str = "status",
+    update_id: str | None = None,
+    worktree_id: str | None = None,
+    candidate_sha: str | None = None,
+    goal: str | None = None,
+    assertions: list[str] | None = None,
     iteration_policy: dict[str, Any] | None = None,
     verification_plan: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    _require_update_backend()
+    """Run one self-update action.
+
+    Args:
+        action: status, prepare, retry or cancel.
+        update_id: The update to read, retry or cancel; defaults to this session's active one.
+        worktree_id: prepare: the worktree holding the candidate commit.
+        candidate_sha: prepare, retry: the exact commit to install.
+        goal: prepare: what the change is for.
+        assertions: prepare: facts the installed App must satisfy.
+        iteration_policy: prepare: approval mode and repair budget.
+        verification_plan: prepare: checks bound to each assertion.
+    """
+    if action in APPROVED_ACTIONS:
+        _require_update_backend()
     req, assistant_id = _turn_context()
-    return _prepare_update(
-        worktree_id=worktree_id,
-        candidate_sha=candidate_sha,
-        goal=goal,
-        assertions=assertions,
-        iteration_policy=iteration_policy,
-        req=req,
-        assistant_id=assistant_id,
-        manager=get_manager(),
-        store=SelfUpdateStore(),
-        verification_plan=verification_plan,
-    )
+    if action == "status":
+        return _status_update(update_id=update_id, req=req, store=SelfUpdateStore())
+    if action == "cancel":
+        return _cancel_iteration(update_id=update_id, req=req, store=SelfUpdateStore())
+    if action == "prepare":
+        return _prepare_update(
+            worktree_id=worktree_id or "",
+            candidate_sha=candidate_sha or "",
+            goal=goal or "",
+            assertions=assertions,
+            iteration_policy=iteration_policy,
+            req=req,
+            assistant_id=assistant_id,
+            manager=get_manager(),
+            store=SelfUpdateStore(),
+            verification_plan=verification_plan,
+        )
+    if action == "retry":
+        from openprogram.self_update.repair.next_candidate import submit
+        return submit(update_id, candidate_sha, req=req, assistant_id=assistant_id)
+    raise SelfUpdateToolError(f"unknown action {action!r}; use one of {', '.join(ACTIONS)}")
 
 
-@function(
-    name="self_update_status",
-    description="Read the durable status of this session's current or named self-update.",
-    toolset=["core"],
-    path_params={},
-)
-def self_update_status(update_id: str | None = None) -> dict[str, Any]:
-    req, _assistant_id = _turn_context()
-    return _status_update(update_id=update_id, req=req, store=SelfUpdateStore())
-
-
-@function(
-    name="self_update_cancel",
-    description="Cancel this session's self-update before activation begins.",
-    toolset=["core"],
-    requires_approval=True,
-    path_params={},
-)
-def self_update_cancel(
-    update_id: str | None = None, reason: str = "owner requested cancellation"
-) -> dict[str, Any]:
-    req, _assistant_id = _turn_context()
-    return _cancel_update(
-        update_id=update_id, reason=reason, req=req, store=SelfUpdateStore()
-    )
-
-
-@function(
-    name="self_update_repair_cancel",
-    description="Cancel source repair or candidate tests for this session's rolled-back update; never installs or changes its verdict.",
-    toolset=["core"], path_params={},
-)
-def self_update_repair_cancel(update_id: str) -> dict[str, Any]:
-    from openprogram.self_update.repair.source_repair import _finish
-    from openprogram.self_update.repair.source_repair import read_result
-    req, _assistant_id = _turn_context()
+def _cancel_iteration(*, update_id: str | None, req: Any, store: SelfUpdateStore) -> dict[str, Any]:
+    """Stop this session's update and everything its iteration started."""
     _require_local_owner(req)
-    store = SelfUpdateStore()
-    with store._locked():
-        record = store._load_unlocked(update_id)
-        if record.request.session_id != req.session_id:
-            raise SelfUpdateToolError("source repair belongs to another origin session")
-        if record.state.phase is not UpdatePhase.ROLLED_BACK:
-            raise SelfUpdateToolError("source repair cancellation requires a rolled-back update")
-        _finish(store, record, "cancelled", "owner cancelled source repair")
-        return read_result(store, record)
+    from openprogram.self_update.repair import next_candidate
+    try:
+        record = _resolve_record(update_id, store)
+    except SelfUpdateError as exc:
+        raise SelfUpdateToolError(str(exc)) from exc
+    if record.request.session_id != req.session_id:
+        raise SelfUpdateToolError("self-update belongs to another session")
+    if next_candidate._config(store, record) is None:
+        # A request without frozen iteration configuration has nothing to stop
+        # but itself, and only before activation.
+        return _abort_request(record, req=req, store=store)
+    try:
+        return next_candidate.cancel(record.request.update_id, req, store)
+    except (SelfUpdateError, ValueError) as exc:
+        raise SelfUpdateToolError(str(exc)) from exc
+
+
+def _abort_request(record: Any, *, req: Any, store: SelfUpdateStore) -> dict[str, Any]:
+    if record.state.phase not in {UpdatePhase.PREPARING, UpdatePhase.STAGING, UpdatePhase.READY}:
+        raise SelfUpdateToolError(f"cannot cancel self-update in {record.state.phase.value}")
+    try:
+        state = store.transition(
+            record.request.update_id,
+            UpdatePhase.ABORTED,
+            expected_phase=record.state.phase,
+            detail={**record.state.detail, "reason": "owner requested cancellation",
+                    "cancelled_by_session": req.session_id},
+        )
+    except SelfUpdateError as exc:
+        raise SelfUpdateToolError(str(exc)) from exc
+    return {"update_id": record.request.update_id, "status": "stopped", "phase": state.phase.value}
+
+
+from openprogram.programs import guides as _guides
+
+_guides.register("self_update", [
+    _guides.Guide("self_update", _overview, mode="open", activates=("worktree_create",)),
+    _guides.Guide("self_update.prepare", _prepare_guide, summary="parameters, iteration policy and verification plan",
+                  required_for=lambda args: action_of(args) == "prepare"),
+    _guides.Guide("self_update.retry", _retry_guide, summary="install the repaired candidate after a rollback",
+                  required_for=lambda args: action_of(args) == "retry"),
+])
 
 
 @function(
@@ -591,26 +653,4 @@ def self_update_observe(entry: str = "", check_id: str | None = None) -> dict[st
     return result
 
 
-@function(
-    name="self_update_retry", toolset=["core"], requires_approval=True, path_params={},
-    description="Approve this exact tested repair candidate in its original owner session. Requires the macOS source-update controller. Preserves original goal, scope, model and iteration budget; returns a child request, not installation success.",
-)
-def self_update_retry(update_id: str, candidate_sha: str) -> dict[str, Any]:
-    _require_update_backend()
-    from openprogram.self_update.repair.next_candidate import submit
-    req, assistant_id = _turn_context()
-    return submit(update_id, candidate_sha, req=req, assistant_id=assistant_id)
-
-
-@function(
-    name="self_update_iteration_cancel", toolset=["core"], path_params={},
-    description="Stop this owner session's entire self-update iteration, including diagnosis, repair, tests and pending submission. An activated transaction still completes verification or safe rollback.",
-)
-def self_update_iteration_cancel(update_id: str) -> dict[str, Any]:
-    from openprogram.self_update.repair.next_candidate import cancel
-    req, _ = _turn_context()
-    return cancel(update_id, req)
-
-
-__all__ = ["self_update_prepare", "self_update_status", "self_update_cancel", "self_update_repair_cancel", "self_update_observe",
-           "self_update_retry", "self_update_iteration_cancel"]
+__all__ = ["self_update", "self_update_observe", "action_of", "APPROVED_ACTIONS"]
