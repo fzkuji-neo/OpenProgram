@@ -812,6 +812,20 @@ class TestSeatbeltEndToEnd:
         branch = subprocess.run([*git, "-C", str(source), "rev-parse", "op/wt/x"], check=True,
                                 capture_output=True, text=True).stdout.strip()
         assert result.stdout.strip() == branch != main
+        (source / "c.txt").write_text("c\n")
+        subprocess.run([*git, "-C", str(source), "add", "c.txt"], check=True)
+        subprocess.run([*git, "-C", str(source), "commit", "-qm", "c"], check=True)
+        main = subprocess.run([*git, "-C", str(source), "rev-parse", "main"], check=True,
+                              capture_output=True, text=True).stdout.strip()
+        args, _ = wrap_command(" ".join(git) + " rebase main", str(worktree), SandboxPolicy(),
+                               private_tmp=True)
+        rebase = subprocess.run(args, cwd=worktree, capture_output=True, text=True, timeout=20)
+        assert rebase.returncode == 0, rebase.stderr
+        # Finishing a rebase deletes its pseudo-refs, which takes packed-refs.lock.
+        assert "packed-refs.lock" not in rebase.stderr
+        assert not (source / ".git/worktrees/wt/CHERRY_PICK_HEAD").exists()
+        branch = subprocess.run([*git, "-C", str(source), "rev-parse", "op/wt/x"], check=True,
+                                capture_output=True, text=True).stdout.strip()
         args, _ = wrap_command(f"git update-ref refs/heads/main {branch}", str(worktree),
                                SandboxPolicy(), private_tmp=True)
         assert subprocess.run(args, cwd=worktree, capture_output=True, text=True,

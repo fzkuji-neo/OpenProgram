@@ -886,7 +886,13 @@ def _linked_worktree_git_roots(cwd: str) -> tuple[str, ...]:
         os.path.join(common, "logs", *_WORKTREE_REF_NAMESPACE),
     )
     # bwrap can only bind paths that exist.
-    return tuple(path for path in candidates if os.path.isdir(path))
+    roots = tuple(path for path in candidates if os.path.isdir(path))
+    if sys.platform == "darwin":
+        # Deleting any ref (rebase drops CHERRY_PICK_HEAD) takes this lock even
+        # when nothing is packed. Only the lock is writable, so packed-refs
+        # itself, which may hold main, still cannot be replaced.
+        roots += (os.path.join(common, "packed-refs.lock"),)
+    return roots
 
 
 def _seatbelt_profile(cwd: str, policy: SandboxPolicy, *, private_tmp: bool = False,
