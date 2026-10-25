@@ -39,6 +39,9 @@ class _Resource:
     target: str
     methods: Mapping[str, Callable]
     validate: Callable
+    # (method, arguments) -> True for a primitive that only reads: its failure
+    # applied nothing, so it resolves not committed instead of uncertain.
+    reads: Callable[[str, dict], bool]
 
 
 class GuiBroker:
@@ -57,7 +60,8 @@ class GuiBroker:
         self._revoked = threading.Event()
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="gui-broker")
 
-    def register(self, *, target: str, methods: Mapping[str, Callable], validate: Callable) -> str:
+    def register(self, *, target: str, methods: Mapping[str, Callable], validate: Callable,
+                 reads: Callable[[str, dict], bool] | None = None) -> str:
         """Host-only: bind one exact target and its dynamic grant/frame validator."""
         if not target or not methods or not callable(validate) or not all(
             isinstance(name, str) and callable(fn) for name, fn in methods.items()
@@ -67,7 +71,8 @@ class GuiBroker:
             if self._revoked.is_set():
                 raise PermissionError("GUI broker revoked")
             handle = uuid.uuid4().hex
-            self._resources[handle] = _Resource(target, MappingProxyType(dict(methods)), validate)
+            self._resources[handle] = _Resource(target, MappingProxyType(dict(methods)), validate,
+                                                reads or (lambda _method, _arguments: False))
             return handle
 
     def bind_invocation(self, invocation_id: str):
@@ -149,8 +154,10 @@ class GuiBroker:
         check()
         self._effects.mark_dispatched(effect.effect_id, expected_status=EffectStatus.PLANNED)
         diagnostic = None
+        started = False
         try:
             check()
+            started = True
             value = resource.methods[method](args, observation, GuiOperationContext(check, deadline))
             check()
             images = ()
@@ -200,12 +207,29 @@ class GuiBroker:
                 attempt_id=self._attempt_id, generation=self._generation,
             )
             return {"effect_id": effect.effect_id, **receipt, **({"_images": images} if images else {})}
-        except BaseException:
+        except BaseException as exc:
             # If persistence itself fails, DISPATCHED already denotes unresolved
             # work; preserve that record and the original exception.
             try:
-                self._effects.mark_uncertain(effect.effect_id, expected_status=EffectStatus.DISPATCHED,
-                                             receipt=diagnostic)
+                if not started or _reads(resource, method, args):
+                    # Nothing was applied: admission stopped it, or it only read.
+                    self._effects.resolve(
+                        effect.effect_id, expected_status=EffectStatus.DISPATCHED,
+                        outcome=EffectStatus.NOT_COMMITTED,
+                        receipt={**(diagnostic or {"target": resource.target, "method": method}),
+                                 "state": "failed", "error": f"{type(exc).__name__}: {exc}"[:1000]},
+                        attempt_id=self._attempt_id, generation=self._generation,
+                    )
+                else:
+                    self._effects.mark_uncertain(effect.effect_id, expected_status=EffectStatus.DISPATCHED,
+                                                 receipt=diagnostic)
             except Exception:
-                _log.warning("failed to mark GUI effect uncertain effect_id=%s", effect.effect_id, exc_info=True)
+                _log.warning("failed to resolve GUI effect effect_id=%s", effect.effect_id, exc_info=True)
             raise
+
+
+def _reads(resource: _Resource, method: str, arguments: dict) -> bool:
+    try:
+        return bool(resource.reads(method, arguments))
+    except Exception:
+        return False

@@ -148,6 +148,21 @@ def _adapter(target, action: str, call_args: dict, session: str) -> Callable:
     return method
 
 
+_BROWSER_READS = frozenset({"list_pages", "verify", "screenshot", "console_messages", "network_requests"})
+
+
+def _reads(name: str) -> Callable[[str, dict], bool]:
+    """Which of a target's actions only read, so a failed one applied nothing."""
+    def reads(action: str, arguments: dict) -> bool:
+        if name == "app":
+            return action in app_target.READING_ACTIONS
+        if name == "browser":
+            # observe(url) opens a tab; without one it reads the current Page.
+            return action in _BROWSER_READS or action == "observe" and not arguments.get("url")
+        return action == "screenshot"
+    return reads
+
+
 def _validator(name: str, call_args: dict) -> Callable:
     declared = app_target.normalized_app(call_args.get("app"))
 
@@ -187,7 +202,8 @@ def run(code: str, call_args: dict, session: str, *, timeout: float = 60) -> Too
     try:
         for name, (target, actions) in _resources(call_args).items():
             methods = {action: _adapter(target, action, call_args, session) for action in actions}
-            handles[name] = broker.register(target=name, methods=methods, validate=_validator(name, call_args))
+            handles[name] = broker.register(target=name, methods=methods, validate=_validator(name, call_args),
+                                            reads=_reads(name))
             docs[name] = action_docs(target.guide(), actions)
         bound = {name: [handle, docs[name]] for name, handle in handles.items()}
         prelude = runner.execute(_PRELUDE.replace("{handles}", json.dumps(bound)), timeout=10)

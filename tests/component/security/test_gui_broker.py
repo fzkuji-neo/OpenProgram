@@ -79,6 +79,23 @@ def test_adapter_failure_stays_uncertain(environment):
     assert effects.list_unresolved("exec")[0].status is EffectStatus.UNCERTAIN
 
 
+def test_a_failed_read_applied_nothing_and_leaves_nothing_to_resolve(environment):
+    from openprogram.programs import ToolReturn
+    broker, effects, _ = environment
+    handle = broker.register(target="owned-page", methods={
+        "observe": lambda *args: ToolReturn(text="no Page selected", is_error=True),
+        "click": lambda *args: ToolReturn(text="click failed", is_error=True),
+    }, validate=lambda *args: None, reads=lambda method, arguments: method == "observe")
+    with GuiPythonRunner(broker=broker) as runner:
+        reply = runner.execute(f"await ui.call({handle!r}, 'observe')\nprint('unreachable')")
+        assert "no Page selected" in reply.error
+        assert effects.list_unresolved("exec") == []
+        # An action that may have acted stays for the owner to resolve.
+        assert "click failed" in runner.execute(f"await ui.call({handle!r}, 'click')").error
+    unresolved = effects.list_unresolved("exec")
+    assert [effect.metadata["method"] for effect in unresolved] == ["click"]
+
+
 def test_rpc_without_broker_fails_closed():
     with GuiPythonRunner() as runner:
         with pytest.raises(GuiRunnerError, match="broker"):
