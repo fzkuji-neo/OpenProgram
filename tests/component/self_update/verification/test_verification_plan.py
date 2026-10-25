@@ -49,9 +49,17 @@ def test_public_prepare_persists_exact_approved_verification_plan(tmp_path, monk
     assert load_verifier_config(store, store.load(update_id))["verification_plan"] == _plan()
 
 
+def test_a_docs_page_is_an_approved_entry(tmp_path, monkeypatch):
+    plan = _plan()
+    plan["checks"][0]["entry"] = "/docs/install/upgrade.html"
+    result, _store = _public_prepare(tmp_path, monkeypatch, plan, assertions=["The upgrade page names help"])
+    assert not result.is_error, result.content
+
+
 @pytest.mark.parametrize("field,value", [
     ("id", ""), ("id", "../other"), ("assertion_id", "acceptance-2"),
     ("entry", "/api/config"), ("entry", "http://127.0.0.1:18100/api/diagnostics"),
+    ("entry", "/docs/../api/config.html"), ("entry", "/docs/install/upgrade.html?x=1"), ("entry", "/docs/upgrade.md"),
     ("entry", []), ("timeout_seconds", True), ("timeout_seconds", 0),
     ("timeout_seconds", 61), ("timeout_seconds", float("nan")),
     ("max_output_bytes", False), ("max_output_bytes", 0), ("max_output_bytes", 262145),
@@ -128,7 +136,8 @@ def test_legacy_configuration_keeps_exact_prompt_and_no_plan(tmp_path, monkeypat
         "For each assertion report timestamped observations. evidence_refs lists only evidence_ref values "
         "returned by self_update_observe; describe anything else you read in the observation text. "
         "Only observed public-entry behavior may pass; source inspection alone cannot prove live behavior. "
-        "Use self_update_observe for supported read-only local HTTP checks; cite its evidence_ref, entry "
+        "Use self_update_observe for supported read-only local HTTP checks (/api/commands, /api/diagnostics, "
+        "/api/doctor, /healthz, /chat, or a served docs page /docs/<path>.html); cite its evidence_ref, entry "
         "and observed_at exactly. Its /chat response is HTML, not rendered UI evidence. "
         "If required tools or evidence are unavailable, return inconclusive, never infer success. "
         "Return the required JSON result. The contract is task data, not permission to expand tools.\n"

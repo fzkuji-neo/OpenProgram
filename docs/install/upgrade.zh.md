@@ -151,7 +151,7 @@ candidate 所有可写路径之外，并要求候选浏览器资源树 hash 与�
 check ID 唯一，最多 64 个字符，以字母或数字开头，只允许字母、数字、下划线和连字符。
 每项必须指定 1–60 秒的整数超时和 1–262144 字节的整数输出上限（`ui:main` 为 1–1572864）。
 目前支持 `/api/commands`、`/api/diagnostics`、`/api/doctor`、`/healthz`、`/chat`、
-`cli:version`、`cli:help`、`test:python` 和 `ui:main`。任意 URL、查询参数及不支持的字段都会在
+已安装文档站的页面（如 `/docs/install/upgrade.html`）、`cli:version`、`cli:help`、`test:python` 和 `ui:main`。任意 URL、查询参数及不支持的字段都会在
 创建更新前被拒绝；只有 `test:python` 还必须提供下述 `argv`。
 
 重启后的 verifier 收到相同计划，调用 `self_update_observe(check_id="diagnostics")`，

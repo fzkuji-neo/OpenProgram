@@ -474,8 +474,8 @@ def _overview() -> str:
 
 def _prepare_guide() -> str:
     from openprogram.self_update.verification.native_checks import NATIVE_ENTRIES
-    from openprogram.self_update.verification.system_probe import OBSERVATION_ENTRIES
-    entries = ", ".join(sorted({*OBSERVATION_ENTRIES, *NATIVE_ENTRIES, "ui:main"}))
+    from openprogram.self_update.verification.system_probe import DOCS_PAGE, OBSERVATION_ENTRIES
+    entries = ", ".join(sorted({*OBSERVATION_ENTRIES, *NATIVE_ENTRIES, "ui:main", DOCS_PAGE}))
     return f"""
         self_update(action="prepare", worktree_id, candidate_sha, goal, assertions,
                     iteration_policy=None, verification_plan=None)
@@ -495,6 +495,8 @@ def _prepare_guide() -> str:
         - verification_plan: {{"schema": 1, "checks": [...]}} with one check per assertion:
           {{"id", "assertion_id": "acceptance-N", "entry", "timeout_seconds": 1-60,
           "max_output_bytes"}}. entry is one of: {entries}.
+          /docs/<path>.html reads a page of the installed docs site (for documentation
+          changes, e.g. /docs/install/upgrade.html for docs/install/upgrade.md);
           "test:python" adds "argv": [relative script.py, ...] run in the candidate;
           "ui:main" captures the main window (the model needs image input) and may add
           "interaction": {{"kind": "scroll", "delta_y": -1200..1200}} or
@@ -635,7 +637,8 @@ _guides.register("self_update", [
     description=("For the active post-update verifier only: execute an approved frozen check_id "
                  "and save identity-bound evidence (local HTTP, fixed CLI, candidate script or main-window capture). "
                  "Do not supply execution arguments. Legacy requests accept entry: /api/commands, /api/diagnostics, "
-                 "/api/doctor, /healthz, /chat. HTML and candidate tests are not installed UI evidence."),
+                 "/api/doctor, /healthz, /chat, or a docs page /docs/<path>.html. "
+                 "HTML and candidate tests are not installed UI evidence."),
     toolset=["core"],
     path_params={},
 )

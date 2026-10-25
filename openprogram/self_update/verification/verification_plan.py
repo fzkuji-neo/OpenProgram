@@ -7,7 +7,7 @@ import re
 
 
 def validate_plan(value, request) -> dict:
-    from .system_probe import OBSERVATION_ENTRIES
+    from .system_probe import observable
     from .native_checks import NATIVE_ENTRIES
 
     if (not isinstance(value, dict) or set(value) != {"schema", "checks"}
@@ -30,7 +30,7 @@ def validate_plan(value, request) -> dict:
                 or check["id"] in ids
                 or not isinstance(check["assertion_id"], str) or check["assertion_id"] not in expected
                 or check["assertion_id"] in assertions
-                or not isinstance(check["entry"], str) or check["entry"] not in OBSERVATION_ENTRIES | NATIVE_ENTRIES | {"ui:main"}
+                or not isinstance(check["entry"], str) or not (observable(check["entry"]) or check["entry"] in NATIVE_ENTRIES | {"ui:main"})
                 or type(check["timeout_seconds"]) is not int or not 1 <= check["timeout_seconds"] <= 60
                 or type(check["max_output_bytes"]) is not int
                 or not 1 <= check["max_output_bytes"] <= (1572864 if check["entry"] == "ui:main" else 262144)):

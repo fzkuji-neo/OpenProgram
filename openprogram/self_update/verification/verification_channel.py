@@ -141,12 +141,12 @@ def _observation_context(store):
 
 
 def observe(entry: str = "", *, check_id: str | None = None) -> dict:
-    from .system_probe import OBSERVATION_ENTRIES
+    from .system_probe import observable
     from .system_probe import observe_system
     from .verification_plan import resolve_check
     from .native_checks import NATIVE_ENTRIES
     from .native_checks import observe_native
-    if check_id is None and (not isinstance(entry, str) or entry not in OBSERVATION_ENTRIES):
+    if check_id is None and not observable(entry):
         raise ValueError("unsupported read-only observation entry")
     store = SelfUpdateStore()
     with store._locked():

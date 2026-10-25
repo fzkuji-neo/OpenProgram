@@ -13,6 +13,9 @@ from ..types import UpdateRecord
 
 _PORT = 18100
 OBSERVATION_ENTRIES = frozenset({"/api/commands", "/api/diagnostics", "/api/doctor", "/healthz", "/chat"})
+# A page of the served docs site, e.g. /docs/install/upgrade.html.
+DOCS_PAGE = "/docs/<path>.html"
+_DOCS_PAGE = re.compile(r"/docs/(?:[A-Za-z0-9_-]+/)*[A-Za-z0-9_-][A-Za-z0-9_.-]*\.html")
 _OBSERVATION_BYTES = 262_144
 
 
@@ -102,10 +105,16 @@ def request_dispatch(record: UpdateRecord, *, timeout: float = 120) -> None:
         raise SystemProbeError("hot-swap dispatch failed") from None
 
 
+def observable(entry) -> bool:
+    """A reviewed read-only HTTP entry: a fixed route or a docs site page."""
+    return isinstance(entry, str) and (entry in OBSERVATION_ENTRIES or (
+        _DOCS_PAGE.fullmatch(entry) is not None and ".." not in entry))
+
+
 def observe_system(record: UpdateRecord, entry: str, *, timeout_seconds: float = 60,
                    max_output_bytes: int = _OBSERVATION_BYTES) -> dict:
     """Read a reviewed local entry with identity checks before and after I/O."""
-    if entry not in OBSERVATION_ENTRIES:
+    if not observable(entry):
         raise ValueError("unsupported read-only observation entry")
     return _probe_system(record, record.request.candidate_sha,
                          min(60, timeout_seconds, record.request.created_at + record.request.timeout_seconds - time.time()),

@@ -186,7 +186,8 @@ def verifier_prompt(record: UpdateRecord, config: dict | None = None) -> str:
         "assertions": {f"acceptance-{n}": text for n, text in enumerate(record.request.assertions, 1)},
     }
     observation_instruction = (
-        "Use self_update_observe for supported read-only local HTTP checks; cite its evidence_ref, entry "
+        "Use self_update_observe for supported read-only local HTTP checks (/api/commands, /api/diagnostics, "
+        "/api/doctor, /healthz, /chat, or a served docs page /docs/<path>.html); cite its evidence_ref, entry "
         "and observed_at exactly. Its /chat response is HTML, not rendered UI evidence. "
     )
     if config is not None and config["schema"] == 2:

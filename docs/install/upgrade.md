@@ -180,7 +180,8 @@ be the integer `1`. Check IDs must be unique alphanumeric/underscore/hyphen
 identifiers starting with an alphanumeric character, at most 64 characters.
 Each check requires an integer timeout of 1–60 seconds and an integer output limit of
 1–262144 bytes (1–1572864 for `ui:main`). Supported entries are `/api/commands`, `/api/diagnostics`,
-`/api/doctor`, `/healthz`, `/chat`, `cli:version`, `cli:help`, `test:python` and `ui:main`.
+`/api/doctor`, `/healthz`, `/chat`, a page of the installed docs site such as
+`/docs/install/upgrade.html`, `cli:version`, `cli:help`, `test:python` and `ui:main`.
 Arbitrary URLs, query strings and unsupported fields are rejected before creating
 the update; only `test:python` additionally requires `argv` as described below.
 
