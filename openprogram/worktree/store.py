@@ -22,7 +22,7 @@ import threading
 from pathlib import Path
 from typing import Any, Optional
 
-from openprogram.paths import get_state_dir, ensure_state_dir
+from openprogram import paths
 from openprogram.worktree.types import Worktree, WorktreeStatus
 
 
@@ -30,7 +30,7 @@ _FILE_LOCK = threading.Lock()
 
 
 def _store_path() -> Path:
-    return get_state_dir() / "worktrees.json"
+    return paths.get_state_dir() / "worktrees.json"
 
 
 def _load_raw() -> dict[str, dict[str, Any]]:
@@ -59,7 +59,7 @@ def _load_raw() -> dict[str, dict[str, Any]]:
 
 
 def _write_raw(rows: dict[str, dict[str, Any]]) -> None:
-    ensure_state_dir()
+    paths.ensure_state_dir()
     path = _store_path()
     payload = {"version": 1, "worktrees": rows}
     tmp = path.with_suffix(".json.tmp")

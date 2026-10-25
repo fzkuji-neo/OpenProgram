@@ -76,12 +76,6 @@ def isolated_worktree_state(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "openprogram.worktree.manager.get_state_dir", lambda: state,
     )
-    monkeypatch.setattr(
-        "openprogram.worktree.store.get_state_dir", lambda: state,
-    )
-    monkeypatch.setattr(
-        "openprogram.worktree.store.ensure_state_dir", lambda: state,
-    )
     from openprogram.worktree.manager import _reset_manager_for_tests
     _reset_manager_for_tests()
     yield state

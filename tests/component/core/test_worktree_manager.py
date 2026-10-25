@@ -47,19 +47,11 @@ def isolated_state(tmp_path, monkeypatch):
         "openprogram.paths.ensure_state_dir",
         lambda: state,
     )
-    # ``manager`` and ``store`` modules import these symbols by-name
-    # at module load — we have to rebind those too or the sessions-git
-    # check uses the user's real ~/.agentic.
+    # ``manager`` imports this symbol by-name at module load — we have
+    # to rebind it too or the sessions-git check uses the user's real
+    # ~/.agentic.
     monkeypatch.setattr(
         "openprogram.worktree.manager.get_state_dir",
-        lambda: state,
-    )
-    monkeypatch.setattr(
-        "openprogram.worktree.store.get_state_dir",
-        lambda: state,
-    )
-    monkeypatch.setattr(
-        "openprogram.worktree.store.ensure_state_dir",
         lambda: state,
     )
     _reset_manager_for_tests()
