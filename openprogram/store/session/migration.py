@@ -373,6 +373,15 @@ def _migrate_session_once(store, entry: dict[str, Any], *, timeout: float = 15.0
         return "deleted"
     dest = nested_session_dir(root, project_id, session_id)
     row["destination"] = str(dest)
+    source_present = bool(entry.get("source")) and session_looks_present(Path(entry["source"]))
+    if not source_present and _holds_session(dest, session_id):
+        # The copy finished and the old workdir copy is gone; there is
+        # nothing left to wait for.
+        row["stage"] = "done"
+        row["source_unavailable"] = False
+        journal.setdefault("sessions", {})[session_id] = row
+        update_journal_row(root, session_id, row)
+        return "done"
     if entry.get("source_unavailable"):
         row["stage"] = "pending"
         row["source_unavailable"] = True
@@ -505,6 +514,15 @@ def _migrate_locked(store, root, journal, row, source: Path, dest: Path) -> str:
     except OSError:
         pass
     return "done"
+
+
+def _holds_session(path: Path, session_id: str) -> bool:
+    """Whether ``path`` is a complete copy of this session, not a stranger."""
+    try:
+        meta = json.loads((Path(path) / "meta.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(meta, dict) and meta.get("id") == session_id
 
 
 def _mark_project(project_id: str | None, state: str, error: str = "") -> None:

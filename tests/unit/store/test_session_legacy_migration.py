@@ -12,8 +12,10 @@ from openprogram.store.session.migration import (
     collect_legacy_candidates,
     load_journal,
     migrate_session,
+    run_project_migration,
     run_startup_migration,
     staging_dir,
+    update_journal_row,
 )
 from openprogram.store.session import migration
 from openprogram.store.session.placement import (
@@ -260,6 +262,20 @@ def test_unavailable_source_stays_pending_not_empty(tmp_path, monkeypatch):
     row = load_journal(store.root_path)["sessions"][sid]
     assert row["stage"] == "pending"
     assert sid in (projects.get_project(proj.id).session_ids or [])
+
+
+def test_a_stale_pending_row_settles_once_the_copy_is_in_place(tmp_path, monkeypatch):
+    """The workdir copy was migrated and cleaned up, but the journal still
+    waits on it: the published session ends the wait."""
+    store = _isolate(tmp_path, monkeypatch)
+    proj, sid, source, _recovery = _legacy_session(tmp_path, store)
+    entry = collect_legacy_candidates(store)[0]
+    assert run_startup_migration(store)[sid] == "done"
+    stale = dict(entry, source_unavailable=True, stage="pending")
+    update_journal_row(store.root_path, sid, stale)
+
+    assert run_project_migration(proj.id, store) == {sid: "done"}
+    assert load_journal(store.root_path)["sessions"][sid]["stage"] == "done"
 
 
 def test_delete_intent_prevents_resurrection(tmp_path, monkeypatch):
