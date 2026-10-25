@@ -282,8 +282,9 @@ def consume_result(store, update_id: str, token: str) -> dict | None:
                                                  attempt=record.state.attempt, not_before=job.started_at, now=job.completed_at)
                 _resolve_evidence(store, record, grant, result)
                 verdict, reason = result.verdict, "validated durable Job result and live observation references"
-            except Exception:
-                result, reason = None, "invalid verifier result or unresolved observation evidence"
+            except Exception as error:
+                # Controller-side messages only; diagnosis reads why the result was rejected.
+                result, reason = None, f"invalid verifier result or unresolved observation evidence: {error}"[:500]
         receipt = dict(schema=1, update_id=update_id, candidate_sha=record.request.candidate_sha,
                        attempt=record.state.attempt, job_id=grant["job_id"], grant_sha256=_digest(grant),
                        job_sha256=job_digest, verdict=verdict, reason=reason, consumed_at=time.time(),

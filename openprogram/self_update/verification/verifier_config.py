@@ -12,6 +12,8 @@ from ..types import UpdateRequest
 
 
 CONFIG_EVIDENCE_PREFIX = "verifier-config-sha256:"
+# The only evidence the controller resolves: a signed self_update_observe result.
+EVIDENCE_REF_PATTERN = "^observation:[0-9a-f]{32}:[0-9a-f]{64}$"
 VERIFIER_TOOLS = ("read", "glob", "grep", "list", "self_update_observe")
 
 
@@ -32,6 +34,20 @@ def config_evidence(config: dict) -> str:
     return CONFIG_EVIDENCE_PREFIX + hashlib.sha256(encoded).hexdigest()
 
 
+def _contract(response_format: dict) -> dict:
+    """The transport and the evidence-reference pattern only steer the model.
+
+    Every mode validates the same schema, and the controller resolves each
+    reference itself, so a config frozen with either setting unset or
+    different is still the current contract.
+    """
+    contract = deepcopy(response_format)
+    contract["fallback"] = None
+    assertion = contract["schema"]["properties"]["assertions"]["items"]
+    assertion["properties"]["evidence_refs"]["items"] = {"type": "string"}
+    return contract
+
+
 def _response_format(request: UpdateRequest, attempt: int) -> dict:
     text = {"type": "string", "minLength": 1}
     assertion = {
@@ -40,7 +56,8 @@ def _response_format(request: UpdateRequest, attempt: int) -> dict:
             "id": {"type": "string", "enum": [f"acceptance-{n}" for n in range(1, len(request.assertions) + 1)]},
             "status": {"type": "string", "enum": ["pass", "fail", "inconclusive"]},
             "entry": text, "observation": text,
-            "evidence_refs": {"type": "array", "items": text, "minItems": 1},
+            "evidence_refs": {"type": "array", "items": {"type": "string", "pattern": EVIDENCE_REF_PATTERN},
+                              "minItems": 1},
             "observed_at": {"type": "number", "minimum": 0},
         },
         "required": ["id", "status", "entry", "observation", "evidence_refs", "observed_at"],
@@ -144,9 +161,11 @@ def load_verifier_config(store, record: UpdateRecord) -> dict:
     if authority.get("principal_id") != owner_principal_id() or authority.get("authority_tier") != "owner":
         raise ValueError("self-update owner identity has changed")
     expected = asdict(normalize_response_format(_response_format(record.request, record.state.attempt)))
-    # The fallback only picks a transport; every mode validates the same
-    # schema, so a config frozen before it changed is still this contract.
-    if {**config["response_format"], "fallback": None} != {**expected, "fallback": None}:
+    try:
+        changed = _contract(config["response_format"]) != _contract(expected)
+    except (KeyError, TypeError):
+        changed = True
+    if changed:
         raise ValueError("verifier response contract changed")
     return config
 
@@ -209,7 +228,8 @@ def verifier_prompt(record: UpdateRecord, config: dict | None = None) -> str:
         "Verify the installed candidate against the frozen acceptance contract below. "
         "This is a new verification task, not a continuation of the implementation turn. "
         "Do not edit source, deploy, message others, or create another update. "
-        "For each assertion report timestamped observations and retrievable evidence references. "
+        "For each assertion report timestamped observations. evidence_refs lists only evidence_ref values "
+        "returned by self_update_observe; describe anything else you read in the observation text. "
         "Only observed public-entry behavior may pass; source inspection alone cannot prove live behavior. "
         + observation_instruction +
         "If required tools or evidence are unavailable, return inconclusive, never infer success. "

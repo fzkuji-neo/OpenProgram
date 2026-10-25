@@ -469,6 +469,43 @@ def test_a_config_frozen_with_another_fallback_still_loads(tmp_path, monkeypatch
     assert config["response_format"]["fallback"] == "auto"
 
 
+def test_a_config_frozen_without_the_evidence_pattern_still_loads(tmp_path, monkeypatch):
+    from copy import deepcopy
+    from openprogram.self_update.verification import verifier_config
+    worktree, _, candidate_sha = _candidate(tmp_path)
+    store = SelfUpdateStore(tmp_path / "state")
+    monkeypatch.setattr(self_update_module, "_launch_supervisor", lambda _: None)
+    current = verifier_config._response_format
+    def unpatterned(request, attempt):
+        frozen = deepcopy(current(request, attempt))
+        assertion = frozen["schema"]["properties"]["assertions"]["items"]
+        assertion["properties"]["evidence_refs"]["items"] = {"type": "string", "minLength": 1}
+        return frozen
+    monkeypatch.setattr(verifier_config, "_response_format", unpatterned)
+    result = _prepare(worktree, candidate_sha, store)
+    monkeypatch.setattr(verifier_config, "_response_format", current)
+
+    verifier_config.load_verifier_config(store, store.load(result["update_id"]))
+
+
+def test_a_verdict_citing_a_file_instead_of_an_observation_fails_the_schema(tmp_path):
+    from openprogram.providers.structured_output import normalize_response_format, parse_and_validate_json
+    from openprogram.self_update.verification import verifier_config
+    worktree, _, candidate_sha = _candidate(tmp_path)
+    store = SelfUpdateStore(tmp_path / "state")
+    request = store.load(_prepare(worktree, candidate_sha, store)["update_id"]).request
+    output = normalize_response_format(verifier_config._response_format(request, 1))
+    observed = "observation:" + "a" * 32 + ":" + "b" * 64
+    def verdict(*refs):
+        return json.dumps(dict(schema=1, update_id=request.update_id, candidate_sha=candidate_sha, attempt=1,
+                               verdict="fail", assertions=[dict(id="acceptance-1", status="fail", entry="test:python",
+                               observation="The marker is missing", evidence_refs=list(refs), observed_at=1.0)]))
+
+    parse_and_validate_json(verdict(observed), output)
+    with pytest.raises(Exception):
+        parse_and_validate_json(verdict(observed, "/Applications/OpenProgram.app/page.html:80"), output)
+
+
 def test_snapshot_write_failure_does_not_publish_partial_update(tmp_path, monkeypatch):
     worktree, _, candidate_sha = _candidate(tmp_path)
     store = SelfUpdateStore(tmp_path / "state")

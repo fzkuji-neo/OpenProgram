@@ -83,7 +83,8 @@ def verifier(store_fixture, live, monkeypatch, request):
                 assert json.loads(observed["body"])["database_ok"] is True
             row = dict(id="acceptance-1", status=control["status"], entry=observed["entry"],
                        observation="The authenticated response reports database_ok=true",
-                       evidence_refs=[control.get("reference", observed["evidence_ref"])], observed_at=observed["observed_at"])
+                       evidence_refs=[control.get("reference", observed["evidence_ref"]), *control.get("extra_refs", ())],
+                       observed_at=observed["observed_at"])
             row.update(control.get("row_changes", {}))
             return TurnResult(json.dumps(dict(schema=1, update_id=request.update_id, candidate_sha=request.candidate_sha,
                                              attempt=1, verdict=control["status"], assertions=[row])), "verify_u", "verify_a")

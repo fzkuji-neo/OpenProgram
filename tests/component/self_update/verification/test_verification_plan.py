@@ -125,7 +125,8 @@ def test_legacy_configuration_keeps_exact_prompt_and_no_plan(tmp_path, monkeypat
         "Verify the installed candidate against the frozen acceptance contract below. "
         "This is a new verification task, not a continuation of the implementation turn. "
         "Do not edit source, deploy, message others, or create another update. "
-        "For each assertion report timestamped observations and retrievable evidence references. "
+        "For each assertion report timestamped observations. evidence_refs lists only evidence_ref values "
+        "returned by self_update_observe; describe anything else you read in the observation text. "
         "Only observed public-entry behavior may pass; source inspection alone cannot prove live behavior. "
         "Use self_update_observe for supported read-only local HTTP checks; cite its evidence_ref, entry "
         "and observed_at exactly. Its /chat response is HTML, not rendered UI evidence. "
@@ -196,6 +197,15 @@ def test_signed_observation_cannot_be_reused_for_another_assertion(verifier):
     result["assertions"].append({**result["assertions"][0], "id": "acceptance-2"})
     update_job_status("p1", verifier.grant["job_id"], JobStatus.COMPLETED, result_text=json.dumps(result))
     assert consume(verifier)["verdict"] == "inconclusive"
+
+
+@pytest.mark.parametrize("verifier", [_plan()], indirect=True)
+def test_a_rejected_result_records_why(verifier):
+    verifier.control["extra_refs"] = ["/Applications/OpenProgram.app/page.html:80"]
+    verifier.run()
+    receipt = consume(verifier)
+    assert receipt["verdict"] == "inconclusive"
+    assert receipt["reason"].endswith(": unsupported evidence reference")
 
 
 @pytest.mark.parametrize("verifier", [_plan()], indirect=True)
