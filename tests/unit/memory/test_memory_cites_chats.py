@@ -117,3 +117,19 @@ def test_the_old_source_copy_becomes_chat_links_once(old_workspace: Path):
     ).stdout
 
     assert store.cite_chats_directly(root) is False
+
+
+def test_a_project_workspace_is_converted_when_it_is_resolved(
+    old_workspace: Path, monkeypatch,
+):
+    """Project layers are read without ``store.ensure``, so resolving the
+    root is where an old project workspace gets its chat links."""
+    from openprogram.memory import project_layer
+    from openprogram.store.project import layout
+
+    monkeypatch.setattr(layout, "memory_dir", lambda _project_id: old_workspace)
+    assert project_layer.project_memory_root("p1") == old_workspace.resolve()
+    assert not (old_workspace / "sources").exists()
+    assert "/s/wechat-direct#af66_reply" in (
+        old_workspace / "topics/people/owner.md"
+    ).read_text(encoding="utf-8")

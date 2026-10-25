@@ -484,7 +484,8 @@ agent 循环、工具、网页端、CLI 都不指名任何实现，一律调 `ge
 不属于迁移。合法旧`core.md`由正常事务提升为`topics/core.md`。
 
 脚注改为链接聊天之前写的工作区里有 `sources/`——每段被引对话的一份副本——以及链接进
-它的脚注（`../sources/openprogram/_v2/<session>.md#source-<hash>`）。首次使用时
+它的脚注（`../sources/openprogram/_v2/<session>.md#source-<hash>`）。首次使用时（个人工作区在
+`store.ensure()`，项目工作区在 `project_memory_root`）
 `store.cite_chats_directly` 读每份副本的 `source-id` 头，把每个锚点映射回它的消息，
 把 `topics/`、`timeline/` 和 `MEMORY.md` 里的链接改写成 `/s/<session>#<message>`，
 删除 `sources/`，并以 `memory: cite chats directly` 提交。Git 保留那份副本。原本就不是

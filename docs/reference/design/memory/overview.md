@@ -734,8 +734,9 @@ into `topics/core.md` by the normal transaction path.
 
 A workspace written before footnotes linked chats holds `sources/`, a copy
 of each cited conversation, and footnotes that link into it
-(`../sources/openprogram/_v2/<session>.md#source-<hash>`). On first use
-`store.cite_chats_directly` reads each copy's `source-id` headers to map
+(`../sources/openprogram/_v2/<session>.md#source-<hash>`). On first use —
+`store.ensure()` for the personal workspace, `project_memory_root` for a
+project's — `store.cite_chats_directly` reads each copy's `source-id` headers to map
 every anchor back to its message, rewrites the links in `topics/`,
 `timeline/` and `MEMORY.md` to `/s/<session>#<message>`, removes
 `sources/`, and commits the result as `memory: cite chats directly`. Git

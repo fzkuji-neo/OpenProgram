@@ -101,7 +101,13 @@ def project_memory_root(project_id: str) -> Path:
     """A project's memory workspace, whether or not it exists yet."""
     from openprogram.store.project.layout import memory_dir
 
-    return memory_dir(project_id).resolve()
+    from . import store
+
+    root = memory_dir(project_id).resolve()
+    # Every way into a project's memory resolves it here, and an old
+    # workspace's footnotes still link a sources/ copy the parser refuses.
+    store.cite_chats_directly(root)
+    return root
 
 
 def project_roots() -> list[Path]:
