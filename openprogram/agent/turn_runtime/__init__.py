@@ -152,6 +152,19 @@ def _drain_send_message_inbox(session_id: str) -> None:
 # Main entry point
 # ---------------------------------------------------------------------------
 
+def _release_prepared_update(session_id: str, assistant_msg_id: str) -> None:
+    """Hand a self-update this turn prepared to its supervisor; never fail the turn."""
+    try:
+        release_prepared_update(session_id, assistant_msg_id)
+    except Exception:
+        _log.warning(
+            "self-update turn release failed for %s turn %s",
+            session_id,
+            assistant_msg_id,
+            exc_info=True,
+        )
+
+
 def execute_turn(
     req: TurnRequest,
     *,
@@ -295,7 +308,7 @@ def execute_continuation(
         user_msg_id=user_msg_id,
     )
     writer = TurnWriter(db, req)
-    finalize_turn(
+    turn_committed = finalize_turn(
         db=db,
         req=req,
         session=session,
@@ -313,6 +326,10 @@ def execute_continuation(
             db.update_session(req.session_id, status="done", unread=True)
         else:
             db.update_session(req.session_id, status="idle")
+    # A turn resumed after an approval (self_update_prepare's own card among
+    # them) ends here, not in _process_turn_once.
+    if turn_committed:
+        _release_prepared_update(req.session_id, assistant_msg_id)
     on_event({"type": "chat_response", "data": {
         "type": "result", "session_id": req.session_id,
         "msg_id": user_msg_id, "content": final_text,
@@ -747,15 +764,7 @@ def _process_turn_once(
     # are all durable. A mismatch is a no-op; a storage error leaves the
     # request in PREPARING for explicit inspection/cancellation.
     if turn_committed and session_finished:
-        try:
-            release_prepared_update(req.session_id, assistant_msg_id)
-        except Exception:
-            _log.warning(
-                "self-update turn release failed for %s turn %s",
-                req.session_id,
-                assistant_msg_id,
-                exc_info=True,
-            )
+        _release_prepared_update(req.session_id, assistant_msg_id)
 
     # 6.99. Deliver cross-branch messages queued while this turn ran
     #       (send_message busy-queueing) — the turn is over, the session

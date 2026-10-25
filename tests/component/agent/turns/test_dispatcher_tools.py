@@ -982,3 +982,54 @@ def test_full_result_artifacts_survive_reused_provider_ids(
     second_path, = [path for path in paths if path != first_path]
     assert str(second_path) in receipts[1]
     assert second_path.read_text() == "B" * 5000
+
+
+@pytest.mark.parametrize("turn_committed", [True, False])
+def test_resumed_turn_releases_its_prepared_update(monkeypatch, turn_committed):
+    # A self_update_prepare approved from its card finishes in the resumed turn.
+    from types import SimpleNamespace
+
+    from openprogram.agent import turn_runtime as T
+    from openprogram.agent.turn_runtime import finalize, persistence, turn_writer
+    from openprogram.context import Context
+    from openprogram.context import persistence as context_persistence
+    from openprogram.memory import policy
+
+    class Store:
+        statuses: list[str] = []
+
+        def get_session(self, _session_id):
+            return {"id": "c1"}
+
+        def message_exists(self, _session_id, _message_id):
+            return True
+
+        def update_session(self, _session_id, **fields):
+            self.statuses.append(fields["status"])
+
+    store = Store()
+    monkeypatch.setattr(Context, "turn_store", staticmethod(lambda _session_id: store))
+    monkeypatch.setattr(context_persistence, "rendered_history", lambda *args, **kwargs: [])
+    monkeypatch.setattr(policy, "bind_history", lambda *args: None)
+    monkeypatch.setattr(T.TurnBindings, "bind",
+                        classmethod(lambda cls, **kwargs: SimpleNamespace(release=lambda **kw: None)))
+    monkeypatch.setattr(T, "make_stream_tap",
+                        lambda **kwargs: SimpleNamespace(flush=lambda: None, blocks=[]))
+    monkeypatch.setattr(T, "_run_loop_blocking", lambda **kwargs: ("done", {}, []))
+    monkeypatch.setattr(persistence, "persist_assistant_message",
+                        lambda **kwargs: ({"id": "a1"}, [], [], {}))
+    monkeypatch.setattr(finalize, "finalize_turn", lambda **kwargs: turn_committed)
+    monkeypatch.setattr(turn_writer.TurnWriter, "head_for_finalize", lambda self, _id: "a1")
+    released: list[tuple[str, str]] = []
+    monkeypatch.setattr(T, "release_prepared_update",
+                        lambda session_id, assistant_id: released.append((session_id, assistant_id)))
+    request = SimpleNamespace(session_id="c1", advance_head=True, source="web")
+    continuation = SimpleNamespace(
+        request=request, assistant_message_id="a1",
+        state=SimpleNamespace(payload={"turn": {"user_message_id": "u1"}}),
+    )
+
+    T.execute_continuation.__wrapped__(continuation)
+
+    assert store.statuses == ["idle"]
+    assert released == ([("c1", "a1")] if turn_committed else [])
