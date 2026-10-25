@@ -243,6 +243,15 @@ def test_list_and_get_worktree(isolated_state, repo):
     assert g is not None and g.id == wt1.id
 
 
+def test_a_job_bound_worktree_is_not_the_session_working_tree(isolated_state, repo):
+    mgr = WorktreeManager()
+    own = mgr.create_worktree(str(repo), label="own", parent_session="sess-A")
+    repair = mgr.create_worktree(str(repo), label="repair", parent_session="sess-A",
+                                 parent_job="self-update:su_x:repair:1")
+    assert {w.id for w in mgr.list_worktrees(parent_session="sess-A")} == {own.id, repair.id}
+    assert mgr.find_active_for_session("sess-A").id == own.id
+
+
 def test_persistence_round_trip(isolated_state, repo):
     """Worktree state should survive a fresh manager instance, as
     long as the same store path is in play."""

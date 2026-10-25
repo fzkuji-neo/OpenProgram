@@ -126,12 +126,15 @@ def list_worktrees(
 
 
 def find_active_for_session(session_id: str) -> Optional[Worktree]:
-    """Convenience: the first worktree in ACTIVE state bound to this
-    session. (Manager keeps it to at most one — see Part 5 #4.)"""
+    """Convenience: the session's own ACTIVE worktree. (Manager keeps it
+    to at most one — see Part 5 #4.) A worktree bound to a job, such as a
+    self-update repair candidate, is that job's and never the session's
+    working directory, even though the session owns it."""
     rows = list_worktrees(
         status_filter={WorktreeStatus.ACTIVE},
         parent_session=session_id,
     )
+    rows = [wt for wt in rows if wt.parent_job is None]
     return rows[0] if rows else None
 
 
