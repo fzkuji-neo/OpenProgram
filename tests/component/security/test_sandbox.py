@@ -791,6 +791,34 @@ class TestSeatbeltEndToEnd:
             assert r.returncode != 0
             assert not os.path.exists(target)
 
+    def test_linked_worktree_commits_but_cannot_move_other_branches(self, tmp_path):
+        git = ["git", "-c", "user.name=t", "-c", "user.email=t@t"]
+        source = tmp_path / "source"
+        source.mkdir()
+        subprocess.run([*git, "init", "-q", "-b", "main", str(source)], check=True)
+        (source / "a.txt").write_text("a\n")
+        subprocess.run([*git, "-C", str(source), "add", "a.txt"], check=True)
+        subprocess.run([*git, "-C", str(source), "commit", "-qm", "a"], check=True)
+        worktree = tmp_path / "wt"
+        subprocess.run([*git, "-C", str(source), "worktree", "add", "-q", "-b", "op/wt/x",
+                        str(worktree)], check=True)
+        main = subprocess.run([*git, "-C", str(source), "rev-parse", "main"], check=True,
+                              capture_output=True, text=True).stdout.strip()
+        commit = " ".join(git) + " commit -qam b"
+        args, _ = wrap_command(f"echo b > a.txt && {commit} && git rev-parse HEAD",
+                               str(worktree), SandboxPolicy(), private_tmp=True)
+        result = subprocess.run(args, cwd=worktree, capture_output=True, text=True, timeout=20)
+        assert result.returncode == 0, result.stderr
+        branch = subprocess.run([*git, "-C", str(source), "rev-parse", "op/wt/x"], check=True,
+                                capture_output=True, text=True).stdout.strip()
+        assert result.stdout.strip() == branch != main
+        args, _ = wrap_command(f"git update-ref refs/heads/main {branch}", str(worktree),
+                               SandboxPolicy(), private_tmp=True)
+        assert subprocess.run(args, cwd=worktree, capture_output=True, text=True,
+                              timeout=20).returncode != 0
+        assert subprocess.run([*git, "-C", str(source), "rev-parse", "main"], check=True,
+                              capture_output=True, text=True).stdout.strip() == main
+
     def test_dev_null_redirect_works(self):
         with tempfile.TemporaryDirectory() as td:
             r = self._run("ls /nonexistent 2>/dev/null; echo done", td)

@@ -836,11 +836,57 @@ def wrap_command(command: str, cwd: str,
 
 def _writable_roots(cwd: str, policy: SandboxPolicy) -> list[str]:
     roots = [cwd]
-    for r in policy.writable_roots:
+    for r in (*policy.writable_roots, *_linked_worktree_git_roots(cwd)):
         real = os.path.realpath(os.path.expanduser(r))
         if real not in roots:
             roots.append(real)
     return roots
+
+
+# Branches OpenProgram creates for its worktrees (see worktree.manager).
+_WORKTREE_REF_NAMESPACE = ("refs", "heads", "op", "wt")
+
+
+def _linked_worktree_git_roots(cwd: str) -> tuple[str, ...]:
+    """Git state a linked worktree at ``cwd`` must write to commit and rebase.
+
+    A linked worktree keeps its index and HEAD in ``<common>/worktrees/<id>``
+    and shares objects and refs with the source repository, all outside the
+    worktree folder. Only that worktree's own admin directory, the object
+    store and the ``op/wt`` branch namespace become writable: the source
+    repository's config, hooks and other branches (``main``) stay read-only.
+    """
+    current = cwd
+    while True:
+        marker = os.path.join(current, ".git")
+        if os.path.lexists(marker):
+            break
+        parent = os.path.dirname(current)
+        if parent == current:
+            return ()
+        current = parent
+    try:
+        if not os.path.isfile(marker) or os.path.islink(marker):
+            return ()  # A main checkout already lives under its own root.
+        with open(marker, encoding="utf-8") as stream:
+            line = stream.read(4096).strip()
+        if not line.startswith("gitdir: "):
+            return ()
+        admin = os.path.realpath(os.path.join(current, line[len("gitdir: "):]))
+        with open(os.path.join(admin, "commondir"), encoding="utf-8") as stream:
+            common = os.path.realpath(os.path.join(admin, stream.read(4096).strip()))
+    except (OSError, UnicodeDecodeError):
+        return ()
+    if os.path.dirname(admin) != os.path.join(common, "worktrees"):
+        return ()
+    candidates = (
+        admin,
+        os.path.join(common, "objects"),
+        os.path.join(common, *_WORKTREE_REF_NAMESPACE),
+        os.path.join(common, "logs", *_WORKTREE_REF_NAMESPACE),
+    )
+    # bwrap can only bind paths that exist.
+    return tuple(path for path in candidates if os.path.isdir(path))
 
 
 def _seatbelt_profile(cwd: str, policy: SandboxPolicy, *, private_tmp: bool = False,
