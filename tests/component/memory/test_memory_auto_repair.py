@@ -12,7 +12,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from tests.unit.memory.test_memory_history_commits import _record, _write
+from tests.component.memory.test_memory_history_commits import _record, _write
 
 
 class _ScriptedAgent:
