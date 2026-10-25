@@ -388,7 +388,10 @@ def capture_active() -> dict:
 
     connections = list(_server._ws_connections)
     if len(connections) != 1:
-        raise RuntimeError("direct Page selection requires one desktop connection")
+        raise RuntimeError(
+            "no single active Page: " + ("no OpenProgram window is connected" if not connections else
+                                         f"{len(connections)} OpenProgram windows are connected")
+            + "; name the Page with observe(page=…) or a page_context_token from list_pages")
     owner_ws = connections[0]
     connection_revision = webtab.ensure_connection_revision(owner_ws)
     result = webtab.request_on_ws(owner_ws, {"op": "active"})
