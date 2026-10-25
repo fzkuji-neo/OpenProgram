@@ -394,6 +394,23 @@ def resolve_agent_runtime(
     return agent_profile, tools, recordable_prompt, system_prompt, model, contract
 
 
+def with_current_location(snapshot: dict, session_id: str) -> dict:
+    """Record where the rest of the turn runs in a safe-point snapshot.
+
+    A tool may create or leave a worktree mid-turn (``worktree_create``);
+    a resume resolves the location afresh, so a safe point must record the
+    location as it is now rather than as it was when the turn began.
+    """
+    semantics = snapshot.get("request_semantics")
+    if not isinstance(semantics, dict):
+        return snapshot
+    from openprogram.agent.internals._workdir import runtime_location_for
+    return {
+        **snapshot,
+        "request_semantics": {**semantics, "execution_location": runtime_location_for(session_id)},
+    }
+
+
 def run_loop_blocking(
     *,
     req: "TurnRequest",
@@ -758,6 +775,10 @@ def run_loop_blocking(
             last_safe_point_snapshot = dict(snapshot)
         elif last_safe_point_snapshot:
             durable_payload["resolved_snapshot"] = dict(last_safe_point_snapshot)
+        if isinstance(durable_payload.get("resolved_snapshot"), dict):
+            durable_payload["resolved_snapshot"] = with_current_location(
+                durable_payload["resolved_snapshot"], req.session_id,
+            )
         durable_payload["turn"] = {
             "user_message_id": req.user_msg_id or "",
             "assistant_message_id": assistant_msg_id or "",
