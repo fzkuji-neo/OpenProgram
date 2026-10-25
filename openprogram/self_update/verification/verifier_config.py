@@ -144,7 +144,9 @@ def load_verifier_config(store, record: UpdateRecord) -> dict:
     if authority.get("principal_id") != owner_principal_id() or authority.get("authority_tier") != "owner":
         raise ValueError("self-update owner identity has changed")
     expected = asdict(normalize_response_format(_response_format(record.request, record.state.attempt)))
-    if config["response_format"] != expected:
+    # The fallback only picks a transport; every mode validates the same
+    # schema, so a config frozen before it changed is still this contract.
+    if {**config["response_format"], "fallback": None} != {**expected, "fallback": None}:
         raise ValueError("verifier response contract changed")
     return config
 

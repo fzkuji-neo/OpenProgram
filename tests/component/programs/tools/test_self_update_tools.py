@@ -454,6 +454,21 @@ def test_prepare_publishes_bound_verifier_config_before_launch(tmp_path, monkeyp
     assert seen == [result["update_id"]]
 
 
+def test_a_config_frozen_with_another_fallback_still_loads(tmp_path, monkeypatch):
+    from openprogram.self_update.verification import verifier_config
+    worktree, _, candidate_sha = _candidate(tmp_path)
+    store = SelfUpdateStore(tmp_path / "state")
+    monkeypatch.setattr(self_update_module, "_launch_supervisor", lambda _: None)
+    current = verifier_config._response_format
+    monkeypatch.setattr(verifier_config, "_response_format",
+                        lambda request, attempt: {**current(request, attempt), "fallback": "auto"})
+    result = _prepare(worktree, candidate_sha, store)
+    monkeypatch.setattr(verifier_config, "_response_format", current)
+
+    config = verifier_config.load_verifier_config(store, store.load(result["update_id"]))
+    assert config["response_format"]["fallback"] == "auto"
+
+
 def test_snapshot_write_failure_does_not_publish_partial_update(tmp_path, monkeypatch):
     worktree, _, candidate_sha = _candidate(tmp_path)
     store = SelfUpdateStore(tmp_path / "state")

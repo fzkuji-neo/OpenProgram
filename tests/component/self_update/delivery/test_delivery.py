@@ -111,3 +111,23 @@ def test_missing_session_or_origin_remains_undelivered(store_fixture, tmp_path, 
         assert runner.list_jobs("p1") == []
     finally:
         runner.shutdown()
+
+
+def test_one_unreadable_update_does_not_block_other_results(store_fixture, tmp_path, monkeypatch):
+    from openprogram import paths
+    from openprogram.self_update import SelfUpdateStore, UpdatePhase
+    from openprogram.self_update.delivery.delivery import deliver_pending
+
+    monkeypatch.setattr(paths, "get_state_dir", lambda: tmp_path / "profile")
+    monkeypatch.setattr('openprogram.agent.job.runner.shared._broadcast', lambda *a, **k: None)
+    updates = SelfUpdateStore()
+    for update_id in ("su_broken", "su_test"):
+        updates.create(replace(_request(), update_id=update_id, session_id="p1", origin_assistant_id="a1"))
+        updates.transition(update_id, UpdatePhase.ABORTED)
+    (updates.root / "su_broken" / "delivery.json").write_text('{"schema": 1}')
+
+    assert deliver_pending() == 1
+    index = store_fixture._open("p1")[1]
+    delivered = [n.metadata["self_update"]["update_id"] for n in index.nodes_by_seq
+                 if n.metadata.get("source") == "self_update_result"]
+    assert delivered == ["su_test"]

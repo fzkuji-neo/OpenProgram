@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 
 from ..control.projection import _exists
 from ..control.projection import _optional
@@ -12,6 +13,7 @@ from ..types import is_terminal
 from ..verification.verification_channel import _digest
 
 MAX_DELIVERIES = 20
+_log = logging.getLogger(__name__)
 
 
 def _results(snapshot):
@@ -64,10 +66,39 @@ def _persist(db, snapshot, kind, node_id):
         return db._open(session_id) is not None
 
 
-def deliver_pending() -> int:
-    """Reconcile at most twenty notifications, without a model or client."""
+def _deliver(store, record, budget) -> int:
     from openprogram.agent.session_db import default_db
 
+    path = store.root / record.request.update_id / "delivery.json"
+    receipt = _optional(path)
+    binding = dict(schema=1, update_id=record.request.update_id, attempt=record.state.attempt)
+    if receipt is None:
+        receipt = {**binding, "delivered": {}}
+    if (set(receipt) != {*binding, "delivered"}
+            or type(receipt["schema"]) is not int or type(receipt["attempt"]) is not int
+            or any(receipt[k] != v for k, v in binding.items())
+            or not isinstance(receipt["delivered"], dict)):
+        raise ValueError("invalid self-update delivery receipt")
+    snapshot = _project(store, record)
+    delivered = 0
+    for kind in _results(snapshot):
+        node_id = f"su_result_{_digest([record.request.update_id, record.state.attempt, kind])[:32]}"
+        prior = receipt["delivered"].get(kind)
+        if prior is not None:
+            if prior != node_id:
+                raise ValueError("invalid self-update delivery identity")
+            continue
+        if _persist(default_db(), snapshot, kind, node_id):
+            receipt["delivered"][kind] = node_id
+            store._write_json(path, receipt)
+            delivered += 1
+        if delivered >= budget:
+            break
+    return delivered
+
+
+def deliver_pending() -> int:
+    """Reconcile at most twenty notifications, without a model or client."""
     store = SelfUpdateStore()
     if not _exists(store):
         return 0
@@ -77,31 +108,16 @@ def deliver_pending() -> int:
         for record in _records(store):
             if not is_terminal(record.state.phase):
                 continue
-            path = store.root / record.request.update_id / "delivery.json"
-            receipt = _optional(path)
-            binding = dict(schema=1, update_id=record.request.update_id, attempt=record.state.attempt)
-            if receipt is None:
-                receipt = {**binding, "delivered": {}}
-            if (set(receipt) != {*binding, "delivered"}
-                    or type(receipt["schema"]) is not int or type(receipt["attempt"]) is not int
-                    or any(receipt[k] != v for k, v in binding.items())
-                    or not isinstance(receipt["delivered"], dict)):
-                raise ValueError("invalid self-update delivery receipt")
-            snapshot = _project(store, record)
-            for kind in _results(snapshot):
-                node_id = f"su_result_{_digest([record.request.update_id, record.state.attempt, kind])[:32]}"
-                prior = receipt["delivered"].get(kind)
-                if prior is not None:
-                    if prior != node_id:
-                        raise ValueError("invalid self-update delivery identity")
-                    continue
-                if _persist(default_db(), snapshot, kind, node_id):
-                    receipt["delivered"][kind] = node_id
-                    store._write_json(path, receipt)
-                    sessions.add(record.request.session_id)
-                    delivered += 1
-                if delivered >= MAX_DELIVERIES:
-                    break
+            try:
+                count = _deliver(store, record, MAX_DELIVERIES - delivered)
+            except ValueError:
+                # Fail closed for this update only; the others still reach
+                # their sessions.
+                _log.warning("self-update result %s not delivered", record.request.update_id, exc_info=True)
+                continue
+            if count:
+                delivered += count
+                sessions.add(record.request.session_id)
             if delivered >= MAX_DELIVERIES:
                 break
     if sessions:
