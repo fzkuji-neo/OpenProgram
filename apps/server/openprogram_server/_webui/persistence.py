@@ -139,6 +139,7 @@ def aggregate_tool_messages(messages: list[dict]) -> list[dict]:
             parents[m["id"]] = m
 
     out: list[dict] = []
+    late: dict[str, list[tuple[str | None, dict]]] = {}
     for m in messages:
         if m.get("role") == "tool":
             caller_id = m.get("caller")
@@ -163,6 +164,7 @@ def aggregate_tool_messages(messages: list[dict]) -> list[dict]:
                     "is_error": bool(m.get("is_error")),
                 }
                 parent.setdefault("tool_calls", []).append(tool_call)
+                late.setdefault(parent["id"], []).append((_provider_call_id(m), tool_call))
                 continue  # don't emit a top-level entry
         out.append(m)
 
@@ -182,8 +184,28 @@ def aggregate_tool_messages(messages: list[dict]) -> list[dict]:
                 continue
         if isinstance(extra, dict) and extra.get("blocks"):
             m["blocks"] = extra["blocks"]
+            # Blocks are frozen when the turn ends. A call attached later,
+            # such as a delivered self-update result, exists only as a row.
+            recorded = {b.get("tool_call_id") for b in m["blocks"] if b.get("type") == "tool"}
+            m["blocks"] = [*m["blocks"], *(
+                {"type": "tool", **call} for call_id, call in late.get(m["id"], ())
+                if call_id is None or call_id not in recorded
+            )]
 
     return out
+
+
+def _provider_call_id(tool_msg: dict) -> str | None:
+    extra = tool_msg.get("extra")
+    if isinstance(extra, str):
+        try:
+            import json as _json
+            extra = _json.loads(extra)
+        except Exception:  # noqa: BLE001
+            return None
+    if isinstance(extra, dict):
+        return (extra.get("tool_use") or {}).get("tool_call_id")
+    return None
 
 
 def _stringify_input(tool_msg: dict) -> str:
