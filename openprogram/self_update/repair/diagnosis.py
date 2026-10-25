@@ -43,7 +43,7 @@ def freeze_config(request, verifier_config):
         "corrections": {"type": "array", "items": text, "maxItems": 8},
     }
     config["response_format"] = asdict(normalize_response_format({
-        "type": "json_schema", "name": "self_update_diagnosis", "schema": {
+        "type": "json_schema", "name": "self_update_diagnosis", "fallback": "prompt", "schema": {
             "type": "object", "additionalProperties": False, "properties": properties,
             "required": list(properties),
         },

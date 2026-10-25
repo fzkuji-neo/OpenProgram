@@ -36,7 +36,7 @@ def freeze_config(request, verifier_config, *, candidate_path, branch_name):
             "properties": {"path": {"type": "string", "minLength": 1}, "old_text": text, "new_text": text},
             "required": ["path", "old_text", "new_text"],
         }})
-    config["response_format"] = asdict(normalize_response_format(dict(type="json_schema", name="self_update_source_repair",
+    config["response_format"] = asdict(normalize_response_format(dict(type="json_schema", name="self_update_source_repair", fallback="prompt",
         schema=dict(type="object", additionalProperties=False, properties=properties, required=list(properties)))))
     config.update(candidate_path=candidate_path, branch_name=branch_name)
     return config

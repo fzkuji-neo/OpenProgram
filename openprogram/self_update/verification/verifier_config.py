@@ -45,8 +45,10 @@ def _response_format(request: UpdateRequest, attempt: int) -> dict:
         },
         "required": ["id", "status", "entry", "observation", "evidence_refs", "observed_at"],
     }
+    # Any conversational model can verify: the prompt fallback is still
+    # schema-validated, and invalid output is an inconclusive verdict.
     return {
-        "type": "json_schema", "name": "self_update_verdict", "schema": {
+        "type": "json_schema", "name": "self_update_verdict", "fallback": "prompt", "schema": {
             "type": "object", "additionalProperties": False,
             "properties": {
                 "schema": {"type": "integer", "const": 1},
