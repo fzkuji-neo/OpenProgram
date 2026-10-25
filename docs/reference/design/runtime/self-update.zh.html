@@ -572,7 +572,7 @@
     </section>
 
     <section id="current" aria-labelledby="current-title">
-      <div class="section-head"><div class="section-num">01</div><div><h2 id="current-title">当前实现与缺口</h2><p>自更新控制协议、重启后验收、受控修正及状态界面已进入组合候选。完整组合检查与默认 App 的成功、激活前失败、激活后回退验收仍是发布条件；代码存在不等于已安装可用。</p></div></div>
+      <div class="section-head"><div class="section-num">01</div><div><h2 id="current-title">当前实现与缺口</h2><p>自更新控制协议、重启后验收、受控修正及状态界面已在主线。默认 App 中，用较弱的对话模型发起的 owner 会话已把每个激活级别都走到经验收并投递到原会话的结果：hot（文档）、worker（Python）、App（文档与 Desktop）和完整打包构建。inconclusive 和失败结论会回退、诊断并执行受限的源码修正。仅有源码仍不算已安装可用。</p></div></div>
       <div class="contract-table">
         <div class="table-row table-head"><div>复用模块</div><div>原有行为</div><div>自更新实现职责</div></div>
         <div class="table-row"><div><span class="state-tag exists">Agent 修改与 worktree</span></div><div>owner 会话可使用文件、shell 和 worktree 工具；写入受 permission、sandbox 和 read-before-edit 约束。</div><div>新增专用 <code>self_update_prepare</code>，只接受已提交 candidate，不允许通用 shell 隐式获得部署授权。</div></div>
@@ -665,7 +665,7 @@
       <div class="cards" style="margin-top:16px">
         <article class="card accent-cyan"><div class="label">Restart dispatch</div><h3>不使用普通 Scheduler task</h3><p>Scheduler 的时间触发和用户任务 authority 不适合作为更新控制协议。新 worker 在 JobRunner、session store 和 owner-auth 可用后执行 <code>recover_pending_updates()</code>。</p></article>
         <article class="card accent-blue"><div class="label">Exactly once</div><h3>稳定 Job ID + 原子 claim</h3><p>Job ID 使用 <code>self-update:{update_id}:verify:{attempt}</code>。claim 保存 owner、lease、attempt 和 job_id；重复启动发现已有 Job 或终态时不再提交。</p></article>
-        <article class="card accent-violet"><div class="label">Prompt contract</div><h3>阶段上下文与工具隔离</h3><p>实现 Agent 不能绕过安装审批；验收 Agent 没有源码写工具；诊断与修正 Agent 只读并提出结构化结果。<code>verifier_config.py</code>、<code>diagnosis.py</code>、<code>source_repair.py</code> 保存各阶段配置。新计划共享 goal、assertions、verification plan、迭代策略和期限，继承上下文不扩大工具权限。</p></article>
+        <article class="card accent-violet"><div class="label">Prompt contract</div><h3>阶段上下文与工具隔离</h3><p>实现 Agent 不能绕过安装审批；验收 Agent 没有源码写工具；诊断与修正 Agent 只读并提出结构化结果。<code>verifier_config.py</code>、<code>diagnosis.py</code>、<code>source_repair.py</code> 保存各阶段配置。新计划共享 goal、assertions、verification plan、迭代策略和期限，继承上下文不扩大工具权限。各阶段不能调用 <code>tool_search</code>，所以它们固定的工具总是带完整 schema 发给模型，即使注册表对普通对话把该工具设为延迟加载。结构化输出优先用原生 schema 输出，其次是严格的隐藏提交工具，最后是仍经 schema 校验的 prompt 回退，因此任何对话模型都能执行这些阶段；校验不通过的输出判为 inconclusive。</p></article>
       </div>
       <div class="schema-grid" style="margin-top:16px">
         <div class="schema-note"><h3>启动顺序</h3><ul><li>加载并迁移 self-update state schema，损坏时 fail closed。</li><li>完成 Job orphan reconciliation。</li><li>启动 JobRunner，确认 admission/resource governance 可用。</li><li>完成 revision、owner-auth、Web/WS 和 doctor 系统 gate。</li><li>CAS 认领 attempt，提交一次验证 Job，然后启动普通 Scheduler。</li></ul><p>普通 Scheduler 启动失败不阻止自主更新验收；JobRunner 或系统 gate 失败则请求 supervisor 回退。</p></div>
@@ -840,7 +840,7 @@
         <div class="table-row"><div>App move、Launch Services 或新 worker 启动失败</div><div>移动新 App 到 failed.app，恢复 previous.app 和原启动状态。</div><div>App 重新打开旧版本；结果卡标记 ROLLED_BACK。</div></div>
         <div class="table-row"><div>revision/doctor/Web/WS gate 失败</div><div>不创建 Agent 验收；立即恢复 previous.app。</div><div>原会话收到系统 gate 证据。</div></div>
         <div class="table-row"><div>验收 Agent fail、inconclusive 或超时</div><div>保存 verifier-result，先恢复旧 App；具备冻结配置的新请求自动诊断。允许的实现/测试失败继续修正和测试；默认只在再次安装前等待授权，完整 bounded_auto 授权可在范围内自动提交。inconclusive、环境或目标问题停止再次安装。</div><div>显示逐条 assertion、恢复 revision、attempt 和剩余预算。</div></div>
-        <div class="table-row"><div>JobRunner、provider 或 model 不可用</div><div>不使用 Scheduler 延后执行；标记环境型 inconclusive，并恢复旧 App。</div><div>显示缺失依赖和可重试条件，不误报代码缺陷。</div></div>
+        <div class="table-row"><div>JobRunner、provider 或 model 不可用</div><div>不使用 Scheduler 延后执行；标记环境型 inconclusive，并恢复旧 App。受治理的阶段 Job 只发起一次 provider 请求；请求没有结果就结束、执行停在等待副作用对账时，Job 恢复循环直接取消该阶段 Job，不会一直等到期限。</div><div>显示缺失依赖和可重试条件，不误报代码缺陷。</div></div>
         <div class="table-row"><div>rollback 自身失败</div><div>停止所有自动迭代，保留 previous/candidate/transaction，进入 NEEDS_MANUAL_RECOVERY。</div><div>显示实际 App、revision、进程和只读恢复说明，不报告已经恢复。</div></div>
         <div class="table-row"><div>supervisor 自身崩溃或机器重启</div><div>下一次 worker/App 启动前运行 recovery：依据 phase、规范 App、previous.app 和 revision 做幂等修复。</div><div>不新增 RECOVERED phase；恢复后依据真实结果保留 SUCCEEDED、ROLLED_BACK 或 ABORTED，无法确定时为 NEEDS_MANUAL_RECOVERY。恢复事件与恢复证据单独保存。</div></div>
       </div>
@@ -1006,10 +1006,10 @@
         <article class="evidence exists"><div class="label">已实现的基础</div><h3>完整构建与 packaged smoke</h3><p>Desktop runtime preparation、Electron builder、runtime manifest 和隔离 smoke 已存在。</p></article>
         <article class="evidence exists"><div class="label">已实现的基础</div><h3>App 安装失败恢复</h3><p>现有 install-app transaction 已保存 previous App，并在激活或启动失败时恢复原状态。</p></article>
         <article class="evidence exists"><div class="label">已实现的基础</div><h3>Updater、Scheduler 与 JobRunner</h3><p>复用安装方式识别、source probe、Job 持久化及 orphan reconciliation；自更新启动认领使用 JobRunner，普通 Scheduler 不参与控制或兜底验收。</p></article>
-        <article class="evidence target"><div class="label">已集成候选 · 待发布验证</div><h3>持久自主更新协议</h3><p>组合候选包含状态机、单活动锁、durable release、maintenance、外部 supervisor、延迟提交与回退，以及 owner repair 和 App 外登录恢复入口。离线私有构建输入、固定 SHA 的 Electron 分发、单端口 packaged worker smoke、固定图标渲染和可信 runtime browser probe 已通过修复后的完整实际打包；browser probe 只执行候选无权写入且已重新校验的保存 controller runtime，构建用可写 runtime 不会由控制器执行。独立评审、最终组合门禁、主线发布和实际安装/恢复验收尚未完成。</p></article>
-        <article class="evidence target"><div class="label">已集成候选 · 待发布</div><h3>自动验收与会话恢复</h3><p>startup claim、稳定 self_update_verify Job、签名结果、目标失败 rollback、持久化结果投递和 Desktop reopen 均已集成。旧 App 缺少打包协议时必须先显式完整刷新；不能以源码测试证明已安装 App 的重启、原会话 ACK 或自动验收。</p></article>
-        <article class="evidence target"><div class="label">已集成候选 · 待发布</div><h3>诊断与自动修正</h3><p>回退后诊断、受限编辑提案、隔离 worktree/commit、冻结测试、再次审批与 bounded_auto 已集成。重启不重置次数和期限；完整组合检查与真实更新序列仍待验收，不覆盖原失败结论。</p></article>
-        <article class="evidence target"><div class="label">已集成候选 · 待发布</div><h3>结果投递与受限观察</h3><p>普通结果投递、原会话定位，以及有签名的 HTTP、CLI/test、截图、滚动和视图检查已集成。聊天不挂载更新管理界面；不支持临时测试对象操作。能力严格限于冻结检查；任意 UI 交互和真实数据修改不在授权内。默认 App 三场景及实际目标证据完成前，整体保持未完成。</p></article>
+        <article class="evidence exists"><div class="label">已在默认 App 验收</div><h3>持久自主更新协议</h3><p>状态机、单活动锁、durable release、maintenance、外部 supervisor、延迟提交与回退、owner repair 及 App 外登录恢复入口已在主线。<code>delivery/activation.py</code> 按已装版本选择最小重启；增量 hot、worker、App 更新和完整打包构建都已在默认 App 中安装、验收并提交。打包不改写 runtime 内的浏览器，可信 browser probe 比较的是相同字节。</p></article>
+        <article class="evidence exists"><div class="label">已在默认 App 验收</div><h3>自动验收与会话恢复</h3><p>startup claim、稳定的 self_update_verify Job、签名结果、目标失败回退、持久化投递和 Desktop reopen 已在真实更新中运行。阶段工具带完整 schema 发给模型；provider 不支持原生结构化输出时回退到仍经 schema 校验的 prompt；模型请求没有结果就结束时立即停止该阶段，不会一直占到期限。验收结论的 schema 只接受签名 observation 引用，模型引用自己读过的文件时会被要求改正；被拒绝的结果会记录原因，供诊断使用。</p></article>
+        <article class="evidence exists"><div class="label">已在默认 App 验收</div><h3>诊断与自动修正</h3><p>验收失败即回退，诊断判定原因，受限修正只在隔离 worktree 内改允许的路径，冻结的必需测试通过后候选等待一次性再审批。重试审批卡展示候选的改动路径、测试与剩余预算，并精确绑定这份内容，所以所有者的答复能到达重试；修正后的候选随后安装、验收并送达结果。重启不重置次数和期限，原失败结论保留在记录里。</p></article>
+        <article class="evidence exists"><div class="label">已在默认 App 验收</div><h3>结果投递与受限观察</h3><p>结果以工具块形式出现在发起更新那一轮之后的原会话中，包括已保存块的轮次；单条无法读取的记录不会阻塞其他结果。有签名的 HTTP、CLI/test、截图、滚动和视图检查仍限于冻结检查；聊天不挂载更新管理界面，任意 UI 交互和真实数据修改仍不在授权内。</p></article>
       </div>
 
       <div class="source-list" aria-label="当前实现入口">
