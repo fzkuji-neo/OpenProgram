@@ -76,7 +76,8 @@ def register(app):
                 "schema": q.request.get("schema", {}),
                 "questions": q.request.get("questions", []),
                 "tool": q.request.get("tool"),
-                "args": q.request.get("args"),
+                # A card may show more than the call carries, e.g. a retry's candidate.
+                "args": q.request.get("shown_args", q.request.get("args")),
                 "risk_level": q.request.get("risk_level"),
                 "created_at": q.created_at, "expires_at": q.expires_at,
             }

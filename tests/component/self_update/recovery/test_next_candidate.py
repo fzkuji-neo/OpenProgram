@@ -131,6 +131,7 @@ def test_the_retry_approval_card_shows_the_candidate(diagnosis_environment, monk
     assert [test["command"] for test in shown["candidate"]["tests"]] == ["python -c 'assert True'"]
     assert shown["candidate"]["next_attempt"] == 2
     assert manifest["request_metadata"]["args"] == args
+    assert json.loads(json.dumps(manifest["request_metadata"]["shown_args"])) == shown, "The card renders these, not the call's args"
 
 
 @pytest.mark.parametrize("diagnosis_environment", [{"required_tests": ["python -c 'assert True'"]}], indirect=True)

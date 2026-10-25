@@ -17,7 +17,7 @@ from openprogram.webui.routes.execution import questions as _routes
 
 
 @pytest.fixture
-def client(monkeypatch, tmp_path):
+def client(monkeypatch, tmp_path, request):
     store = ExecutionStore(tmp_path / "execution.db")
     revision = store.create_revision(manifest={"entrypoint": "test"})
     execution = store.create_execution(
@@ -42,7 +42,7 @@ def client(monkeypatch, tmp_path):
             "prompt": "Configure", "options": [], "multi": False,
             "allow_custom": True, "detail": "", "schema": {
                 "mode": {"type": "string", "enum": ["fast", "safe"]},
-            }, "questions": [],
+            }, "questions": [], **getattr(request, "param", {}),
         }, policy_snapshot={"version": 1}, expires_at=9_999_999_999,
     )
     _routes.register(app)
@@ -66,6 +66,15 @@ def test_list_reconnects_durable_question_with_exact_target(client):
     assert question["execution_id"] == "exec_questions"
     assert question["wait_generation"] == 0
     assert question["schema"]["mode"]["enum"] == ["fast", "safe"]
+
+
+@pytest.mark.parametrize("client", [{
+    "tool": "self_update_retry", "args": {"update_id": "su_1"},
+    "shown_args": {"update_id": "su_1", "candidate": {"changed_paths": ["a.py"]}},
+}], indirect=True)
+def test_a_reconnected_card_shows_what_the_live_card_showed(client):
+    question = client.get("/api/questions", params={"session_id": "s"}).json()["questions"][0]
+    assert question["args"]["candidate"] == {"changed_paths": ["a.py"]}
 
 
 def test_list_rejects_unscoped_enumeration(client):

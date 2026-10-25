@@ -154,7 +154,8 @@ def wrap_with_approval(
             scopes.append("always")
         from .recovery import approval_context
         recovery = approval_context(agent_tool, req)
-        detail = _approval_detail(name, _shown_args(name, args, req))
+        shown = _shown_args(name, args, req)
+        detail = _approval_detail(name, shown)
         if recovery:
             detail = ("Previous operations have unknown outcomes. This approval authorizes only "
                       "the new operation below; it does not confirm or resolve prior operations.\n"
@@ -168,6 +169,7 @@ def wrap_with_approval(
             "detail": detail,
             "request_metadata": {
                 "tool": name, "args": args, "tool_call_id": str(call_id),
+                **({"shown_args": shown} if shown is not args else {}),
                 "risk_level": _risk_level(name, args),
                 "approval_reason": reason,
                 "allowed_scopes": scopes,
