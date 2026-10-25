@@ -135,19 +135,14 @@ def test_idle_writer_composes_real_runtime_and_installs_topic(
         memory = store.root()
         topic = (memory / "topics/core.md").read_text(encoding="utf-8")
         assert "B prefers exact answers." in topic
-        assert SOURCE_ID in topic
+        assert f"(/s/{SESSION_ID}#u1)" in topic
         assert "[^e1]" not in topic
         block = re.search(r"(?m) \^([0-9a-f]{8})$", topic)
         assert block is not None
         assert re.search(r"\[\^e-[0-9a-f]{10}\]", topic)
 
-        source = (
-            memory / f"sources/openprogram/_v2/{SESSION_ID}.md"
-        ).read_text(encoding="utf-8")
-        assert source.startswith("<!-- openprogram-source-archive:v2 -->\n\n")
-        assert f"<!-- source-id:{SOURCE_ID} -->" in source
-        assert "<!-- speaker-id:telegram%2Duser%2D42 -->" in source
-        assert "] B (telegram-user-42): I prefer exact answers." in source
+        # The chat is the record: memory keeps no copy of it.
+        assert not (memory / "sources").exists()
 
         recent = [
             json.loads(line)
@@ -193,7 +188,7 @@ def test_idle_writer_composes_real_runtime_and_installs_topic(
             "Read", "Write", "Edit", "Grep", "Glob", "shell",
         }
         prompt = _prompt_text(first_call)
-        assert f'"ref":"{SOURCE_ID}"' in prompt
+        assert f'"ref":"/s/{SESSION_ID}#u1"' in prompt
         assert '"speaker":"B (telegram-user-42)"' in prompt
     finally:
         from openprogram.memory import set_backend
@@ -266,17 +261,14 @@ def test_permanent_writer_startup_failure_is_not_offered_next_poll(
         assert ended[0]["retryable"] is False
         assert reason_fragment in ended[0]["reason"]
 
-        source_path = (
-            store.root() / f"sources/openprogram/_v2/{SESSION_ID}.md"
-        )
-        archived_once = source_path.read_bytes()
+        topics_before = sorted((store.root() / "topics").rglob("*.md"))
         assert db.get_branch(SESSION_ID)[0].get(
             "memory_written_scriptorium"
         ) is None
 
         assert session_watcher._scan(idle_minutes=0) == 0
         assert session_watcher._load_processed() == processed
-        assert source_path.read_bytes() == archived_once
+        assert sorted((store.root() / "topics").rglob("*.md")) == topics_before
         assert len([
             name for name, _payload in events
             if name == "memory.ingest_ended"

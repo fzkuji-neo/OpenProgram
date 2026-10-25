@@ -8,7 +8,7 @@ byte-for-byte alone, and neither outcome leaves a staged copy of memory behind
 in the temp directory.
 
 The fixtures build a minimal but *valid* workspace — one topic paragraph
-carrying a block ID and a footnote that resolves to an archived source —
+carrying a block ID and a footnote that cites a chat message —
 because anything less is refused by the parser before the routes are reached.
 """
 from __future__ import annotations
@@ -26,13 +26,12 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-SOURCE = '# Conversation 1\n\n<a id="d1-1"></a>\n\nuser: remember this\n'
 NOTE = (
     "# Note\n"
     "\n"
     "A fact worth keeping.[^e-1f4c7a2b90] ^abc12345\n"
     "\n"
-    "[^e-1f4c7a2b90]: Time: `2026-01-01`; Sources: [D1:1](../sources/D1.md#d1-1)\n"
+    "[^e-1f4c7a2b90]: Time: `2026-01-01`; Sources: [D1:1](/s/s1#d1-1)\n"
 )
 # A second topic whose paragraph links into NOTE's block.
 LINKING = (
@@ -40,7 +39,7 @@ LINKING = (
     "\n"
     "See [the note](note.md#^abc12345).[^e-2f4c7a2b91] ^def45678\n"
     "\n"
-    "[^e-2f4c7a2b91]: Time: `2026-01-02`; Sources: [D1:1](../sources/D1.md#d1-1)\n"
+    "[^e-2f4c7a2b91]: Time: `2026-01-02`; Sources: [D1:1](/s/s1#d1-1)\n"
 )
 
 
@@ -52,7 +51,7 @@ def _stage_dirs() -> set[str]:
 
 
 @pytest.fixture
-def memory(tmp_path, monkeypatch):
+def memory(tmp_path, monkeypatch, chats):
     """A memory workspace holding one valid topic. Returns its root."""
     import openprogram.paths as paths
 
@@ -63,8 +62,7 @@ def memory(tmp_path, monkeypatch):
 
     from openprogram.memory import store
     root = store.ensure()
-    (root / "sources").mkdir(parents=True, exist_ok=True)
-    (root / "sources" / "D1.md").write_text(SOURCE, encoding="utf-8")
+    chats.say("s1", "d1-1", "remember this")
     (root / "topics" / "note.md").write_text(NOTE, encoding="utf-8")
     return root
 
@@ -417,7 +415,7 @@ def test_ensure_migrates_marker_workspace_missing_the_current_layout(
 
     assert store.ensure() == root
     assert (root / "topics").is_dir()
-    assert (root / "sources").is_dir()
+    assert not (root / "sources").exists()
     assert not (root / "wiki").exists()
     assert (root.parent / "memory-superseded/wiki/Old.md").read_text(
         encoding="utf-8",
@@ -428,15 +426,12 @@ def test_structured_delete_is_recorded_in_git_history(tmp_path):
     from openprogram.memory.management import MemoryWorkspace
 
     root = tmp_path / "memory"
-    (root / "sources").mkdir(parents=True)
-    (root / "topics").mkdir()
-    (root / "sources/D1.md").write_text(SOURCE, encoding="utf-8")
+    (root / "topics").mkdir(parents=True)
     (root / "topics/note.md").write_text(NOTE, encoding="utf-8")
     workspace = MemoryWorkspace(root)
     try:
         result = workspace.update(
-            base_revision=workspace.revision(),
-            changes=[{"path": "topics/note.md", "action": "delete"}],
+            memory_changes=[{"op": "delete_record", "memory_id": "abc12345"}],
             commit_message="Remove obsolete memory",
             git_commit="on",
         )
@@ -452,60 +447,20 @@ def test_structured_delete_is_recorded_in_git_history(tmp_path):
     assert "A fact worth keeping" in previous
 
 
-def test_structured_changes_api_uses_the_workspace_transaction(client, memory):
-    from openprogram.memory.management.transaction import workspace_revision
-
-    response = client.post("/api/memory/changes", json={
-        "base_revision": workspace_revision(memory),
-        "changes": [{
-            "path": "topics/new.md",
-            "action": "write",
-            "content": (
-                "# New\n\n"
-                "A new fact.[^e1]\n\n"
-                "[^e1]: Time: `2026-08-15`; Sources: new-source-api\n"
-            ),
-        }],
-        "sources": [{
-            "label": "new-source-api",
-            "role": "user",
-            "content": "A new fact.",
-            "observed_at": "2026-08-15",
-        }],
-        "commit_message": "Add API memory",
-    })
-
-    assert response.status_code == 200, response.text
-    payload = response.json()
-    assert payload["ok"] is True
-    assert payload["source_ids"]["new-source-api"].startswith("claude-code/")
-    written = (memory / "topics/new.md").read_text(encoding="utf-8")
-    assert "new-source-api" not in written
-    assert payload["source_ids"]["new-source-api"] in written
-
-
 def test_record_changes_api_creates_a_memory_and_derived_views(client, memory):
-    from openprogram.memory.management.transaction import workspace_revision
     from openprogram.memory.markdown import parse_topic_tree
 
     response = client.post("/api/memory/changes", json={
-        "base_revision": workspace_revision(memory),
         "memory_changes": [{
             "op": "create_record",
             "content": "Created through the record API.",
             "time": "2026-08-15",
-            "source_refs": ["new-source-record"],
+            "sources": [{"source": "/s/s1#d1-1", "label": "record"}],
             "destination": {
                 "topic_path": "topics/from-api.md",
                 "headings": ["API"],
                 "position": "end",
             },
-        }],
-        "sources": [{
-            "label": "new-source-record",
-            "role": "user",
-            "content": "Created through the record API.",
-            "observed_at": "2026-08-15",
         }],
     })
 
@@ -518,9 +473,7 @@ def test_record_changes_api_creates_a_memory_and_derived_views(client, memory):
         if unit.topic_path == "from-api.md"
     ]
     assert len(created) == 1
-    assert created[0].source_refs == (
-        payload["source_ids"]["new-source-record"],
-    )
+    assert created[0].source_refs == ("openprogram/s1/d1-1",)
     assert (memory / "timeline/2026/08/15.md").is_file()
     assert (memory / "recent_events.jsonl").is_file()
     assert (memory / "relations.json").is_file()
@@ -599,48 +552,8 @@ def test_memory_update_schema_constructs_a_google_function_declaration():
     assert "8 visible characters" in label_description
     assert "6 words" in label_description
     assert "speaker" in label_description
-    assert "sequence" in label_description
     assert "markdown" in label_description
     assert "source_refs" not in item["properties"]
-
-
-def test_structured_changes_api_reports_stale_revision(client, memory):
-    response = client.post("/api/memory/changes", json={
-        "base_revision": "stale",
-        "changes": [{"path": "topics/note.md", "action": "delete"}],
-    })
-
-    assert response.status_code == 409
-    assert response.json()["error"]["code"] == "CONCURRENT_UPDATE"
-    assert (memory / "topics/note.md").is_file()
-
-
-def test_memory_changes_api_accepts_the_compatible_unified_diff(client, memory):
-    from openprogram.memory.management.transaction import workspace_revision
-
-    original = (memory / "topics/note.md").read_text(encoding="utf-8")
-    updated = original.replace("A fact", "A corrected fact")
-    response = client.post("/api/memory/changes", json={
-        "base_revision": workspace_revision(memory),
-        "patch": (
-            "--- a/topics/note.md\n"
-            "+++ b/topics/note.md\n"
-            "@@ -1,5 +1,5 @@\n"
-            + "".join(
-                ("-" if old != new else " ") + old
-                + (("+" + new) if old != new else "")
-                for old, new in zip(
-                    original.splitlines(keepends=True),
-                    updated.splitlines(keepends=True),
-                )
-            )
-        ),
-    })
-
-    assert response.status_code == 200, response.text
-    assert "A corrected fact" in (
-        memory / "topics/note.md"
-    ).read_text(encoding="utf-8")
 
 
 def test_structured_changes_api_requires_base_revision(client, memory):
@@ -696,7 +609,7 @@ CORE = (
     "\n"
     "Always on.[^e-3f4c7a2b92] ^bcd23456\n"
     "\n"
-    "[^e-3f4c7a2b92]: Time: `2026-01-03`; Sources: [D1:1](../sources/D1.md#d1-1)\n"
+    "[^e-3f4c7a2b92]: Time: `2026-01-03`; Sources: [D1:1](/s/s1#d1-1)\n"
 )
 
 
@@ -976,10 +889,9 @@ def test_autosave_defers_git_and_restores_old_version(client, memory):
     assert len(commits) >= 3
 
 
-def test_checkpoint_deadline_and_deleted_source_visibility(client, memory, monkeypatch):
+def test_checkpoint_deadline_and_deleted_source_visibility(client, memory, monkeypatch, chats):
     from openprogram.memory import checkpoints
     from openprogram.memory.workspace_layout import runtime_dir
-    from openprogram.agent import session_db
     monkeypatch.setattr(checkpoints.time, "time", lambda: 1000)
     updated = NOTE.replace("A fact worth keeping.", "Checkpoint fact.")
     assert client.put("/api/memory/topics/note.md", json={"content": updated, "autosave": True}).status_code == 200
@@ -989,19 +901,19 @@ def test_checkpoint_deadline_and_deleted_source_visibility(client, memory, monke
     monkeypatch.setattr(checkpoints.time, "time", lambda: 1301)
     assert checkpoints.checkpoint(memory)
     assert not pending.exists()
-    target = memory / "sources" / "openprogram" / "_v2" / "local_deleted.md"
-    target.parent.mkdir(parents=True)
-    target.write_text("original-private-text")
-    class DB:
-        def get_session(self, sid):
-            return None
-    monkeypatch.setattr(session_db, "default_db", lambda: DB())
-    for path in ("openprogram/_v2/local_deleted.md", "other/../openprogram/_v2/local_deleted.md"):
-        response = client.get("/api/memory/source", params={"path": path})
-        assert response.status_code == 410
-        assert "original-private-text" not in response.text
-    monkeypatch.setattr(DB, "get_session", lambda self, sid: {"archived": True})
-    assert client.get("/api/memory/source", params={"path": "openprogram/_v2/local_deleted.md"}).json()["content"] == "original-private-text"
+    # A citation opens the chat it names, with the turns around it.
+    chats.say("s1", "d1-2", "the reply", role="assistant")
+    cited = client.get("/api/memory/source", params={"ref": "/s/s1#d1-1"}).json()
+    assert [(turn["text"], turn["cited"]) for turn in cited["turns"]] == [
+        ("remember this", True), ("the reply", False),
+    ]
+    assert cited["session_id"] == "s1"
+    # Once the chat is deleted the memory stays and says so.
+    del chats.sessions["s1"]
+    response = client.get("/api/memory/source", params={"ref": "/s/s1#d1-1"})
+    assert response.status_code == 410
+    assert response.json()["deleted"] is True
+    assert client.get("/api/memory/source", params={"ref": "../etc/passwd"}).status_code == 400
 
 
 @pytest.mark.parametrize("autosave", [False, True])
@@ -1084,9 +996,7 @@ def test_project_query_serves_that_projects_workspace(memory, client, tmp_path, 
     monkeypatch.setattr(project_store, "get_project", lambda pid: (
         SimpleNamespace(id=pid, is_default=False) if pid == "p1" else None))
     project = tmp_path / "projects" / "p1" / "memory"
-    (project / "sources").mkdir(parents=True)
-    (project / "topics").mkdir()
-    (project / "sources" / "D1.md").write_text(SOURCE, encoding="utf-8")
+    (project / "topics").mkdir(parents=True)
     (project / "topics" / "other.md").write_text(LINKING.replace("note.md#^abc12345", "other.md#^def45678"), encoding="utf-8")
 
     personal = client.get("/api/memory/topics")

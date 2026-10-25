@@ -13,10 +13,7 @@ from .bm25 import (
     _query_time_window,
     _normalize_path_prefix,
     event_matches_path_prefix,
-    parse_source_file,
     parse_topic_file,
-    prefer_v2_source_events,
-    resolve_topic_trust,
 )
 from .embedding_model import (
     MODEL_FILES,
@@ -74,7 +71,6 @@ class MemoryEmbeddingIndex:
     ):
         self.memory_dir = Path(memory_dir).resolve()
         self.topics_dir = self.memory_dir / "topics"
-        self.sources_dir = self.memory_dir / "sources"
         self._visible_files = None if files is None else tuple(files)
         self._encoder = encoder
         self._events_cache: list[MemoryEvent] | None = None
@@ -95,24 +91,13 @@ class MemoryEmbeddingIndex:
         with self._lock:
             if self._events_cache is not None:
                 return self._events_cache
-            events = []
-            source_lookup: dict[Path, dict[str, str]] = {}
-            for relative, path in sorted(
-                _indexable_files(
-                    self.memory_dir, self._visible_files
-                ).items()
-            ):
-                if relative.startswith("sources/"):
-                    events.extend(parse_source_file(path, self.sources_dir))
-                else:
-                    events.extend(parse_topic_file(
-                        path,
-                        self.topics_dir,
-                        source_lookup=source_lookup,
-                    ))
-            self._events_cache = resolve_topic_trust(
-                prefer_v2_source_events(events)
-            )
+            self._events_cache = [
+                event
+                for _relative, path in sorted(
+                    _indexable_files(self.memory_dir, self._visible_files).items()
+                )
+                for event in parse_topic_file(path, self.topics_dir)
+            ]
         return self._events_cache
 
     @staticmethod
@@ -181,12 +166,6 @@ class MemoryEmbeddingIndex:
                 "date": event.date,
                 "content": event.content,
                 "refs": event.refs,
-                "trust_state": event.trust_state,
-                "speaker_kind": event.speaker_kind,
-                "speaker_id": event.speaker_id,
-                "speaker_display": event.speaker_display,
-                "principal_id": event.principal_id,
-                "authority_tier": event.authority_tier,
                 "similarity": float(similarity),
             }
             for event, similarity in zip(candidate_events, similarities)

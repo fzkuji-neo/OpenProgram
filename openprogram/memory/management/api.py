@@ -52,30 +52,6 @@ def writer_protocol_sha256() -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-def write_sessions(
-    memory_dir: str | Path,
-    *,
-    agent: Any,
-    sessions: list[dict[str, Any]],
-    usage_logger: Any | None = None,
-    config: MemoryConfig | None = None,
-) -> list[dict[str, Any]]:
-    task = render_writer_task(sessions, memory_dir=memory_dir)
-    return _run_agent(
-        memory_dir,
-        agent=agent,
-        task=task,
-        source_sessions=sessions,
-        usage_logger=usage_logger,
-        config=config,
-        allowed_new_source_refs={
-            str(ref)
-            for session in sessions
-            for ref in session.get("refs", [])
-        },
-    )
-
-
 def organize_topics(
     memory_dir: str | Path,
     *,

@@ -35,7 +35,7 @@ against the `TIER_CAPABILITIES` constant table:
 
 | Tier | Capabilities |
 |---|---|
-| `owner` | `reply`, `memory.source.append`, `memory.trusted.promote`, `schedule.create`, `schedule.manage`, `fs.read`, `fs.write`, `process.exec`, `network.send`, `approval.request`, `runtime.control` |
+| `owner` | `reply`, `memory.source.append`, `schedule.create`, `schedule.manage`, `fs.read`, `fs.write`, `process.exec`, `network.send`, `approval.request`, `runtime.control` |
 | `paired` | `reply`, `memory.source.append` |
 
 The gate is **fail-closed**. A missing tier denies with
@@ -84,35 +84,22 @@ bidi characters and neutralizes the envelope markers `[` and `]`.
 
 ## Trust semantics in memory
 
-Memory records a `trust_state` on every source frame, with two values.
+Memory cites chat messages, so trust is a question about the message a
+footnote names. Pairing *is* the trust decision: the owner's turns and every
+paired account's turns carry `memory.source.append`, enter the normal
+distillation flow exactly as the owner's do, and may be cited, attributed by
+speaker. There is no second gate behind the pairing gate.
 
-**`trusted`** — the owner's own turns and everything from paired accounts.
-Pairing *is* the trust decision, so paired speech enters the normal distillation
-flow exactly as the owner's does, attributed by speaker. There is no second
-gate behind the pairing gate.
+**Unpaired text does not enter memory or model context.**
+`openprogram/channels/base.py` consults the access decision before any agent
+dispatch. A blocked sender is answered with the pairing reply and the message
+never becomes a turn, so there is no chat message to cite and nothing for
+recall to return.
 
-**`pending`** — text archived from an unpaired speaker. Unpaired members of a
-group still get their lines archived, because a group conversation is only
-comprehensible whole, but that text is evidence rather than accepted memory. It
-carries full provenance, and `memory_promote` is the owner-only path
-(`memory.trusted.promote`) that moves a pending frame to `trusted`.
-
-`trust_state` is the mechanism. The `speaker_trusted` field that appears in
-retrieval output is a display projection of it, not a separate decision.
-
-**Unpaired text does not enter model context.** Two independent mechanisms hold
-this, both live:
-
-1. **The realtime path stops it first.** `openprogram/channels/base.py` consults
-   the access decision before any agent dispatch. A blocked sender's message is
-   archived (in group chats) and answered with the pairing reply; it never
-   becomes a turn.
-2. **Automatic recall filters it.** The memory provider's `search()` drops every
-   hit whose `trust_state` is `pending`, so an archived pending frame cannot
-   arrive in a later turn's injected context either.
-
-Pending text stays reachable through the `memory_search` tool, where the model
-asks for it deliberately and sees the `trust_state` alongside it.
+A new citation is checked when the edit that adds it commits: the message must
+exist in the session store, be a person's or the assistant's words, and come
+from a speaker whose authority carries `memory.source.append`. A paired edit
+may additionally cite only its own conversation.
 
 ## The memory writer
 
@@ -141,12 +128,10 @@ authority from conversation state, and no read path consults the pairing store.
 | `owner` | Any cited Source is `authority_tier=owner`, or the block cites no Source | owner |
 
 Two values, not a per-speaker scope. A paired requester reads all `shared`
-Topics rather than only its own Source-derived memory: the memory is one shared
-workspace by product decision, speakers are already attributed inside it, and a
-per-speaker scope would need a second identity index on every read for a
-distinction the product does not make. Pending Sources have no visibility label
-because they are not readable content at all; they are reachable only through
-the owner's explicit review path.
+Topics rather than only memory derived from its own messages: the memory is one
+shared workspace by product decision, speakers are already attributed inside it,
+and a per-speaker scope would need a second identity index on every read for a
+distinction the product does not make.
 
 **Where the label lives.** In the Topic block's own definition line, beside
 `Time:` and `Sources:`, so it travels with the block through the existing
@@ -181,28 +166,20 @@ can disagree. The filter is applied inside `MemoryBM25Index.search` and
 forget it. Persisted index files stay a single artifact; the label is a stored
 field on each row.
 
-**Owner review of pending evidence.** Unchanged by this design and explicitly
-exempt from the filter: the owner's explicit review path returns pending Source
-records with `speaker_id`, `speaker_display`, `principal_id`, `trust_state` and
-`authority_tier` intact, because deciding whether to promote is exactly the act
-of reading who said it. Pending text never enters automatic context on any
-tier, which remote `9b47a45e` already enforces at the recall boundary.
-
 **Acceptance matrix.** Each row names the Runtime entry point that enforces
 the policy and the case its test has to cover.
 
 | # | Read surface | Enforcing Runtime entry point | Case | Test level |
 |---|---|---|---|---|
 | 1 | Core system prompt | `LocalMemoryBackend.system_prompt` | A paired session receives `core.shared.md`; no owner block appears in it | unit |
-| 2 | Automatic per-turn recall | `LocalMemoryBackend.search` | A paired session's recall returns no `owner` block and no pending Source | unit |
+| 2 | Automatic per-turn recall | `LocalMemoryBackend.search` | A paired session's recall returns no `owner` block | unit |
 | 3 | Explicit `memory_search` | `MemoryBM25Index.search` | A paired requester's hits exclude `owner` blocks at every `top_k` | unit |
 | 4 | Embedding search | `MemoryEmbeddingIndex.search` | Same exclusion as row 3, same requester, same query | unit |
 | 5 | `memory_get` | `inspect.read_file` | A paired requester reading a Topic file receives only its `shared` blocks; an all-`owner` file is a not-found, not an empty file | unit |
-| 6 | `memory_grep` | `inspect.grep` | A literal string present only in an `owner` block produces no match for a paired requester | unit |
-| 7 | `memory_browse` | `inspect.list_files` | A file with no `shared` block is absent from a paired listing, and block counts reflect the visible subset | unit |
-| 8 | Mixed-authority block | `install_state` visibility derivation | A block citing one owner and one paired Source is labeled `owner` and never partially rendered | unit |
+| 6 | `memory_search` with `exact` | `inspect.grep` | A literal string present only in an `owner` block produces no match for a paired requester | unit |
+| 7 | `memory_get` without a path | `inspect.list_files` | A file with no `shared` block is absent from a paired listing, and block counts reflect the visible subset | unit |
+| 8 | Mixed-authority block | `install_state` visibility derivation | A block citing one owner message and one paired message is labeled `owner` and never partially rendered | unit |
 | 9 | Web reads | `/api/memory/*` route dependency | Every memory route resolves the requester tier and applies the same filter as the tool path | integration |
-| 10 | Owner pending review | `memory_promote` review path | Pending results retain speaker, principal, trust and tier metadata | unit |
 | 11 | Cache coherence | `MemoryBM25Index` persisted rows | A relabeled block changes what the next query returns without an index rebuild | unit |
 | 12 | Fail-closed | tier resolution helper | An unresolvable or unknown requester tier reads as `owner`-only-denied, never as owner | unit |
 
@@ -218,13 +195,11 @@ a hold queue for over-tier reads. Each needs its own design.
 
 The tier enum, the constant-table gate, fail-closed denial, structured decision
 records, subagent inheritance, pairing with 8-character codes, local-owner-only
-approval, stable-ID matching, display-name sanitization, the `pending` /
-`trusted` split, and both context-exclusion mechanisms above are implemented.
+approval, stable-ID matching, display-name sanitization, citation checks,
+and the context-exclusion mechanism above are implemented.
 
 | Item | Status | Note |
 |---|---|---|
 | Hold queue for over-tier requests | Not implemented | A paired sender's over-tier request (for example "restart the service") queues for one-shot owner approval instead of flat denial. Parameters to adopt: a message cap, an expiry timeout, and re-evaluation of the queue when a sender's tier changes. |
-| Read-time filtering by requester tier | Partly implemented | `memory.read` is a capability of its own, held by both tiers and distinct from `fs.read`, so the memory read tools no longer ride on filesystem access. `search` and `system_prompt` take the requesting tier from the caller that already resolved it and never re-read pairing state mid-turn. Trust-derived exclusion of pending-backed blocks is in place for both recall and Core. Per-tier redaction of block content is still designed only. |
-| Backfill of pre-marked sources | Implemented and executed on the live workspace (8 Topic files, 132 blocks, 137 of 154 frames cited across 232 occurrences, every citation verified unbroken) | `openprogram memory backfill` runs the writer over every trusted source no Topic cites, ignores node markers, excludes pending sources, and promotes a legacy root `core.md` into `topics/core.md` rather than discarding it. It is idempotent against existing citations and resumable after a failed batch. |
+| Read-time filtering by requester tier | Partly implemented | `memory.read` is a capability of its own, held by both tiers and distinct from `fs.read`, so the memory read tools no longer ride on filesystem access. `search` and `system_prompt` take the requesting tier from the caller that already resolved it and never re-read pairing state mid-turn. Per-tier redaction of block content is still designed only. |
 | Queryable writer status | Implemented | Latest success time, `last_outcome`, and a failure classified into the closed `MemoryWriteFailureCode` taxonomy with its retryable verdict, plus a pending-turn count, under one versioned schema shared by the status file, CLI, tool, API and web UI. |
-| Bounded archive policy for unpaired group traffic | Implemented | Unpaired group archival has a per-hour message limit, per-message and per-identity size limits, and a total archive byte ceiling. The reservation runs inside `workspace_write_lock` with the append it authorizes, so concurrent processes cannot both claim the last slot. |

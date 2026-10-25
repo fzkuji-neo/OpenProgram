@@ -527,9 +527,9 @@ def test_json_result_is_compact_deterministic_unicode_and_first_class_error() ->
 
 def test_tools_list_defaults_empty_even_when_registry_has_tools(client_context) -> None:
     registry = {
-        "memory_status": _tool(
-            "memory_status",
-            description="Read memory status",
+        "memory_get": _tool(
+            "memory_get",
+            description="Read memory",
             parameters={"type": "object", "properties": {}},
         )
     }
@@ -555,9 +555,9 @@ def test_tools_list_is_config_registry_exposure_and_paired_intersection(
             description="Append memory",
             parameters=memory_schema,
         ),
-        "memory_status": _tool(
-            "memory_status",
-            description="Read memory status",
+        "memory_get": _tool(
+            "memory_get",
+            description="Read memory",
             parameters={"type": "object", "properties": {}},
         ),
         "read": _tool(
@@ -577,19 +577,19 @@ def test_tools_list_is_config_registry_exposure_and_paired_intersection(
         "read",
         "memory_update",
         "hidden",
-        "memory_status",
+        "memory_get",
     ]
     config = {"mcp_server": {"exposed_tools": configured}}
     service = _service(
         client_context,
         config=config,
         registry=registry,
-        exposed={"memory_update", "memory_status", "read"},
+        exposed={"memory_update", "memory_get", "read"},
     )
 
     assert [tool.name for tool in service.exposed_runtime_tools()] == [
         "memory_update",
-        "memory_status",
+        "memory_get",
     ]
     result = service.tools_list()
     assert result.is_error is False
@@ -600,8 +600,8 @@ def test_tools_list_is_config_registry_exposure_and_paired_intersection(
             "inputSchema": memory_schema,
         },
         {
-            "name": "memory_status",
-            "description": "Read memory status",
+            "name": "memory_get",
+            "description": "Read memory",
             "inputSchema": {"type": "object", "properties": {}},
         },
     ]
@@ -611,7 +611,7 @@ def test_tools_list_is_config_registry_exposure_and_paired_intersection(
         "read",
         "memory_update",
         "hidden",
-        "memory_status",
+        "memory_get",
     ]
 
 
@@ -619,22 +619,22 @@ def test_tools_list_output_mutation_cannot_mutate_registry_or_later_results(
     client_context,
 ) -> None:
     schema = {"type": "object", "properties": {"query": {"type": "string"}}}
-    tool = _tool("memory_status", description="Status", parameters=schema)
+    tool = _tool("memory_get", description="Status", parameters=schema)
     service = _service(
         client_context,
-        config={"mcp_server": {"exposed_tools": ["memory_status"]}},
-        registry={"memory_status": tool},
+        config={"mcp_server": {"exposed_tools": ["memory_get"]}},
+        registry={"memory_get": tool},
     )
 
     first = _payload(service.tools_list())
     first[0]["name"] = "mutated"
     first[0]["inputSchema"]["properties"]["query"]["type"] = "number"
 
-    assert tool.name == "memory_status"
+    assert tool.name == "memory_get"
     assert tool.parameters == schema
     assert _payload(service.tools_list()) == [
         {
-            "name": "memory_status",
+            "name": "memory_get",
             "description": "Status",
             "inputSchema": schema,
         }
@@ -643,7 +643,7 @@ def test_tools_list_output_mutation_cannot_mutate_registry_or_later_results(
 
 def test_exposed_runtime_tools_returns_detached_deep_copies(client_context) -> None:
     tool = _tool(
-        "memory_status",
+        "memory_get",
         description="Status",
         parameters={
             "type": "object",
@@ -654,8 +654,8 @@ def test_exposed_runtime_tools_returns_detached_deep_copies(client_context) -> N
     setattr(tool, "_discovery_metadata", {"tags": ["registry"]})
     service = _service(
         client_context,
-        config={"mcp_server": {"exposed_tools": ["memory_status"]}},
-        registry={"memory_status": tool},
+        config={"mcp_server": {"exposed_tools": ["memory_get"]}},
+        registry={"memory_get": tool},
     )
 
     returned = service.exposed_runtime_tools()[0]
@@ -777,7 +777,7 @@ def test_client_context_stores_only_detached_fixed_scalar_authority(
     assert all(isinstance(value, str) for value in context.authority.values())
 
 
-@pytest.mark.parametrize("name", ["unknown", "memory_status"])
+@pytest.mark.parametrize("name", ["unknown", "memory_get"])
 def test_tool_call_unknown_and_unexposed_are_indistinguishable(
     client_context,
     name,
@@ -791,7 +791,7 @@ def test_tool_call_unknown_and_unexposed_are_indistinguishable(
     service = _service(
         client_context,
         config={"mcp_server": {"exposed_tools": []}},
-        registry={"memory_status": _runtime_tool("memory_status", execute)},
+        registry={"memory_get": _runtime_tool("memory_get", execute)},
     )
 
     with pytest.raises(McpError) as caught:
@@ -821,11 +821,11 @@ def test_tool_call_configured_tool_must_be_registered_and_live(
         return AgentToolResult(content=[TextContent(text="must not run")])
 
     registry = (
-        {"memory_status": _runtime_tool("memory_status", execute)} if registered else {}
+        {"memory_get": _runtime_tool("memory_get", execute)} if registered else {}
     )
     service = _service(
         client_context,
-        config={"mcp_server": {"exposed_tools": ["memory_status"]}},
+        config={"mcp_server": {"exposed_tools": ["memory_get"]}},
         registry=registry,
         exposed=set(),
     )
@@ -833,7 +833,7 @@ def test_tool_call_configured_tool_must_be_registered_and_live(
     with pytest.raises(McpError) as caught:
         _tool_call(
             service,
-            "memory_status",
+            "memory_get",
             {},
             call_id="call-1",
             cancel_event=asyncio.Event(),
@@ -855,20 +855,20 @@ def test_tool_call_rechecks_live_registry_at_execution_time(client_context) -> N
         calls.append((call_id, deepcopy(arguments), cancel_event, on_update))
         return AgentToolResult(content=[TextContent(text="new")])
 
-    registry = {"memory_status": _runtime_tool("memory_status", old_execute)}
+    registry = {"memory_get": _runtime_tool("memory_get", old_execute)}
     service = _service(
         client_context,
-        config={"mcp_server": {"exposed_tools": ["memory_status"]}},
+        config={"mcp_server": {"exposed_tools": ["memory_get"]}},
         registry=registry,
     )
     discovered = service.exposed_runtime_tools()[0]
     discovered.name = "mutated"
-    registry["memory_status"] = _runtime_tool("memory_status", new_execute)
+    registry["memory_get"] = _runtime_tool("memory_get", new_execute)
     cancel = asyncio.Event()
 
     result = _tool_call(
         service,
-        "memory_status",
+        "memory_get",
         {},
         call_id="fresh-call",
         cancel_event=cancel,
@@ -1018,10 +1018,10 @@ def test_tool_call_invalid_runtime_arguments_are_invalid_params(
 
     service = _service(
         client_context,
-        config={"mcp_server": {"exposed_tools": ["memory_status"]}},
+        config={"mcp_server": {"exposed_tools": ["memory_get"]}},
         registry={
-            "memory_status": _runtime_tool(
-                "memory_status",
+            "memory_get": _runtime_tool(
+                "memory_get",
                 execute,
                 parameters={
                     "type": "object",
@@ -1036,7 +1036,7 @@ def test_tool_call_invalid_runtime_arguments_are_invalid_params(
     with pytest.raises(McpError) as caught:
         _tool_call(
             service,
-            "memory_status",
+            "memory_get",
             arguments,
             call_id="call-1",
             cancel_event=asyncio.Event(),
@@ -1081,16 +1081,16 @@ def test_tool_call_uses_fixed_turn_request_and_detached_arguments(
     }
     service = _service(
         client_context,
-        config={"mcp_server": {"exposed_tools": ["memory_status"]}},
+        config={"mcp_server": {"exposed_tools": ["memory_get"]}},
         registry={
-            "memory_status": _runtime_tool("memory_status", execute, parameters=schema)
+            "memory_get": _runtime_tool("memory_get", execute, parameters=schema)
         },
     )
     cancel = asyncio.Event()
 
     result = _tool_call(
         service,
-        "memory_status",
+        "memory_get",
         arguments,
         call_id="fixed",
         cancel_event=cancel,
@@ -1166,13 +1166,13 @@ def test_tool_call_rejects_malformed_image_media_types_as_sanitized_typed_errors
 
     service = _service(
         client_context,
-        config={"mcp_server": {"exposed_tools": ["memory_status"]}},
-        registry={"memory_status": _runtime_tool("memory_status", execute)},
+        config={"mcp_server": {"exposed_tools": ["memory_get"]}},
+        registry={"memory_get": _runtime_tool("memory_get", execute)},
     )
 
     result = _tool_call(
         service,
-        "memory_status",
+        "memory_get",
         {},
         call_id="call-1",
         cancel_event=asyncio.Event(),
@@ -1215,13 +1215,13 @@ def test_tool_call_execution_failures_are_typed_and_sanitized(
 
     service = _service(
         client_context,
-        config={"mcp_server": {"exposed_tools": ["memory_status"]}},
-        registry={"memory_status": _runtime_tool("memory_status", execute)},
+        config={"mcp_server": {"exposed_tools": ["memory_get"]}},
+        registry={"memory_get": _runtime_tool("memory_get", execute)},
     )
 
     result = _tool_call(
         service,
-        "memory_status",
+        "memory_get",
         {},
         call_id="call-1",
         cancel_event=asyncio.Event(),
@@ -1247,13 +1247,13 @@ def test_tool_call_sanitizes_explicit_tool_failure_content(client_context) -> No
 
     service = _service(
         client_context,
-        config={"mcp_server": {"exposed_tools": ["memory_status"]}},
-        registry={"memory_status": _runtime_tool("memory_status", execute)},
+        config={"mcp_server": {"exposed_tools": ["memory_get"]}},
+        registry={"memory_get": _runtime_tool("memory_get", execute)},
     )
 
     result = _tool_call(
         service,
-        "memory_status",
+        "memory_get",
         {},
         call_id="call-1",
         cancel_event=asyncio.Event(),
@@ -1293,13 +1293,13 @@ def test_tool_call_does_not_trust_gate_reason_from_executed_tool(
 
     service = _service(
         client_context,
-        config={"mcp_server": {"exposed_tools": ["memory_status"]}},
-        registry={"memory_status": _runtime_tool("memory_status", execute)},
+        config={"mcp_server": {"exposed_tools": ["memory_get"]}},
+        registry={"memory_get": _runtime_tool("memory_get", execute)},
     )
 
     result = _tool_call(
         service,
-        "memory_status",
+        "memory_get",
         {},
         call_id="call-1",
         cancel_event=asyncio.Event(),
@@ -1321,20 +1321,20 @@ def test_tool_call_sanitizes_real_runtime_function_exception(client_context) -> 
 
     tool = function(
         boom,
-        name="memory_status",
+        name="memory_get",
         description="Raise a controlled Runtime exception",
         parameters={"type": "object", "properties": {}, "additionalProperties": False},
         register_globally=False,
     )
     service = _service(
         client_context,
-        config={"mcp_server": {"exposed_tools": ["memory_status"]}},
-        registry={"memory_status": tool},
+        config={"mcp_server": {"exposed_tools": ["memory_get"]}},
+        registry={"memory_get": tool},
     )
 
     result = _tool_call(
         service,
-        "memory_status",
+        "memory_get",
         {},
         call_id="call-1",
         cancel_event=asyncio.Event(),
@@ -1367,13 +1367,13 @@ def test_tool_call_policy_setup_failure_is_typed_and_sanitized(
     )
     service = _service(
         client_context,
-        config={"mcp_server": {"exposed_tools": ["memory_status"]}},
-        registry={"memory_status": _runtime_tool("memory_status", execute)},
+        config={"mcp_server": {"exposed_tools": ["memory_get"]}},
+        registry={"memory_get": _runtime_tool("memory_get", execute)},
     )
 
     result = _tool_call(
         service,
-        "memory_status",
+        "memory_get",
         {},
         call_id="call-1",
         cancel_event=asyncio.Event(),
@@ -1401,13 +1401,13 @@ def test_tool_call_forwards_ordered_progress_only_when_requested(
 
     service = _service(
         client_context,
-        config={"mcp_server": {"exposed_tools": ["memory_status"]}},
-        registry={"memory_status": _runtime_tool("memory_status", execute)},
+        config={"mcp_server": {"exposed_tools": ["memory_get"]}},
+        registry={"memory_get": _runtime_tool("memory_get", execute)},
     )
 
     _tool_call(
         service,
-        "memory_status",
+        "memory_get",
         {},
         call_id="with-progress",
         cancel_event=asyncio.Event(),
@@ -1415,7 +1415,7 @@ def test_tool_call_forwards_ordered_progress_only_when_requested(
     )
     _tool_call(
         service,
-        "memory_status",
+        "memory_get",
         {},
         call_id="without-progress",
         cancel_event=asyncio.Event(),

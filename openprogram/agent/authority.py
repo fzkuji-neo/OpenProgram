@@ -45,7 +45,6 @@ _OWNER_CAPABILITIES = frozenset({
     "reply",
     "memory.read",
     "memory.source.append",
-    "memory.trusted.promote",
     "schedule.create",
     "schedule.manage",
     "fs.read",
@@ -378,10 +377,7 @@ _READ_TOOLS = {
 # Reads that stay inside the memory workspace. They reach no other part
 # of the filesystem, so they are gated on ``memory.read`` rather than on
 # ``fs.read``.
-_MEMORY_READ_TOOLS = {
-    "memory_search", "memory_grep", "memory_get", "memory_browse",
-    "memory_status",
-}
+_MEMORY_READ_TOOLS = {"memory_search", "memory_get"}
 _WRITE_TOOLS = {
     "write", "write_file", "edit", "edit_file", "apply_patch",
     "worktree_create", "worktree_merge", "worktree_discard", "worktree_keep",
@@ -416,11 +412,7 @@ def capability_for_tool(tool_name: str, args: Mapping[str, Any] | None = None) -
     if name == "remind":
         return "schedule.create"
     if name == "memory_update":
-        # memory_update requires the revision returned by memory_status;
-        # both calls form the append handshake and expose no memory content.
         return "memory.source.append"
-    if name == "memory_promote":
-        return "memory.trusted.promote"
     if name in _CHAT_REPLY_TOOLS:
         return "reply"
     if name in _MEMORY_READ_TOOLS:

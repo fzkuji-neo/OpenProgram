@@ -21,8 +21,8 @@ GOAL_ENDED = {"achieved", "cancelled", "cleared", "impossible"}
 
 CHECK_IN_TOOLS = (
     "read", "grep", "glob", "list", "web_search", "web_fetch",
-    "read_conversation", "memory_search", "memory_get", "memory_grep",
-    "memory_browse", "todo_list", "get_goal", "always_on_report",
+    "read_conversation", "memory_search", "memory_get",
+    "todo_list", "get_goal", "always_on_report",
 )
 ACT_TOOLS = ("create_goal", "todo_create", "todo_update")
 

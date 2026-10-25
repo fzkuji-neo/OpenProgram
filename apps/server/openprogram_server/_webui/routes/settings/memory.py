@@ -7,9 +7,9 @@ Four surfaces plus a stable read-only reference API:
   recent    the last units written, derived
   MEMORY.md the entry point: the map, then the core rendered from topics/core.md
 
-``sources/`` is deliberately absent: it is the append-only evidence
-record, reachable through the footnotes of whatever cites it, and a
-browser for it would invite editing what must not be edited.
+Footnotes cite chat messages as ``/s/<session>#<message>``; the chat
+history is the evidence, and ``/api/memory/source`` reads the cited
+message with the turns around it.
 
 Reads are plain filesystem. Writes go through the workspace so a hand
 edit that drops a block ID or strands a footnote is refused rather than
@@ -217,23 +217,11 @@ def register(app):
                 status_code=400,
             )
 
-        from openprogram.agent.authority import local_owner_authority
         from openprogram.memory import store
         from openprogram.memory.management import MemoryWorkspace
         from openprogram.memory.management.config import load_memory_config
-        from openprogram.memory.management.transaction import (
-            TransactionError,
-            provenance_from_authority,
-        )
+        from openprogram.memory.management.transaction import TransactionError
 
-        sources = payload.get("sources")
-        provenance = (
-            provenance_from_authority(
-                local_owner_authority(), origin_id="owner-rest/memory-changes"
-            )
-            if sources
-            else None
-        )
         try:
             from contextlib import closing
 
@@ -241,13 +229,8 @@ def register(app):
                 store.ensure(), config=load_memory_config(),
             )) as workspace:
                 result = workspace.update(
-                    base_revision=payload.get("base_revision", ""),
-                    patch=payload.get("patch", ""),
-                    changes=payload.get("changes"),
                     memory_changes=payload.get("memory_changes"),
-                    sources=sources,
                     commit_message=payload.get("commit_message"),
-                    provenance=provenance,
                 )
         except TransactionError as exc:
             error = {
@@ -270,7 +253,6 @@ def register(app):
         return JSONResponse(content={
             "ok": True,
             "revision": result.revision,
-            "source_ids": result.source_ids,
             "block_ids": result.block_ids,
             "evidence_ids": result.evidence_ids,
             "changed_files": result.changed_files,
@@ -402,25 +384,19 @@ def register(app):
             }, restoring=True)
 
     @router.get("/api/memory/source")
-    def memory_source(path: str):
-        from urllib.parse import unquote
-        from openprogram.memory import store
-        target = _within(store.root() / "sources", path)
-        if target is None or not path.endswith(".md"):
-            return JSONResponse(content={"error": "forbidden"}, status_code=403)
-        parts = target.relative_to((store.root() / "sources").resolve()).parts
-        session_id = ""
-        if parts and parts[0] == "openprogram":
-            from openprogram.agent.session_db import default_db
-            session_id = unquote(target.stem)
-            session = default_db().get_session(session_id)
-            if session is None:
-                return JSONResponse(content={"error": "Original session deleted", "deleted": True}, status_code=410)
-        if not target.is_file():
-            return JSONResponse(content={"error": "Source is unavailable"}, status_code=404)
-        return JSONResponse(content={
-            "content": target.read_text(encoding="utf-8"), "session_id": session_id,
-        })
+    def memory_source(ref: str):
+        """The chat message a footnote cites, with the turns around it."""
+        from openprogram.memory import chat_refs
+        cited = chat_refs.from_target(ref)
+        if cited is None:
+            return JSONResponse(content={"error": "not a chat citation"}, status_code=400)
+        excerpt = chat_refs.ChatLookup().excerpt(cited)
+        if excerpt.get("deleted"):
+            return JSONResponse(content={
+                "error": "Original session deleted", "deleted": True,
+                "session_id": excerpt["session_id"],
+            }, status_code=410)
+        return JSONResponse(content=excerpt)
 
     # -- topics ------------------------------------------------------------
 

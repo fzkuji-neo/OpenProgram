@@ -30,13 +30,6 @@ def _relative(target: PurePosixPath, source_dir: PurePosixPath) -> str:
     return os.path.relpath(str(target), str(source_dir)).replace(os.sep, "/")
 
 
-def _source_target(unit: MemoryUnit, link: str) -> PurePosixPath:
-    path, separator, fragment = link.partition("#")
-    target = PurePosixPath("topics") / PurePosixPath(unit.topic_path).parent / path
-    normalized = PurePosixPath(os.path.normpath(str(target)))
-    return PurePosixPath(str(normalized) + (f"#{fragment}" if separator else ""))
-
-
 def _structure_map(units: list[MemoryUnit]) -> str:
     rows: dict[str, list[tuple[str, ...]]] = {}
     for unit in units:
@@ -66,9 +59,9 @@ _DEFINITION = re.compile(r"^\[\^[A-Za-z0-9_-]+\]:")
 def _move_links(text: str, *, source_dir: str, target_dir: str) -> str:
     """Rewrite relative link targets as a file moves between directories.
 
-    ``topics/core.md`` cites its sources as ``../sources/…``; the same
-    text rendered at the workspace root has to say ``sources/…`` or the
-    footnote points nowhere.
+    ``topics/core.md`` links other Topics relative to ``topics/``; the same
+    text rendered at the workspace root has to say ``topics/…`` or the link
+    points nowhere. Chat citations are absolute and stay as they are.
     """
     def replace(match: re.Match[str]) -> str:
         path = match.group("path")
@@ -137,34 +130,6 @@ def promote_legacy_core(memory_dir: Path) -> bool:
     return True
 
 
-def _pending_core_blocks(memory_dir: Path) -> set[str]:
-    """Block IDs in ``topics/core.md`` that cite un-promoted evidence.
-
-    The always-on block is injected into every session without anyone
-    asking for it, so it is the last place unvouched speech should reach.
-    A block counts as pending when any Source it cites is pending or does
-    not resolve — the same all-or-nothing rule retrieval applies, because
-    a paragraph is one claim and cannot be half-believed.
-    """
-    from ..markdown import parse_topic_tree
-    from ..source_format import trusted_source_ids
-
-    try:
-        units = parse_topic_tree(memory_dir / "topics")
-    except Exception:
-        # An unparseable topic tree is the caller's problem to report; here
-        # it means no block can be shown to be trusted, so none is dropped
-        # on the strength of a reading that did not happen.
-        return set()
-    trusted = trusted_source_ids(memory_dir)
-    return {
-        unit.memory_id
-        for unit in units
-        if unit.topic_path == CORE_TOPIC
-        and not set(unit.source_refs) <= trusted
-    }
-
-
 def render_core_block(memory_dir: Path, *, budget_tokens: int) -> CoreBlock:
     """Rebuild the core section of ``MEMORY.md`` from ``topics/core.md``
     under a token budget.
@@ -174,13 +139,7 @@ def render_core_block(memory_dir: Path, *, budget_tokens: int) -> CoreBlock:
     master, still indexed and still reachable by search, so leaving a
     paragraph out costs visibility and nothing else. Anyone who wants a
     paragraph always visible moves it earlier in the master, which is an
-    ordinary edit.
-
-    A paragraph resting on pending evidence is left out for a different
-    reason and does not come back by moving it: it is withheld until the
-    Sources under it are promoted. Both kinds of omission report through
-    ``dropped``, since from the reader's side the paragraph is simply not
-    there either way.
+    ordinary edit. What is left out is reported through ``dropped``.
     """
     import tiktoken
 
@@ -196,15 +155,11 @@ def render_core_block(memory_dir: Path, *, budget_tokens: int) -> CoreBlock:
             source_dir="topics", target_dir=".",
         )
     )
-    pending = _pending_core_blocks(memory_dir)
     encoding = tiktoken.get_encoding("o200k_base")
     kept: list[tuple[str, int]] = []
     dropped: list[str] = []
     tokens = 0
     for index, (chunk, block_id) in enumerate(chunks):
-        if block_id is not None and block_id in pending:
-            dropped.append(block_id)
-            continue
         size = len(encoding.encode(chunk))
         if tokens + size > budget_tokens:
             dropped.extend(
@@ -314,11 +269,10 @@ def rebuild_derived_views(
             )
             if len(labels) != len(refs):
                 labels = refs
-            for label, link in zip(labels, links):
-                target = _source_target(unit, link)
-                target_path, separator, fragment = str(target).partition("#")
-                relative = _relative(PurePosixPath(target_path), timeline_relative.parent)
-                source_links.append(f"[{label}]({relative}{f'#{fragment}' if separator else ''})")
+            # Chat citations are absolute, so they read the same from here.
+            source_links.extend(
+                f"[{label}]({link})" for label, link in zip(labels, links)
+            )
             fragment = (
                 unit.memory_id
                 if unit.memory_id.startswith("mem_")

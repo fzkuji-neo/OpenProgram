@@ -371,7 +371,7 @@
     <g font-size="11.5" font-family="Menlo,monospace">
       <rect x="42" y="114" width="164" height="26" rx="5" fill="#12110b" stroke="#6b4620"/><text x="54" y="131" fill="#d4843a">core.md</text><text x="196" y="131" fill="#6b6a63" text-anchor="end" font-size="10">Resident</text>
       <rect x="42" y="146" width="164" height="26" rx="5" fill="#12110b" stroke="#2e2c20"/><text x="54" y="163" fill="#bdb9a6">topics/**.md</text><text x="196" y="163" fill="#6b6a63" text-anchor="end" font-size="10">Editable</text>
-      <rect x="42" y="178" width="164" height="26" rx="5" fill="#12110b" stroke="#2e2c20"/><text x="54" y="195" fill="#bdb9a6">sources/**</text><text x="196" y="195" fill="#6b6a63" text-anchor="end" font-size="10">Read-only evidence</text>
+      <rect x="42" y="178" width="164" height="26" rx="5" fill="#12110b" stroke="#2e2c20"/><text x="54" y="195" fill="#bdb9a6">MEMORY.md</text><text x="196" y="195" fill="#6b6a63" text-anchor="end" font-size="10">Map + core</text>
       <rect x="42" y="210" width="164" height="26" rx="5" fill="#12110b" stroke="#2e2c20"/><text x="54" y="227" fill="#bdb9a6">timeline/</text><text x="196" y="227" fill="#6b6a63" text-anchor="end" font-size="10">Derived</text>
     </g>
 
@@ -947,10 +947,10 @@
       <div class="k">Change A · smallest change</div>
       <h3>The tool catalog itself identifies memory</h3>
       <div class="noun">functions/__init__.py:72-114 + :123-136</div>
-      <p>The six <code>memory_*</code> enter <code>DEFAULT_TOOLS</code>, and all six also enter <code>DEFERRED_DEFAULT_TOOLS</code>.
+      <p>The three <code>memory_*</code> enter <code>DEFAULT_TOOLS</code>, and all three also enter <code>DEFERRED_DEFAULT_TOOLS</code>.
         The deferred catalog sends only names, not descriptions (<code>deferred_catalog_text</code> is <code>"\n".join(name …)</code>);
-        the six lines measure <b>20 token</b>.</p>
-      <p>Each turn, the model scans its tools and sees <code>memory_search</code>, <code>memory_browse</code>, <code>memory_status</code>
+        the three lines measure <b>12 token</b>.</p>
+      <p>Each turn, the model scans its tools and sees <code>memory_search</code>, <code>memory_get</code>, <code>memory_update</code>
         names, making memory availability explicit.<code>wiki_agent</code> is no longer the only listed knowledge-system-like tool.
         It need not be removed; put the correct answer alongside it.</p>
       <div class="tools"><span>+20 tokens/turn</span><span>Change two lists</span><span>Add one test_tool_defer.py case</span></div>
@@ -999,10 +999,10 @@
       <text x="482" y="98" fill="#bdb9a6">. It is written in the</text>
       <text x="42" y="116" fill="#bdb9a6"> background, not by the user, and it is a summary under a 2000-token</text>
       <text x="42" y="134" fill="#bdb9a6"> budget — browse the rest with </text>
-      <text x="316" y="134" fill="#d4843a">memory_browse</text>
-      <text x="434" y="134" fill="#bdb9a6"> / </text>
-      <text x="456" y="134" fill="#d4843a">memory_search</text>
-      <text x="574" y="134" fill="#bdb9a6">.]</text>
+      <text x="316" y="134" fill="#d4843a">memory_get</text>
+      <text x="406" y="134" fill="#bdb9a6"> / </text>
+      <text x="428" y="134" fill="#d4843a">memory_search</text>
+      <text x="546" y="134" fill="#bdb9a6">.]</text>
       <text x="42" y="158" fill="#6b6a63">…rendered core.md…</text>
       <text x="42" y="176" fill="#5aad4e">&lt;/memory&gt;</text>
     </g>
@@ -1039,11 +1039,11 @@
       <text x="545" y="63" fill="#8a8675" font-size="11">Other ten components: 817</text>
       <text x="846" y="63" fill="#f0eee6" font-size="12">1638</text>
 
-      <text x="24" y="106" fill="#bdb9a6">Option 1 · make all six tools resident</text>
+      <text x="24" y="106" fill="#bdb9a6">Option 1 · make all three tools resident</text>
       <rect x="230" y="92" width="600" height="20" rx="4" fill="#3a3728"/>
-      <rect x="230" y="92" width="245" height="20" rx="4" fill="#7a2a34"/>
-      <text x="240" y="107" fill="#e0445a" font-size="11">+670 schema tokens</text>
-      <text x="846" y="107" fill="#e0445a" font-size="12">+670</text>
+      <rect x="230" y="92" width="389" height="20" rx="4" fill="#7a2a34"/>
+      <text x="240" y="107" fill="#e0445a" font-size="11">+1064 schema tokens</text>
+      <text x="846" y="107" fill="#e0445a" font-size="12">+1064</text>
       <text x="900" y="107" fill="#8a8675" font-size="11">5397 → 6067 tokens; rarely called</text>
 
       <text x="24" y="150" fill="#bdb9a6">Option 2 · add prose only</text>
@@ -1066,15 +1066,15 @@
     </g>
 
     <rect x="24" y="258" width="1112" height="30" rx="7" fill="#12110b" stroke="#2e2c20"/>
-    <text x="40" y="278" fill="#a5a190" font-size="11.5">Schemas: memory_search 147 · memory_get 131 · memory_update 166 · memory_grep 99 · memory_browse 82 · memory_status 45. Deferred: six names, 20 tokens; no schemas.</text>
+    <text x="40" y="278" fill="#a5a190" font-size="11.5">Schemas: memory_search 214 · memory_get 221 · memory_update 629. Deferred: three names, 12 tokens; no schemas.</text>
   </svg>
   </div>
 
   <div class="note">
-    <b>Why defer all six instead of keeping two resident.</b>The deferred catalog sends only names, and <code>memory_search</code>and<code>memory_browse</code>
+    <b>Why defer all three instead of keeping two resident.</b>The deferred catalog sends only names, and <code>memory_search</code>and<code>memory_get</code>
     already state their purpose. Schema parameter instructions are needed only when calling the tool.
     <code>tool_search</code> is never deferred and is the sole entry point for loading the others, so the model can act on a known name in one step.
-   Most sessions never call the six tools. A single status line replaces 821 tokens of stale content, producing a net reduction.</div>
+   Most sessions never call the three tools. A single status line replaces 821 tokens of stale content, producing a net reduction.</div>
 
   <!-- ══════════ 11理想 ══════════ -->
   <h2 id="ideal"><span class="num">11</span>Ideal state<span class="ly ly4">Layer 4</span></h2>
@@ -1144,7 +1144,7 @@
         <rect x="470" y="306" width="392" height="82" rx="8" fill="#1c1729" stroke="#4c3670"/>
         <text x="486" y="328" fill="#9d6fe0" font-size="12.5" font-weight="700">Status includes verifiable quantities</text>
         <text x="486" y="348" fill="#a5a190" font-size="11">Topic-file count, last-write timestamp, current revision,</text>
-        <text x="486" y="366" fill="#a5a190" font-size="11">verifiable against memory_status output</text>
+        <text x="486" y="366" fill="#a5a190" font-size="11">verifiable against the memory_get overview</text>
         <text x="880" y="328" fill="#8a8675" font-size="11">Gap: requires describe(), like the first item</text>
         <text x="880" y="346" fill="#8a8675" font-size="11">Deferred: implement together with the first item;</text>
         <text x="880" y="364" fill="#8a8675" font-size="11">doing it separately changes the same interface twice</text>

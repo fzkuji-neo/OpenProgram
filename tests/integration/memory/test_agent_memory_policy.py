@@ -34,20 +34,18 @@ def runtime(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize('mode', ['off', 'read_only'])
-def test_restricted_turn_is_never_archived_by_idle_writer(runtime, monkeypatch, mode):
+def test_restricted_turn_is_never_written_by_idle_writer(runtime, monkeypatch, mode):
     from openprogram.memory import session_watcher, writing
     D, db, profile, state = runtime
     profile['memory']['mode'] = mode
     monkeypatch.setattr(writing, '_agent', lambda *_: object())
     monkeypatch.setattr(writing, '_counter', lambda: len)
-    monkeypatch.setattr(writing, '_run_agent', lambda *_, **__: [])
+    monkeypatch.setattr(writing, '_run_agent', lambda *_, **__: [{'tool': 'agent'}])
     from openprogram.agent.authority import local_owner_authority
     result = D.process_user_turn(D.TurnRequest(session_id='s', user_text='PRIVATE_INPUT', agent_id='private', source='tui', **local_owner_authority()))
     assert not result.failed, result.error
     session_watcher._process_session('s', db.get_branch('s'))
-    archives = '\n'.join(path.read_text() for path in state.rglob('sources/**/*.md'))
-    assert 'PRIVATE_INPUT' not in archives
-    assert 'PRIVATE_REPLY' not in archives
+    assert not any(m.get(writing.WRITTEN_NODE_MARKER) for m in db.get_branch('s'))
 
 
 def _turn(runtime, **kwargs):
@@ -57,19 +55,22 @@ def _turn(runtime, **kwargs):
     return req, D.process_user_turn(req)
 
 
-def test_read_write_archives_only_its_own_space(runtime, monkeypatch):
+def test_read_write_writes_only_its_own_space(runtime, monkeypatch):
     from openprogram.memory import session_watcher, writing
     _, db, profile, state = runtime
     profile['memory']['mode'] = 'read_write'
     monkeypatch.setattr(writing, '_agent', lambda *_: object())
     monkeypatch.setattr(writing, '_counter', lambda: len)
-    monkeypatch.setattr(writing, '_run_agent', lambda *_, **__: [])
+    monkeypatch.setattr(writing, '_run_agent', lambda *_, **__: [{'tool': 'agent'}])
     req, result = _turn(runtime)
     assert not result.failed, result.error
     session_watcher._process_session('s', db.get_branch('s'))
+    from openprogram.memory.workspace_layout import runtime_dir
     root = state / 'memory-spaces' / 'agents' / 'private'
-    assert 'PRIVATE_INPUT' in '\n'.join(path.read_text() for path in root.rglob('sources/**/*.md'))
-    assert not list((state / 'memory').glob('sources/**/*.md'))
+    space = (runtime_dir(root) / 'workspace-id').read_text().strip()
+    marks = {m.get(writing.WRITTEN_NODE_MARKER) for m in db.get_branch('s')
+             if m.get('role') in ('user', 'assistant')}
+    assert marks == {space}
     assert req.memory_policy_snapshot['eligible'] is True
 
 

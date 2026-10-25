@@ -159,7 +159,7 @@ SSH 和 Docker 在后端文件系统中按 POSIX 路径解释显式目录，不�
 | `chat_send` | 往这通对话所在的聊天里发一条消息。在 [ambient 群](../integrations/channels.zh.md#群聊行为)里，这是 agent 开口的唯一方式；其他时候用来在长时间干活前发一句短话，最终回复照常发出。一轮最多 5 条 | 聊天渠道的对话（Telegram、Discord、Slack 或微信）；其他地方不提供 |
 | `enter_plan_mode` / `exit_plan_mode` | 进入 / 退出计划模式 | 无 |
 | `canvas` | 往 markdown 文件的具名块里增量写入；`set` 的 `content=""` 清空正文，省略内容则返回错误 | 无 |
-| `memory_*` | 读取持久记忆工作区——`memory_search`（按语义找）、`memory_grep`（找确切字符串）、`memory_get`（读一个文件、章节或段落）、`memory_browse`（看有什么）、`memory_status`（规模与版本），以及 `memory_update` 用来更正某一处。没有记录对话的工具：那件事在后台完成。每个实例只有一份工作区，所有agent、所有对话（含聊天渠道）共用（见[聊天渠道](../integrations/channels.zh.md#谁能和你的机器人说话)）。 | 无 |
+| `memory_*` | 读取持久记忆工作区——`memory_search`（按语义或确切字符串找）、`memory_get`（看有什么；读一个文件、章节或段落；或读脚注引用的那条聊天消息），以及 `memory_update` 用来新增或更正记录。没有记录对话的工具：那件事在后台完成。每个实例只有一份工作区，所有agent、所有对话（含聊天渠道）共用（见[聊天渠道](../integrations/channels.zh.md#谁能和你的机器人说话)）。 | 无 |
 | `worktree_*` | git worktree：`worktree_create`（也可直接从 PR 开 worktree，传 `pr="123"` / `"#123"` / GitHub PR 链接，走 `gh`）/ `merge` / `discard` / `list` / `keep` | git |
 | `cron` | 登记周期性 agent 任务 | 无 |
 | `list_mcp_resources` / `read_mcp_resource` / `list_mcp_prompts` / `get_mcp_prompt` | 把 MCP 的 resources / prompts 原语暴露给模型（`mcp_meta` 目录） | 已配置的 MCP server（见 [MCP](mcp.zh.md)） |

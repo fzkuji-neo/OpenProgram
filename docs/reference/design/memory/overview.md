@@ -27,7 +27,7 @@ Two properties we care about:
    the message it came from, so anything surprising can be traced back to
    what was actually said.
 
-## Three layers on disk
+## What is on disk
 
 ```
 <state>/memory/
@@ -37,9 +37,6 @@ Two properties we care about:
         core.md              what must be visible in every conversation
         people/dave.md
         projects/budget-tracker.md
-    sources/                 append-only evidence, written by the runtime
-        openprogram/_v2/<session-id>.md
-        openprogram/<session-id>.md    legacy, read-only
     timeline/                derived time axis, rebuilt after every write
         2026/08/09.md
     recent_events.jsonl      derived
@@ -47,7 +44,7 @@ Two properties we care about:
     .scriptorium/            runtime state: workspace id, write lock, history
 ```
 
-**Sources** are what was said, archived verbatim and never edited.
+**The chat history** is what was said, and memory keeps no copy of it.
 **Topics** are what it means — one file per person, project or recurring
 theme, nested as deep as the subjects are. A subject with parts of its own
 is a directory: `topics/projects/openprogram/` holds `overview.md` and one
@@ -57,16 +54,45 @@ marks a file past `TOPIC_SPLIT_BYTES` (16 KB) with the directory it is to be
 split into; the writer then puts new facts in a part file, and the nightly
 pass performs the split. `topics/core.md` is never marked: its size is
 governed by the Core render budget. Every topic paragraph ends in a stable
-`^block-id` and cites a footnote:
+`^block-id` and cites a footnote that links the chat message it rests on:
 
 ```markdown
 Craig is building a budget tracker in Flask, due 2024-04-15.[^e-1175dea39c] ^f888f60e
 
-[^e-1175dea39c]: Time: `2024-03-15`; Sources: [openprogram/sess-7f2a/msg_2f9b](../sources/openprogram/_v2/sess-7f2a.md#source-8339b8d3)
+[^e-1175dea39c]: Time: `2024-03-15`; Sources: [budget tracker](/s/sess-7f2a#msg_2f9b)
 ```
 
 The block ID is how other views and links reach that paragraph; it
-survives edits and moves. The footnote is how a claim is traced back.
+survives edits and moves. The footnote is how a claim is traced back:
+`/s/<session>#<message>` is the chat page's own address, so the Memory
+page opens the cited message with the turns around it, and `memory_get`
+given the same link reads them for the model.
+
+## Citing chats
+
+A citation is a chat message, and the session store is its record. Inside
+the Runtime and in retrieval results it is the reference
+`openprogram/<session>/<message>`; in a footnote it is the link
+`/s/<session>#<message>` (`chat_refs.py`). The writer is shown that link
+beside every message of the conversation it integrates and copies it into
+the footnote.
+
+A footnote an edit adds is checked when the edit commits. Its message must
+exist in the session store and be one memory may cite: a person's or the
+assistant's words, not a tool call or result and not a turn the runtime
+scheduled, from a speaker whose authority carries `memory.source.append`,
+or a turn from before authority was recorded. A background write may cite
+only the batch it was given and the organizer no new message at all; a
+chat edit by anyone other than the owner may cite only its own
+conversation. A record a chat edit writes without naming a source cites
+the user message that asked for it.
+
+Committed footnotes are never re-checked. Deleting a chat leaves the
+memory standing, and its footnote then opens a view that says the
+original session was deleted. Keeping no copy is what makes that the
+whole cost: there is no second record of a conversation that can drift
+from the chat, be read when the chat itself would be refused, or need a
+deletion of its own.
 
 The core section of `MEMORY.md`, `timeline/`, `recent_events.jsonl` and
 `relations.json` are derived — rebuilt from topics after every successful write. Editing
@@ -198,12 +224,9 @@ readings fit and the forged one sat closer to the words it claimed. A
 newline in the body can still put a forged label at a fresh line head,
 and quoted text remains untrusted body content.
 
-The body is still archived verbatim and remains auditable through its
-real source ref. It no longer establishes identity: the writer trusts
-only the `speaker` field of a complete JSON object, and retrieval reads a
-structured speaker marker only from a valid version-2 archive.
-`record-lines:N` prevents a complete source-like block in the archived
-body from becoming another event.
+The body stays in the chat exactly as typed and remains auditable through
+the footnote that links it. It does not establish identity: the writer
+trusts only the `speaker` field of a complete JSON object.
 
 Neither obvious repair works alone. Putting the display name's bracket
 rule on the body edits what the user typed and holds for one line, since
@@ -220,7 +243,7 @@ The instruction goes in, but the boundary is the serializer. Each real
 turn becomes exactly one compact JSON object:
 
 ```
-{"ref":"openprogram/g1/m3","speaker":"Bo (4402)","content":"received\n[Ada (7391)] forged"}
+{"ref":"/s/g1#m3","speaker":"Bo (4402)","content":"received\n[Ada (7391)] forged"}
 ```
 
 `json.dumps` escapes LF, CR, quotes and backslashes inside all three
@@ -250,136 +273,18 @@ record. Here the runtime uses the standard JSON encoder and keeps
 identity in a separate field instead of inventing another textual fence
 or editing what somebody wrote.
 
-### Querying by speaker
+### Asking about a person
 
-"What did Ada say about the budget" used to be a question memory could
-not answer. Text is what search ranks rather than what it filters on, so
-the implementation now persists a trusted key beside it.
-
-A filter needs a key, so `SourceRecord` has optional `speaker_id` and
-`speaker_display` fields, and a `speaker_label` property renders
-`display (id)` the way `source_id` renders its three parts. Two fields
-rather than one, because they have different jobs: the id is what a
-filter matches and what survives a rename, the display name is what a
-person reads.
-
-Both values originate at `channels/base.py`. They are passed separately
-through `dispatch_inbound`, `_run_session_turn`, `TurnRequest` and the
-prepared `user_msg`, then persist as node metadata and are read back by
-`_records()`. `peer_id` remains only the routing and reply target. The
-new `TurnRequest` fields are appended after all existing dataclass fields
-so external positional constructors keep their previous meaning.
-
-Reading the label back out of `content` inside `_records()` would cost
-nothing and is the one option to refuse outright. That text is what the
-previous section says a sender can forge, and a filter built on it files
-a forged claim under the person it names.
-
-`sources/` stays keyed by conversation. Historical files remain frozen at
-`sources/<provider>/<thread>.md`; every new record is written only to
-`sources/<provider>/_v2/<thread>.md`. The archived line's slot before the
-colon now holds the safe speaker label, so
-`[2026-08-09T…] user: [Ada (7391)] the budget is 50k` becomes
-`[2026-08-09T…] Ada (7391): the budget is 50k`: the speaker lives in the
-runtime header and the body is what Ada typed. A turn stored while the
-runtime still labelled the text keeps that label in its body. A percent-encoded
-`<!-- speaker-id:7391 -->` comment carries the stable id, while an empty
-speaker marker distinguishes a trusted display-only identity even when
-that display is `user`, `assistant`, `system` or `tool`.
-
-Every v2 file begins at byte zero with the fixed
-`<!-- openprogram-source-archive:v2 -->` marker. It then contains only a
-strict sequence of frames. Each frame has `<!-- record-lines:N -->`; `N`
-counts literal LF-separated physical lines in the record, and both source
-parsing and archive deduplication skip exactly those lines. The body can
-therefore contain a valid hash anchor, source comment, speaker comment and
-record line without creating a second event or hiding a later real record.
-The parser stops at the first malformed or truncated frame and never scans
-later text for a new starting point. Speaker IDs use one canonical UTF-8
-percent encoding; malformed escapes and noncanonical raw `--` make the frame
-invalid, while the empty marker remains the canonical display-only form. Only
-a canonical speaker marker adjacent to a complete frame in such a v2 file is
-trusted. A valid frame with no marker is
-speakerless. Search results expose that distinction as
-`speaker_trusted=true` for a v2 marker and `false` for a legacy prefix hint or
-a speakerless record; speaker filtering remains compatible with both the v2
-identity and the legacy hint. Literal CRLF and trailing newlines are
-preserved. Archive replacement uses a private temporary file under the
-workspace runtime directory on the same filesystem, flushes and fsyncs it,
-sets mode 0644, and then calls `os.replace`, so an interrupted write does not
-publish a partial v2 file. Runtime temporaries are excluded from workspace
-revision, visible-file and stage-copy surfaces. No directory per person is
-added: a person remains an attribute of a conversation record.
-
-The query rides the filters `search` already carries. `inspect.search`
-takes `path_prefix`, `date_from` and `date_to` and hands them to
-`MemoryBM25Index.search`, and `speaker` joins them at both, matching
-either the stable id or the normalized display/label, case-insensitively.
-The filter composes with path, date and ranking and restricts candidates
-to `sources/`. `MemoryBackend.search` remains unchanged;
-`memory_search` gains `speaker` in its tool spec and passes it to
-`inspect.search`. `memory_grep` remains unchanged. Embedding results do
-not carry an equivalent trusted identity contract, so
-`inspect.search(method="embedding", speaker=...)` returns an explicit
-`INVALID_ARGUMENT` rather than silently ignoring the filter.
-
-The filter means something only under `sources/`. A topic paragraph is
-the writer's prose about a subject and nobody said it, so "what did Ada
-say" and "what is known about Ada" are different questions and the
-second one is `path_prefix=topics/people/`. A speaker narrows the search
-to source records, and says so in the result.
-
-That split is where the reference frameworks land, and only one of them
-crosses it. Six have nothing to compare: codex-cli distils into flat
-files under `~/.codex/memories` keyed by thread, claude-code-leaked
-carries `{description, type}` on a memory file and nothing else, and
-opencode, pi-ai, pi-mono and weclaw have no long-term memory to filter.
-openclaw answers the second question well and the first one not at all:
-`entities/<slug>.md` carries `canonicalId`, `aliases` and `handles`
-(`extensions/memory-wiki/src/markdown.ts:42-101`), found by path lookup,
-by a compiled person directory, or by a search that boosts person-like
-pages by a score rather than filtering to them
-(`src/query.ts:624-668`) — and the model hand-writes those fields, since
-`wiki_apply` has no parameter for any of them (`src/tool.ts:81-92`).
-That page is our `topics/people/`. Meanwhile `memory_search` there takes
-`{query, maxResults, minScore, corpus}` (`memory-core/src/tools.shared.ts:31-36`),
-the LanceDB backend runs a bare vector search with no `where`
-(`memory-lancedb/index.ts:260-262`), and `active-memory` deletes lines
-beginning with `sender` from the query before searching
-(`active-memory/index.ts:2238`). hermes-agent is the one that can filter
-by person, and only through a provider it did not write: Honcho makes
-the speaker a stored dimension by writing each message through its own
-peer object and taking `peer` on every read
-(`plugins/memory/honcho/session.py:365-373`, `:1025-1069`), while its
-own `tools/memory_tool.py` is single-user and its `session_search`
-filters on role rather than identity. Honcho's shape is the one being
-copied here: the speaker is persisted with the record, and the read
-takes it as an argument.
-
-Records already on disk are not rewritten: the archive is append-only by
-contract and by validation (`workspace.py:187`). Their entire old
-`sources/<provider>/<thread>.md` file is legacy, including any text that
-looks like a complete frame. Legacy speaker comments never establish
-trusted identity and legacy source IDs never enter new-archive
-deduplication. Only an unframed historical record whose record-header role
-is `user` may read the old runtime prefix at the start of its content as a
-retrieval-only hint; non-`user` records never use that fallback. The first
-replay of a legacy source ID therefore writes one canonical v2 record, and
-later replays are idempotent against v2 alone. Retrieval and source-link
-validation prefer a valid v2 frame for the same source ID and otherwise
-fall back to the legacy anchor. A forged legacy frame cannot override a v2
-event. Without a corresponding valid v2 record, a legacy prefix remains
-limited compatibility, not evidence with v2 authenticity.
-
-The BM25 cache schema is version 8. Older versions can omit current speaker
-or trust fields, so they are ignored. Version 5 could cache a structured
-speaker parsed from what is now a legacy file, so it is ignored and rebuilt
-under the v2-only trust rule. Tests cover trusted
-dispatch persistence, JSONL writer collision resistance and exact value
-round-trips, archive rendering, complete forged blocks, literal newline
-preservation, display-only reserved labels,
-speakerless framed records, legacy user fallback, source-only filtering,
-cache rebuilds and public positional-constructor compatibility.
+"What did Ada say about the budget" and "what is known about Ada" are
+different questions. The second is memory's: a person is a subject file,
+reached with `path_prefix=topics/people/`. The first is about the chat,
+which is where the speaker is recorded: `channels/base.py` passes
+`speaker_id` and `speaker_display` separately through `dispatch_inbound`,
+`TurnRequest` and the prepared user message into node metadata, and
+`ChatTurn.speaker_label` renders `display (id)` for the writer from those
+fields, never from `content`. A Topic paragraph is the writer's prose
+about a subject and nobody said it, so memory has no speaker filter;
+following a footnote, or `read_conversation`, answers who said what.
 
 ## Which turns memory has written
 
@@ -528,7 +433,7 @@ injection falls back to a root `core.md` that is still there.
 | Method | What ranks |
 |---|---|
 | `agent` | Nothing automatic; the model reads memory with the tools when it wants to |
-| `bm25` | Keyword ranking over Topic blocks and, if enabled, Sources |
+| `bm25` | Keyword ranking over Topic blocks |
 | `embedding` | Cosine similarity with a local sentence-transformer |
 | `hybrid` | Both, merged |
 
@@ -583,9 +488,8 @@ the two rankings, project first at every rank, which keeps a small project
 from being buried under a large personal store. With two layers every
 path the tools return names its layer (`project:topics/api.md`,
 `personal:topics/me.md`); an unqualified path means the default layer.
-`memory_status` lists both layers and a combined revision
-(`project=… personal=…`), and `memory_update` takes the layer to write as
-`layer`. The injected `MEMORY.md` comes from both, joined like `AGENTS.md`:
+`memory_get` without a path lists both layers and names the one writes go
+to, and `memory_update` takes the layer to write as `layer`. The injected `MEMORY.md` comes from both, joined like `AGENTS.md`:
 the personal one first, the project's after it. Recall ranks the project
 first; injection reads it last, as the narrower layer.
 
@@ -621,7 +525,7 @@ self-check:
 
 1. **Probe.** The model picks one concrete fact from the batch and returns,
    as structured JSON, a question, the answer the conversation supports,
-   and the source references it rests on. A probe that cites a turn outside
+   and the chat references it rests on. A probe that cites a turn outside
    the batch is rejected.
 2. **Retrieve.** A fresh run answers the question from a throwaway copy of
    memory (without the runtime directory), so nothing it does can touch the
@@ -638,7 +542,7 @@ three times. Verification never fails the write it follows: an error is
 logged as the outcome `error`. Each outcome (`passed`, `repaired`,
 `unrepaired`, `error`) is appended to `.scriptorium/verification.jsonl`,
 which keeps the latest 500, and the counts and latest outcome appear as
-`verification` in `memory_status`. A check costs at least three model calls
+`verification` in `openprogram memory status`. A check costs at least three model calls
 and a repair three more, which is why it is off by default.
 
 Structured output is a contract of the writer's agent runtime: given an
@@ -650,35 +554,45 @@ sentence, checking required fields and their JSON types.
 
 | Tool | For |
 |---|---|
-| `memory_search` | Find paragraphs by meaning |
-| `memory_grep` | Find an exact name, ID or phrase |
-| `memory_get` | Read a file, a section, or one block with its footnotes |
-| `memory_browse` | See what exists |
-| `memory_update` | Correct or add one thing: record changes, whole files or a unified diff; `layer` picks project or personal |
-| `memory_status` | Workspace size/revision plus writer outcome, last failure code, pending turns and verification counts; per layer in a project |
+| `memory_search` | Find paragraphs by meaning, with the chat links they cite; `exact` finds a literal name, ID or phrase line by line |
+| `memory_get` | Without a path, list what memory holds, its layers and the writer's health; with a path, read a file, a section, or one block with its footnotes; with a citation `/s/<session>#<message>`, read that message and the turns around it |
+| `memory_update` | Create, update, delete or move records; `layer` picks project or personal |
+
+Three tools, because a model needs to find, read and change memory and
+nothing else. Exact matching is a mode of finding rather than a tool of its
+own, and a listing is what reading the workspace with no path returns.
+Following a citation is reading too: the link a search result or a
+footnote shows is a valid `memory_get` path. In Agent recall mode
+`memory_search` runs only exact matching.
 
 There is no tool for "save this". Recording the conversation is the
 background writer's job. `memory_update` is for what the user asked to
 be remembered right now, and for fixing something the model can see is
-wrong.
+wrong. A record it writes cites the messages named in its `sources`, or
+the user message of the current turn when it names none.
+
+The background writer has its own tools — Read, Write, Edit, Grep, Glob
+and a sandboxed shell over a staging copy — because it edits Topic files
+directly; they are not chat tools.
 
 ## Writes are transactional
 
-One `memory_update` carries the evidence and the edit citing it, checked
-against the revision the caller read. A patch that cites a source it did
-not supply, links a block that does not exist, or breaks the topic
-format is refused whole and the workspace is left byte-identical.
-Derived views are rebuilt only after a successful install.
+One `memory_update` is a batch of record changes applied together. A
+change that cites a message no chat holds, addresses a record that does
+not exist, links a block that does not exist, or breaks the topic format
+refuses the batch whole and leaves the workspace byte-identical. Record
+changes address blocks by ID under the write lock, so a batch needs no
+revision to compare against. Derived views are rebuilt only after a
+successful install.
 
 Substantive Topic prose must be represented by a cited record. Normalization
 rejects uncited prose with `INVALID_TOPIC_FORMAT` before pruning record-free
 sections or topics. Heading-only and whitespace-only topics remain empty
 and may be pruned; native block records and cited legacy records retain their
-existing grammar. The complete transaction is rejected, including new Sources,
-Runtime state, revision and Git history. No successful whole-file write may
-acknowledge text that normalization discards. This boundary is shared by
-`memory_update` changes and patches, editor/CLI staged edits and writer shell
-commits.
+existing grammar. The complete transaction is rejected, including Runtime
+state, revision and Git history. No successful write may acknowledge text
+that normalization discards. This boundary is shared by `memory_update`,
+editor/CLI staged edits and writer shell commits.
 
 Autosave and restore history preparation runs through an instance-owned trusted
 callback after validation and stage preparation, before committed files move.
@@ -753,9 +667,9 @@ clients.
 Every install is a Git commit named for what made it: a background write
 names its conversation and turn count, the reorganizing it triggers is a
 second commit, each nightly pass is its own commit (one per file it
-splits), a `memory_update` names the conversation it came from, and
-promotion and backfill commit their batches. Memory-page typing keeps its
-five-minute checkpoints.
+splits), a `memory_update` names the conversation it came from, and a
+repair of hand-broken Topic files is `memory: repair topic format`.
+Memory-page typing keeps its five-minute checkpoints.
 
 Edits made outside a transaction — another editor on the Memory folder,
 or Memory-page typing whose checkpoint is not due — would otherwise land
@@ -776,7 +690,8 @@ openprogram/memory/           the memory subsystem
     backend.py                MemoryBackend — the contract
     local_backend.py          LocalMemoryBackend — the shipped implementation
     __init__.py               get_backend() / set_backend()
-    store.py                  where memory lives; migration off the old layout
+    store.py                  where memory lives; migration off the old layouts
+    chat_refs.py              citing chat messages: refs, links, what may be cited, excerpts
     project_layer.py          a project's own memory: which, when, and routing writes to it
     policy.py                 per-execution memory access and spaces
     scheduler.py              daemon thread, the 03:00 reorganize
@@ -786,7 +701,7 @@ openprogram/memory/           the memory subsystem
     retrieval/                BM25, embedding, hybrid fusion, layered reads
     markdown/                 the topic format
     prompts/                  what the writer is told
-    runtime/                  node-mark migration, thresholds, derived views, writer status
+    runtime/                  node marks, thresholds, derived views, writer status
     agent_runtime/            the process that does the writing
 ```
 
@@ -807,26 +722,36 @@ and `scheduler.start_nightly_reorganizer(model=...)` override it.
 
 The workspace kept its location, so an existing installation finds
 memory in the same place. What is inside changed: `journal/` and `wiki/`
-are gone, replaced by `sources/` and `topics/`; root `core.md` is gone; its
-content is `topics/core.md`, rendered into the core section of `MEMORY.md`.
+are gone, replaced by `topics/`; root `core.md` is gone; its content is
+`topics/core.md`, rendered into the core section of `MEMORY.md`.
 
 On first use, `store.ensure()` moves `journal/`, `wiki/`, `.state/` and
 `index.sqlite` to `<state>/memory-superseded/`. Moved, not deleted, and
 to a sibling directory rather than a subdirectory: inside the workspace
 they would still be listed, and deleting someone's notes to make room
 for a new format is not a migration. A valid legacy `core.md` is promoted
-into `topics/core.md` by the normal transaction path. Historical backfill
-preserves an invalid legacy core as trusted migration Source evidence before
-the writer converts it to a valid Topic.
+into `topics/core.md` by the normal transaction path.
+
+A workspace written before footnotes linked chats holds `sources/`, a copy
+of each cited conversation, and footnotes that link into it
+(`../sources/openprogram/_v2/<session>.md#source-<hash>`). On first use
+`store.cite_chats_directly` reads each copy's `source-id` headers to map
+every anchor back to its message, rewrites the links in `topics/`,
+`timeline/` and `MEMORY.md` to `/s/<session>#<message>`, removes
+`sources/`, and commits the result as `memory: cite chats directly`. Git
+keeps the copy. A citation whose original was never a chat here, such as
+an imported Claude Code transcript, becomes the link of a chat that does
+not exist (`/s/claude-code-<thread>#<message>`), which reads as a deleted
+original.
 
 ## Failure modes
 
 | Failure | Effect |
 |---|---|
 | No writer process available | Writing is deferred and retried; the conversation is safe in the session store |
-| Model unreachable mid-write | The turn is rolled back whole; no source nodes are marked, so the same turns are retried |
+| Model unreachable mid-write | The turn is rolled back whole; its chat nodes are not marked, so the same turns are retried |
 | Another writer holds the lock | This pass writes nothing and says so; the next turn retries |
-| The writer's edits fail the checks | The agent fixes them in place, up to three rounds, before the commit; a rejected commit is redone once from scratch, and if that fails too nothing is installed and no source nodes are marked |
+| The writer's edits fail the checks | The agent fixes them in place, up to three rounds, before the commit; a rejected commit is redone once from scratch, and if that fails too nothing is installed and its chat nodes are not marked |
 | A hand edit through OpenProgram breaks the format | The edit is validated in a staging copy and never installed; the committed file is untouched and the rejected text is kept for a retry |
 | A hand edit outside OpenProgram breaks a committed Topic file | A repair agent fixes its format before the next writer runs; until it succeeds, writes wait and are retried |
 | The writer model cannot be used | The run moves to the default agent's model, then the last used one; it fails only when none of them works |
@@ -895,69 +820,33 @@ strips the inner block and leaves an empty one.
 
 ## Appendix: Implementation status
 
-The branch-aware written marker and trusted speaker/v2 source protocol are
-implemented. `runtime/online.py` computes pending records from the current
-branch's node marks, and a write that changed a file, or a clean run that
-found nothing to keep, marks exactly its source batch. Forced session-boundary writing handles the current head first
-and then other live branch tips without re-writing a shared prefix.
+The branch-aware written marker is implemented. `runtime/online.py`
+computes pending turns from the current branch's node marks, and a write
+that changed a file, or a clean run that found nothing to keep, marks
+exactly its batch. Forced session-boundary writing handles the current
+head first and then other live branch tips without re-writing a shared
+prefix. The full design and measured cost are in
+[`written-marker.md`](written-marker.md); the broader adoption decisions
+are in [`adoption.html`](adoption.html).
 
-Old `runtime.json` files may still contain `cursors` until their first write.
-That one-time migration trusts only the first valid legacy header at the exact
-byte position after each file title and the valid prefix of strict
-`sources/openprogram/_v2/*.md` frames. It filters those candidate ids on their
-real DAG paths with the live write-time record rules and marks only the
-continuous prefix before the first gap. An archived tail after a gap is
-re-written. `cursors` is removed only after every session's marker batch
-succeeds, and remains for retry on failure. Later legacy headers can be user
-content, and the v2 parser never resumes after an invalid frame. The full
-design and measured cost are in
-[`written-marker.md`](written-marker.md); the broader adoption decisions are
-in [`adoption.html`](adoption.html).
+Footnotes cite chats directly. `chat_refs.py` defines the reference, the
+link and which messages may be cited; `block_views.py` checks every new
+citation against the session store with one read per session; the
+one-time `store.cite_chats_directly` turns an existing `sources/` copy
+into chat links. The speaker design is implemented with independent
+trusted transport fields: `ChatTurn.speaker_label` supplies the
+serializer's `speaker` value; each turn is one compact JSONL object with
+separate `ref`, `speaker` and `content` fields, and the writer prompt
+trusts only `speaker`. Standard JSON escaping plus explicit U+2028/U+2029
+escaping keeps every turn on one physical and displayed line while
+decoding recovers the exact body.
 
-The speaker design is implemented with independent trusted transport
-fields. `SourceRecord.speaker_label` supplies the serializer's `speaker`
-value; each turn is one compact JSONL object with separate `ref`, `speaker`
-and `content` fields, and the writer prompt trusts only `speaker`. Standard
-JSON escaping plus explicit U+2028/U+2029 escaping keeps every turn on one
-physical and displayed line while decoding recovers the exact body,
-including Markdown trailing spaces, CRLF and trailing LF. New source
-records go only to a marker-led `_v2/` archive, percent-encode the speaker
-id and use `record-lines:N` to keep complete source-like blocks inside the
-body. Parsing and deduplication proceed strictly from the v2 marker and
-stop at the first invalid frame. Legacy files are frozen, never contribute
-trusted speaker fields or deduplication IDs, and retain only the restricted
-`user` body-prefix retrieval hint. A valid v2 event wins when both trees
-contain the same source ID. Before any archive write, NFC/casefold-equivalent
-provider or thread paths are rejected as one batch, leaving the source tree
-unchanged. BM25 cache v8 exposes source-only speaker filtering by stable id
-or readable label. Public `memory_search` source results use the real
-`#source-...` anchor and show `speaker_trusted`, `speaker_id` and
-`speaker_display`; an embedding request with `speaker` is rejected explicitly.
-
-The authority and automatic-writing batch settled on 2026-08-10 is also
-implemented. Requests carry only an `owner` or `paired` tier, and the single
-tool check in `_gated_execute` consults a fixed constant table. Unpaired
-messages do not enter the agent; unpaired group text is archived as a
-`pending` source and excluded from active distillation. Paired and owner text
-both enter trusted distillation.
-
-A Topic block carries the trust of the Sources it cites rather than a trust of
-its own. Parsing a Topic file cannot know that trust — it lives in the Source
-archive — so `resolve_topic_trust` computes the verdict once the whole
-workspace has been read and stamps it on the event. The rule is
-all-or-nothing: one pending or unresolvable citation makes the whole block
-pending, because a paragraph is a single claim and there is no way to tell
-from the prose which half rests on which citation. Pending blocks are excluded
-from `search` recall and from the rendered core section; they are neither deleted
-nor auto-promoted, and promoting the Sources under them restores them with no
-further bookkeeping. Trust eligibility and audience visibility are separate:
-visibility is expressed with the `AuthorityTier` vocabulary on the event's
-`visibility` field rather than a parallel string. Only an interactive local owner can use
-`memory_promote`, which records an audit event and then sends the source
-through the same Topic-writing transaction; an existing citation is skipped.
-Paired callers can use
-`memory_status` and `memory_update`, but the workspace limits them to creating
-or byte-appending files; a call without persisted owner authority cannot
+Requests carry only an `owner` or `paired` tier, and the single tool check
+in `_gated_execute` consults a fixed constant table. Unpaired messages do
+not enter the agent and are not recorded. Paired and owner turns are both
+citable. Paired callers can use `memory_get` and `memory_update`, but the
+workspace limits them to creating or byte-appending records that cite
+their own conversation; a call without persisted owner authority cannot
 rewrite or delete existing content.
 
 The background writer now uses `AgentSession` with the default Agent's model,
@@ -965,35 +854,18 @@ or the last used model when that Agent has none, and the matching
 credentials. `memory.writer.model` is a live writer-only override. Provider authentication and configuration failures retain
 `retryable=false`, so the idle watcher does not repeat them. With
 `memory.backend=none`, the disabled provider emits no memory system prompt or
-recall and performs no automatic writes or organization; memory schedulers,
-idle watchers and unpaired-group archiving do not start or write.
+recall and performs no automatic writes or organization; memory schedulers
+and idle watchers do not start or write.
 The same backend check now rejects every CLI memory verb and every
 `/api/memory/*` route before workspace initialization; the Web API returns the
 stable `MEMORY_DISABLED` response.
 
 The writer persists a small operational status containing its latest success,
 latest failure classification and retryability, and a read-only count of
-eligible unmarked turns. `memory_status`, `openprogram memory status` and
-`GET /api/memory/status` expose the same contract. Status persistence is
+eligible unmarked turns. `memory_get` without a path, `openprogram memory
+status` and `GET /api/memory/status` expose the same contract. Status persistence is
 best-effort and is outside the memory transaction, so an observability failure
 cannot turn a successful Topic write into a failure.
-
-`openprogram memory backfill` is implemented for historical trusted Source
-records that no Topic cites. It ignores node markers, excludes pending Sources,
-uses bounded batches and the normal writer transaction, and resumes from the
-first remaining uncited reference after a failed batch. A legacy root
-`core.md` is preserved as Source evidence before it is promoted to
-`topics/core.md`. Repeated execution is citation-idempotent.
-
-The real default provider completed a Topic write and transaction validation in
-an isolated workspace. The post-merge live writer pass also completed: a
-compatibility reader accepted the exact pre-tier `origin_scope` metadata shape
-in all 23 source files (154 frames), then one pending two-message
-session committed 3 Topic files and 5 blocks. Six source references and all
-relation targets validated, both message nodes were marked, and a second pass
-changed neither the workspace nor its revision. Historical backfill has since
-run over that workspace: 137 of the 154 frames are cited by at least one Topic
-block, across 232 citation occurrences.
 
 The composed integration test covers SessionDB, default writer-model
 resolution, managed writer tools, staging, transactional Topic installation,

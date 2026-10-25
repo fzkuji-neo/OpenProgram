@@ -98,7 +98,7 @@ def render_context(refs: Any, *, max_chars: int = 12_000) -> str:
     intro = [
         "Referenced Memory (current content):",
         "When a referenced record describes this scheduled task, keep its "
-        "status current with memory_status, memory_get, and memory_update; "
+        "status current with memory_get and memory_update; "
         "delete it only when no durable value remains.",
     ]
     prefixes = [

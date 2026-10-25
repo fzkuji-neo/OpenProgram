@@ -642,7 +642,7 @@
 
       <rect x="646" y="128" width="238" height="46" rx="7" fill="#2a1418" stroke="#e0445a"/>
       <text x="660" y="148" fill="#e0445a" font-size="11" font-weight="700">8 · mark_archived_turns.py</text>
-      <text x="660" y="165" fill="#bdb9a6" font-size="10.5">Seed from sources/ once　<tspan fill="#8a8675">About 50 added lines</tspan></text>
+      <text x="660" y="165" fill="#bdb9a6" font-size="10.5">No migration seed　<tspan fill="#8a8675">Old sessions are offered whole once</tspan></text>
 
       <rect x="906" y="46" width="230" height="154" rx="8" fill="#12110b" stroke="#2e2c20"/>
       <text x="922" y="68" fill="#f0eee6" font-size="11.5" font-weight="700">Tests</text>
@@ -750,13 +750,13 @@
     <text x="42" y="128" fill="#8a8675" font-size="10.5">Layer 3 replaces these with node markers</text>
 
     <rect x="368" y="66" width="330" height="76" rx="8" fill="#141a12" stroke="#5aad4e"/>
-    <text x="386" y="88" fill="#5aad4e" font-size="11.5" font-weight="700">② Source-id set in source archives</text>
-    <text x="386" y="108" fill="#bdb9a6" font-size="10.5" font-family="Menlo,monospace">sources/&lt;provider&gt;/&lt;thread&gt;.md</text>
-    <text x="386" y="128" fill="#8a8675" font-size="10.5">Read on every write to skip already archived turns</text>
+    <text x="386" y="88" fill="#5aad4e" font-size="11.5" font-weight="700">② Node marks</text>
+    <text x="386" y="108" fill="#bdb9a6" font-size="10.5" font-family="Menlo,monospace">metadata.memory_written_scriptorium</text>
+    <text x="386" y="128" fill="#8a8675" font-size="10.5">Set on every batch the writer handled</text>
 
     <rect x="712" y="66" width="424" height="76" rx="8" fill="#151b22" stroke="#4f8ef7"/>
     <text x="730" y="88" fill="#4f8ef7" font-size="11.5" font-weight="700">③ Footnotes in topic files</text>
-    <text x="730" y="108" fill="#bdb9a6" font-size="10.5" font-family="Menlo,monospace">Each topics/*.md record links to its source</text>
+    <text x="730" y="108" fill="#bdb9a6" font-size="10.5" font-family="Menlo,monospace">Each topics/*.md record links its chat message</text>
     <text x="730" y="128" fill="#8a8675" font-size="10.5">Only this record proves content actually entered a file</text>
 
     <path d="M189 146 L189 176" stroke="#4a4838" stroke-width="1.2" marker-end="url(#f-dim)"/>
@@ -766,7 +766,7 @@
     <rect x="24" y="182" width="1112" height="66" rx="9" fill="#1a1622" stroke="#9d6fe0" stroke-width="1.4"/>
     <text x="42" y="206" fill="#9d6fe0" font-size="13" font-weight="700">Redesign: store nothing elsewhere; pending work is a query</text>
     <text x="42" y="228" fill="#bdb9a6" font-size="11.5">Unwritten = reachable from any live tip and not referenced by any memory record.</text>
-    <text x="42" y="244" fill="#8a8675" font-size="11">The set in ② is already computed on every write; it is an answer to this question that is not used as such.</text>
+    <text x="42" y="244" fill="#8a8675" font-size="11">The cited set in ③ is already parsed by retrieval, but “cited” is not “read”: a turn worth nothing is cited by nothing.</text>
 
     <rect x="24" y="262" width="360" height="66" rx="8" fill="#12110b" stroke="#5aad4e"/>
     <text x="42" y="284" fill="#5aad4e" font-size="11.5" font-weight="700">It cannot disagree with memory because it is memory</text>
@@ -837,8 +837,7 @@
   </div></div>
 
   <div class="note"> Diagram details: Three gaps: topic format lacks the field, retrieval lacks branch filtering, and nightly organization lacks mutually alternative branch semantics. Obstacle: head writes are spread across five sites; their sole shared function discards the old value, and no event carries the movement. <b>Implementation status (2026-08-11).</b>Layer 1 records pre-migration implementation, layer 2 audits open-source frameworks, and layer 3 is implemented: session nodes use<code>metadata.memory_written_scriptorium = &lt;workspace-id&gt;</code> to record writing state; the current branch derives its unwritten suffix from markers. Mark only successful batches that actually modify memory; session completion processes current head before other live branches.
-    <code>RuntimeState.cursors</code> and<code>advance_cursor</code> are removed. First write on legacy installations validates legacy headers and the strict valid prefix of
-    <code>sources/openprogram/_v2/*.md</code>: legacy accepts only the first valid header after the title; v2 stops at invalid frames. Candidate IDs undergo the same record filtering as online writing on real DAG paths; mark only the contiguous prefix before the first gap, allowing later tails to be rewritten. Delete old<code>cursors</code> only after all session markers succeed, retaining it on failure for retry. Structured speaker fields, trusted v2 frames and speaker filtering are also implemented. Historical<code>memory backfill</code> deliberately ignores node markers and selects only trusted Sources not referenced by Topics, excluding pending entries. It neither adds nor removes session markers. Node markers record online-writer processing state; Topic references record whether historical Sources entered retrievable content. These definitions are not interchangeable. Historical backfill has not run in the canonical workspace. Layer 4 remains unimplemented.</div>
+    <code>RuntimeState.cursors</code> and<code>advance_cursor</code> are removed, and a legacy <code>cursors</code> field is ignored: an old session’s first pass offers its eligible turns again. Structured speaker fields are also implemented, and footnotes cite chat messages directly. Layer 4 remains unimplemented.</div>
 
 </div>
 </body>

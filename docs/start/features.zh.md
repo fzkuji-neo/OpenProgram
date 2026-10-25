@@ -84,8 +84,7 @@ docstring 与 `content` 的拆分、一份基于规则的校验清单，
 | 路径 | 放什么 |
 |---|---|
 | `MEMORY.md` | 入口文件，注入每个会话的system prompt：先是一张"什么在哪"的地图，再是从`topics/core.md`渲染出的一小段常驻核心。和`AGENTS.md`一样每层各有一份，个人的在前，项目的在后 |
-| `topics/` | 一个主题一个文件，比如`topics/people/dave.md`。每个段落带一个ID，并标注这条事实的出处 |
-| `sources/` | 那些出处指向的对话原文。只追加，不改写 |
+| `topics/` | 一个主题一个文件，比如`topics/people/dave.md`。每个段落带一个ID，脚注链接这条事实来自的聊天消息`/s/<会话>#<消息>`；记忆不另存对话副本 |
 | `timeline/` | 同一批事实按日期排列，从`topics/`重建 |
 | `.scriptorium/` | 内部状态：每个对话读到哪了，以及避免两个写入者相撞的锁。它不是记忆 |
 
@@ -95,7 +94,7 @@ docstring 与 `content` 的拆分、一份基于规则的校验清单，
 无论它是分几次对话学到的。安静超过半小时的对话不管攒了多少都会被
 写掉，短对话不会一直等一个永远凑不齐的批次。
 
-每次写入要么整体落地，要么完全不落地。引用了没提供的出处、指向了
+每次写入要么整体落地，要么完全不落地。引用了聊天里不存在的消息、指向了
 不存在的段落、或者破坏了主题格式的改动会被整体拒绝，工作区一个字节
 都不变。两个写入者不会交错：后台写入发现工作区被占用时，等一秒就
 放弃，不会让你等，下一轮再来。
@@ -114,11 +113,12 @@ openprogram memory edit topics/people/dave.md    # 用$EDITOR打开，校验通�
 openprogram memory export                        # 把整个工作区打成tar.gz
 ```
 
-Web UI的Memory页面读的是同一个工作区。agent通过`memory_search`、
-`memory_grep`、`memory_get`、`memory_browse`、`memory_update`、
-`memory_status`访问它。没有「保存这条」这样的工具：记录对话本来就在
-后台发生，`memory_update`是用来订正已有内容、或者写下你当场要求
-记住的东西的。
+Web UI的Memory页面读的是同一个工作区。agent通过三个工具访问它：
+`memory_search`按语义或确切字符串找段落；`memory_get`列出记忆里有什么、
+读一个文件、章节或段落，传入脚注的聊天链接时读出当时的原话；
+`memory_update`新增、订正、删除或移动记录。没有「保存这条」这样的工具：
+记录对话本来就在后台发生，`memory_update`是用来订正已有内容、或者写下
+你当场要求记住的东西的。不指定出处时，它写下的记录引用提出这个要求的那条消息。
 
 ## Mini-DAG — 右栏中的执行视图
 

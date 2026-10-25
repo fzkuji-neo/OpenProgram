@@ -316,8 +316,8 @@
     <text x="918" y="224" fill="#6b6a63" font-size="10.5" font-family="Menlo,monospace">&lt;state&gt;/memory/</text>
     <text x="918" y="256" fill="#d4843a" font-size="11.5" font-family="Menlo,monospace">topics/</text>
     <text x="918" y="274" fill="#8a8675" font-size="11">Only model-editable files</text>
-    <text x="918" y="304" fill="#2db3d5" font-size="11.5" font-family="Menlo,monospace">sources/</text>
-    <text x="918" y="322" fill="#8a8675" font-size="11">Append-only source archive</text>
+    <text x="918" y="304" fill="#2db3d5" font-size="11.5" font-family="Menlo,monospace">/s/&lt;session&gt;#&lt;msg&gt;</text>
+    <text x="918" y="322" fill="#8a8675" font-size="11">Footnotes cite chat messages</text>
     <text x="918" y="352" fill="#5aad4e" font-size="11.5" font-family="Menlo,monospace">core.md</text>
     <text x="918" y="370" fill="#8a8675" font-size="11">Injected into every session</text>
     <text x="918" y="400" fill="#9d6fe0" font-size="11.5" font-family="Menlo,monospace">timeline/ + two locations</text>
@@ -341,7 +341,7 @@
     <!-- Organization directly accesses memory -->
     <path d="M304 538 C 520 570, 720 572, 894 520" fill="none" stroke="#9d6fe0" stroke-width="1.5"
       marker-end="url(#f-vi)"/>
-    <text x="596" y="592" fill="#9d6fe0" font-size="11" text-anchor="middle">Organization bypasses ingestion: it rearranges topics/, leaves sources/ unchanged, and does not advance the cursor</text>
+    <text x="596" y="592" fill="#9d6fe0" font-size="11" text-anchor="middle">Organization bypasses ingestion: it rearranges topics/, cites no new message, and marks no turns</text>
   </svg>
   <p class="note">Diagram details: Session storage. No messages passed; read session storage. Scan every five minutes; idle after 30 minutes. Write everything remaining regardless of batch threshold. Reorganize existing disk content; add nothing new. While content remains, run successive passes. After a session ends there is no next batch; stopping halfway leaves content unwritten forever. Select unwritten messages not covered by the cursor. Batch by accumulating 16k tokens. Call the model to edit staged files. Organize when enough content accumulates. Commit: install everything after validation. Topic files; the model edits only these. timeline/ and two other locations.</p>
   </div>
@@ -411,9 +411,9 @@
     <text x="936" y="116" fill="#bdb9a6" font-size="11.5">Validation passes → install all</text>
     <text x="936" y="136" fill="#bdb9a6" font-size="11.5">Validation fails → discard the batch</text>
     <text x="936" y="164" fill="#f0eee6" font-size="11.5">Advance cursor after installation</text>
-    <text x="936" y="192" fill="#8a8675" font-size="10.5">This batch’s source text is archived</text>
-    <text x="936" y="210" fill="#8a8675" font-size="10.5">before the model call, so the archive</text>
-    <text x="936" y="228" fill="#8a8675" font-size="10.5">never falls behind the cursor</text>
+    <text x="936" y="192" fill="#8a8675" font-size="10.5">The batch stays in the chat history;</text>
+    <text x="936" y="210" fill="#8a8675" font-size="10.5">footnotes link its messages, so</text>
+    <text x="936" y="228" fill="#8a8675" font-size="10.5">nothing is copied</text>
 
     <line x1="240" y1="170" x2="250" y2="170" stroke="#8a8675" stroke-width="1.4" marker-end="url(#s-gy)"/>
     <line x1="462" y1="170" x2="472" y2="170" stroke="#8a8675" stroke-width="1.4" marker-end="url(#s-gy)"/>
@@ -447,7 +447,7 @@
     <rect x="32" y="60" width="196" height="196" rx="10" fill="#12110b" stroke="#2e2c20" stroke-width="1.4"/>
     <text x="50" y="86" fill="#bdb9a6" font-size="13" font-weight="700">Memory repository</text>
     <text x="50" y="112" fill="#d4843a" font-size="11" font-family="Menlo,monospace">topics/</text>
-    <text x="50" y="132" fill="#2db3d5" font-size="11" font-family="Menlo,monospace">sources/</text>
+    <text x="50" y="132" fill="#2db3d5" font-size="11" font-family="Menlo,monospace">timeline/</text>
     <text x="50" y="152" fill="#5aad4e" font-size="11" font-family="Menlo,monospace">core.md</text>
     <text x="50" y="184" fill="#8a8675" font-size="11">Read-only during the transaction;</text>
     <text x="50" y="204" fill="#8a8675" font-size="11">a reference that nobody</text>
@@ -464,8 +464,8 @@
     <text x="330" y="115" fill="#d4843a" font-size="11" font-family="Menlo,monospace">topics/</text>
     <text x="330" y="132" fill="#bdb9a6" font-size="11">Writable; all edits this turn go here</text>
     <rect x="316" y="150" width="254" height="42" rx="6" fill="#12110b" stroke="#2e2c20"/>
-    <text x="330" y="167" fill="#2db3d5" font-size="11" font-family="Menlo,monospace">sources/  chmod 0444</text>
-    <text x="330" y="184" fill="#bdb9a6" font-size="11">Filesystem rejects writes immediately</text>
+    <text x="330" y="167" fill="#2db3d5" font-size="11" font-family="Menlo,monospace">derived views</text>
+    <text x="330" y="184" fill="#bdb9a6" font-size="11">Rebuilt from topics/ after the edit</text>
     <text x="316" y="214" fill="#8a8675" font-size="11">Read the repository baseline before copying.</text>
     <text x="316" y="232" fill="#8a8675" font-size="11">A later baseline would miss deleted block IDs.</text>
 
@@ -474,12 +474,12 @@
     <!-- Validation -->
     <rect x="648" y="60" width="256" height="196" rx="10" fill="#12110b" stroke="#2e2c20" stroke-width="1.4"/>
     <text x="666" y="86" fill="#bdb9a6" font-size="13" font-weight="700">Four validations</text>
-    <text x="666" y="112" fill="#bdb9a6" font-size="11.5">1 sources/ fingerprint unchanged</text>
-    <text x="682" y="130" fill="#8a8675" font-size="10.5">Source archive is append-only</text>
+    <text x="666" y="112" fill="#bdb9a6" font-size="11.5">1 Topic format parses</text>
+    <text x="682" y="130" fill="#8a8675" font-size="10.5">Every paragraph cites a footnote</text>
     <text x="666" y="154" fill="#bdb9a6" font-size="11.5">2 Every pre-existing block ID remains</text>
     <text x="682" y="172" fill="#8a8675" font-size="10.5">Rewrite, merge, or move paragraphs</text>
     <text x="666" y="196" fill="#bdb9a6" font-size="11.5">3 Cross-topic links target #^block IDs</text>
-    <text x="666" y="220" fill="#bdb9a6" font-size="11.5">4 Referenced sources actually exist</text>
+    <text x="666" y="220" fill="#bdb9a6" font-size="11.5">4 New citations name citable messages</text>
     <text x="682" y="238" fill="#8a8675" font-size="10.5">core.md budget; valid block links</text>
 
     <!-- Outputs -->
@@ -689,7 +689,7 @@
     <text x="42" y="370" fill="#bdb9a6" font-size="11">Pending content: walk backward from head until the first marker</text>
     <text x="42" y="390" fill="#bdb9a6" font-size="11">Storage: one additional field on an existing node</text>
     <text x="42" y="410" fill="#bdb9a6" font-size="11">Growth: no separate growth; each read traverses a few nodes</text>
-    <text x="42" y="430" fill="#bdb9a6" font-size="11">Migration: mark nodes covered by archived sources</text>
+    <text x="42" y="430" fill="#bdb9a6" font-size="11">Migration: mark nodes the old cursor covered</text>
     <text x="42" y="450" fill="#e0445a" font-size="11">Missing marker: traversal stops too early and older content remains pending</text>
     <text x="42" y="470" fill="#e0445a" font-size="11">Coupling: memory writes a field into session storage</text>
 
@@ -698,7 +698,7 @@
     <text x="606" y="370" fill="#bdb9a6" font-size="11">Pending content: traverse the whole branch and subtract the set</text>
     <text x="606" y="390" fill="#bdb9a6" font-size="11">Storage: one file per thread containing every written ID</text>
     <text x="606" y="410" fill="#bdb9a6" font-size="11">Growth: one entry per message; reads load the complete list</text>
-    <text x="606" y="430" fill="#bdb9a6" font-size="11">Migration: seed the set from the same archive</text>
+    <text x="606" y="430" fill="#bdb9a6" font-size="11">Migration: seed the set from the same cursor</text>
     <text x="606" y="450" fill="#5aad4e" font-size="11">Missing entry: precisely that turn becomes pending again</text>
     <text x="606" y="470" fill="#bdb9a6" font-size="11">Coupling: memory owns bookkeeping, including files, migration, and append-only retention</text>
 
@@ -711,7 +711,7 @@
   <p class="note">Diagram details: Use node markers. External bookkeeping that remains correct after forks requires a set, introducing file placement, migration, permanent ID retention, and read cost that grows with the conversation.</p>
   </div>
   <div class="legend">
-    <b>Perform the idempotent step first</b>: archive evidence, write topics, then mark nodes. Archives are append-only and content-addressed; archiving the same batch twice is byte-identical. Topics have block IDs and footnotes, so partial writes would corrupt them; transactions install all or nothing. If the writer dies between steps, it leaves unreferenced evidence, no markers, and the same pending batch for the next <b>retry</b>. Marking first would turn that crash into silent loss of those turns.<br>
+    <b>Mark only after the write installs</b>: write topics, then mark nodes. Topics have block IDs and footnotes, so partial writes would corrupt them; transactions install all or nothing. If the writer dies between steps, it leaves no markers and the same pending batch for the next <b>retry</b>. Marking first would turn that crash into silent loss of those turns.<br>
     <b>Completion needs verifiable output</b>: marking requires successful transaction installation<i>and</i>actual file changes. Nightly organization must report changed files, not merely inspected files. Absence of an error is not an output.<br>
     <b>Verified cost to session storage</b>: sessions have no whole-tree hash. The sole byte-level tree hash is the memory-workspace revision rooted at <code>&lt;state&gt;/memory</code>, separate from <code>&lt;state&gt;/sessions</code> , so node markers are not mistaken for concurrent memory writes. The session-index cache is affected: history-directory mtime changes on rewrites just as on appends. Another process rebuilds the index; measured cost for 289 nodes and 4.2 MB is <b>14–50 ms</b> and is self-limiting. Git is what grows: the session directory runs <code>git add -A</code> per turn, and changed nodes become new blobs. Therefore, <b>mark only the current batch; never rescan and rewrite every node</b>, or each turn adds the entire session and total growth becomes quadratic. Two additional constraints: markers must not change <code>updated_at</code>(the idle watcher uses it to decide whether a session was handled; changing it would trigger another forced write), and must not use the “mark session synchronized” path.
   </div>
@@ -815,7 +815,7 @@
 
     <line x1="32" y1="552" x2="1128" y2="552" stroke="#2e2c20" stroke-width="1"/>
     <text x="32" y="578" fill="#8a8675" font-size="11.5">The older implementation already maintained this:<tspan font-family="Menlo,monospace">memory/core.py</tspan>refresh_from_wiki rebuilt core.md from a designated wiki page, clipping at heading boundaries to the budget, called by sleep’s deep stage.</text>
-    <text x="32" y="600" fill="#8a8675" font-size="11.5">That process was removed when switching to topics/sources. The right-hand design restores it with a topic file replacing the designated wiki page.</text>
+    <text x="32" y="600" fill="#8a8675" font-size="11.5">That process was removed when switching to topics/. The right-hand design restores it with a topic file replacing the designated wiki page.</text>
   </svg>
   <p class="note">Diagram details: management/block_views.py _synchronize. Both writers and nightly organization use this file.</p>
   <p class="note">Diagram details: It reports COMMIT_REJECTED, outside the retryable set, so the watcher still marks the session handled. Ordinary topic file without a size limit. Both writers and nightly organization use only this file. Rebuilt after each successful installation. Include content up to 2000 tokens. Omitted blocks produce IDs, not errors. Omitted paragraphs remain in the source, indexed and discoverable through search and memory_get. A unique block in core.md could make clipping reject the entire transaction. Rendered IDs are always a subset. Observed: an 11,883-token handwritten core.md no longer blocks an unrelated write; rendering produced 1,983 tokens.</p>
@@ -846,7 +846,7 @@
       </tbody>
     </table>
   </div>
-  <div class="legend"><b>Implementation status (2026-08-17): implemented; awaiting review after fixes.</b> Web defaults to effective Core after the injection switch. Full-record saves synchronize Runtime-normalized source through compare-and-set; Markdown is sanitized; GET reads only complete snapshots during transaction installation. Writer/Organizer include these content-purpose constraints. Structured Memory transactions reduced the production workspace from 186 records to 15 and nine Topic files to four; <code>topics/core.md</code> was reduced from 31 records/about 15,305 tokens to three/about 429 tokens, with about 425 injected tokens. Repeated probes, old tool lists, repeated project checks, and invalid states were removed from current views but remain in Memory Git history. Automatic writing now starts at 8000 tokens. Retrieval uses organized Topics without directly mixing Source text. Current fixes cover special-token counting and continued edits during save; review conclusions are recorded after validation.</div>
+  <div class="legend"><b>Implementation status (2026-08-17): implemented; awaiting review after fixes.</b> Web defaults to effective Core after the injection switch. Full-record saves synchronize Runtime-normalized source through compare-and-set; Markdown is sanitized; GET reads only complete snapshots during transaction installation. Writer/Organizer include these content-purpose constraints. Structured Memory transactions reduced the production workspace from 186 records to 15 and nine Topic files to four; <code>topics/core.md</code> was reduced from 31 records/about 15,305 tokens to three/about 429 tokens, with about 425 injected tokens. Repeated probes, old tool lists, repeated project checks, and invalid states were removed from current views but remain in Memory Git history. Automatic writing now starts at 8000 tokens. Retrieval reads organized Topics only. Current fixes cover special-token counting and continued edits during save; review conclusions are recorded after validation.</div>
 
   <!-- ══════════ 06Nine methods ══════════ -->
   <h2 id="hooks"><span class="num">06</span> Nine interface methods</h2>
@@ -1109,7 +1109,7 @@
         <text x="96" y="176" fill="#e0445a" font-size="11">Missing: a link identifying the continued conversation.</text>
       </svg>
   <p class="note">Diagram details: No duplication or omission. What is missing is the link saying this branch continues that conversation.</p>
-      <div class="d">Spawn branches within one session share its cursor and archive without extra machinery.<b>For cross-session spawn, memory cannot identify the two parts as related.</b></div>
+      <div class="d">Spawn branches within one session share its node marks without extra machinery.<b>For cross-session spawn, memory cannot identify the two parts as related.</b></div>
     </div>
 
     <div class="oc">
@@ -1343,7 +1343,7 @@
   <div class="grid2">
     <div class="oc">
       <h4>Method one · edit files directly</h4>
-      <div class="d">Background writers or organizing models create, rewrite, move, or delete <code>topics/**/*.md</code> inside Runtime-provided staging. Each Source in new footnotes is written as <code>[short keyword](source_ref)</code>. The model chooses keywords and an existing Source, not the final URL. After editing it must not overwrite production Memory directly; it calls <code>commit_edits</code> so Runtime allocates/preserves IDs, resolves <code>source_ref</code> into archive links, validates Source/block links, rebuilds Timeline/Recent/Relations/Core, and installs everything. Web/CLI file edits use the same <code>staged_edit</code> entry.</div>
+      <div class="d">Background writers or organizing models create, rewrite, move, or delete <code>topics/**/*.md</code> inside Runtime-provided staging. Each citation in new footnotes is written as <code>[short keyword](/s/&lt;session&gt;#&lt;message&gt;)</code>, copied from the ref printed beside each message. After editing it must not overwrite production Memory directly; it calls <code>commit_edits</code> so Runtime allocates/preserves IDs, checks new chat citations and block links, rebuilds Timeline/Recent/Relations/Core, and installs everything. Web/CLI file edits use the same <code>staged_edit</code> entry.</div>
     </div>
     <div class="oc">
       <h4>Method two · structured interface</h4>
@@ -1353,16 +1353,16 @@
 
   <div class="grid2">
     <div class="oc">
-      <h4>Source identity</h4>
-      <div class="d"><code>source</code> is immutable and must be verified. Runtime uses it to generate links, inspect trust state, and restore derived views. Display text cannot change the target.</div>
+      <h4>Citation identity</h4>
+      <div class="d"><code>source</code> names one chat message, <code>/s/&lt;session&gt;#&lt;message&gt;</code>. Runtime checks a new one against the session store and uses it to restore derived views. Display text cannot change the target.</div>
     </div>
     <div class="oc">
       <h4>Reference keyword</h4>
-      <div class="d"><code>label</code> is local display text for this citation, generated in the same Memory write call, not a permanent Source title. Memory-agent prompts and tool schemas require short context-relevant keywords and discourage Markdown, URLs, Source IDs, speaker names, or time templates. Apart from a nonempty-string Markdown requirement, Runtime does not assess keyword quality, truncate/rewrite labels, or add a model call for them.</div>
+      <div class="d"><code>label</code> is local display text for this citation, generated in the same Memory write call, not a permanent message title. Memory-agent prompts and tool schemas require short context-relevant keywords and discourage Markdown, URLs, message IDs, speaker names, or time templates. Apart from a nonempty-string Markdown requirement, Runtime does not assess keyword quality, truncate/rewrite labels, or add a model call for them.</div>
     </div>
   </div>
 
-  <div class="note"><b>Canonical output:</b><code>{"content":"...","sources":[{"source":"provider/thread/message","label":"research scope"}]}</code>. Topic files retain standard Markdown: <code>[research scope](../../sources/...#source-...)</code>. The parser recovers Source identity from the link target, never from bracketed display text.</div>
+  <div class="note"><b>Canonical output:</b><code>{"content":"...","sources":[{"source":"/s/session#message","label":"research scope"}]}</code>. Topic files retain standard Markdown: <code>[research scope](/s/session#message)</code>. The parser recovers the cited message from the link target, never from bracketed display text.</div>
 
   <div class="tbl">
     <table>
@@ -1380,32 +1380,32 @@
     <table>
       <thead><tr><th>Structured operation</th><th>Required data</th><th>Runtime behavior</th></tr></thead>
       <tbody>
-        <tr><td><code>create_record</code></td><td>Final <code>content</code>, <code>time</code>, nonempty <code>sources[{source,label}]</code>, and <code>destination</code>: <code>topic_path</code>, <code>headings</code>, <code>position</code>; before/after additionally requires <code>anchor_memory_id</code>. Model schema uses <code>undated</code> to represent no date; owner REST also accepts <code>null</code>.</td><td>Validate Topic, position, and every Source; retain label verbatim as display text, write canonical Markdown, and allocate block/evidence IDs.</td></tr>
+        <tr><td><code>create_record</code></td><td>Final <code>content</code>, <code>time</code>, nonempty <code>sources[{source,label}]</code>, and <code>destination</code>: <code>topic_path</code>, <code>headings</code>, <code>position</code>; before/after additionally requires <code>anchor_memory_id</code>. Model schema uses <code>undated</code> to represent no date; owner REST also accepts <code>null</code>.</td><td>Validate Topic, position, and every new citation; retain label verbatim as display text, write canonical Markdown, and allocate block/evidence IDs.</td></tr>
         <tr><td><code>update_record</code></td><td>Existing <code>memory_id</code> plus complete final <code>content/time/sources</code>.</td><td>Update only record content, preserving block ID and position; replace the paragraph and evidence definition with final values.</td></tr>
         <tr><td><code>delete_record</code></td><td>Existing <code>memory_id</code>.</td><td>Delete the record and unused evidence definition; reject the whole transaction if block links would dangle.</td></tr>
-        <tr><td><code>move_records</code></td><td>Ordered, nonempty <code>memory_ids</code>, and the same <code>destination</code>.</td><td>as creation. Move records in the specified order, preserving IDs, content, time, Sources, and creation order. Reorder within a section or move across sections/Topics.</td></tr>
+        <tr><td><code>move_records</code></td><td>Ordered, nonempty <code>memory_ids</code>, and the same <code>destination</code>.</td><td>as creation. Move records in the specified order, preserving IDs, content, time, citations, and creation order. Reorder within a section or move across sections/Topics.</td></tr>
       </tbody>
     </table>
   </div>
 
-  <div class="note"><b>Shared transaction:</b> Both methods edit staging, normalize Topics, validate Sources/relations, rebuild Timeline/Recent/Relations/Core, atomically install, and then record Git. Pre-installation errors cannot change production Memory. Post-installation Git failures must not pretend rollback occurred; results distinguish <code>memory_committed</code> and <code>git_committed</code>.</div>
+  <div class="note"><b>Shared transaction:</b> Both methods edit staging, normalize Topics, validate citations/relations, rebuild Timeline/Recent/Relations/Core, atomically install, and then record Git. Pre-installation errors cannot change production Memory. Post-installation Git failures must not pretend rollback occurred; results distinguish <code>memory_committed</code> and <code>git_committed</code>.</div>
   <div class="note"><b>Compatible entry points:</b><code>memory_update</code> and <code>POST /api/memory/changes</code> Add <code>memory_changes</code>. Existing whole-Topic <code>changes[path/action/content]</code> and legacy unified diff <code>patch</code> remain supported. Each request selects exactly one of the three formats; all eventually call <code>MemoryWorkspace.update</code>.</div>
-  <div class="note"><b>Source input:</b><code>memory_changes[].sources[].source</code> may reference an existing verifiable archived Source, or request-level <code>sources</code> using a <code>new-source-*</code> label; Runtime converts the latter to a formal Source ID first. Callers cannot submit provenance, trust state, or owner identity. Prerelease <code>source_refs: [string]</code> remains accepted, using the original string as a compatibility display label; new requests expose only <code>sources</code>.</div>
-  <div class="note"><b>Compatibility and migration:</b> Existing display labels remain parseable. Runtime does not guess keywords without a semantic model. New writes and explicit updates use labels supplied by the Memory agent; labels survive moves, derived-view rebuilds, and body updates unchanged. Source archives, real Source IDs, evidence IDs, and block IDs remain unchanged.</div>
+  <div class="note"><b>Source input:</b><code>memory_changes[].sources[].source</code> is a chat link <code>/s/&lt;session&gt;#&lt;message&gt;</code>, its ref <code>openprogram/&lt;session&gt;/&lt;message&gt;</code>, or <code>current</code> for the user message of this turn; a record with no sources cites that message. Callers cannot submit provenance or owner identity. <code>source_refs: [string]</code> accepts the same chat links.</div>
+  <div class="note"><b>Compatibility and migration:</b> Existing display labels remain parseable. Runtime does not guess keywords without a semantic model. New writes and explicit updates use labels supplied by the Memory agent; labels survive moves, derived-view rebuilds, and body updates unchanged. Cited messages, evidence IDs, and block IDs remain unchanged.</div>
   <div class="note"><b>Position contract:</b><code>destination.position</code> Accept only <code>start</code>, <code>end</code>, <code>before</code>, <code>after</code>. before/after anchors must belong to the destination Topic/heading chain and cannot belong to the move set. Final order exactly matches <code>memory_ids</code>. Each ID accepts at most one content operation and one move; delete and move cannot target the same ID.</div>
   <div class="note"><b>Combined operations:</b> A semantic merge consists of one <code>update_record</code>, several <code>delete_record</code> , and any required <code>move_records</code>; a semantic split consists of one update, several creates, and required moves. Section/file merges and splits require only batch move. Runtime provides neither <code>merge_records</code>, <code>split_record</code>, <code>place_records</code> nor <code>reorder_records</code>.</div>
   <div class="note"><b>Structural cleanup:</b> After moves/deletes, Runtime removes heading chains without Memory records and deletes Topic files that contain no records. Derived Timeline, Recent, Relations, and Core rebuild in the same transaction; callers do not edit them.</div>
   <div class="note"><b>Legacy-format boundary:</b><code>mem_*</code> records retain their IDs. Structural operations cannot split multiple old IDs or canonical aliases sharing one physical paragraph. Moves must include all IDs of that paragraph contiguously in original paragraph order in one <code>move_records</code>.</div>
-  <div class="note"><b>Evidence conflicts:</b> When moving across Topics, if the destination or another source Topic in the batch has the same evidence label with different time/Source semantics, Runtime atomically rejects everything with <code>INVALID_ARGUMENT</code> . Identical semantics with different relative link paths are not conflicts.</div>
+  <div class="note"><b>Evidence conflicts:</b> When moving across Topics, if the destination or another source Topic in the batch has the same evidence label with different time/citation semantics, Runtime atomically rejects everything with <code>INVALID_ARGUMENT</code> . Identical semantics with different relative link paths are not conflicts.</div>
   <div class="note"><b>Prerelease compatibility:</b> Earlier structured-interface <code>create/update/delete</code> inputs are converted to new names by Runtime. Model schemas and this document expose only four official operations; legacy aliases are not extended.</div>
-  <div class="note"><b>Scheduler boundary:</b> Local-owner prompt tasks may explicitly call <code>memory_status</code>, <code>memory_get</code> and <code>memory_update</code> to maintain long-term records linked by MemoryRef; Scheduler service does not implicitly dual-write. Deleted records leave no placeholder or ID forwarding; querying an old <code>memory_id</code> returns <code>NOT_FOUND</code>. External token capabilities and non-owner mutation scope remain deferred.</div>
-  <div class="note"><b>Model mutation scope:</b> Interactive models, background writers, and organizers can rewrite, merge, split, or delete current Topics. Deleting a block requires removing/updating Topic links to it in the same transaction; Source archives remain append-only. Incremental writes and organization both attempt Git commits.</div>
+  <div class="note"><b>Scheduler boundary:</b> Local-owner prompt tasks may explicitly call <code>memory_search</code>, <code>memory_get</code> and <code>memory_update</code> to maintain long-term records linked by MemoryRef; Scheduler service does not implicitly dual-write. Deleted records leave no placeholder or ID forwarding; querying an old <code>memory_id</code> returns <code>NOT_FOUND</code>. External token capabilities and non-owner mutation scope remain deferred.</div>
+  <div class="note"><b>Model mutation scope:</b> Interactive models, background writers, and organizers can rewrite, merge, split, or delete current Topics. Deleting a block requires removing/updating Topic links to it in the same transaction; committed citations are never re-checked. Incremental writes and organization both attempt Git commits.</div>
 
   <div class="tbl">
     <table>
       <thead><tr><th>Acceptance entry</th><th>Observable results</th></tr></thead>
       <tbody>
-        <tr><td>After direct file editing, <code>commit_edits</code></td><td><code>[research scope](source_ref)</code> normalizes to a real archive link with the same keyword. Production Topic, Timeline, Recent, Relations, and Core reflect the edits together; the parser recovers full Source IDs. Validation failure leaves production files unchanged.</td></tr>
+        <tr><td>After direct file editing, <code>commit_edits</code></td><td><code>[research scope](/s/session#message)</code> keeps its keyword and target. Production Topic, Timeline, Recent, Relations, and Core reflect the edits together; the parser recovers the cited messages. Validation failure leaves production files unchanged.</td></tr>
         <tr><td><code>MemoryWorkspace.update(memory_changes=...)</code></td><td>create_record/update_record accept <code>sources[{source,label}]</code> and preserve caller labels; legacy <code>source_refs</code> still works. The four operations work independently or together; any failure leaves revision and all Memory bytes unchanged.</td></tr>
         <tr><td><code>memory_update</code></td><td><code>memory_changes</code>, whole-file <code>changes</code> , and legacy unified diff share transaction behavior and return fields.</td></tr>
         <tr><td><code>POST /api/memory/changes</code></td><td>accepts the same <code>memory_changes</code> and returns revision, changed_files, block/evidence IDs, and Git commit information.</td></tr>
@@ -1413,14 +1413,14 @@
     </table>
   </div>
 
-  <div class="note"><b>Implementation brief:</b> Scope is Writer Prompt, Topic footnote normalization/parser, structured <code>memory_changes</code>, Topic moves, and Timeline derived display. Source archives, retrieval identity, Preview renderer, database, and model-call count stay unchanged. Public-entry RED covers direct file editing and <code>MemoryWorkspace.update(memory_changes=...)</code>; affected validation covers Topic parsing, structured modifications, Writer prompt, derived views, owner REST, HTML, and documentation links.</div>
-  <div class="legend"><b>Source-label implementation status: implemented.</b> Writer generates short keywords in the same call following prompts/schemas. Runtime preserves and validates full Source IDs, renders agent labels verbatim, and retains real identities during moves, Timeline rebuilds, and retrieval indexing. Structured interfaces expose <code>sources[{source,label}]</code>; legacy <code>source_refs</code>, pre-v2 provider archives, and Source filenames with encoded characters remain readable and writable. Each Source archive is scanned once per Topic-tree parse. Runtime no longer classifies, truncates, or substitutes labels semantically.</div>
-  <div class="note"><b>Retrieval performance and trust:</b> Production BM25 uses a versioned disk cache and reuses in-process indexes by Topic/Source file signatures; embedding also reuses parsed events and document vectors. Changes to time, size, or inode invalidate caches, so content changes and Source promotion re-evaluate trust. BM25, Embedding, and Hybrid resolve <code>trusted/pending</code> from every Source reference before returning a Topic; pending-backed Topics never enter automatic context.</div>
+  <div class="note"><b>Implementation brief:</b> Scope is Writer Prompt, Topic footnote normalization/parser, structured <code>memory_changes</code>, Topic moves, and Timeline derived display. Retrieval identity, Preview renderer, database, and model-call count stay unchanged. Public-entry RED covers direct file editing and <code>MemoryWorkspace.update(memory_changes=...)</code>; affected validation covers Topic parsing, structured modifications, Writer prompt, derived views, owner REST, HTML, and documentation links.</div>
+  <div class="legend"><b>Source-label implementation status: implemented.</b> Writer generates short keywords in the same call following prompts/schemas. Runtime preserves the cited chat message, renders agent labels verbatim, and retains it during moves, Timeline rebuilds, and retrieval indexing. Structured interfaces expose <code>sources[{source,label}]</code>; <code>source_refs</code> accepts the same chat links. Runtime does not classify, truncate, or substitute labels semantically.</div>
+  <div class="note"><b>Retrieval performance:</b> Production BM25 uses a versioned disk cache and reuses in-process indexes by Topic file signatures; embedding also reuses parsed events and document vectors. Changes to time, size, or inode invalidate caches. Unpaired messages never become turns, so no Topic can cite them and recall needs no trust filter.</div>
 
   <div class="legend"><b>Implementation status (2026-08-15):</b> Model tools and owner REST expose the four official operations. Whole-file <code>changes</code> and legacy unified diff remain compatible. Direct edits and structured operations share staging, validation, empty-structure cleanup, Timeline/Recent/Core derivation, atomic installation, and Git history. Public-entry regression tests cover batch moves, position/shared-paragraph checks, Recent creation-order preservation on first structural change, and cross-Topic evidence conflict rejection. Scheduler’s internal Agent lifecycle writes follow its design document; deleted records leave old <code>memory_id</code> returns <code>NOT_FOUND</code>, without retained records or old-ID mappings. External token capability remains deferred as specified here.</div>
 
   <div class="legend">
-    <b>Implementation status (2026-08-11)</b>: per-turn and idle writes share one transaction; nodes store workspace write markers; session boundaries enumerate live branches; the resident block is rendered from <code>topics/core.md</code>; background writers use the default chat agent with live <code>memory.writer.model</code> updates. Unclassified exceptions are non-retryable by default.<code>memory.backend=none</code> disables prompts, recall, automatic writing, organization, and memory threads, and rejects all CLI memory verbs and <code>/api/memory/*</code> routes before workspace creation. Tools, CLI, and Web expose recent writer success, failure category, retryability, and pending counts. One-shot <code>memory backfill</code> is implemented for trusted Sources not referenced by Topics, excluding pending Sources and reusing normal writer transactions by batch. Component tests cover SessionDB, default-model resolution, managed tools, staging installation, Topics, markers, and watcher state. Production-workspace acceptance parsed all 23 old v1 Source files (154 frames) through read-only compatibility from <code>origin_scope</code> to <code>authority_tier</code>. Two pending messages produced three Topic files and five unique blocks; six Source refs and relation targets validated; both node markers were written. A second scan processed zero items without changing revision. Historical backfill was not run, leaving 152 unreferenced frames. Still unimplemented: unauthorized-request hold queue, requester-level filtering, mutually exclusive branch semantics, cross-session spawn relationships, and direct head-change-triggered writing. Failure reason codes are a closed enum; restricted writer phases cannot see Source archives.
+    <b>Implementation status (2026-08-11)</b>: per-turn and idle writes share one transaction; nodes store workspace write markers; session boundaries enumerate live branches; the resident block is rendered from <code>topics/core.md</code>; background writers use the default chat agent with live <code>memory.writer.model</code> updates. Unclassified exceptions are non-retryable by default.<code>memory.backend=none</code> disables prompts, recall, automatic writing, organization, and memory threads, and rejects all CLI memory verbs and <code>/api/memory/*</code> routes before workspace creation. Tools, CLI, and Web expose recent writer success, failure category, retryability, and pending counts. Component tests cover SessionDB, default-model resolution, managed tools, staging installation, Topics, markers, and watcher state. Still unimplemented: unauthorized-request hold queue, requester-level filtering, mutually exclusive branch semantics, cross-session spawn relationships, and direct head-change-triggered writing. Failure reason codes are a closed enum. Footnotes cite chat messages directly; a workspace with an old <code>sources/</code> copy is converted once by <code>store.cite_chats_directly</code>.
   </div>
 
 </div>

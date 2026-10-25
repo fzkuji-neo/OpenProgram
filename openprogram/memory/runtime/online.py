@@ -10,7 +10,7 @@ from typing import Callable
 from ..management import MemoryConfig, MemoryWorkspace
 from .state import (
     RuntimeStateStore,
-    SourceRecord,
+    ChatTurn,
     should_global_manage,
     should_incremental_write,
     should_local_reorganize,
@@ -18,10 +18,10 @@ from .state import (
 
 
 def unwritten_turns(
-    records: list[SourceRecord], marked_ids: set[str] | frozenset[str],
-) -> list[SourceRecord]:
+    records: list[ChatTurn], marked_ids: set[str] | frozenset[str],
+) -> list[ChatTurn]:
     """Unmarked branch suffix after the newest marked source record."""
-    pending: list[SourceRecord] = []
+    pending: list[ChatTurn] = []
     for record in reversed(records):
         if record.message_id in marked_ids:
             break
@@ -67,14 +67,14 @@ class OnlineMemoryRuntime:
 
     def pending(
         self,
-        records: list[SourceRecord],
+        records: list[ChatTurn],
         marked_ids: set[str] | frozenset[str] = frozenset(),
-    ) -> list[SourceRecord]:
+    ) -> list[ChatTurn]:
         return unwritten_turns(records, marked_ids)
 
     def process(
         self,
-        records: list[SourceRecord],
+        records: list[ChatTurn],
         writer,
         *,
         marked_ids: set[str] | frozenset[str] = frozenset(),
@@ -112,38 +112,23 @@ class OnlineMemoryRuntime:
             self.memory_dir,
             config=self.memory_config,
         )) as workspace:
-            trusted = tuple(
-                record for record in batch if record.trust_state == "trusted"
-            )
-            pending_records = tuple(
-                record for record in batch if record.trust_state != "trusted"
-            )
-            if trusted:
-                workspace.archive_source_records(list(trusted))
-                # None: the batch was not handled. An empty list is a writer
-                # that handled it and found nothing worth keeping.
-                if writer(workspace, trusted) is None:
-                    return False
-            if pending_records:
-                workspace.archive_source_records(list(pending_records))
+            # The turns stay in the chat history, which is what the writer
+            # cites. None: the batch was not handled. An empty list is a
+            # writer that handled it and found nothing worth keeping.
+            if writer(workspace, batch) is None:
+                return False
 
             if mark is not None:
                 mark(batch)
             # The write is one commit and any reorganizing it triggers is
             # another, so either can be undone on its own.
-            self.store.git_commit(
-                f"{history_message} ({len(trusted)} turns)"
-                if trusted else history_message
-            )
+            self.store.git_commit(f"{history_message} ({len(batch)} turns)")
 
             state = self.store.load()
-            trusted_tokens = sum(
-                self.token_counter(record.content) for record in trusted
-            )
-            state.local_batches += int(bool(trusted))
-            state.local_tokens += trusted_tokens
-            state.write_commits_since_global += int(bool(trusted))
-            if trusted and local_manager and should_local_reorganize(
+            state.local_batches += 1
+            state.local_tokens += token_count
+            state.write_commits_since_global += 1
+            if local_manager and should_local_reorganize(
                 state.local_batches,
                 state.local_tokens,
                 batch_threshold=self.local_batch_threshold,
@@ -153,7 +138,7 @@ class OnlineMemoryRuntime:
                 state.local_batches = 0
                 state.local_tokens = 0
             last_global = _parse(state.last_global_at)
-            if trusted and global_manager and should_global_manage(
+            if global_manager and should_global_manage(
                 last_global,
                 now,
                 new_write_commits=state.write_commits_since_global,

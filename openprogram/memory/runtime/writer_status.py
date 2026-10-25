@@ -173,7 +173,7 @@ def _announce_failure(
 ) -> None:
     """Tell open clients that memory stopped being written.
 
-    Otherwise the only trace is ``memory_status``, which nobody reads until
+    Otherwise the only trace is the overview ``memory_get`` returns, which nobody reads until
     they wonder why memory has not kept up.
     """
     try:
@@ -211,13 +211,13 @@ def _existing_workspace_id(memory_dir: Path) -> str | None:
 
 
 def pending_turn_count(memory_dir: Path, session_store: Any | None = None) -> int:
-    """Eligible SessionDB SourceRecords without this workspace's marker.
+    """Citable chat turns without this workspace's marker.
 
     The current branch and every non-archived branch tip are considered,
     matching forced idle writing. Shared prefixes are counted once. Tool,
     runtime, and authority-denied rows are removed by the writer's own
-    ``_records`` boundary. This read-only count does not migrate cursors,
-    create an agent, or change node markers.
+    ``_records`` boundary. This read-only count does not create an agent
+    or change node markers.
     """
     if session_store is None:
         from openprogram.agent.session_db import default_db

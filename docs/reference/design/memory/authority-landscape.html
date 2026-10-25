@@ -205,12 +205,12 @@
   <div class="step">
     <h3><span class="phase">First batch · Implemented</span>Tier enum, pairing, source trust and default writer</h3>
     <p class="lead">Requests carry only the owner/paired enum. Unknown accounts receive an eight-character pairing code; approval uses local owner channels only (terminal/local Web), never channel messages. No migration code: after rollout, all non-owner accounts pair on first contact. Mutable nicknames do not determine identity. Display names are sanitized. Rejections return structured reason codes.</p>
-    <div class="feel"><span class="lb">User-visible changes</span>Unknown private senders receive a pairing code instead of being ignored; the owner approves with one terminal command. Renaming an account to impersonate the owner does not work. A paired group member’s “remember this” request is proactively recorded. Unpaired group messages are still archived, with <code>trust_state</code> marked pending. Retrieval distinguishes speakers and does not automatically recall these sources into context.</div>
+    <div class="feel"><span class="lb">User-visible changes</span>Unknown private senders receive a pairing code instead of being ignored; the owner approves with one terminal command. Renaming an account to impersonate the owner does not work. A paired group member’s “remember this” request is proactively recorded. Unpaired group messages never become turns, so memory never records or cites them.</div>
   </div>
   <div class="step s2">
-    <h3><span class="phase">Stabilization batch · Implemented</span>Backfill, writer status, disabled boundaries and integration tests</h3>
-    <p class="lead"><code>openprogram memory backfill</code>Process trusted Sources not referenced by Topics and exclude pending sources. Failed batches are not installed; repeated execution skips referenced sources. Writer status from tools, CLI and Web includes last success, last failure classification, retryability and pending counts.<code>memory.backend=none</code> rejects all CLI memory verbs and <code>/api/memory/*</code> routes before workspace creation.</p>
-    <div class="feel"><span class="lb">Verification boundary</span>Integration tests cover SessionDB, default model resolution, managed tools, staged transactions, Topics, markers and watcher status. Real-workspace writer acceptance processed only two pending messages; backfill has not run for 152 historical unreferenced Sources.</div>
+    <h3><span class="phase">Stabilization batch · Implemented</span>Writer status, disabled boundaries and integration tests</h3>
+    <p class="lead">Writer status from tools, CLI and Web includes last success, last failure classification, retryability and pending counts.<code>memory.backend=none</code> rejects all CLI memory verbs and <code>/api/memory/*</code> routes before workspace creation.</p>
+    <div class="feel"><span class="lb">Verification boundary</span>Integration tests cover SessionDB, default model resolution, managed tools, staged transactions, Topics, markers and watcher status.</div>
   </div>
   <div class="step s2">
     <h3><span class="phase">Second batch · Deferred</span>Hold queue and read scope</h3>
@@ -219,7 +219,7 @@
   </div>
 </div>
 
-<div class="pipe-note"><b>Implementation record (2026-08-11)</b>: the background writer uses the default chat agent’s provider, model and credentials; <code>memory.writer.model</code> supports live overrides. Unknown exceptions default to non-retryable. Exact compatibility reads parsed all 154 frames in 23 old v1 source files from the real workspace. A real writer acceptance committed two pending messages as three Topic files and five blocks; a repeated scan processed zero sessions without changing the revision. Backfill, writer status, CLI/Web disabled boundaries, paired naming and integration tests are implemented; real-workspace backfill for 152 historical unreferenced Sources has not run. Write-failure reason codes form a closed enum. Restricted writer stages cannot see Source archives.</div>
+<div class="pipe-note"><b>Implementation record (2026-08-11)</b>: the background writer uses the default chat agent’s provider, model and credentials; <code>memory.writer.model</code> supports live overrides. Unknown exceptions default to non-retryable. Writer status, CLI/Web disabled boundaries, paired naming and integration tests are implemented. Write-failure reason codes form a closed enum. Footnotes cite chat messages directly.</div>
 
 </div></body>
 </html>

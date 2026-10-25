@@ -31,8 +31,7 @@ _LAYOUT = """\
 ## Layout
 
 - The core section at the end of this file — what every session needs, rendered from `topics/core.md`. Edit `topics/core.md`; the section is replaced on every write.
-- `topics/` — the organised memory: one file per person, project or recurring theme. A subject with parts of its own is a directory with `overview.md` and one file per part. Paragraphs end in a `^block-id` and cite footnotes that point at the conversation they came from.
-- `sources/` — the conversations themselves, archived verbatim and never edited. Follow a footnote here to check what was actually said.
+- `topics/` — the organised memory: one file per person, project or recurring theme. A subject with parts of its own is a directory with `overview.md` and one file per part. Paragraphs end in a `^block-id` and cite footnotes that link the chat message they came from, `/s/<session>#<message>`. Pass that link to `memory_get` to read what was actually said.
 - `timeline/` — the same facts by date: a file per year, with month and day files below it, for "what happened when".
 - `relations.json`, `recent_events.jsonl` — links between paragraphs and the latest changes.
 

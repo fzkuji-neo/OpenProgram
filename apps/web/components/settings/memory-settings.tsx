@@ -32,7 +32,6 @@ const KEYS = [
   "memory.writer.verify",
   "memory.retrieval.method",
   "memory.retrieval.top_k",
-  "memory.retrieval.include_sources",
   "memory.retrieval.hybrid.weighting",
   "memory.retrieval.hybrid.file_boost",
   "memory.layers.project",
@@ -212,9 +211,6 @@ export function MemorySettings() {
           </SettingsRow>
           <SettingsRow label={text("Recall depth", "检索数量")} description={text("Maximum matching records added automatically to a turn.", "每个回合自动加入的最大匹配记录数。") }>
             <SimpleSelect aria-label={text("Recall depth", "检索数量")} disabled={controlsDisabled || retrieval === "agent"} className={styles.select} value={String(draft["memory.retrieval.top_k"] ?? 5)} onValueChange={(value) => update("memory.retrieval.top_k", Number(value))} options={[3, 5, 8, 10].map((value) => ({ value: String(value), label: `${value} ${text("records", "条记录")}` }))} />
-          </SettingsRow>
-          <SettingsRow label={text("Search Source evidence", "检索 Source 证据")} description={text("Include archived evidence alongside curated Topic records.", "在整理后的 Topic 记录之外同时检索归档证据。") }>
-            <Switch aria-label={text("Search Source evidence", "检索 Source 证据")} disabled={controlsDisabled || retrieval === "agent"} checked={Boolean(draft["memory.retrieval.include_sources"])} onCheckedChange={(value) => update("memory.retrieval.include_sources", value)} />
           </SettingsRow>
         </SettingsSection>
 

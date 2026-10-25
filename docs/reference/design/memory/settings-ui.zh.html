@@ -475,7 +475,6 @@
               <div class="setting-row"><div class="setting-label"><strong>混合权重</strong><span>混合检索中关键词与语义匹配的比重。自动：查询含日期、引号短语或人名时偏向关键词。</span></div><div class="setting-control"><select class="select" aria-label="混合权重" disabled><option>自动</option><option>关键词优先 · 70 / 30</option><option>均衡 · 50 / 50</option><option>语义优先 · 30 / 70</option></select></div></div>
               <div class="setting-row"><div class="setting-label"><strong>同主题加权</strong><span>混合检索时，多条匹配来自同一个 Topic 文件时提高它的排名。</span></div><div class="setting-control"><label class="switch"><input type="checkbox" checked disabled aria-label="同主题加权"><span class="switch-track"></span></label></div></div>
               <div class="setting-row"><div class="setting-label"><strong>召回深度</strong><span>添加到每轮的匹配记录上限。</span></div><div class="setting-control"><select class="select" aria-label="召回深度"><option>5 条记录</option><option>8 条记录</option><option>10 条记录</option></select></div></div>
-              <div class="setting-row"><div class="setting-label"><strong>搜索 Source 证据</strong><span>在整理后的 Topic 记录之外，包含归档证据。</span></div><div class="setting-control"><label class="switch"><input type="checkbox" checked aria-label="搜索 Source 证据"><span class="switch-track"></span></label></div></div>
             </div></section>
 
             <section class="settings-section"><h2>项目记忆</h2><div class="settings-card">
@@ -510,7 +509,7 @@
       <li>Intel macOS 保持核心记忆和 BM25 可用，但即使缓存模型快照也报告语义 embedding 不可用。安装操作在下载前失败，并提供使用 BM25 或支持平台的可执行说明。</li>
       <li>Memory Settings 进入时不请求 Agent runtime 设置。已启用模型独立请求以填充写入模型选项，且 <code>/api/models/enabled</code> 在 FastAPI worker 线程运行而不阻塞服务端事件循环；缓慢或不可用的 provider/model 枚举不能延迟可编辑记忆行。</li>
       <li>进入 Settings 不预取 Providers、Search 或 Channels 数据；各页打开时自行请求。</li>
-      <li><strong>Agent · 按需</strong> 不自动执行 BM25、embedding 或混合查询。Agent 可通过 <code>memory_browse</code>, <code>memory_get</code>以及 <code>memory_grep</code>显式检查记忆；排序检索 <code>memory_search</code> 报告此模式下已禁用。</li>
+      <li><strong>Agent · 按需</strong> 不自动执行 BM25、embedding 或混合查询。Agent 可通过 <code>memory_get</code> 显式检查记忆；此模式下 <code>memory_search</code> 退回逐行精确匹配。</li>
       <li>Embedding 快照不可用时提供明确的 <strong>安装</strong> 操作。产品运行时不包含 <code>sentence-transformers</code> 或 torch。 <code>POST /api/memory/embedding/install</code> 在 worker 线程只下载固定 encoder 配置、tokenizer 和 safetensors 权重，然后验证所有必需文件。不构造 encoder，失败时返回可重试错误且不改变当前召回方式。Semantic 和 Hybrid 保持不可用，直到源码 checkout 安装可选 <code>embedding</code> extra 且快照存在。</li>
     </ul></article>
     <article class="note-card"><h2>实现与验收</h2><ul>

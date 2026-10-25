@@ -1,8 +1,8 @@
-"""Restricted changes for the memory write transaction.
+"""Record operations for the memory write transaction.
 
-The public contract is a list of whole-file ``write`` and ``delete`` changes.
-Record-level CRUD/move and unified diff share the same staged Topic tree. Every
-form writes only text under ``topics/**``; none can alter filesystem metadata.
+A chat or API edit names whole records — create, update, delete, move — and
+the Runtime renders them into staged Topic Markdown with their footnotes.
+Every operation writes only text under ``topics/**``.
 """
 
 from __future__ import annotations
@@ -27,38 +27,9 @@ from ..markdown.syntax import (
     render_definition,
     source_reference,
 )
+from .. import chat_refs
 from .transaction import TransactionError, validate_writable_path
 from .topic_normalization import prune_empty_topic_file
-
-_HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
-_REJECTED_HEADERS = (
-    ("rename from", "patch renames are not supported"),
-    ("rename to", "patch renames are not supported"),
-    ("copy from", "patch copies are not supported"),
-    ("copy to", "patch copies are not supported"),
-    ("old mode", "patch mode changes are not supported"),
-    ("new mode", "patch mode changes are not supported"),
-    ("new file mode 120000", "symlink creation is not supported"),
-    ("deleted file mode 120000", "symlink deletion is not supported"),
-    ("GIT binary patch", "binary patches are not supported"),
-    ("Binary files", "binary patches are not supported"),
-)
-
-
-@dataclass
-class FilePatch:
-    path: str
-    hunks: list[tuple[int, list[str]]]
-    creates: bool = False
-    deletes: bool = False
-
-
-@dataclass(frozen=True)
-class FileChange:
-    path: str
-    action: str
-    content: str | None = None
-
 
 @dataclass(frozen=True)
 class Destination:
@@ -372,6 +343,16 @@ def _parse_memory_changes(
             )
         source_refs = item.get("source_refs")
         sources = item.get("sources")
+        if source_refs is None and sources is None:
+            # A chat edit with no citation rests on what the user just said.
+            current = getattr(workspace, "current_ref", None)
+            if current is None:
+                raise TransactionError(
+                    "INVALID_ARGUMENT",
+                    f"{prefix}.sources is required: cite the chat messages "
+                    "this record rests on",
+                )
+            sources = [{"source": current, "label": "chat"}]
         if source_refs is not None and sources is not None:
             raise TransactionError(
                 "INVALID_ARGUMENT",
@@ -405,6 +386,23 @@ def _parse_memory_changes(
                         "INVALID_ARGUMENT", f"{source_prefix}.label is required"
                     )
                 ref = ref.strip()
+                if ref == chat_refs.CURRENT or ref == "current":
+                    current = getattr(workspace, "current_ref", None)
+                    if current is None:
+                        raise TransactionError(
+                            "INVALID_ARGUMENT",
+                            f"{source_prefix}.source: no current chat message "
+                            "to cite here",
+                        )
+                    ref = current
+                resolved = chat_refs.from_target(ref)
+                if resolved is None:
+                    raise TransactionError(
+                        "INVALID_ARGUMENT",
+                        f"{source_prefix}.source must be a chat message link "
+                        "like /s/<session>#<message>",
+                    )
+                ref = resolved
                 refs_list.append(ref)
                 labels_list.append(label)
             refs = tuple(refs_list)
@@ -422,7 +420,14 @@ def _parse_memory_changes(
                     "INVALID_ARGUMENT",
                     f"{prefix}.source_refs must be a non-empty string list",
                 )
-            refs = tuple(ref.strip() for ref in source_refs)
+            resolved_refs = [chat_refs.from_target(ref) for ref in source_refs]
+            if None in resolved_refs:
+                raise TransactionError(
+                    "INVALID_ARGUMENT",
+                    f"{prefix}.source_refs must be chat message links "
+                    "like /s/<session>#<message>",
+                )
+            refs = tuple(resolved_refs)
             labels = None
         if len(set(refs)) != len(refs):
             raise TransactionError(
@@ -715,15 +720,7 @@ def _insert_blocks(
         citation_id = match.group("id")
         existing = existing_definitions.get(citation_id)
         if existing is not None:
-            if _definition_signature(
-                existing,
-                topic_path=path,
-                topics=workspace.stage_dir / "topics",
-            ) != _definition_signature(
-                line,
-                topic_path=path,
-                topics=workspace.stage_dir / "topics",
-            ):
+            if _definition_signature(existing) != _definition_signature(line):
                 raise TransactionError(
                     "INVALID_ARGUMENT",
                     f"evidence definition conflicts in destination: {citation_id}",
@@ -771,23 +768,13 @@ def _locate_record(
     )
 
 
-def _definition_signature(
-    line: str,
-    *,
-    topic_path: Path | None = None,
-    topics: Path | None = None,
-) -> tuple[str, tuple[str, ...]]:
-    """Compare evidence semantics independently of relative link targets."""
+def _definition_signature(line: str) -> tuple[str, tuple[str, ...]]:
+    """Compare evidence semantics independently of how links are written."""
     match = definition_match(line)
     assert match is not None
     sources = match.group("sources")
     references = tuple(
-        source_reference(
-            label,
-            target,
-            topic_path=topic_path,
-            topics=topics,
-        )
+        source_reference(label, target)
         for label, target in LINK.findall(sources)
     )
     if not references:
@@ -811,15 +798,9 @@ def _definition_for_topic(
     links = LINK.findall(match.group("sources"))
     if not links:
         return line
-    topics = workspace.stage_dir / "topics"
     rendered = []
     for label, target in links:
-        ref = source_reference(
-            label,
-            target,
-            topic_path=source_path,
-            topics=topics,
-        )
+        ref = source_reference(label, target)
         rendered.append(workspace._source_link(target_topic, ref, label))
     return render_definition(
         match.group("id"),
@@ -868,16 +849,7 @@ def _move_records(workspace: Any, change: MemoryChange) -> set[str]:
             )
             existing = seen_definitions.get(citation)
             if existing is not None:
-                target_path = workspace.stage_dir / target_topic
-                if _definition_signature(
-                    existing,
-                    topic_path=target_path,
-                    topics=workspace.stage_dir / "topics",
-                ) != _definition_signature(
-                    definition,
-                    topic_path=target_path,
-                    topics=workspace.stage_dir / "topics",
-                ):
+                if _definition_signature(existing) != _definition_signature(definition):
                     raise TransactionError(
                         "INVALID_ARGUMENT",
                         f"evidence definition conflicts across sources: {citation}",
@@ -1065,261 +1037,3 @@ def _replace_record(
     lines = text.splitlines()
     lines[start:end] = replacement
     path.write_text("\n".join(lines).strip() + "\n", encoding="utf-8")
-
-
-def apply_changes(
-    stage_dir: Path,
-    changes: object,
-    *,
-    max_changes: int = 64,
-    max_bytes: int = 512_000,
-) -> list[str]:
-    """Apply validated whole-file changes inside ``stage_dir``."""
-    if not isinstance(changes, list):
-        raise TransactionError("INVALID_ARGUMENT", "changes must be a list")
-    if not changes:
-        raise TransactionError("INVALID_ARGUMENT", "changes is empty")
-    if len(changes) > max_changes:
-        raise TransactionError(
-            "INVALID_ARGUMENT",
-            f"at most {max_changes} changes per transaction",
-        )
-
-    parsed: list[FileChange] = []
-    seen: set[str] = set()
-    total_bytes = 0
-    for index, item in enumerate(changes):
-        if not isinstance(item, dict):
-            raise TransactionError(
-                "INVALID_ARGUMENT", f"changes[{index}] must be an object"
-            )
-        unknown = set(item) - {"path", "action", "content"}
-        if unknown:
-            raise TransactionError(
-                "INVALID_ARGUMENT",
-                f"changes[{index}] has unknown field: {sorted(unknown)[0]}",
-            )
-        path = item.get("path")
-        action = item.get("action")
-        if not isinstance(path, str) or not path.strip():
-            raise TransactionError(
-                "INVALID_ARGUMENT", f"changes[{index}].path must be a string"
-            )
-        validate_writable_path(path)
-        normalized_path = Path(path).as_posix()
-        if normalized_path in seen:
-            raise TransactionError(
-                "INVALID_ARGUMENT", f"duplicate change path: {normalized_path}"
-            )
-        seen.add(normalized_path)
-        if action not in ("write", "delete"):
-            raise TransactionError(
-                "INVALID_ARGUMENT",
-                f"changes[{index}].action must be write or delete",
-            )
-        content = item.get("content")
-        if action == "write" and not isinstance(content, str):
-            raise TransactionError(
-                "INVALID_ARGUMENT",
-                f"changes[{index}].content must be a string for write",
-            )
-        if action == "delete" and "content" in item:
-            raise TransactionError(
-                "INVALID_ARGUMENT",
-                f"changes[{index}].content is not allowed for delete",
-            )
-        total_bytes += len(normalized_path.encode("utf-8"))
-        if content is not None:
-            total_bytes += len(content.encode("utf-8"))
-        if total_bytes > max_bytes:
-            raise TransactionError(
-                "INVALID_ARGUMENT", f"changes exceed {max_bytes} bytes"
-            )
-        target = stage_dir / normalized_path
-        if action == "delete" and not target.is_file():
-            raise TransactionError(
-                "PATCH_CONFLICT",
-                "change deletes a file that does not exist",
-                path=normalized_path,
-            )
-        parsed.append(FileChange(normalized_path, action, content))
-
-    for change in parsed:
-        target = stage_dir / change.path
-        if change.action == "delete":
-            target.unlink()
-            continue
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(change.content or "", encoding="utf-8")
-    return sorted(change.path for change in parsed)
-
-
-def apply_patch(stage_dir: Path, patch: str) -> list[str]:
-    """Apply ``patch`` inside ``stage_dir`` and return changed paths."""
-    if not patch.strip():
-        raise TransactionError("INVALID_ARGUMENT", "patch is empty")
-    files = _parse(patch)
-    if not files:
-        raise TransactionError(
-            "INVALID_ARGUMENT", "patch contains no file sections"
-        )
-    changed: list[str] = []
-    for entry in files:
-        validate_writable_path(entry.path)
-        target = stage_dir / entry.path
-        if entry.deletes:
-            if not target.is_file():
-                raise TransactionError(
-                    "PATCH_CONFLICT",
-                    "patch deletes a file that does not exist",
-                    path=entry.path,
-                )
-            target.unlink()
-            changed.append(entry.path)
-            continue
-        original = (
-            target.read_text(encoding="utf-8").splitlines(keepends=True)
-            if target.is_file()
-            else []
-        )
-        if entry.creates and original:
-            raise TransactionError(
-                "PATCH_CONFLICT",
-                "patch creates a file that already exists",
-                path=entry.path,
-            )
-        if not entry.creates and not original:
-            raise TransactionError(
-                "PATCH_CONFLICT",
-                "patch modifies a file that does not exist",
-                path=entry.path,
-            )
-        updated = _apply_hunks(entry, original)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text("".join(updated), encoding="utf-8")
-        changed.append(entry.path)
-    return sorted(set(changed))
-
-
-def _parse(patch: str) -> list[FilePatch]:
-    lines = patch.splitlines()
-    files: list[FilePatch] = []
-    current: FilePatch | None = None
-    index = 0
-    while index < len(lines):
-        line = lines[index]
-        for marker, message in _REJECTED_HEADERS:
-            if line.startswith(marker):
-                raise TransactionError("INVALID_ARGUMENT", message)
-        if line.startswith("--- "):
-            old = _strip_prefix(line[4:])
-            if index + 1 >= len(lines) or not lines[index + 1].startswith("+++ "):
-                raise TransactionError(
-                    "INVALID_ARGUMENT", "malformed patch: --- without +++"
-                )
-            new = _strip_prefix(lines[index + 1][4:])
-            path = new if new != "/dev/null" else old
-            if path == "/dev/null":
-                raise TransactionError(
-                    "INVALID_ARGUMENT", "patch section has no file path"
-                )
-            current = FilePatch(
-                path=path,
-                hunks=[],
-                creates=old == "/dev/null",
-                deletes=new == "/dev/null",
-            )
-            files.append(current)
-            index += 2
-            continue
-        match = _HUNK.match(line)
-        if match:
-            if current is None:
-                raise TransactionError(
-                    "INVALID_ARGUMENT", "patch hunk outside a file section"
-                )
-            start = int(match.group(1))
-            body: list[str] = []
-            index += 1
-            while index < len(lines):
-                candidate = lines[index]
-                if candidate.startswith(("--- ", "diff --git")) or _HUNK.match(
-                    candidate
-                ):
-                    break
-                if candidate.startswith(("+", "-", " ", "\\")):
-                    body.append(candidate)
-                    index += 1
-                    continue
-                if not candidate:
-                    # A context line whose content is empty loses its leading
-                    # space in many editors; treat it as blank context.
-                    body.append(" ")
-                    index += 1
-                    continue
-                break
-            current.hunks.append((start, body))
-            continue
-        index += 1
-    return files
-
-
-def _strip_prefix(value: str) -> str:
-    path = value.split("\t")[0].strip()
-    if path in ("/dev/null", ""):
-        return "/dev/null"
-    if path.startswith(("a/", "b/")):
-        return path[2:]
-    return path
-
-
-def _apply_hunks(entry: FilePatch, original: list[str]) -> list[str]:
-    if not entry.hunks:
-        raise TransactionError(
-            "INVALID_ARGUMENT",
-            "patch file section has no hunks",
-            path=entry.path,
-        )
-    result: list[str] = []
-    cursor = 0
-    for start, body in sorted(entry.hunks, key=lambda item: item[0]):
-        begin = max(start - 1, 0)
-        if begin < cursor:
-            raise TransactionError(
-                "PATCH_CONFLICT",
-                "overlapping patch hunks",
-                path=entry.path,
-            )
-        result.extend(original[cursor:begin])
-        cursor = begin
-        for raw in body:
-            if raw.startswith("\\"):
-                continue
-            marker, text = raw[0], raw[1:]
-            if marker == "+":
-                result.append(text + "\n")
-                continue
-            if cursor >= len(original):
-                raise TransactionError(
-                    "PATCH_CONFLICT",
-                    "patch context runs past end of file",
-                    path=entry.path,
-                    details={"line": cursor + 1},
-                )
-            existing = original[cursor]
-            if existing.rstrip("\n") != text.rstrip("\n"):
-                raise TransactionError(
-                    "PATCH_CONFLICT",
-                    "patch context does not match file contents",
-                    path=entry.path,
-                    details={
-                        "line": cursor + 1,
-                        "expected": text,
-                        "found": existing.rstrip("\n"),
-                    },
-                )
-            if marker == " ":
-                result.append(existing)
-            cursor += 1
-    result.extend(original[cursor:])
-    return result

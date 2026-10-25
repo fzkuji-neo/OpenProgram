@@ -318,12 +318,13 @@ def test_concurrent_success_and_failure_preserve_both_fields(
     assert result["last_failure"]["retryable"] is True
 
 
-def test_memory_status_tool_exposes_the_same_writer_contract(environment):
+def test_memory_get_overview_exposes_the_same_writer_contract(environment):
     from openprogram.programs.tools.knowledge.memory import memory as memory_tools
 
     _db, _root = environment
-    result = json.loads(memory_tools.memory_status())
-    assert result["writer"] == {
+    overview = memory_tools.memory_get()
+    line = next(row for row in overview.splitlines() if row.startswith("writer: "))
+    assert json.loads(line[len("writer: "):]) == {
         "last_outcome": None,
         "last_success_at": None,
         "last_failure": None,

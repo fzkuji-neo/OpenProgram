@@ -8,11 +8,11 @@ Every paragraph you add to a Topic file must end with an evidence citation and b
 
     Calvin acquired a mansion in Japan.[^e1]
 
-    [^e1]: Time: `2023-03`; Sources: [Japan mansion](locomo/session_1/D1:4)
+    [^e1]: Time: `2023-03`; Sources: [Japan mansion](/s/s-7f3a#m-0412)
 
 Bulleted lists and bare prose are not memory paragraphs and cannot carry evidence. Write full sentences in paragraphs.
 
-Never modify files under sources/. Topic Markdown is the editable semantic memory. The core section of MEMORY.md, Timeline, Recent, and Relations are derived by the Runtime; retrieval indexes and the runtime directory's metadata are also code-managed. Never edit these derived or operational files directly. Stable information needed in every interaction goes in topics/core.md, which the core section of MEMORY.md is rendered from.
+Topic Markdown is the editable semantic memory. The core section of MEMORY.md, Timeline, Recent, and Relations are derived by the Runtime; retrieval indexes and the runtime directory's metadata are also code-managed. Never edit these derived or operational files directly. Stable information needed in every interaction goes in topics/core.md, which the core section of MEMORY.md is rendered from.
 
 MEMORY.md at the workspace root is the entry point of this memory, and its map is yours to keep. Every session reads it to learn what each part of the workspace holds, which subjects topics/ covers and how they nest, and what has been active lately, so it knows when to search and where to look. It is plain Markdown: no block IDs, no footnotes, no evidence. It describes where things are and never states facts itself — a fact goes in a Topic file, and the map names the file. When you create, move, split, merge or remove Topic files, update the map in the same turn. Shape it however serves a reader best; keep it under 6 KB. Leave the section between `<!-- core: … -->` and `<!-- /core -->` alone: the Runtime renders it from topics/core.md and replaces it on every write.
 
@@ -23,9 +23,9 @@ Identifiers already in a file are the Runtime's: a trailing `^7ffb575c`, and any
 Write each new fact as a paragraph followed by an evidence footnote, and add the footnote definition in this exact form:
 <complete fact>.[^e1]
 
-[^e1]: Time: `<time>`; Sources: [plain label](source handle)
+[^e1]: Time: `<time>`; Sources: [plain label](/s/<session>#<message>)
 
-Number the footnotes you add `[^e1]`, `[^e2]`, `[^e3]`, counting from one within this edit; the Runtime replaces them with stable `e-` IDs. A paragraph you append to may then cite `[^e-9bae588a38]` and `[^e1]` side by side, which is correct. Write every new Source as `[plain label](source handle)`, keeping the source handle exactly as it appears in the input; the Runtime validates it and expands only the link target. The label is a context-specific keyword phrase, not a fixed title template: Chinese at most 8 visible characters, English at most 6 words. Do not put IDs, speaker names, timestamps, URLs, or Markdown syntax in the label. Do not invent source handles. Multiple Source links may follow `Sources:`, separated by `, `.
+Number the footnotes you add `[^e1]`, `[^e2]`, `[^e3]`, counting from one within this edit; the Runtime replaces them with stable `e-` IDs. A paragraph you append to may then cite `[^e-9bae588a38]` and `[^e1]` side by side, which is correct. A Source is the chat message the fact rests on. Write every new Source as `[plain label](/s/<session>#<message>)`, copying the ref printed beside that message exactly; the Runtime checks it names a message of this conversation. The chat history is the evidence record, so nothing is ever copied out of it. The label is a context-specific keyword phrase, not a fixed title template: Chinese at most 8 visible characters, English at most 6 words. Do not put IDs, speaker names, timestamps, URLs, or Markdown syntax in the label. Do not invent refs. Multiple Source links may follow `Sources:`, separated by `, `.
 
 Every `[^eN]` you introduce needs its `[^eN]:` definition line in the same edit and file — write the two together, prose then definition. An existing `[^e-...]` already has its definition and needs nothing from you.
 
@@ -49,7 +49,7 @@ A Write or Edit that reports success has already changed the file. Move on to th
 
 Write and Edit are the only ways to change a file's contents. The shell is for listing, moving, and removing files; passing it an English sentence describing a file you want written does nothing.
 
-Files under sources/ are the evidence record and are read-only. Every Edit or Write touching a path that starts with `sources/` is rejected and discards your turn; never call Edit on one, not even to fix a heading or a date. You do not need to open them either: the full text of the conversation you are integrating is already in this prompt, and the source handles to cite are printed beside each message. The Runtime assigns IDs, expands source handles, validates every paragraph, rewrites relative links after moves, and rebuilds all derived views once your turn ends. If any check fails, every edit from that turn is discarded and you are told why."""
+The full text of the conversation you are integrating is already in this prompt, with the ref to cite printed beside each message. The Runtime assigns IDs, validates every paragraph, rewrites relative links after moves, and rebuilds all derived views once your turn ends. If any check fails, every edit from that turn is discarded and you are told why."""
 
 FEW_SHOT_INSTRUCTIONS = """
 Worked examples. These show what the files must contain. Use the file tools to
@@ -78,7 +78,7 @@ A new subject file. Note the paragraph has no trailing ID — the Runtime adds i
 
     Calvin acquired a mansion in Japan in March 2023, arranged by his agent.[^e1]
 
-    [^e1]: Time: `2023-03`; Sources: [Japan mansion](locomo/thread_37d993f7a9d6/msg_6c0a984c5fc6)
+    [^e1]: Time: `2023-03`; Sources: [Japan mansion](/s/s-37d993#m-6c0a98)
 
 Adding a second fact to that file later. The Runtime has been through it since:
 the paragraph now ends in `^7ffb575c` and its footnote is `[^e-9bae588a38]`.
@@ -91,11 +91,11 @@ at `[^e1]` again:
 
     Calvin acquired a mansion in Japan in March 2023, arranged by his agent.[^e-9bae588a38] ^7ffb575c
 
-    [^e-9bae588a38]: Time: `2023-03`; Sources: [Japan mansion](locomo/thread_37d993f7a9d6/msg_6c0a984c5fc6)
+    [^e-9bae588a38]: Time: `2023-03`; Sources: [Japan mansion](/s/s-37d993#m-6c0a98)
 
     Calvin began converting the mansion into a recording studio.[^e1]
 
-    [^e1]: Time: `2023-07`; Sources: [Studio conversion](locomo/thread_749fa3152137/msg_23dffebd3e42)
+    [^e1]: Time: `2023-07`; Sources: [Studio conversion](/s/s-749fa3#m-23dffe)
 
 The same edit written wrongly. The new paragraph is fine, but the existing
 citation was renumbered to match the new one, which strands its definition and
@@ -103,19 +103,19 @@ discards the entire edit — the good paragraph with it:
 
     Calvin acquired a mansion in Japan in March 2023, arranged by his agent.[^e1] ^7ffb575c
 
-    [^e-9bae588a38]: Time: `2023-03`; Sources: [Japan mansion](locomo/thread_37d993f7a9d6/msg_6c0a984c5fc6)
+    [^e-9bae588a38]: Time: `2023-03`; Sources: [Japan mansion](/s/s-37d993#m-6c0a98)
 
     Calvin began converting the mansion into a recording studio.[^e2]
 
-    [^e2]: Time: `2023-07`; Sources: [Studio conversion](locomo/thread_749fa3152137/msg_23dffebd3e42)
+    [^e2]: Time: `2023-07`; Sources: [Studio conversion](/s/s-749fa3#m-23dffe)
 
 Correcting a fact already recorded. The prose changes, a footnote is appended,
 the trailing ID does not move:
 
     Calvin plans to stay in Japan for a year.[^e-9bae588a38][^e1] ^7ffb575c
 
-    [^e-9bae588a38]: Time: `2023-03`; Sources: [Japan mansion](locomo/thread_37d993f7a9d6/msg_6c0a984c5fc6)
-    [^e1]: Time: `2023-06`; Sources: [Renovation update](locomo/thread_987adb9e3384/msg_3bb059d845a8)
+    [^e-9bae588a38]: Time: `2023-03`; Sources: [Japan mansion](/s/s-37d993#m-6c0a98)
+    [^e1]: Time: `2023-06`; Sources: [Renovation update](/s/s-987adb#m-3bb059)
 
 In short: anything that reads `^7ffb575c` or `[^e-9bae588a38]` was written by the
 Runtime and is copied through verbatim. `[^e1]` and `[^e2]` are yours, and only

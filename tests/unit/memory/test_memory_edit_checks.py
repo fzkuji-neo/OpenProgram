@@ -8,23 +8,9 @@ reported, and every format error names the file it is in.
 from __future__ import annotations
 
 import asyncio
-from contextlib import closing
 from pathlib import Path
 
 import pytest
-
-
-def _record(message_id: str, content: str, ordinal: int):
-    from openprogram.memory.runtime.state import SourceRecord
-
-    return SourceRecord(
-        provider="openprogram", thread_id="checks", message_id=message_id,
-        ordinal=ordinal, role="user", content=content,
-        timestamp="2026-08-10T12:00:00+08:00", speaker_id="owner",
-        speaker_display="Owner", speaker_kind="human",
-        principal_id="owner/install/0123456789abcdef",
-        authority_tier="owner", trust_state="trusted",
-    )
 
 
 def _call(handler, **arguments) -> str:
@@ -38,19 +24,20 @@ def _paragraph(fact: str, label: str, ref: str) -> str:
 
 
 @pytest.fixture
-def writer(tmp_path: Path):
+def writer(tmp_path: Path, chats):
+    from openprogram.memory.chat_refs import link
     from openprogram.memory.management import MemoryWorkspace
     from openprogram.memory.management.tools import management_tools
 
     root = tmp_path / "memory"
-    in_batch, earlier = _record("m1", "I like tea", 1), _record("m0", "I like coffee", 0)
-    with closing(MemoryWorkspace(root)) as archive:
-        archive.archive_source_records([earlier, in_batch])
-    workspace = MemoryWorkspace(root, allowed_new_source_refs={in_batch.source_id})
+    (root / "topics").mkdir(parents=True)
+    earlier = chats.say("checks", "m0", "I like coffee")
+    in_batch = chats.say("checks", "m1", "I like tea")
+    workspace = MemoryWorkspace(root, allowed_new_source_refs={in_batch})
     workspace.turn_baseline = workspace.baseline()
     handlers = {tool.name: tool.handler for tool in management_tools(workspace, [])}
     try:
-        yield workspace, handlers, in_batch.source_id, earlier.source_id
+        yield workspace, handlers, link(in_batch), link(earlier)
     finally:
         workspace.close()
 

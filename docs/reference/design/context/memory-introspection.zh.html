@@ -371,7 +371,7 @@
     <g font-size="11.5" font-family="Menlo,monospace">
       <rect x="42" y="114" width="164" height="26" rx="5" fill="#12110b" stroke="#6b4620"/><text x="54" y="131" fill="#d4843a">core.md</text><text x="196" y="131" fill="#6b6a63" text-anchor="end" font-size="10">常驻</text>
       <rect x="42" y="146" width="164" height="26" rx="5" fill="#12110b" stroke="#2e2c20"/><text x="54" y="163" fill="#bdb9a6">topics/**.md</text><text x="196" y="163" fill="#6b6a63" text-anchor="end" font-size="10">可编辑</text>
-      <rect x="42" y="178" width="164" height="26" rx="5" fill="#12110b" stroke="#2e2c20"/><text x="54" y="195" fill="#bdb9a6">sources/**</text><text x="196" y="195" fill="#6b6a63" text-anchor="end" font-size="10">只读证据</text>
+      <rect x="42" y="178" width="164" height="26" rx="5" fill="#12110b" stroke="#2e2c20"/><text x="54" y="195" fill="#bdb9a6">MEMORY.md</text><text x="196" y="195" fill="#6b6a63" text-anchor="end" font-size="10">地图 + 核心</text>
       <rect x="42" y="210" width="164" height="26" rx="5" fill="#12110b" stroke="#2e2c20"/><text x="54" y="227" fill="#bdb9a6">timeline/</text><text x="196" y="227" fill="#6b6a63" text-anchor="end" font-size="10">派生</text>
     </g>
 
@@ -947,10 +947,10 @@
       <div class="k">改动A · 最小的那个</div>
       <h3>工具目录本身就是界碑</h3>
       <div class="noun">functions/__init__.py:72-114 + :123-136</div>
-      <p>六个<code>memory_*</code>进<code>DEFAULT_TOOLS</code>，同时六个全进<code>DEFERRED_DEFAULT_TOOLS</code>。
+      <p>三个<code>memory_*</code>进<code>DEFAULT_TOOLS</code>，同时三个全进<code>DEFERRED_DEFAULT_TOOLS</code>。
         延迟目录只发裸名字不发描述（<code>deferred_catalog_text</code>就是<code>"\n".join(name …)</code>），
-        实测六行合计<b>20 token</b>。</p>
-      <p>模型每轮扫工具表，看到<code>memory_search</code>、<code>memory_browse</code>、<code>memory_status</code>
+        实测三行合计<b>12 token</b>。</p>
+      <p>模型每轮扫工具表，看到<code>memory_search</code>、<code>memory_get</code>、<code>memory_update</code>
         这几个名字，"我有记忆"这件事不再靠猜。<code>wiki_agent</code>也就不再是表上唯一像知识系统的东西。
         不用删它，让真正的答案跟它并排即可。</p>
       <div class="tools"><span>+20 tok/轮</span><span>改两个列表</span><span>test_tool_defer.py加一条</span></div>
@@ -999,10 +999,10 @@
       <text x="482" y="98" fill="#bdb9a6">。</text>
       <text x="42" y="116" fill="#bdb9a6"> 由后台维护，而非用户维护；这是受 2000-token</text>
       <text x="42" y="134" fill="#bdb9a6"> 预算约束的摘要；浏览其余内容请使用 </text>
-      <text x="316" y="134" fill="#d4843a">memory_browse</text>
-      <text x="434" y="134" fill="#bdb9a6"> / </text>
-      <text x="456" y="134" fill="#d4843a">memory_search</text>
-      <text x="574" y="134" fill="#bdb9a6">.]</text>
+      <text x="316" y="134" fill="#d4843a">memory_get</text>
+      <text x="406" y="134" fill="#bdb9a6"> / </text>
+      <text x="428" y="134" fill="#d4843a">memory_search</text>
+      <text x="546" y="134" fill="#bdb9a6">.]</text>
       <text x="42" y="158" fill="#6b6a63">…core.md渲染结果…</text>
       <text x="42" y="176" fill="#5aad4e">&lt;/memory&gt;</text>
     </g>
@@ -1039,11 +1039,11 @@
       <text x="545" y="63" fill="#8a8675" font-size="11">其余十个组件817</text>
       <text x="846" y="63" fill="#f0eee6" font-size="12">1638</text>
 
-      <text x="24" y="106" fill="#bdb9a6">方案一 · 六个工具全常驻</text>
+      <text x="24" y="106" fill="#bdb9a6">方案一 · 三个工具全常驻</text>
       <rect x="230" y="92" width="600" height="20" rx="4" fill="#3a3728"/>
-      <rect x="230" y="92" width="245" height="20" rx="4" fill="#7a2a34"/>
-      <text x="240" y="107" fill="#e0445a" font-size="11">+670 tok的schema</text>
-      <text x="846" y="107" fill="#e0445a" font-size="12">+670</text>
+      <rect x="230" y="92" width="389" height="20" rx="4" fill="#7a2a34"/>
+      <text x="240" y="107" fill="#e0445a" font-size="11">+1064 tok的schema</text>
+      <text x="846" y="107" fill="#e0445a" font-size="12">+1064</text>
       <text x="900" y="107" fill="#8a8675" font-size="11">常驻工具从5397涨到6067，多数会话一次都不调</text>
 
       <text x="24" y="150" fill="#bdb9a6">方案二 · 只加散文说明</text>
@@ -1066,12 +1066,12 @@
     </g>
 
     <rect x="24" y="258" width="1112" height="30" rx="7" fill="#12110b" stroke="#2e2c20"/>
-    <text x="40" y="278" fill="#a5a190" font-size="11.5">工具schema逐个实测：memory_search 147 · memory_get 131 · memory_update 166 · memory_grep 99 · memory_browse 82 · memory_status 45。延迟之后这些全不发，只发六个名字共20 token。</text>
+    <text x="40" y="278" fill="#a5a190" font-size="11.5">工具schema逐个实测：memory_search 214 · memory_get 221 · memory_update 629。延迟之后这些全不发，只发三个名字共12 token。</text>
   </svg>
   </div>
 
   <div class="note">
-    <b>为什么六个全延迟而不是留两个常驻。</b>延迟目录只发名字，而<code>memory_search</code>和<code>memory_browse</code>
+    <b>为什么三个全延迟而不是留两个常驻。</b>延迟目录只发名字，而<code>memory_search</code>和<code>memory_get</code>
     这两个名字本身就说清了用途，schema里的参数说明属于"要调的时候才需要"。
     <code>tool_search</code>永不延迟，是加载其余工具的唯一入口，模型看到名字就能一步接上。
   </div>
@@ -1144,7 +1144,7 @@
         <rect x="470" y="306" width="392" height="82" rx="8" fill="#1c1729" stroke="#4c3670"/>
         <text x="486" y="328" fill="#9d6fe0" font-size="12.5" font-weight="700">状态带可核对的量</text>
         <text x="486" y="348" fill="#a5a190" font-size="11">主题文件数、上次写入时间戳、当前revision，</text>
-        <text x="486" y="366" fill="#a5a190" font-size="11">模型能拿memory_status的返回值对上</text>
+        <text x="486" y="366" fill="#a5a190" font-size="11">模型能拿memory_get总览的返回值对上</text>
         <text x="880" y="328" fill="#8a8675" font-size="11">差：同第一条，需要describe()</text>
         <text x="880" y="346" fill="#8a8675" font-size="11">先不做：跟第一条一起做才划算，</text>
         <text x="880" y="364" fill="#8a8675" font-size="11">单独做等于把同一个接口改两遍</text>

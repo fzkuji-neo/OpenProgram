@@ -1,4 +1,4 @@
-"""Persistent deterministic maintenance counters and source records."""
+"""Persistent deterministic maintenance counters and the chat turns a write reads."""
 
 from __future__ import annotations
 
@@ -16,9 +16,10 @@ from ..workspace_layout import runtime_dir
 
 
 @dataclass(frozen=True)
-class SourceRecord:
-    provider: str
-    thread_id: str
+class ChatTurn:
+    """One message of a conversation, as a write reads it from the chat."""
+
+    session_id: str
     message_id: str
     ordinal: int
     role: str
@@ -26,14 +27,13 @@ class SourceRecord:
     timestamp: str | None = None
     speaker_id: str | None = None
     speaker_display: str | None = None
-    speaker_kind: str = "unknown"
-    principal_id: str = "unknown"
-    authority_tier: str | None = None
-    trust_state: str = "trusted"
 
     @property
-    def source_id(self) -> str:
-        return f"{self.provider}/{self.thread_id}/{self.message_id}"
+    def ref(self) -> str:
+        """The chat reference a Topic cites this message by."""
+        from ..chat_refs import ref
+
+        return ref(self.session_id, self.message_id)
 
     @property
     def speaker_label(self) -> str:

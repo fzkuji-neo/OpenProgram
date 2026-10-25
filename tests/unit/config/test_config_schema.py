@@ -35,12 +35,12 @@ def test_mcp_exposed_tools_validates_before_persistence(monkeypatch):
 
     monkeypatch.setattr("openprogram.setup.update_config", capture_update)
 
-    accepted = set_setting("mcp_server.exposed_tools", '["read", "memory_status"]')
+    accepted = set_setting("mcp_server.exposed_tools", '["read", "memory_get"]')
     assert accepted == {
         "applied": "next_start",
-        "value": ["read", "memory_status"],
+        "value": ["read", "memory_get"],
     }
-    assert saved == [{"mcp_server": {"exposed_tools": ["read", "memory_status"]}}]
+    assert saved == [{"mcp_server": {"exposed_tools": ["read", "memory_get"]}}]
 
     for invalid in ('{"read": true}', '["read", 7]', "null"):
         assert "error" in set_setting("mcp_server.exposed_tools", invalid)

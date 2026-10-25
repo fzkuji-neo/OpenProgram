@@ -64,23 +64,28 @@ nothing worth keeping in counts as written.
 
 ## Format checks
 
-Topic text must retain its source footnotes. A substantive paragraph without
-a source-backed record is rejected with `INVALID_TOPIC_FORMAT` before any
-write is installed. This also applies to `memory_update` whole-file changes
-and patches. Valid cited records and empty topics keep their existing behavior;
-a rejected batch does not commit new Sources, derived views or Git history.
+Every Topic paragraph ends in a footnote that cites the chat message it came
+from, as a link to that chat: `[keyword](/s/<session>#<message>)`. Memory keeps
+no copy of the conversation; the chat history is the record. A substantive
+paragraph without one is rejected with `INVALID_TOPIC_FORMAT` before any write
+is installed, and so is a new citation of a message the chat does not hold or
+one that is not a person's or the assistant's words, such as a tool result. A
+rejected batch commits nothing: no Topic change, derived view or Git history.
 
 The background writer runs the same checks after every file it changes, so it
 learns about a broken rule on the edit that broke it and fixes it before its
 turn ends. A footnote definition written twice, or one left behind by a
 paragraph that was moved or deleted, is removed instead of rejected.
 
-Source footnotes open a read-only source view. If the local original session
-was deleted, the view says **Original session deleted** and does not expose its
-old source text. No extra source copy is created when deleting a session.
-Already-extracted memory remains. This source-availability rule does not rewrite
-the existing Memory Git repository. Archiving hides a session, preserves its
-content and links, and does not automatically delete it after an age or capacity
-threshold.
+Clicking a footnote shows the cited message with the turns around it, and
+**Open original session** jumps to it in the chat. If that session was deleted,
+the view says **Original session deleted**; the memory itself remains.
+Archiving hides a session, preserves its content and links, and does not
+automatically delete it after an age or capacity threshold.
+
+A workspace written before footnotes linked chats directly had a `sources/`
+folder holding a copy of each cited conversation. On first use its footnotes
+are rewritten to chat links and the folder is removed, in one commit,
+`memory: cite chats directly`; Git history keeps the old copy.
 
 Agent-specific memory modes and separate spaces are configured in [Agents](agents.md). This editor manages the existing shared memory store.

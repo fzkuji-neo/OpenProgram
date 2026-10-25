@@ -19,10 +19,11 @@ def repair_guidance(error: str) -> str:
             "A `[^eN]:` definition needs a `[^eN]` citation in a paragraph of "
             "the same file. Cite it where the fact is, or remove the definition."
         )
-    if "Source Memory is append-only" in error:
+    if "invalid source target" in error or "missing source reference" in error:
         return (
-            "Nothing under sources/ may be edited. Write the fact into a "
-            "Topic file under topics/ instead."
+            "A footnote cites a chat message by the ref printed beside it, "
+            "e.g. `[keyword](/s/<session>#<message>)`. Copy the ref exactly; "
+            "an existing `[^e-...]` definition stays as it was."
         )
     if (
         "not evidence of this transaction" in error

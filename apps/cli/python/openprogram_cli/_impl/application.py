@@ -912,14 +912,6 @@ def main():
                 report = {**report, "projects": projects}
             print(_json.dumps(report, indent=2, ensure_ascii=False))
             sys.exit(0)
-        if verb == "backfill":
-            from openprogram.memory.writing import backfill
-            import json as _json
-            report = backfill(
-                _mstore.ensure(), model=getattr(args, "model", None),
-            )
-            print(_json.dumps(report, indent=2, ensure_ascii=False))
-            sys.exit(0 if report.get("remaining") == 0 else 1)
         if verb == "export":
             import datetime as _dt
             import tarfile as _tar

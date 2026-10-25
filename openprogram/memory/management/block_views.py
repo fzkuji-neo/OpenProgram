@@ -21,13 +21,13 @@ from ..markdown import (
     render_definition,
     topic_tree_problems,
 )
+from .. import chat_refs
 from ..workspace_layout import runtime_dir
 from .transaction import snapshot_outside_edits
 
-# Committed memory is owner-only, matching the source archive and the
-# profile root. One constant so the install path and the archive cannot
-# drift into disagreeing about the mode of the same file.
+# Committed memory is owner-only, matching the profile root.
 MEMORY_FILE_MODE = 0o600
+MEMORY_DIR_MODE = 0o700
 
 
 class BlockViewsMixin:
@@ -57,39 +57,27 @@ class BlockViewsMixin:
         return {unit.memory_id: set(unit.source_refs) for unit in units}
 
     def _validate_source_reference(self, ref: str, *, is_new: bool = False) -> None:
-        """Check one Topic Source reference against the staged archive.
+        """Check one Topic citation against the chat history.
 
-        ``is_new`` marks a reference this transaction is adding. Only a new
-        reference is held to the trust rule: prose already committed keeps
-        citing what it cited, and re-validating it would make an unrelated
+        ``is_new`` marks a citation this transaction is adding: it must name
+        a message the chat still holds and memory may rest a claim on.
+        Prose already committed keeps citing what it cited, including a
+        chat that was deleted since; re-checking it would make an unrelated
         edit fail on a neighbouring paragraph's history.
         """
-        legacy = re.fullmatch(r"D(\d+):(\d+)", ref)
-        if legacy:
-            conversation, turn = legacy.groups()
-            source = self.stage_dir / "sources" / f"D{conversation}.md"
-            anchor = f'<a id="d{conversation}-{turn}"></a>'
-        else:
-            location, frame = self.resolve_v2_source(ref)
-            if location is None:
-                # Legacy non-v2 provider archives carry no trust metadata and
-                # keep the documented strict compatibility policy.
-                location = self._provider_source_location(ref)
-                frame = None
-            if location is None:
-                raise ValueError(f"invalid source reference: {ref}")
-            if is_new and frame is not None:
-                trust = (frame.metadata or {}).get("trust_state")
-                if trust != "trusted":
-                    raise ValueError(
-                        "source reference is not trusted; promote it first: "
-                        f"{ref}"
-                    )
-            relative, source_anchor = location
-            source = self.stage_dir / relative
-            anchor = f'<a id="{source_anchor}"></a>'
-        if not source.exists() or anchor not in source.read_text(encoding="utf-8"):
+        if chat_refs.split(ref) is None:
+            raise ValueError(f"invalid source reference: {ref}")
+        if not is_new:
+            return
+        lookup = getattr(self, "_chat_lookup", None)
+        if lookup is None:
+            lookup = self._chat_lookup = chat_refs.ChatLookup()
+        if lookup.message(ref) is None:
             raise ValueError(f"missing source reference: {ref}")
+        if not lookup.citable(ref):
+            raise ValueError(
+                "source reference is not a message memory may cite: " + ref
+            )
 
     def _uses_block_topic_format(self, units: list[Any]) -> bool:
         if any(unit.evidence for unit in units):
@@ -104,7 +92,11 @@ class BlockViewsMixin:
         return False
 
     def _rewrite_block_links(self, units: list[Any]) -> None:
-        """Refresh relative source and block targets after Topic files move."""
+        """Refresh relative block targets after Topic files move.
+
+        Footnotes are rewritten too, into the canonical chat link: a writer
+        may cite the bare reference it was shown.
+        """
         topics = self.stage_dir / "topics"
         target_paths = {unit.memory_id: unit.topic_path for unit in units}
         evidence_by_path = {
@@ -163,16 +155,21 @@ class BlockViewsMixin:
             if normalized != path.read_text(encoding="utf-8"):
                 path.write_text(normalized, encoding="utf-8")
 
+    @staticmethod
+    def _source_link(_topic_path: Path, ref: str, label: str | None = None) -> str:
+        # A citation given without a label still needs readable link text.
+        return f"[{label or 'chat'}]({chat_refs.link(ref)})"
+
     def _check_block_references(self, units: list[Any]) -> list[Any]:
-        """Rewrite block links after moves, then check every link and Source
-        reference. Raises on the first one that does not resolve."""
+        """Rewrite block links after moves, then check every link and chat
+        citation. Raises on the first one that does not resolve."""
         self._rewrite_block_links(units)
         units = parse_topic_tree(self.stage_dir / "topics")
         ids = {unit.memory_id for unit in units}
         committed_refs = self._committed_refs_by_block()
-        # Set only by the structured transaction: the evidence it archived in
-        # this very install. None means "no transaction-local restriction",
-        # which is what a hand edit or the experiment path gets.
+        # The messages this write may newly cite: a writer's batch, or the
+        # conversation a chat edit came from. None means "no restriction
+        # beyond the chat history", which is what a hand edit gets.
         local_refs = getattr(self, "_transaction_source_refs", None)
         for unit in units:
             missing_targets = set(unit.relation_targets) - ids
@@ -240,11 +237,6 @@ class BlockViewsMixin:
             shutil.rmtree(backup)
         backup.mkdir()
         relatives = (
-            # Sources are staged by the structured transaction so that new
-            # evidence installs together with the topics citing it. The
-            # experiment path stages an unmodified copy, so including it here
-            # is a no-op there.
-            Path("sources"),
             Path("topics"),
             Path("timeline"),
             Path("recent_events.jsonl"),
@@ -273,20 +265,18 @@ class BlockViewsMixin:
                 destination = self.memory_dir / relative
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 os.replace(source, destination)
-                # Staged sources are read-only so the writer cannot edit them.
-                # That guard belongs to the stage: the committed workspace is
-                # an ordinary tree the Runtime keeps appending to.
-                #
                 # Owner-only, because installing is where every memory file
-                # gets its committed mode. Handing them 0644 here undid the
-                # archive's own 0600 on the very next write, which is how
-                # world-readable memory kept coming back after being fixed.
+                # gets its committed mode.
                 if destination.is_file():
                     destination.chmod(MEMORY_FILE_MODE)
                 elif destination.is_dir():
+                    destination.chmod(MEMORY_DIR_MODE)
                     for path in destination.rglob("*"):
-                        if path.is_file() and not path.is_symlink():
-                            path.chmod(MEMORY_FILE_MODE)
+                        if path.is_symlink():
+                            continue
+                        path.chmod(
+                            MEMORY_DIR_MODE if path.is_dir() else MEMORY_FILE_MODE
+                        )
                 installed.append(relative)
         except BaseException as primary:
             rollback_errors: list[BaseException] = []

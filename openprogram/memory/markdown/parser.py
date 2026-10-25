@@ -138,12 +138,9 @@ def parse_topic_tree(topics: Path, *, strict: bool = True) -> list[MemoryUnit]:
     topics = Path(topics)
     units: list[MemoryUnit] = []
     seen: set[str] = set()
-    source_lookup: dict[Path, dict[str, str]] = {}
     for path in sorted(topics.rglob("*.md")):
         try:
-            _parse_topic_file(
-                path, topics, units, seen, source_lookup, strict=strict,
-            )
+            _parse_topic_file(path, topics, units, seen, strict=strict)
         except TopicFormatError as exc:
             # Name the file: a writer told only "undefined footnote: e1" has
             # every file it touched to search.
@@ -165,12 +162,11 @@ def topic_tree_problems(
     topics = Path(topics)
     units: list[MemoryUnit] = []
     seen: set[str] = set()
-    source_lookup: dict[Path, dict[str, str]] = {}
     problems: dict[str, str] = {}
     for path in sorted(topics.rglob("*.md")):
         mark, seen_before = len(units), set(seen)
         try:
-            _parse_topic_file(path, topics, units, seen, source_lookup, strict=True)
+            _parse_topic_file(path, topics, units, seen, strict=True)
         except TopicFormatError as exc:
             del units[mark:]
             seen.intersection_update(seen_before)
@@ -183,17 +179,11 @@ def _parse_topic_file(
     topics: Path,
     units: list[MemoryUnit],
     seen: set[str],
-    source_lookup: dict[Path, dict[str, str]],
     *,
     strict: bool,
 ) -> None:
     lines = path.read_text(encoding="utf-8").splitlines()
-    known_definitions = definitions(
-        lines,
-        topic_path=path,
-        topics=topics,
-        source_lookup=source_lookup,
-    )
+    known_definitions = definitions(lines)
     used_definitions: set[str] = set()
     for paragraph, headings in paragraphs(lines):
         parsed = _block_unit(

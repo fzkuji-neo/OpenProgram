@@ -232,9 +232,8 @@ def test_unknown_sender_never_reaches_dispatch(monkeypatch) -> None:
     assert "pairing code" in ch.sent[0][1].lower()
 
 
-def test_unpaired_group_message_is_archived_without_entering_agent(
-    monkeypatch,
-) -> None:
+def test_unpaired_group_message_is_not_recorded(monkeypatch) -> None:
+    """Memory cites chat turns, and an unpaired message never becomes one."""
     from openprogram.paths import get_state_dir
     from openprogram.memory.retrieval.bm25 import MemoryBM25Index
 
@@ -245,22 +244,13 @@ def test_unpaired_group_message_is_archived_without_entering_agent(
     )
     ch = _GateChannel()
     ch._dispatch_and_reply(_msg(
-        text="group context",
-        chat_id="group-42",
-        chat_type="group",
+        text="group context", chat_id="group-42", chat_type="group",
         message_id="m-9",
-        user_display="[Bob]\n\u202e",
     ))
 
     assert called == []
-    hits = MemoryBM25Index(
-        get_state_dir() / "projects" / "default" / "memory",
-        persist=False,
-    ).search("group context")
-    assert hits[0]["trust_state"] == "pending"
-    assert hits[0]["speaker_trusted"] is False
-    assert hits[0]["speaker_id"] == "7"
-    assert hits[0]["speaker_display"] == "(Bob)"
+    memory_root = get_state_dir() / "projects" / "default" / "memory"
+    assert MemoryBM25Index(memory_root, persist=False).search("group context") == []
 
 
 def test_unpaired_direct_message_is_not_archived() -> None:

@@ -7,10 +7,9 @@ import subprocess
 
 import pytest
 
-SOURCE = '# Conversation 1\n\n<a id="d1-1"></a>\n\nuser: remember this\n'
 NOTE = (
     "# Note\n\nA fact worth keeping.[^e-1f4c7a2b90] ^abc12345\n\n"
-    "[^e-1f4c7a2b90]: Time: `2026-01-01`; Sources: [D1:1](../sources/D1.md#d1-1)\n"
+    "[^e-1f4c7a2b90]: Time: `2026-01-01`; Sources: [D1:1](/s/s1#d1-1)\n"
 )
 PLAIN = "# Unsupported\n\nUncited substantive prose.\n"
 
@@ -56,7 +55,6 @@ def owned_memory(tmp_path, monkeypatch):
     monkeypatch.setattr(paths, "get_state_dir", lambda: tmp_path / "state")
     authority._reset_owner_cache_for_tests()
     root = store.ensure()
-    (root / "sources/D1.md").write_text(SOURCE)
     (root / "topics/note.md").write_text(NOTE)
     store._ensure_git_history(root)
     db = session_db.SessionDB(tmp_path / "owned-sessions")
@@ -78,68 +76,56 @@ def owned_memory(tmp_path, monkeypatch):
         authority._reset_owner_cache_for_tests()
 
 
-@pytest.mark.parametrize("entry", ["changes", "patch"])
-def test_registered_plain_write_rejected_without_committed_mutation(owned_memory, entry):
-    root = owned_memory
-    before = _snapshot(root)
-    args = {"base_revision": before["revision"]}
-    if entry == "changes":
-        args[entry] = [{"path": "topics/plain.md", "action": "write", "content": PLAIN}]
-    else:
-        args[entry] = "--- /dev/null\n+++ b/topics/plain.md\n@@ -0,0 +1,3 @@\n+# Unsupported\n+\n+Uncited substantive prose.\n"
-    result = _invoke("memory_update", args)
-    assert result.get("ok") is False, result
-    assert result["error"]["code"] == "INVALID_TOPIC_FORMAT"
-    assert _snapshot(root) == before
-    assert not (root / "topics/plain.md").exists()
-    assert "worth keeping" in _invoke("memory_get", {"path": "topics/note.md"})
-
-
-@pytest.mark.parametrize("entry", ["changes", "patch"])
-def test_registered_invalid_batch_does_not_install_new_source_or_valid_edit(owned_memory, entry):
-    root = owned_memory
-    before = _snapshot(root)
-    valid = (
-        "# New\n\nSupported new fact.[^e1]\n\n"
-        "[^e1]: Time: `2026-10-03`; Sources: new-source-owned\n"
-    )
-    args = {
-        "base_revision": before["revision"],
-        "sources": [{"label": "new-source-owned", "role": "user", "content": "Supported new fact.", "observed_at": "2026-10-03"}],
+def _create(topic, content, **record):
+    return {
+        "op": "create_record", "content": content, "time": "2026-10-03",
+        "destination": {"topic_path": topic, "headings": [], "position": "end"},
+        **record,
     }
-    if entry == "changes":
-        args[entry] = [
-            {"path": "topics/note.md", "action": "write", "content": NOTE.replace("keeping", "updating")},
-            {"path": "topics/new.md", "action": "write", "content": valid},
-            {"path": "topics/plain.md", "action": "write", "content": PLAIN},
-        ]
-    else:
-        args[entry] = (
-            "--- a/topics/note.md\n+++ b/topics/note.md\n@@ -3,1 +3,1 @@\n"
-            "-A fact worth keeping.[^e-1f4c7a2b90] ^abc12345\n"
-            "+A fact worth updating.[^e-1f4c7a2b90] ^abc12345\n"
-            "--- /dev/null\n+++ b/topics/new.md\n@@ -0,0 +1,5 @@\n"
-            + "".join("+" + line + "\n" for line in valid.splitlines())
-            + "--- /dev/null\n+++ b/topics/plain.md\n@@ -0,0 +1,3 @@\n"
-            + "".join("+" + line + "\n" for line in PLAIN.splitlines())
-        )
-    result = _invoke("memory_update", args)
-    assert result.get("ok") is False, result
-    assert result["error"]["code"] == "INVALID_TOPIC_FORMAT"
-    assert _snapshot(root) == before
 
 
-@pytest.mark.parametrize("content", ["", " \n\t\n", "# Empty topic\n\n## Empty section\n"])
-def test_registered_truly_empty_topic_remains_allowed(owned_memory, content):
+def test_a_chat_edit_cites_the_message_that_asked_for_it(owned_memory):
+    root = owned_memory
+    result = _invoke("memory_update", {
+        "memory_changes": [_create("topics/asked.md", "The owner asked for this.")],
+    })
+    assert result["ok"] is True, result
+    assert "[chat](/s/owned#owned-user)" in (root / "topics/asked.md").read_text()
+
+
+def test_a_citation_of_a_message_no_chat_holds_commits_nothing(owned_memory):
     root = owned_memory
     before = _snapshot(root)
     result = _invoke("memory_update", {
-        "base_revision": before["revision"],
-        "changes": [{"path": "topics/empty.md", "action": "write", "content": content}],
+        "memory_changes": [_create(
+            "topics/invented.md", "Invented.",
+            sources=[{"source": "/s/owned#nobody-said-this", "label": "made up"}],
+        )],
     })
-    assert result["ok"] is True
-    assert not (root / "topics/empty.md").exists()
-    assert (root / "topics/note.md").read_text() == NOTE
+    assert result["ok"] is False
+    assert "missing source reference" in result["error"]["message"]
+    assert _snapshot(root) == before
+    assert "worth keeping" in _invoke("memory_get", {"path": "topics/note.md"})
+
+
+def test_registered_invalid_batch_does_not_install_a_valid_record(owned_memory):
+    root = owned_memory
+    before = _snapshot(root)
+    result = _invoke("memory_update", {
+        "memory_changes": [
+            _create("topics/new.md", "Supported new fact."),
+            {"op": "update_record", "memory_id": "missing1", "content": "No such record.",
+             "time": "2026-10-03"},
+        ],
+    })
+    assert result.get("ok") is False, result
+    assert _snapshot(root) == before
+
+
+def test_memory_get_reads_the_chat_a_footnote_cites(owned_memory):
+    text = _invoke("memory_get", {"path": "/s/owned#owned-user"})
+    assert "Edit owned memory" in text
+    assert "**→**" in text
 
 
 @pytest.mark.parametrize("callback_fails", [False, True])
@@ -194,7 +180,7 @@ def test_a_write_leaves_untouched_topics_unmodified(owned_memory):
     other = root / "topics/other.md"
     other.write_text(
         "# Other\n\nA second fact.[^e-2a5d8b3c01] ^def67890\n\n"
-        "[^e-2a5d8b3c01]: Time: `2026-01-01`; Sources: [D1:1](../sources/D1.md#d1-1)\n"
+        "[^e-2a5d8b3c01]: Time: `2026-01-01`; Sources: [D1:1](/s/s1#d1-1)\n"
     )
     _ensure_git_history(root)
     old = 1_000_000_000

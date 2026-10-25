@@ -3,7 +3,7 @@ model writing from the schema alone gets the call right the first time."""
 
 from __future__ import annotations
 
-import re
+from contextlib import closing
 
 import pytest
 
@@ -11,34 +11,45 @@ import pytest
 def _items():
     from openprogram.programs.tools.knowledge.memory.memory import UPDATE_SPEC
 
-    return UPDATE_SPEC["parameters"]["properties"]["sources"]["items"]
+    record = UPDATE_SPEC["parameters"]["properties"]["memory_changes"]["items"]
+    return record["properties"]["sources"]["items"]
 
 
-def test_declared_source_fields_are_the_validated_ones():
-    from openprogram.memory.management.transaction import SOURCE_LABEL_PATTERN, VALID_ROLES
-
+def test_a_source_names_a_chat_message_and_a_label():
     items = _items()
-    assert set(items["required"]) == {"label", "role", "content"}
-    assert items["properties"]["role"]["enum"] == list(VALID_ROLES)
-    assert items["properties"]["label"]["pattern"] == f"^{SOURCE_LABEL_PATTERN.pattern}$"
-    # Strict mode drops `pattern`; the description still states the format.
-    assert "new-source-" in items["properties"]["label"]["description"]
+    assert set(items["required"]) == {"source", "label"}
+    assert items["additionalProperties"] is False
+    # The description states both forms the transaction accepts.
+    description = items["properties"]["source"]["description"]
+    assert "/s/<session>#<message>" in description
+    assert "current" in description
 
 
-def test_a_source_written_from_the_schema_parses():
-    from openprogram.memory.management.transaction import TransactionLimits, parse_sources
+@pytest.mark.parametrize("source", ["/s/s1#m1", "openprogram/s1/m1", "current"])
+def test_a_source_written_from_the_schema_is_accepted(tmp_path, chats, source):
+    from openprogram.memory.management import MemoryWorkspace
 
-    example = re.search(r"new-source-[a-z0-9-]+", _items()["properties"]["label"]["description"])[0]
-    parsed = parse_sources([{"label": example, "role": "user", "content": "以后就按照这个格式给我写。"}],
-                           TransactionLimits())
-    assert parsed[0].label == example
+    asked = chats.say("s1", "m1", "以后就按照这个格式给我写。")
+    with closing(MemoryWorkspace(tmp_path / "memory")) as space:
+        space.update(
+            memory_changes=[{
+                "op": "create_record", "content": "The owner fixed the report format.",
+                "time": "undated",
+                "sources": [{"source": source, "label": "报告格式"}],
+                "destination": {
+                    "topic_path": "topics/format.md", "headings": [],
+                    "position": "end",
+                },
+            }],
+            current_ref=asked, git_commit="off",
+        )
+    assert "[报告格式](/s/s1#m1)" in (tmp_path / "memory/topics/format.md").read_text()
 
 
 @pytest.mark.parametrize("source", [
     {"source": "format-owner", "speaker": "owner/local", "quote": "x"},
-    {"label": "new-source-a", "speaker": "owner/local", "text": "x"},
+    {"label": "new-source-a", "role": "user", "content": "x"},
 ])
 def test_the_shapes_models_guessed_are_outside_the_schema(source):
     items = _items()
-    assert items["additionalProperties"] is False
     assert not set(source) <= set(items["properties"]) or not set(items["required"]) <= set(source)

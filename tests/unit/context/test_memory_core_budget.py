@@ -13,7 +13,6 @@ still indexed and still searchable, so trimming costs visibility alone.
 """
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 
 from openprogram.memory.management import MemoryConfig, MemoryWorkspace
@@ -23,30 +22,18 @@ from openprogram.memory.runtime.derived_views import (
 )
 from openprogram.memory.runtime.memory_guide import split as _split_guide
 
-REF = "openprogram/thread-1/msg-1"
-ANCHOR = "source-" + hashlib.sha256(REF.encode()).hexdigest()[:16]
-SOURCE = (
-    f'# thread-1\n\n<a id="{ANCHOR}"></a>\n'
-    f"<!-- source-id:{REF} -->\n"
-    "[2026-01-01] user: remember this\n"
-)
+LINK = "/s/thread-1#msg-1"
 
 
-def _paragraph(index: int, text: str, *, up: str = "../") -> str:
-    """One topic paragraph. ``up`` is how far the file sits below the root."""
+def _paragraph(index: int, text: str) -> str:
     return (
         f"\n{text}[^e-1f4c7a2b{index:02d}] ^blockid{index:03d}\n\n"
-        f"[^e-1f4c7a2b{index:02d}]: Time: `2026-01-01`; Sources: [{REF}]"
-        f"({up}sources/openprogram/thread-1.md#{ANCHOR})\n"
+        f"[^e-1f4c7a2b{index:02d}]: Time: `2026-01-01`; Sources: [chat]({LINK})\n"
     )
 
 
 def _workspace(tmp_path: Path, *, limit: int) -> MemoryWorkspace:
     root = tmp_path / "memory"
-    (root / "sources" / "openprogram").mkdir(parents=True)
-    (root / "sources" / "openprogram" / "thread-1.md").write_text(
-        SOURCE, encoding="utf-8"
-    )
     (root / "topics").mkdir(parents=True)
     return MemoryWorkspace(root, config=MemoryConfig(core_max_tokens=limit))
 
@@ -107,14 +94,13 @@ def test_a_footnote_follows_the_paragraph_it_belongs_to(tmp_path: Path):
             "a rendered paragraph keeps its definition, and a dropped one "
             "does not leave its definition behind"
         )
-    assert f"](sources/openprogram/thread-1.md#{ANCHOR})" in rendered, (
-        "the master cites ../sources from topics/; the render sits at the root"
-    )
+    assert f"]({LINK})" in rendered, "a chat link reads the same from the root"
 
 
-def test_an_oversized_block_no_longer_refuses_a_transaction(tmp_path: Path):
+def test_an_oversized_block_no_longer_refuses_a_transaction(tmp_path: Path, chats):
     """The failure this replaces: a big ``core.md`` and an edit that does
     not touch it, refused together."""
+    chats.say("thread-1", "msg-1", "remember this")
     space = _workspace(tmp_path, limit=120)
     _master(space, 12)
     (space.stage_dir / "topics" / "note.md").write_text(
@@ -130,7 +116,7 @@ def test_an_oversized_block_no_longer_refuses_a_transaction(tmp_path: Path):
 def test_a_hand_written_root_block_moves_into_topics(tmp_path: Path):
     space = _workspace(tmp_path, limit=2_000)
     (space.stage_dir / "core.md").write_text(
-        "# Core\n" + _paragraph(0, "Written before the block was derived.", up=""),
+        "# Core\n" + _paragraph(0, "Written before the block was derived."),
         encoding="utf-8",
     )
 
@@ -138,9 +124,7 @@ def test_a_hand_written_root_block_moves_into_topics(tmp_path: Path):
 
     master = (space.stage_dir / "topics" / "core.md").read_text(encoding="utf-8")
     assert "Written before the block was derived." in master
-    assert f"](../sources/openprogram/thread-1.md#{ANCHOR})" in master, (
-        "moving into topics/ moves the links with it"
-    )
+    assert f"]({LINK})" in master, "a chat link survives the move"
     assert promote_legacy_core(space.stage_dir) is False, "it moves once"
 
 

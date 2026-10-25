@@ -14,22 +14,16 @@ from openprogram import sandbox as _sandbox
 from ..markdown import parse_topic_tree
 from .block_views import BlockViewsMixin
 from .config import MemoryConfig
-from .event_writing import EventWritingMixin
-from .patching import apply_changes, apply_memory_changes, apply_patch
-from .source_archive import SourceArchiveMixin
+from .patching import apply_memory_changes
 from .topic_normalization import TopicNormalizationMixin
 from .transaction import (
-    SourceProvenance,
     TransactionError,
     TransactionLimits,
     TransactionResult,
     committed_baseline,
     git_commit_state,
     install_state,
-    parse_sources,
     preserve_creation_order,
-    resolve_source_labels,
-    source_records,
     workspace_revision,
     workspace_write_lock,
 )
@@ -53,8 +47,6 @@ def _topic_size_note(relative: Path, text: str) -> str:
 
 class MemoryWorkspace(
     TopicNormalizationMixin,
-    SourceArchiveMixin,
-    EventWritingMixin,
     BlockViewsMixin,
 ):
     def __init__(
@@ -78,6 +70,8 @@ class MemoryWorkspace(
         self._stage_usable = True
         # Set for the duration of one structured transaction; see update().
         self._transaction_source_refs: frozenset[str] | None = None
+        # The chat message a record edit cites when it names none.
+        self.current_ref: str | None = None
         self.last_changed_topics: list[str] = []
         self.last_created_blocks = 0
         self._refresh_stage()
@@ -92,13 +86,6 @@ class MemoryWorkspace(
         self._discard_stage()
 
     def _discard_stage(self) -> None:
-        # Staged sources are chmod'd read-only, so restore write access before
-        # removing the tree: on some systems the file's own mode blocks it.
-        sources = self.stage_dir / "sources"
-        if sources.exists():
-            for path in sources.rglob("*"):
-                if path.is_file():
-                    path.chmod(0o644)
         shutil.rmtree(self.stage_dir, ignore_errors=True)
 
     def _refresh_stage(self) -> None:
@@ -109,7 +96,7 @@ class MemoryWorkspace(
         self._stage_usable = False
         self._discard_stage()
         self.stage_dir.mkdir()
-        for name in ("topics", "timeline", "sources"):
+        for name in ("topics", "timeline"):
             source = self.memory_dir / name
             if source.exists():
                 shutil.copytree(source, self.stage_dir / name)
@@ -130,43 +117,8 @@ class MemoryWorkspace(
         staged_runtime.parent.mkdir(parents=True, exist_ok=True)
         if runtime.exists():
             shutil.copy2(runtime, staged_runtime)
-        if self._allowed_new_source_refs is None:
-            self._protect_staged_sources()
-        else:
-            # A selected writer batch already receives its complete source
-            # text in the prompt. Hiding the archive prevents it from reading
-            # pending or out-of-batch evidence and attributing that content to
-            # one of the selected references.
-            shutil.rmtree(self.stage_dir / "sources", ignore_errors=True)
         self._base_revision = workspace_revision(self.memory_dir)
         self._stage_usable = True
-
-    def _restore_staged_sources(self) -> None:
-        """Restore the committed archive after a restricted agent turn."""
-        staged = self.stage_dir / "sources"
-        if staged.exists():
-            for path in staged.rglob("*"):
-                if path.is_file():
-                    path.chmod(0o644)
-            shutil.rmtree(staged)
-        committed = self.memory_dir / "sources"
-        if committed.exists():
-            shutil.copytree(committed, staged)
-
-    def _protect_staged_sources(self) -> None:
-        """Make the staged evidence record read-only on the filesystem.
-
-        Telling a writer that sources/ is off limits does not stop one from
-        editing it anyway, and the transaction only notices at the end of the
-        turn, discarding the good edits alongside the bad. A denied write
-        fails at the point of the attempt and reports why.
-        """
-        sources = self.stage_dir / "sources"
-        if not sources.exists():
-            return
-        for path in sources.rglob("*"):
-            if path.is_file():
-                path.chmod(0o444)
 
     def shell(
         self, command: str, *, allow_correction: bool = False
@@ -174,9 +126,7 @@ class MemoryWorkspace(
         self.last_changed_topics = []
         self.last_created_blocks = 0
         before = self._workspace_fingerprint()
-        before_units, before_block_ids, before_topics, before_sources = (
-            self.baseline()
-        )
+        before_units, before_block_ids, before_topics = self.baseline()
         # This MCP endpoint is the nested agent's only command path. It is
         # always sandboxed, even while interactive shell sandboxing remains
         # disabled globally; an unavailable platform boundary is a refusal.
@@ -203,28 +153,16 @@ class MemoryWorkspace(
         if result.returncode != 0 and changed:
             self._refresh_stage()
         elif result.returncode == 0 and changed:
-            self.commit_edits(
-                before_units, before_block_ids, before_topics, before_sources
-            )
+            self.commit_edits(before_units, before_block_ids, before_topics)
         return result
 
-    def baseline(self) -> tuple[list[Any], set[str], dict[str, str], str]:
+    def baseline(self) -> tuple[list[Any], set[str], dict[str, str]]:
         """Snapshot the staged tree so an edit can be committed against it."""
-        # A restricted writer cannot see the source archive. Its untouched
-        # Topic baseline is the committed tree, whose targets remain
-        # verifiable without treating display labels as source identity.
-        topic_root = (
-            self.memory_dir / "topics"
-            if self._allowed_new_source_refs is not None
-            else self.stage_dir / "topics"
-        )
-        units = parse_topic_tree(topic_root)
-        block_ids = {unit.memory_id for unit in units}
+        units = parse_topic_tree(self.stage_dir / "topics")
         return (
             units,
-            block_ids,
+            {unit.memory_id for unit in units},
             self._topic_fingerprints(self.stage_dir / "topics"),
-            self._tree_fingerprint(self.stage_dir / "sources"),
         )
 
     def commit_edits(
@@ -232,7 +170,6 @@ class MemoryWorkspace(
         before_units: list[Any],
         before_block_ids: set[str],
         before_topics: dict[str, str],
-        before_sources: str,
     ) -> None:
         """Assign IDs, validate, rebuild derived views, and install.
 
@@ -248,17 +185,6 @@ class MemoryWorkspace(
         self.last_changed_topics = []
         self.last_created_blocks = 0
         try:
-            if self._allowed_new_source_refs is not None:
-                if self._tree_fingerprint(
-                    self.stage_dir / "sources"
-                ) != before_sources:
-                    raise ValueError("Source Memory is append-only")
-                self._restore_staged_sources()
-                before_sources = self._tree_fingerprint(
-                    self.stage_dir / "sources"
-                )
-            if self._tree_fingerprint(self.stage_dir / "sources") != before_sources:
-                raise ValueError("Source Memory is append-only")
             preserve_creation_order(self, before_units)
             self._normalize_topic_edits(before_block_ids, before_units)
             staged_ids = {
@@ -270,10 +196,10 @@ class MemoryWorkspace(
             )
             selected_refs = self._allowed_new_source_refs
             if selected_refs is not None:
-                # The batch the Runtime selected is this commit's evidence.
-                # _synchronize checks it per block, which a workspace-wide set
-                # difference cannot: a new paragraph would otherwise pass by
-                # reusing a reference some other Topic already cites.
+                # The batch the Runtime selected is what this commit may newly
+                # cite. _synchronize checks it per block, which a workspace-wide
+                # set difference cannot: a new paragraph would otherwise pass
+                # by reusing a reference some other Topic already cites.
                 self._transaction_source_refs = frozenset(selected_refs)
             try:
                 with workspace_write_lock(self.memory_dir):
@@ -285,9 +211,6 @@ class MemoryWorkspace(
                     self._synchronize()
             finally:
                 self._transaction_source_refs = None
-            # A restricted writer stage hides sources again after install.
-            # Parse the committed tree, where relative source targets can be
-            # verified against the archive instead of inferred from labels.
             after_units = parse_topic_tree(self.memory_dir / "topics")
             after_topics = self._topic_fingerprints(self.stage_dir / "topics")
             self.last_changed_topics = [
@@ -313,17 +236,10 @@ class MemoryWorkspace(
         """
         if baseline is None or not self._stage_usable:
             return None
-        before_units, before_block_ids, _topics, _sources = baseline
+        before_units, before_block_ids, _topics = baseline
         probe_dir = Path(tempfile.mkdtemp(prefix=f"{TEMPORARY_PREFIX}check-"))
         try:
-            shutil.copytree(
-                self.stage_dir, probe_dir, dirs_exist_ok=True,
-                ignore=shutil.ignore_patterns("sources"),
-            )
-            # The committed archive is what the commit validates against,
-            # including for a restricted writer whose stage hides it.
-            if (self.memory_dir / "sources").exists():
-                shutil.copytree(self.memory_dir / "sources", probe_dir / "sources")
+            shutil.copytree(self.stage_dir, probe_dir, dirs_exist_ok=True)
             probe = copy.copy(self)
             probe.stage_dir = probe_dir
             preserve_creation_order(probe, before_units)
@@ -349,20 +265,15 @@ class MemoryWorkspace(
             for path in sorted(self.stage_dir.rglob("*"))
             if path.is_file()
             and not is_internal_path(path.relative_to(self.stage_dir))
-            and not (
-                self._allowed_new_source_refs is not None
-                and path.relative_to(self.stage_dir).parts[:1] == ("sources",)
-            )
         }
         committed = {
             path.relative_to(self.memory_dir).as_posix(): path.read_bytes()
             for path in sorted(self.memory_dir.rglob("*"))
             if path.is_file()
             and not is_internal_path(path.relative_to(self.memory_dir))
-            and not (
-                self._allowed_new_source_refs is not None
-                and path.relative_to(self.memory_dir).parts[:1] == ("sources",)
-            )
+            # A workspace from before chat citations still holds its old
+            # archive until migration removes it; the stage never does.
+            and path.relative_to(self.memory_dir).parts[:1] != ("sources",)
         }
         return staged != committed
 
@@ -373,23 +284,21 @@ class MemoryWorkspace(
     def update(
         self,
         *,
-        base_revision: str,
-        patch: str = "",
-        changes: Any = None,
-        memory_changes: Any = None,
-        sources: Any = None,
+        memory_changes: Any,
         commit_message: str | None = None,
         git_commit: str = "auto",
         limits: TransactionLimits | None = None,
         append_only: bool = False,
-        provenance: SourceProvenance | None = None,
+        allowed_refs: set[str] | frozenset[str] | None = None,
+        current_ref: str | None = None,
     ) -> TransactionResult:
-        """Apply sources and Topic changes as one atomic transaction.
+        """Apply record operations as one atomic transaction.
 
-        Sources are archived into the stage rather than ``memory_dir`` so that
-        evidence and the topics citing it become visible in the same install.
-        ``provenance`` is the Runtime's own record of who the sources came
-        from; creating sources without it fails closed.
+        Each record cites the chat messages it rests on. ``current_ref`` is
+        the message a record cites when it names none — for a chat edit, the
+        user message that asked for it. ``allowed_refs`` limits what a new
+        citation may name, such as the messages of that chat; None leaves
+        any message the chat history holds citable.
         """
         if git_commit not in ("auto", "on", "off"):
             raise TransactionError(
@@ -399,144 +308,30 @@ class MemoryWorkspace(
             from ..store import _ensure_git_history
 
             _ensure_git_history(self.memory_dir)
-        if not isinstance(base_revision, str) or not base_revision.strip():
-            raise TransactionError(
-                "INVALID_ARGUMENT", "base_revision is required"
-            )
         if commit_message is not None and not isinstance(commit_message, str):
             raise TransactionError(
                 "INVALID_ARGUMENT", "commit_message must be a string"
             )
         limits = limits or TransactionLimits()
-        has_patch = bool(patch)
-        has_changes = changes is not None
-        has_memory_changes = memory_changes is not None
-        if sum((has_patch, has_changes, has_memory_changes)) != 1:
-            raise TransactionError(
-                "INVALID_ARGUMENT",
-                "exactly one of patch, changes or memory_changes is required",
-            )
-        if has_patch and len(patch.encode("utf-8")) > limits.max_patch_bytes:
-            raise TransactionError(
-                "INVALID_ARGUMENT",
-                f"patch exceeds {limits.max_patch_bytes} bytes",
-            )
         message = (commit_message or "Update memory").replace("\n", " ").strip()
         message = "".join(
             char for char in message if char.isprintable()
         )[:limits.max_commit_message_chars] or "Update memory"
-        parsed_sources = parse_sources(sources, limits)
-        if parsed_sources and provenance is None:
-            raise TransactionError(
-                "WRITER_PRECONDITION_FAILED",
-                "creating a source requires complete persisted authority",
-            )
 
         with workspace_write_lock(self.memory_dir):
-            current = workspace_revision(self.memory_dir)
-            if base_revision != current:
-                raise TransactionError(
-                    "CONCURRENT_UPDATE",
-                    "workspace changed since base_revision was read",
-                    details={"base_revision": base_revision, "revision": current},
-                )
             self._refresh_stage()
             before_files = self._committed_files()
             before_units, before_block_ids = committed_baseline(self)
+            self.current_ref = current_ref
+            if allowed_refs is not None:
+                self._transaction_source_refs = frozenset(allowed_refs)
             try:
-                records = source_records(parsed_sources, provenance)
-                mapping = {
-                    item.label: record.source_id
-                    for item, record in zip(parsed_sources, records)
-                }
-                if records:
-                    self.archive_source_records(records, root=self.stage_dir)
-                # Evidence this transaction archived. A reference a block did
-                # not already carry must come from here, so a patch cannot
-                # attach an unrelated Source — trusted or not — to new prose.
-                self._transaction_source_refs = frozenset(mapping.values())
-                if has_patch:
-                    resolved = resolve_source_labels(patch, mapping)
-                    changed = apply_patch(self.stage_dir, resolved)
-                elif has_changes:
-                    resolved_changes = changes
-                    if isinstance(changes, list):
-                        resolved_changes = []
-                        for item in changes:
-                            if not isinstance(item, dict):
-                                resolved_changes.append(item)
-                                continue
-                            resolved_item = dict(item)
-                            content = resolved_item.get("content")
-                            if isinstance(content, str):
-                                resolved_item["content"] = resolve_source_labels(
-                                    content, mapping
-                                )
-                            resolved_changes.append(resolved_item)
-                    changed = apply_changes(
-                        self.stage_dir,
-                        resolved_changes,
-                        max_changes=limits.max_changes,
-                        max_bytes=limits.max_patch_bytes,
-                    )
-                else:
-                    resolved_memory_changes = memory_changes
-                    if isinstance(memory_changes, list):
-                        resolved_memory_changes = []
-                        for item in memory_changes:
-                            if not isinstance(item, dict):
-                                resolved_memory_changes.append(item)
-                                continue
-                            resolved_item = dict(item)
-                            refs = resolved_item.get("source_refs")
-                            if isinstance(refs, list):
-                                resolved_item["source_refs"] = [
-                                    resolve_source_labels(ref, mapping)
-                                    if isinstance(ref, str)
-                                    else ref
-                                    for ref in refs
-                                ]
-                            citations = resolved_item.get("sources")
-                            if isinstance(citations, list):
-                                resolved_item["sources"] = [
-                                    {
-                                        **citation,
-                                        "source": resolve_source_labels(
-                                            citation.get("source"), mapping
-                                        ),
-                                    }
-                                    if isinstance(citation, dict)
-                                    and isinstance(citation.get("source"), str)
-                                    else citation
-                                    for citation in citations
-                                ]
-                            resolved_memory_changes.append(resolved_item)
-                        declared_refs = {
-                            ref
-                            for item in resolved_memory_changes
-                            if isinstance(item, dict)
-                            for ref in item.get("source_refs", [])
-                            if isinstance(ref, str)
-                        } | {
-                            citation.get("source")
-                            for item in resolved_memory_changes
-                            if isinstance(item, dict)
-                            for citation in item.get("sources", [])
-                            if isinstance(citation, dict)
-                            and isinstance(citation.get("source"), str)
-                        }
-                        # Unlike a raw file patch, the record API declares its
-                        # evidence explicitly. Existing valid Source refs are
-                        # therefore intentional inputs, not hidden additions.
-                        self._transaction_source_refs = frozenset(
-                            set(mapping.values()) | declared_refs
-                        )
-                    changed = apply_memory_changes(
-                        self,
-                        resolved_memory_changes,
-                        max_changes=limits.max_changes,
-                        max_bytes=limits.max_patch_bytes,
-                    )
+                changed = apply_memory_changes(
+                    self,
+                    memory_changes,
+                    max_changes=limits.max_changes,
+                    max_bytes=limits.max_bytes,
+                )
                 if append_only:
                     for relative in changed:
                         before = self.memory_dir / relative
@@ -551,24 +346,17 @@ class MemoryWorkspace(
                                 "but cannot rewrite existing content",
                                 path=relative,
                             )
-                # Whole-file inputs may intentionally remove any represented
-                # record. Record inputs may remove only IDs explicitly named
-                # by a delete operation.
-                allowed_removed: bool | set[str] = True
-                if has_memory_changes and isinstance(
-                    resolved_memory_changes, list
-                ):
-                    allowed_removed = {
-                        item.get("memory_id")
-                        for item in resolved_memory_changes
-                        if isinstance(item, dict)
-                        and item.get("op") in ("delete_record", "delete")
-                    }
+                # A record edit may remove only the IDs it deletes by name.
                 install_state(
                     self,
                     before_units,
                     before_block_ids,
-                    allow_removed=allowed_removed,
+                    allow_removed={
+                        item.get("memory_id")
+                        for item in memory_changes
+                        if isinstance(item, dict)
+                        and item.get("op") in ("delete_record", "delete")
+                    },
                 )
             except TransactionError:
                 self._refresh_stage()
@@ -580,6 +368,7 @@ class MemoryWorkspace(
                 ) from exc
             finally:
                 self._transaction_source_refs = None
+                self.current_ref = None
 
             after_files = self._committed_files()
             changed_files = sorted(
@@ -592,7 +381,6 @@ class MemoryWorkspace(
             )
             result = TransactionResult(
                 revision=workspace_revision(self.memory_dir),
-                source_ids=mapping,
                 block_ids=dict(getattr(self, "last_block_id_map", {}) or {}),
                 evidence_ids=dict(
                     getattr(self, "last_evidence_id_map", {}) or {}

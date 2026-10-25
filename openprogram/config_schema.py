@@ -727,13 +727,6 @@ SETTINGS: list[SettingSpec] = [
         help="Maximum matching records added automatically to a turn.",
     ),
     SettingSpec(
-        key="memory.retrieval.include_sources",
-        path=("memory", "retrieval", "include_sources"),
-        group="Memory", label="Search Source evidence", widget="toggle",
-        apply=APPLY_LIVE, default=True,
-        help="Include archived evidence alongside curated Topic records.",
-    ),
-    SettingSpec(
         key="memory.layers.project", path=("memory", "layers", "project"),
         group="Memory", label="Project memory", widget="toggle",
         apply=APPLY_LIVE, default=True,

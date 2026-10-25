@@ -1,28 +1,25 @@
 """MEMORY.md: a generated first map, then the memory agents' own file."""
 from contextlib import closing
 
-SOURCE = '# Conversation 1\n\n<a id="d1-1"></a>\n\nuser: remember this\n'
 VISA = (
     "# Visa\n"
     "\n"
     "Visitor visa subclass 600 covers the conference trip.[^e-1f4c7a2b90] ^abc12345\n"
     "\n"
-    "[^e-1f4c7a2b90]: Time: `2026-01-01`; Sources: [D1:1](../../../sources/D1.md#d1-1)\n"
+    "[^e-1f4c7a2b90]: Time: `2026-01-01`; Sources: [D1:1](/s/s1#d1-1)\n"
 )
 CORE = (
     "# Core\n"
     "\n"
     "Owner prefers Chinese.[^e-2f4c7a2b91] ^def45678\n"
     "\n"
-    "[^e-2f4c7a2b91]: Time: `2026-01-02`; Sources: [D1:1](../sources/D1.md#d1-1)\n"
+    "[^e-2f4c7a2b91]: Time: `2026-01-02`; Sources: [D1:1](/s/s1#d1-1)\n"
 )
 
 
 def _root(tmp_path):
     root = tmp_path / "memory"
-    (root / "sources").mkdir(parents=True)
     (root / "topics/projects/trip").mkdir(parents=True)
-    (root / "sources/D1.md").write_text(SOURCE, encoding="utf-8")
     (root / "topics/projects/trip/visa.md").write_text(VISA, encoding="utf-8")
     (root / "topics/core.md").write_text(CORE, encoding="utf-8")
     return root

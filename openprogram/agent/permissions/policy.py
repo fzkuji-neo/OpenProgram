@@ -75,9 +75,7 @@ _PATCH_PATH_PREFIXES = (
     "*** Move to: ",
 )
 _NON_INTERACTIVE_SOURCES = {"agent_spawn", "cron", "scheduler", "mcp"}
-_SCHEDULED_MEMORY_TOOLS = {
-    "memory_status", "memory_get", "memory_update",
-}
+_SCHEDULED_MEMORY_TOOLS = {"memory_search", "memory_get", "memory_update"}
 _SCHEDULED_ALLOWED_TOOLS = {
     "read", "read_file", "grep", "glob", "list", "list_files", "tool_search",
 } | _SCHEDULED_MEMORY_TOOLS

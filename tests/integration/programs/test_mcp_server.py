@@ -74,7 +74,7 @@ async def execute(call_id, arguments, cancel_event, on_update):
         raise RuntimeError("runtime-secret")
     return AgentToolResult(content=[TextContent(text="runtime-ok")])
 
-for name in ("memory_status", "memory_search", "read", "bash", "memory_update"):
+for name in ("memory_get", "memory_search", "read", "bash", "memory_update"):
     properties = {"failure": {"type": "boolean"}}
     if name == "bash":
         properties["command"] = {"type": "string"}
@@ -198,7 +198,7 @@ if db.get_session("fixture-session") is None:
             {
                 "mcp_server": {
                     "exposed_tools": [
-                        "memory_status",
+                        "memory_get",
                         "memory_search",
                         "read",
                         "bash",
@@ -268,7 +268,7 @@ def test_real_stdio_subprocess_calls_all_wrappers(tmp_path, client_name):
             )
             tools = await session.call_tool("tools_list", {})
             runtime = await session.call_tool(
-                "tool_call", {"name": "memory_status", "arguments": {}}
+                "tool_call", {"name": "memory_get", "arguments": {}}
             )
             computer = await session.call_tool(
                 "web_use", {"command": "list_pages"}
@@ -351,21 +351,21 @@ def test_real_stdio_subprocess_error_progress_and_concurrency_contract(tmp_path)
                 ),
                 await session.call_tool(
                     "tool_call",
-                    {"name": "memory_status", "arguments": {"failure": True}},
+                    {"name": "memory_get", "arguments": {"failure": True}},
                 ),
             ]
             no_progress = await session.call_tool(
-                "tool_call", {"name": "memory_status", "arguments": {}}
+                "tool_call", {"name": "memory_get", "arguments": {}}
             )
             left, right = await asyncio.gather(
                 session.call_tool(
                     "tool_call",
-                    {"name": "memory_status", "arguments": {}},
+                    {"name": "memory_get", "arguments": {}},
                     progress_callback=lambda v, t, m: observe("left", v, t, m),
                 ),
                 session.call_tool(
                     "tool_call",
-                    {"name": "memory_status", "arguments": {}},
+                    {"name": "memory_get", "arguments": {}},
                     progress_callback=lambda v, t, m: observe("right", v, t, m),
                 ),
             )

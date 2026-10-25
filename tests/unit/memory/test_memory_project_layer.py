@@ -11,7 +11,6 @@ from types import SimpleNamespace
 
 import pytest
 
-SOURCE = '# Conversation 1\n\n<a id="d1-1"></a>\n\nuser: remember this\n'
 
 
 def _note(fact: str, block: str) -> str:
@@ -21,14 +20,12 @@ def _note(fact: str, block: str) -> str:
         f"{fact}[^e-1f4c7a2b90] ^{block}\n"
         "\n"
         "[^e-1f4c7a2b90]: Time: `2026-01-01`; "
-        "Sources: [D1:1](../sources/D1.md#d1-1)\n"
+        "Sources: [D1:1](/s/s1#d1-1)\n"
     )
 
 
 def _seed(root: Path, fact: str, block: str) -> None:
-    (root / "sources").mkdir(parents=True, exist_ok=True)
     (root / "topics").mkdir(parents=True, exist_ok=True)
-    (root / "sources" / "D1.md").write_text(SOURCE, encoding="utf-8")
     (root / "topics" / "note.md").write_text(_note(fact, block), encoding="utf-8")
 
 
@@ -132,13 +129,13 @@ def test_reads_span_both_layers_with_qualified_paths(setup):
 
     _seed_project(setup)
     _turn_on(setup)
-    browse = tools.memory_browse(prefix="topics/")
-    assert "project:topics/note.md" in browse
-    assert "personal:topics/note.md" in browse
+    overview = tools.memory_get()
+    assert "project:topics/note.md" in overview
+    assert "personal:topics/note.md" in overview
     assert "gRPC" in tools.memory_get(path="project:topics/note.md")
     assert "tea" in tools.memory_get(path="topics/note.md")  # default: personal
-    grep = tools.memory_grep(query="gRPC")
-    assert grep.startswith("project:topics/note.md:")
+    exact = tools.memory_search(query="gRPC", exact=True)
+    assert exact.startswith("project:topics/note.md:")
 
     found = project_layer.read_layers("s-project").search("API transport gRPC tea")
     assert [hit["layer"] for hit in found["results"]] == ["project", "personal"]
@@ -175,21 +172,20 @@ def test_layers_join_general_to_specific(setup):
     assert prompt.index("Personal core.") < prompt.index("Project core.")
 
 
-def test_update_names_its_layer_and_status_names_the_default(setup, monkeypatch):
+def test_update_names_its_layer_and_status_names_the_default(setup, monkeypatch, chats):
     from openprogram.programs.tools.knowledge.memory import memory as tools
 
     monkeypatch.setattr(tools, "authority_from_message", lambda *_: OWNER)
+    chats.say("s1", "d1-1", "the API moved to HTTP/3")
     _seed_project(setup)
     _turn_on(setup)
-    status = json.loads(tools.memory_status())
-    assert set(status["layers"]) == {"project", "personal"}
-    assert status["default_layer"] == "personal"
+    assert "layers: project, personal; writes go to personal" in tools.memory_get()
     accepted = json.loads(tools.memory_update(
-        base_revision=status["revision"],
         layer="project",
-        changes=[{
-            "path": "topics/note.md", "action": "write",
-            "content": _note("Project: the API moved to HTTP/3.", "def22222"),
+        memory_changes=[{
+            "op": "update_record", "memory_id": "def22222",
+            "content": "Project: the API moved to HTTP/3.", "time": "2026-01-01",
+            "sources": [{"source": "/s/s1#d1-1", "label": "HTTP/3"}],
         }],
     ))
     assert accepted["ok"] is True and accepted["layer"] == "project", accepted
@@ -197,17 +193,16 @@ def test_update_names_its_layer_and_status_names_the_default(setup, monkeypatch)
     assert "tea" in (setup.personal / "topics/note.md").read_text(encoding="utf-8")
 
     _turn_on(setup, writes=True)
-    assert json.loads(tools.memory_status())["default_layer"] == "project"
+    assert "writes go to project" in tools.memory_get()
 
 
 def test_update_refuses_a_project_layer_that_is_not_there(setup, monkeypatch):
     from openprogram.programs.tools.knowledge.memory import memory as tools
 
     monkeypatch.setattr(tools, "authority_from_message", lambda *_: OWNER)
-    revision = json.loads(tools.memory_status())["revision"]
     refused = json.loads(tools.memory_update(
-        base_revision=revision, layer="project",
-        changes=[{"path": "topics/x.md", "action": "delete"}],
+        layer="project",
+        memory_changes=[{"op": "delete_record", "memory_id": "abc11111"}],
     ))
     assert refused["error"]["code"] == "INVALID_ARGUMENT"
 

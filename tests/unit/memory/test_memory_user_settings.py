@@ -15,7 +15,7 @@ def test_memory_settings_are_declared_and_validated(monkeypatch):
         "agent", "bm25", "embedding", "hybrid",
     ]
     assert rows["memory.retrieval.top_k"]["value"] == 5
-    assert rows["memory.retrieval.include_sources"]["value"] is True
+    assert "memory.retrieval.include_sources" not in rows
     assert rows["memory.core.inject"]["value"] is True
     assert rows["memory.recent.limit"]["value"] == 50
 
@@ -38,7 +38,6 @@ def test_runtime_memory_config_reads_nested_settings():
             "retrieval": {
                 "method": "hybrid",
                 "top_k": 8,
-                "include_sources": False,
             },
             "core": {"inject": False},
             "recent": {"limit": 25},
@@ -49,7 +48,6 @@ def test_runtime_memory_config_reads_nested_settings():
     assert config.writer_trigger_tokens == 8_000
     assert config.retrieval_method == "hybrid"
     assert config.retrieval_top_k == 8
-    assert config.retrieval_include_sources is False
     assert config.core_inject is False
     assert config.recent_limit == 25
 
@@ -76,9 +74,10 @@ def test_agent_recall_mode_skips_ranked_automatic_and_tool_search(
     )
 
     assert LocalMemoryBackend().search("remembered") == ""
+    # The literal match still runs; only ranking is off.
+    monkeypatch.setattr("openprogram.memory.store.ensure", lambda: tmp_path)
     assert memory_tool.memory_search("remembered") == (
-        "Ranked memory_search is disabled in Agent recall mode. "
-        "Use memory_browse, memory_get, or memory_grep when needed."
+        "No line in memory contains 'remembered'."
     )
 
 
@@ -407,7 +406,6 @@ def test_local_backend_uses_live_memory_settings(tmp_path, monkeypatch):
         writer_enabled=False,
         retrieval_method="embedding",
         retrieval_top_k=3,
-        retrieval_include_sources=False,
         core_inject=False,
     )
     monkeypatch.setattr(
@@ -439,22 +437,18 @@ def test_local_backend_uses_live_memory_settings(tmp_path, monkeypatch):
         "query": "remembered",
         "method": "embedding",
         "top_k": 3,
-        "include_sources": False,
     }
     assert backend.write(session_id="s1", force=True) is None
 
 
-def test_hybrid_search_fuses_results_and_can_exclude_sources(
+def test_hybrid_search_fuses_results(
     tmp_path, monkeypatch,
 ):
     from openprogram.memory.retrieval import inspect
 
     topic = tmp_path / "topics" / "one.md"
-    source = tmp_path / "sources" / "one.md"
     topic.parent.mkdir()
-    source.parent.mkdir()
     topic.write_text("# One\n", encoding="utf-8")
-    source.write_text("# One\n", encoding="utf-8")
     seen = {}
 
     class FakeBM25:
@@ -491,15 +485,14 @@ def test_hybrid_search_fuses_results_and_can_exclude_sources(
 
     result = inspect.search(
         tmp_path, "query", method="hybrid", top_k=3,
-        include_sources=False,
     )
 
     assert result["method"] == "hybrid"
     assert [row["event_id"] for row in result["results"]] == [
         "shared", "lexical", "semantic",
     ]
-    assert seen["bm25_prefix"] == "topics"
-    assert seen["embedding_prefix"] == "topics"
+    assert seen["bm25_prefix"] is None
+    assert seen["embedding_prefix"] is None
 
 
 def test_bm25_search_reuses_persistent_index_until_workspace_changes(
@@ -570,45 +563,3 @@ def test_embedding_search_reuses_document_vectors_until_workspace_changes(
     assert [len(batch) for batch in encoded] == [1, 1, 1, 1, 1]
     assert "remember the cached document" in encoded[0][0]
     assert "remember the cached document" in encoded[3][0]
-
-
-def test_source_scope_keeps_topic_trust_while_hiding_source_hits(tmp_path):
-    from contextlib import closing
-
-    from openprogram.memory.management import MemoryWorkspace
-    from openprogram.memory.retrieval import inspect
-    from openprogram.memory.runtime.state import SourceRecord
-    from openprogram.memory.source_format import provider_source_location
-
-    (tmp_path / "topics").mkdir()
-    record = SourceRecord(
-        provider="openprogram", thread_id="s1", message_id="m1", ordinal=0,
-        role="user", content="source-only-evidence", trust_state="trusted",
-        speaker_kind="owner", principal_id="owner/local",
-        authority_tier="owner",
-    )
-    with closing(MemoryWorkspace(tmp_path)) as workspace:
-        workspace.archive_source_records([record])
-    location = provider_source_location(record.source_id, v2=True)
-    assert location is not None
-    source_path, anchor = location
-    relative_source = source_path.relative_to("sources").as_posix()
-    (tmp_path / "topics/note.md").write_text(
-        "# Note\n\nCurated retained fact.[^e1] ^abc12345\n\n"
-        "[^e1]: Time: `2026-01-01`; "
-        f"Sources: [{record.source_id}]"
-        f"(../sources/{relative_source}#{anchor})\n",
-        encoding="utf-8",
-    )
-
-    result = inspect.search(
-        tmp_path, "retained", method="bm25", include_sources=False,
-    )
-
-    assert len(result["results"]) == 1
-    assert result["results"][0]["path"] == "topics/note.md"
-    assert result["results"][0]["trust_state"] == "trusted"
-    assert inspect.search(
-        tmp_path, "source-only-evidence", method="bm25",
-        include_sources=False,
-    )["results"] == []

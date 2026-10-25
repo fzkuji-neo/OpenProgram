@@ -125,10 +125,7 @@ def test_tier_table_allows_memory_read_and_append_for_paired(authority_state):
 
     # Reads inside the memory workspace ride their own capability, so
     # granting them does not also hand over the filesystem.
-    for tool in (
-        "memory_search", "memory_grep", "memory_get", "memory_browse",
-        "memory_status",
-    ):
+    for tool in ("memory_search", "memory_get"):
         decision = authority.decide_tool_authority(paired, tool)
         assert decision.allowed is True, tool
         assert decision.capability == "memory.read"
@@ -138,7 +135,7 @@ def test_tier_table_allows_memory_read_and_append_for_paired(authority_state):
     assert authority.decide_tool_authority(paired, "read").capability == (
         "fs.read"
     )
-    for tool in ("bash", "read", "memory_promote", "clarify"):
+    for tool in ("bash", "read", "clarify"):
         decision = authority.decide_tool_authority(paired, tool)
         assert decision.allowed is False, tool
         assert decision.tier == "paired"
@@ -282,7 +279,7 @@ def test_tier_denial_precedes_bypass_and_returns_structured_reason(authority_sta
     }
 
 
-@pytest.mark.parametrize("tool_name", ["memory_status", "memory_update"])
+@pytest.mark.parametrize("tool_name", ["memory_get", "memory_update"])
 def test_paired_memory_append_handshake_runs_without_local_approval(
     authority_state, monkeypatch, tool_name,
 ):

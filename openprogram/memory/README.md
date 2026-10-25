@@ -10,12 +10,11 @@ directory, not a substitute.
 
 Memory is a workspace of Markdown files under `<state>/memory/`:
 
-1. `sources/` — the append-only evidence record: what was said, archived
-   verbatim, written only by the runtime.
-2. `topics/**/*.md` — the editable semantic memory, one file per subject.
+1. `topics/**/*.md` — the editable semantic memory, one file per subject.
    Every paragraph ends in a stable `^block-id` and cites a footnote
-   pointing at the source it rests on.
-3. `MEMORY.md` — the entry point injected into every session: a map of the
+   linking the chat message it rests on, `/s/<session>#<message>`. The
+   chat history is the evidence; memory keeps no copy of it.
+2. `MEMORY.md` — the entry point injected into every session: a map of the
    workspace kept by the memory agents, then a core section rendered from
    `topics/core.md` (only trusted blocks, within `core_max_tokens`).
 
@@ -48,7 +47,7 @@ beside the personal one (`layers.*`), and a self-check after each write
 | `session_watcher.py` | Writes a session's remainder once it goes idle |
 | `checkpoints.py` | Five-minute Git checkpoints for manual edits |
 | `references.py` | Stable references to Topic blocks, for the Scheduler |
-| `source_format.py` | Source archive locations and the v2 framing |
+| `chat_refs.py` | Citing chat messages: refs, links, which messages may be cited, excerpts |
 | `workspace_layout.py` | Names the runtime owns inside a workspace |
 | `management/` | The write transaction (staging, validation, install) and write verification |
 | `retrieval/` | BM25, embedding and hybrid search; layered reads across workspaces |
@@ -69,5 +68,8 @@ Two invariants worth knowing before editing:
 - **Block IDs are the runtime's.** A `^id` that disappears breaks every
   view and link reaching it, so the writer copies them through and the
   transaction rejects an edit that drops one.
-- **`sources/` is append-only.** Topics can be rewritten freely; the
-  evidence they cite cannot.
+- **A new citation must name a real chat message.** Topics can be
+  rewritten freely, but a footnote added by an edit is checked against
+  the session store: the message must exist and be a person's or the
+  assistant's words. Committed citations are left alone, so deleting a
+  chat leaves its memory standing.

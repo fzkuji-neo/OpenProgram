@@ -261,28 +261,6 @@ class Channel(abc.ABC):
             print(f"[{self.platform_id}:{self.account_id}] <{who}> "
                   "blocked by access policy "
                   f"({access_decision.reason_code})")
-            if ch_msg.chat_type in {"group", "channel", "thread"} \
-                    and ch_msg.text:
-                try:
-                    from openprogram.memory.writing import (
-                        archive_unpaired_group_message,
-                    )
-
-                    archive_unpaired_group_message(
-                        channel=self.platform_id,
-                        account_id=self.account_id,
-                        chat_id=ch_msg.chat_id,
-                        message_id=ch_msg.message_id,
-                        user_id=stable_sender_id,
-                        user_display=safe_display,
-                        text=ch_msg.text,
-                        timestamp=ch_msg.ts,
-                    )
-                except Exception as exc:  # noqa: BLE001
-                    print(
-                        f"[{self.platform_id}:{self.account_id}] "
-                        f"pending evidence archive failed: {exc}"
-                    )
             if access_decision.reply:
                 self.send_text_full(peer_id, access_decision.reply)
             return

@@ -18,7 +18,6 @@ from typing import Any
 from ..management.transaction import TransactionError, workspace_revision
 from ..workspace_layout import is_internal_path
 from ..markdown import parse_topic_tree
-from ..source_format import is_v2_source_path, scan_source_archive
 from .fusion import CANDIDATE_MULTIPLIER, embedding_weight, fuse
 
 DERIVED_DIRS = ("timeline",)
@@ -139,10 +138,6 @@ def status(
             if path.relative_to(root).parts[:1] == ("topics",)
         ),
         "blocks": len(units),
-        "source_files": sum(
-            1 for path in files
-            if path.relative_to(root).parts[:1] == ("sources",)
-        ),
         "timeline_files": sum(
             1 for path in files
             if path.relative_to(root).parts[:1] == ("timeline",)
@@ -210,22 +205,6 @@ def _is_derived(relative: str) -> bool:
     return head in DERIVED_DIRS or relative in DERIVED_FILES
 
 
-def _visible_source_lines(
-    text: str, relative: str,
-) -> list[tuple[int, str]]:
-    lines = text.split("\n")
-    if not is_v2_source_path(relative):
-        return list(enumerate(lines, start=1))
-    scan = scan_source_archive(text, relative)
-    visible: list[tuple[int, str]] = []
-    for frame in scan.frames:
-        for index in range(frame.frame_start, frame.record_end + 1):
-            if index == frame.metadata_index:
-                continue
-            visible.append((index + 1, lines[index]))
-    return visible
-
-
 def read_file(
     memory_dir: Path,
     path: str,
@@ -250,10 +229,6 @@ def read_file(
             "INVALID_ARGUMENT", "file does not exist", path=str(path)
         )
     text = target.read_text(encoding="utf-8")
-    relative = target.relative_to(Path(memory_dir).resolve()).as_posix()
-    if relative.startswith("sources/"):
-        source_lines = _visible_source_lines(text, relative)
-        text = "\n".join(line for _number, line in source_lines)
     if block_id:
         content = _extract_block(text, block_id, path=str(path))
         mode = "block"
@@ -363,12 +338,7 @@ def grep(
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
-        lines = (
-            _visible_source_lines(text, relative)
-            if relative.startswith("sources/")
-            else list(enumerate(text.splitlines(), start=1))
-        )
-        for number, line in lines:
+        for number, line in enumerate(text.splitlines(), start=1):
             if not pattern.search(line):
                 continue
             total += 1
@@ -390,12 +360,10 @@ def search(
     path_prefix: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
-    speaker: str | None = None,
-    include_sources: bool = True,
     hybrid_weighting: str | None = None,
     file_boost: bool | None = None,
 ) -> dict[str, Any]:
-    """Rank blocks and sources for ``query``.
+    """Rank Topic blocks for ``query``.
 
     ``hybrid_weighting`` and ``file_boost`` tune ``method="hybrid"``; left
     unset they come from the Memory settings.
@@ -409,19 +377,6 @@ def search(
     capped = max(1, min(int(top_k), 10))
     root = Path(memory_dir).resolve()
     effective_prefix = path_prefix
-    if not include_sources:
-        from .bm25 import _normalize_path_prefix
-
-        normalized = _normalize_path_prefix(str(path_prefix or "topics"))
-        if normalized.startswith("sources"):
-            return {"method": method, "results": []}
-        effective_prefix = normalized
-    if method in {"embedding", "hybrid"}:
-        if speaker is not None:
-            raise TransactionError(
-                "INVALID_ARGUMENT",
-                "speaker filter is not supported with embedding search",
-            )
     if method == "embedding":
         return {"method": "embedding", "results": _embedding_search(
             root, query, capped, effective_prefix, date_from, date_to,
@@ -435,7 +390,6 @@ def search(
         path_prefix=effective_prefix,
         date_from=date_from,
         date_to=date_to,
-        speaker=speaker,
         refresh_index=False,
     )
     lexical = [_present(hit) for hit in hits]
@@ -539,9 +493,7 @@ def _clear_search_index_cache_for_tests() -> None:
 def _present(hit: dict[str, Any]) -> dict[str, Any]:
     keep = (
         "event_id", "path", "line", "headings", "date", "dates",
-        "content", "refs", "speaker_id", "speaker_display", "speaker_label",
-        "speaker_trusted", "trust_state", "speaker_kind", "principal_id",
-        "authority_tier", "final_score", "score", "similarity",
+        "content", "refs", "final_score", "score", "similarity",
     )
     result = {key: hit[key] for key in keep if key in hit}
     if "event_id" not in result and hit.get("event"):

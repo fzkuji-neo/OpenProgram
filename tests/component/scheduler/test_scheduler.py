@@ -158,7 +158,7 @@ def test_scheduler_resolves_memory_refs_at_execution_time(scheduler_env):
     (topics / "projects").mkdir(parents=True)
     (topics / "projects" / "memory.md").write_text(
         "# Memory\n\nUse the unified API.[^src-a] ^mem-project\n\n"
-        "[^src-a]: Time: `2026-08-14`; Sources: [D1:1](D1:1)\n",
+        "[^src-a]: Time: `2026-08-14`; Sources: [chat](/s/d1#m1)\n",
         encoding="utf-8",
     )
     ref = {"workspace_id": store.workspace_id(), "memory_id": "mem-project"}
@@ -167,14 +167,14 @@ def test_scheduler_resolves_memory_refs_at_execution_time(scheduler_env):
     assert first[0]["content"] == "Use the unified API."
     (topics / "projects" / "memory.md").write_text(
         "# Memory\n\nUse the Scheduler API.[^src-a] ^mem-project\n\n"
-        "[^src-a]: Time: `2026-08-14`; Sources: [D1:1](D1:1)\n",
+        "[^src-a]: Time: `2026-08-14`; Sources: [chat](/s/d1#m1)\n",
         encoding="utf-8",
     )
     second = references.resolve([ref])
     assert second[0]["content"] == "Use the Scheduler API."
     context = references.render_context([ref])
     assert "topics/projects/memory.md" in context
-    assert "memory_status" in context
+    assert "memory_get" in context
     assert "memory_update" in context
     assert "delete it only when no durable value remains" in context
     with pytest.raises(ValueError, match="workspace"):
@@ -194,12 +194,12 @@ def test_scheduler_context_keeps_every_ref_when_content_is_truncated(
     (topics / "first.md").write_text(
         "# First\n\n"
         f"{long_content}[^e-first] ^mem-first\n\n"
-        "[^e-first]: Time: `2026-08-14`; Sources: [D1:1](D1:1)\n",
+        "[^e-first]: Time: `2026-08-14`; Sources: [chat](/s/d1#m1)\n",
         encoding="utf-8",
     )
     (topics / "second.md").write_text(
         "# Second\n\nSECOND RECORD[^e-second] ^mem-second\n\n"
-        "[^e-second]: Time: `2026-08-14`; Sources: [D1:1](D1:1)\n",
+        "[^e-second]: Time: `2026-08-14`; Sources: [chat](/s/d1#m1)\n",
         encoding="utf-8",
     )
     workspace_id = store.workspace_id()

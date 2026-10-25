@@ -26,7 +26,6 @@ an error, and the latest one.
 | **Hybrid weighting** | How Hybrid balances keyword and semantic matches: **Keyword first** (70 / 30), **Balanced** (50 / 50) or **Semantic first** (30 / 70). **Automatic** leans on keywords when a message contains a date, a quoted phrase or a name, and balances them otherwise. |
 | **Favour well-matched Topics** | In Hybrid, ranks a Topic higher when several of its paragraphs match. On by default. |
 | **Recall depth** | The most records added to a turn: 3, 5, 8 or 10. |
-| **Search Source evidence** | Also searches the archived conversation, not only the Topics. |
 
 Hybrid weighting and Favour well-matched Topics apply only when the recall
 method is Hybrid.

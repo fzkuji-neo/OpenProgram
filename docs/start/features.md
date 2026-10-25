@@ -90,8 +90,7 @@ in `~/.openprogram/projects/<project>/memory/`, laid out the same way.
 | Path | What it holds |
 |---|---|
 | `MEMORY.md` | The entry file, injected into every session's system prompt: a map of where things are, then a short always-on core rendered from `topics/core.md`. Like `AGENTS.md`, each layer has its own, and the personal one comes first, then the project's |
-| `topics/` | One file per subject, such as `topics/people/dave.md`. Every paragraph carries an ID and cites where the fact came from |
-| `sources/` | The conversation turns those citations point at. Added to, never rewritten |
+| `topics/` | One file per subject, such as `topics/people/dave.md`. Every paragraph carries an ID and a footnote linking the chat message the fact came from, `/s/<session>#<message>`; memory keeps no copy of the conversation |
 | `timeline/` | The same facts arranged by date, rebuilt from `topics/` |
 | `.scriptorium/` | Bookkeeping: how far each conversation has been read, and the lock that keeps two writers apart. Not memory |
 
@@ -104,8 +103,8 @@ learn. A conversation that goes quiet for half an hour is written
 whatever its size, so a short exchange is not left waiting for a
 batch that never comes.
 
-Every write lands whole or not at all. An edit that cites a source
-it did not supply, points at a paragraph that does not exist, or
+Every write lands whole or not at all. An edit that cites a message
+no chat holds, points at a paragraph that does not exist, or
 breaks the topic format is refused, and the workspace is left byte
 for byte as it was. Two writers never interleave: a background
 write that finds the workspace busy gives up after a second rather
@@ -127,12 +126,15 @@ openprogram memory export                        # tar.gz the whole workspace
 ```
 
 The web UI's Memory page reads the same workspace. Agents reach it
-through `memory_search`, `memory_grep`, `memory_get`,
-`memory_browse`, `memory_update` and `memory_status`. There is no
-"save this" tool: recording the conversation is already happening
-in the background, and `memory_update` is for correcting what is
-there or writing down something you asked to be remembered right
-now.
+through three tools: `memory_search` finds paragraphs, by meaning or
+an exact string; `memory_get` lists what memory holds, reads a file,
+section or paragraph, and given a footnote's chat link reads what was
+actually said there; `memory_update` adds, corrects, deletes or moves
+records. There is no "save this" tool: recording the conversation is
+already happening in the background, and `memory_update` is for
+correcting what is there or writing down something you asked to be
+remembered right now. A record it writes without naming a source
+cites the message that asked for it.
 
 ## Mini-DAG — execution view in the right rail
 

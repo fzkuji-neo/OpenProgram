@@ -11,6 +11,7 @@ from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:  # the SDK is only needed to actually run a writer
     from ..agent_runtime import ClaudeCodeAgent
+from .. import chat_refs
 from .config import MemoryConfig
 from .guidance import repair_guidance
 from ..prompts import FEW_SHOT_INSTRUCTIONS, SYSTEM_PROMPT
@@ -20,13 +21,21 @@ from .workspace import MemoryWorkspace
 from ..workspace_layout import runtime_dir
 
 
+def _cite(ref: str) -> str:
+    """What the writer pastes into a footnote: the chat link of a message."""
+    try:
+        return chat_refs.link(ref)
+    except ValueError:
+        return ref
+
+
 def render_conversation(
     turns: list[tuple[str, str]], refs: list[str]
 ) -> str:
     return "\n".join(
         (
             json.dumps(
-                {"ref": ref, "speaker": speaker, "content": text},
+                {"ref": _cite(ref), "speaker": speaker, "content": text},
                 ensure_ascii=False,
                 separators=(",", ":"),
             )
@@ -262,7 +271,6 @@ def repair_committed_topics(
             units,
             kept_ids,
             workspace._topic_fingerprints(workspace.stage_dir / "topics"),
-            workspace._tree_fingerprint(workspace.stage_dir / "sources"),
         )
         workspace.turn_baseline = baseline
         audit: list[dict[str, Any]] = []
@@ -301,7 +309,6 @@ def _run_agent(
     *,
     agent: ClaudeCodeAgent,
     task: str,
-    source_sessions: list[dict[str, Any]] | None = None,
     usage_logger: Any | None = None,
     final_output: list[str] | None = None,
     config: MemoryConfig | None = None,
@@ -326,9 +333,6 @@ def _run_agent(
         allowed_new_source_refs=allowed_new_source_refs,
     )
     try:
-        if source_sessions:
-            workspace.archive_sessions(source_sessions)
-            workspace._refresh_stage()
         task = f"{task}\n\nCurrent workspace structure:\n{workspace.structure()}"
         audit: list[dict[str, Any]] = []
         system_prompt = (
@@ -349,7 +353,7 @@ def _run_agent(
             )
         # The Write and Edit tools check each edit against it as it lands.
         workspace.turn_baseline = baseline
-        stage = stage or ("write" if source_sessions else "organize")
+        stage = stage or "organize"
 
         def run_turn(*, prompt: str, stage: str) -> Any:
             return _turn(

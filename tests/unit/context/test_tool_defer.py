@@ -110,7 +110,7 @@ def test_default_web_prompt_advertises_deferred_memory_tools(monkeypatch):
     provider_tools, catalog = split_tools_for_dispatch(tools)
     provider_names = {tool.name for tool in provider_tools}
     catalog_names = {name for name, _ in catalog}
-    expected = {"memory_search", "memory_update", "memory_status"}
+    expected = {"memory_search", "memory_update", "memory_get"}
 
     assert expected <= {tool.name for tool in tools}
     assert not (expected & provider_names)

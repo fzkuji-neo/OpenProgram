@@ -160,12 +160,8 @@ def test_multi_callable_package_remains_an_expandable_group(
         params={"path": "tools/knowledge/memory"},
     ).json()
     assert {entry["name"] for entry in memory["entries"]} == {
-        "memory_browse",
         "memory_get",
-        "memory_grep",
-        "memory_promote",
         "memory_search",
-        "memory_status",
         "memory_update",
     }
     assert all(

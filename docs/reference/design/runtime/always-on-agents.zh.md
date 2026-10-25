@@ -67,7 +67,7 @@ OpenProgram 用已有的部件构建它。常驻 Agent 就是一个开启了 `al
 - 只用只读工具查找与目标相关的新情况；
 - 发现值得用户看的事时调用 `always_on_report`，否则不报告。
 
-`tools_override` 把回合限制为只读工具：`read`、`grep`、`glob`、`list`、`web_search`、`web_fetch`、`read_conversation`、`memory_search`、`memory_get`、`memory_grep`、`memory_browse`、`todo_list`、`get_goal` 与 `always_on_report`。`autonomy="act"` 时再加入 `create_goal`、`todo_create`、`todo_update`，Agent 可以把发现转为自己的目标，随后按常规工具与权限执行。MCP 工具不在列表中，因为无法仅凭名称判断一个服务的工具是否只读。
+`tools_override` 把回合限制为只读工具：`read`、`grep`、`glob`、`list`、`web_search`、`web_fetch`、`read_conversation`、`memory_search`、`memory_get`、`todo_list`、`get_goal` 与 `always_on_report`。`autonomy="act"` 时再加入 `create_goal`、`todo_create`、`todo_update`，Agent 可以把发现转为自己的目标，随后按常规工具与权限执行。MCP 工具不在列表中，因为无法仅凭名称判断一个服务的工具是否只读。
 
 ## 报告
 

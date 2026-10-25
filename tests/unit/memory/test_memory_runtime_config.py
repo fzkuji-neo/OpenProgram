@@ -83,15 +83,6 @@ def test_backend_none_disables_every_runtime_surface(monkeypatch, tmp_path):
 
     assert start_nightly_reorganizer(initial_delay=0) is None
     assert start_idle_session_watcher(poll_interval=1) is None
-
-    from openprogram.memory.writing import (
-        archive_unpaired_group_message,
-    )
-
-    assert archive_unpaired_group_message(
-        channel="telegram", account_id="main", chat_id="group-1",
-        message_id="m1", user_id="u1", user_display="U", text="pending",
-    ) == ""
     assert not (tmp_path / "state" / "memory").exists()
 
 
@@ -103,7 +94,6 @@ def test_backend_none_disables_every_runtime_surface(monkeypatch, tmp_path):
         ["show", "topics/example.md"],
         ["edit", "topics/example.md"],
         ["sleep"],
-        ["backfill"],
         ["export"],
     ],
 )

@@ -15,7 +15,6 @@ class MemoryConfig:
     writer_trigger_tokens: int = 16_000
     retrieval_method: str = "bm25"
     retrieval_top_k: int = 5
-    retrieval_include_sources: bool = True
     # Hybrid recall: how much the embedding ranking counts against BM25,
     # and whether several matches in one Topic lift that Topic's best one.
     hybrid_weighting: str = "auto"
@@ -134,11 +133,6 @@ def load_memory_config(config: dict[str, Any] | None = None) -> MemoryConfig:
         retrieval_method=method,
         retrieval_top_k=_integer(
             retrieval.get("top_k"), 5, maximum=10,
-        ),
-        retrieval_include_sources=(
-            retrieval.get("include_sources")
-            if isinstance(retrieval.get("include_sources"), bool)
-            else True
         ),
         hybrid_weighting=weighting,
         hybrid_file_boost=_flag(hybrid, "file_boost", True),

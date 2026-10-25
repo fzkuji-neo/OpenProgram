@@ -41,26 +41,12 @@ def test_nested_agent_receives_managed_file_replacements(managed):
     assert not read["is_error"] and "beta" in read["content"][0]["text"]
 
 
-def test_managed_file_tools_reject_escape_and_source_mutation(managed, tmp_path):
-    workspace, _, handlers = managed
+def test_managed_file_tools_reject_escape(managed, tmp_path):
+    _workspace, _, handlers = managed
     outside = tmp_path / "outside.txt"
     escaped = _call(handlers["Write"], file_path=str(outside), content="x")
     assert escaped["is_error"]
     assert not outside.exists()
-
-    source = workspace.stage_dir / "sources" / "evidence.txt"
-    source.parent.mkdir(exist_ok=True)
-    source.write_text("evidence")
-    denied = _call(handlers["Write"], file_path=str(source), content="changed")
-    assert denied["is_error"]
-    assert source.read_text() == "evidence"
-
-    case_variant = workspace.stage_dir / "Sources" / "forged.txt"
-    denied = _call(
-        handlers["Write"], file_path=str(case_variant), content="changed",
-    )
-    assert denied["is_error"]
-    assert not case_variant.exists()
 
 
 def test_managed_shell_requires_the_os_sandbox(managed, monkeypatch):

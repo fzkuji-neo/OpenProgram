@@ -44,7 +44,7 @@ def _core_block(root: Any) -> str:
 
 
 class LocalMemoryBackend(MemoryBackend):
-    """File-based memory: sources + topics + core."""
+    """File-based memory: topics and the core rendered from them."""
 
     supports_execution_policy = True
 
@@ -63,8 +63,7 @@ class LocalMemoryBackend(MemoryBackend):
         """``MEMORY.md``, injected into every session.
 
         Its map says where things are and is kept by the memory agents;
-        its core section is rendered only from blocks whose evidence is
-        trusted, so what lands there is already filtered by trust. ``tier``
+        its core section is rendered from ``topics/core.md``. ``tier``
         is accepted so the caller's resolved authority reaches the
         backend rather than being looked up again here; per-tier
         redaction of the block itself is not yet rendered.
@@ -101,20 +100,7 @@ class LocalMemoryBackend(MemoryBackend):
         session_id: str = "",
         tier: str | None = None,
     ) -> str:
-        """Whatever memory bears on the turn about to run.
-
-        Pending evidence — text archived from an unpaired speaker — is
-        dropped here. It stays reachable through the ``memory_search``
-        tool, where the model asks for it and sees its trust_state, but
-        it never enters the turn's context unasked.
-
-        A Topic block counts as pending when any Source it cites is,
-        which the index resolves before this sees it. Without that a
-        block written from unvouched speech would be recalled as
-        ordinary memory: the prose carries no trust marker of its own,
-        so filtering the archive alone let the claim through while
-        stopping only the quote it came from.
-        """
+        """Whatever memory bears on the turn about to run."""
         if not query or not query.strip():
             return ""
         from openprogram.agent.authority import TIER_CAPABILITIES
@@ -143,7 +129,6 @@ class LocalMemoryBackend(MemoryBackend):
                 query,
                 method=config.retrieval_method,
                 top_k=config.retrieval_top_k,
-                include_sources=config.retrieval_include_sources,
             )
         except Exception as exc:  # noqa: BLE001
             # An empty or unindexed workspace is the ordinary case on a
@@ -155,7 +140,7 @@ class LocalMemoryBackend(MemoryBackend):
         rendered = "\n\n".join(
             hit["content"]
             for hit in found.get("results", [])
-            if hit.get("content") and hit.get("trust_state") != "pending"
+            if hit.get("content")
         ).strip()
         return fence_memory(rendered) if rendered else ""
 

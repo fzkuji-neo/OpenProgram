@@ -34,9 +34,8 @@ def management_tools(
             )
         if "Read-only file system" in output or "Permission denied" in output:
             return (
-                "Files under sources/ are the read-only evidence record. The "
-                "conversation text is already in your prompt; write the fact "
-                "into a Topic file under topics/ instead."
+                "Write memory into a Topic file under topics/. The "
+                "conversation is already in your prompt."
             )
         if "command not found" in output or "syntax error" in output:
             return (
@@ -95,8 +94,6 @@ def management_tools(
             relative = resolved.relative_to(stage_root)
         except ValueError as exc:
             raise ValueError("path is outside the managed memory workspace") from exc
-        if writable and relative.parts and relative.parts[0].casefold() == "sources":
-            raise ValueError("Source Memory is append-only")
         return resolved, relative
 
     @tool(

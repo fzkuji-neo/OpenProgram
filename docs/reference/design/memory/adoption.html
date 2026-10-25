@@ -192,7 +192,7 @@
       <path d="M192 158 L192 176" stroke="#4a4736" stroke-width="1.5" marker-end="url(#a1)"/>
       <rect x="14" y="178" width="356" height="70" rx="7" fill="#1d1c14" stroke="#2e2c20"/>
       <text x="30" y="198" fill="#f0eee6" font-size="12">BM25 index, persist=False</text>
-      <text x="30" y="217" fill="#8a8675" font-size="11">Fully rehash and reparse topics/ and sources/ every turn</text>
+      <text x="30" y="217" fill="#8a8675" font-size="11">Fully rehash and reparse topics/ every turn</text>
       <text x="30" y="235" fill="#e0445a" font-size="11">Time is proportional to workspace size; see the chart below</text>
       <path d="M192 248 L192 266" stroke="#4a4736" stroke-width="1.5" marker-end="url(#a1)"/>
       <rect x="14" y="268" width="356" height="52" rx="7" fill="#1d1c14" stroke="#2e2c20"/>
@@ -664,7 +664,7 @@
   </div>
 
   <p class="note"><b>How this differs from migration.</b>
-  “Migrating from positional cursors” in overview.md addresses a one-time event: the old state cannot reconstruct the ledger, so source archives seed it,
+  “Migrating off the position cursor” in <a href="written-marker.html">written-marker.md</a> addresses a one-time event: the old state cannot reconstruct the ledger, so an old session is offered whole once,
   preferring a repeated batch to dropping everything. The tradeoff is the same, but occurs only during upgrade.
   Here, the ledger itself fails during ordinary operation, independent of migration. Both paths are needed and follow the same principle.</p>
 

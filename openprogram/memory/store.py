@@ -3,9 +3,10 @@
 The personal memory is the home project's workspace,
 ``<state>/projects/default/memory``; a project's own memory is
 ``<state>/projects/<project-id>/memory`` (see :mod:`.project_layer`).
-Inside a workspace, ``sources/`` and ``topics/`` hold the memory and
-``MEMORY.md`` at the root is the entry point; its core section is
-rendered from ``topics/core.md``.
+Inside a workspace, ``topics/`` holds the memory and ``MEMORY.md`` at
+the root is the entry point; its core section is rendered from
+``topics/core.md``. Footnotes cite chat messages, which the session
+store keeps, so a workspace holds no copy of any conversation.
 """
 
 from __future__ import annotations
@@ -36,10 +37,6 @@ def root() -> Path:
     _restrict_to_owner(state, 0o700)
     _restrict_to_owner(path, 0o700)
     return path
-
-
-def sources_dir() -> Path:
-    return root() / "sources"
 
 
 def topics_dir() -> Path:
@@ -134,6 +131,76 @@ def _set_aside_superseded(base: Path) -> Path | None:
     return archive
 
 
+_OLD_SOURCE_LINK = re.compile(
+    r"\]\((?:\.\./)*sources/(?P<provider>[^/)\s]+)/_v2/(?P<file>[^)#\s]+)\.md"
+    r"#source-(?P<anchor>[0-9a-f]{16})\)"
+)
+_OLD_SOURCE_ID = re.compile(
+    r'<a id="source-(?P<anchor>[0-9a-f]{16})"></a>\s*\n'
+    r"<!-- source-id:(?P<ref>[^\s]+) -->"
+)
+
+
+def cite_chats_directly(base: Path) -> bool:
+    """Point footnotes at the chat instead of the old ``sources/`` copy.
+
+    Memory once archived every conversation it cited under ``sources/``
+    and linked footnotes there. The chat history is that record, so each
+    link becomes the cited message's chat link and the copy goes; Git
+    keeps it. A citation whose original was never a chat here, such as an
+    imported Claude Code transcript, becomes the link of a chat that does
+    not exist, which shows as a deleted original.
+    """
+    from . import chat_refs
+    from .management.transaction import git_commit_state, workspace_write_lock
+
+    sources = base / "sources"
+    if not sources.is_dir():
+        return False
+    with workspace_write_lock(base):
+        if not sources.is_dir():
+            return False
+        refs: dict[str, str] = {}
+        for archive in sources.rglob("*.md"):
+            text = archive.read_text(encoding="utf-8", errors="replace")
+            for match in _OLD_SOURCE_ID.finditer(text):
+                refs[match.group("anchor")] = match.group("ref")
+
+        def chat_link(match: re.Match[str]) -> str:
+            value = refs.get(match.group("anchor"), "")
+            provider, _, rest = value.partition("/")
+            thread, _, message = rest.rpartition("/")
+            if not (thread and message):
+                thread = match.group("file")
+                message = "source-" + match.group("anchor")
+            if provider and provider != chat_refs.PROVIDER:
+                thread = f"{provider}-{thread}"
+            return f"]({chat_refs.link(chat_refs.ref(thread, message))})"
+
+        rewritten = 0
+        candidates = [base / "MEMORY.md", base / "core.md"]
+        for name in ("topics", "timeline"):
+            if (base / name).is_dir():
+                candidates.extend((base / name).rglob("*.md"))
+        for path in candidates:
+            if not path.is_file():
+                continue
+            text = path.read_text(encoding="utf-8")
+            updated = _OLD_SOURCE_LINK.sub(chat_link, text)
+            if updated != text:
+                path.write_text(updated, encoding="utf-8")
+                rewritten += 1
+        shutil.rmtree(sources)
+        try:
+            git_commit_state(base, "memory: cite chats directly")
+        except Exception as exc:  # noqa: BLE001 - history must not block memory
+            logger.debug("memory: citation migration was not committed: %s", exc)
+    logger.info(
+        "memory: %s now cites chats directly (%d files rewritten)", base, rewritten,
+    )
+    return True
+
+
 _MEMORY_FILE_MODE = 0o600
 _MEMORY_DIR_MODE = 0o700
 _permissions_migrated: set[Path] = set()
@@ -190,18 +257,19 @@ def ensure() -> Path:
     # its backup before installing the staged replacement.
     marker = base / ".git" / "openprogram-memory-ready"
     install_backup = base / f"{runtime_dir(base).name}-block-backup"
-    has_layout = all((base / name).is_dir() for name in ("topics", "sources"))
+    has_layout = (base / "topics").is_dir()
     if (base in _git_initialized or marker.is_file()) and (
         has_layout or install_backup.is_dir()
     ):
         _ensure_git_history(base)
         _migrate_permissions_once(base)
+        cite_chats_directly(base)
         return base
     _set_aside_superseded(base)
-    for name in ("topics", "sources"):
-        (base / name).mkdir(parents=True, exist_ok=True)
+    (base / "topics").mkdir(parents=True, exist_ok=True)
     _ensure_git_history(base)
     _migrate_permissions_once(base)
+    cite_chats_directly(base)
     # Nothing seeds the always-on block. It is rendered from
     # ``topics/core.md``, so an empty workspace has no block, and a
     # placeholder written here would look like a master to the render and

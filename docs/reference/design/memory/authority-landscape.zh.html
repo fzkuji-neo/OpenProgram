@@ -205,12 +205,12 @@
   <div class="step">
     <h3><span class="phase">第一批 · 已实现</span>档位枚举、配对、来源信任和默认writer</h3>
     <p class="lead">请求只带owner/paired枚举；陌生账号收到8位配对码，批准只走本地owner通道（终端/本机Web），渠道消息无权触发；不写迁移代码，上线后所有非owner账号首次发言统一走配对；可变昵称不参与身份匹配；显示名过消毒；拒绝返回结构化原因码。</p>
-    <div class="feel"><span class="lb">用起来的变化</span>陌生人私聊收到配对码而不是被无视，你在终端一条命令批准；有人把昵称改成你的名字，冒充无效；群里已配对的人说"记一下"会真的被主动记住。未配对成员的群聊发言照常归档，<code>trust_state</code>记为pending，检索时分得清是谁说的，也不会被自动召回带进上下文。</div>
+    <div class="feel"><span class="lb">用起来的变化</span>陌生人私聊收到配对码而不是被无视，你在终端一条命令批准；有人把昵称改成你的名字，冒充无效；群里已配对的人说"记一下"会真的被主动记住。未配对成员的群聊发言不会变成轮次，记忆不记录也不引用它们。</div>
   </div>
   <div class="step s2">
-    <h3><span class="phase">稳定化批次 · 已实现</span>backfill、writer状态、禁用边界和组合测试</h3>
-    <p class="lead"><code>openprogram memory backfill</code>处理未被Topic引用的trusted Source并排除pending；失败批次不安装，重复执行跳过已引用来源。writer状态通过工具、CLI和Web返回最近成功、最近失败分类、retryable判定与待处理数。<code>memory.backend=none</code>在创建工作区前拒绝全部CLI memory动词和<code>/api/memory/*</code>路由。</p>
-    <div class="feel"><span class="lb">验证边界</span>组合测试包含SessionDB、默认模型解析、managed tools、暂存事务、Topic、marker和watcher状态。真实工作区只执行了2条pending消息的writer验收；152条历史未引用Source尚未执行backfill。</div>
+    <h3><span class="phase">稳定化批次 · 已实现</span>writer状态、禁用边界和组合测试</h3>
+    <p class="lead">writer状态通过工具、CLI和Web返回最近成功、最近失败分类、retryable判定与待处理数。<code>memory.backend=none</code>在创建工作区前拒绝全部CLI memory动词和<code>/api/memory/*</code>路由。</p>
+    <div class="feel"><span class="lb">验证边界</span>组合测试包含SessionDB、默认模型解析、managed tools、暂存事务、Topic、marker和watcher状态。</div>
   </div>
   <div class="step s2">
     <h3><span class="phase">第二批 · 延期</span>hold队列与读取范围</h3>
@@ -219,7 +219,7 @@
   </div>
 </div>
 
-<div class="pipe-note"><b>实现记录（2026-08-11）</b>：后台writer沿用默认聊天agent的provider、模型和凭据，<code>memory.writer.model</code>允许实时覆盖；未知异常默认不可重试。真实工作区的23个旧v1 source文件经精确兼容读取后，154个frame全部通过解析；一次真实writer验收把2条待处理消息提交为3个Topic文件和5个block，重复扫描处理0个会话且revision不变。backfill、writer状态、CLI/Web禁用边界、paired命名和组合测试已经实现；真实工作区的152条历史未引用Source尚未执行backfill。写入失败原因码是一个封闭枚举，受限writer阶段看不到Source归档。</div>
+<div class="pipe-note"><b>实现记录（2026-08-11）</b>：后台writer沿用默认聊天agent的provider、模型和凭据，<code>memory.writer.model</code>允许实时覆盖；未知异常默认不可重试。writer状态、CLI/Web禁用边界、paired命名和组合测试已经实现。写入失败原因码是一个封闭枚举。脚注直接引用聊天消息。</div>
 
 </div></body>
 </html>

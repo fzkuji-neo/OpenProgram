@@ -15,8 +15,7 @@ SAFE_AUTO_ALLOWLIST = frozenset({
     "todo_create", "todo_list", "todo_update",
     "ask_user_question", "send_message", "chat_send",
     "enter_plan_mode", "exit_plan_mode",
-    "memory_status", "memory_update",
-    "memory_search", "memory_grep", "memory_get", "memory_browse",
+    "memory_search", "memory_get", "memory_update",
     "self_update_status",
 })
 

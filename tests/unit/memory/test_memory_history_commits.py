@@ -13,16 +13,14 @@ from pathlib import Path
 import pytest
 
 
-def _record(message_id: str, content: str, ordinal: int):
-    from openprogram.memory.runtime.state import SourceRecord
+def _record(chats, message_id: str, content: str, ordinal: int):
+    """A chat turn memory may cite, said in the ``history`` session."""
+    from openprogram.memory.runtime.state import ChatTurn
 
-    return SourceRecord(
-        provider="openprogram", thread_id="history", message_id=message_id,
-        ordinal=ordinal, role="user", content=content,
-        timestamp="2026-08-10T12:00:00+08:00", speaker_id="owner",
-        speaker_display="Owner", speaker_kind="human",
-        principal_id="owner/install/0123456789abcdef",
-        authority_tier="owner", trust_state="trusted",
+    chats.say("history", message_id, content)
+    return ChatTurn(
+        session_id="history", message_id=message_id, ordinal=ordinal,
+        role="user", content=content, timestamp="2026-08-10T12:00:00+08:00",
     )
 
 
@@ -40,27 +38,27 @@ def _write(root: Path, record, path: str, fact: str) -> None:
     """One writer turn: stage a cited paragraph and install it."""
     from openprogram.memory.management import MemoryWorkspace
 
-    with closing(MemoryWorkspace(root, allowed_new_source_refs={record.source_id})) as space:
+    from openprogram.memory.chat_refs import link
+
+    with closing(MemoryWorkspace(root, allowed_new_source_refs={record.ref})) as space:
         baseline = space.baseline()
         target = space.stage_dir / path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(
             f"# Notes\n\n{fact}[^e1]\n\n"
-            f"[^e1]: Time: `2026-08-10`; Sources: [note]({record.source_id})\n"
+            f"[^e1]: Time: `2026-08-10`; Sources: [note]({link(record.ref)})\n"
         )
         space.commit_edits(*baseline)
 
 
 @pytest.fixture
-def memory(tmp_path: Path):
-    from openprogram.memory.management import MemoryWorkspace
+def memory(tmp_path: Path, chats):
     from openprogram.memory.management.transaction import git_commit_state
     from openprogram.memory.store import _ensure_git_history
 
     root = tmp_path / "memory"
-    first, second = _record("m1", "tea", 1), _record("m2", "walks", 2)
-    with closing(MemoryWorkspace(root)) as space:
-        space.archive_source_records([first, second])
+    (root / "topics").mkdir(parents=True)
+    first, second = _record(chats, "m1", "tea", 1), _record(chats, "m2", "walks", 2)
     _ensure_git_history(root)
     _write(root, first, "topics/tea.md", "Owner likes tea.")
     git_commit_state(root, "memory: write tea")
@@ -93,7 +91,7 @@ def test_a_rejected_write_leaves_history_alone(memory):
     tea.write_text(tea.read_text().replace("likes tea", "likes green tea"))
     head = _git(root, "rev-parse", "HEAD")
 
-    with closing(MemoryWorkspace(root, allowed_new_source_refs={second.source_id})) as space:
+    with closing(MemoryWorkspace(root, allowed_new_source_refs={second.ref})) as space:
         baseline = space.baseline()
         (space.stage_dir / "topics/bad.md").write_text("# Bad\n\n- uncited bullet\n")
         with pytest.raises(Exception):
@@ -102,12 +100,12 @@ def test_a_rejected_write_leaves_history_alone(memory):
     assert _git(root, "rev-parse", "HEAD") == head
 
 
-def test_a_write_and_the_reorganizing_it_triggers_are_separate_commits(tmp_path: Path):
+def test_a_write_and_the_reorganizing_it_triggers_are_separate_commits(tmp_path: Path, chats):
     from openprogram.memory.runtime.online import OnlineMemoryRuntime
     from openprogram.memory.store import _ensure_git_history
 
     root = tmp_path / "memory"
-    record = _record("m1", "tea", 1)
+    record = _record(chats, "m1", "tea", 1)
 
     def writer(space, batch):
         _write(root, batch[0], "topics/tea.md", "Owner likes tea.")
@@ -120,6 +118,7 @@ def test_a_write_and_the_reorganizing_it_triggers_are_separate_commits(tmp_path:
     runtime = OnlineMemoryRuntime(root, token_counter=len)
     runtime.local_batch_threshold = 1
     runtime.local_token_threshold = 1
+    (root / "topics").mkdir(parents=True)
     _ensure_git_history(root)
     assert runtime.process(
         [record], writer, local_manager=organizer, force=True,

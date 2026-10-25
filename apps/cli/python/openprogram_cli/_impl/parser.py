@@ -682,10 +682,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Reorganise topic files now, project memory included, instead of waiting for tonight.")
     p_msleep.add_argument("--model", default=None,
         help="Model to reorganise with (default: whatever your own CLI uses)")
-    p_mbackfill = memory_sub.add_parser("backfill",
-        help="Write trusted source records that no Topic cites.")
-    p_mbackfill.add_argument("--model", default=None,
-        help="Model to write with (default: the configured memory writer)")
     p_mexp = memory_sub.add_parser("export",
         help="Tar+gzip the entire memory dir to a path.")
     p_mexp.add_argument("--out", default=None,

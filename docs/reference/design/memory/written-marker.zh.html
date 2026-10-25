@@ -662,7 +662,7 @@
 
       <rect x="646" y="128" width="238" height="46" rx="7" fill="#2a1418" stroke="#e0445a"/>
       <text x="660" y="148" fill="#e0445a" font-size="11" font-weight="700">8 · mark_archived_turns.py</text>
-      <text x="660" y="165" fill="#bdb9a6" font-size="10.5">从 sources/ 播种，一次性　<tspan fill="#8a8675">新增约50行</tspan></text>
+      <text x="660" y="165" fill="#bdb9a6" font-size="10.5">不需要迁移播种　<tspan fill="#8a8675">旧会话整条交出一次</tspan></text>
 
       <rect x="906" y="46" width="230" height="154" rx="8" fill="#12110b" stroke="#2e2c20"/>
       <text x="922" y="68" fill="#f0eee6" font-size="11.5" font-weight="700">测试</text>
@@ -778,13 +778,13 @@
     <text x="42" y="128" fill="#8a8675" font-size="10.5">第三层要把它换成节点上的标记</text>
 
     <rect x="368" y="66" width="330" height="76" rx="8" fill="#141a12" stroke="#5aad4e"/>
-    <text x="386" y="88" fill="#5aad4e" font-size="11.5" font-weight="700">② 来源归档里的 source-id 集合</text>
-    <text x="386" y="108" fill="#bdb9a6" font-size="10.5" font-family="Menlo,monospace">sources/&lt;provider&gt;/&lt;thread&gt;.md</text>
-    <text x="386" y="128" fill="#8a8675" font-size="10.5">每一次写入都要读它一遍，用来跳过已归档的轮次</text>
+    <text x="386" y="88" fill="#5aad4e" font-size="11.5" font-weight="700">② 节点上的标记</text>
+    <text x="386" y="108" fill="#bdb9a6" font-size="10.5" font-family="Menlo,monospace">metadata.memory_written_scriptorium</text>
+    <text x="386" y="128" fill="#8a8675" font-size="10.5">写入器处理过的每一批都打上</text>
 
     <rect x="712" y="66" width="424" height="76" rx="8" fill="#151b22" stroke="#4f8ef7"/>
     <text x="730" y="88" fill="#4f8ef7" font-size="11.5" font-weight="700">③ 主题文件里的脚注</text>
-    <text x="730" y="108" fill="#bdb9a6" font-size="10.5" font-family="Menlo,monospace">topics/*.md 每条记录指回来源</text>
+    <text x="730" y="108" fill="#bdb9a6" font-size="10.5" font-family="Menlo,monospace">topics/*.md 每条记录链接它的聊天消息</text>
     <text x="730" y="128" fill="#8a8675" font-size="10.5">这是唯一能回答"内容真的进了文件"的一份</text>
 
     <path d="M189 146 L189 176" stroke="#4a4838" stroke-width="1.2" marker-end="url(#f-dim)"/>
@@ -794,7 +794,7 @@
     <rect x="24" y="182" width="1112" height="66" rx="9" fill="#1a1622" stroke="#9d6fe0" stroke-width="1.4"/>
     <text x="42" y="206" fill="#9d6fe0" font-size="13" font-weight="700">重新设计的话：别的地方一个字都不存，欠账是一次查询</text>
     <text x="42" y="228" fill="#bdb9a6" font-size="11.5">还没写的 = 从任意一个活着的尖端可达，并且没有被任何一条记忆记录引用。</text>
-    <text x="42" y="244" fill="#8a8675" font-size="11">②那个集合本来就在每次写入时被算出来一遍，它已经是这个问题的答案，只是没被当成答案用。</text>
+    <text x="42" y="244" fill="#8a8675" font-size="11">③里被引用的集合检索本来就解析过一遍，但"被引用过"不等于"读过"：没有价值的一轮没有任何东西引用它。</text>
 
     <rect x="24" y="262" width="360" height="66" rx="8" fill="#12110b" stroke="#5aad4e"/>
     <text x="42" y="284" fill="#5aad4e" font-size="11.5" font-weight="700">它不可能和记忆对不上，因为它就是记忆</text>
@@ -867,13 +867,7 @@
   <div class="note"><b>实现状态（2026-08-11）。</b>第一层记录迁移前的实现，第二层是开源框架审计，第三层已经实现：
     会话节点用<code>metadata.memory_written_scriptorium = &lt;workspace-id&gt;</code>记录写入状态，当前分支按节点标记计算待写后缀，
     成功且实际修改记忆的批次才打标记；会话结束时先处理当前head，再处理其他活分支。
-    <code>RuntimeState.cursors</code>和<code>advance_cursor</code>已经移除。旧安装首次写入时同时校验legacy header和
-    <code>sources/openprogram/_v2/*.md</code>的严格合法前缀：legacy只接受标题后第一组合法header，v2遇到非法frame停止。
-    候选ID在真实DAG路径上经过与在线写入相同的记录过滤，只标记第一个缺口之前的连续前缀；缺口后的尾部允许重写。
-    所有session标记成功后才删除旧<code>cursors</code>，失败时保留供重试。
-    结构化speaker字段、可信v2 frame和speaker过滤也已经实现。历史<code>memory backfill</code>有意忽略节点marker，
-    只选择未被Topic引用的trusted Source并排除pending；它不增加或删除session marker。节点marker记录在线writer处理状态，
-    Topic引用记录历史Source是否已经进入可召回内容，两项定义互不替代。正式工作区尚未执行历史backfill。第四层仍未实现。</div>
+    <code>RuntimeState.cursors</code>和<code>advance_cursor</code>已经移除，旧的<code>cursors</code>字段被忽略：旧会话第一趟把可写轮次重新交出来。结构化speaker字段也已经实现，脚注直接引用聊天消息。第四层仍未实现。</div>
 
 </div>
 </body>

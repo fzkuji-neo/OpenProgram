@@ -23,7 +23,7 @@ OpenProgram 怎么让 agent 跨会话"记住"事情。
 2. **存储可读可审。**记忆就是纯 Markdown，编辑器能开、Git 能 diff。每条
    陈述都带脚注指向它出自哪条消息，所以任何可疑的内容都能追回原话。
 
-## 磁盘上的三层
+## 磁盘上有什么
 
 ```
 <state>/memory/
@@ -33,9 +33,6 @@ OpenProgram 怎么让 agent 跨会话"记住"事情。
         core.md              每次对话都要看见的那些事实
         people/dave.md
         projects/budget-tracker.md
-    sources/                 只追加的证据，由运行时写入
-        openprogram/_v2/<session-id>.md
-        openprogram/<session-id>.md    旧格式，只读
     timeline/                派生的时间轴，每次写入后重建
         2026/08/09.md
     recent_events.jsonl      派生
@@ -43,23 +40,43 @@ OpenProgram 怎么让 agent 跨会话"记住"事情。
     .scriptorium/            运行时状态：工作区ID、写锁、历史
 ```
 
-**sources** 是说过的话，原样归档、从不编辑。**topics** 是这些话的含义
+**聊天记录**是说过的话，记忆不另存副本。**topics** 是这些话的含义
 ——一个人、一个项目、一个反复出现的主题各一个文件，按主题本身的层次
 往下嵌套。有自己组成部分的主题是一个目录：`topics/projects/openprogram/`
 里放 `overview.md` 和每个部分一个文件，部分再有部分就再成目录。写入器和
 整理器看到的工作区结构列出每个 Topic 文件及其大小，超过
 `TOPIC_SPLIT_BYTES`（16 KB）的文件会标出它该拆成的目录；写入器随后把新事实
 写进部分文件，由夜间那一趟完成拆分。`topics/core.md` 不做标记：它的大小由
-Core 的渲染预算控制。每个 topic 段落以稳定的 `^block-id` 结尾，并引用一条脚注：
+Core 的渲染预算控制。每个 topic 段落以稳定的 `^block-id` 结尾，并引用一条脚注，脚注链接到它所依据的那条聊天消息：
 
 ```markdown
 Craig is building a budget tracker in Flask, due 2024-04-15.[^e-1175dea39c] ^f888f60e
 
-[^e-1175dea39c]: Time: `2024-03-15`; Sources: [openprogram/sess-7f2a/msg_2f9b](../sources/openprogram/_v2/sess-7f2a.md#source-8339b8d3)
+[^e-1175dea39c]: Time: `2024-03-15`; Sources: [budget tracker](/s/sess-7f2a#msg_2f9b)
 ```
 
 块 ID 是其他视图和链接找到这个段落的凭据，编辑和移动都不改变它。脚注是
-把一条陈述追回原话的路径。
+把一条陈述追回原话的路径：`/s/<session>#<message>` 就是聊天页面自己的地址，
+Memory 页据此打开被引用的消息及其前后几轮，把同一个链接交给 `memory_get`
+模型也能读到这些内容。
+
+## 引用聊天
+
+引用就是一条聊天消息，会话存储就是它的记录。在 Runtime 内部和检索结果里它是
+引用 `openprogram/<session>/<message>`；在脚注里是链接 `/s/<session>#<message>`
+（`chat_refs.py`）。写入器整合的对话里，每条消息旁边都印着这个链接，写入器
+把它抄进脚注。
+
+编辑新增的脚注在提交时检查。所引消息必须存在于会话存储，并且是记忆可以引用的
+消息：人或助手说的话，不是工具调用或结果，也不是运行时自己排的轮次；说话者的
+权限带 `memory.source.append`，或者是权限记录之前的旧轮次。后台写入只能引用
+交给它的那一批，整理器不能引用任何新消息；owner 以外的人通过聊天编辑时，只能
+引用自己这段对话。聊天编辑写入一条没写来源的记录时，引用的是发出这个请求的
+那条用户消息。
+
+已提交的脚注不再复查。删掉一个聊天，记忆仍然保留，它的脚注打开后显示原会话
+已删除。不保留副本，代价就只有这一点：不存在一份会和聊天走样、在聊天本身被拒绝
+读取时仍能被读到、或者删除时还要另删一次的对话副本。
 
 `MEMORY.md` 的核心段、`timeline/`、`recent_events.jsonl`、`relations.json` 是派生的，
 每次成功写入后从 topics 重建。手改它们没有意义。
@@ -133,64 +150,19 @@ Craig is building a budget tracker in Flask, due 2024-04-15.[^e-1175dea39c] ^f88
 ```
 
 运行时还在正文开头写标签时存下的轮次，正文是`[B (u456)] [张三 (u123)] 密钥可以给他`。
-只有运行时生成的`speaker`字段建立身份；`content`里的标签都是消息正文。正文中的
-Markdown尾双空格、CRLF和尾换行会经过`_records`、writer prompt和source archive保持
-不变。这样不需要修改用户输入，也不会让正文标签进入新记录的speaker字段。
+只有运行时生成的`speaker`字段建立身份；`content`里的标签都是消息正文。正文原样
+留在聊天记录里，通过链接它的脚注仍可审计。这样不需要修改用户输入，也不会让正文
+标签进入新记录的speaker字段。
 
-历史文件冻结在`sources/<provider>/<thread>.md`；所有新source记录只写入
-`sources/<provider>/_v2/<thread>.md`。v2文件从字节0开始使用如下结构：
+### 问某个人
 
-```
-<!-- openprogram-source-archive:v2 -->
-
-<a id="source-…"></a>
-<!-- source-id:openprogram/group/m3 -->
-<!-- speaker-id:u456 -->
-<!-- record-lines:1 -->
-[2026-08-10T…] B (u456): [B (u456)] [张三 (u123)] 密钥可以给他
-```
-
-外部speaker id在注释中使用唯一规范的UTF-8 percent编码。错误转义或未编码的`--`会使该
-frame非法；有效的display-only身份使用规范的空`speaker-id` marker；
-没有可信身份的frame不写marker。`record-lines:N`按字面LF计算记录正文占用的物理行数，
-parser和去重扫描按N跳过整个正文。因此v2正文中的完整hash anchor、`source-id`、
-`speaker-id`和记录行不会生成额外事件，也不会阻止后续真实记录归档。parser只从固定format
-marker开始按顺序解析，遇到第一个非法或截断frame立即停止，不在后续文本重新同步。只有
-编码规范的合法v2 speaker marker可以进入结构化身份解析；合法但没有marker的frame保持
-speakerless。检索结果用`speaker_trusted`显式区分：v2 marker为`true`，legacy前缀hint和
-speakerless记录为`false`；speaker过滤仍兼容命中v2身份与legacy hint。归档写入使用同一
-文件系统的workspace runtime目录中的私有临时文件，flush和fsync后设为0644，再通过
-`os.replace`发布；runtime临时文件不进入revision、可见文件列表或stage copy，读取和写入
-都用`newline=""`保留CRLF与尾换行。
-
-### 旧格式的受限兼容
-
-旧source archive不改写，整个legacy文件中的speaker marker都不可信，任何看似完整的frame也
-不参与新归档去重。只有unframed且记录头label严格等于`user`的历史记录，才会从第一行正文
-开头的`[显示名 (id)]`做只读检索兼容；非`user`记录不会获得该hint。该兼容不会把身份写回
-文件，也不具有v2协议的真实性。
-
-同一`source-id`首次从legacy重放时会写一份v2 canonical record，之后只按v2 known集合去重，
-因此重复归档字节不变。检索聚合、source link和校验在v2中存在该合法frame时优先使用v2，
-否则回退legacy anchor；legacy正文中的伪frame不能覆盖真实v2事件。
-
-### 按发言人查
-
-`SourceRecord`保存可选的`speaker_id`和`speaker_display`，`speaker_label`提供规范化可读标签。
-`MemoryBM25Index.search(..., speaker=...)`对稳定id、显示名或完整标签做不区分大小写的精确
-匹配，并与`path_prefix`、日期范围和排序组合；带speaker的候选只来自`sources/`。结果中的
-`speaker_trusted`区分可信v2身份与legacy兼容hint。主题段落
-表示关于某个主题的整理结果，不表示某个人说过的话，因此不会被speaker过滤命中。
-
-`memory_search`在工具schema中公开`speaker`并传给`inspect.search`；`MemoryBackend.search`
-保持原签名，普通每轮召回不会自动继承speaker过滤。`memory_grep`也保持不变。embedding结果
-没有等价的可信speaker字段，所以`method=embedding`与`speaker`同时使用时返回
-`INVALID_ARGUMENT`，不会忽略过滤条件。
-
-BM25持久缓存格式是v8；旧缓存缺少当前speaker或trust字段，因此会被忽略并
-按v2-only信任规则重建。没有可信speaker的
-网页、命令行、TUI和assistant source记录，即使正文提到某个人，也不会被该人的speaker过滤
-命中。
+"张三关于预算说了什么"和"关于张三知道些什么"是两个问题。后者归记忆管：一个人就是
+一个主题文件，用`path_prefix=topics/people/`找到。前者是关于聊天的，发言人记录在
+聊天里：`channels/base.py`把`speaker_id`和`speaker_display`分开经过`dispatch_inbound`、
+`TurnRequest`和准备好的用户消息写入节点metadata，`ChatTurn.speaker_label`从这些字段
+而不是`content`给写入器渲染`显示名 (id)`。Topic段落是写入器对某个主题写的整理，
+不是谁说过的话，所以记忆没有speaker过滤；顺着脚注或用`read_conversation`就能知道
+谁说了什么。
 
 ## 哪些轮次已经写进记忆
 
@@ -340,9 +312,8 @@ Fusion 分数（`1 / (60 + 名次)`），再按比例相加。相加的是名次
 读取跨两层。每一层用自己的统计给自己的块打分，分数在层之间不可比；召回
 把两份排名按名次交错，每个名次项目层在前，这样小项目不会被庞大的个人记忆
 淹没。有两层时，工具返回的每个路径都标出所在层（`project:topics/api.md`、
-`personal:topics/me.md`）；不带前缀的路径指默认层。`memory_status` 列出两层
-和一个合并版本号（`project=… personal=…`），`memory_update` 用 `layer` 参数
-指定写哪一层。注入的 `MEMORY.md` 来自两层，像 `AGENTS.md` 一样拼接：个人的在前，
+`personal:topics/me.md`）；不带前缀的路径指默认层。不带路径的 `memory_get` 列出两层
+并标出写入去哪一层，`memory_update` 用 `layer` 参数指定写哪一层。注入的 `MEMORY.md` 来自两层，像 `AGENTS.md` 一样拼接：个人的在前，
 项目的在后。检索时项目排在前面；注入时项目作为更具体的一层放在最后。
 
 还没有记忆的项目不增加层：工作区里有了主题或 `MEMORY.md` 才算一层。
@@ -367,7 +338,7 @@ Fusion 分数（`1 / (60 + 名次)`），再按比例相加。相加的是名次
 开启 `memory.writer.verify` 后，写入器每提交一批，都会跟一次自检：
 
 1. **出题。** 模型从这批对话里挑一个具体事实，以结构化 JSON 返回一个问题、
-   对话支持的答案，以及它依据的来源引用。引用了这批之外轮次的题会被拒绝。
+   对话支持的答案，以及它依据的聊天引用。引用了这批之外轮次的题会被拒绝。
 2. **检索。** 一次新的运行在记忆的临时副本（不含运行时目录）上回答这个
    问题，它做什么都碰不到真实工作区。
 3. **判定。** 模型判断这个答案是否与预期答案一致。
@@ -377,7 +348,7 @@ Fusion 分数（`1 / (60 + 名次)`），再按比例相加。相加的是名次
 结构化回复缺失或格式不对时会重新请求，最多三次。校验永远不会让它跟随的
 那次写入失败：出错时记为结果 `error`。每个结果（`passed`、`repaired`、
 `unrepaired`、`error`）追加到 `.scriptorium/verification.jsonl`，保留最近
-500 条；计数和最近一次结果以 `verification` 出现在 `memory_status` 里。一次
+500 条；计数和最近一次结果以 `verification` 出现在 `openprogram memory status` 里。一次
 校验至少三次模型调用，修复再加三次，所以默认关闭。
 
 结构化输出是写入器 agent 运行时的契约：给定 `output_schema` 时，
@@ -388,27 +359,32 @@ Fusion 分数（`1 / (60 + 名次)`），再按比例相加。相加的是名次
 
 | 工具 | 用途 |
 |---|---|
-| `memory_search` | 按语义找段落 |
-| `memory_grep` | 找确切的名字、ID 或短语 |
-| `memory_get` | 读一个文件、一节，或带脚注的单个块 |
-| `memory_browse` | 看有什么 |
-| `memory_update` | 更正或新增某一处：记录级修改、整文件或 unified diff；`layer` 选项目层或个人层 |
-| `memory_status` | 工作区规模与版本号，以及writer结果、最近失败原因码、待处理轮次和校验计数；在项目里按层列出 |
+| `memory_search` | 按语义找段落，附带它们引用的聊天链接；`exact` 逐行找确切的名字、ID 或短语 |
+| `memory_get` | 不带路径时列出记忆里有什么、有哪几层、写入器状态；带路径时读一个文件、一节或带脚注的单个块；给引用 `/s/<session>#<message>` 时读那条消息及前后几轮 |
+| `memory_update` | 新建、修改、删除或移动记录；`layer` 选项目层或个人层 |
+
+三个工具，因为模型对记忆只需要找、读、改。精确匹配是找的一种方式，不单独成工具；
+列目录就是不带路径地读工作区。顺着引用走也是读：搜索结果或脚注里的链接本身就是
+合法的 `memory_get` 路径。Agent 召回模式下 `memory_search` 只做精确匹配。
 
 没有"保存这个"的工具。记录对话是后台写入器的职责。`memory_update` 是给
-两种情况用的：用户明确要求现在记住的事，以及模型看得出记错了的地方。
+两种情况用的：用户明确要求现在记住的事，以及模型看得出记错了的地方。它写的
+记录引用 `sources` 里列出的消息；一条都没列时引用本轮的用户消息。
+
+后台写入器有自己的工具——Read、Write、Edit、Grep、Glob 和一个在暂存副本上的
+沙箱 shell——因为它直接编辑 Topic 文件；这些不是聊天工具。
 
 ## 写入是事务性的
 
-一次 `memory_update` 同时带上证据和引用它的编辑，并对照调用方读到的版本
-号校验。引用了未提供的来源、链接到不存在的块、或破坏 topic 格式的补丁会
-被整体拒绝，工作区一个字节都不变。派生视图只在成功安装之后才重建。
+一次 `memory_update` 是一批一起生效的记录修改。引用了任何聊天里都没有的消息、
+指向不存在的记录、链接到不存在的块、或破坏 topic 格式的修改会让整批被拒绝，
+工作区一个字节都不变。记录修改在写锁下按块 ID 定位，所以不需要对照版本号。派生视图只在成功安装之后才重建。
 
 一把跨进程锁（`.scriptorium/write.lock`）把写入者串行化，所以后台写入和
 聊天中的写入不会交错。后台写入拿锁只等一秒，拿不到就放弃而不是让用户
 等着；下一轮会再来。
 
-实质性的 Topic 正文必须构成带引用的记录。规范化在清理无记录章节或 topic 之前，以 `INVALID_TOPIC_FORMAT` 拒绝无引用正文。只有标题或空白的 topic 仍视为空内容；原生 block 记录和带引用的旧格式记录继续使用现有语法。整批操作被拒绝，包括新 Source、Runtime 状态、revision 和 Git 历史，不允许成功确认规范化已经丢弃的全文件文本。这个边界由 `memory_update` changes/patch、编辑器和 CLI staged edit、writer shell commit 共享。
+实质性的 Topic 正文必须构成带引用的记录。规范化在清理无记录章节或 topic 之前，以 `INVALID_TOPIC_FORMAT` 拒绝无引用正文。只有标题或空白的 topic 仍视为空内容；原生 block 记录和带引用的旧格式记录继续使用现有语法。整批操作被拒绝，包括 Runtime 状态、revision 和 Git 历史，不允许成功确认规范化已经丢弃的文本。这个边界由 `memory_update`、编辑器和 CLI staged edit、writer shell commit 共享。
 
 autosave和restore通过实例级可信回调在校验与stage准备完成后、移动已提交文件之前准备历史。被拒绝的编辑不会创建checkpoint；回调出错不会安装。有效autosave保留准确的编辑前快照与现有期限。该回调不是tool参数，也不由请求正文生成。
 
@@ -453,7 +429,7 @@ Memory 页显示；不会再重试的失败还会通知打开的客户端。
 
 每次安装都是一个 Git 提交，提交说明写明来源：后台写入写明对话和轮数，写入触发的
 整理单独一个提交，夜间整理每一轮一个提交（拆分大文件时每个文件一个），
-`memory_update` 写明来自哪个对话，提升来源和回填按批提交。Memory 页的输入仍按
+`memory_update` 写明来自哪个对话，修复手改坏的 Topic 文件是 `memory: repair topic format`。Memory 页的输入仍按
 5 分钟一个检查点。
 
 在事务之外做的修改——用别的编辑器直接改 Memory 文件夹，或者 Memory 页里检查点还没
@@ -473,6 +449,7 @@ openprogram/memory/           记忆子系统
     local_backend.py          LocalMemoryBackend —— 随包提供的实现
     __init__.py               get_backend() / set_backend()
     store.py                  记忆位置；从旧布局的迁移
+    chat_refs.py              引用聊天消息：引用、链接、可引用性、摘录
     project_layer.py          项目自己的记忆：哪个、何时用、写入怎么路由过去
     policy.py                 每次执行的记忆访问与空间
     scheduler.py              守护线程，03:00 重写
@@ -482,7 +459,7 @@ openprogram/memory/           记忆子系统
     retrieval/                BM25、向量、混合融合、分层读取
     markdown/                 topic 格式
     prompts/                  对写入模型说的话
-    runtime/                  节点标记迁移、阈值、派生视图、writer状态
+    runtime/                  节点标记、阈值、派生视图、writer状态
     agent_runtime/            实际执行写入的进程
 ```
 
@@ -498,23 +475,30 @@ agent 循环、工具、网页端、CLI 都不指名任何实现，一律调 `ge
 ## 从旧记忆层迁移
 
 工作区位置没变，已有安装还在原地找到记忆。变的是里面的东西：`journal/`
-和 `wiki/` 没有了，换成 `sources/` 和 `topics/`；根目录`core.md`没有了，内容在
+和 `wiki/` 没有了，换成 `topics/`；根目录`core.md`没有了，内容在
 `topics/core.md`，渲染进 `MEMORY.md` 的核心段。
 
 首次使用时，`store.ensure()` 把 `journal/`、`wiki/`、`.state/`、
 `index.sqlite` 移到 `<state>/memory-superseded/`。是移动不是删除，而且移到
 同级目录而非子目录：留在工作区里仍然会被列出来，而为了新格式直接删除旧笔记
-不属于迁移。合法旧`core.md`由正常事务提升为`topics/core.md`；历史backfill会先把
-不合法的旧core保存成trusted migration Source证据，再由writer转换成合法Topic。
+不属于迁移。合法旧`core.md`由正常事务提升为`topics/core.md`。
+
+脚注改为链接聊天之前写的工作区里有 `sources/`——每段被引对话的一份副本——以及链接进
+它的脚注（`../sources/openprogram/_v2/<session>.md#source-<hash>`）。首次使用时
+`store.cite_chats_directly` 读每份副本的 `source-id` 头，把每个锚点映射回它的消息，
+把 `topics/`、`timeline/` 和 `MEMORY.md` 里的链接改写成 `/s/<session>#<message>`，
+删除 `sources/`，并以 `memory: cite chats directly` 提交。Git 保留那份副本。原本就不是
+这里聊天的引用（比如导入的 Claude Code 记录）会变成一个不存在的聊天的链接
+（`/s/claude-code-<thread>#<message>`），读起来就是原会话已删除。
 
 ## 失效模式
 
 | 失效 | 后果 |
 |---|---|
 | 没有可用的写入进程 | 推迟并重试；对话安全地留在会话存储里 |
-| 写到一半模型不可达 | 该轮整体回滚；来源节点不打标记，同样的内容会重试 |
+| 写到一半模型不可达 | 该轮整体回滚；聊天节点不打标记，同样的内容会重试 |
 | 锁被别的写入者占着 | 这次什么都没写，并如实报出来；下一轮再试 |
-| 写入的编辑没通过检查 | 提交前由 agent 在原文上修，最多三轮；提交被拒就从头重做一次，再失败就什么都不装，来源节点也不打标记 |
+| 写入的编辑没通过检查 | 提交前由 agent 在原文上修，最多三轮；提交被拒就从头重做一次，再失败就什么都不装，聊天节点也不打标记 |
 | 通过 OpenProgram 手改破坏了格式 | 改动在暂存副本里校验，不通过就不安装；已提交的文件原样不动，被拒的文本留着供重试 |
 | 在 OpenProgram 之外手改坏了已提交的 Topic 文件 | 下一个写入器运行前由修复 agent 修好格式；修好之前写入等待并重试 |
 | 写入模型用不了 | 改用默认 Agent 的模型，再改用最近用过的模型；都不行才失败 |
@@ -567,94 +551,38 @@ agents。在这个接口上再开一条私路，只会变成绕过它的办法�
 
 ## 附录：实现状态
 
-分支感知的已写节点标记和可信speaker/v2来源协议都已经实现。
-`runtime/online.py`根据当前分支的节点标记计算待写记录，只有安装成功且实际改过
-记忆文件的批次才给来源节点打标记。会话结束时先处理当前head，再检查其他活分支，
-共享前缀不会重复写入。
-
-旧`runtime.json`在首次写入前仍可能包含`cursors`。一次性迁移只信任legacy
-`sources/openprogram/*.md`标题后字节位置上的第一组合法header，以及严格
-`sources/openprogram/_v2/*.md`中首个非法frame之前的合法前缀。两处得到的候选ID还要
-在真实DAG路径上经过与在线写入相同的记录过滤，只给第一个缺口之前的连续前缀打标记；
-缺口后的已归档尾部会重写。所有session的标记批次成功后才删除`cursors`，失败时保留
-供重试。legacy后续header可能来自正文，v2 parser也不会在非法frame后重新开始解析。
-完整方案和实测代价见
+分支感知的已写节点标记已经实现。`runtime/online.py`根据当前分支的节点标记计算待写
+记录，改过文件的写入、或什么都没找到的干净运行，恰好给自己那一批打标记。会话结束时
+先处理当前head，再检查其他活分支，共享前缀不会重复写入。完整方案和实测代价见
 [`written-marker.zh.md`](written-marker.zh.md)，更广的采用决策见
 [`adoption.html`](adoption.zh.html)。
 
-"谁说的"已经按独立可信字段实现。渠道入口把实际发信人的`speaker_id`和
-`speaker_display`与路由`peer_id`、正文分开传到持久化节点；网页、命令行、TUI和
-assistant轮次不合成身份。`SourceRecord.speaker_label`只规范化运行时字段来生成记录
-标签，正文保持原样。Final review证明裸的`[ref] speaker: text`存在单记录与多记录同字节歧义，
-因此最终协议改为每个真实turn只占一个JSONL物理行，
-对象里的`ref`、`speaker`和`content`分字段传输；只有`speaker`字段建立身份，
-`content`里的换行、引号、伪记录和JSON文本都只是正文。标准JSON转义保证解码后精确恢复
-CRLF、尾换行和Markdown，不清洗或改写用户原文。渲染器额外转义可能被模型显示为换行的
-U+2028 line separator和U+2029 paragraph separator，解码后仍恢复原字符。Observed日期标题仍由runtime在JSONL外生成。该协议和碰撞、精确往返回归测试已实现。
+脚注直接引用聊天。`chat_refs.py`定义引用、链接和哪些消息可以引用；`block_views.py`
+对每个新引用按会话各读一次会话存储做检查；一次性的`store.cite_chats_directly`把已有的
+`sources/`副本改成聊天链接。"谁说的"按独立可信字段实现：`ChatTurn.speaker_label`提供
+序列化器的`speaker`值；每个turn是一个紧凑的JSONL对象，`ref`、`speaker`和`content`分字段，
+写入器提示只信任`speaker`。标准JSON转义加上对U+2028/U+2029的显式转义，保证每个turn
+在物理上和显示上都只占一行，解码后精确恢复正文。
 
-归档在创建任何目录或修改文件前，会整批拒绝NFC/casefold等价但拼写不同的provider或
-thread路径，冲突时source tree保持不变。`memory_search`对source结果输出真实
-`#source-...` anchor，并显式显示`speaker_trusted`、`speaker_id`和`speaker_display`；
-topic结果继续使用`#^block-id`。
-
-新source记录只写入从固定marker开始的`_v2/`文件，并在`source-id`和可选的percent编码
-`speaker-id`之后写`record-lines:N`。归档和parser按字面LF计数并跳过整段正文；parser遇到
-首个非法frame停止。因此正文里的完整合法anchor/source/speaker伪块不会生成事件或干扰
-去重，Markdown尾双空格、CRLF和尾换行在消息正文经过writer和原子archive替换时保持不变。
-只有合法v2 frame中的`speaker-id`可信；合法但没有marker的frame保持speakerless。
-
-旧文件冻结且不参与新归档去重；只有record-header label严格为`user`的旧unframed记录可从
-历史正文前缀做有限检索hint。同一source id在v2有合法记录时，检索、链接和校验优先使用v2；
-否则仍可读取legacy。legacy正文前缀不具备v2协议的真实性。
-
-BM25缓存格式是v8，`speaker`可按稳定id、规范化显示名或标签做不区分大小写的精确
-过滤，并与路径、日期和排序组合；带speaker的结果只来自`sources/`。
-`memory_search`已经传递这个参数，`MemoryBackend.search`和`memory_grep`保持不变。
-embedding结果没有等价身份字段，因此`method=embedding`与`speaker`组合会显式返回
-`INVALID_ARGUMENT`，不会静默忽略过滤。
-
-权限和自动写入已按2026-08-10定案实现。请求只携带`owner`或`paired`档位，唯一工具检查在
-`_gated_execute`中按固定常量表执行；未配对消息不进入agent，未配对群聊正文以`pending`
-source归档并排除主动提炼。已配对内容与owner内容都进入可信提炼。
-
-Topic block本身不携带独立信任，而是继承其引用Source的信任。解析Topic文件时无法得知这一点
-（信任记录在Source归档里），因此`resolve_topic_trust`在整个工作区读取完成后统一计算并写回事件。
-规则是全有或全无：只要有一条引用是pending或无法解析，整个block即为pending，因为一个段落就是
-一条主张，无法从正文分辨哪半句依赖哪条引用。pending block不进入`search`召回，也不渲染进
-核心段；它们既不被删除也不会自动转正，把其依赖的Source提升即可自然恢复，无需额外记账。
-信任资格与可见范围是两件事：可见范围复用`AuthorityTier`词汇记在事件的`visibility`字段上，
-而不是另造一套字符串。
-`memory_promote`仅允许本地
-交互owner提升pending来源并写审计记录，随后用同一writer事务将该来源提炼进Topic；已有Topic引用时
-直接跳过。paired可调用`memory_status`和`memory_update`，但工作区
-只允许其新建或按字节追加；缺少持久化owner字段时不能改写或删除已有内容。
+请求只携带`owner`或`paired`档位，唯一工具检查在`_gated_execute`中按固定常量表执行。
+未配对消息不进入agent，也不被记录。已配对与owner的轮次都可以引用。paired可调用
+`memory_get`和`memory_update`，但工作区只允许其新建或按字节追加引用自己对话的记录；
+缺少持久化owner权限时不能改写或删除已有内容。
 
 后台writer通过`AgentSession`使用默认Agent的模型（该Agent没有模型时用上次使用的模型）和对应凭据，
 `memory.writer.model`只覆盖writer模型且实时生效。provider返回的认证和配置错误保留
 `retryable=false`，不会进入闲置观察器的重复重试。`memory.backend=none`使用空provider，并在
-启动前停止记忆工具、系统提示、每轮召回、自动写入、夜间整理、闲置观察器和未配对群聊归档。
+启动前停止记忆工具、系统提示、每轮召回、自动写入、夜间整理和闲置观察器。
 同一backend检查现已在工作区初始化前拒绝全部CLI memory动词和`/api/memory/*`路由，Web API
 返回稳定的`MEMORY_DISABLED`错误。
 
 writer把最近成功时间、最近失败分类及其`retryable`判定、只读待处理轮次数写入工作区runtime目录。
-`memory_status`、`openprogram memory status`和`GET /api/memory/status`返回同一契约。状态写入是
+不带路径的`memory_get`、`openprogram memory status`和`GET /api/memory/status`返回同一契约。状态写入是
 best-effort，位于记忆事务之外；状态文件失败不会改变Topic事务的结果。
-
-`openprogram memory backfill`已经实现。它选择未被任何Topic引用的trusted Source，忽略节点marker，
-排除pending Source，按token预算分批，并复用正常writer事务。某批失败时不安装该批修改，再次执行
-从第一个仍未引用的Source继续。旧根目录`core.md`先按Source证据保存，再提升为`topics/core.md`；
-重复执行通过Topic引用保持幂等。
-
-真实默认provider已在隔离工作区完成Topic写入和事务校验，合并后的正式工作区writer验收也已完成：
-兼容读取器接受23个append-only source文件中154个frame使用的旧`origin_scope`元数据格式，随后
-一个含2条消息的待处理会话提交了3个Topic文件和5个block。6个source引用与全部relation目标均
-通过校验，两条消息都写入workspace marker；第二次扫描没有处理会话，revision保持不变。
-此后历史backfill已在该工作区执行完毕：154个frame中有137个被至少一个Topic block引用，
-共232次引用出现。
 
 组合集成测试覆盖SessionDB、默认writer模型解析、managed writer工具、暂存事务、Topic安装、节点marker
 和idle watcher状态，并验证model unavailable与lazy credential失败不可重试、下一次watcher扫描会跳过。
-写入失败原因码是一个封闭枚举，受限writer阶段看不到Source归档。
+写入失败原因码是一个封闭枚举。
 
 混合检索调参、项目记忆和写入后校验都已实现，各有独立设置：
 `memory.retrieval.hybrid.weighting` 与 `memory.retrieval.hybrid.file_boost`

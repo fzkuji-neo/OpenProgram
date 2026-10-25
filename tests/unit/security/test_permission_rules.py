@@ -499,7 +499,7 @@ def test_scheduled_noninteractive_turn_denies_side_effect_tools(source, tool_nam
 
 @pytest.mark.parametrize("source", ["cron", "scheduler"])
 @pytest.mark.parametrize(
-    "tool_name", ["memory_status", "memory_get", "memory_update"]
+    "tool_name", ["memory_search", "memory_get", "memory_update"]
 )
 def test_scheduled_owner_turn_can_use_memory_lifecycle_tools(
     source, tool_name,

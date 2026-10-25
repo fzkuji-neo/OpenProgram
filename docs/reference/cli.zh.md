@@ -190,7 +190,6 @@ openprogram mcp serve
 | `recall QUERY...` | 搜索记忆并打印匹配段落 |
 | `show PATH` / `edit PATH` | 打印 / 用 `$EDITOR` 编辑一个记忆文件 |
 | `sleep` | 立即整理 topic 文件；`--model MODEL` 指定整理模型 |
-| `backfill` | 写入没有被 Topic 引用的可信 source 记录；`--model MODEL` 指定写入模型 |
 | `export` | 把整个记忆目录 tar+gzip 打包；`--out PATH` 指定输出文件（默认 `./openprogram-memory-<date>.tar.gz`） |
 
 ## 维护

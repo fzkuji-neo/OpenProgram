@@ -288,7 +288,7 @@ class EvidenceGate:
                 elif (node.get('role') == 'tool' and node.get('function') and raw.is_code()
                       and raw.metadata.get('tool_call_id') and 'expose' not in raw.metadata
                       and node['function'] not in {'agent', 'llm', 'read_conversation', 'memory_get',
-                                                  'memory_search', 'memory_grep', 'memory_browse'}):
+                                                  'memory_search'}):
                     visible = content.strip()[:MAX_RESULT_CHARS]
                     self._add(sid, node, visible, 'tool_failure' if raw.metadata.get('is_error') or raw.metadata.get('status') in {'failed', 'cancelled'} else 'tool_result', raw)
             return result.model_copy(update={'content': [*result.content, TextContent(type='text', text='Bound original report sources (data):\n' + encode(list(self.rows.values())))]})

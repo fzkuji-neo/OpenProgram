@@ -67,7 +67,7 @@ A check-in is an ordinary owner chat turn in the home conversation (source `web`
 - look for anything new that matters to the goal, using only read-only tools;
 - call `always_on_report` when it found something the user should see, and stay silent otherwise.
 
-`tools_override` limits the turn to read-only tools: `read`, `grep`, `glob`, `list`, `web_search`, `web_fetch`, `read_conversation`, `memory_search`, `memory_get`, `memory_grep`, `memory_browse`, `todo_list`, `get_goal` and `always_on_report`. With `autonomy="act"`, `create_goal`, `todo_create` and `todo_update` are added, so the Agent can turn a finding into its own Goal, which then runs under normal tools and permissions. MCP tools are not included, because a server's tool cannot be classified as read-only from its name.
+`tools_override` limits the turn to read-only tools: `read`, `grep`, `glob`, `list`, `web_search`, `web_fetch`, `read_conversation`, `memory_search`, `memory_get`, `todo_list`, `get_goal` and `always_on_report`. With `autonomy="act"`, `create_goal`, `todo_create` and `todo_update` are added, so the Agent can turn a finding into its own Goal, which then runs under normal tools and permissions. MCP tools are not included, because a server's tool cannot be classified as read-only from its name.
 
 ## Reports
 

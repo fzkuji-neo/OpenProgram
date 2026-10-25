@@ -193,7 +193,6 @@ One workspace per instance, shared by every agent and every conversation includi
 | `recall QUERY...` | Search memory and print matching paragraphs |
 | `show PATH` / `edit PATH` | Print / edit one memory file with `$EDITOR` |
 | `sleep` | Reorganise topic files now; `--model MODEL` selects the organising model |
-| `backfill` | Write trusted source records that no topic cites; `--model MODEL` selects the writer |
 | `export` | tar+gzip the whole memory directory; `--out PATH` sets the output file (default `./openprogram-memory-<date>.tar.gz`) |
 
 ## Maintenance

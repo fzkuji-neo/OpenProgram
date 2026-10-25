@@ -1,10 +1,9 @@
 """Structured write transaction for interactive memory editing.
 
 ``MemoryWorkspace.shell()`` runs the same normalize-validate-install
-pipeline but reaches it by executing an arbitrary shell command in the stage.
-That is acceptable for a controlled experiment agent and unacceptable for a
-tool exposed to a user's editor session, so this module drives the identical
-pipeline from a unified diff instead.
+pipeline but reaches it by executing a shell command in the stage. A tool
+exposed to a chat or an editor drives the identical pipeline from record
+operations and staged hand edits instead.
 """
 
 from __future__ import annotations
@@ -13,7 +12,6 @@ import errno
 import hashlib
 import logging
 import os
-import re
 import threading
 from collections.abc import Callable
 from contextlib import closing, contextmanager
@@ -22,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from ..markdown import parse_topic_tree
-from ..runtime.state import RuntimeStateStore, SourceRecord
+from ..runtime.state import RuntimeStateStore
 from ..workspace_layout import (
     ensure_runtime_dir,
     is_internal_path,
@@ -31,9 +29,6 @@ from ..workspace_layout import (
 )
 
 WRITABLE_PREFIX = "topics/"
-SOURCE_LABEL_PATTERN = re.compile(r"new-source-[a-z0-9-]+")
-SOURCE_PROVIDER = "claude-code"
-VALID_ROLES = ("user", "assistant", "system", "tool")
 _WRITE_LOCKS = threading.local()
 
 
@@ -59,74 +54,9 @@ class TransactionError(Exception):
         self.details = details or {}
 
 
-@dataclass(frozen=True)
-class SourceInput:
-    label: str
-    role: str
-    content: str
-    observed_at: str | None = None
-
-
-@dataclass(frozen=True)
-class SourceProvenance:
-    """Who a Source came from, as the Runtime persisted it.
-
-    Every field here is read from Runtime state, never from the model's
-    payload: a caller that could name its own ``principal_id`` or
-    ``trust_state`` would be writing its own trust decision into the
-    archive. ``speaker_display`` is mutable and deliberately absent from
-    the identity hash — a renamed account must not mint new Source IDs
-    for speech it already said.
-    """
-
-    principal_id: str
-    speaker_kind: str
-    speaker_id: str
-    authority_tier: str
-    origin_id: str
-    speaker_display: str = ""
-
-    def identity_seed(self) -> str:
-        return "\x1f".join((
-            self.principal_id,
-            self.speaker_kind,
-            self.speaker_id,
-            self.authority_tier,
-            self.origin_id,
-        ))
-
-
-def provenance_from_authority(
-    authority: Any, *, origin_id: str,
-) -> SourceProvenance:
-    """Build provenance from persisted authority, or fail closed.
-
-    An incomplete authority record is not a reason to fall back to
-    ``principal_id=unknown`` with ``trust_state=trusted``: that exact
-    combination is what task 2 exists to make unreachable.
-    """
-    from openprogram.agent.authority import normalize_authority
-
-    normalized = normalize_authority(authority)
-    if not normalized or not str(origin_id).strip():
-        raise TransactionError(
-            "WRITER_PRECONDITION_FAILED",
-            "creating a source requires complete persisted authority",
-        )
-    return SourceProvenance(
-        principal_id=normalized["principal_id"],
-        speaker_kind=normalized["speaker_kind"],
-        speaker_id=normalized["speaker_id"],
-        authority_tier=normalized["authority_tier"],
-        origin_id=str(origin_id),
-        speaker_display=normalized["speaker_display"],
-    )
-
-
 @dataclass
 class TransactionResult:
     revision: str
-    source_ids: dict[str, str] = field(default_factory=dict)
     block_ids: dict[str, str] = field(default_factory=dict)
     evidence_ids: dict[str, str] = field(default_factory=dict)
     changed_files: list[str] = field(default_factory=list)
@@ -137,10 +67,8 @@ class TransactionResult:
 
 @dataclass(frozen=True)
 class TransactionLimits:
-    max_sources: int = 64
     max_changes: int = 64
-    max_source_bytes: int = 256_000
-    max_patch_bytes: int = 512_000
+    max_bytes: int = 512_000
     max_commit_message_chars: int = 500
 
 
@@ -248,10 +176,9 @@ def validate_writable_path(path: str) -> None:
 
     Two rules, and both are about where bytes may land: nothing may climb
     out of the workspace, and inside it only Topic Markdown is authored by
-    hand. ``sources/`` is the append-only evidence record, and the core
-    section of ``MEMORY.md`` is rendered from ``topics/core.md`` like the
-    rest of the derived views, so an edit there is refused rather than
-    overwritten on the next write.
+    hand. The core section of ``MEMORY.md`` is rendered from
+    ``topics/core.md`` like the rest of the derived views, so an edit there
+    is refused rather than overwritten on the next write.
     """
     candidate = Path(path)
     if candidate.is_absolute() or ".." in candidate.parts:
@@ -339,148 +266,13 @@ def staged_edit(
     return True, ""
 
 
-def parse_sources(raw: Any, limits: TransactionLimits) -> list[SourceInput]:
-    if raw is None:
-        return []
-    if not isinstance(raw, list):
-        raise TransactionError("INVALID_ARGUMENT", "sources must be a list")
-    if len(raw) > limits.max_sources:
-        raise TransactionError(
-            "INVALID_ARGUMENT",
-            f"at most {limits.max_sources} sources per transaction",
-        )
-    seen: set[str] = set()
-    total_bytes = 0
-    parsed: list[SourceInput] = []
-    for index, item in enumerate(raw):
-        if not isinstance(item, dict):
-            raise TransactionError(
-                "INVALID_ARGUMENT", f"sources[{index}] must be an object"
-            )
-        label = str(item.get("label", "")).strip()
-        if not SOURCE_LABEL_PATTERN.fullmatch(label):
-            raise TransactionError(
-                "INVALID_ARGUMENT",
-                f"sources[{index}].label must match new-source-[a-z0-9-]+",
-                details={"label": label},
-            )
-        if label in seen:
-            raise TransactionError(
-                "INVALID_ARGUMENT",
-                f"duplicate source label: {label}",
-            )
-        seen.add(label)
-        role = str(item.get("role", "")).strip()
-        if role not in VALID_ROLES:
-            raise TransactionError(
-                "INVALID_ARGUMENT",
-                f"sources[{index}].role must be one of {list(VALID_ROLES)}",
-            )
-        content = str(item.get("content", ""))
-        if not content.strip():
-            raise TransactionError(
-                "INVALID_ARGUMENT", f"sources[{index}].content is empty"
-            )
-        total_bytes += len(content.encode("utf-8"))
-        if total_bytes > limits.max_source_bytes:
-            raise TransactionError(
-                "INVALID_ARGUMENT",
-                f"source content exceeds {limits.max_source_bytes} bytes",
-            )
-        observed_raw = item.get("observed_at")
-        observed = None
-        if observed_raw not in (None, ""):
-            observed = _normalize_timestamp(str(observed_raw), index)
-        parsed.append(SourceInput(label, role, content, observed))
-    return parsed
-
-
-def _normalize_timestamp(value: str, index: int) -> str:
-    from datetime import datetime
-
-    try:
-        return datetime.fromisoformat(value).isoformat()
-    except ValueError as exc:
-        raise TransactionError(
-            "INVALID_ARGUMENT",
-            f"sources[{index}].observed_at must be ISO 8601",
-            details={"observed_at": value},
-        ) from exc
-
-
-def source_records(
-    sources: list[SourceInput], provenance: SourceProvenance,
-) -> list[SourceRecord]:
-    """Derive identity from Runtime provenance plus content.
-
-    Identity combines the provenance seed with role, content, observation
-    time and ordinal. A retry by the same subject in the same origin lands
-    on the same IDs and is idempotent; a different principal, speaker or
-    origin does not collide even when the quoted text is identical.
-    """
-    if not sources:
-        return []
-    seed_prefix = provenance.identity_seed()
-    canonical = "\n".join(
-        [seed_prefix] + [
-            f"{item.role}\x1f{item.content}\x1f{item.observed_at or ''}"
-            for item in sources
-        ]
-    )
-    thread_id = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
-    records = []
-    for ordinal, item in enumerate(sources, start=1):
-        seed = (
-            f"{seed_prefix}\x1f{thread_id}\x1f{ordinal}\x1f{item.role}"
-            f"\x1f{item.content}\x1f{item.observed_at or ''}"
-        )
-        message_id = hashlib.sha256(seed.encode("utf-8")).hexdigest()[:16]
-        records.append(SourceRecord(
-            provider=SOURCE_PROVIDER,
-            thread_id=thread_id,
-            message_id=message_id,
-            ordinal=ordinal,
-            role=item.role,
-            content=item.content,
-            timestamp=item.observed_at,
-            speaker_id=provenance.speaker_id,
-            speaker_display=provenance.speaker_display,
-            speaker_kind=provenance.speaker_kind,
-            principal_id=provenance.principal_id,
-            authority_tier=provenance.authority_tier,
-            trust_state="trusted",
-        ))
-    return records
-
-
-def resolve_source_labels(patch: str, mapping: dict[str, str]) -> str:
-    """Replace transaction-local labels with archived source handles.
-
-    Longest label first so ``new-source-a`` cannot partially match inside
-    ``new-source-ab``.
-    """
-    unknown = {
-        label for label in SOURCE_LABEL_PATTERN.findall(patch)
-        if label not in mapping
-    }
-    if unknown:
-        raise TransactionError(
-            "MISSING_SOURCE",
-            f"patch references undeclared source label: {sorted(unknown)[0]}",
-            details={"labels": sorted(unknown)},
-        )
-    for label in sorted(mapping, key=len, reverse=True):
-        patch = patch.replace(label, mapping[label])
-    return patch
-
-
 def committed_baseline(workspace: Any) -> tuple[list[Any], set[str]]:
     """Snapshot committed topic units and block IDs before staging any edit.
 
     ``shell()`` can read this from the stage because the stage still matches
-    the committed tree at that point. A patch is applied to the stage first,
-    so the baseline must come from ``memory_dir`` instead — reading the stage
-    afterwards would treat the patch's own placeholders as pre-existing.
+    the committed tree at that point. A record edit is applied to the stage
+    first, so the baseline must come from ``memory_dir`` instead — reading
+    the stage afterwards would treat the edit's own text as pre-existing.
     """
     units = parse_topic_tree(workspace.memory_dir / "topics")
     return units, {unit.memory_id for unit in units}

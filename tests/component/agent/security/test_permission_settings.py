@@ -121,7 +121,7 @@ def test_reading_inherited_mode_does_not_pin_project_default(permissions, monkey
     assert permission_state("inherited")["mode"] == "bypass"
 
 
-@pytest.mark.parametrize("name", ["memory_search", "memory_grep", "memory_get", "memory_browse"])
+@pytest.mark.parametrize("name", ["memory_search", "memory_get"])
 @pytest.mark.parametrize("denied", [False, True])
 def test_inner_memory_reads_need_no_interactive_approval(permissions, name, denied):
     from openprogram.agent.session_config import PermissionRules

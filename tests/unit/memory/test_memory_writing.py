@@ -58,9 +58,12 @@ def written(monkeypatch):
 
     prompts: list[str] = []
 
+    from openprogram.memory.chat_refs import from_target
+
     def _write(memory_dir, *, agent, task, stage=None, **_kw):
+        # The writer is shown chat links and may cite exactly those turns.
         refs = {
-            json.loads(line)["ref"]
+            from_target(json.loads(line)["ref"])
             for line in task.splitlines()
             if line.startswith('{"ref":')
         }
@@ -183,7 +186,7 @@ def test_writer_uses_trusted_speaker_header_and_preserves_body(
 
     record_line = written[0].splitlines()[-1]
     assert json.loads(record_line) == {
-        "ref": "openprogram/speaker-prompt/m0",
+        "ref": "/s/speaker-prompt#m0",
         "speaker": "B (u456)",
         "content": body,
     }
@@ -213,9 +216,7 @@ def test_writer_jsonl_breaks_the_single_turn_two_turn_byte_collision():
     }
 
 
-def test_management_writers_set_an_explicit_source_scope(
-    tmp_path, monkeypatch,
-):
+def test_the_organizer_may_cite_no_new_message(tmp_path, monkeypatch):
     from openprogram.memory.management import api
 
     captured = []
@@ -224,21 +225,11 @@ def test_management_writers_set_an_explicit_source_scope(
         "_run_agent",
         lambda *args, **kwargs: captured.append(kwargs) or [],
     )
-    sessions = [{
-        "observation_date": "2026-08-10",
-        "turns": [("Owner", "selected source")],
-        "refs": ["openprogram/session/message"],
-    }]
-
-    api.write_sessions(tmp_path, agent=object(), sessions=sessions)
     (tmp_path / "topics").mkdir(parents=True)
     (tmp_path / "topics/note.md").write_text("# Note\n", encoding="utf-8")
     api.organize_topics(tmp_path, agent=object())
 
-    assert captured[0]["allowed_new_source_refs"] == {
-        "openprogram/session/message",
-    }
-    assert captured[1]["allowed_new_source_refs"] == set()
+    assert captured[0]["allowed_new_source_refs"] == set()
 
 
 def test_writer_jsonl_round_trips_untrusted_fields_without_new_records():
@@ -268,14 +259,14 @@ def test_writer_jsonl_round_trips_untrusted_fields_without_new_records():
 def test_writer_prompt_requests_short_semantic_source_labels():
     from openprogram.memory.prompts import SYSTEM_PROMPT
 
-    assert "[plain label](source handle)" in SYSTEM_PROMPT
+    assert "[plain label](/s/<session>#<message>)" in SYSTEM_PROMPT
     assert "at most 8 visible characters" in SYSTEM_PROMPT
     assert "at most 6 words" in SYSTEM_PROMPT
 
 
-def test_source_text_stays_literal_through_writer_and_archive(tmp_path):
+def test_source_text_stays_literal_through_the_writer():
     from openprogram.memory import writing
-    from openprogram.memory.management import MemoryWorkspace
+    from openprogram.memory.chat_refs import link
     from openprogram.memory.management.api import render_writer_task
 
     string_content = "Markdown hard break  \r\nstring tail\r\n"
@@ -302,39 +293,22 @@ def test_source_text_stays_literal_through_writer_and_archive(tmp_path):
         "turns": [
             (record.speaker_label, record.content) for record in records
         ],
-        "refs": [record.source_id for record in records],
+        "refs": [record.ref for record in records],
     }])
     observed = records[-1].timestamp[:10]
     record_lines = task.split(f"## Observed {observed}\n\n", 1)[1].splitlines()
     assert [json.loads(line) for line in record_lines] == [
             {
-                "ref": records[0].source_id,
+                "ref": link(records[0].ref),
                 "speaker": records[0].speaker_label,
                 "content": string_content,
             },
             {
-                "ref": records[1].source_id,
+                "ref": link(records[1].ref),
                 "speaker": records[1].speaker_label,
                 "content": list_content,
             },
     ]
-
-    space = MemoryWorkspace(tmp_path / "memory")
-    try:
-        space.archive_source_records(records)
-    finally:
-        space.close()
-    path = tmp_path / "memory/sources/openprogram/_v2/literal.md"
-    with path.open(encoding="utf-8", newline="") as handle:
-        archived = handle.read()
-    assert (
-        f"[{records[0].timestamp}] {records[0].speaker_label}: {string_content}"
-        in archived
-    )
-    assert (
-        f"[{records[1].timestamp}] {records[1].speaker_label}: {list_content}"
-        in archived
-    )
 
 
 def test_writer_records_future_useful_facts_without_polluting_core():
@@ -362,13 +336,12 @@ def test_organizer_removes_low_value_process_history_from_core():
 
 
 def test_a_written_date_is_left_alone():
-    """``archive_sessions`` builds records from an observation date. It
-    is already what the memory layer stores, so it passes through."""
-    from openprogram.memory.writing import _observed_at
+    """A date that is already a date passes through unchanged."""
+    from openprogram.memory.chat_refs import observed_at
 
-    assert _observed_at("2023-03-15") == "2023-03-15"
-    assert _observed_at(None) is None
-    assert _observed_at("") is None
+    assert observed_at("2023-03-15") == "2023-03-15"
+    assert observed_at(None) is None
+    assert observed_at("") is None
 
 
 # -- 2. The idle write finishes the backlog --------------------------------

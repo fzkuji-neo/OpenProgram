@@ -324,19 +324,16 @@ done has to be checkable against something the work produced, which is
 also why the nightly pass reports the files it changed rather than the
 files it looked at. The absence of an error is not a product.
 
-The order of the three steps follows from which of them can be replayed:
+The order of the two steps follows from which of them can be replayed:
 
-1. **Archive the evidence.** `archive_source_records` is append-only and
-   addressed by content — it reads the `<!-- source-id:… -->` comments
-   already in the file into a `known` set and skips them — so a batch
-   archived twice leaves the archive byte for byte as it was.
-2. **Write the topic files.** They carry block IDs and footnotes that a
+1. **Write the topic files.** They carry block IDs and footnotes that a
    half-write would corrupt, so they go in through a transaction that
-   installs whole or not at all.
-3. **Mark the turns.**
+   installs whole or not at all. The footnotes link the chat messages
+   themselves, so there is no evidence to copy first.
+2. **Mark the turns.**
 
-A writer that dies between 2 and 3 leaves evidence nobody cites, no
-marks, and the same batch unwritten next time, which is a redo. Marking
+A writer that dies between 1 and 2 leaves no marks and the same batch
+unwritten next time, which is a redo. Marking
 first would turn the same crash into losing those turns silently, and
 nothing recovers from that.
 
@@ -403,41 +400,18 @@ go silent. Two places carry it:
 
 An installation upgrading from the position cursor has
 `cursors: {thread: {message_id, ordinal}}` in `runtime.json` and no
-marks on any node, so a walk back from a head would collect the whole
-session.
+marks on any node, so a walk back from a head collects the whole
+session. Nothing seeds marks from the old cursor: its ordinal is the
+value the fork bug corrupted, so a mark derived from it would carry the
+same omission into the new design. The first pass over such a session
+offers every eligible turn again. The writer sees the existing Topic
+files beside the batch, so a fact already recorded is left as it is or
+merged rather than added twice, and the cost is one larger write per
+old session instead of turns that are never written.
 
-The source archive supplies candidate nodes, but the two formats have
-different trust boundaries. Canonical
-`sources/openprogram/_v2/<session-id>.md` files put ids inside strict
-`record-lines` frames. Migration consumes only the parser's valid prefix:
-record content cannot create an id, and parsing never resumes after an
-invalid or truncated frame. Legacy
-`sources/openprogram/<session-id>.md` has no body length or end marker.
-After its first record starts, user content can contain a complete anchor,
-the correct hash and a `source-id` that is byte-for-byte indistinguishable
-from the next real record. Legacy migration therefore accepts only the first
-valid header at the exact byte position after `# <session-id>\n\n`. Later
-legacy records are re-written rather than trusted as marks.
-
-The candidate set also cannot be marked directly. The old ordinal bug can
-produce an archived shared prefix, an unwritten middle of a branch, and an
-archived branch tip. Marking that tip would make the new reverse walk stop
-immediately and permanently omit the middle. For every candidate node,
-migration reads the real DAG path ending at that node, applies the same role,
-content and runtime-turn filtering as `writing._records`, and keeps only the
-continuous archived prefix starting at the first eligible record. The first
-gap stops that path. Safe prefixes are then merged per session. Tool nodes,
-runtime turns and empty bodies neither create a gap nor receive a mark.
-
-This can re-write an already archived branch tail and every legacy record
-after the first. A duplicate can be reconciled later; an over-marked tail
-would make a gap permanently unreachable, so migration deliberately
-under-marks. A workspace with no `sources/` tree is written from the start.
-
-`cursors` leaves `runtime.json` only after every session's safe prefix has
-been marked successfully. If any batch write raises, the old field remains
-for retry. The counters stay: `creation_order`, the local batch and token
-counts, and the time of the last global pass.
+`cursors` is ignored when `runtime.json` is read. The counters stay:
+`creation_order`, the local batch and token counts, and the time of the
+last global pass.
 
 ### What it costs the session store
 
@@ -516,7 +490,7 @@ than with the backlog:
 | What is stored | One field on a node that already exists | One file per thread holding every id ever written |
 | How it grows | Not at all | One entry per message, kept as long as the session |
 | What one read costs | A few steps back from the tip | The thread's whole list |
-| Migration | Mark only the DAG-continuous prefix of trusted archive candidates | Seed the set from the same safe prefix |
+| Migration | None: an old session is offered whole once | None: the set starts empty |
 | A mark or an entry lost | The walk stops early, everything older is stranded | The turn is offered again |
 | Coupling | Memory writes one field into the session store | Memory keeps its own books |
 
@@ -533,8 +507,7 @@ graph would then have to know to skip them.
 
 ### Files to change, and how much
 
-Ordered by dependency. Nothing here needs a new file except the
-migration.
+Ordered by dependency. Nothing here needs a new file.
 
 | # | File | Change | Size |
 |---|---|---|---|
@@ -545,7 +518,6 @@ migration.
 | 5 | `openprogram/memory/runtime/online.py` | `pending` becomes `unwritten_turns(records, marked_ids)`; `process` takes a `mark` callback and calls it only when the writer reported changed files | ~25 changed |
 | 6 | `openprogram/memory/writing.py` | `_records` drops the positional-id fallback; `write_session`'s writer closure returns `_changed_files(audit)` and supplies the `mark` callback; `_pending` reads marks | ~40 changed |
 | 7 | `openprogram/memory/writing.py` | `write(force=True)` asks `list_branches` and runs one pass per tip, head's branch first | ~30 new |
-| 8 | `openprogram/memory/runtime/mark_archived_turns.py` | One-time migration: read trusted archive candidates, mark only continuous prefixes on real DAG paths, then delete `cursors` | ~50 new |
 
 Tests, all in `tests/unit/`:
 
@@ -553,13 +525,11 @@ Tests, all in `tests/unit/`:
 |---|---|
 | `test_memory_writing.py` (existing, 515 lines) | `_pending` assertions currently read the cursor; they move to marks. Existing behaviour otherwise unchanged |
 | `test_memory_write_timing.py` (existing) | Threshold and idle behaviour, unchanged |
-| new: `test_memory_written_marker.py` | The two measured cases: a branch forked at m3 with 2 and with 8 unwritten turns, both offered whole. A shared prefix written once. A rejected batch marking nothing. A mark from another workspace ignored. The migration seeding from `sources/` |
+| new: `test_memory_written_marker.py` | The two measured cases: a branch forked at m3 with 2 and with 8 unwritten turns, both offered whole. A shared prefix written once. A rejected batch marking nothing. A mark from another workspace ignored |
 
-Roughly **200 lines changed and 130 new across seven files**, plus one
+Roughly **200 lines changed and 80 new across seven files**, plus one
 new test file. Steps 1–6 are one coherent change and can land together;
-7 is separable and can follow; 8 has to be right the first time, because
-a migration that over-marks loses conversation and a migration that
-under-marks rewrites history. The measured index rebuild (14–50 ms) is
+7 is separable and can follow. The measured index rebuild (14–50 ms) is
 the only runtime cost worth re-measuring after the change.
 
 ### What this still does not settle
@@ -594,8 +564,7 @@ the only runtime cost worth re-measuring after the change.
   already in memory.
 - **A mark means handed to the writer, not cited.** A batch the writer
   folds into one paragraph citing one of its five turns marks all five.
-  That is intended, and it is why the archive is a fair migration seed
-  above, but a mark is not evidence that a particular turn's content
+  That is intended, but a mark is not evidence that a particular turn's content
   reached a file.
 
 ---
@@ -610,12 +579,10 @@ problem.
 ### Memory's own content is the record
 
 The mark and the position cursor are both a second copy of a fact memory
-already holds. `archive_source_records` reads
-`<!-- source-id:… -->` comments out of `sources/<provider>/<thread>.md`
-into a `known` set on every single write, precisely so it can skip turns
-it already archived. That set **is** the answer to "which turns has
-memory taken", computed from memory's own files, on the hot path,
-today.
+already holds. Every Topic footnote names the chat message it rests on,
+`/s/<session>#<message>`, so the set of cited messages is readable from
+memory's own files, and the retrieval index already parses every
+footnote to build it.
 
 Designed from scratch, nothing would be stored anywhere else. Unwritten
 turns would be a query: reachable from any live tip, not cited by any
@@ -630,17 +597,15 @@ memory record. That has properties neither the cursor nor the mark has.
 - It has no lost-mark case, because there is nothing to lose that is not
   also the loss of the memory itself.
 
-Three things stop it being Layer 3. The archive is per-thread markdown
-parsed by regex, so a read is O(file) and grows with the session — the
-same cost that argues against the external set, arriving from the other
-direction. Making it cheap means an index, and an index is a derived
-cache that needs an invalidation story, which is a bigger change than
-the whole of Layer 3. And "archived" is not "cited": the archive is
-written before the writer runs, so a crash between the two reads as
-written. Layer 3 uses exactly that looseness deliberately, once, to seed
-the migration; relying on it every turn would need the archive to move
-inside the transaction that installs the topics, which is a change to
-the transaction rather than to the bookkeeping.
+Two things stop it being Layer 3. "Cited" is not "read": the writer
+reads a batch and cites only the turns that carried something worth
+keeping, so a greeting, a correction it merged into an existing
+paragraph without a new footnote, or a turn it judged worthless is cited
+by nothing and would be offered again on every pass. Telling those apart
+needs a record of what was read, which is the mark again. And the query
+is a read of every footnote in the workspace on each pass, so the index
+that answers it cheaply becomes something the writer depends on for
+correctness rather than for speed.
 
 ### A record knows which branch it came from
 
@@ -686,22 +651,7 @@ file, or a clean run that found nothing to keep, marks exactly its source
 batch; and forced session-boundary writing handles the current head before
 other live branch tips.
 
-`RuntimeState.cursors` and `advance_cursor` have been removed. An installation
-that still has legacy `cursors` performs one migration before pending work is
-computed. It trusts only the first valid legacy header immediately after the
-file title and the strict v2 parser's valid-prefix frames. Candidate ids are
-then filtered on their real DAG paths with `writing._records`, and only the
-continuous archived prefix before the first gap is marked. Later legacy
-headers, body-forged headers, candidates after a gap and frames after a bad v2
-tail are ignored. The old field is removed only after every marker batch
-succeeds.
-
-Historical backfill is deliberately outside this marker rule. The implemented
-`openprogram memory backfill` command selects trusted Source records that no
-Topic cites and therefore ignores a marker that may have been written by the
-pre-migration runtime. It excludes pending Sources and does not add or remove
-session-node markers. This keeps the marker's definition unchanged: it records
-successful online writer handling for one workspace, while Topic citations
-determine whether archived historical evidence still needs backfill. The live
-workspace has not run this historical backfill. Layer 4 remains unimplemented
+`RuntimeState.cursors` and `advance_cursor` have been removed, and a
+legacy `cursors` field is ignored: an old session's first pass offers
+its eligible turns again. Layer 4 remains unimplemented
 and unscheduled.

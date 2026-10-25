@@ -30,7 +30,7 @@
 
 | 档位 | 能力 |
 |---|---|
-| `owner` | `reply`、`memory.source.append`、`memory.trusted.promote`、`schedule.create`、`schedule.manage`、`fs.read`、`fs.write`、`process.exec`、`network.send`、`approval.request`、`runtime.control` |
+| `owner` | `reply`、`memory.source.append`、`schedule.create`、`schedule.manage`、`fs.read`、`fs.write`、`process.exec`、`network.send`、`approval.request`、`runtime.control` |
 | `paired` | `reply`、`memory.source.append` |
 
 门口是 **fail-closed** 的。档位缺失以 `AUTHORITY_TIER_MISSING` 拒绝；档位不是表里的 key
@@ -67,27 +67,16 @@ subagent 始终非交互，因此也没有通往交互式审批的路径。
 
 ## 记忆中的信任语义
 
-记忆在每条 source frame 上记录 `trust_state`，取两个值。
+记忆引用的是聊天消息，所以信任是关于脚注所指那条消息的问题。配对**就是**那次信任判定：
+owner 的轮次和每个已配对账号的轮次都带 `memory.source.append`，与 owner 的发言一样进入
+正常的提炼流程、可以被引用，按发言人归因。配对这道门后面没有第二道门。
 
-**`trusted`** —— owner 自己的轮次，以及已配对账号的全部内容。配对**就是**那次信任判定，
-所以已配对发言与 owner 的发言一样进入正常的提炼流程，按发言人归因。配对这道门后面没有第二道门。
+**未配对文本不进入记忆，也不进入模型上下文。**`openprogram/channels/base.py` 在派发给
+agent 之前先查访问判定。被拦的发信人收到配对回执，消息永远不会变成一轮对话，所以没有
+可引用的聊天消息，召回也没有东西可返回。
 
-**`pending`** —— 从未配对发言人归档下来的文本。群聊中未配对成员的发言照常归档，
-因为一段群聊只有完整才可理解，但这段文本是证据而不是已接受的记忆。它带完整来源信息，
-`memory_promote` 是把 pending frame 转为 `trusted` 的唯一路径，只有 owner 能走
-（`memory.trusted.promote`）。
-
-`trust_state` 是机制。检索输出里出现的 `speaker_trusted` 字段是它的展示投影，不是另一个判定。
-
-**未配对文本不进入模型上下文。**两个互相独立的机制共同保证这一点，都已上线：
-
-1. **实时路径先拦住。**`openprogram/channels/base.py` 在任何 agent 分发之前查询 access
-   判定。被拦发信人的消息（群聊里）被归档并收到配对回执，永远不会变成一轮对话。
-2. **自动召回把它过滤掉。**记忆 provider 的 `search()` 丢弃所有 `trust_state` 为
-   `pending` 的命中，所以已归档的 pending frame 也不会出现在后续轮次注入的上下文里。
-
-pending 文本仍可通过 `memory_search` 工具触及，模型在那里主动索取，并同时看到它的
-`trust_state`。
+新引用在添加它的编辑提交时检查：消息必须存在于会话存储，是人或助手说的话，并且来自
+权限带 `memory.source.append` 的发言人。已配对的编辑还只能引用自己这段对话。
 
 ## 记忆写入器
 
@@ -101,13 +90,11 @@ pending 文本仍可通过 `memory_search` 工具触及，模型在那里主动�
 ## 附录：实现状态
 
 档位枚举、常量表门口、fail-closed 拒绝、结构化判定记录、subagent 继承、8 位配对码流程、
-只走本地 owner 的批准、稳定 ID 匹配、显示名消毒、`pending` / `trusted` 划分，
+只走本地 owner 的批准、稳定 ID 匹配、显示名消毒、引用检查，
 以及上面两条上下文排除机制，均已实现。
 
 | 项目 | 状态 | 说明 |
 |---|---|---|
 | 越权请求 hold 队列 | 未实现 | 已配对发信人的越权请求（例如"重启服务"）进入队列等 owner 一次性批准，而不是直接拒绝。需要采纳的参数：消息数上限、过期超时、发信人档位变化时重新评估队列。 |
-| 按请求方档位过滤读取 | 部分实现 | `memory.read`成为独立capability，两个档位都持有，与`fs.read`分离，记忆读取工具不再搭载文件系统访问权限。`search`与`system_prompt`接收调用方已解析好的档位，不在turn中途重新查询配对状态。基于信任派生的pending block排除已在召回与Core两侧生效。按档位对block正文做删改仍只有设计。 |
-| 已标记来源的 backfill | 已实现并在实机 workspace 执行完毕（8 个 Topic 文件、132 个 block、154 个 frame 中 137 个被引用，共 232 次引用出现，逐条校验无断裂） | `openprogram memory backfill` 对所有未被 Topic 引用的 trusted source 跑一遍写入器，忽略节点标记，排除 pending 来源，并把遗留的根 core.md 提升进 topics/ 而不是丢弃；对已有引用幂等，批次失败后可续跑。 |
+| 按请求方档位过滤读取 | 部分实现 | `memory.read`成为独立capability，两个档位都持有，与`fs.read`分离，记忆读取工具不再搭载文件系统访问权限。`search`与`system_prompt`接收调用方已解析好的档位，不在turn中途重新查询配对状态。按档位对block正文做删改仍只有设计。 |
 | 可查询的写入器状态 | 已实现 | 最近一次成功写入时间、`last_outcome`、按 `MemoryWriteFailureCode` 分类的失败及其可重试判定、待处理数量，在版本化状态文件、CLI、工具、API 和 Web 界面共用同一契约。 |
-| 未配对群聊流量的归档上限 | 已实现 | 未配对群聊归档有每小时消息上限、单消息和单身份大小上限、总归档字节上限；配额预留与追加在 `workspace_write_lock` 内完成，避免并发重复占用。 |

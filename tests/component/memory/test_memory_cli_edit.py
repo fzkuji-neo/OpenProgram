@@ -21,13 +21,12 @@ from pathlib import Path
 
 import pytest
 
-SOURCE = '# Conversation 1\n\n<a id="d1-1"></a>\n\nuser: remember this\n'
 NOTE = (
     "# Note\n"
     "\n"
     "A fact worth keeping.[^e-1f4c7a2b90] ^abc12345\n"
     "\n"
-    "[^e-1f4c7a2b90]: Time: `2026-01-01`; Sources: [D1:1](../sources/D1.md#d1-1)\n"
+    "[^e-1f4c7a2b90]: Time: `2026-01-01`; Sources: [D1:1](/s/s1#d1-1)\n"
 )
 
 
@@ -49,8 +48,6 @@ def memory(tmp_path, monkeypatch):
 
     from openprogram.memory import store
     root = store.ensure()
-    (root / "sources").mkdir(parents=True, exist_ok=True)
-    (root / "sources" / "D1.md").write_text(SOURCE, encoding="utf-8")
     (root / "topics" / "note.md").write_text(NOTE, encoding="utf-8")
     return root
 
@@ -96,7 +93,6 @@ def test_edit_refuses_a_path_outside_the_workspace(memory, editor, path):
 
 
 @pytest.mark.parametrize("path", [
-    "sources/D1",          # the append-only evidence record
     "timeline/2026/01/01",  # a derived view, rebuilt from topics
     "recent_events.jsonl",
 ])

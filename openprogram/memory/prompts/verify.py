@@ -27,9 +27,9 @@ Retrieved answer: {retrieved_answer}"""
 
 VERIFY_REPAIR = """Repair the memory workspace so that the question can be answered through the memory organization.
 
-Inspect the source records, the existing memory, and the retrieval trace. Make any changes you consider useful. You may add, revise, move, merge, reorder, or remove memory content while preserving valid historical information and source grounding.
+Inspect the cited conversation, the existing memory, and the retrieval trace. Make any changes you consider useful. You may add, revise, move, merge, reorder, or remove memory content while preserving valid historical information and source grounding.
 
-Apply all changes only to editable Topic or Core memory. Never modify files under sources/.
+Apply all changes only to editable Topic or Core memory.
 
 Question: {question}
 Expected source-grounded answer: {expected_answer}

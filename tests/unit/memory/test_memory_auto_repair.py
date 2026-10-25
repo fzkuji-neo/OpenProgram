@@ -7,7 +7,6 @@ runs, and a writer model this account cannot use is swapped for one it can.
 from __future__ import annotations
 
 import subprocess
-from contextlib import closing
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -42,14 +41,12 @@ def no_tools(monkeypatch):
 
 
 @pytest.fixture
-def memory(tmp_path: Path):
-    from openprogram.memory.management import MemoryWorkspace
+def memory(tmp_path: Path, chats):
     from openprogram.memory.store import _ensure_git_history
 
     root = tmp_path / "memory"
-    first, second = _record("m1", "tea", 1), _record("m2", "walks", 2)
-    with closing(MemoryWorkspace(root)) as space:
-        space.archive_source_records([first, second])
+    (root / "topics").mkdir(parents=True)
+    first, second = _record(chats, "m1", "tea", 1), _record(chats, "m2", "walks", 2)
     _ensure_git_history(root)
     _write(root, first, "topics/tea.md", "Owner likes tea.")
     return root, second
@@ -63,6 +60,7 @@ def _subjects(root: Path) -> list[str]:
 
 
 def test_failing_edits_are_fixed_in_place_not_redone(memory, no_tools):
+    from openprogram.memory.chat_refs import link
     from openprogram.memory.management import agent as agent_module
 
     root, second = memory
@@ -74,13 +72,13 @@ def test_failing_edits_are_fixed_in_place_not_redone(memory, no_tools):
         path = stage / "topics/walks.md"
         path.write_text(
             path.read_text()
-            + f"\n[^e1]: Time: `2026-08-10`; Sources: [note]({second.source_id})\n"
+            + f"\n[^e1]: Time: `2026-08-10`; Sources: [note]({link(second.ref)})\n"
         )
 
     agent = _ScriptedAgent(write_uncited, add_definition)
     agent_module._run_agent(
         root, agent=agent, task="write walks",
-        allowed_new_source_refs={second.source_id},
+        allowed_new_source_refs={second.ref},
     )
 
     assert len(agent.prompts) == 2
@@ -101,7 +99,7 @@ def test_fixing_stops_after_the_last_round(memory, no_tools):
     agent = _ScriptedAgent(write_uncited)
     audit = agent_module._run_agent(
         root, agent=agent, task="write walks",
-        allowed_new_source_refs={second.source_id},
+        allowed_new_source_refs={second.ref},
     )
     # The turn, its fix rounds, then the redo, which staged nothing.
     assert len(agent.prompts) == 1 + agent_module.FIX_ROUNDS + 1

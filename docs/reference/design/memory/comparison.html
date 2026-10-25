@@ -160,7 +160,7 @@
     <g>
       <rect x="40" y="444" width="510" height="76" rx="9" fill="#141a12" stroke="#5aad4e" stroke-width="2.4"/>
       <text x="58" y="470" fill="#5aad4e" font-size="13.5" font-weight="700">OpenProgram</text>
-      <text x="58" y="492" fill="#bdb9a6" font-size="11.5">sources/ stores append-only originals; topics/ stores distilled facts;</text>
+      <text x="58" y="492" fill="#bdb9a6" font-size="11.5">topics/ stores distilled facts whose footnotes link the chat;</text>
       <text x="58" y="509" fill="#bdb9a6" font-size="11.5">core.md is the small block included in every context</text>
       <text x="530" y="470" fill="#5aad4e" font-size="11" text-anchor="end">Files only</text>
     </g>
@@ -210,7 +210,7 @@
     <tr><td><b>pi-ai</b></td><td class="n">No</td><td>Provider SDK, 12 files, no session concept</td><td class="q"><span class="src">No repository-wide grep matches; only OAuth credentials persist</span></td></tr>
     <tr><td><b>pi-mono</b></td><td class="n">No</td><td>Session JSONL tree serves replay and branching; across sessions only <code>AGENTS.md</code></td><td class="q"><span class="src">packages/coding-agent/src/core/session-manager.ts:428-436</span></td></tr>
     <tr><td><b>weclaw</b></td><td class="n">No</td><td>Stores only opaque session ids; the wrapped process owns memory</td><td class="q"><span class="src">agent/cli_agent.go:25,226-231</span></td></tr>
-    <tr class="us"><td><b>OpenProgram</b></td><td class="y">Yes</td><td>Markdown workspace: <code>sources/</code> plus <code>topics/</code> plus <code>core.md</code></td><td class="q"><span class="src">openprogram/memory/store.py:39</span></td></tr>
+    <tr class="us"><td><b>OpenProgram</b></td><td class="y">Yes</td><td>Markdown workspace: <code>topics/</code> plus <code>MEMORY.md</code>; footnotes link chat messages</td><td class="q"><span class="src">openprogram/memory/store.py:39</span></td></tr>
   </table>
   </div>
 
@@ -405,8 +405,8 @@
     <g>
       <rect x="764" y="118" width="150" height="60" rx="6" fill="#12110b" stroke="#3a382c"/>
       <text x="778" y="138" fill="#8a8675" font-size="11">Originals</text>
-      <text x="778" y="156" fill="#6b6a63" font-size="10.5">Append-only, no edits</text>
-      <text x="778" y="172" fill="#6b6a63" font-size="10.5">sources/</text>
+      <text x="778" y="156" fill="#6b6a63" font-size="10.5">The chat history</text>
+      <text x="778" y="172" fill="#6b6a63" font-size="10.5">/s/&lt;session&gt;#&lt;msg&gt;</text>
 
       <path d="M918 148 L968 148" stroke="#5aad4e" stroke-width="1.5" marker-end="url(#s-gn)"/>
 
@@ -559,14 +559,14 @@
   <div class="note k">
     <b>A practice to adopt:</b>If claude-code cannot find the cursor’s message, it <b>treats all messages as unwritten again</b>,
     rather than returning zero. The comment states that zero would stop extraction for the rest of the session.
-    Rewriting has bounded cost; silent stoppage has unbounded cost. Seeding cursors from source archives in our migration makes the same tradeoff:
+    Rewriting has bounded cost; silent stoppage has unbounded cost. Our migration offers an old session whole once instead of trusting its old cursor, which makes the same tradeoff:
     prefer a repeated batch to losing everything.
   </div>
 
   <div class="note k">
     <b>Another practice:</b>openclaw deduplication <b>records two mutually checking copies</b>: promotion time on entries,
     plus <code>MEMORY.md</code> body HTML comments with keys. If either copy disappears, the other still prevents duplicates.
-    Our set is recorded only in the cursor file; source archives can seed it, but the two do not cross-check.
+    Our record is the node marks alone; Topic footnotes also name the messages they rest on, but the two do not cross-check.
   </div>
 
   <!-- ══════════ 05 ══════════ -->

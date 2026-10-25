@@ -160,7 +160,7 @@
     <g>
       <rect x="40" y="444" width="510" height="76" rx="9" fill="#141a12" stroke="#5aad4e" stroke-width="2.4"/>
       <text x="58" y="470" fill="#5aad4e" font-size="13.5" font-weight="700">OpenProgram</text>
-      <text x="58" y="492" fill="#bdb9a6" font-size="11.5">sources/ 存原话且只追加，topics/ 存提炼，</text>
+      <text x="58" y="492" fill="#bdb9a6" font-size="11.5">topics/ 存提炼，脚注链接聊天原话，</text>
       <text x="58" y="509" fill="#bdb9a6" font-size="11.5">core.md 是每次都进上下文的那一小块</text>
       <text x="530" y="470" fill="#5aad4e" font-size="11" text-anchor="end">纯文件</text>
     </g>
@@ -210,7 +210,7 @@
     <tr><td><b>pi-ai</b></td><td class="n">没有</td><td>provider SDK，12 个文件，没有会话概念</td><td class="q"><span class="src">全仓 grep 无命中；唯一落盘的是 OAuth 凭证</span></td></tr>
     <tr><td><b>pi-mono</b></td><td class="n">没有</td><td>会话 JSONL 树只为回放和分支；跨会话只有 <code>AGENTS.md</code></td><td class="q"><span class="src">packages/coding-agent/src/core/session-manager.ts:428-436</span></td></tr>
     <tr><td><b>weclaw</b></td><td class="n">没有</td><td>只存不透明的会话 id，记忆交给被包的进程</td><td class="q"><span class="src">agent/cli_agent.go:25,226-231</span></td></tr>
-    <tr class="us"><td><b>OpenProgram</b></td><td class="y">有</td><td>Markdown 工作区：<code>sources/</code> 加 <code>topics/</code> 加 <code>core.md</code></td><td class="q"><span class="src">openprogram/memory/store.py:39</span></td></tr>
+    <tr class="us"><td><b>OpenProgram</b></td><td class="y">有</td><td>Markdown 工作区：<code>topics/</code> 加 <code>MEMORY.md</code>；脚注链接聊天消息</td><td class="q"><span class="src">openprogram/memory/store.py:39</span></td></tr>
   </table>
   </div>
 
@@ -405,8 +405,8 @@
     <g>
       <rect x="764" y="118" width="150" height="60" rx="6" fill="#12110b" stroke="#3a382c"/>
       <text x="778" y="138" fill="#8a8675" font-size="11">原话</text>
-      <text x="778" y="156" fill="#6b6a63" font-size="10.5">只追加，不许改</text>
-      <text x="778" y="172" fill="#6b6a63" font-size="10.5">sources/</text>
+      <text x="778" y="156" fill="#6b6a63" font-size="10.5">就是聊天记录</text>
+      <text x="778" y="172" fill="#6b6a63" font-size="10.5">/s/&lt;session&gt;#&lt;msg&gt;</text>
 
       <path d="M918 148 L968 148" stroke="#5aad4e" stroke-width="1.5" marker-end="url(#s-gn)"/>
 
@@ -559,14 +559,14 @@
   <div class="note k">
     <b>抄到的一招：</b>claude-code 在"游标指的那条消息找不到了"的时候，选择<b>把全部消息重新当成没写过</b>，
     而不是返回零条。注释写得很直白：返回零条会让抽取在这个会话剩下的时间里彻底停摆。
-    重写一遍的代价是有限的，静默停摆的代价是没有上限的。我们的迁移方案里"从原话档案播种游标"是同一个取舍：
+    重写一遍的代价是有限的，静默停摆的代价是没有上限的。我们的迁移把旧会话整条重新交出一次，而不是相信旧游标，是同一个取舍：
     宁可多写一批，不可全丢。
   </div>
 
   <div class="note k">
     <b>还有一招：</b>openclaw 的去重<b>记两处并互相印证</b>：条目侧记升级时间，
     <code>MEMORY.md</code> 正文里再埋一句带 key 的 HTML 注释。任何一边丢了，另一边还拦得住重复。
-    我们的集合只记在游标文件里，原话档案虽然也能当种子用，但两边不会互相校验。
+    我们的账只记在节点标记上；Topic脚注也写明了它依据的消息，但两边不会互相校验。
   </div>
 
   <!-- ══════════ 05 ══════════ -->

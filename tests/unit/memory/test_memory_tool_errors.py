@@ -58,10 +58,10 @@ def test_denied_memory_space_is_an_error_result(state_dir, monkeypatch):
 
 
 def test_successful_memory_call_is_not_an_error(state_dir):
-    result = _run(_tool("memory_status"), {})
+    result = _run(_tool("memory_get"), {})
 
     assert result.is_error is False
-    assert "revision" in json.loads(result.content[0].text)
+    assert "Memory is empty" in result.content[0].text
 
 
 class _Policy:

@@ -35,10 +35,7 @@ def memory_candidates(week, query):
     result = []
     for hit in found.get("results", []):
         content = hit.get("content")
-        if (hit.get("trust_state") == "pending" or not isinstance(content, str)
-                or not content.strip() or len(content) >= 1200):
-            continue
-        if str(hit.get("path", "")).startswith("sources/") and hit.get("speaker_trusted") is not True:
+        if not isinstance(content, str) or not content.strip() or len(content) >= 1200:
             continue
         dates = hit.get("dates", [])
         if not isinstance(dates, list):
@@ -60,7 +57,8 @@ def memory_candidates(week, query):
         result.append({**_record(content, week, source),
                        "source_dates": [d for d in dates if isinstance(d, str)],
                        "source_date": max(precise),
-                       "trusted_owner": hit.get("speaker_kind") == "owner" and hit.get("speaker_trusted") is True})
+                       # Topic prose is the writer's distillation, not the owner's own words.
+                       "trusted_owner": False})
     if not allowed():
         return []
     return sorted(result, key=lambda item: (item["trusted_owner"], item["source_date"]), reverse=True)
