@@ -161,6 +161,12 @@ BOUNDARY_MANIFEST = (
         kinds=frozenset({"urllib.request.build_opener"}),
     ),
     BoundaryExclusion(
+        path="apps/cli/python/openprogram_cli/_impl/commands/plugins.py",
+        boundary_owner="owner-control-plane",
+        reason="owner CLI applies plugin changes on the challenge-verified backend without redirects or proxy inheritance",
+        kinds=frozenset({"httpx.Client"}),
+    ),
+    BoundaryExclusion(
         path="framework/client.py",
         boundary_owner="owner-control-plane",
         reason="Approved owner tool uses registered operations on the challenge-verified backend without redirects or proxy inheritance",
