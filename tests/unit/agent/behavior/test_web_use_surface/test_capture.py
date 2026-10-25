@@ -114,7 +114,7 @@ def test_direct_mcp_page_capture_requires_one_desktop_connection(monkeypatch):
     try:
         surface_context.capture_active()
     except RuntimeError as exc:
-        assert "one desktop connection" in str(exc)
+        assert "windows are connected" in str(exc)
     else:
         raise AssertionError("multiple desktop connections must be rejected")
 
