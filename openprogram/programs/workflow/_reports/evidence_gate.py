@@ -268,7 +268,7 @@ class EvidenceGate:
                 sid, head_id=head or None, start_turn=int(args.get('start_turn') or 0),
                 end_turn=int(args.get('end_turn') or 0),
                 include_function_calls=bool(args.get('include_function_calls', True)),
-                max_chars=max(1000, int(args.get('max_chars', 60000))), store=db,
+                max_chars=max(1000, int(60000 if args.get('max_chars') is None else args['max_chars'])), store=db,
                 on_consumed=consumed.extend,
             )
             if canonical != _text(result) or session_read_violation(db, sid) or not allowed():

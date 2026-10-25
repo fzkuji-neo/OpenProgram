@@ -215,3 +215,22 @@ def test_basic_fallback_does_not_remove_null_when_wire_acceptance_is_unknown(mon
     # The existing fallback remains lightweight, but must not reinterpret an
     # unsupported null constraint as an omitted/default argument.
     assert validate_tool_call([tool], call) == {"value": None}
+
+
+def test_a_null_for_a_typed_default_reaches_the_function_as_its_default():
+    # worktree_create(pr: str = "") once received None and failed on .strip().
+    from openprogram.programs._runtime import function
+
+    @function(name="null_default_fixture", register_globally=False)
+    def fixture(pr: str = "", count: int = 3, keep: str | None = "kept") -> str:
+        """Fixture.
+
+        Args:
+            pr: A string with a default.
+            count: An integer with a default.
+            keep: A nullable string.
+        """
+        return repr((pr, count, keep))
+
+    result = asyncio.run(fixture.execute("c", {"pr": None, "count": None, "keep": None}, None, None))
+    assert result.content[0].text == "('', 3, None)"

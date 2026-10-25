@@ -489,6 +489,27 @@ def _widen_optionals_to_null(params: Any) -> Any:
     return out
 
 
+def _null_defaults(fn: Callable, sig: inspect.Signature) -> dict[str, Any]:
+    """Optional parameters whose annotation excludes None, with their defaults."""
+    import types
+    import typing
+    try:
+        hints = typing.get_type_hints(fn)
+    except Exception:
+        hints = {}
+    out: dict[str, Any] = {}
+    for name, param in sig.parameters.items():
+        if param.default is inspect.Parameter.empty or param.default is None:
+            continue
+        hint = hints.get(name, Any)
+        if hint is Any or hint is type(None):
+            continue
+        if get_origin(hint) in (Union, types.UnionType) and type(None) in get_args(hint):
+            continue
+        out[name] = param.default
+    return out
+
+
 def _build_parameters_schema(fn: Callable) -> dict[str, Any]:
     """Inspect fn's signature + docstring → JSON schema for `parameters`.
 
@@ -871,6 +892,7 @@ def function(
     # generator path never touched.
     actual_parameters = _widen_optionals_to_null(
         parameters or _build_parameters_schema(fn))
+    null_defaults = _null_defaults(fn, sig)
     is_async_fn = inspect.iscoroutinefunction(fn)
     accepts_cancel = "cancel" in sig.parameters
     accepts_on_update = "on_update" in sig.parameters
@@ -892,6 +914,11 @@ def function(
             # cleanup is centralized in the wrapper's finally block.
             return value
         passable_kwargs = dict(args)
+        # The schema lets null mean "not given" for every optional parameter;
+        # one whose type has no None takes its default instead.
+        for key, default in null_defaults.items():
+            if key in passable_kwargs and passable_kwargs[key] is None:
+                passable_kwargs[key] = default
         from openprogram.agent.job.runner import (
             current_job_operation_timeout,
             current_job_operation_timeout_reason,

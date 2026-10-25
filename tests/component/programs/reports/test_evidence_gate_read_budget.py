@@ -34,7 +34,7 @@ def test_native_visible_owner_stays_bound_at_minimum_transcript_budget(tmp_path,
     db._save_index()
 
 
-def test_native_nullable_budget_error_remains_a_passthrough_receipt(tmp_path, monkeypatch):
+def test_a_null_budget_reads_like_the_native_default(tmp_path, monkeypatch):
     from openprogram.store import SessionStore
     from openprogram.agent import session_db
     db = SessionStore(tmp_path / "sessions")
@@ -44,9 +44,8 @@ def test_native_nullable_budget_error_remains_a_passthrough_receipt(tmp_path, mo
     args = {"session_id":"research", "max_chars":None}
     original = asyncio.run(gate.native.execute("native", args, None, None))
     receipt = asyncio.run(gate.tool.execute("read", args, None, None))
-    assert receipt.content == original.content
+    assert receipt.content[0] == original.content[0]
     assert receipt.is_error is original.is_error is False
-    assert "[read_conversation error]" in receipt.content[0].text
-    assert "Bound original report sources" not in receipt.content[0].text
+    assert "[read_conversation error]" not in receipt.content[0].text
     assert gate.rows == {}
     db._save_index()

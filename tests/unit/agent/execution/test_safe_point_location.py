@@ -5,7 +5,7 @@ from openprogram.agent.turn_runtime import loop_runner
 def test_safe_point_records_the_location_a_resume_resolves(monkeypatch):
     location = {"workdir": "/repo", "project": None, "worktree": None}
     monkeypatch.setattr("openprogram.agent.internals._workdir.runtime_location_for",
-                        lambda session_id: dict(location))
+                        lambda session_id, use_context=True: dict(location) if not use_context else None)
     started = {"model": {"id": "m"}, "request_semantics": {"_execution_revision_id": "r",
                                                           "execution_location": dict(location)}}
     # worktree_create ran between the turn start and the approval pause.

@@ -411,16 +411,17 @@ def with_current_location(snapshot: dict, session_id: str) -> dict:
 
     A tool may create or leave a worktree mid-turn (``worktree_create``);
     a resume resolves the location afresh, so a safe point must record the
-    location as it is now rather than as it was when the turn began.
+    location as it is now rather than as it was when the turn began. It is
+    resolved the way a resume resolves it, from the session's records and not
+    from the running context: ``worktree_create`` binds its worktree only in
+    the context the tool ran in.
     """
     semantics = snapshot.get("request_semantics")
     if not isinstance(semantics, dict):
         return snapshot
     from openprogram.agent.internals._workdir import runtime_location_for
-    return {
-        **snapshot,
-        "request_semantics": {**semantics, "execution_location": runtime_location_for(session_id)},
-    }
+    location = runtime_location_for(session_id, use_context=False)
+    return {**snapshot, "request_semantics": {**semantics, "execution_location": location}}
 
 
 def run_loop_blocking(
