@@ -537,6 +537,13 @@ def test_packager_build_only_writes_artifact_without_installing(
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
     source = _fake_desktop_app(tmp_path / "built", "0.6.4")
+    repo = isolated_packager.parents[3]
+    git = ["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t"]
+    subprocess.run([*git, "init", "-q"], check=True)
+    subprocess.run([*git, "add", "-A"], check=True)
+    subprocess.run([*git, "commit", "-qm", "packager"], check=True)
+    revision = subprocess.run([*git, "rev-parse", "HEAD"], check=True,
+                              capture_output=True, text=True).stdout.strip()
     installed_marker = tmp_path / "installer-called"
     signing_trace = tmp_path / "signing-trace"
     fake_python = fake_bin / "python3"
@@ -608,6 +615,8 @@ def test_packager_build_only_writes_artifact_without_installing(
     assert installed_marker.exists() is not build_only
     if build_only:
         assert f"OpenProgram App artifact written to {output}" in completed.stdout
+        marker = output / "Contents" / "Resources" / "openprogram-source-revision"
+        assert marker.read_text(encoding="ascii") == revision + "\n"
 
 
 

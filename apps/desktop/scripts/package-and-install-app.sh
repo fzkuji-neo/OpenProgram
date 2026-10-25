@@ -135,6 +135,12 @@ app_count="$(wc -l <"$app_list" | tr -d ' ')"
   exit 1
 }
 built_app="$(sed -n '1p' "$app_list")"
+# The next self-update diffs against this commit to rebuild only what changed.
+source_revision="$(git -C "$repo_root" rev-parse --verify HEAD)"
+if [[ -n "$(git -C "$repo_root" status --porcelain --untracked-files=no)" ]]; then
+  source_revision="$source_revision-dirty"
+fi
+printf '%s\n' "$source_revision" >"$built_app/Contents/Resources/openprogram-source-revision"
 if [[ -z "$output_app" ]]; then
   python3 "$repo_root/scripts/release/local-macos-signing.py" sign --app "$built_app"
 fi
