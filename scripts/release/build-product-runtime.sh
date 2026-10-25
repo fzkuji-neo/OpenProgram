@@ -126,6 +126,15 @@ done
 
 PLAYWRIGHT_BROWSERS_PATH="$runtime_root/assets/playwright" \
   "$python_bin" -m playwright install chromium
+# Seal each browser bundle once here. Packaging leaves this tree untouched
+# (signIgnore), so every later build ships these exact bytes.
+if test "$(uname -s)" = Darwin; then
+  find "$runtime_root/assets/playwright" -type d -name '*.app' -prune -print0 |
+    while IFS= read -r -d '' browser_app; do
+      codesign --force --deep --sign - --timestamp=none "$browser_app"
+      codesign --verify --deep --strict "$browser_app"
+    done
+fi
 
 gpa_repository="$(read_config assets.gpa_detector.repository)"
 gpa_revision="$(read_config assets.gpa_detector.revision)"

@@ -41,6 +41,20 @@ def test_desktop_targets_and_embedded_runtime_are_declared() -> None:
     assert package["desktopName"] == "ai.openprogram.OpenProgram.desktop"
 
 
+def test_packaging_leaves_the_runtime_browser_bytes_alone() -> None:
+    # Self-update compares the packaged browser with the installed one byte for byte.
+    ignored = [re.compile(item) for item in _desktop_package()["build"]["mac"]["signIgnore"]]
+    app = "/build/mac-arm64/OpenProgram.app"
+    browser = f"{app}/Contents/Resources/runtime/assets/playwright/chromium-1223/chrome-mac-arm64/Chromium.app"
+    assert any(pattern.search(browser) for pattern in ignored)
+    for signed in (f"{app}/Contents/Resources/runtime/OpenProgram.app",
+                   f"{app}/Contents/Frameworks/Electron Framework.framework"):
+        assert not any(pattern.search(signed) for pattern in ignored)
+    staging = (ROOT / "scripts" / "release" / "build-product-runtime.sh").read_text(encoding="utf-8")
+    install = staging.index("playwright install chromium")
+    assert staging.index("codesign --force --deep --sign -", install) > install
+
+
 @POSIX_SHELL_INTEGRATION
 def test_packaged_runtime_smoke_rejects_an_incomplete_app_before_install(
     tmp_path: Path,

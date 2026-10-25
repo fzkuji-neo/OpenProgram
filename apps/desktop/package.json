@@ -133,6 +133,9 @@
       ],
       "icon": "build/icon.icns",
       "identity": null,
+      "signIgnore": [
+        "/Contents/Resources/runtime/assets/playwright/"
+      ],
       "hardenedRuntime": false,
       "notarize": false,
       "extendInfo": {
