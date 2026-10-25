@@ -278,3 +278,41 @@ def dispatch_hot_update(update_id: str) -> bool:
     if record.state.phase is not UpdatePhase.VERIFYING and record.state.phase not in TERMINAL_PHASES:
         raise ValueError("update has nothing to dispatch yet")
     return recover_pending_updates()
+
+
+# Read-only stages run unattended; continuation and replan turns are not here.
+_UNATTENDED_STAGES = ("verify", "diagnose", "repair")
+
+
+def stop_parked_stages(runner) -> list[str]:
+    """Cancel read-only stage Jobs whose model request ended without an outcome.
+
+    Such an execution waits in reconciliation_required for someone to settle
+    the request, and nobody does for an unattended stage. Cancelling ends its
+    Job, so the stage records an inconclusive result now, not at its deadline.
+    """
+    from openprogram.agent.job.store import load_job
+    from openprogram.agent.job.types import TERMINAL_STATUSES
+    from openprogram.execution.model import ExecutionStatus
+
+    from .projection import _records
+
+    store = SelfUpdateStore()
+    if not store.root.exists():
+        return []
+    with store._locked(read_only=True):
+        records = list(_records(store))
+    stopped = []
+    for record in records:
+        for stage in _UNATTENDED_STAGES:
+            job_id = f"self-update:{record.request.update_id}:{stage}:{record.state.attempt}"
+            execution = runner._execution_store.get_execution(job_id)
+            if (execution is None or execution.status is not ExecutionStatus.RECONCILIATION_REQUIRED
+                    or execution.current_attempt_id is not None):
+                continue
+            job = load_job(record.request.session_id, job_id)
+            if job is None or job.status in TERMINAL_STATUSES:
+                continue
+            runner.cancel_execution(job_id, reason="model request ended without an outcome")
+            stopped.append(job_id)
+    return stopped

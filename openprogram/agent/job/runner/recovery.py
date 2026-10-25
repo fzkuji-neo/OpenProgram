@@ -432,6 +432,8 @@ class RecoveryOperations:
                 continue_updates(self)
                 from openprogram.execution.restart import reconcile as resume_interrupted
                 resume_interrupted(self)
+                from openprogram.self_update.control.recovery import stop_parked_stages
+                stop_parked_stages(self)
             except Exception:
                 shared._log.exception("self-update restart reconciliation failed")
 
