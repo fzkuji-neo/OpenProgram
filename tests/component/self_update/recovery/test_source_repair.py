@@ -72,6 +72,26 @@ def test_candidate_runs_real_sandboxed_required_test(diagnosis_environment, monk
     assert Path(candidate["tests"][0]["log_path"]).is_file()
 
 
+@pytest.mark.parametrize("diagnosis_environment", [{"owner_protected_change": True, "required_tests": [
+    "python -c " + shlex.quote("from pathlib import Path; assert Path('feature.txt').read_text() == 'repaired\\n'")]}],
+    indirect=True)
+@native_sandbox
+def test_owner_approved_protected_paths_do_not_block_an_in_scope_repair(diagnosis_environment, monkeypatch):
+    _turn(diagnosis_environment, monkeypatch)
+    _start()
+    result = _result(diagnosis_environment)
+    assert result["status"] == "candidate_ready", result
+    assert set(result["candidate"]["changed_paths"]) == {"feature.txt", "scripts/release/owner.sh"}
+
+
+@pytest.mark.parametrize("diagnosis_environment", [{"owner_protected_change": True}], indirect=True)
+def test_repair_still_cannot_edit_an_owner_approved_protected_path(diagnosis_environment, monkeypatch):
+    _turn(diagnosis_environment, monkeypatch, edit=dict(
+        path="scripts/release/owner.sh", old_text="# approved by the owner\n", new_text="# changed\n"))
+    _start()
+    assert _result(diagnosis_environment)["status"] == "failed"
+
+
 @pytest.mark.parametrize("edit", [
     dict(path="../outside", old_text=None, new_text="bad"),
     dict(path=".git/config", old_text=None, new_text="bad"),

@@ -2,12 +2,13 @@
 from dataclasses import replace
 import json
 import os
+from pathlib import Path
 import time
 
 import pytest
 
 from tests.component.agent.async_job_support import store_fixture  # noqa: F401
-from tests.component.programs.tools.test_self_update_tools import _candidate, _Manager, _request, _isolated_owner
+from tests.component.programs.tools.test_self_update_tools import _candidate, _git, _Manager, _request, _isolated_owner
 from tests.support.waiting import wait_until
 
 
@@ -24,6 +25,13 @@ def diagnosis_environment(tmp_path, monkeypatch, store_fixture, request):
     worktree = replace(worktree, parent_session="p1")
     store = SelfUpdateStore()
     policy = dict(getattr(request, "param", None) or {})
+    if policy.pop("owner_protected_change", False):
+        owner_script = Path(worktree.worktree_path) / "scripts/release/owner.sh"
+        owner_script.parent.mkdir(parents=True)
+        owner_script.write_text("# approved by the owner\n", encoding="utf-8")
+        _git(Path(worktree.worktree_path), "add", "scripts/release/owner.sh")
+        _git(Path(worktree.worktree_path), "commit", "-m", "owner release script")
+        sha = _git(Path(worktree.worktree_path), "rev-parse", "HEAD")
     verification_plan = policy.pop("verification_plan", None)
     result = _prepare_update(worktree_id=worktree.id, candidate_sha=sha, goal="Fix behavior",
                              assertions=["Expected behavior is observable"], iteration_policy=policy or None,

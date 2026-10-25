@@ -181,7 +181,7 @@ def _candidate(store, record):
     from openprogram.agent.job.store import load_job
     from openprogram.agent.job.types import JobStatus
     from openprogram.programs.tools.system.self_update import _git, _recorded_path, _validate_registered_worktree, _validate_candidate_snapshot
-    from .repair_candidate import allowed_path
+    from .repair_candidate import check_repair_paths
     from .repair_candidate import _edits
     from .repair_candidate import _file
     repair_request, config = source_repair._load(store, record)
@@ -225,8 +225,7 @@ def _candidate(store, record):
     changed = tuple(filter(None, _git(candidate, "diff", "--name-only", "-z", record.request.base_sha, sha).split("\0")))
     if list(changed) != manifest["changed_paths"] or manifest["base_sha"] != record.request.base_sha:
         raise ValueError("candidate full diff changed")
-    for path in changed:
-        allowed_path(record.request, path)
+    check_repair_paths(record.request, changed, changed_edits)
     tests = manifest["tests"]
     if not tests or len(tests) != len(record.request.iteration_policy.required_tests):
         raise ValueError("required tests missing")

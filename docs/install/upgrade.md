@@ -180,6 +180,13 @@ original overall deadline. Signed evidence must match that check and assertion;
 reusing evidence for another assertion does not pass. Omitting the plan preserves
 the previous HTTP-only verifier behavior and grants no new permissions.
 
+Verification, diagnosis and source repair run on any conversational model.
+A provider without native structured output answers through a prompt whose
+result is still checked against the stage's schema; an answer that fails the
+check makes the verdict inconclusive, and the update rolls back. A model
+request that ends without any outcome stops the stage at once instead of
+holding the update until its deadline.
+
 For a planned update, verification, post-rollback diagnosis and source-repair
 Jobs receive the same approved plan and iteration policy, together with the
 attempt's timeout. A repaired child candidate keeps the original goal, assertions,
@@ -357,7 +364,9 @@ linked worktree and commit, and runs the frozen tests in a native sandbox withou
 network access or App write permission. Your original worktree is unchanged.
 Default scope is the original changed files; `bounded_auto` uses its approved
 path patterns. Protected runtime, approval, installer, dependency and Git files
-are not automatically modified. Invalid paths or non-unique old text stop repair.
+are not automatically modified. These limits apply to the files the repair edits;
+files your approved candidate already changed and the repair leaves alone stay as
+you approved them. Invalid paths or non-unique old text stop repair.
 
 Repair and tests share at most ten minutes after rollback, shortened by an
 earlier approved deadline. A new update, cancellation or expiry stops this stage

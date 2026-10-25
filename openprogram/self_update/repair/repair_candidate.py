@@ -36,6 +36,14 @@ def allowed_path(request, path):
         raise ValueError("source repair path is outside the original scope")
 
 
+def check_repair_paths(request, changed, repaired):
+    """Hold the repair's own edits to repair limits; owner-approved paths stay as approved."""
+    for path in repaired:
+        allowed_path(request, path)
+    if set(changed) - set(request.changed_paths) - set(repaired):
+        raise ValueError("source repair changed paths outside its edits")
+
+
 def _file(root, relative):
     path = root / relative
     if path.resolve() != path or any(parent.is_symlink() for parent in path.parents):
@@ -239,8 +247,8 @@ def materialize(store, record, frozen, repair_request, output, check):
          "-c", "commit.gpgsign=false", "commit", "-m", "Apply bounded self-update source repair")
     sha = _git(candidate, "rev-parse", "HEAD")
     changed = tuple(filter(None, _git(candidate, "diff", "--name-only", "-z", f"{record.request.base_sha}..{sha}").split("\0")))
-    for path in changed:
-        allowed_path(record.request, path)
+    repaired = filter(None, _git(candidate, "diff", "--name-only", "-z", f"{record.request.candidate_sha}..{sha}").split("\0"))
+    check_repair_paths(record.request, changed, repaired)
     _validate_candidate_snapshot(candidate, sha)
     manifest = dict(worktree_id=worktree.id, worktree_path=str(candidate), branch_name=branch,
                     candidate_sha=sha, base_sha=record.request.base_sha, changed_paths=list(changed), tests=[])
