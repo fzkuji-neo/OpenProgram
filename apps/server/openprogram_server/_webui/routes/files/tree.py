@@ -441,15 +441,18 @@ def register(app):
     @app.get("/api/context/draft")
     async def get_draft_context(
         provider: str = "", model: str = "", agent_id: str = "main",
+        project_id: str = "",
     ):
         """The /context breakdown of a chat that has no session yet: the
-        agent's system prompt and tools against the selected model."""
+        agent's system prompt and tools against the selected model, with
+        the selected project's memory."""
         import asyncio
         from openprogram.context import session_stats as _cs
 
         try:
             bd = await asyncio.to_thread(
                 _cs.compute_draft_breakdown, agent_id or "main", provider, model,
+                project_id=project_id,
             )
         except Exception as e:
             return JSONResponse(

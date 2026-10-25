@@ -39,6 +39,11 @@ _written_elsewhere: ContextVar[frozenset[str]] = ContextVar(
     "memory_written_elsewhere", default=frozenset(),
 )
 _WORKSPACE_ID = re.compile(r"w-[0-9a-f]{8}")
+# The project a chat with no session yet belongs to: a new chat's draft
+# context is built before any session exists to name it.
+_selected_project: ContextVar[str | None] = ContextVar(
+    "memory_selected_project", default=None,
+)
 
 
 def active_root() -> Path | None:
@@ -50,11 +55,23 @@ def written_elsewhere() -> frozenset[str]:
     return _written_elsewhere.get()
 
 
+@contextmanager
+def for_project(project_id: str | None) -> Iterator[None]:
+    """Resolve the project layer from ``project_id`` while no session
+    names one, as for a new chat whose first message is not sent yet."""
+    token = _selected_project.set(project_id or None)
+    try:
+        yield
+    finally:
+        _selected_project.reset(token)
+
+
 def project_root(session_id: str | None = None) -> Path | None:
     """Where the session's project keeps its Memory.
 
     None when the setting is off or the conversation belongs to no project
-    (the home project's memory is the personal one).
+    (the home project's memory is the personal one). Without a session,
+    the project a ``for_project`` block selected applies.
     """
     if not load_memory_config().project_layer:
         return None
@@ -62,12 +79,17 @@ def project_root(session_id: str | None = None) -> Path | None:
         from openprogram.agent.run_control import get_current_session_id
 
         session_id = get_current_session_id() or ""
-    if not session_id:
-        return None
     try:
-        from openprogram.store.project.project_store import project_for_session
+        from openprogram.store.project.project_store import (
+            get_project, project_for_session,
+        )
 
-        project = project_for_session(session_id)
+        if session_id:
+            project = project_for_session(session_id)
+        elif _selected_project.get():
+            project = get_project(_selected_project.get())
+        else:
+            return None
     except Exception:  # noqa: BLE001 - an unreadable registry means no project
         return None
     if project is None or project.is_default:

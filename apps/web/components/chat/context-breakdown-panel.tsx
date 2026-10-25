@@ -380,10 +380,12 @@ export function ContextBreakdownPanel({ sessionId, headId, onClose }: Props) {
   const canCompact = Boolean(sessionId) && !compacting && !recentlyCompacted;
   const draftProvider = useSessionStore((s) => s.agentSettings.chat?.provider);
   const draftModel = useSessionStore((s) => s.agentSettings.chat?.model);
+  const draftProjectId = useSessionStore((s) =>
+    s.activeChatKey ? s.pendingProjectsByChat[s.activeChatKey] ?? null : null);
   // A chat with no session yet reads the draft estimate (the badge warms it).
   const readCached = () => sessionId
     ? readContextBreakdownCache(sessionId, headId)
-    : readDraftContextBreakdown(draftProvider, draftModel);
+    : readDraftContextBreakdown(draftProvider, draftModel, draftProjectId);
   const [data, setData] = useState<Breakdown | null>(readCached);
   const [view, setView] = useState<Category["key"] | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -409,7 +411,7 @@ export function ContextBreakdownPanel({ sessionId, headId, onClose }: Props) {
     return subscribeContextBreakdownCache(sync);
     // readCached reads only these.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, headId, ringUsed, ringWindow, ringBasis, draftProvider, draftModel]);
+  }, [sessionId, headId, ringUsed, ringWindow, ringBasis, draftProvider, draftModel, draftProjectId]);
 
   // 窗口和总占用都用服务端 stats 里的那一份（圆环读的同一个字段）。
   // 分项仍是本次现场算出的 breakdown —— 明细可以是估算，但顶部的总数

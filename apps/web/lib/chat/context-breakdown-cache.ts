@@ -149,25 +149,32 @@ export function warmContextBreakdown(
 }
 
 /** A chat with no session yet: the agent's system prompt and tools against
- *  the selected model, from GET /api/context/draft. Keyed by the model, so
- *  switching models refetches. */
-function draftKey(provider?: string, model?: string): string {
-  return JSON.stringify(["__draft__", provider || "", model || ""]);
+ *  the selected model, with the selected project's memory, from
+ *  GET /api/context/draft. Keyed by model and project, so switching either
+ *  refetches. */
+function draftKey(provider?: string, model?: string, projectId?: string | null): string {
+  return JSON.stringify(["__draft__", provider || "", model || "", projectId || ""]);
 }
 
 export function readDraftContextBreakdown(
   provider?: string,
   model?: string,
+  projectId?: string | null,
 ): ContextBreakdown | null {
-  return cache.get(draftKey(provider, model)) ?? null;
+  return cache.get(draftKey(provider, model, projectId)) ?? null;
 }
 
-export function warmDraftContextBreakdown(provider?: string, model?: string): void {
-  const key = draftKey(provider, model);
+export function warmDraftContextBreakdown(
+  provider?: string,
+  model?: string,
+  projectId?: string | null,
+): void {
+  const key = draftKey(provider, model, projectId);
   if (latestRequest.has(key)) return;
   const token = Symbol();
   latestRequest.set(key, token);
   const qs = new URLSearchParams({ provider: provider || "", model: model || "" });
+  if (projectId) qs.set("project_id", projectId);
   void fetch(`/api/context/draft?${qs}`)
     .then((response) => response.json() as Promise<ContextBreakdown>)
     .then((data) => {

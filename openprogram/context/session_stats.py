@@ -424,9 +424,21 @@ def compute_draft_breakdown(
     model: str = "",
     *,
     channel: str = "web",
+    project_id: str = "",
 ) -> dict:
     """What a new chat would send before its first message: the agent's
-    system prompt and toolset against the selected model's window."""
+    system prompt and toolset against the selected model's window.
+
+    ``project_id`` is the project the chat will belong to; its memory is
+    injected beside the personal one, as it will be once the chat exists.
+    """
+    from openprogram.memory.project_layer import for_project
+
+    with for_project(project_id or None):
+        return _draft_breakdown(agent_id, provider, model, channel)
+
+
+def _draft_breakdown(agent_id: str, provider: str, model: str, channel: str) -> dict:
     from openprogram.agent.internals._model_tools import load_agent_profile
     from openprogram.context.components import build_system_prompt
     from openprogram.context.tokens import real_context_window

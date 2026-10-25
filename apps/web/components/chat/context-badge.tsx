@@ -129,17 +129,19 @@ export function ContextBadge({ sessionId }: ContextBadgeProps) {
 
   const fallbackProvider = useSessionStore((s) => s.agentSettings.chat?.provider);
   const fallbackModel = useSessionStore((s) => s.agentSettings.chat?.model);
+  const draftProjectId = useSessionStore((s) =>
+    s.activeChatKey ? s.pendingProjectsByChat[s.activeChatKey] ?? null : null);
   // No session yet: the ring and panel show what the first message would
   // carry (system prompt, tools, memory) against the selected model.
   const [draft, setDraft] = useState(() =>
-    sid ? null : readDraftContextBreakdown(fallbackProvider, fallbackModel));
+    sid ? null : readDraftContextBreakdown(fallbackProvider, fallbackModel, draftProjectId));
   useEffect(() => {
     if (sid) return;
-    const sync = () => setDraft(readDraftContextBreakdown(fallbackProvider, fallbackModel));
+    const sync = () => setDraft(readDraftContextBreakdown(fallbackProvider, fallbackModel, draftProjectId));
     sync();
-    warmDraftContextBreakdown(fallbackProvider, fallbackModel);
+    warmDraftContextBreakdown(fallbackProvider, fallbackModel, draftProjectId);
     return subscribeContextBreakdownCache(sync);
-  }, [sid, fallbackProvider, fallbackModel]);
+  }, [sid, fallbackProvider, fallbackModel, draftProjectId]);
   const sessionUsage = useSessionStore((s) => (sid ? s.tokens[sid] : undefined));
   const sessionWindow = useSessionStore((s) => (sid ? s.contextWindow[sid] : undefined));
   const usage = sid ? sessionUsage
