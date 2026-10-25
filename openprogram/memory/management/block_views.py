@@ -19,6 +19,7 @@ from ..markdown import (
     definition_match,
     parse_topic_tree,
     render_definition,
+    topic_tree_problems,
 )
 from ..workspace_layout import runtime_dir
 from .transaction import snapshot_outside_edits
@@ -49,12 +50,11 @@ class BlockViewsMixin:
 
         Keyed by block ID rather than pooled workspace-wide: a new paragraph
         must not be able to borrow a reference merely because some other
-        Topic already cites it.
+        Topic already cites it. A committed file that no longer parses
+        vouches for nothing: what it cites is checked as new.
         """
-        return {
-            unit.memory_id: set(unit.source_refs)
-            for unit in parse_topic_tree(self.memory_dir / "topics")
-        }
+        units, _problems = topic_tree_problems(self.memory_dir / "topics")
+        return {unit.memory_id: set(unit.source_refs) for unit in units}
 
     def _validate_source_reference(self, ref: str, *, is_new: bool = False) -> None:
         """Check one Topic Source reference against the staged archive.

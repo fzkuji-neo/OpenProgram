@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 import time
 from pathlib import Path
@@ -20,6 +21,8 @@ from openprogram.providers.types import (
 )
 
 from .claude_code import AgentExecutionError, AgentResult
+
+logger = logging.getLogger(__name__)
 
 
 def _default_model(override: str | None) -> Model:
@@ -40,6 +43,60 @@ def _default_model(override: str | None) -> Model:
         pair = background_model()
         override = f"{pair[0]}/{pair[1]}" if pair else None
     return resolve_model(profile, override)
+
+
+def _fallback_models() -> list[Model]:
+    """Models to write on when the chosen one cannot be used at all.
+
+    The default Agent's own model, then the last used one: both are
+    models this install is known to reach, which a hand-set writer model
+    is not.
+    """
+    from openprogram.agent.internals._model_tools import (
+        load_agent_profile,
+        resolve_model,
+    )
+    from openprogram.agent.management import manager
+    from openprogram.providers.background_llm import background_model
+
+    candidates: list[Model] = []
+    try:
+        spec = manager.get_default()
+        profile = load_agent_profile(spec.id if spec is not None else "main")
+    except Exception:  # noqa: BLE001 - no fallback is not a failure
+        return candidates
+    pair = background_model()
+    overrides = [None] if profile.get("model") else []
+    if pair:
+        overrides.append(f"{pair[0]}/{pair[1]}")
+    for override in overrides:
+        try:
+            candidates.append(resolve_model(profile, override))
+        except Exception:  # noqa: BLE001
+            continue
+    return candidates
+
+
+# Failures that say this model cannot serve this account at all: a
+# rejected credential, a plan without access, a model the provider does
+# not offer. Waiting does not fix them; another model does.
+_UNUSABLE_MODEL = frozenset({
+    "auth", "authentication", "authz", "authorization",
+    "invalid", "invalid_request",
+})
+
+
+def _model_unusable(exc: AgentExecutionError) -> bool:
+    reason = str(getattr(exc.reason, "value", exc.reason) or "").lower()
+    if reason in _UNUSABLE_MODEL:
+        return True
+    # An exhausted usage plan is reported as a rate limit nobody should
+    # wait out.
+    return reason == "rate_limit" and exc.retryable is False
+
+
+def _same(left: Model, right: Model) -> bool:
+    return (left.provider, left.id) == (right.provider, right.id)
 
 
 _JSON_TYPES = {
@@ -155,10 +212,52 @@ class OpenProgramAgent:
         *,
         stream_fn: Any | None = None,
     ) -> None:
-        self.model = _default_model(model)
+        try:
+            self.model = _default_model(model)
+        except Exception:
+            # A writer model that no longer resolves is a stale setting,
+            # not a reason to stop writing memory.
+            if not model:
+                raise
+            fallback = next(iter(_fallback_models()), None)
+            if fallback is None:
+                raise
+            logger.warning(
+                "memory writer model %s is unavailable; writing on %s/%s",
+                model, fallback.provider, fallback.id,
+            )
+            self.model = fallback
         self._stream_fn = stream_fn
 
-    def run(
+    def run(self, **kwargs: Any) -> AgentResult:
+        """Run on the chosen model; if it cannot be used at all, on the next.
+
+        Only a failure before any tool ran moves to another model, so a
+        retry never starts over a half-edited workspace. The model that
+        worked stays chosen for the rest of this writer's runs.
+        """
+        tried = [self.model]
+        while True:
+            try:
+                return self._run_once(**kwargs)
+            except AgentExecutionError as exc:
+                if exc.turns or not _model_unusable(exc):
+                    raise
+                fallback = next((
+                    candidate for candidate in _fallback_models()
+                    if not any(_same(candidate, seen) for seen in tried)
+                ), None)
+                if fallback is None:
+                    raise
+                logger.warning(
+                    "memory writer on %s/%s failed (%s); retrying on %s/%s",
+                    self.model.provider, self.model.id, exc,
+                    fallback.provider, fallback.id,
+                )
+                tried.append(fallback)
+                self.model = fallback
+
+    def _run_once(
         self,
         *,
         prompt: str,

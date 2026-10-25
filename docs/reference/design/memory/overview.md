@@ -710,6 +710,44 @@ paragraph that moved or was deleted — is dropped. A writer's own unused
 `[^eN]` is still an error, since it may be evidence whose citation the
 writer forgot.
 
+### Repaired before it is reported
+
+A failure notice alone fixes nothing, so each failure the writer can
+recover from has an agent or a fallback assigned to it, and only what is
+left is reported.
+
+- **Edits that fail the checks.** When a turn ends with staged edits that
+  `check_edits` rejects, the edits stay on the stage and the agent is sent
+  back with the error and its correction to fix them in place, up to
+  `FIX_ROUNDS` (three) times (`management/agent.py:_fix_in_place`). Only
+  then does the commit decide. A rejected commit rolls the stage back and
+  the turn is redone once from scratch, with the same fix rounds.
+- **Committed Topic files that do not parse.** Only an edit made outside
+  OpenProgram can leave one, and while it stands no write can be checked
+  against the tree. `repair_committed_topics` runs before every writer:
+  `topic_tree_problems` parses each file on its own and names the broken
+  ones, a repair agent fixes their format on an unrestricted stage, and the
+  fix installs as `memory: repair topic format`. The files that still parse
+  form the baseline, and the broken files' existing block IDs count as
+  existing so links into them survive. A repair that fails raises a
+  retryable `INVALID_TOPIC_FORMAT`: the conversation waits for the next
+  attempt instead of being given up on. The next attempt comes when the
+  broken files change; until then waiting writes fail fast instead of
+  paying for the same failed repair.
+- **A writer model this account cannot use.** `OpenProgramAgent` treats an
+  authentication, authorization or invalid-request failure, or a rate limit
+  marked not retryable (an exhausted plan), as "this model is unusable"
+  and retries the run on the default agent's model, then the last used
+  model. A writer model setting that no longer resolves falls back the
+  same way. It switches only when the failure came before any tool ran, so
+  a retry never starts over a half-edited stage, and the model that worked
+  stays chosen for the writer's later runs.
+
+What is still failing after that is recorded in `writer-status.json`. A
+retryable failure is retried by the next pass and shows only on the
+Memory page; a failure nothing will retry is also announced to open
+clients.
+
 ### History
 
 Every install is a Git commit named for what made it: a background write
@@ -788,10 +826,12 @@ the writer converts it to a valid Topic.
 | No writer process available | Writing is deferred and retried; the conversation is safe in the session store |
 | Model unreachable mid-write | The turn is rolled back whole; no source nodes are marked, so the same turns are retried |
 | Another writer holds the lock | This pass writes nothing and says so; the next turn retries |
-| The writer's edits are rejected twice | The batch fails whole — one repair attempt, then nothing is installed and no source nodes are marked |
-| A hand edit breaks the format | The edit is validated in a staging copy and never installed; the committed file is untouched and the rejected text is kept for a retry |
+| The writer's edits fail the checks | The agent fixes them in place, up to three rounds, before the commit; a rejected commit is redone once from scratch, and if that fails too nothing is installed and no source nodes are marked |
+| A hand edit through OpenProgram breaks the format | The edit is validated in a staging copy and never installed; the committed file is untouched and the rejected text is kept for a retry |
+| A hand edit outside OpenProgram breaks a committed Topic file | A repair agent fixes its format before the next writer runs; until it succeeds, writes wait and are retried |
+| The writer model cannot be used | The run moves to the default agent's model, then the last used one; it fails only when none of them works |
 | The writer finds nothing worth keeping | A run that ended normally with no failed edit marks its batch written; a run whose edits kept failing marks nothing |
-| The writer starts failing | `writer-status.json` records it; a `memory_writer_failed` frame reaches open clients once per failure streak or change of reason, and the Memory page shows the last failure while it stands |
+| The writer still fails after its repairs | `writer-status.json` records it and the Memory page shows the last failure while it stands; a failure nothing will retry also sends a `memory_writer_failed` frame to open clients once per failure streak or change of reason |
 
 Memory never takes a conversation down with it: every provider hook
 swallows its own failures and logs them. Swallowed is not forgotten.

@@ -309,7 +309,10 @@ def test_backfill_transaction_rejects_a_pending_ref_the_agent_reads_itself(
     with pytest.raises(TransactionError, match="not trusted|selected batch"):
         writing.backfill(root, batch_token_budget=10_000)
 
-    assert agent.calls == [[trusted.source_id], [trusted.source_id]]
+    from openprogram.memory.management.agent import FIX_ROUNDS
+
+    # The turn and the redo, each sent back to fix its edits in place.
+    assert agent.calls == [[trusted.source_id]] * (2 * (1 + FIX_ROUNDS))
     assert list((root / "topics").rglob("*.md")) == []
 
 

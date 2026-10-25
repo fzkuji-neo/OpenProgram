@@ -141,6 +141,9 @@ def test_a_writer_failure_is_announced_once_per_reason(tmp_path: Path, monkeypat
         writer_status.record_failure(root, code, retryable=False)
     writer_status.record_success(root)
     writer_status.record_failure(root, "MODEL_AUTHENTICATION", retryable=False)
+    writer_status.record_success(root)
+    # Retried on its own, so nobody is interrupted for it.
+    writer_status.record_failure(root, "MODEL_TRANSPORT", retryable=True)
 
     assert [frame["data"]["reason_code"] for frame in frames] == [
         "MODEL_RATE_LIMIT", "MODEL_AUTHENTICATION", "MODEL_AUTHENTICATION",

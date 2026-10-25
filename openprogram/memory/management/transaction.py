@@ -47,9 +47,13 @@ class TransactionError(Exception):
         *,
         path: str | None = None,
         details: dict[str, Any] | None = None,
+        retryable: bool = False,
     ) -> None:
         super().__init__(message)
         self.code = code
+        # Whether the same write may succeed later with nothing changed in
+        # it, because what failed is the workspace rather than the write.
+        self.retryable = retryable
         self.message = message
         self.path = path
         self.details = details or {}

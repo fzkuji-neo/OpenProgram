@@ -42,12 +42,25 @@ version. A further concurrent change is still rejected.
 
 ## When automatic writing stops
 
-Conversations reach Memory through a background writer. When its last run
-failed, a red strip at the top of Memory says why, when it last wrote, and how
-many conversation turns are waiting. The App also shows a notice the first time
-it fails, and again only if the reason changes. Turns that could not be written
-are retried; a conversation the writer finds nothing worth keeping in counts as
-written.
+Conversations reach Memory through a background writer, and it repairs what
+it can before anything is shown:
+
+- If the writer model cannot be used at all (a rejected sign-in, a plan
+  without access, a model the provider does not offer, an exhausted usage
+  plan), the writer switches to the default agent's model, then to the last
+  used model, and keeps writing.
+- If its edits fail the format checks, it is sent back to fix them in place,
+  up to three times, then redoes the turn once from scratch.
+- If a topic file was broken by a hand edit, a repair agent fixes its format
+  before any new conversation is written. The repair keeps the file's facts
+  and block IDs and has its own entry in the history.
+
+When the last run still failed, a red strip at the top of Memory says why,
+when it last wrote, and how many conversation turns are waiting. A failure
+that is retried on its own says so and stays in that strip. A failure nothing
+will retry also shows a notice once, and again only if the reason changes.
+Turns that could not be written are retried; a conversation the writer finds
+nothing worth keeping in counts as written.
 
 ## Format checks
 

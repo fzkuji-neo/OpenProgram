@@ -154,6 +154,30 @@ def parse_topic_tree(topics: Path, *, strict: bool = True) -> list[MemoryUnit]:
     return units
 
 
+def topic_tree_problems(
+    topics: Path,
+) -> tuple[list[MemoryUnit], dict[str, str]]:
+    """Parse every Topic file that parses; name the ones that do not.
+
+    A file that fails contributes no units, so the rest of the tree can
+    still serve as the baseline of the edit that repairs it.
+    """
+    topics = Path(topics)
+    units: list[MemoryUnit] = []
+    seen: set[str] = set()
+    source_lookup: dict[Path, dict[str, str]] = {}
+    problems: dict[str, str] = {}
+    for path in sorted(topics.rglob("*.md")):
+        mark, seen_before = len(units), set(seen)
+        try:
+            _parse_topic_file(path, topics, units, seen, source_lookup, strict=True)
+        except TopicFormatError as exc:
+            del units[mark:]
+            seen.intersection_update(seen_before)
+            problems[path.relative_to(topics).as_posix()] = str(exc)
+    return units, problems
+
+
 def _parse_topic_file(
     path: Path,
     topics: Path,

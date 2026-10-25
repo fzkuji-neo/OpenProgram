@@ -162,7 +162,9 @@ def record_failure(
     except Exception as exc:  # noqa: BLE001 - status cannot fail a write
         logger.debug("memory writer status failure was not persisted: %s", exc)
         return
-    if news:
+    # A retryable failure is retried on its own; only one nothing will
+    # retry is worth interrupting someone for.
+    if news and not retryable:
         _announce_failure(reason_code, retryable=retryable)
 
 

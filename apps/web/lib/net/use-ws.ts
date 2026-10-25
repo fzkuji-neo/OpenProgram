@@ -934,8 +934,9 @@ export function useWS(): void {
           return true;
         }
         case "memory_writer_failed": {
-          // The background memory writer started failing
-          // (openprogram/memory/runtime/writer_status.py); said once per streak.
+          // The background memory writer failed in a way its own repairs and
+          // retries do not cover (openprogram/memory/runtime/writer_status.py);
+          // said once per streak.
           const reason = typeof d?.reason_code === "string" ? d.reason_code : "";
           void import("@/components/memory/writer-health").then(({ writerFailureText }) =>
             import("@/lib/format-utils/toast").then(({ showToast }) => showToast(

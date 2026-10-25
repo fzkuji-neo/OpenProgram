@@ -130,7 +130,10 @@ def classify_memory_write_failure(
             code = MemoryWriteFailureCode.TRANSACTION_FAILURE_UNKNOWN
         if code not in _TRANSACTION_REASON_CODES:
             code = MemoryWriteFailureCode.TRANSACTION_FAILURE_UNKNOWN
-        retryable = code is MemoryWriteFailureCode.CONCURRENT_UPDATE
+        retryable = (
+            code is MemoryWriteFailureCode.CONCURRENT_UPDATE
+            or getattr(exc, "retryable", False) is True
+        )
         if code is MemoryWriteFailureCode.EMBEDDING_UNAVAILABLE:
             _reason, retryable = classify_error(exc.__cause__ or exc)
         return MemoryWriteFailureClassification(code, retryable)
