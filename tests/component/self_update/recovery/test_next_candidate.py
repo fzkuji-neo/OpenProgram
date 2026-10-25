@@ -111,6 +111,29 @@ def test_bounded_repair_submits_new_child_with_original_budget(diagnosis_environ
 
 
 @pytest.mark.parametrize("diagnosis_environment", [{"required_tests": ["python -c 'assert True'"]}], indirect=True)
+@native_sandbox
+def test_the_retry_approval_card_shows_the_candidate(diagnosis_environment, monkeypatch):
+    from openprogram.agent.permissions import approval as _approval
+    from openprogram.programs.tools.system import self_update as tools
+    from tests.component.programs.tools.test_self_update_tools import _request
+    store, _, _, update_id = diagnosis_environment
+    _turn(diagnosis_environment, monkeypatch)
+    _start()
+    repaired = _result(diagnosis_environment)
+    req = _request(session_id="p1", user_msg_id="retry_user", permission_mode="bypass")
+    args = dict(update_id=update_id, candidate_sha=repaired["candidate"]["candidate_sha"])
+    wrapped = _approval.wrap_with_approval(tools.self_update_retry, req, lambda _: None)
+
+    manifest = wrapped._interaction_manifest("retry", args)
+
+    shown = json.loads(manifest["detail"].split("\n", 1)[1])
+    assert shown["candidate"]["changed_paths"] == ["feature.txt"]
+    assert [test["command"] for test in shown["candidate"]["tests"]] == ["python -c 'assert True'"]
+    assert shown["candidate"]["next_attempt"] == 2
+    assert manifest["request_metadata"]["args"] == args
+
+
+@pytest.mark.parametrize("diagnosis_environment", [{"required_tests": ["python -c 'assert True'"]}], indirect=True)
 @pytest.mark.parametrize("decision", ["allow", "deny", "dirty", "log", "log_link_race"])
 @native_sandbox
 def test_default_retry_requires_fresh_exact_one_shot_approval(diagnosis_environment, monkeypatch, decision):

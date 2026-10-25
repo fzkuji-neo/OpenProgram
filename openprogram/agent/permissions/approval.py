@@ -154,7 +154,7 @@ def wrap_with_approval(
             scopes.append("always")
         from .recovery import approval_context
         recovery = approval_context(agent_tool, req)
-        detail = _approval_detail(name, args)
+        detail = _approval_detail(name, _shown_args(name, args, req))
         if recovery:
             detail = ("Previous operations have unknown outcomes. This approval authorizes only "
                       "the new operation below; it does not confirm or resolve prior operations.\n"
@@ -434,6 +434,18 @@ def _risk_level(tool_name: str, args: dict) -> str:
     if any(k in name for k in ("write", "edit", "apply_patch", "delete", "remove")):
         return "medium"
     return "low"
+
+
+def _shown_args(tool_name: str, args: dict, req) -> dict:
+    """A retry approves a candidate, so its card shows that candidate's paths, tests and budget."""
+    if tool_name != "self_update_retry":
+        return args
+    from openprogram.self_update.repair.next_candidate import approval_preview
+    try:
+        return {**args, "candidate": approval_preview(args.get("update_id"), args.get("candidate_sha"), req)}
+    except Exception:
+        # Execution rechecks the candidate and refuses it with the reason.
+        return args
 
 
 def _approval_detail(tool_name: str, args: dict) -> str:
