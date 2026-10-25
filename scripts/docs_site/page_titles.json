@@ -59,10 +59,6 @@
     "en": "Commits and PRs",
     "zh": "提交与拉取请求"
   },
-  "capabilities/distill.md": {
-    "en": "History distillation",
-    "zh": "历史提炼"
-  },
   "capabilities/docs-question.md": {
     "en": "Framework questions",
     "zh": "框架问答"
@@ -930,10 +926,6 @@
   "reference/design/runtime/session/context.md": {
     "en": "Context",
     "zh": "上下文"
-  },
-  "reference/design/runtime/session/distill.md": {
-    "en": "History distillation",
-    "zh": "历史提炼"
   },
   "reference/design/runtime/session/name.md": {
     "en": "Title generation",

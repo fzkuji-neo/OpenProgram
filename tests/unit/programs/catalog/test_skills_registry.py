@@ -146,7 +146,7 @@ def test_explicit_dirs_use_the_same_parser_and_rule(tmp_path):
 def test_chat_and_exec_render_the_same_block(sources, monkeypatch):
     """context.components (chat turns) and Runtime._skills_block (inside an
     agentic function) go through the one loader and the one renderer."""
-    _write_skill(sources["remote_cache"], "distill", "turn a session into a skill")
+    _write_skill(sources["remote_cache"], "summarize", "summarize a document")
     from openprogram.agentic_programming.runtime import Runtime
     from openprogram.context import components
 
@@ -156,17 +156,17 @@ def test_chat_and_exec_render_the_same_block(sources, monkeypatch):
     rt._skills_prompt_block = ""
 
     assert components._build_skills(None) == rt._skills_block().strip("\n")
-    assert "<name>distill</name>" in rt._skills_block()
+    assert "<name>summarize</name>" in rt._skills_block()
 
 
 def test_disabled_skills_drop_out_of_the_chat_listing(sources):
-    _write_skill(sources["remote_cache"], "distill", "turn a session into a skill")
+    _write_skill(sources["remote_cache"], "summarize", "summarize a document")
     _write_skill(sources["project"], "deploy", "ship it")
     from openprogram.context import components
 
-    block = components._build_skills({"skills": {"disabled": ["distill"]}})
+    block = components._build_skills({"skills": {"disabled": ["summarize"]}})
     assert "<name>deploy</name>" in block
-    assert "distill" not in block
+    assert "summarize" not in block
 
 
 def test_skill_tool_is_registered_and_deferred():

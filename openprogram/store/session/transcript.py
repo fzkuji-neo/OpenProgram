@@ -8,8 +8,7 @@ This module joins the two: walk the branch, and under each turn print
 the calls whose ``caller`` points at it.
 
 Written for reading, not debugging — ``scripts/dag_dump.py`` covers the
-coordinate/lane view. The output feeds the ``distill`` skill, which
-turns a past session into a reusable SKILL.md or agentic function.
+coordinate/lane view. The output feeds the ``read_conversation`` tool.
 """
 from __future__ import annotations
 

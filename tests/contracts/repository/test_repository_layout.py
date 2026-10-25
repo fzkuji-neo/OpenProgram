@@ -305,8 +305,6 @@ def test_user_docs_do_not_advertise_removed_bundled_skills() -> None:
         ROOT / "docs/README.zh.md",
         *sorted((ROOT / "docs/capabilities").glob("*.md")),
         *sorted((ROOT / "docs/start").glob("*.md")),
-        ROOT / "docs/reference/design/runtime/session/distill.md",
-        ROOT / "docs/reference/design/runtime/session/distill.zh.md",
         ROOT / "openprogram/__init__.py",
         ROOT / "openprogram/skills/loader.py",
         *sorted((ROOT / "openprogram/agentic_programming/runtime").glob("*.py")),

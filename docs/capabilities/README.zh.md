@@ -22,7 +22,6 @@ OpenProgram 的底座是 Agentic Programming：**Python 控制流程，LLM 提�
 不写 harness 也能扩展 agent 的能力：
 
 - [Skills](skills.zh.md) —— `SKILL.md` 注册表：给模型按需加载的领域知识与操作手册
-- [Distill](distill.zh.md) —— 把做成了的会话蒸馏成可复用的 skill 或函数，让流程不随对话消失
 - [Commit, push, PR](commit-push-pr.zh.md) —— 把做完的活从工作区送到可评审的 pull request，并在 `git log` 里留下 AI 共同作者署名
 - [Plugins](plugins.zh.md) —— 从 pip / npm / git / 本地路径安装插件，向宿主贡献 commands、skills、MCP server 等
 - [MCP](mcp.zh.md) —— 接入任意 MCP server，其工具直接出现在聊天里

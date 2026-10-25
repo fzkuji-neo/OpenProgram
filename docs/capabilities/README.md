@@ -22,7 +22,6 @@ Complete workflows written on top of the paradigm (called harnesses / agentic pr
 Ways to extend the agent's capabilities without writing a harness:
 
 - [Skills](skills.md) — the `SKILL.md` registry: domain knowledge and playbooks the model loads on demand
-- [Distill](distill.md) — turn a session that worked into a reusable skill or function, so the procedure survives the conversation
 - [Commit, push, PR](commit-push-pr.md) — take finished work from the working tree to a reviewable pull request, with AI co-author attribution in `git log`
 - [Plugins](plugins.md) — install plugins from pip / npm / git / local paths that contribute commands, skills, MCP servers, and more to the host
 - [MCP](mcp.md) — connect any MCP server; its tools appear directly in chat

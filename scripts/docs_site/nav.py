@@ -284,7 +284,6 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
         ("Computer use", "操控电脑", ["capabilities/computer-use.md"]),
         ("Extending", "扩展", [
             "capabilities/installing-harnesses.md", "capabilities/skills.md",
-            "capabilities/distill.md",
             "capabilities/plugins.md", "capabilities/mcp.md",
             "capabilities/tools.md", "capabilities/lsp.md"]),
     ],
@@ -363,7 +362,6 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/runtime/unified-session-context.md",
             "reference/design/runtime/additional-working-directories.md",
             "reference/design/runtime/session/comparison.md",
-            "reference/design/runtime/session/distill.md",
             "reference/design/runtime/session/storage-consistency.html",
             "reference/design/runtime/session/name.md",
         ]),
@@ -710,7 +708,6 @@ PAGE_ORDER: dict[str, int] = {
     "capabilities/workflows": 2,
     "capabilities/installing-harnesses.md": 3,
     "capabilities/skills.md": 4,
-    "capabilities/distill.md": 5,
     "capabilities/commit-push-pr.md": 6,
     "capabilities/plugins.md": 7,
     "capabilities/mcp.md": 8,

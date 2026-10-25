@@ -8,5 +8,4 @@ Session 是用户与 agent 的一次对话。
 - [operations.md](operations.zh.md) — 操作流程：启动、创建、写消息、更新字段、命名、列举、删除、归档
 - [name.md](name.zh.md) — LLM 标题生成细节：prompt、参数、后处理
 - [context.md](context.zh.md) — session_context manager：统一上下文，所有入口共享
-- [distill.md](distill.zh.md) — 把会话读回成文本，蒸馏成可复用的 skill 或函数
 - [comparison.md](comparison.zh.md) — Claude Code / OpenCode / OpenClaw / OpenProgram 对比
