@@ -93,7 +93,7 @@ def request_dispatch(record: UpdateRecord, *, timeout: float = 120) -> None:
                          timeout=timeout, overall_timeout=timeout) as client:
             response = client.post(
                 f"{origin}/api/self-updates/{record.request.update_id}/dispatch",
-                headers={"Authorization": f"Bearer {token}", "Origin": origin, "Accept-Encoding": "identity"},
+                headers={"Authorization": f"Bearer {token}", "Origin": origin},
                 timeout=timeout, follow_redirects=False,
             )
         if response.status_code != 200 or response.json() != {"dispatched": True}:
@@ -150,12 +150,16 @@ def _probe_system(record: UpdateRecord, revision: str | None, timeout: float, ob
         security = OutboundSecurityConfig(owner_exceptions=(OwnerURLException(consumer="runtime.local_probe", origin=origin),))
         with safe_client("runtime.local_probe", configured_origin=origin, security=security,
                          timeout=min(20, remaining()), overall_timeout=remaining()) as client:
-            headers = {"Authorization": f"Bearer {token}", "Origin": origin, "Accept-Encoding": "identity"}
+            headers = {"Authorization": f"Bearer {token}", "Origin": origin}
             def bounded_get(path, *, authenticated=True, params=None, limit=1_048_576):
-                request_headers = headers if authenticated else {"Accept-Encoding": "identity"}
+                request_headers = headers if authenticated else {}
                 with client.stream("GET", origin + path, headers=request_headers, params=params,
                                    timeout=min(20, remaining()), follow_redirects=False) as response:
-                    if response.headers.get("content-encoding", "identity").lower() != "identity":
+                    # The managed transport asks for gzip/deflate; the limit
+                    # below bounds the decoded body either way.
+                    if response.headers.get("content-encoding", "identity").lower() not in {
+                        "identity", "gzip", "deflate",
+                    }:
                         raise ValueError
                     body = bytearray()
                     for chunk in response.iter_bytes(chunk_size=8192):
@@ -165,7 +169,9 @@ def _probe_system(record: UpdateRecord, revision: str | None, timeout: float, ob
                             raise ValueError
                     if token.encode() in body or any(token in value for value in response.headers.values()):
                         raise ValueError  # Never retain or expose a peer-echoed owner credential.
-                    return httpx.Response(response.status_code, headers=response.headers, content=bytes(body), request=response.request)
+                    decoded = [(name, value) for name, value in response.headers.items()
+                               if name.lower() not in {"content-encoding", "content-length"}]
+                    return httpx.Response(response.status_code, headers=decoded, content=bytes(body), request=response.request)
             nonce = secrets.token_urlsafe(32)
             # Legacy/dirty old revisions use the same owner proof followed by
             # strict authenticated diagnostics. Candidate proof stays SHA-bound.

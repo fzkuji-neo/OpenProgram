@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import pytest
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from starlette.middleware.gzip import GZipMiddleware
 
 from openprogram.self_update import SelfUpdateStore, UpdateRequest, UpdatePhase
 from tests.component.agent.async_job_support import store_fixture  # noqa: F401
@@ -59,6 +60,8 @@ def live(tmp_path, monkeypatch):
         assert await ws.receive_text() == "ping"
         await ws.send_text(json.dumps({"type": "pong" if flags["ws"] else "failure"}))
         await ws.close()
+    # Like the served App: the managed client asks for gzip, so every body is compressed.
+    app.add_middleware(GZipMiddleware, minimum_size=1)
     state = OwnerAuthState.start(state_dir=profile, bind_host="127.0.0.1", port=port, allowed_origins=(), raw_token=bytes(range(32)), owner_principal_id=owner)
     authenticated_app = OwnerAuthMiddleware(app, auth_state=state)
     async def controlled_redirect(scope, receive, send):
