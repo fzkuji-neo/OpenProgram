@@ -105,6 +105,12 @@ Permission, authority and approval decide per action: for `self_update`,
 `prepare` and `retry` always ask for one-shot owner approval
 (`policy._self_update_install`).
 
+What can be checked from the arguments alone is checked before the approval
+card (`openprogram/programs/prechecks.py`, called by `permission_decision`
+after the guide check): a `prepare` with a malformed SHA, or an iteration
+policy or verification plan out of bounds, is refused with
+`INVALID_ARGUMENTS`, so the owner never approves a call that cannot run.
+
 ## Choosing a mode
 
 - Instructions every use needs: `open`.
@@ -120,8 +126,9 @@ Permission, authority and approval decide per action: for `self_update`,
 
 - `openprogram/programs/guides.py`
 - `openprogram/programs/tools/runtime/help.py`
+- `openprogram/programs/prechecks.py`
 - `openprogram/agent/agent_loop.py` (`_run_loop`, `_stream_assistant_response`, `_rewrite_tool_result`)
 - `openprogram/agent/permissions/policy.py` (`permission_decision`)
 - `openprogram/programs/tools/system/self_update/__init__.py`
 - `openprogram/programs/tools/system/computer_use_agent/tool.py`, `code.py`
-- Tests: `tests/unit/programs/test_guides.py`
+- Tests: `tests/unit/programs/test_guides.py`, `tests/unit/programs/test_prechecks.py`

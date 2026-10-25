@@ -8,7 +8,8 @@ from openprogram.agent.types import AgentTool, AgentToolResult
 
 @pytest.mark.parametrize("name,rules,args", [
     ("bash", PermissionRules(ask=["bash"]), {}),
-    ("self_update", None, {"action": "prepare"}),
+    ("self_update", None, {"action": "prepare", "worktree_id": "wt_1", "candidate_sha": "a" * 40,
+                           "goal": "docs", "assertions": ["the page names help"]}),
     ("exit_plan_mode", None, {}),
 ])
 def test_bypass_preserves_required_approval_manifest(name, rules, args, monkeypatch):

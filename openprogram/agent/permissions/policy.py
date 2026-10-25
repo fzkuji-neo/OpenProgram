@@ -267,6 +267,10 @@ def permission_decision(agent_tool, req, args: dict) -> tuple[str, str, str, obj
     unread = guides.missing_required(name, args if isinstance(args, dict) else {})
     if unread:
         return "deny", "GUIDE_REQUIRED", guides.refusal(name, unread), None
+    from openprogram.programs import prechecks
+    invalid = prechecks.problem(name, args)
+    if invalid:
+        return "deny", "INVALID_ARGUMENTS", f"{name}: {invalid}", None
     from openprogram.agent.authority import decide_tool_authority
     authority = decide_tool_authority(req, name, args)
     if not authority.allowed:

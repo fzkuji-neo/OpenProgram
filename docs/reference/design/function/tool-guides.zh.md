@@ -85,6 +85,10 @@ docstring 就是目标指南里对应动作的那一行。
 对 `self_update`，`status` 只读（`fs.read`，无需审批），`cancel` 是 `runtime.control`，
 `prepare` 和 `retry` 总是请 owner 单次审批（`policy._self_update_install`）。
 
+只凭参数就能检查的内容在审批卡之前检查（`openprogram/programs/prechecks.py`，由
+`permission_decision` 在指南检查之后调用）：SHA 格式不对、迭代策略或验证计划越界的
+`prepare` 以 `INVALID_ARGUMENTS` 拒绝，owner 不会批准一次根本无法执行的调用。
+
 ## 选择模式
 
 - 每次使用都需要的说明：`open`。
@@ -97,8 +101,9 @@ docstring 就是目标指南里对应动作的那一行。
 
 - `openprogram/programs/guides.py`
 - `openprogram/programs/tools/runtime/help.py`
+- `openprogram/programs/prechecks.py`
 - `openprogram/agent/agent_loop.py`（`_run_loop`、`_stream_assistant_response`、`_rewrite_tool_result`）
 - `openprogram/agent/permissions/policy.py`（`permission_decision`）
 - `openprogram/programs/tools/system/self_update/__init__.py`
 - `openprogram/programs/tools/system/computer_use_agent/tool.py`、`code.py`
-- 测试：`tests/unit/programs/test_guides.py`
+- 测试：`tests/unit/programs/test_guides.py`、`tests/unit/programs/test_prechecks.py`

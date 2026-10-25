@@ -211,6 +211,45 @@ def _validate_candidate_snapshot(candidate: Path, candidate_sha: str) -> None:
         raise SelfUpdateToolError("candidate_sha is not the worktree HEAD")
 
 
+def _check_prepare_arguments(candidate_sha, goal, assertions, iteration_policy, verification_plan) -> None:
+    """The checks of a prepare call that need nothing but its arguments."""
+    if (
+        not isinstance(candidate_sha, str)
+        or len(candidate_sha) != 40
+        or candidate_sha.lower() != candidate_sha
+        or any(ch not in "0123456789abcdef" for ch in candidate_sha)
+    ):
+        raise SelfUpdateToolError("candidate_sha must be a full lowercase Git SHA")
+    if not isinstance(goal, str) or not goal.strip():
+        raise SelfUpdateToolError("goal is required")
+    if (
+        not isinstance(assertions, list)
+        or not assertions
+        or any(not isinstance(value, str) or not value.strip() for value in assertions)
+    ):
+        raise SelfUpdateToolError("assertions must be a non-empty list of strings")
+    _iteration_policy(iteration_policy)
+    if verification_plan is not None:
+        from types import SimpleNamespace
+        from openprogram.self_update.verification.verification_plan import validate_plan
+        try:
+            validate_plan(verification_plan, SimpleNamespace(assertions=tuple(assertions)))
+        except ValueError as exc:
+            raise SelfUpdateToolError(f"verification_plan: {exc}") from exc
+
+
+def _precheck(args: dict) -> str | None:
+    """Refuse a prepare call with invalid arguments before it asks for approval."""
+    if action_of(args) != "prepare":
+        return None
+    try:
+        _check_prepare_arguments(args.get("candidate_sha"), args.get("goal"), args.get("assertions"),
+                                 args.get("iteration_policy"), args.get("verification_plan"))
+    except SelfUpdateToolError as exc:
+        return str(exc)
+    return None
+
+
 def _prepare_update(
     *,
     worktree_id: str,
@@ -229,21 +268,7 @@ def _prepare_update(
         raise SelfUpdateToolError("self-update must run inside a persisted chat turn")
     if not isinstance(worktree_id, str) or not worktree_id.strip():
         raise SelfUpdateToolError("worktree_id is required")
-    if (
-        not isinstance(candidate_sha, str)
-        or len(candidate_sha) != 40
-        or candidate_sha.lower() != candidate_sha
-        or any(ch not in "0123456789abcdef" for ch in candidate_sha)
-    ):
-        raise SelfUpdateToolError("candidate_sha must be a full lowercase Git SHA")
-    if not isinstance(goal, str) or not goal.strip():
-        raise SelfUpdateToolError("goal is required")
-    if (
-        not isinstance(assertions, list)
-        or not assertions
-        or any(not isinstance(value, str) or not value.strip() for value in assertions)
-    ):
-        raise SelfUpdateToolError("assertions must be a non-empty list of strings")
+    _check_prepare_arguments(candidate_sha, goal, assertions, iteration_policy, verification_plan)
 
     worktree = manager.get_worktree(worktree_id)
     if worktree is None:
@@ -494,7 +519,7 @@ def _prepare_guide() -> str:
           non-empty required_tests.
         - verification_plan: {{"schema": 1, "checks": [...]}} with one check per assertion:
           {{"id", "assertion_id": "acceptance-N", "entry", "timeout_seconds": 1-60,
-          "max_output_bytes"}}. entry is one of: {entries}.
+          "max_output_bytes": 1-262144 (1-1572864 for ui:main)}}. entry is one of: {entries}.
           /docs/<path>.html reads a page of the installed docs site (for documentation
           changes, e.g. /docs/install/upgrade.html for docs/install/upgrade.md);
           "test:python" adds "argv": [relative script.py, ...] run in the candidate;
@@ -622,6 +647,9 @@ def _abort_request(record: Any, *, req: Any, store: SelfUpdateStore) -> dict[str
 
 
 from openprogram.programs import guides as _guides
+from openprogram.programs import prechecks as _prechecks
+
+_prechecks.register("self_update", _precheck)
 
 _guides.register("self_update", [
     _guides.Guide("self_update", _overview, mode="open", activates=("worktree_create",)),
