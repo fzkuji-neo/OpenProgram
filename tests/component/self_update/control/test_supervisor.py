@@ -397,6 +397,37 @@ def test_build_runs_fixed_entry_in_private_network_denied_sandbox(
 
 
 @pytest.mark.macos
+def test_candidate_sandbox_reads_a_worktree_under_the_protected_state_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from openprogram.self_update.control import supervisor
+
+    sandbox = Path("/usr/bin/sandbox-exec")
+    if not sandbox.is_file():
+        pytest.skip("requires macOS sandbox-exec")
+    home = tmp_path / "home"
+    state = home / ".openprogram"
+    candidate = state / "worktrees" / "wt_1-candidate"
+    update = state / "self-updates" / "su_1"
+    artifact, build_home, build_tmp = (update / name for name in ("artifact", "build-home", "build-tmp"))
+    for directory in (candidate, artifact, build_home, build_tmp):
+        directory.mkdir(parents=True)
+    (candidate / "build.sh").write_text("pwd; cat entry.txt\n")
+    (candidate / "entry.txt").write_text("candidate source\n")
+    (state / "secret.json").write_text("owner state")
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: home))
+    prefix = [str(sandbox), "-p", supervisor._sandbox_profile(candidate, artifact, build_home, build_tmp)]
+    environment = {"PATH": "/usr/bin:/bin", "HOME": str(build_home), "TMPDIR": str(build_tmp)}
+    build = subprocess.run([*prefix, "/bin/bash", str(candidate / "build.sh")], cwd=candidate,
+                           env=environment, capture_output=True, text=True, timeout=10)
+    assert build.returncode == 0, build.stderr
+    assert build.stdout.splitlines() == [str(candidate.resolve()), "candidate source"]
+    secret = subprocess.run([*prefix, "/bin/cat", str(state / "secret.json")], env=environment,
+                            capture_output=True, text=True, timeout=10)
+    assert secret.returncode != 0 and "owner state" not in secret.stdout
+
+
+@pytest.mark.macos
 def test_candidate_sandbox_reads_platform_without_allowing_external_writes(tmp_path: Path) -> None:
     from openprogram.self_update.control import supervisor
 

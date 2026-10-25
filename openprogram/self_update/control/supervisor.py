@@ -138,6 +138,8 @@ def _sandbox_profile(
         f"(allow file-write* (subpath {quoted(artifact_root)}))",
         f"(allow file-write* (subpath {quoted(build_home)}))",
         f"(allow file-write* (subpath {quoted(build_tmp)}))",
+        # Agent worktrees live under ~/.openprogram/worktrees by default.
+        f"(allow file-read* (subpath {quoted(candidate)}))",
         f"(allow file-read* (subpath {quoted(artifact_root)}))",
         f"(allow file-read* (subpath {quoted(build_home)}))",
         f"(allow file-read* (subpath {quoted(build_tmp)}))",
@@ -146,7 +148,7 @@ def _sandbox_profile(
     ]
     protected_root = (Path.home() / ".openprogram").resolve()
     metadata_paths: set[Path] = set()
-    readable_roots = [artifact_root, build_home, build_tmp]
+    readable_roots = [candidate, artifact_root, build_home, build_tmp]
     if trusted_input is not None:
         readable_roots.append(trusted_input.parent)
     for root in readable_roots:
