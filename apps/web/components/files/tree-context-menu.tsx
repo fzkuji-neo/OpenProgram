@@ -16,11 +16,13 @@ import { MenuRow } from "@/components/ui/menu-parts";
 /** Cut/copy source, module-level so it survives menu close and spans
  *  tree instances. Cleared after a cut-paste lands. */
 export const treeClipboard: {
-  current: { op: "cut" | "copy"; projectId: string; path: string } | null;
+  current: { op: "cut" | "copy"; projectId: string; paths: string[] } | null;
 } = { current: null };
 
 export interface TreeContextMenuProps {
   canPaste: boolean;
+  /** Rows the copy, cut and delete items act on; rename needs exactly one. */
+  count?: number;
   revealLabel: string;
   onInfo: () => void;
   onReveal: () => void;
@@ -54,8 +56,8 @@ export function TreeContextMenu(props: TreeContextMenuProps) {
       <ContextMenuItem onSelect={props.onCopy}><MenuRow glyph="copy" label={text("Copy", "复制")} /></ContextMenuItem>
       <ContextMenuItem disabled={!props.canPaste} onSelect={props.onPaste}><MenuRow glyph="clipboard-text" label={text("Paste", "粘贴")} /></ContextMenuItem>
       <ContextMenuSeparator />
-      <ContextMenuItem onSelect={props.onRename}><MenuRow glyph="pen" label={text("Rename", "重命名")} /></ContextMenuItem>
-      <ContextMenuItem variant="destructive" onSelect={props.onDelete}><MenuRow glyph="trash-bin-trash" label={text("Delete", "删除")} danger /></ContextMenuItem>
+      <ContextMenuItem disabled={(props.count ?? 1) > 1} onSelect={props.onRename}><MenuRow glyph="pen" label={text("Rename", "重命名")} /></ContextMenuItem>
+      <ContextMenuItem variant="destructive" onSelect={props.onDelete}><MenuRow glyph="trash-bin-trash" label={(props.count ?? 1) > 1 ? text(`Delete ${props.count} Items`, `删除 ${props.count} 项`) : text("Delete", "删除")} danger /></ContextMenuItem>
     </ContextMenuContent>
   );
 }

@@ -1213,3 +1213,30 @@ def test_case_only_rename_dangling_link(project_root):
     assert 'ALIAS' in os.listdir(project_root)
     assert 'alias' not in os.listdir(project_root)
     assert (project_root / 'ALIAS').is_symlink()
+
+
+# ---- POST /api/files/upload ------------------------------------------------
+
+def _upload(client, path, body=b"data"):
+    return client.post("/api/files/upload", params={"project_id": "p1", "path": path},
+                       content=body, headers={"Origin": "http://127.0.0.1:18100"})
+
+
+def test_upload_writes_a_dropped_file_and_its_folders(client, project_root):
+    response = _upload(client, "drop/inner/note.bin", b"\x00\x01bytes")
+    assert response.status_code == 200, response.text
+    assert (project_root / "drop/inner/note.bin").read_bytes() == b"\x00\x01bytes"
+    assert not [p for p in (project_root / "drop/inner").iterdir() if p.name.startswith(".upload-")]
+
+
+def test_upload_never_overwrites(client, project_root):
+    response = _upload(client, "apple.txt", b"new")
+    assert response.status_code == 409
+    assert response.json()["error_code"] == "EXISTS"
+    assert (project_root / "apple.txt").read_text() == "aaa"
+
+
+@pytest.mark.parametrize("path", ["../outside/x.txt", "/etc/x", "sneaky_link/x", "src/"])
+def test_upload_stays_inside_the_project(client, project_root, path):
+    assert _upload(client, path).status_code in {400, 403, 409}
+    assert not (project_root.parent / "outside" / "x.txt").exists()

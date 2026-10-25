@@ -817,6 +817,10 @@ def create_app(*, owner_auth=None, port: int = 18100):
     from openprogram.webui.routes.files import documents as _routes_documents
     _routes_documents.register(app)
 
+    # POST /api/files/upload — files dropped into the file tree
+    from openprogram.webui.routes.files import upload as _routes_upload
+    _routes_upload.register(app)
+
     # Scheduler task CRUD — independent from Memory; tasks may hold read-only
     # MemoryRefs but their lifecycle is owned here.
     from openprogram.webui.routes.execution import scheduler as _routes_scheduler

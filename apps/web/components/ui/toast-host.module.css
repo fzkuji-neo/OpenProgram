@@ -32,6 +32,10 @@
 }
 
 .link {
+  padding: 0;
+  font: inherit;
+  background: none;
+  border: 0;
   /* The host is pointer-events:none; re-enable just the link so the
      toast doesn't block clicks underneath but the link is clickable. */
   pointer-events: auto;

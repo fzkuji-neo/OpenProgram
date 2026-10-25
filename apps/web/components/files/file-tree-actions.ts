@@ -7,6 +7,7 @@ import { treeClipboard } from "./tree-context-menu";
 import { copyText } from "./explorer-header";
 import { baseOf, joinPath, parentOf, projectAbsPath } from "./file-tree-query";
 import { asServerRenameResult, type FileOperation } from "./file-tree-operation";
+import { showToast } from "@/lib/format-utils/toast";
 
 type Selection = { path: string; type: "file" | "dir" } | null;
 type Creation = { dir: string; kind: "file" | "dir" } | null;
@@ -85,22 +86,7 @@ export function createFileTreeActions({
     setRenaming(null);
     if (name === baseOf(oldPath)) return;
     const dir = parentOf(oldPath);
-    const newPath = joinPath(dir, name);
-    const result = await runServerRenameWithDrafts(
-      projectId,
-      oldPath,
-      newPath,
-      async (): Promise<ServerRenameResult> => {
-        const result = await fileOp("rename", { path: oldPath, new_path: newPath }, [dir]);
-        return asServerRenameResult(result);
-      },
-      async (): Promise<ServerRenameResult> => {
-        const result = await fileOp("rename", { path: newPath, new_path: oldPath }, [dir]);
-        return asServerRenameResult(result, "recovery_required");
-      },
-    );
-    if (result.ok) retargetOpenTabs(oldPath, newPath);
-    else if (result.message) window.alert(result.message);
+    await moveOne(oldPath, joinPath(dir, name), [dir]);
   }
 
   async function copyPathTo(rel: string, absolute: boolean) {
@@ -109,33 +95,65 @@ export function createFileTreeActions({
     if (root) copyText(`${root}/${rel}`);
   }
 
+  /** Move one entry on the server, carrying unsaved drafts and open tabs. */
+  async function moveOne(from: string, to: string, refresh: string[]): Promise<boolean> {
+    const result = await runServerRenameWithDrafts(
+      projectId,
+      from,
+      to,
+      async (): Promise<ServerRenameResult> => asServerRenameResult(await fileOp("rename", { path: from, new_path: to }, refresh)),
+      async (): Promise<ServerRenameResult> => asServerRenameResult(await fileOp("rename", { path: to, new_path: from }, refresh), "recovery_required"),
+    );
+    if (result.ok) retargetOpenTabs(from, to);
+    else if (result.message) window.alert(result.message);
+    return result.ok;
+  }
+
+  /** Move entries into ``targetDir``. A move that would not change the
+   *  path, or would put a folder inside itself, is skipped. The toast's
+   *  Undo moves everything back. Returns whether every move landed. */
+  async function moveEntries(paths: string[], targetDir: string): Promise<boolean> {
+    const moved: [string, string][] = [];
+    let complete = true;
+    for (const from of paths) {
+      const to = joinPath(targetDir, baseOf(from));
+      if (to === from || targetDir === from || targetDir.startsWith(from + "/")) continue;
+      if (await moveOne(from, to, [parentOf(from), targetDir])) moved.push([from, to]);
+      else complete = false;
+    }
+    if (moved.length) {
+      const where = targetDir || text("the project root", "项目根目录");
+      showToast(
+        moved.length === 1
+          ? text(`Moved ${baseOf(moved[0][0])} to ${where}`, `已将 ${baseOf(moved[0][0])} 移到 ${where}`)
+          : text(`Moved ${moved.length} items to ${where}`, `已将 ${moved.length} 项移到 ${where}`),
+        {
+          duration: 6000,
+          action: {
+            label: text("Undo", "撤销"),
+            run: () => void (async () => {
+              for (const [from, to] of [...moved].reverse()) await moveOne(to, from, [parentOf(from), targetDir]);
+            })(),
+          },
+        },
+      );
+    }
+    return complete;
+  }
+
   /** Paste destination: the right-clicked dir itself, or the parent
    *  dir of a right-clicked file — always `<target>/<basename(src)>`. */
   async function pasteInto(targetDir: string) {
     const clip = treeClipboard.current;
     if (!clip || clip.projectId !== projectId) return;
-    const dest = joinPath(targetDir, baseOf(clip.path));
-    if (dest === clip.path) return;
     if (clip.op === "cut") {
-      const result = await runServerRenameWithDrafts(
-        projectId,
-        clip.path,
-        dest,
-        async (): Promise<ServerRenameResult> => {
-          const result = await fileOp("rename", { path: clip.path, new_path: dest }, [parentOf(clip.path), targetDir]);
-          return asServerRenameResult(result);
-        },
-        async (): Promise<ServerRenameResult> => {
-          const result = await fileOp("rename", { path: dest, new_path: clip.path }, [parentOf(clip.path), targetDir]);
-          return asServerRenameResult(result, "recovery_required");
-        },
-      );
-      if (result.ok) {
-        treeClipboard.current = null;
-        retargetOpenTabs(clip.path, dest);
-      } else if (result.message) window.alert(result.message);
-    } else {
-      await fileOp("copy", { path: clip.path, new_path: dest }, [targetDir]);
+      await moveEntries(clip.paths, targetDir);
+      treeClipboard.current = null;
+      return;
+    }
+    for (const path of clip.paths) {
+      const dest = joinPath(targetDir, baseOf(path));
+      if (dest !== path) await fileOp("copy", { path, new_path: dest }, [targetDir]);
     }
   }
 
@@ -212,5 +230,5 @@ export function createFileTreeActions({
     }
   }
 
-  return { startCreate, commitCreate, commitRename, copyPathTo, pasteInto, doDelete };
+  return { startCreate, commitCreate, commitRename, copyPathTo, pasteInto, moveEntries, doDelete };
 }

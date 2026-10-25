@@ -6,6 +6,8 @@ import { pierreTreeIcons as icons, pierreTreeCSS as css, fileColumnWidths } from
 import { formatFileBytes, useFolderSize } from "./file-management";
 import { useTranslation } from "@/lib/i18n";
 import { FileColumnsHeader, fileKind } from "./file-tree-columns";
+import { carriesFiles } from "./file-tree-drop";
+import styles from "./files-panel.module.css";
 
 export interface PierreTreeEntry { path: string; type: "file" | "dir"; size: number; mtime?: number }
 export interface PierreScrollState { path: string; offset: number }
@@ -20,6 +22,10 @@ interface Props {
   entries: PierreTreeEntry[];
   expanded: Set<string>;
   selected: string | null;
+  /** Every selected row; the primary ``selected`` is among them. */
+  selectedPaths?: readonly string[];
+  /** Rows can be dragged onto folders; the drop is reported, not applied. */
+  movable?: boolean;
   query?: string;
   sort?: string;
   onSortChange?(value: string): void;
@@ -28,6 +34,10 @@ interface Props {
   onActivate?(path: string, type: "file" | "dir"): void;
   onExpandedChange(paths: Set<string>): void;
   onSelect(path: string, type: "file" | "dir"): void;
+  onSelectionChange?(entries: { path: string; type: "file" | "dir" }[]): void;
+  onMove?(paths: string[], targetDir: string): void;
+  /** Files dragged in from the desktop, over or onto ``targetDir``. */
+  onExternalDrop?(transfer: DataTransfer, targetDir: string): void;
   onOpen(path: string): void;
   onContextMenu(event: React.MouseEvent<HTMLElement>, path: string, type: "file" | "dir"): void;
 }
@@ -60,10 +70,20 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
     itemHeight: 30, density: 1, icons, search: false, fileTreeSearchMode: "expand-matches", stickyFolders: true, unsafeCSS: css,
     onSelectionChange: paths => {
       if (syncing.current) return;
-      const path = paths.at(-1);
-      const entry = path == null ? undefined : metadata.current.get(normalize(path));
+      const entries = paths.map(path => metadata.current.get(normalize(path))).filter((entry): entry is PierreTreeEntry => Boolean(entry));
+      latest.current.onSelectionChange?.(entries.map(({ path, type }) => ({ path, type })));
+      const entry = entries.at(-1);
       if (entry) latest.current.onSelect(entry.path, entry.type);
     },
+    // Pierre moves the rows at once; the server move follows, and a refusal
+    // reloads the listing, so the tree never keeps a move the disk did not.
+    dragAndDrop: props.movable ? {
+      openOnDropDelay: 600,
+      onDropComplete: event => {
+        const dir = event.target.kind === "root" ? "" : normalize(event.target.directoryPath ?? "");
+        latest.current.onMove?.(event.draggedPaths.map(normalize), dir);
+      },
+    } : false,
     renderRowDecoration: ({ item }) => {
       const entry = metadata.current.get(normalize(item.path));
       if (!entry) return null;
@@ -113,6 +133,17 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
     },
     scrollToTop() { const first = latest.current.entries[0]; if (first) model.scrollToPath(modelPath(first), { offset: "top" }); },
   }), [model]);
+  const wantedSelection = (props.selectedPaths?.length ? props.selectedPaths : props.selected ? [props.selected] : []).join("\0");
+  const applySelection = () => {
+    const wanted = wantedSelection ? wantedSelection.split("\0") : [];
+    const current = model.getSelectedPaths().map(normalize);
+    if (current.length === wanted.length && current.every(path => wanted.includes(path))) return;
+    for (const path of model.getSelectedPaths()) model.getItem(path)?.deselect();
+    for (const path of wanted) {
+      const entry = metadata.current.get(path);
+      if (entry) model.getItem(modelPath(entry))?.select();
+    }
+  };
   useEffect(() => {
     syncing.current = true;
     model.resetPaths(props.entries.map(modelPath), { initialExpandedPaths: [...props.expanded].map(path => path + "/") });
@@ -123,10 +154,18 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
       if (item && "collapse" in item) item.collapse();
     }
     for (const path of model.getSelectedPaths()) model.getItem(path)?.deselect();
-    const selected = props.selected && metadata.current.get(props.selected);
-    if (selected) model.getItem(modelPath(selected))?.select();
+    applySelection();
     syncing.current = false;
-  }, [model, props.entries, props.expanded, props.selected]);
+  // applySelection reads the selection key below; a selection change alone
+  // must not reset the rows, or a Shift-click loses its anchor.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model, props.entries, props.expanded]);
+  useEffect(() => {
+    syncing.current = true;
+    applySelection();
+    syncing.current = false;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model, wantedSelection]);
   useEffect(() => { model.setSearch(props.query || null); }, [model, props.query]);
   useEffect(() => { model.setIcons(icons); }, [model, props.matches, locale]);
   useEffect(() => model.subscribe(() => {
@@ -205,12 +244,45 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
       if (path) return metadata.current.get(normalize(path));
     }
   };
-  return <div ref={host} style={{ height: "100%", minHeight: 0, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+  // A desktop drop lands in the folder under the pointer, the folder of
+  // the file under it, or the project root.
+  const [externalTarget, setExternalTarget] = useState<string | null>(null);
+  const dropDir = (event: React.DragEvent) => {
+    const entry = fromEvent(event);
+    if (!entry) return "";
+    return entry.type === "dir" ? entry.path : entry.path.split("/").slice(0, -1).join("/");
+  };
+  const external = (event: React.DragEvent) => Boolean(props.onExternalDrop) && carriesFiles(event.dataTransfer);
+  return <div ref={host} className={externalTarget !== null ? styles.externalDrop : undefined} style={{ height: "100%", minHeight: 0, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}
+    onDragEnter={event => { if (!external(event)) return; event.preventDefault(); event.stopPropagation(); setExternalTarget(dropDir(event)); }}
+    onDragOver={event => {
+      if (!external(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = "copy";
+      const dir = dropDir(event);
+      setExternalTarget(old => old === dir ? old : dir);
+    }}
+    onDragLeave={event => {
+      if (!external(event)) return;
+      event.stopPropagation();
+      const next = event.relatedTarget;
+      if (next instanceof Node && host.current?.contains(next)) return;
+      setExternalTarget(null);
+    }}
+    onDrop={event => {
+      if (!external(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setExternalTarget(null);
+      props.onExternalDrop?.(event.dataTransfer, dropDir(event));
+    }}>
     <FileColumnsHeader ref={header} sort={props.sort} onSortChange={props.onSortChange} />
     <FileTree model={model} style={{ flex: "1 1 0", minHeight: 0, display: "block" }}
       onClick={event => { const entry = fromEvent(event); if (entry) { if (props.onActivate) props.onActivate(entry.path, entry.type); else if (entry.type === "file") props.onOpen(entry.path); } }}
       onKeyDown={event => { if (event.key !== "Enter") return; const path = model.getFocusedPath(); const entry = path && metadata.current.get(normalize(path)); if (entry) { if (props.onActivate) props.onActivate(entry.path, entry.type); else if (entry.type === "file") props.onOpen(entry.path); } }}
       onContextMenu={event => { const entry = fromEvent(event); if (entry) props.onContextMenu(event, entry.path, entry.type); }} />
+    {externalTarget !== null ? <div className={styles.externalDropHint}>{translate(`Add to ${externalTarget || "the project root"}`, `添加到 ${externalTarget || "项目根目录"}`)}</div> : null}
     {visibleFolders.map(path => <FolderSizeSubscription key={path} projectId={props.projectId} path={path} onValue={(text, scanning) => {
       const previous = sizes.current.get(path);
       if (previous?.text === text && previous.scanning === scanning) return;

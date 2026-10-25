@@ -50,6 +50,9 @@ import { FileBreadcrumb, FileDetails, FileSortMenu, useFileSort, invalidateFolde
 import { HoverTip } from "@/components/ui/tooltip";
 import styles from "./files-panel.module.css";
 import { PierreFileTree, PierreSearchTree, type PierreTreeEntry, type PierreTreeHandle } from "./pierre-file-tree";
+import { collectDroppedFiles, uploadDroppedFiles } from "./file-tree-drop";
+import { ProjectLocationNotice } from "./project-location-notice";
+import { showToast } from "@/lib/format-utils/toast";
 
 export interface TreeEntry {
   name: string;
@@ -175,13 +178,17 @@ export function FileTree({
   // File/Folder), inline create/rename editors, context menu, delete
   // confirm. Selection is UI-only — clicking still opens files.
   const [selected, setSelected] = useState<{ path: string; type: "file" | "dir" } | null>(null);
+  // Every selected row (Cmd/Ctrl- and Shift-click); `selected` is the last.
+  const [selection, setSelection] = useState<{ path: string; type: "file" | "dir" }[]>([]);
+  // The root listing was refused because the project's folder is unavailable.
+  const [locationUnavailable, setLocationUnavailable] = useState(false);
   const [creating, setCreating] = useState<{ dir: string; kind: "file" | "dir" } | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [menuTarget, setMenuTarget] = useState<{ path: string; type: "file" | "dir" } | null>(null);
   // Set by a row's right-click on its way up to the tree's ContextMenu
   // trigger, which opens only for a row (see treeMenu).
   const rowMenuHit = useRef(false);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string[] | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const pierreRef = useRef<PierreTreeHandle>(null);
   const [pendingScrollRestore, setPendingScrollRestore] = useState<{ path: string; offset: number } | null>(null);
@@ -322,6 +329,7 @@ export function FileTree({
         }
         return result;
       }
+      if (path === "" && !cursor) setLocationUnavailable(Boolean(data?.error?.startsWith("project location unavailable")));
       if (!data || data.project_id !== projectId || data.error || data.error_code
         || data.path !== path || !data.entries) {
         setDirs((d) => ({ ...d, [path]: (cursor || refreshedEntries) && Array.isArray(d[path]) ? d[path] : "error" }));
@@ -365,6 +373,8 @@ export function FileTree({
     // 内联新建/重命名、筛选词都指向旧根目录下的相对路径，留着会
     // 误指到新项目里同名路径上，切根时一并清掉。
     setSelected(null);
+    setSelection([]);
+    setLocationUnavailable(false);
     setDetailsPath(null);
     setCreating(null);
     setRenaming(null);
@@ -464,9 +474,12 @@ export function FileTree({
     });
   }
 
-  function refetchRoot() {
+  /** Re-list the loaded directories. ``keepSizes`` leaves folder sizes
+   *  alone, for the quiet refresh when the window regains focus. */
+  function refetchRoot({ keepSizes = false }: { keepSizes?: boolean } = {}) {
+    lastRefresh.current = Date.now();
     setSearchRefresh(value => value + 1);
-    invalidateFolderSizes(projectId);
+    if (!keepSizes) invalidateFolderSizes(projectId);
     abortSearchQueries();
     for (const controller of queryControllers.current) controller.abort();
     queryGeneration.current += 1;
@@ -513,6 +526,25 @@ export function FileTree({
       setDirectoryPages(previous => ({ ...previous, [path]: nextPage }));
     })();
   }
+
+  // Files changed outside the app show up when the window is used again:
+  // coming back to it re-lists what is open, at most every few seconds.
+  const lastRefresh = useRef(0);
+  const refetchRef = useRef(refetchRoot);
+  refetchRef.current = refetchRoot;
+  useEffect(() => {
+    const onReturn = () => {
+      if (document.visibilityState === "hidden" || Date.now() - lastRefresh.current < 3000) return;
+      if (treeStateRef.current.dirs[""] === undefined) return;
+      refetchRef.current({ keepSizes: true });
+    };
+    window.addEventListener("focus", onReturn);
+    document.addEventListener("visibilitychange", onReturn);
+    return () => {
+      window.removeEventListener("focus", onReturn);
+      document.removeEventListener("visibilitychange", onReturn);
+    };
+  }, []);
 
   useEffect(() => {
     const invalidate = (event: Event) => {
@@ -628,7 +660,7 @@ export function FileTree({
 
   /** Directory a create targets: selected dir → itself, selected file
    *  → its parent, nothing selected → project root. */
-  const { startCreate, commitCreate, commitRename, copyPathTo, pasteInto, doDelete } = createFileTreeActions({
+  const { startCreate, commitCreate, commitRename, copyPathTo, pasteInto, moveEntries, doDelete } = createFileTreeActions({
     projectId,
     text,
     selected,
@@ -657,6 +689,74 @@ export function FileTree({
     );
   }
 
+  /** The rows an action covers: the whole selection when the row is part
+   *  of a multi-row selection, otherwise the row alone. */
+  function actionTargets(path: string): string[] {
+    const rows = currentSelection();
+    return rows.length > 1 && rows.some(item => item.path === path) ? rows.map(item => item.path) : [path];
+  }
+
+  /** The multi-row selection while it still holds the selected row; a
+   *  selection made elsewhere (opening a tab, revealing a file) replaces it. */
+  function currentSelection(): { path: string; type: "file" | "dir" }[] {
+    if (!selected) return [];
+    return selection.some(item => item.path === selected.path) ? selection : [selected];
+  }
+
+  async function deleteEntries(paths: string[]) {
+    // A folder's own deletion covers whatever else is selected inside it.
+    const roots = paths.filter(path => !paths.some(other => other !== path && path.startsWith(other + "/")));
+    for (const path of roots) await doDelete(path);
+    setSelection([]);
+  }
+
+  async function dropFromDesktop(transfer: DataTransfer, dir: string) {
+    const files = await collectDroppedFiles(transfer);
+    if (!files.length) return;
+    if (files.length > 1) showToast(text(`Adding ${files.length} files…`, `正在添加 ${files.length} 个文件…`));
+    const outcome = await uploadDroppedFiles(projectId, dir, files);
+    window.dispatchEvent(new CustomEvent("project-files-changed", { detail: { project_id: projectId } }));
+    if (dir) expandChain(dir);
+    const where = dir || text("the project root", "项目根目录");
+    if (outcome.added) showToast(text(`Added ${outcome.added} file${outcome.added === 1 ? "" : "s"} to ${where}`, `已添加 ${outcome.added} 个文件到 ${where}`));
+    if (outcome.existing.length) showToast(text(
+      `${outcome.existing.length} already existed and were left unchanged`,
+      `${outcome.existing.length} 个同名文件已存在，未覆盖`,
+    ), { tone: "warn", duration: 6000 });
+    if (outcome.failed.length) showToast(text(
+      `${outcome.failed.length} could not be added`,
+      `${outcome.failed.length} 个文件添加失败`,
+    ), { tone: "error", duration: 6000 });
+  }
+
+  async function moveSelection(paths: string[], targetDir: string) {
+    // Pierre already shows the move; a refused one is undone by re-listing.
+    if (!(await moveEntries(paths, targetDir))) refetchRoot({ keepSizes: true });
+  }
+
+  /** Finder-style keys on the tree: copy, cut, paste, delete, rename. */
+  function onTreeKeyDown(event: React.KeyboardEvent) {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest("input, textarea, [contenteditable='true']")) return;
+    const mod = event.metaKey || event.ctrlKey;
+    const primary = selected;
+    const paths = currentSelection().map(item => item.path);
+    const key = event.key.toLowerCase();
+    if (mod && (key === "c" || key === "x") && paths.length) {
+      treeClipboard.current = { op: key === "x" ? "cut" : "copy", projectId, paths };
+    } else if (mod && key === "v" && treeClipboard.current?.projectId === projectId) {
+      void pasteInto(primary ? (primary.type === "dir" ? primary.path : parentOf(primary.path)) : "");
+    } else if (((mod && key === "backspace") || key === "delete") && paths.length) {
+      setConfirmDelete(paths);
+    } else if (key === "f2" && primary && paths.length <= 1) {
+      fileContextActions(primary.path, primary.type).rename();
+    } else {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
   function fileContextActions(path: string, type: "file" | "dir") {
     const targetDir = type === "dir" ? path : parentOf(path);
     return {
@@ -666,8 +766,8 @@ export function FileTree({
       newFolder: () => startCreate("dir", targetDir),
       copyPath: () => void copyPathTo(path, true),
       copyRelativePath: () => void copyPathTo(path, false),
-      cut: () => { treeClipboard.current = { op: "cut", projectId, path }; },
-      copy: () => { treeClipboard.current = { op: "copy", projectId, path }; },
+      cut: () => { treeClipboard.current = { op: "cut", projectId, paths: actionTargets(path) }; },
+      copy: () => { treeClipboard.current = { op: "copy", projectId, paths: actionTargets(path) }; },
       paste: () => void pasteInto(targetDir),
       rename: () => {
         setFilter("");
@@ -675,7 +775,7 @@ export function FileTree({
         expandChain(parentOf(path));
         setRenaming(path);
       },
-      delete: () => setConfirmDelete(path),
+      delete: () => setConfirmDelete(actionTargets(path)),
     };
   }
 
@@ -685,6 +785,7 @@ export function FileTree({
     type: "file" | "dir",
   ) {
     setSelected({ path, type });
+    if (!selection.some(item => item.path === path)) setSelection([{ path, type }]);
     setMenuTarget({ path, type });
     rowMenuHit.current = true;
   }
@@ -708,6 +809,7 @@ export function FileTree({
         {webMenuActions ? (
           <TreeContextMenu
             canPaste={treeClipboard.current?.projectId === projectId}
+            count={menuTarget ? actionTargets(menuTarget.path).length : 1}
             revealLabel={revealLabel()}
             onInfo={webMenuActions.info}
             onReveal={webMenuActions.reveal}
@@ -947,8 +1049,16 @@ export function FileTree({
     while (parent) { if (!expanded.has(parent)) return false; parent = parentOf(parent); }
     return true;
   });
+  const primaryPath = (filter.trim() ? currentSearchPath : null) ?? selected?.path ?? activePath ?? null;
+  const selectedPaths = useMemo(
+    () => primaryPath && selection.some(item => item.path === primaryPath) ? selection.map(item => item.path) : primaryPath ? [primaryPath] : [],
+    [primaryPath, selection],
+  );
   function renderTree() {
-    return <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+    if (locationUnavailable) {
+      return <ProjectLocationNotice projectId={projectId} onRepaired={() => { setLocationUnavailable(false); setDirs({}); void load(""); }} />;
+    }
+    return <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }} onKeyDown={onTreeKeyDown}>
       {creating ? <div className={styles.treeRow}>
         <span>{creating.dir || "/"}</span>
         <InlineNameInput initial="" onCommit={commitCreate} onCancel={() => setCreating(null)} />
@@ -959,7 +1069,7 @@ export function FileTree({
       </div> : null}
       {dirs[""] === "loading" || dirs[""] === undefined ? <div className={styles.treeHint}>{text("Loading…", "加载中…")}</div> : null}
       {treeMenu(
-        <PierreFileTree key={projectId} ref={pierreRef} projectId={projectId} sort={sort} onSortChange={setSort} entries={pierreEntries} query={searchMode === "highlight" && !fuzzySearch ? filter : undefined} matches={filter.trim() ? new Set(searchMatches.map(match => match.path)) : undefined} expanded={expanded} selected={(filter.trim() ? currentSearchPath : null) ?? selected?.path ?? activePath ?? null}
+        <PierreFileTree key={projectId} ref={pierreRef} projectId={projectId} sort={sort} onSortChange={setSort} entries={pierreEntries} query={searchMode === "highlight" && !fuzzySearch ? filter : undefined} matches={filter.trim() ? new Set(searchMatches.map(match => match.path)) : undefined} expanded={expanded} selected={primaryPath}
           onRowsRendered={paths => {
             if (pendingScrollRestore && pierreRef.current?.restoreScrollState(pendingScrollRestore)) setPendingScrollRestore(null);
             for (const dir of visibleDirectories) {
@@ -968,11 +1078,14 @@ export function FileTree({
             }
           }}
           onExpandedChange={next => { setExpanded(next); useCenterTabs.getState().updateFileNavigationView?.({ expanded: [...next].sort(), scroll: pierreRef.current?.getScrollState() ?? null }); for (const path of next) if (dirs[path] === undefined) void load(path); }}
+          selectedPaths={selectedPaths} movable onSelectionChange={setSelection}
+          onMove={(paths, dir) => void moveSelection(paths, dir)}
+          onExternalDrop={(transfer, dir) => void dropFromDesktop(transfer, dir)}
           onSelect={(path, type) => { setSelected({ path, type }); if (type === "dir") recordNavigation(path, type); }} onOpen={openFile} onContextMenu={onRowContextMenu} />
       )}
       {visibleDirectories.map(dir => <div key={dir}>
         {dir && dirs[dir] === "loading" ? <div className={styles.treeHint}>{dir} · {text("Loading…", "加载中…")}</div> : null}
-        {dirs[dir] === "error" || refreshErrors.has(dir) ? <button type="button" className={styles.treeRow} onClick={refetchRoot}>{dir || "/"} · {text("Refresh failed — retry", "刷新失败，重试")}</button> : null}
+        {dirs[dir] === "error" || refreshErrors.has(dir) ? <button type="button" className={styles.treeRow} onClick={() => refetchRoot()}>{dir || "/"} · {text("Refresh failed — retry", "刷新失败，重试")}</button> : null}
       </div>)}
     </div>;
   }
@@ -1021,7 +1134,7 @@ export function FileTree({
             <HoverTip label={text("Refresh", "刷新")}><button
               type="button"
               className={styles.iconBtn}
-              onClick={refetchRoot}
+              onClick={() => refetchRoot()}
               aria-label={text("Refresh", "刷新")}
             >
               <RotateCw />
@@ -1052,20 +1165,19 @@ export function FileTree({
 
       {confirmDelete ? (
         <ConfirmDialog
-          title={text(
-            `Delete "${baseOf(confirmDelete)}"?`,
-            `删除“${baseOf(confirmDelete)}”？`,
-          )}
+          title={confirmDelete.length === 1
+            ? text(`Delete "${baseOf(confirmDelete[0])}"?`, `删除“${baseOf(confirmDelete[0])}”？`)
+            : text(`Delete ${confirmDelete.length} items?`, `删除这 ${confirmDelete.length} 项？`)}
           confirmLabel={text("Delete", "删除")}
           destructive
           description={text(
-            "It will be moved to recoverable storage. Use openprogram trash list and openprogram trash restore to recover it.",
-            "文件将移入可恢复存储。可通过 openprogram trash list 和 openprogram trash restore 恢复。",
+            "Deleted items are moved to recoverable storage. Use openprogram trash list and openprogram trash restore to recover them.",
+            "删除的内容会移入可恢复存储。可通过 openprogram trash list 和 openprogram trash restore 恢复。",
           )}
           onConfirm={() => {
-            const path = confirmDelete;
+            const paths = confirmDelete;
             setConfirmDelete(null);
-            doDelete(path);
+            void deleteEntries(paths);
           }}
           onCancel={() => setConfirmDelete(null)}
         />

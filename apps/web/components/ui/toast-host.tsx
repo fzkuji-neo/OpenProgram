@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { TOAST_EVENT, type ToastDetail, type ToastLink, type ToastTone } from "@/lib/format-utils/toast";
+import { TOAST_EVENT, type ToastAction, type ToastDetail, type ToastLink, type ToastTone } from "@/lib/format-utils/toast";
 import styles from "./toast-host.module.css";
 
 interface Item {
@@ -19,6 +19,7 @@ interface Item {
   message: string;
   tone: ToastTone;
   link?: ToastLink;
+  action?: ToastAction;
 }
 
 let _seq = 0;
@@ -37,7 +38,7 @@ export function ToastHost() {
       const id = ++_seq;
       setItems((cur) => [
         ...cur,
-        { id, message: d.message, tone: d.tone ?? "info", link: d.link },
+        { id, message: d.message, tone: d.tone ?? "info", link: d.link, action: d.action },
       ]);
       timers.current[id] = setTimeout(() => {
         setItems((cur) => cur.filter((x) => x.id !== id));
@@ -85,6 +86,15 @@ export function ToastHost() {
             >
               {it.link.label}
             </a>
+          ) : null}
+          {it.action ? (
+            <button
+              type="button"
+              className={styles.link}
+              onClick={() => { dismiss(it.id); it.action?.run(); }}
+            >
+              {it.action.label}
+            </button>
           ) : null}
         </div>
       ))}

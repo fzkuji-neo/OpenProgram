@@ -18,6 +18,12 @@ export interface ToastLink {
   href: string;
 }
 
+/** A button in the toast, such as Undo; clicking it also dismisses the toast. */
+export interface ToastAction {
+  label: string;
+  run: () => void;
+}
+
 export interface ToastDetail {
   message: string;
   tone?: ToastTone;
@@ -25,12 +31,14 @@ export interface ToastDetail {
   duration?: number;
   /** Optional inline link rendered after the message. */
   link?: ToastLink;
+  action?: ToastAction;
 }
 
 export interface ToastOptions {
   tone?: ToastTone;
   duration?: number;
   link?: ToastLink;
+  action?: ToastAction;
 }
 
 export const TOAST_EVENT = "op:toast";
@@ -45,6 +53,7 @@ export function showToast(message: string, opts: ToastOptions = {}): void {
         tone: opts.tone ?? "info",
         duration: opts.duration ?? 3500,
         link: opts.link,
+        action: opts.action,
       },
     }),
   );
