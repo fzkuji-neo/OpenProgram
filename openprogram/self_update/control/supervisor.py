@@ -435,14 +435,16 @@ def _build_candidate(_record: UpdateRecord, _update_dir: Path) -> Artifact:
     }
     from ..delivery.controller_bundle import build_inputs
     with build_inputs(update_dir, candidate, build_home,
-                      deadline=record.request.created_at + record.request.timeout_seconds) as inputs:
+                      deadline=record.request.created_at + record.request.timeout_seconds,
+                      complete=not incremental) as inputs:
         profile = _sandbox_profile(
             candidate,
             artifact_root,
             build_home,
             build_tmp,
             loopback_port=smoke_port,
-            trusted_input=Path(inputs["OPENPROGRAM_SELF_UPDATE_ELECTRON_DIST"]),
+            trusted_input=(Path(inputs["OPENPROGRAM_SELF_UPDATE_ELECTRON_DIST"])
+                           if "OPENPROGRAM_SELF_UPDATE_ELECTRON_DIST" in inputs else None),
         )
         atomic_write_text(profile_path, profile)
         environment.update(inputs)

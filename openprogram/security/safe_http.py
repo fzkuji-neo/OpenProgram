@@ -145,6 +145,9 @@ _AUDITED_FIXED_ORIGINS = MappingProxyType(
         ),
         "updater.github": frozenset({"https://api.github.com"}),
         "office.assets": frozenset({"https://github.com", "https://release-assets.githubusercontent.com"}),
+        "self_update.electron": frozenset(
+            {"https://github.com", "https://release-assets.githubusercontent.com"}
+        ),
         "provider.fixed_api": frozenset(
             {
                 "https://ai-gateway.vercel.sh",
@@ -369,6 +372,9 @@ _SPECS = (
     _download("updater.github", URLTrustClass.FIXED_PUBLIC_SERVICE),
     replace(_download("office.assets", URLTrustClass.FIXED_PUBLIC_SERVICE),
             max_decoded_body_bytes=732695641),
+    # The pinned Electron archive a complete self-update build packages.
+    replace(_download("self_update.electron", URLTrustClass.FIXED_PUBLIC_SERVICE),
+            max_decoded_body_bytes=512 * 1024 * 1024),
     _api("provider.fixed_api", URLTrustClass.FIXED_PUBLIC_SERVICE),
     _api("provider.configured_api", URLTrustClass.CONFIGURED_SERVICE),
     _api("provider.oauth.fixed", URLTrustClass.FIXED_PUBLIC_SERVICE),

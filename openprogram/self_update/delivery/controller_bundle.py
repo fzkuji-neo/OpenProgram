@@ -18,16 +18,20 @@ from ..store import SelfUpdateStore
 from openprogram.store.session.git_session import atomic_write_text
 
 
+# Official release hashes (electron's checksums.json); a package.json bump must
+# update this table, or the complete build refuses the candidate.
 _ELECTRON_ARCHIVES = {
-    ("37.10.3", "arm64"): (
-        "electron-v37.10.3-darwin-arm64.zip",
-        "24529be1f2f87c587d06c7474607f1b57d1184b3f45d916cac33791de3a70014",
+    ("44.4.3", "arm64"): (
+        "electron-v44.4.3-darwin-arm64.zip",
+        "6b728f5dcfae74f3f936f2bca5b3cd9b9659ffea464f67939f004acb55425a85",
     ),
-    ("37.10.3", "x64"): (
-        "electron-v37.10.3-darwin-x64.zip",
-        "e545e2a41e5fd7d28bf1349b4f60f1bcfd8e4c216f57b2d3e698ec1c00b719cf",
+    ("44.4.3", "x64"): (
+        "electron-v44.4.3-darwin-x64.zip",
+        "015b52631d92187b552ff4e047255f596a7af4707e388a5890951f0b2645764e",
     ),
 }
+_ELECTRON_RELEASES = "https://github.com/electron/electron/releases/download"
+ELECTRON_ARCHIVE_MAX_BYTES = 512 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -90,6 +94,36 @@ def _electron_archive_spec(candidate: Path) -> tuple[str, str]:
         raise ValueError("candidate Electron archive is not pinned by the trusted controller") from None
 
 
+def _download_electron_archive(cache: Path, filename: str, expected: str, *, deadline: float) -> Path:
+    """Fetch the pinned official archive into the owner's cache; keep only verified bytes."""
+    from openprogram.security import safe_http
+
+    version = filename.split("-")[1]
+    target = cache / filename
+    remaining = deadline - time.time()
+    if remaining <= 0:
+        raise TimeoutError("build input deadline expired")
+    with tempfile.TemporaryDirectory(prefix=".electron-download-", dir=cache) as name:
+        partial = Path(name) / filename
+        digest = hashlib.sha256()
+        size = 0
+        with safe_http.safe_client("self_update.electron", timeout=30,
+                                   overall_timeout=remaining) as client:
+            with client.stream("GET", f"{_ELECTRON_RELEASES}/{version}/{filename}") as response, \
+                    partial.open("wb") as output:
+                response.raise_for_status()
+                for chunk in response.iter_bytes(1024 * 1024):
+                    size += len(chunk)
+                    if size > ELECTRON_ARCHIVE_MAX_BYTES:
+                        raise ValueError("Electron download exceeds the expected size")
+                    digest.update(chunk)
+                    output.write(chunk)
+        if digest.hexdigest() != expected:
+            raise ValueError("Electron download does not match the pinned archive")
+        os.replace(partial, target)
+    return target
+
+
 def stage_electron_distribution(
     update_dir: Path,
     candidate: Path,
@@ -98,6 +132,8 @@ def stage_electron_distribution(
 ) -> Path:
     filename, expected = _electron_archive_spec(candidate)
     cache = Path.home() / "Library/Caches/electron"
+    if not cache.exists() and not cache.is_symlink():
+        cache.mkdir(mode=0o700, parents=True)
     if cache.is_symlink() or not cache.is_dir() or cache.stat().st_uid != os.getuid():
         raise ValueError("required local Electron archive cache is unavailable")
     matches = [
@@ -109,6 +145,8 @@ def stage_electron_distribution(
         and path.resolve().is_relative_to(cache.resolve())
         and _file_digest(path) == expected
     ]
+    if not matches:
+        matches = [_download_electron_archive(cache, filename, expected, deadline=deadline)]
     if len(matches) != 1:
         raise ValueError("one trusted cached Electron archive is required")
     target_dir = update_dir / "build-inputs"
@@ -221,8 +259,14 @@ def prepare_controller(update_dir: Path) -> ControllerBundle:
     return ControllerBundle(_runtime_python(target / "runtime"), hashlib.sha256(content).hexdigest(), digest)
 
 
-def prepare_build_inputs(update_dir: Path, candidate: Path, build_home: Path, *, deadline: float) -> dict[str, str]:
-    """Copy matching installed dependencies and caches; never share writable inputs."""
+def prepare_build_inputs(update_dir: Path, candidate: Path, build_home: Path, *, deadline: float,
+                         complete: bool = True) -> dict[str, str]:
+    """Copy matching installed dependencies and caches; never share writable inputs.
+
+    Only a ``complete`` package build runs electron-builder, so only it needs
+    the pinned Electron archive. The node-gyp and electron-builder caches are
+    copied when present and start empty otherwise.
+    """
     saved = update_dir / "controller"
     _load_bundle(saved)
     runtime = saved / "runtime"
@@ -234,19 +278,22 @@ def prepare_build_inputs(update_dir: Path, candidate: Path, build_home: Path, *,
             raise ValueError("candidate requires a different complete runtime dependency input")
 
     base = build_home / "runtime-base"
-    copies = [(runtime, base)]
-    for relative in (
-        ".cache/uv",
-        ".npm/_cacache",
-        ".electron-gyp",
-        "Library/Caches/electron-builder",
+    copies = [(runtime, base, True)]
+    for relative, required in (
+        (".cache/uv", True),
+        (".npm/_cacache", True),
+        (".electron-gyp", False),
+        ("Library/Caches/electron-builder", False),
     ):
-        copies.append((Path.home() / relative, build_home / relative))
-    for source, destination in copies:
-        if source.is_symlink() or not source.is_dir() or source.stat().st_uid != os.getuid():
-            raise ValueError("required local build cache is missing or not owner controlled")
+        copies.append((Path.home() / relative, build_home / relative, required))
+    for source, destination, required in copies:
         if destination.exists() or destination.is_symlink():
             raise ValueError("private build input already exists")
+        if not required and not source.exists() and not source.is_symlink():
+            destination.mkdir(mode=0o700, parents=True)
+            continue
+        if source.is_symlink() or not source.is_dir() or source.stat().st_uid != os.getuid():
+            raise ValueError("required local build cache is missing or not owner controlled")
         destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         # APFS clones preserve isolation without duplicating large dependency caches.
         # Failure is explicit; never replace this with hard links or writable symlinks.
@@ -260,12 +307,7 @@ def prepare_build_inputs(update_dir: Path, candidate: Path, build_home: Path, *,
         if result.returncode != 0:
             raise ValueError("could not create private copy-on-write build inputs")
         destination.chmod(0o700)
-    electron_dist = stage_electron_distribution(
-        update_dir,
-        candidate,
-        deadline=deadline,
-    )
-    return {
+    environment = {
         "PATH": f"{base / 'bin'}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
         "OPENPROGRAM_SELF_UPDATE_RUNTIME_BASE": str(base),
         "OPENPROGRAM_UV_BIN": str(base / "bin/uv"),
@@ -274,12 +316,16 @@ def prepare_build_inputs(update_dir: Path, candidate: Path, build_home: Path, *,
         "UV_CACHE_DIR": str(build_home / ".cache/uv"),
         "UV_OFFLINE": "1",
         "NPM_CONFIG_OFFLINE": "true",
-        "OPENPROGRAM_SELF_UPDATE_ELECTRON_DIST": str(electron_dist),
     }
+    if complete:
+        environment["OPENPROGRAM_SELF_UPDATE_ELECTRON_DIST"] = str(
+            stage_electron_distribution(update_dir, candidate, deadline=deadline))
+    return environment
 
 
 @contextmanager
-def build_inputs(update_dir: Path, candidate: Path, build_home: Path, *, deadline: float):
+def build_inputs(update_dir: Path, candidate: Path, build_home: Path, *, deadline: float,
+                 complete: bool = True):
     """Release only this build's private dependency copies, including partial copies."""
     paths = [
         build_home / relative
@@ -294,7 +340,8 @@ def build_inputs(update_dir: Path, candidate: Path, build_home: Path, *, deadlin
     ):
         raise ValueError("private build input already exists")
     try:
-        yield prepare_build_inputs(update_dir, candidate, build_home, deadline=deadline)
+        yield prepare_build_inputs(update_dir, candidate, build_home, deadline=deadline,
+                                   complete=complete)
     finally:
         if build_home.is_symlink():
             raise ValueError("private build home changed during packaging")
