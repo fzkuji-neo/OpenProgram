@@ -165,6 +165,23 @@ def test_failed_session_repair_stays_pending(tmp_path, store, monkeypatch):
     assert projects.get_project(project.id).migration_error == "session update failed"
 
 
+def test_a_pending_project_with_nothing_left_to_migrate_becomes_available(
+    tmp_path, store, monkeypatch,
+):
+    folder = tmp_path / "paper"
+    folder.mkdir()
+    project = projects.resolve_project(folder)
+    moved = tmp_path / "moved"
+    folder.rename(moved)
+    with monkeypatch.context() as patch:
+        patch.setattr(store, "relocate_project_sessions",
+                      lambda *a, **k: (_ for _ in ()).throw(OSError("busy")))
+        assert refresh_project_location(project.id) == "pending"
+    # The folder carries its marker and no session waits on a repair.
+    assert refresh_project_location(project.id) == "available"
+    assert projects.get_project(project.id).location_state == "available"
+
+
 def test_first_execution_after_move_uses_new_project_location(tmp_path, store):
     from openprogram.agent.internals._workdir import apply_default_workdir
     folder = tmp_path / "paper"

@@ -66,6 +66,7 @@ def refresh_project_location(project_id: str, *, roots=None, max_directories: in
                 _migration_attempted.discard(project_id)
                 _migration_deferred.discard(project_id)
             _migration_attempted.add(project_id)
+        settled = False
         try:
             from openprogram.store.session.migration import run_project_migration
             from openprogram.store.session.session_store import default_store
@@ -74,6 +75,10 @@ def refresh_project_location(project_id: str, *, roots=None, max_directories: in
                     value == "deferred" for value in result.values()):
                 with _migration_lock:
                     _migration_deferred.add(project_id)
+            # Nothing is left to migrate: the folder check below decides,
+            # or a project whose sessions all moved stays pending forever.
+            settled = isinstance(result, dict) and all(
+                value in {"done", "deleted"} for value in result.values())
             refreshed = projects.get_project(project_id)
             if refreshed is not None:
                 project = refreshed
@@ -83,7 +88,8 @@ def refresh_project_location(project_id: str, *, roots=None, max_directories: in
         except Exception:
             _log.debug("location migration retry failed for %s", project_id,
                        exc_info=True)
-        return recorded
+        if not settled:
+            return recorded
     path = Path(project.path).expanduser() if project.path else None
     if path is not None and path.is_dir() and identity.captured_identity_matches(project, path):
         if not identity.is_portable(project):
