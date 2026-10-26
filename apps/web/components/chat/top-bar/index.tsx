@@ -30,13 +30,14 @@ import { type AnimatedNavIconHandle } from "@/components/animated-icons";
 import { SolarIcon } from "@/components/solar-icons";
 
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { HoverTip, TipBody } from "@/components/ui/tooltip";
 
 import { AgentSelector } from "./agent-selector";
+import { MENU_PANEL } from "./menu-styles";
 import { useBoundChat } from "./bound-chat";
 import { pushAgentSettings, pushBranchInfo, pushStatusBadge } from "@/lib/tabs/top-bar-sync";
 import { buttonVariants } from "@/components/ui/button";
@@ -167,9 +168,9 @@ export function AgentBadge({
     />
   );
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
+    <DropdownMenu open={open} onOpenChange={onOpenChange} modal={false}>
       <HoverTip label={tipBody}>
-        <PopoverTrigger asChild>
+        <DropdownMenuTrigger asChild>
           <span
             id={id}
             className={cn(buttonVariants({ variant: "elevated", size: "sm" })) + " runtime-badge agent-badge" + (locked ? " locked" : "")}
@@ -185,16 +186,16 @@ export function AgentBadge({
             />
             {label ? <span className="badge-details">{label}</span> : null}
           </span>
-        </PopoverTrigger>
+        </DropdownMenuTrigger>
       </HoverTip>
-      <PopoverContent
+      <DropdownMenuContent
         side="top"
         align="end"
         /* 9 = 10px band gap − 1px 输入框外扩 ring：底部一排弹层底缘
            与输入框可见边缘完全贴合。 */
         sideOffset={9}
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        className="w-auto border-0 bg-transparent p-0 shadow-none"
+        onCloseAutoFocus={(e) => e.preventDefault()}
+        className={cn(MENU_PANEL, "text-[var(--text-primary)]")}
       >
         <AgentSelector
           kind={kind}
@@ -202,7 +203,7 @@ export function AgentBadge({
           currentModel={model}
           onClose={() => setOpen(false)}
         />
-      </PopoverContent>
-    </Popover>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

@@ -6,16 +6,17 @@
  *
  * Lists every model the user enabled in Settings, grouped by provider.
  * With more than one provider the panel lists providers and each opens
- * its models in a submenu (hover, click or →); the provider of the
- * current model shows that model's name where the others show a count.
+ * its models in a DropdownMenuSub, the same submenu the sidebar's
+ * conversation menu uses (hover, click or →, Radix's pointer grace);
+ * the provider of the current model shows that model's name where the
+ * others show a count.
  * Chat picks always pin the current conversation (`/api/model`), using
  * the draft `local_*` id when the backend has not acked yet.
  *
  * Positioning / click-outside / portal are handled by the shadcn
- * <Popover> in `index.tsx`.
+ * <DropdownMenu> in `index.tsx`; this file renders its rows.
  */
 
-import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
 
@@ -32,7 +33,12 @@ import {
 } from "./menu-styles";
 import { MenuCheck } from "./menu-check";
 import { SolarIcon } from "@/components/solar-icons";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 type EnabledModel = Awaited<ReturnType<typeof api.listEnabledModels>>[number];
@@ -115,7 +121,7 @@ export function AgentSelector({
     ));
 
   return (
-    <div className={MENU_PANEL}>
+    <>
       {/* Grammar-A header naming the dimension. */}
       <div className={GROUP_LABEL}>{text("Models", "模型")}</div>
       {(models ?? []).length === 0 ? (
@@ -131,32 +137,49 @@ export function AgentSelector({
         </div>
       ) : byProvider.length === 1 ? (
         // One provider has nothing to choose between: its models directly.
-        <div key={byProvider[0].provider}>
+        <>
           <div className={GROUP_LABEL}>{providerName(byProvider[0].provider)}</div>
           {modelRows(byProvider[0].models!)}
-        </div>
+        </>
       ) : (
-        <ProviderMenu
-          groups={byProvider.map((group) => ({
-            id: group.provider,
-            label: providerName(group.provider),
-            current: group.models!.find(isActive)?.name,
-            count: group.models!.length,
-            rows: modelRows(group.models!),
-          }))}
-        />
+        // One grid for every provider row: the model names start after the
+        // longest provider name, so the columns never overlap row to row.
+        <div className="grid grid-cols-[max-content_minmax(0,1fr)_auto]">
+          {byProvider.map((group) => {
+            const current = group.models!.find(isActive)?.name;
+            return (
+              <DropdownMenuSub key={group.provider}>
+                <DropdownMenuSubTrigger
+                  className={cn(itemCls(false), MENU_ITEM_STATES, "col-span-3 grid grid-cols-subgrid items-baseline gap-0")}
+                >
+                  {/* Baseline-aligned, so the smaller trailing text sits on
+                      the label's line; the model name truncates first. */}
+                  <span>{providerName(group.provider)}</span>
+                  {current ? (
+                    <span className="max-w-[164px] truncate justify-self-end pl-6 text-xs text-text-secondary">{current}</span>
+                  ) : (
+                    <span className="justify-self-end pl-6 text-xs text-text-muted">{group.models!.length}</span>
+                  )}
+                  <ChevronRight className="menu-row-chevron ml-1.5 size-4 self-center text-text-muted" aria-hidden="true" />
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className={cn(MENU_PANEL, "text-[var(--text-primary)]")}>
+                  {modelRows(group.models!)}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            );
+          })}
+        </div>
       )}
-    </div>
+    </>
   );
 }
 
 function ModelRow({ model: m, active, onPick }: { model: EnabledModel; active: boolean; onPick: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={onPick}
+    <DropdownMenuItem
+      onSelect={onPick}
       // 选中不铺底色（hover 是唯一底色），选中态只靠右侧勾。
-      className={`${itemCls(false)} w-full text-left`}
+      className={cn(itemCls(false), MENU_ITEM_STATES)}
     >
       {/* Claude 实测：元数据（badge/能力/上下文窗）紧贴名字
           左侧成簇，不推到右缘——右缘只留勾位。 */}
@@ -170,85 +193,7 @@ function ModelRow({ model: m, active, onPick }: { model: EnabledModel; active: b
         ) : null}
       </span>
       {active ? <MenuCheck /> : <span className={CHECK_SLOT_PAD} />}
-    </button>
-  );
-}
-
-interface ProviderGroup {
-  id: string;
-  label: string;
-  /** Name of the current model when it belongs to this provider. */
-  current?: string;
-  count: number;
-  rows: React.ReactNode;
-}
-
-/** Provider rows, each opening its models to the side. One submenu is
- *  open at a time; leaving a row closes it after a short grace so the
- *  pointer can travel into the submenu. */
-function ProviderMenu({ groups }: { groups: ProviderGroup[] }) {
-  const [open, setOpen] = useState<string | null>(null);
-  const closer = useRef<number | undefined>(undefined);
-  const hold = (id: string) => {
-    window.clearTimeout(closer.current);
-    setOpen(id);
-  };
-  const release = () => {
-    window.clearTimeout(closer.current);
-    closer.current = window.setTimeout(() => setOpen(null), 150);
-  };
-  useEffect(() => () => window.clearTimeout(closer.current), []);
-  // One grid for every row: the model names start after the longest
-  // provider name, so the two columns never overlap from row to row.
-  return (
-    <div className="grid grid-cols-[max-content_minmax(0,1fr)_auto]">
-      {groups.map((group) => (
-        <Popover
-          key={group.id}
-          open={open === group.id}
-          // A closing submenu only clears itself, so it cannot shut the one
-          // the pointer just opened.
-          onOpenChange={(next) => setOpen((cur) => (next ? group.id : cur === group.id ? null : cur))}
-        >
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className={cn(itemCls(false), MENU_ITEM_STATES, "col-span-3 grid grid-cols-subgrid items-baseline gap-0 text-left")}
-              onPointerEnter={() => hold(group.id)}
-              onPointerLeave={release}
-              onKeyDown={(e) => {
-                if (e.key === "ArrowRight") {
-                  e.preventDefault();
-                  hold(group.id);
-                }
-              }}
-            >
-              {/* Baseline-aligned, so the smaller trailing text sits on the
-                  label's line; the model name truncates first. */}
-              <span>{group.label}</span>
-              {group.current ? (
-                <span className="max-w-[164px] truncate justify-self-end pl-6 text-xs text-text-secondary">{group.current}</span>
-              ) : (
-                <span className="justify-self-end pl-6 text-xs text-text-muted">{group.count}</span>
-              )}
-              <ChevronRight className="menu-row-chevron ml-1.5 size-4 self-center text-text-muted" aria-hidden="true" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent
-            side="right"
-            align="start"
-            sideOffset={4}
-            alignOffset={-4}
-            onOpenAutoFocus={(e) => e.preventDefault()}
-            onPointerEnter={() => hold(group.id)}
-            onPointerLeave={release}
-            className="w-auto border-0 bg-transparent p-0 shadow-none"
-          >
-            <div className={MENU_PANEL}>{group.rows}</div>
-          </PopoverContent>
-        </Popover>
-      ))}
-    </div>
+    </DropdownMenuItem>
   );
 }
 
