@@ -24,6 +24,8 @@ export const pierreTreeCSS = `
 [data-file-tree-virtualized-scroll="true"] { scrollbar-gutter: auto; }
 [data-file-tree-virtualized-scroll="true"]::-webkit-scrollbar:vertical { width: 0; }
 [data-type="item"] { width: ${fileColumnsWidth}; box-sizing: border-box; margin-inline: 0; padding-inline: 8px; }
+/* A row is as wide as all its columns and scrolls sideways; clip it to the visible window so its highlight keeps both rounded ends. */
+[data-type="item"] { clip-path: inset(0 max(0px, calc(100% - var(--op-files-scroll-left, 0px) - var(--op-files-viewport, 100%))) 0 var(--op-files-scroll-left, 0px) round var(--trees-border-radius)); }
 [data-file-tree-virtualized-list="true"], [data-file-tree-sticky-overlay="true"] { width: ${fileColumnsWidth}; }
 [data-item-section="spacing"] { max-width: max(0px, calc(var(--op-files-name-width, 220px) - 96px)); flex-shrink: 0; overflow: hidden; }
 [data-item-section="content"] { flex: 1 1 0; }

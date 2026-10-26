@@ -194,7 +194,10 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
       // The vertical bar is the app's overlay thumb, so rows run to the right
       // edge; the body's horizontal scroll drives the external header,
       // including sticky ancestor rows.
-      const sync = () => { columns.scrollLeft = scroll.scrollLeft; };
+      const sync = () => {
+        columns.scrollLeft = scroll.scrollLeft;
+        host.current?.style.setProperty("--op-files-scroll-left", `${scroll.scrollLeft}px`);
+      };
       const syncBody = () => { scroll.scrollLeft = columns.scrollLeft; };
       const measure = () => {
         const width = scroll.clientWidth;
@@ -202,6 +205,7 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
         const extras = fileColumnWidths.modified + fileColumnWidths.kind + fileColumnWidths.padding;
         const name = Math.max(120, width - fileColumnWidths.size - (width >= 720 ? extras : 0));
         host.current?.style.setProperty("--op-files-name-width", `${name}px`);
+        host.current?.style.setProperty("--op-files-viewport", `${width}px`);
         columns.style.width = `${width}px`;
         sync();
       };
