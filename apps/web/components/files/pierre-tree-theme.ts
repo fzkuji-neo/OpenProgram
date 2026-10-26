@@ -26,6 +26,8 @@ export const pierreTreeCSS = `
 [data-type="item"] { width: ${fileColumnsWidth}; box-sizing: border-box; margin-inline: 0; padding-inline: 8px; }
 /* A row is as wide as all its columns and scrolls sideways; clip it to the visible window so its highlight keeps both rounded ends. */
 [data-type="item"] { clip-path: inset(0 max(0px, calc(100% - var(--op-files-scroll-left, 0px) - var(--op-files-viewport, 100%))) 0 var(--op-files-scroll-left, 0px) round var(--trees-border-radius)); }
+/* The focus ring is drawn by the row's ::before over the full row; keep it to the same visible window so it closes on the right too. */
+[data-type="item"]::before { left: var(--op-files-scroll-left, 0px); right: auto; width: var(--op-files-viewport, 100%); }
 [data-file-tree-virtualized-list="true"], [data-file-tree-sticky-overlay="true"] { width: ${fileColumnsWidth}; }
 [data-item-section="spacing"] { max-width: max(0px, calc(var(--op-files-name-width, 220px) - 96px)); flex-shrink: 0; overflow: hidden; }
 [data-item-section="content"] { flex: 1 1 0; }
@@ -38,6 +40,8 @@ export const pierreTreeCSS = `
 /* The inline name editor (new entries and rename) is the app's Input in its focused state: the ring colour border, the panel background, and its text kept on the name column. */
 /* Pierre hides the columns while a name is edited; keep their space (not their text) so the editor ends at the name column. */
 [data-item-section="content"]:has([data-item-rename-input]) ~ [data-item-section="decoration"] { display: block; visibility: hidden; }
+/* The name column clips its overflow; while editing it must not, or the editor's left edge (pulled out to the icon gap) is cut off. */
+[data-item-section="content"]:has([data-item-rename-input]) { overflow: visible; }
 [data-item-rename-input] { height: calc(var(--trees-row-height) - 6px); margin-inline-start: -7px; padding-inline: 6px; border: 1px solid var(--ring); border-radius: 6px; background-color: var(--background); color: var(--text-bright); }
 @keyframes folder-size-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
 @media (prefers-reduced-motion: reduce) { [data-item-section="decoration"] span[style*="--op-size-scanning"] { animation: none; } }
