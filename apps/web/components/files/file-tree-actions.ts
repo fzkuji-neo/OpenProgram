@@ -22,7 +22,6 @@ interface FileTreeActionsContext {
   setCreating: Dispatch<SetStateAction<Creation>>;
   setSelected: Dispatch<SetStateAction<Selection>>;
   setDetailsPath: Dispatch<SetStateAction<string | null>>;
-  setRenaming: Dispatch<SetStateAction<string | null>>;
   recordNavigation: (path: string, type: "file" | "dir") => void;
   openFile: (path: string) => void;
   fileOp: FileOperation;
@@ -40,7 +39,6 @@ export function createFileTreeActions({
   setCreating,
   setSelected,
   setDetailsPath,
-  setRenaming,
   recordNavigation,
   openFile,
   fileOp,
@@ -83,7 +81,6 @@ export function createFileTreeActions({
   }
 
   async function commitRename(oldPath: string, name: string) {
-    setRenaming(null);
     if (name === baseOf(oldPath)) return;
     const dir = parentOf(oldPath);
     await moveOne(oldPath, joinPath(dir, name), [dir]);

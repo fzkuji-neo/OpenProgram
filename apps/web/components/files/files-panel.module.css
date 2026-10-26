@@ -545,21 +545,6 @@
   100% { background: var(--bg-tertiary); }
 }
 
-/* Inline create/rename editor sitting in a 22px row. */
-.treeInput {
-  width: auto;
-  min-width: 0;
-  margin-left: 12px;
-  height: 18px;
-  padding: 0 3px;
-  font-size: var(--right-panel-text-size, 13px);
-  color: var(--text-bright);
-  background: var(--bg-input);
-  border: 1px solid var(--accent-orange);
-  border-radius: var(--ui-list-radius);
-  outline: none;
-}
-
 .treeIcon {
   justify-self: center;
   color: var(--text-dim);

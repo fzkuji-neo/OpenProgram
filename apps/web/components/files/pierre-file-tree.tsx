@@ -17,7 +17,11 @@ export interface PierreTreeHandle {
   scrollToTop(): void;
   getScrollState(): PierreScrollState | null;
   restoreScrollState(state: PierreScrollState): boolean;
+  /** Edit the row's name in place; false when the row is not in the tree. */
+  startRename(path: string): boolean;
 }
+/** A new entry being named: a placeholder row inside ``dir``. */
+export interface PierreTreeDraft { dir: string; kind: "file" | "dir" }
 interface Props {
   projectId: string;
   entries: PierreTreeEntry[];
@@ -41,9 +45,18 @@ interface Props {
   onExternalDrop?(transfer: DataTransfer, targetDir: string): void;
   onOpen(path: string): void;
   onContextMenu(event: React.MouseEvent<HTMLElement>, path: string, type: "file" | "dir"): void;
+  /** Shows a placeholder row in ``draft.dir`` with its name being edited. */
+  draft?: PierreTreeDraft | null;
+  onDraftCommit?(name: string): void;
+  onDraftCancel?(): void;
+  onRenameCommit?(path: string, name: string): void;
 }
 const normalize = (path: string) => path.replace(/\/$/, "");
 const modelPath = (entry: PierreTreeEntry) => entry.path + (entry.type === "dir" ? "/" : "");
+const baseName = (path: string) => normalize(path).split("/").pop() ?? "";
+/** The event came from Pierre's inline name editor. */
+const renameInput = (event: React.SyntheticEvent) => event.nativeEvent.composedPath()
+  .find((target): target is HTMLInputElement => target instanceof HTMLInputElement && target.hasAttribute("data-item-rename-input"));
 
 /** Pierre owns rows, focus and virtualization; the application owns filesystem state. */
 export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function PierreFileTree(props, ref) {
@@ -62,8 +75,23 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
   const [visibleFolders, setVisibleFolders] = useState<string[]>([]);
   const metadata = useRef(new Map<string, PierreTreeEntry>());
   metadata.current = new Map(props.entries.map(entry => [entry.path, entry]));
+  // New entries are named in the tree itself, Finder- and VS Code-style: a
+  // placeholder row at the top of its folder opens in Pierre's own rename
+  // editor; Enter or blur creates it, Escape or an empty name drops it.
+  const { draft } = props;
+  const draftEntry = useMemo(() => {
+    if (!draft) return null;
+    const base = draft.kind === "dir" ? translate("untitled folder", "未命名文件夹") : translate("untitled", "未命名");
+    const taken = new Set(props.entries.map(entry => entry.path));
+    const at = (name: string) => draft.dir ? `${draft.dir}/${name}` : name;
+    let name = base;
+    for (let count = 2; taken.has(at(name)); count++) name = `${base} ${count}`;
+    return { path: at(name), type: draft.kind, size: 0 } satisfies PierreTreeEntry;
+  }, [draft, props.entries, translate]);
+  const drafting = useRef<PierreTreeEntry | null>(null);
   const ranks = useRef(new Map<string, number>());
   ranks.current = new Map(props.entries.map((entry, index) => [entry.path, index]));
+  if (draftEntry) ranks.current.set(draftEntry.path, -1);
   const { model } = useFileTree({
     paths: props.entries.map(modelPath), flattenEmptyDirectories: false,
     sort: (left, right) => (ranks.current.get(normalize(left.path)) ?? 0) - (ranks.current.get(normalize(right.path)) ?? 0),
@@ -85,6 +113,15 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
         latest.current.onMove?.(event.draggedPaths.map(normalize), dir);
       },
     } : false,
+    renaming: {
+      onRename: ({ sourcePath, destinationPath }) => {
+        const path = normalize(sourcePath);
+        if (drafting.current?.path === path) {
+          drafting.current = null;
+          latest.current.onDraftCommit?.(baseName(destinationPath));
+        } else latest.current.onRenameCommit?.(path, baseName(destinationPath));
+      },
+    },
     renderRowDecoration: ({ item }) => {
       const entry = metadata.current.get(normalize(item.path));
       if (!entry) return null;
@@ -133,6 +170,10 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
       return true;
     },
     scrollToTop() { const first = latest.current.entries[0]; if (first) model.scrollToPath(modelPath(first), { offset: "top" }); },
+    startRename(path) {
+      const entry = metadata.current.get(path);
+      return entry ? model.startRenaming(modelPath(entry)) : false;
+    },
   }), [model]);
   const wantedSelection = (props.selectedPaths?.length ? props.selectedPaths : props.selected ? [props.selected] : []).join("\0");
   const applySelection = () => {
@@ -147,7 +188,9 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
   };
   useEffect(() => {
     syncing.current = true;
-    model.resetPaths(props.entries.map(modelPath), { initialExpandedPaths: [...props.expanded].map(path => path + "/") });
+    const paths = props.entries.map(modelPath);
+    if (draftEntry) paths.push(modelPath(draftEntry));
+    model.resetPaths(paths, { initialExpandedPaths: [...props.expanded].map(path => path + "/") });
     // Initial expansion opens ancestors too; restore explicitly collapsed parents.
     for (const entry of props.entries) {
       if (entry.type !== "dir" || props.expanded.has(entry.path)) continue;
@@ -157,10 +200,29 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
     for (const path of model.getSelectedPaths()) model.getItem(path)?.deselect();
     applySelection();
     syncing.current = false;
+    drafting.current = draftEntry;
+    if (draftEntry) {
+      model.startRenaming(modelPath(draftEntry), { removeIfCanceled: true });
+      model.scrollToPath(modelPath(draftEntry), { offset: "center" });
+    }
   // applySelection reads the selection key below; a selection change alone
   // must not reset the rows, or a Shift-click loses its anchor.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [model, props.entries, props.expanded]);
+  }, [model, props.entries, props.expanded, draftEntry]);
+  // Escape or an empty name removes the placeholder: the draft is dropped.
+  useEffect(() => model.onMutation("remove", event => {
+    if (drafting.current?.path !== normalize(event.path)) return;
+    drafting.current = null;
+    latest.current.onDraftCancel?.();
+  }), [model]);
+  // Pierre reports a rename only when the name changed, so keeping the
+  // placeholder's own name creates it under that name.
+  const keepDraftName = (input: HTMLInputElement) => {
+    const entry = drafting.current;
+    if (!entry || input.value.trim() !== baseName(entry.path)) return;
+    drafting.current = null;
+    latest.current.onDraftCommit?.(baseName(entry.path));
+  };
   useEffect(() => {
     syncing.current = true;
     applySelection();
@@ -287,7 +349,8 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
     <FileColumnsHeader ref={header} sort={props.sort} onSortChange={props.onSortChange} />
     <FileTree model={model} style={{ flex: "1 1 0", minHeight: 0, display: "block" }}
       onClick={event => { const entry = fromEvent(event); if (entry) { if (props.onActivate) props.onActivate(entry.path, entry.type); else if (entry.type === "file") props.onOpen(entry.path); } }}
-      onKeyDown={event => { if (event.key !== "Enter") return; const path = model.getFocusedPath(); const entry = path && metadata.current.get(normalize(path)); if (entry) { if (props.onActivate) props.onActivate(entry.path, entry.type); else if (entry.type === "file") props.onOpen(entry.path); } }}
+      onBlur={event => { const input = renameInput(event); if (input) keepDraftName(input); }}
+      onKeyDown={event => { if (event.key !== "Enter") return; const input = renameInput(event); if (input) { keepDraftName(input); return; } const path = model.getFocusedPath(); const entry = path && metadata.current.get(normalize(path)); if (entry) { if (props.onActivate) props.onActivate(entry.path, entry.type); else if (entry.type === "file") props.onOpen(entry.path); } }}
       onContextMenu={event => { const entry = fromEvent(event); if (entry) props.onContextMenu(event, entry.path, entry.type); }} />
     {externalTarget !== null ? <div className={styles.externalDropHint}>{translate(`Add to ${externalTarget || "the project root"}`, `添加到 ${externalTarget || "项目根目录"}`)}</div> : null}
     {visibleFolders.map(path => <FolderSizeSubscription key={path} projectId={props.projectId} path={path} onValue={(text, scanning) => {

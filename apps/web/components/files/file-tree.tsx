@@ -47,7 +47,6 @@ import {
 import { baseOf, joinPath, parentOf, projectAbsPath, projectPathCache } from "./file-tree-query";
 import { runFileOperation, type FileOperation, type FileOperationResult } from "./file-tree-operation";
 import { createFileTreeActions } from "./file-tree-actions";
-import { InlineNameInput } from "./file-tree-render";
 import { FileBreadcrumb, FileDetails, FileSortMenu, useFileSort, invalidateFolderSizes } from "./file-management";
 import { HoverTip } from "@/components/ui/tooltip";
 import styles from "./files-panel.module.css";
@@ -185,7 +184,6 @@ export function FileTree({
   // The root listing was refused because the project's folder is unavailable.
   const [locationUnavailable, setLocationUnavailable] = useState(false);
   const [creating, setCreating] = useState<{ dir: string; kind: "file" | "dir" } | null>(null);
-  const [renaming, setRenaming] = useState<string | null>(null);
   const [menuTarget, setMenuTarget] = useState<{ path: string; type: "file" | "dir" } | null>(null);
   // Set by a row's right-click on its way up to the tree's ContextMenu
   // trigger, which opens only for a row (see treeMenu).
@@ -380,7 +378,6 @@ export function FileTree({
     setLocationUnavailable(false);
     setDetailsPath(null);
     setCreating(null);
-    setRenaming(null);
     setMenuTarget(null);
     setFilter("");
     setSearchResults([]);
@@ -674,7 +671,6 @@ export function FileTree({
     setCreating,
     setSelected,
     setDetailsPath,
-    setRenaming,
     recordNavigation,
     openFile,
     fileOp,
@@ -789,7 +785,8 @@ export function FileTree({
         setFilter("");
         setSearchOpen(false);
         expandChain(parentOf(path));
-        setRenaming(path);
+        // Expanding may load the parent first; rename once its row exists.
+        requestAnimationFrame(() => pierreRef.current?.startRename(path));
       },
       delete: () => setConfirmDelete(actionTargets(path)),
     };
@@ -1076,14 +1073,6 @@ export function FileTree({
       return <ProjectLocationNotice projectId={projectId} onRepaired={() => { setLocationUnavailable(false); setDirs({}); void load(""); }} />;
     }
     return <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }} onKeyDown={onTreeKeyDown}>
-      {creating ? <div className={styles.treeRow}>
-        <span>{creating.dir || "/"}</span>
-        <InlineNameInput initial="" onCommit={commitCreate} onCancel={() => setCreating(null)} />
-      </div> : null}
-      {renaming ? <div className={styles.treeRow}>
-        <span>{parentOf(renaming) || "/"}</span>
-        <InlineNameInput initial={baseOf(renaming)} onCommit={name => commitRename(renaming, name)} onCancel={() => setRenaming(null)} />
-      </div> : null}
       {dirs[""] === "loading" || dirs[""] === undefined ? <div className={styles.treeHint}>{text("Loading…", "加载中…")}</div> : null}
       {treeMenu(
         <PierreFileTree key={projectId} ref={pierreRef} projectId={projectId} sort={sort} onSortChange={setSort} entries={pierreEntries} query={searchMode === "highlight" && !fuzzySearch ? filter : undefined} matches={filter.trim() ? new Set(searchMatches.map(match => match.path)) : undefined} expanded={expanded} selected={primaryPath}
@@ -1098,7 +1087,11 @@ export function FileTree({
           selectedPaths={selectedPaths} movable onSelectionChange={setSelection}
           onMove={(paths, dir) => void moveSelection(paths, dir)}
           onExternalDrop={(transfer, dir) => void dropFromDesktop(transfer, dir)}
-          onSelect={(path, type) => { setSelected({ path, type }); if (type === "dir") recordNavigation(path, type); }} onOpen={openFile} onContextMenu={onRowContextMenu} />
+          onSelect={(path, type) => { setSelected({ path, type }); if (type === "dir") recordNavigation(path, type); }} onOpen={openFile} onContextMenu={onRowContextMenu}
+          // The new entry's row appears once its folder's listing is in.
+          draft={creating && (creating.dir === "" || Array.isArray(dirs[creating.dir])) ? creating : null}
+          onDraftCommit={name => void commitCreate(name)} onDraftCancel={() => setCreating(null)}
+          onRenameCommit={(path, name) => void commitRename(path, name)} />
       )}
       {visibleDirectories.map(dir => <div key={dir}>
         {dir && dirs[dir] === "loading" ? <div className={styles.treeHint}>{dir} · {text("Loading…", "加载中…")}</div> : null}
