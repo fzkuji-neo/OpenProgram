@@ -201,7 +201,9 @@ function ProviderMenu({ groups }: { groups: ProviderGroup[] }) {
     <Popover
       key={group.id}
       open={open === group.id}
-      onOpenChange={(next) => setOpen(next ? group.id : null)}
+      // A closing submenu only clears itself, so it cannot shut the one
+      // the pointer just opened.
+      onOpenChange={(next) => setOpen((cur) => (next ? group.id : cur === group.id ? null : cur))}
     >
       <PopoverTrigger asChild>
         <button
