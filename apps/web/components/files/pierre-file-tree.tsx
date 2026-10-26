@@ -178,7 +178,14 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
       const entry = metadata.current.get(path);
       if (!entry) return false;
       pendingRename.current = modelPath(entry);
-      return model.startRenaming(pendingRename.current);
+      if (!model.startRenaming(pendingRename.current)) return false;
+      // Select the name without its extension, as Finder and VS Code do.
+      const dot = entry.type === "file" ? baseName(entry.path).lastIndexOf(".") : -1;
+      if (dot > 0) requestAnimationFrame(() => {
+        host.current?.querySelector("file-tree-container")?.shadowRoot
+          ?.querySelector<HTMLInputElement>("[data-item-rename-input]")?.setSelectionRange(0, dot);
+      });
+      return true;
     },
   }), [model]);
   const wantedSelection = (props.selectedPaths?.length ? props.selectedPaths : props.selected ? [props.selected] : []).join("\0");
