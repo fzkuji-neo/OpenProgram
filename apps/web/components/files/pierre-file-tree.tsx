@@ -124,7 +124,8 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
     },
     renderRowDecoration: ({ item }) => {
       const entry = metadata.current.get(normalize(item.path));
-      if (!entry) return null;
+      // The placeholder keeps empty columns, so its name editor stays in the name column.
+      if (!entry) return drafting.current?.path === normalize(item.path) ? { text: " ", parts: [{ text: " " }, { text: " " }, { text: " " }] } : null;
       const size = sizes.current.get(entry.path);
       const text = entry.type === "file" ? formatFileBytes(entry.size) : size?.text ?? "";
       const part = { text: `${latest.current.matches?.has(entry.path) ? "• " : ""}${text}`, color: entry.type === "dir" && size?.scanning ? "var(--op-size-scanning, var(--text-tertiary))" : undefined };

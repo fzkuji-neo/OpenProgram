@@ -36,6 +36,8 @@ export const pierreTreeCSS = `
 [data-item-section="decoration"] { flex: none; font-size: var(--right-panel-meta-size, 11px); line-height: var(--right-panel-line-height, normal); color: var(--text-tertiary); white-space: nowrap; }
 [data-item-section="decoration"] span[style*="--op-size-scanning"] { animation: folder-size-pulse 1.8s ease-in-out infinite; }
 /* The inline name editor (new entries and rename) is the app's Input in its focused state: the ring colour border, the panel background, and its text kept on the name column. */
+/* Pierre hides the columns while a name is edited; keep their space (not their text) so the editor ends at the name column. */
+[data-item-section="content"]:has([data-item-rename-input]) ~ [data-item-section="decoration"] { display: block; visibility: hidden; }
 [data-item-rename-input] { height: calc(var(--trees-row-height) - 6px); margin-inline-start: -7px; padding-inline: 6px; border: 1px solid var(--ring); border-radius: 6px; background-color: var(--background); color: var(--text-bright); }
 @keyframes folder-size-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
 @media (prefers-reduced-motion: reduce) { [data-item-section="decoration"] span[style*="--op-size-scanning"] { animation: none; } }
