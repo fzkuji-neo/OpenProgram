@@ -29,8 +29,9 @@ export const pierreTreeCSS = `
 [data-file-tree-virtualized-list="true"], [data-file-tree-sticky-overlay="true"] { width: ${fileColumnsWidth}; }
 [data-item-section="spacing"] { max-width: max(0px, calc(var(--op-files-name-width, 220px) - 96px)); flex-shrink: 0; overflow: hidden; }
 [data-item-section="content"] { flex: 1 1 0; }
-[data-item-section="decoration"] { width: calc(var(--op-files-meta-width, 448px) - 8px); overflow: hidden; }
-[data-item-section="decoration"] > span { display: grid; grid-template-columns: 100px 200px 140px; width: 440px; max-width: none; }
+[data-item-section="decoration"] { width: calc(var(--op-files-meta-width, 448px) - 8px); }
+[data-item-section="decoration"] > span { display: grid; grid-template-columns: var(--op-files-meta-columns, 100px 200px 140px); width: calc(var(--op-files-meta-width, 448px) - 8px); max-width: none; }
+[data-item-section="decoration"] > span > span:not(:first-child) { display: var(--op-files-more-columns, block); }
 [data-item-section="decoration"] > span > span { min-width: 0; box-sizing: border-box; padding: 0 10px 0 12px; overflow: hidden; text-overflow: ellipsis; text-align: left; }
 [data-item-section="decoration"] > span > span:first-child { text-align: right; }
 [data-item-section="decoration"] { flex: none; font-size: var(--right-panel-meta-size, 11px); line-height: var(--right-panel-line-height, normal); color: var(--text-tertiary); white-space: nowrap; }

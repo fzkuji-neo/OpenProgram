@@ -298,6 +298,8 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
         const meta = fileColumnWidths.size + fileColumnWidths.padding + (all ? fileColumnWidths.modified + fileColumnWidths.kind : 0);
         host.current?.style.setProperty("--op-files-name-width", `${Math.max(120, width - meta)}px`);
         host.current?.style.setProperty("--op-files-meta-width", `${meta}px`);
+        host.current?.style.setProperty("--op-files-more-columns", all ? "block" : "none");
+        host.current?.style.setProperty("--op-files-meta-columns", all ? "100px 200px 140px" : "100px");
         columns.style.width = `${width}px`;
         setAllColumns(all);
       };
