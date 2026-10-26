@@ -41,8 +41,12 @@ export const FONT_STACKS: Record<FontKey, string> = {
     "'Hiragino Sans GB'",
     "sans-serif",
   ].join(", "),
-  // Inter Variable is bundled locally (see app/globals.css).
+  // Inter is bundled locally: its preloaded Latin face from next/font
+  // (app/fonts.ts, defined on <html>) first, then the @fontsource faces
+  // (app/globals.css). The var() carries its own fallback, so the stack
+  // stays valid wherever the variable is not defined.
   inter: [
+    "var(--font-inter-latin, 'Inter Variable')",
     "'Inter Variable'",
     "'Inter'",
     "-apple-system",

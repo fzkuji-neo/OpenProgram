@@ -4,12 +4,12 @@ import "@xterm/xterm/css/xterm.css";
 import "katex/dist/katex.min.css";
 import { Providers } from "./providers";
 import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/prefs/theme-bootstrap";
+import { interLatin } from "./fonts";
 
-// Google Fonts (next/font/google) was hitting fonts.googleapis.com at
-// build/request time. When that domain is unreachable (locally proxied,
-// offline, GFW), Next.js falls back to a default serif. We dropped the
-// network fetch and bundle Inter Variable locally (see globals.css);
-// font selection is a runtime CSS-variable override, not next/font.
+// Fonts are bundled, never fetched from Google: Inter's Latin face comes
+// through next/font/local (app/fonts.ts, preloaded) and the remaining
+// faces through @fontsource (globals.css). Font selection is a runtime
+// CSS-variable override (--font-sans).
 
 export const metadata: Metadata = {
   title: "OpenProgram",
@@ -32,7 +32,7 @@ export default function RootLayout({
   // script below reads the font cookie and sets --font-sans before
   // first paint, so the chosen font still shows without a flash.
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={interLatin.variable} suppressHydrationWarning>
       <head>
         {/*
           Apply persisted theme + language before React hydrates so the
@@ -54,7 +54,7 @@ export default function RootLayout({
                 // as a legacy fallback.
                 var FONTS = {
                   system: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', sans-serif",
-                  inter:  "'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', sans-serif",
+                  inter:  "var(--font-inter-latin, 'Inter Variable'), 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', sans-serif",
                   serif:  "'Source Serif Pro', 'Iowan Old Style', Georgia, 'Times New Roman', 'Songti SC', SimSun, 'Noto Serif CJK SC', serif",
                   mono:   "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, Menlo, Monaco, Consolas, 'PingFang SC', 'Microsoft YaHei', monospace"
                 };
