@@ -31,3 +31,24 @@ function parentOf(path: string): string {
   const index = path.lastIndexOf("/");
   return index < 0 ? "" : path.slice(0, index);
 }
+
+/** The input read as a path: the folder whose listing to show and the
+ *  name typed so far inside it. ``base`` is null when the path leaves the
+ *  project or names nothing. */
+export function splitFolderInput(value: string): { base: string | null; term: string } {
+  const normalized = value.replace(/\\/g, "/").replace(/^\s+/, "").replace(/^\/+/, "");
+  const cut = normalized.lastIndexOf("/");
+  if (cut < 0) return { base: "", term: normalized.trim() };
+  const base = typedFolder(normalized.slice(0, cut));
+  return { base, term: normalized.slice(cut + 1).trim() };
+}
+
+/** Folder names holding ``term``, case-insensitively: names that start
+ *  with it first, each group in listing order. */
+export function matchFolders(names: string[], term: string): string[] {
+  if (!term) return names;
+  const needle = term.toLocaleLowerCase();
+  const starts = names.filter(name => name.toLocaleLowerCase().startsWith(needle));
+  const holds = names.filter(name => !name.toLocaleLowerCase().startsWith(needle) && name.toLocaleLowerCase().includes(needle));
+  return [...starts, ...holds];
+}
