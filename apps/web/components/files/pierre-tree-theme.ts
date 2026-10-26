@@ -12,37 +12,29 @@ export const pierreTreeIcons: FileTreeIcons = {
 };
 export const fileColumnWidths = { size: 100, modified: 200, kind: 140, padding: 8 };
 export const fileColumnGrid = "var(--op-files-name-width, 220px) 100px 200px 140px";
-export const fileColumnsWidth = "calc(var(--op-files-name-width, 220px) + 448px)";
+// Below 720px only Name and Size fit, so the row ends after Size (Codex's
+// tree likewise keeps every row inside the panel; nothing scrolls sideways).
+export const fileColumnsWidth = "calc(var(--op-files-name-width, 220px) + var(--op-files-meta-width, 448px))";
 
 export const pierreTreeCSS = `
 :host { --trees-font-family-override: var(--right-panel-font-family, var(--font-sans)); --trees-font-size-override: var(--right-panel-text-size, 13px); --trees-bg-override: var(--files-tree-bg, var(--bg-secondary)); --trees-padding-inline-override: 8px; --trees-fg-override: var(--text-secondary); font-family: inherit; }
 [data-item-type="folder"] > [data-item-section="icon"] > svg { transform: none !important; color: var(--folder-color); }
 [data-item-type="folder"][aria-expanded="true"], [data-item-type="folder"][data-file-tree-sticky-row="true"] { --op-folder-closed: none; --op-folder-open: inline; }
 [data-item-selected="true"]::before { outline: none !important; }
-[data-file-tree-virtualized-scroll="true"] { padding-inline: 0; overflow-x: auto; }
-/* The app's overlay thumb (attachOverlayScrollbar) replaces the vertical bar, so rows reach the right edge; the horizontal bar stays. */
+[data-file-tree-virtualized-scroll="true"] { padding-inline: 0; overflow-x: hidden; }
+/* The app's overlay thumb (attachOverlayScrollbar) replaces the vertical bar, so rows reach the right edge. */
 [data-file-tree-virtualized-scroll="true"] { scrollbar-gutter: auto; }
 [data-file-tree-virtualized-scroll="true"]::-webkit-scrollbar:vertical { width: 0; }
 [data-type="item"] { width: ${fileColumnsWidth}; box-sizing: border-box; margin-inline: 0; padding-inline: 8px; }
-/* A row is as wide as all its columns and scrolls sideways; clip it to the visible window so its highlight keeps both rounded ends. */
-[data-type="item"] { clip-path: inset(0 max(0px, calc(100% - var(--op-files-scroll-left, 0px) - var(--op-files-viewport, 100%))) 0 var(--op-files-scroll-left, 0px) round var(--trees-border-radius)); }
-/* The focus ring is drawn by the row's ::before over the full row; keep it to the same visible window so it closes on the right too. */
-[data-type="item"]::before { left: var(--op-files-scroll-left, 0px); right: auto; width: var(--op-files-viewport, 100%); }
 [data-file-tree-virtualized-list="true"], [data-file-tree-sticky-overlay="true"] { width: ${fileColumnsWidth}; }
 [data-item-section="spacing"] { max-width: max(0px, calc(var(--op-files-name-width, 220px) - 96px)); flex-shrink: 0; overflow: hidden; }
 [data-item-section="content"] { flex: 1 1 0; }
-[data-item-section="decoration"] { width: 440px; }
+[data-item-section="decoration"] { width: calc(var(--op-files-meta-width, 448px) - 8px); overflow: hidden; }
 [data-item-section="decoration"] > span { display: grid; grid-template-columns: 100px 200px 140px; width: 440px; max-width: none; }
 [data-item-section="decoration"] > span > span { min-width: 0; box-sizing: border-box; padding: 0 10px 0 12px; overflow: hidden; text-overflow: ellipsis; text-align: left; }
 [data-item-section="decoration"] > span > span:first-child { text-align: right; }
 [data-item-section="decoration"] { flex: none; font-size: var(--right-panel-meta-size, 11px); line-height: var(--right-panel-line-height, normal); color: var(--text-tertiary); white-space: nowrap; }
 [data-item-section="decoration"] span[style*="--op-size-scanning"] { animation: folder-size-pulse 1.8s ease-in-out infinite; }
-/* The inline name editor (new entries and rename) is the app's Input in its focused state: the ring colour border, the panel background, and its text kept on the name column. */
-/* Pierre hides the columns while a name is edited; keep their space (not their text) so the editor ends at the name column. */
-[data-item-section="content"]:has([data-item-rename-input]) ~ [data-item-section="decoration"] { display: block; visibility: hidden; }
-/* The name column clips its overflow; while editing it must not, or the editor's left edge (pulled out to the icon gap) is cut off. */
-[data-item-section="content"]:has([data-item-rename-input]) { overflow: visible; }
-[data-item-rename-input] { height: calc(var(--trees-row-height) - 6px); margin-inline-start: -7px; padding-inline: 6px; border: 1px solid var(--ring); border-radius: 6px; background-color: var(--background); color: var(--text-bright); }
 @keyframes folder-size-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
 @media (prefers-reduced-motion: reduce) { [data-item-section="decoration"] span[style*="--op-size-scanning"] { animation: none; } }
 `;

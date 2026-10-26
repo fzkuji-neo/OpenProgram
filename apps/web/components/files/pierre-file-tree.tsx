@@ -73,6 +73,7 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
   useEffect(() => { props.onRowsRendered?.(renderedPaths.current); }, [props.onRowsRendered]);
   const sizes = useRef(new Map<string, { text: string; scanning: boolean }>());
   const [visibleFolders, setVisibleFolders] = useState<string[]>([]);
+  const [allColumns, setAllColumns] = useState(false);
   const metadata = useRef(new Map<string, PierreTreeEntry>());
   metadata.current = new Map(props.entries.map(entry => [entry.path, entry]));
   // New entries are named in the tree itself, VS Code-style: a placeholder
@@ -131,8 +132,7 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
     },
     renderRowDecoration: ({ item }) => {
       const entry = metadata.current.get(normalize(item.path));
-      // The placeholder keeps empty columns, so its name editor stays in the name column.
-      if (!entry) return drafting.current?.path === normalize(item.path) ? { text: " ", parts: [{ text: " " }, { text: " " }, { text: " " }] } : null;
+      if (!entry) return null;
       const size = sizes.current.get(entry.path);
       const text = entry.type === "file" ? formatFileBytes(entry.size) : size?.text ?? "";
       const part = { text: `${latest.current.matches?.has(entry.path) ? "• " : ""}${text}`, color: entry.type === "dir" && size?.scanning ? "var(--op-size-scanning, var(--text-tertiary))" : undefined };
@@ -289,34 +289,20 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
       const columns = header.current;
       if (!scroll || !columns) { frame = requestAnimationFrame(connect); return; }
       // The vertical bar is the app's overlay thumb, so rows run to the right
-      // edge; the body's horizontal scroll drives the external header,
-      // including sticky ancestor rows.
-      const sync = () => {
-        columns.scrollLeft = scroll.scrollLeft;
-        host.current?.style.setProperty("--op-files-scroll-left", `${scroll.scrollLeft}px`);
-      };
-      const syncBody = () => { scroll.scrollLeft = columns.scrollLeft; };
+      // edge. Rows never outgrow the panel: Date Modified and Kind join Name
+      // and Size only when all four fit.
       const measure = () => {
         const width = scroll.clientWidth;
         if (!width) return;
-        const extras = fileColumnWidths.modified + fileColumnWidths.kind + fileColumnWidths.padding;
-        const name = Math.max(120, width - fileColumnWidths.size - (width >= 720 ? extras : 0));
-        host.current?.style.setProperty("--op-files-name-width", `${name}px`);
-        host.current?.style.setProperty("--op-files-viewport", `${width}px`);
+        const all = width >= 720;
+        const meta = fileColumnWidths.size + fileColumnWidths.padding + (all ? fileColumnWidths.modified + fileColumnWidths.kind : 0);
+        host.current?.style.setProperty("--op-files-name-width", `${Math.max(120, width - meta)}px`);
+        host.current?.style.setProperty("--op-files-meta-width", `${meta}px`);
         columns.style.width = `${width}px`;
-        sync();
+        setAllColumns(all);
       };
-      const wheel = (event: WheelEvent) => {
-        const delta = event.deltaX || (event.shiftKey ? event.deltaY : 0);
-        if (!delta) return;
-        event.preventDefault();
-        scroll.scrollLeft += delta * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? scroll.clientWidth : 1);
-      };
-      scroll.addEventListener("scroll", sync, { passive: true });
-      columns.addEventListener("scroll", syncBody, { passive: true });
-      columns.addEventListener("wheel", wheel, { passive: false });
       const detachThumb = attachOverlayScrollbar(scroll);
-      cleanupScroll = () => { scroll.removeEventListener("scroll", sync); columns.removeEventListener("scroll", syncBody); columns.removeEventListener("wheel", wheel); detachThumb(); };
+      cleanupScroll = detachThumb;
       resize = new ResizeObserver(measure);
       resize.observe(scroll);
       measure();
@@ -381,7 +367,7 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
       setExternalTarget(null);
       props.onExternalDrop?.(event.dataTransfer, dropDir(event));
     }}>
-    <FileColumnsHeader ref={header} sort={props.sort} onSortChange={props.onSortChange} />
+    <FileColumnsHeader ref={header} allColumns={allColumns} sort={props.sort} onSortChange={props.onSortChange} />
     <FileTree model={model} style={{ flex: "1 1 0", minHeight: 0, display: "block" }}
       onClick={event => { const entry = fromEvent(event); if (entry) { if (props.onActivate) props.onActivate(entry.path, entry.type); else if (entry.type === "file") props.onOpen(entry.path); } }}
       onBlur={event => { const input = renameInput(event); if (input) { pendingRename.current = null; keepDraftName(input); } }}
