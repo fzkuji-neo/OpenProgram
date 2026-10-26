@@ -51,9 +51,9 @@ const DropdownMenuSubTrigger = DropdownMenuPrimitive.SubTrigger
 const DropdownMenuSubContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.SubContent>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.SubContent>
-// A submenu stands a small gap off its parent panel, and its first row
-// lines up with the row that opened it (the offset is the panel's p-1).
->(({ className, sideOffset = 4, alignOffset = -4, ...props }, ref) => (
+// A submenu stands 4px off its parent panel (the offset is measured from
+// the row, inside the panel's p-1), and its first row lines up with that row.
+>(({ className, sideOffset = 8, alignOffset = -4, ...props }, ref) => (
   <DropdownMenuPrimitive.Portal>
     <DropdownMenuPrimitive.SubContent
       ref={ref}

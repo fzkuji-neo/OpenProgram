@@ -236,7 +236,7 @@ function Row<T extends string>({
         <ChevronRight size={14} className="shrink-0 text-text-muted" />
       </DM.SubTrigger>
       <DM.Portal>
-        <DM.SubContent className={surface + " min-w-[160px]"} sideOffset={4} alignOffset={-5}>
+        <DM.SubContent className={surface + " min-w-[160px]"} sideOffset={8} alignOffset={-4}>
           {options.map(([val, optLabel], i) => {
             const selected = val === value;
             const divider = separateLast && i === options.length - 1;

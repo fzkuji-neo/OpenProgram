@@ -265,7 +265,7 @@ export function ControlsCluster({
                     </DropdownMenuSubTrigger>
                     <DropdownMenuSubContent
                       align="end"
-                      sideOffset={6}
+                      sideOffset={8}
                       className={cn(MENU_PANEL, "z-[201]")}
                       // Pointer travel over sibling rows moves radix focus
                       // out of the submenu; that is not a dismissal here.
