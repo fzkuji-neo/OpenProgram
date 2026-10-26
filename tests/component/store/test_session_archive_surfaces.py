@@ -46,6 +46,20 @@ def test_cli_archive_of_an_unknown_session_exits_nonzero(store, capsys) -> None:
     assert "no session" in capsys.readouterr().out
 
 
+def test_cli_archive_goes_through_a_running_worker(store, capsys, monkeypatch) -> None:
+    from openprogram.cli.commands import execution
+    from openprogram.cli.commands.sessions import _cmd_session_archive
+    calls = []
+    monkeypatch.setattr("openprogram.backend_endpoint.resolve_backend_endpoint", lambda: object())
+    monkeypatch.setattr(execution, "_worker_request",
+                        lambda method, path, body: calls.append((method, path, body)) or (200, {}))
+
+    _cmd_session_archive("beta", True)
+
+    assert calls == [("POST", "/api/sessions/archive", {"session_id": "beta"})]
+    assert "Archived session beta" in capsys.readouterr().out
+
+
 @pytest.mark.parametrize(
     ("scope", "expected"),
     [("active", ["alpha"]), ("archived", ["beta"]), ("all", ["beta", "alpha"])],

@@ -11,11 +11,28 @@ def _cmd_session_archive(session_id: str, archived: bool) -> None:
 
     Archiving hides the session from the default list without deleting
     anything — ``unarchive`` puts it straight back, and the session's
-    last-activity time is untouched either way.
+    last-activity time is untouched either way. A running worker does the
+    write, so its live session list and every open window update too;
+    without one the flag is set in the store.
     """
     from openprogram.agent.session_db import default_db
+    from openprogram.backend_endpoint import OwnerAuthError, resolve_backend_endpoint
     verb = "Archived" if archived else "Unarchived"
-    if not default_db().set_archived(session_id, archived):
+    try:
+        resolve_backend_endpoint()
+    except OwnerAuthError:
+        found = default_db().set_archived(session_id, archived)
+    else:
+        from .execution import _worker_request
+        status, payload = _worker_request(
+            "POST", "/api/sessions/archive" if archived else "/api/sessions/unarchive",
+            {"session_id": session_id},
+        )
+        if status not in (200, 404):
+            print(f"[error] worker refused: {payload}")
+            sys.exit(1)
+        found = status == 200
+    if not found:
         print(f"[error] no session {session_id!r} found.")
         sys.exit(1)
     print(f"{verb} session {session_id}")
