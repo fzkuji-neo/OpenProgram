@@ -813,7 +813,9 @@ export function FileTree({
    *  project, so switching roots closes it. */
   function treeMenu(tree: React.ReactNode): React.ReactNode {
     return (
-      <ContextMenu key={projectId} onOpenChange={open => { if (!open) setMenuTarget(null); }}>
+      // Non-modal: a modal menu's focus trap pulls focus back from the name
+      // editor that Rename / New File open while it is still closing.
+      <ContextMenu key={projectId} modal={false} onOpenChange={open => { if (!open) setMenuTarget(null); }}>
         <ContextMenuTrigger asChild onContextMenu={event => {
           if (!rowMenuHit.current) event.preventDefault();
           rowMenuHit.current = false;
