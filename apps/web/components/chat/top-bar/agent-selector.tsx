@@ -33,6 +33,7 @@ import {
 import { MenuCheck } from "./menu-check";
 import { SolarIcon } from "@/components/solar-icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 type EnabledModel = Awaited<ReturnType<typeof api.listEnabledModels>>[number];
 
@@ -197,55 +198,58 @@ function ProviderMenu({ groups }: { groups: ProviderGroup[] }) {
     closer.current = window.setTimeout(() => setOpen(null), 150);
   };
   useEffect(() => () => window.clearTimeout(closer.current), []);
-  return groups.map((group) => (
-    <Popover
-      key={group.id}
-      open={open === group.id}
-      // A closing submenu only clears itself, so it cannot shut the one
-      // the pointer just opened.
-      onOpenChange={(next) => setOpen((cur) => (next ? group.id : cur === group.id ? null : cur))}
-    >
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className={`${itemCls(false)} ${MENU_ITEM_STATES} w-full text-left`}
-          onPointerEnter={() => hold(group.id)}
-          onPointerLeave={release}
-          onKeyDown={(e) => {
-            if (e.key === "ArrowRight") {
-              e.preventDefault();
-              hold(group.id);
-            }
-          }}
+  // One grid for every row: the model names start after the longest
+  // provider name, so the two columns never overlap from row to row.
+  return (
+    <div className="grid grid-cols-[max-content_minmax(0,1fr)_auto]">
+      {groups.map((group) => (
+        <Popover
+          key={group.id}
+          open={open === group.id}
+          // A closing submenu only clears itself, so it cannot shut the one
+          // the pointer just opened.
+          onOpenChange={(next) => setOpen((cur) => (next ? group.id : cur === group.id ? null : cur))}
         >
-          {/* Baseline-aligned, so the smaller trailing text sits on the
-              label's line. The provider name never shrinks; the model name
-              keeps a clear gap from it and truncates first. */}
-          <span className="flex min-w-0 flex-1 items-baseline gap-6">
-            <span className="shrink-0">{group.label}</span>
-            {group.current ? (
-              <span className="ml-auto min-w-0 max-w-[140px] truncate text-xs text-text-secondary">{group.current}</span>
-            ) : (
-              <span className="ml-auto shrink-0 text-xs text-text-muted">{group.count}</span>
-            )}
-          </span>
-          <ChevronRight className="menu-row-chevron size-4 shrink-0 text-text-muted" aria-hidden="true" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        side="right"
-        align="start"
-        sideOffset={4}
-        alignOffset={-4}
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        onPointerEnter={() => hold(group.id)}
-        onPointerLeave={release}
-        className="w-auto border-0 bg-transparent p-0 shadow-none"
-      >
-        <div className={MENU_PANEL}>{group.rows}</div>
-      </PopoverContent>
-    </Popover>
-  ));
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className={cn(itemCls(false), MENU_ITEM_STATES, "col-span-3 grid grid-cols-subgrid items-baseline gap-0 text-left")}
+              onPointerEnter={() => hold(group.id)}
+              onPointerLeave={release}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowRight") {
+                  e.preventDefault();
+                  hold(group.id);
+                }
+              }}
+            >
+              {/* Baseline-aligned, so the smaller trailing text sits on the
+                  label's line; the model name truncates first. */}
+              <span>{group.label}</span>
+              {group.current ? (
+                <span className="max-w-[164px] truncate justify-self-end pl-6 text-xs text-text-secondary">{group.current}</span>
+              ) : (
+                <span className="justify-self-end pl-6 text-xs text-text-muted">{group.count}</span>
+              )}
+              <ChevronRight className="menu-row-chevron ml-1.5 size-4 self-center text-text-muted" aria-hidden="true" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            side="right"
+            align="start"
+            sideOffset={4}
+            alignOffset={-4}
+            onOpenAutoFocus={(e) => e.preventDefault()}
+            onPointerEnter={() => hold(group.id)}
+            onPointerLeave={release}
+            className="w-auto border-0 bg-transparent p-0 shadow-none"
+          >
+            <div className={MENU_PANEL}>{group.rows}</div>
+          </PopoverContent>
+        </Popover>
+      ))}
+    </div>
+  );
 }
 
 /** Capability icons — vision / video / tools / reasoning. `ctx` is
