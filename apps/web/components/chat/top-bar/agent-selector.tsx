@@ -5,6 +5,9 @@
  * popover.
  *
  * Lists every model the user enabled in Settings, grouped by provider.
+ * With more than one provider the panel lists providers and each opens
+ * its models in a submenu (hover, click or →); the provider of the
+ * current model shows that model's name where the others show a count.
  * Chat picks always pin the current conversation (`/api/model`), using
  * the draft `local_*` id when the backend has not acked yet.
  *
@@ -12,7 +15,9 @@
  * <Popover> in `index.tsx`.
  */
 
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { ChevronRight } from "lucide-react";
 
 import { useBoundChat } from "./bound-chat";
 import { api } from "@/lib/net/api";
@@ -21,11 +26,15 @@ import { useTranslation } from "@/lib/i18n";
 import {
   CHECK_SLOT_PAD,
   GROUP_LABEL,
+  MENU_ITEM_STATES,
   MENU_PANEL,
   itemCls,
 } from "./menu-styles";
 import { MenuCheck } from "./menu-check";
 import { SolarIcon } from "@/components/solar-icons";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+type EnabledModel = Awaited<ReturnType<typeof api.listEnabledModels>>[number];
 
 export function AgentSelector({
   kind,
@@ -96,10 +105,17 @@ export function AgentSelector({
     group.models!.push(m);
   }
 
+  const isActive = (m: EnabledModel) =>
+    currentProvider === m.provider &&
+    (currentModel === m.id || currentModel === `${m.provider}:${m.id}`);
+  const modelRows = (list: EnabledModel[]) =>
+    list.map((m) => (
+      <ModelRow key={m.id} model={m} active={isActive(m)} onPick={() => pick(m.provider, m.id)} />
+    ));
+
   return (
     <div className={MENU_PANEL}>
-      {/* Grammar-A header naming the dimension. Provider names below
-          stay as sub-section labels. */}
+      {/* Grammar-A header naming the dimension. */}
       <div className={GROUP_LABEL}>{text("Models", "模型")}</div>
       {(models ?? []).length === 0 ? (
         <div className="px-[8px] py-[8px] text-[12px] text-text-muted">
@@ -112,47 +128,117 @@ export function AgentSelector({
             {t("agent.enable_models")} →
           </a>
         </div>
+      ) : byProvider.length === 1 ? (
+        // One provider has nothing to choose between: its models directly.
+        <div key={byProvider[0].provider}>
+          <div className={GROUP_LABEL}>{providerName(byProvider[0].provider)}</div>
+          {modelRows(byProvider[0].models!)}
+        </div>
       ) : (
-        byProvider.map((group) => (
-          <div key={group.provider}>
-            <div className={GROUP_LABEL}>{providerName(group.provider)}</div>
-            {group.models!.map((m) => {
-              const active =
-                currentProvider === m.provider &&
-                (currentModel === m.id ||
-                  currentModel === `${m.provider}:${m.id}`);
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => pick(m.provider, m.id)}
-                  // 选中不铺底色（hover 是唯一底色），选中态只靠右侧勾。
-                  className={`${itemCls(false)} w-full text-left`}
-                >
-                  {/* Claude 实测：元数据（badge/能力/上下文窗）紧贴名字
-                      左侧成簇，不推到右缘——右缘只留勾位。 */}
-                  <span className="flex min-w-0 flex-1 items-center gap-[6px]">
-                    <span className="truncate">{m.name}</span>
-                    <CapIcons caps={m.capabilities} />
-                    {m.context ? (
-                      <span className="shrink-0 text-[11px] text-text-muted">
-                        {fmtCtx(m.context)}
-                      </span>
-                    ) : null}
-                  </span>
-                  {active ? (
-                    <MenuCheck />
-                  ) : (
-                    <span className={CHECK_SLOT_PAD} />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        ))
+        <ProviderMenu
+          groups={byProvider.map((group) => ({
+            id: group.provider,
+            label: providerName(group.provider),
+            current: group.models!.find(isActive)?.name,
+            count: group.models!.length,
+            rows: modelRows(group.models!),
+          }))}
+        />
       )}
     </div>
   );
+}
+
+function ModelRow({ model: m, active, onPick }: { model: EnabledModel; active: boolean; onPick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      // 选中不铺底色（hover 是唯一底色），选中态只靠右侧勾。
+      className={`${itemCls(false)} w-full text-left`}
+    >
+      {/* Claude 实测：元数据（badge/能力/上下文窗）紧贴名字
+          左侧成簇，不推到右缘——右缘只留勾位。 */}
+      <span className="flex min-w-0 flex-1 items-center gap-[6px]">
+        <span className="truncate">{m.name}</span>
+        <CapIcons caps={m.capabilities} />
+        {m.context ? (
+          <span className="shrink-0 text-[11px] text-text-muted">
+            {fmtCtx(m.context)}
+          </span>
+        ) : null}
+      </span>
+      {active ? <MenuCheck /> : <span className={CHECK_SLOT_PAD} />}
+    </button>
+  );
+}
+
+interface ProviderGroup {
+  id: string;
+  label: string;
+  /** Name of the current model when it belongs to this provider. */
+  current?: string;
+  count: number;
+  rows: React.ReactNode;
+}
+
+/** Provider rows, each opening its models to the side. One submenu is
+ *  open at a time; leaving a row closes it after a short grace so the
+ *  pointer can travel into the submenu. */
+function ProviderMenu({ groups }: { groups: ProviderGroup[] }) {
+  const [open, setOpen] = useState<string | null>(null);
+  const closer = useRef<number | undefined>(undefined);
+  const hold = (id: string) => {
+    window.clearTimeout(closer.current);
+    setOpen(id);
+  };
+  const release = () => {
+    window.clearTimeout(closer.current);
+    closer.current = window.setTimeout(() => setOpen(null), 150);
+  };
+  useEffect(() => () => window.clearTimeout(closer.current), []);
+  return groups.map((group) => (
+    <Popover
+      key={group.id}
+      open={open === group.id}
+      onOpenChange={(next) => setOpen(next ? group.id : null)}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={`${itemCls(false)} ${MENU_ITEM_STATES} w-full text-left`}
+          onPointerEnter={() => hold(group.id)}
+          onPointerLeave={release}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowRight") {
+              e.preventDefault();
+              hold(group.id);
+            }
+          }}
+        >
+          <span className="min-w-0 flex-1 truncate">{group.label}</span>
+          {group.current ? (
+            <span className="max-w-[140px] shrink-0 truncate text-xs text-text-secondary">{group.current}</span>
+          ) : (
+            <span className="shrink-0 text-xs text-text-muted">{group.count}</span>
+          )}
+          <ChevronRight className="menu-row-chevron size-4 shrink-0 text-text-muted" aria-hidden="true" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="right"
+        align="start"
+        sideOffset={4}
+        alignOffset={-4}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onPointerEnter={() => hold(group.id)}
+        onPointerLeave={release}
+        className="w-auto border-0 bg-transparent p-0 shadow-none"
+      >
+        <div className={MENU_PANEL}>{group.rows}</div>
+      </PopoverContent>
+    </Popover>
+  ));
 }
 
 /** Capability icons — vision / video / tools / reasoning. `ctx` is
