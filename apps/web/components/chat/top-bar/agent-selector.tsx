@@ -219,13 +219,14 @@ function ProviderMenu({ groups }: { groups: ProviderGroup[] }) {
           }}
         >
           {/* Baseline-aligned, so the smaller trailing text sits on the
-              label's line instead of floating at its own centre. */}
-          <span className="flex min-w-0 flex-1 items-baseline gap-2">
-            <span className="min-w-0 flex-1 truncate">{group.label}</span>
+              label's line. The provider name never shrinks; the model name
+              keeps a clear gap from it and truncates first. */}
+          <span className="flex min-w-0 flex-1 items-baseline gap-6">
+            <span className="shrink-0">{group.label}</span>
             {group.current ? (
-              <span className="max-w-[140px] shrink-0 truncate text-xs text-text-secondary">{group.current}</span>
+              <span className="ml-auto min-w-0 max-w-[140px] truncate text-xs text-text-secondary">{group.current}</span>
             ) : (
-              <span className="shrink-0 text-xs text-text-muted">{group.count}</span>
+              <span className="ml-auto shrink-0 text-xs text-text-muted">{group.count}</span>
             )}
           </span>
           <ChevronRight className="menu-row-chevron size-4 shrink-0 text-text-muted" aria-hidden="true" />
