@@ -3,22 +3,26 @@
  *
  * Shown only when the "Welcome animation" setting is on (off by default,
  * see welcome-backdrop-pref.ts), as dense as that setting says.
- * Reduced-motion draws a single still frame.
+ * Reduced-motion draws a single still frame. When the chat gets its first
+ * message the rain stops: no new drops start and the scene fades out,
+ * while code-rain-arrivals.tsx brings the message in.
  */
 "use client";
 
 import { useEffect, useRef } from "react";
 
+import { CODE_RAIN_FONT, codeRainPalette, drawMirrored, randomGlyph, type CodeRainPalette } from "@/lib/chat/code-rain";
 import { useWelcomeBackdropPref } from "@/lib/prefs/welcome-backdrop-pref";
 
 import styles from "./welcome-screen.module.css";
 
-type Palette = { dark: boolean };
 type Scene = {
   init(width: number, height: number): void;
   /** Percent of the full rain (about 1.35 drops per column at 100). */
   setDensity(percent: number): void;
-  draw(ctx: CanvasRenderingContext2D, t: number, width: number, height: number, pal: Palette): void;
+  /** Stop starting new drops; the ones falling finish. */
+  stop(): void;
+  draw(ctx: CanvasRenderingContext2D, t: number, width: number, height: number, pal: CodeRainPalette): void;
 };
 
 /** Code rain after The Matrix: a fixed grid of mirrored glyphs (katakana,
@@ -28,9 +32,6 @@ type Scene = {
  *  rolls once per frame (however many drops light it) so that, gap
  *  included, it changes about every MEAN_GAP seconds. Always green. */
 function codeRain(initialDensity: number): Scene {
-  const GLYPHS =
-    "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ" +
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:.=*+-<>|\"_";
   const CELL = 20;
   const MEAN_GAP = 10;
   const MIN_GAP = 4;
@@ -46,8 +47,8 @@ function codeRain(initialDensity: number): Scene {
   let density = initialDensity;
   let last = 0;
   let frame = 0;
-  const glyph = () => GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
-  const cell = (): Cell => ({ ch: glyph(), rolled: -1, changed: -Infinity });
+  let stopped = false;
+  const cell = (): Cell => ({ ch: randomGlyph(), rolled: -1, changed: -Infinity });
   // 每滴落到底后换一列重落，稀疏时空出来的列也会轮流下雨。
   const spawn = (scatter: boolean): Drop => {
     const len = 18 + Math.floor(Math.random() * 30);
@@ -70,24 +71,30 @@ function codeRain(initialDensity: number): Scene {
     },
     setDensity(percent) {
       density = percent;
-      if (!cols) return;
+      if (!cols || stopped) return;
       const want = target();
       if (drops.length > want) drops.length = want;
       while (drops.length < want) drops.push(spawn(true));
+    },
+    stop() {
+      stopped = true;
     },
     draw(ctx, t, _w, _h, pal) {
       const dt = last ? Math.min(0.05, t - last) : 0.016;
       last = t;
       frame++;
       const dark = pal.dark;
-      const tail = dark ? "#22e35b" : "#118a3a";
-      const head = dark ? "#eafff0" : "#063d18";
-      ctx.font = `600 ${CELL - 3}px ui-monospace, "SF Mono", Menlo, monospace`;
+      const { tail, head } = pal;
+      ctx.font = `600 ${CELL - 3}px ${CODE_RAIN_FONT}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      for (const d of drops) {
+      for (let i = drops.length - 1; i >= 0; i--) {
+        const d = drops[i];
         d.y += d.speed * dt;
-        if (d.y - d.len > rows) Object.assign(d, spawn(false));
+        if (d.y - d.len > rows) {
+          if (stopped) { drops.splice(i, 1); continue; }
+          Object.assign(d, spawn(false));
+        }
         const top = Math.floor(d.y);
         const x = d.col * CELL + CELL / 2;
         for (let k = 0; k < d.len; k++) {
@@ -98,7 +105,7 @@ function codeRain(initialDensity: number): Scene {
           if (g.rolled !== frame) {
             g.rolled = frame;
             if (t - g.changed >= MIN_GAP && Math.random() < dt * RATE_AFTER_GAP) {
-              g.ch = glyph();
+              g.ch = randomGlyph();
               g.changed = t;
             }
           }
@@ -116,11 +123,7 @@ function codeRain(initialDensity: number): Scene {
             ctx.shadowBlur = 0;
           }
           // 所有字都镜像。
-          ctx.save();
-          ctx.translate(x, y);
-          ctx.scale(-1, 1);
-          ctx.fillText(g.ch, 0, 0);
-          ctx.restore();
+          drawMirrored(ctx, g.ch, x, y);
         }
       }
       ctx.shadowBlur = 0;
@@ -128,23 +131,21 @@ function codeRain(initialDensity: number): Scene {
   };
 }
 
-/** The resolved light/dark mode the theme bootstrap writes on <html>.
- *  Reading the ink colour instead broke on oklch() tokens (Vivid), which
- *  drew the dark-mode rain on a light page. */
-function readPalette(): Palette {
-  return { dark: document.documentElement.dataset.themeMode === "dark" };
-}
-
-export function WelcomeBackdrop() {
+/** ``stopping``: the chat just got its first message. */
+export function WelcomeBackdrop({ stopping = false }: { stopping?: boolean }) {
   const { enabled, density } = useWelcomeBackdropPref();
-  return enabled ? <CodeRainCanvas density={density} /> : null;
+  return enabled ? <CodeRainCanvas density={density} stopping={stopping} /> : null;
 }
 
-function CodeRainCanvas({ density }: { density: number }) {
+function CodeRainCanvas({ density, stopping }: { density: number; stopping: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<Scene | null>(null);
   const densityRef = useRef(density);
   const stillRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    if (stopping) sceneRef.current?.stop();
+  }, [stopping]);
 
   // 拖滑块时只增删雨滴，不重建画面。
   useEffect(() => {
@@ -161,11 +162,11 @@ function CodeRainCanvas({ density }: { density: number }) {
     sceneRef.current = scene;
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let width = 0, height = 0, frame = 0, raf = 0;
-    let palette = readPalette();
+    let palette = codeRainPalette();
 
     const render = (now: number) => {
       // 主题切换后每秒重读一次 token，不必订阅主题事件。
-      if (frame++ % 60 === 0) palette = readPalette();
+      if (frame++ % 60 === 0) palette = codeRainPalette();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const dpr = window.devicePixelRatio || 1;
@@ -198,5 +199,5 @@ function CodeRainCanvas({ density }: { density: number }) {
     };
   }, []);
 
-  return <canvas ref={canvasRef} className={styles.backdrop} aria-hidden="true" />;
+  return <canvas ref={canvasRef} className={stopping ? `${styles.backdrop} ${styles.backdropOut}` : styles.backdrop} aria-hidden="true" />;
 }

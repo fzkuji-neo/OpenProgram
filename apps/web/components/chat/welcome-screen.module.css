@@ -25,6 +25,18 @@
   to { opacity: 1; }
 }
 
+/* The chat got its first message: the rain stops and fades (STOP_MS in
+   welcome-screen.tsx). An animation, since backdropIn's fill holds opacity. */
+.backdropOut {
+  animation: backdropOut 1.2s ease-in both;
+}
+
+@keyframes backdropOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .backdrop { animation: none; }
+  .backdropOut { display: none; }
 }

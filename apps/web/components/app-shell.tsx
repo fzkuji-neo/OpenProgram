@@ -103,6 +103,7 @@ const WebTabPane = dynamic(
 );
 
 import { PersistentFilePanes } from "./center-tabs/persistent-file-panes";
+import { CodeRainArrivals } from "./chat/code-rain-arrivals";
 
 const LONE_PANE = { left: "0px", top: "0px", width: "100%", height: "100%" };
 
@@ -714,6 +715,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {composerMount && createPortal(<FocusedComposer />, composerMount)}
       {welcomeMount && createPortal(<WelcomeScreen />, welcomeMount)}
       {messagesMount && createPortal(<MessageList paintRows={paintRows} />, messagesMount)}
+      {messagesMount && <CodeRainArrivals mount={messagesMount} />}
       {/* Headless — keeps the legacy topbar-updater wrappers installed
          (status / branch / agent state → zustand store) now that the
          visible topbar row is gone. Must live outside the chat-route
