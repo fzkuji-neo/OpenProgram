@@ -447,8 +447,8 @@ export function GeneralSection() {
         <SettingsRow
           label={text("Welcome animation", "欢迎页动画")}
           description={text(
-            "Code rain behind an empty chat. Saved on this device.",
-            "空白对话背后的代码雨。保存在此设备。",
+            "Code rain behind an empty chat; new messages arrive through it. Saved on this device.",
+            "空白对话背后的代码雨，新消息也从雨中落下。保存在此设备。",
           )}
           htmlFor="welcome-code-rain"
         >

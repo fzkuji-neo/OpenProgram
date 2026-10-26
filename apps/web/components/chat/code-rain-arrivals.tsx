@@ -32,7 +32,7 @@ const BURST = 40;
 /** Past this many new characters, only those on screen are animated. */
 const MAX_ANIMATED = 900;
 
-type CharState = { ch: string; reveal: number; settle: number; glyph: string; next: number };
+type CharState = { ch: string; reveal: number; settle: number; glyph: string; next: number; fade: number };
 type Tracker = {
   el: HTMLElement;
   role: "user" | "assistant";
@@ -44,6 +44,7 @@ type Tracker = {
   /** When the element left the DOM; a re-keyed row is picked up again. */
   lostAt: number | null;
 };
+type Fresh = { index: number; ch: string; rect: DOMRect; fade: number };
 type Drop = { x: number; y0: number; start: number; stopY: number; v: number; len: number; glyphs: string[] };
 
 const ROOTS = { user: ".user-md", assistant: ".chat-text" } as const;
@@ -133,7 +134,7 @@ function startArrivals(mount: HTMLElement): () => void {
     const box = area()?.getBoundingClientRect();
     if (!box) return;
     const locate = locator(t);
-    const fresh: { index: number; ch: string; rect: DOMRect }[] = [];
+    const fresh: Fresh[] = [];
     for (let i = from; i < text.length; i++) {
       let ch = text[i];
       const code = ch.charCodeAt(0);
@@ -141,11 +142,12 @@ function startArrivals(mount: HTMLElement): () => void {
       const at = i;
       i += ch.length - 1;
       if (!ch.trim()) continue;
-      const rect = locate(at, ch.length)?.getClientRects()[0];
-      if (!rect || !rect.width) continue;
+      const range = locate(at, ch.length);
+      const rect = range?.getClientRects()[0];
+      if (!range || !rect || !rect.width) continue;
       // Off-screen text is not animated: it would decode unseen.
       if (rect.bottom < box.top || rect.top > box.bottom) continue;
-      fresh.push({ index: at, ch, rect });
+      fresh.push({ index: at, ch, rect, fade: plainColour(range) ? FADE : 0 });
     }
     if (fresh.length > MAX_ANIMATED) fresh.length = MAX_ANIMATED;
     if (!fresh.length) return;
@@ -156,7 +158,7 @@ function startArrivals(mount: HTMLElement): () => void {
 
   /** Whole messages: one drop per column falls from above the text and
    *  decodes it line by line as it passes. */
-  function fallFromAbove(t: Tracker, fresh: { index: number; ch: string; rect: DOMRect }[], box: DOMRect, t0: number) {
+  function fallFromAbove(t: Tracker, fresh: Fresh[], box: DOMRect, t0: number) {
     const v = 1100;
     const top = Math.min(...fresh.map((f) => f.rect.top));
     const y0 = Math.max(box.top, top - 360) - box.top;
@@ -172,13 +174,13 @@ function startArrivals(mount: HTMLElement): () => void {
       drops.push(drop(key * BAND + BAND / 2, y0, start, bottom, v, 10 + Math.floor(Math.random() * 9)));
       for (const f of list) {
         const reveal = start + (f.rect.top + f.rect.height / 2 - box.top - y0) / v;
-        t.chars.set(f.index, state(f.ch, reveal, reveal + 0.18 + Math.random() * 0.32));
+        t.chars.set(f.index, state(f, reveal, reveal + 0.18 + Math.random() * 0.32));
       }
     }
   }
 
   /** Streamed pieces: short drops land on the new characters. */
-  function fallOnto(t: Tracker, fresh: { index: number; ch: string; rect: DOMRect }[], t0: number) {
+  function fallOnto(t: Tracker, fresh: Fresh[], t0: number) {
     const box = area()?.getBoundingClientRect();
     if (!box) return;
     const v = 800;
@@ -193,11 +195,20 @@ function startArrivals(mount: HTMLElement): () => void {
         landed.add(key);
         drops.push(drop(x, y - fall, t0, y, v, 5 + Math.floor(Math.random() * 4)));
       }
-      t.chars.set(f.index, state(f.ch, reveal, reveal + 0.12 + Math.random() * 0.22));
+      t.chars.set(f.index, state(f, reveal, reveal + 0.12 + Math.random() * 0.22));
     }
   }
 
-  const state = (ch: string, reveal: number, settle: number): CharState => ({ ch, reveal, settle, glyph: randomGlyph(), next: 0 });
+  const state = (f: Fresh, reveal: number, settle: number): CharState =>
+    ({ ch: f.ch, reveal, settle, glyph: randomGlyph(), next: 0, fade: f.fade });
+  /** The green fades into the message's body colour (transcript.css), so
+   *  only characters in that colour fade; code, links and the like decode
+   *  straight into their own colour. */
+  function plainColour(range: Range): boolean {
+    const parent = range.startContainer.parentElement;
+    const root = parent?.closest<HTMLElement>(`${ROOTS.user}, ${ROOTS.assistant}`);
+    return !!parent && !!root && getComputedStyle(parent).color === getComputedStyle(root).color;
+  }
   const drop = (x: number, y0: number, start: number, stopY: number, v: number, len: number): Drop =>
     ({ x, y0, start, stopY, v, len, glyphs: Array.from({ length: len }, randomGlyph) });
 
@@ -308,7 +319,7 @@ function startArrivals(mount: HTMLElement): () => void {
       busy = true;
       const locate = locator(tr);
       for (const [index, c] of tr.chars) {
-        if (t >= c.settle + FADE) { tr.chars.delete(index); continue; }
+        if (t >= c.settle + c.fade) { tr.chars.delete(index); continue; }
         const range = locate(index, c.ch.length);
         if (!range) { tr.chars.delete(index); continue; }
         if (t >= c.settle) {

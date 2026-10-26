@@ -224,6 +224,8 @@ In narrow windows (900px wide or less) the left sidebar starts collapsed to its 
 
 A new, empty chat shows only the input box. Turn on **Welcome animation** in Settings → General to play a code rain behind it: green columns of letters, digits, symbols and katakana falling down the chat area. It is off by default and saved in this browser. Once it is on, **Code rain density** sets how many streams fall at once, from 10% to 100% (40% by default), and applies while you drag. When the system asks for reduced motion, the rain is drawn as a still frame.
 
+Once a chat has messages the background rain fades out, and only new messages come through it. A message you send is rained onto from above: each character shows as code when a stream reaches it, decodes into the real character, and fades from green into the text colour. A streamed reply gets short streams that land on each new piece and decode the same way. History that loads or scrolls back into view shows as it is. The animation only changes how the text looks while it plays; selection, copy and find work on the real text throughout. Under reduced motion new messages appear without it.
+
 ### Tab drag appearance
 
 In Settings → General, **Tab drag appearance** controls tab dragging inside and outside the tab strip, together with the split-pane title preview. Adjust Transparency from 0–100%, Background blur from 0–40px, and Shadow strength from 0–100%. Changes apply immediately; the preview shows the same settings as the actual dragged label. The defaults are 20% transparency, 16px blur, and 25% shadow strength. Restore defaults resets these three controls without changing the theme or other preferences.

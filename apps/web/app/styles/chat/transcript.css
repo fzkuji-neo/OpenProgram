@@ -129,6 +129,9 @@
    from green to their own colour. */
 :root { --code-rain-ink: #118a3a; }
 :root[data-theme-mode="dark"] { --code-rain-ink: #22e35b; }
+/* The colour the green fades into: each message's body text colour. */
+.user-md { --code-rain-text: var(--text-bright); }
+.chat-text { --code-rain-text: var(--text-primary); }
 .code-rain-arrivals {
   position: fixed;
   pointer-events: none;
@@ -136,8 +139,8 @@
 }
 ::highlight(code-rain-hidden) { color: transparent; }
 ::highlight(code-rain-fade-0) { color: var(--code-rain-ink); }
-::highlight(code-rain-fade-1) { color: color-mix(in srgb, var(--code-rain-ink) 80%, var(--text-primary)); }
-::highlight(code-rain-fade-2) { color: color-mix(in srgb, var(--code-rain-ink) 60%, var(--text-primary)); }
-::highlight(code-rain-fade-3) { color: color-mix(in srgb, var(--code-rain-ink) 40%, var(--text-primary)); }
-::highlight(code-rain-fade-4) { color: color-mix(in srgb, var(--code-rain-ink) 22%, var(--text-primary)); }
-::highlight(code-rain-fade-5) { color: color-mix(in srgb, var(--code-rain-ink) 8%, var(--text-primary)); }
+::highlight(code-rain-fade-1) { color: color-mix(in srgb, var(--code-rain-ink) 80%, var(--code-rain-text, var(--text-primary))); }
+::highlight(code-rain-fade-2) { color: color-mix(in srgb, var(--code-rain-ink) 60%, var(--code-rain-text, var(--text-primary))); }
+::highlight(code-rain-fade-3) { color: color-mix(in srgb, var(--code-rain-ink) 40%, var(--code-rain-text, var(--text-primary))); }
+::highlight(code-rain-fade-4) { color: color-mix(in srgb, var(--code-rain-ink) 22%, var(--code-rain-text, var(--text-primary))); }
+::highlight(code-rain-fade-5) { color: color-mix(in srgb, var(--code-rain-ink) 8%, var(--code-rain-text, var(--text-primary))); }
