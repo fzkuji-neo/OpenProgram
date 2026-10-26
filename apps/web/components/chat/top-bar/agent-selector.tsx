@@ -218,12 +218,16 @@ function ProviderMenu({ groups }: { groups: ProviderGroup[] }) {
             }
           }}
         >
-          <span className="min-w-0 flex-1 truncate">{group.label}</span>
-          {group.current ? (
-            <span className="max-w-[140px] shrink-0 truncate text-xs text-text-secondary">{group.current}</span>
-          ) : (
-            <span className="shrink-0 text-xs text-text-muted">{group.count}</span>
-          )}
+          {/* Baseline-aligned, so the smaller trailing text sits on the
+              label's line instead of floating at its own centre. */}
+          <span className="flex min-w-0 flex-1 items-baseline gap-2">
+            <span className="min-w-0 flex-1 truncate">{group.label}</span>
+            {group.current ? (
+              <span className="max-w-[140px] shrink-0 truncate text-xs text-text-secondary">{group.current}</span>
+            ) : (
+              <span className="shrink-0 text-xs text-text-muted">{group.count}</span>
+            )}
+          </span>
           <ChevronRight className="menu-row-chevron size-4 shrink-0 text-text-muted" aria-hidden="true" />
         </button>
       </PopoverTrigger>
