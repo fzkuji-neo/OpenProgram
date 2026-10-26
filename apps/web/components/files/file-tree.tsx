@@ -33,6 +33,8 @@ import { useSessionStore } from "@/lib/session-store";
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { TreeContextMenu, treeClipboard } from "./tree-context-menu";
+import { MoveToDialog } from "./move-to-dialog";
+import { rememberMoveTarget } from "./move-targets";
 import {
   ExplorerHeader,
   copyText,
@@ -189,6 +191,7 @@ export function FileTree({
   // trigger, which opens only for a row (see treeMenu).
   const rowMenuHit = useRef(false);
   const [confirmDelete, setConfirmDelete] = useState<string[] | null>(null);
+  const [moveTargets, setMoveTargets] = useState<string[] | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const pierreRef = useRef<PierreTreeHandle>(null);
   const [pendingScrollRestore, setPendingScrollRestore] = useState<{ path: string; offset: number } | null>(null);
@@ -729,12 +732,22 @@ export function FileTree({
     ), { tone: "error", duration: 6000 });
   }
 
+  /** "Move to…": the chosen folder is remembered for next time and
+   *  opened so the moved entries show where they landed. */
+  async function moveInto(paths: string[], targetDir: string, create = false) {
+    if (create && (await fileOp("create", { path: targetDir, kind: "dir" }, [parentOf(targetDir)])).status !== "ready") return;
+    rememberMoveTarget(projectId, targetDir);
+    const moved = await moveEntries(paths, targetDir);
+    expandChain(targetDir);
+    if (!moved) refetchRoot({ keepSizes: true });
+  }
+
   async function moveSelection(paths: string[], targetDir: string) {
     // Pierre already shows the move; a refused one is undone by re-listing.
     if (!(await moveEntries(paths, targetDir))) refetchRoot({ keepSizes: true });
   }
 
-  /** Finder-style keys on the tree: copy, cut, paste, delete, rename. */
+  /** Finder-style keys on the tree: copy, cut, paste, move to, delete, rename. */
   function onTreeKeyDown(event: React.KeyboardEvent) {
     const target = event.target as HTMLElement | null;
     if (target?.closest("input, textarea, [contenteditable='true']")) return;
@@ -748,6 +761,8 @@ export function FileTree({
       void pasteInto(primary ? (primary.type === "dir" ? primary.path : parentOf(primary.path)) : "");
     } else if (((mod && key === "backspace") || key === "delete") && paths.length) {
       setConfirmDelete(paths);
+    } else if (mod && event.shiftKey && key === "m" && paths.length) {
+      setMoveTargets(paths);
     } else if (key === "f2" && primary && paths.length <= 1) {
       fileContextActions(primary.path, primary.type).rename();
     } else {
@@ -769,6 +784,7 @@ export function FileTree({
       cut: () => { treeClipboard.current = { op: "cut", projectId, paths: actionTargets(path) }; },
       copy: () => { treeClipboard.current = { op: "copy", projectId, paths: actionTargets(path) }; },
       paste: () => void pasteInto(targetDir),
+      moveTo: () => setMoveTargets(actionTargets(path)),
       rename: () => {
         setFilter("");
         setSearchOpen(false);
@@ -820,6 +836,7 @@ export function FileTree({
             onCut={webMenuActions.cut}
             onCopy={webMenuActions.copy}
             onPaste={webMenuActions.paste}
+            onMoveTo={webMenuActions.moveTo}
             onRename={webMenuActions.rename}
             onDelete={webMenuActions.delete}
           />
@@ -1162,6 +1179,16 @@ export function FileTree({
       </div>
 
       {detailsPath !== null ? <FileDetails key={`${projectId}:${detailsPath}`} projectId={projectId} path={detailsPath} inline={detailsInline} onClose={() => setDetailsPath(null)} /> : null}
+
+      <MoveToDialog
+        open={moveTargets !== null}
+        projectId={projectId}
+        rootName={projectRoot ? baseOf(projectRoot) : text("Project", "项目")}
+        paths={moveTargets ?? []}
+        onOpenChange={open => { if (!open) setMoveTargets(null); }}
+        onMove={dir => { if (moveTargets) void moveInto(moveTargets, dir); }}
+        onCreateAndMove={dir => { if (moveTargets) void moveInto(moveTargets, dir, true); }}
+      />
 
       {confirmDelete ? (
         <ConfirmDialog

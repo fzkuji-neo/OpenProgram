@@ -33,6 +33,7 @@ export interface TreeContextMenuProps {
   onCut: () => void;
   onCopy: () => void;
   onPaste: () => void;
+  onMoveTo: () => void;
   onRename: () => void;
   onDelete: () => void;
 }
@@ -55,6 +56,7 @@ export function TreeContextMenu(props: TreeContextMenuProps) {
       <ContextMenuItem onSelect={props.onCut}><MenuRow glyph="scissors" label={text("Cut", "剪切")} /></ContextMenuItem>
       <ContextMenuItem onSelect={props.onCopy}><MenuRow glyph="copy" label={text("Copy", "复制")} /></ContextMenuItem>
       <ContextMenuItem disabled={!props.canPaste} onSelect={props.onPaste}><MenuRow glyph="clipboard-text" label={text("Paste", "粘贴")} /></ContextMenuItem>
+      <ContextMenuItem onSelect={props.onMoveTo}><MenuRow glyph="folder-open" label={(props.count ?? 1) > 1 ? text(`Move ${props.count} Items to…`, `将 ${props.count} 项移动到…`) : text("Move to…", "移动到…")} keys={{ key: "M", mod: true, shift: true }} /></ContextMenuItem>
       <ContextMenuSeparator />
       <ContextMenuItem disabled={(props.count ?? 1) > 1} onSelect={props.onRename}><MenuRow glyph="pen" label={text("Rename", "重命名")} /></ContextMenuItem>
       <ContextMenuItem variant="destructive" onSelect={props.onDelete}><MenuRow glyph="trash-bin-trash" label={(props.count ?? 1) > 1 ? text(`Delete ${props.count} Items`, `删除 ${props.count} 项`) : text("Delete", "删除")} danger /></ContextMenuItem>
