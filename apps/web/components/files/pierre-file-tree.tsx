@@ -94,6 +94,9 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
   const drafting = useRef<PierreTreeEntry | null>(null);
   // What has been typed for the placeholder, kept across row resets.
   const draftName = useRef("");
+  // Where focus was when the draft opened: a dropped draft hands it back
+  // there, since Pierre would otherwise move it (and its ring) to the first row.
+  const draftOpener = useRef<{ element: Element | null; path: string | null }>({ element: null, path: null });
   // A rename asked for before a pending reload lands is started again after it.
   const pendingRename = useRef<string | null>(null);
   const ranks = useRef(new Map<string, number>());
@@ -217,7 +220,13 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
     for (const path of model.getSelectedPaths()) model.getItem(path)?.deselect();
     applySelection();
     syncing.current = false;
-    if (drafting.current?.path !== draftEntry?.path) draftName.current = "";
+    if (drafting.current?.path !== draftEntry?.path) {
+      draftName.current = "";
+      if (draftEntry && !drafting.current) {
+        const active = document.activeElement;
+        draftOpener.current = { element: active && !host.current?.contains(active) ? active : null, path: model.getFocusedPath() };
+      }
+    }
     drafting.current = draftEntry;
     // Resetting the rows ends an open name editor; reopen the one in use.
     if (draftEntry) {
@@ -234,6 +243,15 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
     if (drafting.current?.path !== normalize(event.path)) return;
     drafting.current = null;
     latest.current.onDraftCancel?.();
+    const { element, path } = draftOpener.current;
+    draftOpener.current = { element: null, path: null };
+    requestAnimationFrame(() => {
+      // A toolbar button gets focus back; a closed menu item cannot, so the
+      // tree lets go of focus instead of ringing a row nobody chose.
+      if (element instanceof HTMLElement && element.isConnected) element.focus({ preventScroll: true });
+      else if (!element && path && model.getItem(path)) model.focusPath(path);
+      else if (host.current?.contains(document.activeElement)) (document.activeElement as HTMLElement).blur();
+    });
   }), [model]);
   // Pierre opens the editor on the placeholder's own name; replace it with
   // what was typed so far (nothing, at first), shown over a dim hint.
