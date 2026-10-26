@@ -49,6 +49,11 @@ def store(tmp_path, monkeypatch):
     monkeypatch.setattr("openprogram.agent.session_db.default_db", lambda: s)
     import openprogram.store.session.session_store as ss_mod
     monkeypatch.setattr(ss_mod.shared, "_default_store", s)
+    # The test HOME is shared by the whole run; executions other tests left
+    # for the same session ids must not reach reconciliation here.
+    from openprogram.execution.store.store import ExecutionStore
+    executions = ExecutionStore(tmp_path / "executions.db")
+    monkeypatch.setattr("openprogram.execution.default_store", lambda: executions)
     yield s
     s.close()
 
