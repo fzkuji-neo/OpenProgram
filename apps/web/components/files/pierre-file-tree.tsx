@@ -7,6 +7,7 @@ import { formatFileBytes, useFolderSize } from "./file-management";
 import { useTranslation } from "@/lib/i18n";
 import { FileColumnsHeader, fileKind } from "./file-tree-columns";
 import { carriesFiles } from "./file-tree-drop";
+import { attachOverlayScrollbar } from "@/lib/runtime-bridge/scrollbar";
 import styles from "./files-panel.module.css";
 
 export interface PierreTreeEntry { path: string; type: "file" | "dir"; size: number; mtime?: number }
@@ -190,8 +191,9 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
       const scroll = root.querySelector<HTMLElement>("[data-file-tree-virtualized-scroll]");
       const columns = header.current;
       if (!scroll || !columns) { frame = requestAnimationFrame(connect); return; }
-      // Keep the native vertical scrollbar in the viewport and use its horizontal
-      // scroll position for the external header, including sticky ancestor rows.
+      // The vertical bar is the app's overlay thumb, so rows run to the right
+      // edge; the body's horizontal scroll drives the external header,
+      // including sticky ancestor rows.
       const sync = () => { columns.scrollLeft = scroll.scrollLeft; };
       const syncBody = () => { scroll.scrollLeft = columns.scrollLeft; };
       const measure = () => {
@@ -212,7 +214,8 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
       scroll.addEventListener("scroll", sync, { passive: true });
       columns.addEventListener("scroll", syncBody, { passive: true });
       columns.addEventListener("wheel", wheel, { passive: false });
-      cleanupScroll = () => { scroll.removeEventListener("scroll", sync); columns.removeEventListener("scroll", syncBody); columns.removeEventListener("wheel", wheel); };
+      const detachThumb = attachOverlayScrollbar(scroll);
+      cleanupScroll = () => { scroll.removeEventListener("scroll", sync); columns.removeEventListener("scroll", syncBody); columns.removeEventListener("wheel", wheel); detachThumb(); };
       resize = new ResizeObserver(measure);
       resize.observe(scroll);
       measure();

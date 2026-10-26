@@ -20,6 +20,9 @@ export const pierreTreeCSS = `
 [data-item-type="folder"][aria-expanded="true"], [data-item-type="folder"][data-file-tree-sticky-row="true"] { --op-folder-closed: none; --op-folder-open: inline; }
 [data-item-selected="true"]::before { outline: none !important; }
 [data-file-tree-virtualized-scroll="true"] { padding-inline: 0; overflow-x: auto; }
+/* The app's overlay thumb (attachOverlayScrollbar) replaces the vertical bar, so rows reach the right edge; the horizontal bar stays. */
+[data-file-tree-virtualized-scroll="true"] { scrollbar-gutter: auto; }
+[data-file-tree-virtualized-scroll="true"]::-webkit-scrollbar:vertical { width: 0; }
 [data-type="item"] { width: ${fileColumnsWidth}; box-sizing: border-box; margin-inline: 0; padding-inline: 8px; }
 [data-file-tree-virtualized-list="true"], [data-file-tree-sticky-overlay="true"] { width: ${fileColumnsWidth}; }
 [data-item-section="spacing"] { max-width: max(0px, calc(var(--op-files-name-width, 220px) - 96px)); flex-shrink: 0; overflow: hidden; }

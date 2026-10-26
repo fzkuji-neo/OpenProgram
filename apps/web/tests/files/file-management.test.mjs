@@ -456,6 +456,10 @@ test("Pierre nested folder collapse survives state synchronization and refresh",
     await act(async()=>row("src/").dispatchEvent(new window.MouseEvent("click",{bubbles:true,composed:true})));
     assert.equal(row("src/nested/").getAttribute("aria-expanded"),"true","child expansion survives parent collapse");
     assert.ok(row("src/nested/file.txt"));
+    assert.equal(document.querySelectorAll(".overlay-thumb").length, 1, "the tree scrolls with the app's overlay thumb");
+    assert.ok(shadow.querySelector('[data-file-tree-virtualized-scroll="true"]').classList.contains("scroll-overlay"));
+    await act(async()=>root.unmount());
+    assert.equal(document.querySelectorAll(".overlay-thumb").length, 0, "unmounting removes the thumb");
   } finally { await act(async()=>root.unmount()); Object.assign(globalThis,saved); }
 });
 

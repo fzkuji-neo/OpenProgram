@@ -47,8 +47,8 @@ function track(el: HTMLElement): { top: number; height: number } {
   return { top: rect.top + topInset, height: Math.max(0, rect.height - topInset - bottomInset) };
 }
 
-function install(el: HTMLElement): void {
-  if (installed.has(el)) return;
+function install(el: HTMLElement): () => void {
+  if (installed.has(el)) return () => {};
   installed.add(el);
   el.classList.add("scroll-overlay");
 
@@ -63,6 +63,8 @@ function install(el: HTMLElement): void {
   let dragging = false;
   let dragStartY = 0;
   let dragStartScrollTop = 0;
+  let frameId = 0;
+  let disposed = false;
 
   function show(): void {
     thumb.classList.add("visible");
@@ -100,9 +102,9 @@ function install(el: HTMLElement): void {
   }
 
   function frame(reveal: boolean): void {
-    if (rafPending) return;
+    if (rafPending || disposed) return;
     rafPending = true;
-    requestAnimationFrame(() => apply(reveal));
+    frameId = requestAnimationFrame(() => apply(reveal));
   }
 
   function schedule(reveal: boolean): void {
@@ -121,20 +123,17 @@ function install(el: HTMLElement): void {
     }, 120);
   }
 
-  el.addEventListener("scroll", () => schedule(true), { passive: true });
+  const onScroll = () => schedule(true);
+  const onEnter = () => schedule(false);
+  el.addEventListener("scroll", onScroll, { passive: true });
   // Reposition on hover but don't reveal — the thumb only appears while
   // actually scrolling (macOS style), not when the cursor enters the pane.
-  el.addEventListener("mouseenter", () => schedule(false));
+  el.addEventListener("mouseenter", onEnter);
 
-  if (typeof ResizeObserver !== "undefined") {
-    new ResizeObserver(() => schedule(false)).observe(el);
-  }
-  if (typeof MutationObserver !== "undefined") {
-    new MutationObserver(() => schedule(false)).observe(el, {
-      childList: true,
-      subtree: true,
-    });
-  }
+  const resize = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => schedule(false)) : null;
+  resize?.observe(el);
+  const mutations = typeof MutationObserver !== "undefined" ? new MutationObserver(() => schedule(false)) : null;
+  mutations?.observe(el, { childList: true, subtree: true });
 
   thumb.addEventListener("mousedown", (e) => {
     if (e.button !== 0) return;
@@ -181,6 +180,27 @@ function install(el: HTMLElement): void {
   });
 
   schedule(false);
+  return () => {
+    disposed = true;
+    cancelAnimationFrame(frameId);
+    installed.delete(el);
+    el.classList.remove("scroll-overlay");
+    el.removeEventListener("scroll", onScroll);
+    el.removeEventListener("mouseenter", onEnter);
+    resize?.disconnect();
+    mutations?.disconnect();
+    window.removeEventListener("mousemove", onDragMove);
+    window.removeEventListener("mouseup", onDragEnd);
+    for (const timer of [fadeTimer, idleTimer]) if (timer) clearTimeout(timer);
+    thumb.remove();
+  };
+}
+
+/** The overlay thumb on a scroller the selectors cannot reach, such as one
+ *  inside a shadow root. The caller hides that scroller's native vertical
+ *  bar; the returned function removes the thumb. */
+export function attachOverlayScrollbar(el: HTMLElement): () => void {
+  return install(el);
 }
 
 function scan(root?: ParentNode): void {
