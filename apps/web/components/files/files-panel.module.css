@@ -628,8 +628,9 @@
 .filePathRow { display: flex; align-items: center; min-width: 0; min-height: 30px; gap: 4px; }
 .fileBreadcrumb { position: relative; display: flex; align-items: center; min-width: 0; flex: 1; min-height: 32px; overflow: hidden; }
 /* shadcn Nova Breadcrumb, kept to one line: the panel shrinks it by
-   folding ancestors into the ellipsis instead of wrapping. */
-.fileCrumbList { flex-wrap: nowrap; min-width: 0; overflow: hidden; font-size: var(--right-panel-text-size, 14px); }
+   folding ancestors into the ellipsis instead of wrapping. The list fills
+   the row so the root's 40% cap measures the row, not the list itself. */
+.fileCrumbList { flex: 1 1 0; flex-wrap: nowrap; min-width: 0; overflow: hidden; font-size: var(--right-panel-text-size, 14px); }
 .fileCrumbList > li { min-width: 0; flex-shrink: 0; }
 .fileCrumbList > li:last-child { flex: 0 1 auto; }
 .fileCrumbRoot { max-width: 40%; }
