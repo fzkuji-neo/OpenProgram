@@ -75,6 +75,24 @@ def _tool_use(msg: dict[str, Any]) -> dict[str, Any]:
     return tu if isinstance(tu, dict) else {}
 
 
+# Arguments nested deeper than this are omitted rather than redacted. The cap
+# is explicit so the outcome does not depend on the interpreter's recursion
+# limit, which libraries may raise.
+_MAX_ARGUMENT_DEPTH = 512
+
+
+def _too_deep(value: Any) -> bool:
+    stack = [(value, 1)]
+    while stack:
+        item, depth = stack.pop()
+        if isinstance(item, (dict, list)):
+            if depth > _MAX_ARGUMENT_DEPTH:
+                return True
+            children = item.values() if isinstance(item, dict) else item
+            stack.extend((child, depth + 1) for child in children)
+    return False
+
+
 def _call_summary(msg: dict[str, Any]) -> dict[str, str]:
     """One tool call flattened to the fields both renderers print."""
     args = _tool_use(msg).get("arguments")
@@ -85,8 +103,12 @@ def _call_summary(msg: dict[str, Any]) -> dict[str, str]:
             except (ValueError, TypeError):
                 pass
             else:
+                if _too_deep(parsed):
+                    raise RecursionError
                 if isinstance(parsed, (dict, list)) and remove_secret_values(parsed) != parsed:
                     args = parsed
+        if _too_deep(args):
+            raise RecursionError
         args = remove_secret_values(args)
     except RecursionError:
         args = "[arguments omitted: nesting too deep]"
