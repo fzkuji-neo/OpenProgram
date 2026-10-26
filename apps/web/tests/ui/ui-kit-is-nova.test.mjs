@@ -11,7 +11,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (path) => readFileSync(join(root, path), "utf8");
 
 test("every components/ui part names radix-nova, none another style", () => {
-  for (const part of ["command", "popover", "tooltip", "tabs", "kbd", "scroll-area", "sidebar", "dialog", "alert-dialog"]) {
+  for (const part of ["command", "popover", "tooltip", "tabs", "kbd", "scroll-area", "sidebar", "dialog", "alert-dialog", "breadcrumb"]) {
     const source = read(`components/ui/${part}.tsx`);
     assert.match(source, /radix-nova/, part);
     assert.doesNotMatch(source, /radix-(rhea|luma)/, part);

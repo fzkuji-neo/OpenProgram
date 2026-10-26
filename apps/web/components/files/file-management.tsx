@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { ArrowDownWideNarrow, Check, ChevronRight, Copy, X } from "lucide-react";
+import { Fragment, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { ArrowDownWideNarrow, Check, Copy, X } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { wsRequest } from "@/lib/net/ws-request";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { HoverTip } from "@/components/ui/tooltip";
+import { Breadcrumb, BreadcrumbEllipsis, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { MENU_ITEM_STATES, MENU_PANEL, GROUP_LABEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
@@ -62,6 +63,9 @@ export function FileSortMenu({ value, onChange }: { value: string; onChange: (va
 
 }
 
+const CRUMB_SEPARATOR = 26;
+const CRUMB_ELLIPSIS = 20;
+
 export function FileBreadcrumb({ root, path, absolutePath, onLocate }: { root: string; path: string; absolutePath?: string; onLocate: (path: string) => void }) {
   const { text } = useTranslation();
   const [copied, setCopied] = useState(false);
@@ -103,12 +107,14 @@ export function FileBreadcrumb({ root, path, absolutePath, onLocate }: { root: s
       if (!available) return;
       const widths = Array.from(measureRef.current.children, item => item.getBoundingClientRect().width);
       const rootWidth = Math.min(widths[0], available * .4);
-      // The 12px chevron has -4px margins on each side; buttons keep their padding.
-      const segments = widths.slice(2).map(width => width + 4);
+      // Each later item brings a separator: Nova's 14px chevron with the
+      // list's 6px gap on both sides. The ellipsis item is 20px.
+      const segments = widths.slice(1).map(width => width + CRUMB_SEPARATOR);
+      const ellipsis = CRUMB_ELLIPSIS + CRUMB_SEPARATOR;
       let remaining = segments.reduce((sum, width) => sum + width, 0);
       let first = 0;
       if (rootWidth + remaining > available) {
-        while (first < segments.length - 1 && rootWidth + widths[1] + 4 + remaining > available) {
+        while (first < segments.length - 1 && rootWidth + ellipsis + remaining > available) {
           remaining -= segments[first++];
         }
       }
@@ -116,7 +122,7 @@ export function FileBreadcrumb({ root, path, absolutePath, onLocate }: { root: s
       // discarding an entire segment just because its full name cannot fit.
       let leadingWidth: number | undefined;
       if (first > 0) {
-        const spare = available - rootWidth - remaining - (first > 1 ? widths[1] + 4 : 0);
+        const spare = available - rootWidth - remaining - (first > 1 ? ellipsis : 0) - CRUMB_SEPARATOR;
         if (spare >= 48) {
           first--;
           leadingWidth = spare;
@@ -130,12 +136,15 @@ export function FileBreadcrumb({ root, path, absolutePath, onLocate }: { root: s
     void document.fonts?.ready.then(fit);
     return () => { disposed = true; observer.disconnect(); };
   }, [root, path]);
-  const crumb = (name: string, target: string) => pathMenu(name, target, <button type="button" data-path={target} onClick={() => onLocate(target)}>{name}</button>);
-  return <><nav ref={ref} className={styles.fileBreadcrumb} aria-label={text("File path", "文件路径")}>
-    <span ref={measureRef} className={styles.fileBreadcrumbMeasure} aria-hidden="true">{[root, "…", ...parts].map((name, i) => <span key={i}>{name}</span>)}</span>
-    {crumb(root, "")}{firstVisible > 0 ? <span className={styles.fileCrumbPart}><ChevronRight /><DropdownMenu modal={false}><DropdownMenuTrigger asChild><button type="button" aria-label={text("Parent folders", "上级文件夹")}>…</button></DropdownMenuTrigger><DropdownMenuContent align="start" className={`${MENU_PANEL} ${styles.fileCrumbMenu}`}>{parts.slice(0, firstVisible).map((part, i) => <span key={i} className="contents">{pathMenu(part, parts.slice(0, i + 1).join("/"), <DropdownMenuItem className={`${itemCls(false)} ${MENU_ITEM_STATES}`} onSelect={() => onLocate(parts.slice(0, i + 1).join("/"))}>{part}</DropdownMenuItem>)}</span>)}</DropdownMenuContent></DropdownMenu></span> : null}
-    {parts.map((part, i) => i < firstVisible ? null : <span className={styles.fileCrumbPart} style={i === firstVisible && leadingWidth !== undefined ? { maxWidth: leadingWidth } : undefined} key={i}><ChevronRight />{crumb(part, parts.slice(0, i + 1).join("/"))}</span>)}
-  </nav><HoverTip label={copied ? text("Copied", "已复制") : text("Copy absolute path", "复制绝对路径")}><button type="button" className={styles.iconBtn} disabled={!absolutePath} aria-label={copied ? text("Copied", "已复制") : text("Copy absolute path", "复制绝对路径")} onClick={() => { if (absolutePath) void copy(absolutePath); }}>{copied ? <Check /> : <Copy />}</button></HoverTip></>;
+  const crumb = (name: string, target: string, current = false) => pathMenu(name, target, <BreadcrumbLink asChild><button type="button" data-path={target} aria-current={current ? "page" : undefined} className={current ? "text-foreground" : undefined} onClick={() => onLocate(target)}>{name}</button></BreadcrumbLink>);
+  return <><Breadcrumb ref={ref} className={styles.fileBreadcrumb} aria-label={text("File path", "文件路径")}>
+    <span ref={measureRef} className={styles.fileBreadcrumbMeasure} aria-hidden="true">{[root, ...parts].map((name, i) => <span key={i}>{name}</span>)}</span>
+    <BreadcrumbList className={styles.fileCrumbList}>
+      <BreadcrumbItem className={styles.fileCrumbRoot}>{crumb(root, "", parts.length === 0)}</BreadcrumbItem>
+      {firstVisible > 0 ? <><BreadcrumbSeparator /><BreadcrumbItem><DropdownMenu modal={false}><DropdownMenuTrigger asChild><button type="button" className={styles.fileCrumbMore} aria-label={text("Parent folders", "上级文件夹")}><BreadcrumbEllipsis /></button></DropdownMenuTrigger><DropdownMenuContent align="start" className={`${MENU_PANEL} ${styles.fileCrumbMenu}`}>{parts.slice(0, firstVisible).map((part, i) => <span key={i} className="contents">{pathMenu(part, parts.slice(0, i + 1).join("/"), <DropdownMenuItem className={`${itemCls(false)} ${MENU_ITEM_STATES}`} onSelect={() => onLocate(parts.slice(0, i + 1).join("/"))}>{part}</DropdownMenuItem>)}</span>)}</DropdownMenuContent></DropdownMenu></BreadcrumbItem></> : null}
+      {parts.map((part, i) => i < firstVisible ? null : <Fragment key={i}><BreadcrumbSeparator /><BreadcrumbItem style={i === firstVisible && leadingWidth !== undefined ? { maxWidth: leadingWidth } : undefined}>{crumb(part, parts.slice(0, i + 1).join("/"), i === parts.length - 1)}</BreadcrumbItem></Fragment>)}
+    </BreadcrumbList>
+  </Breadcrumb><HoverTip label={copied ? text("Copied", "已复制") : text("Copy absolute path", "复制绝对路径")}><button type="button" className={styles.iconBtn} disabled={!absolutePath} aria-label={copied ? text("Copied", "已复制") : text("Copy absolute path", "复制绝对路径")} onClick={() => { if (absolutePath) void copy(absolutePath); }}>{copied ? <Check /> : <Copy />}</button></HoverTip></>;
 }
 
 export interface SizeResult { state: string; complete?: boolean; bytes?: number | null; entries?: number; skipped?: number; token?: string | null; updated_at?: number; error?: string }
