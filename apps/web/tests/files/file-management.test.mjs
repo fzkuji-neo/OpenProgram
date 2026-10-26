@@ -463,6 +463,59 @@ test("Pierre nested folder collapse survives state synchronization and refresh",
   } finally { await act(async()=>root.unmount()); Object.assign(globalThis,saved); }
 });
 
+test("a new entry starts unnamed: leaving it empty drops it, a typed name creates it", async () => {
+  const parsed = parseHTML('<html><body><div id="root"></div></body></html>');
+  const saved = { window: globalThis.window, document: globalThis.document, ResizeObserver: globalThis.ResizeObserver, IntersectionObserver: globalThis.IntersectionObserver };
+  globalThis.window = parsed.window; globalThis.document = parsed.document;
+  const browserGlobals = ["Event", "HTMLDivElement", "ShadowRoot", "HTMLElement", "HTMLStyleElement", "Element", "HTMLTemplateElement", "SVGElement", "HTMLInputElement", "Node", "MutationObserver", "customElements"];
+  for (const key of browserGlobals) { saved[key] = globalThis[key]; globalThis[key] = parsed.window[key]; }
+  Object.defineProperties(parsed.window.HTMLElement.prototype, {
+    scrollTop: { configurable: true, writable: true, value: 0 },
+    clientHeight: { configurable: true, get: () => 600 },
+    clientWidth: { configurable: true, get: () => 300 },
+  });
+  parsed.window.HTMLElement.prototype.scrollTo = function(options) { this.scrollTop = options.top ?? this.scrollTop; };
+  saved.requestAnimationFrame = globalThis.requestAnimationFrame;
+  saved.cancelAnimationFrame = globalThis.cancelAnimationFrame;
+  globalThis.requestAnimationFrame = callback => setTimeout(callback, 0);
+  globalThis.cancelAnimationFrame = clearTimeout;
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  globalThis.ResizeObserver = class { observe() {} disconnect() {} };
+  globalThis.IntersectionObserver = class { observe() {} disconnect() {} };
+  const root = createRoot(document.getElementById("root"));
+  const entries = [{path:"src",type:"dir",size:0},{path:"src/a.txt",type:"file",size:1}];
+  // linkedom has no text selection; Pierre selects the name it opens.
+  for (const method of ["select", "setSelectionRange", "focus"]) parsed.window.HTMLInputElement.prototype[method] ??= function() {};
+  const committed = []; let cancelled = 0;
+  const frames = () => act(async () => { for (let i = 0; i < 4; i++) await new Promise(resolve => setTimeout(resolve, 0)); });
+  function Harness({ draft }) {
+    return h(api.PierreFileTree,{projectId:"draft",entries,expanded:new Set(["src"]),selected:null,draft,
+      onExpandedChange:noop,onSelect:noop,onOpen:noop,onContextMenu:noop,
+      onDraftCommit:name=>committed.push(name),onDraftCancel:()=>{ cancelled++; }});
+  }
+  try {
+    await act(async()=>root.render(h(Harness,{draft:{dir:"src",kind:"file"}})));
+    await frames();
+    const shadow=document.querySelector("file-tree-container").shadowRoot;
+    let input=shadow.querySelector("input[data-item-rename-input]");
+    assert.equal(input.value, "", "the name starts empty");
+    assert.equal(input.placeholder, "untitled", "the default name is only a hint");
+    await act(async()=>input.dispatchEvent(new window.Event("blur")));
+    assert.equal(cancelled, 1, "leaving with nothing typed drops the entry");
+    assert.deepEqual(committed, []);
+
+    await act(async()=>root.render(h(Harness,{draft:null})));
+    await act(async()=>root.render(h(Harness,{draft:{dir:"src",kind:"file"}})));
+    await frames();
+    input=shadow.querySelector("input[data-item-rename-input]");
+    assert.equal(input.value, "", "a new draft starts empty again");
+    input.value="notes.md";
+    await act(async()=>input.dispatchEvent(new window.Event("input",{bubbles:true,composed:true})));
+    await act(async()=>input.dispatchEvent(new window.Event("blur")));
+    assert.deepEqual(committed, ["notes.md"], "a typed name creates the entry on blur");
+  } finally { await act(async()=>root.unmount()); Object.assign(globalThis,saved); }
+});
+
 test("breadcrumb copy confirms success only after the clipboard write completes", async () => {
   const parsed = parseHTML('<html><body><div id="root"></div></body></html>');
   const saved = { window: globalThis.window, document: globalThis.document, ResizeObserver: globalThis.ResizeObserver };

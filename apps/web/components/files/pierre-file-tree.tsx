@@ -75,9 +75,11 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
   const [visibleFolders, setVisibleFolders] = useState<string[]>([]);
   const metadata = useRef(new Map<string, PierreTreeEntry>());
   metadata.current = new Map(props.entries.map(entry => [entry.path, entry]));
-  // New entries are named in the tree itself, Finder- and VS Code-style: a
-  // placeholder row at the top of its folder opens in Pierre's own rename
-  // editor; Enter or blur creates it, Escape or an empty name drops it.
+  // New entries are named in the tree itself, VS Code-style: a placeholder
+  // row at the top of its folder opens in Pierre's own rename editor with
+  // the name left empty. Enter or blur creates it under the typed name;
+  // Escape, or leaving with nothing typed, drops it, so nothing is created
+  // without a name and no nameless row is left behind.
   const { draft } = props;
   const draftEntry = useMemo(() => {
     if (!draft) return null;
@@ -89,6 +91,8 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
     return { path: at(name), type: draft.kind, size: 0 } satisfies PierreTreeEntry;
   }, [draft, props.entries, translate]);
   const drafting = useRef<PierreTreeEntry | null>(null);
+  // What has been typed for the placeholder, kept across row resets.
+  const draftName = useRef("");
   // A rename asked for before a pending reload lands is started again after it.
   const pendingRename = useRef<string | null>(null);
   const ranks = useRef(new Map<string, number>());
@@ -213,11 +217,13 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
     for (const path of model.getSelectedPaths()) model.getItem(path)?.deselect();
     applySelection();
     syncing.current = false;
+    if (drafting.current?.path !== draftEntry?.path) draftName.current = "";
     drafting.current = draftEntry;
     // Resetting the rows ends an open name editor; reopen the one in use.
     if (draftEntry) {
       model.startRenaming(modelPath(draftEntry), { removeIfCanceled: true });
       model.scrollToPath(modelPath(draftEntry), { offset: "center" });
+      primeDraftEditor();
     } else if (pendingRename.current) model.startRenaming(pendingRename.current);
   // applySelection reads the selection key below; a selection change alone
   // must not reset the rows, or a Shift-click loses its anchor.
@@ -229,6 +235,21 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
     drafting.current = null;
     latest.current.onDraftCancel?.();
   }), [model]);
+  // Pierre opens the editor on the placeholder's own name; replace it with
+  // what was typed so far (nothing, at first), shown over a dim hint.
+  function primeDraftEditor(attempt = 0) {
+    requestAnimationFrame(() => {
+      const entry = drafting.current;
+      if (!entry) return;
+      const input = host.current?.querySelector("file-tree-container")?.shadowRoot
+        ?.querySelector<HTMLInputElement>("input[data-item-rename-input]");
+      if (!input) { if (attempt < 10) primeDraftEditor(attempt + 1); return; }
+      input.placeholder = baseName(entry.path);
+      if (input.value === draftName.current) return;
+      input.value = draftName.current;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  }
   // Pierre reports a rename only when the name changed, so keeping the
   // placeholder's own name creates it under that name.
   const keepDraftName = (input: HTMLInputElement) => {
@@ -364,6 +385,7 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
     <FileTree model={model} style={{ flex: "1 1 0", minHeight: 0, display: "block" }}
       onClick={event => { const entry = fromEvent(event); if (entry) { if (props.onActivate) props.onActivate(entry.path, entry.type); else if (entry.type === "file") props.onOpen(entry.path); } }}
       onBlur={event => { const input = renameInput(event); if (input) { pendingRename.current = null; keepDraftName(input); } }}
+      onInput={event => { const input = renameInput(event); if (input && drafting.current) draftName.current = input.value; }}
       onKeyDown={event => {
         const input = renameInput(event);
         if (input && (event.key === "Enter" || event.key === "Escape")) pendingRename.current = null;
