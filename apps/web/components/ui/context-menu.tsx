@@ -115,10 +115,14 @@ ContextMenuSubTrigger.displayName = ContextMenuPrimitive.SubTrigger.displayName
 const ContextMenuSubContent = React.forwardRef<
   React.ElementRef<typeof ContextMenuPrimitive.SubContent>,
   React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.SubContent>
->(({ className, ...props }, ref) => (
+// A submenu stands a small gap off its parent panel, and its first row
+// lines up with the row that opened it (the offset is the panel's p-1).
+>(({ className, sideOffset = 4, alignOffset = -4, ...props }, ref) => (
   <ContextMenuPrimitive.Portal>
     <ContextMenuPrimitive.SubContent
       ref={ref}
+      sideOffset={sideOffset}
+      alignOffset={alignOffset}
       data-slot="context-menu-sub-content"
       className={cn(MENU_PANEL, MENU_MOTION, "text-[var(--text-primary)]", className)}
       {...props}

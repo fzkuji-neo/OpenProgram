@@ -69,7 +69,7 @@ export function ProjectMenu({project, children, onOpen, onNewSession, onSaved}: 
         <Menu.Item className={item} onSelect={togglePin}><MenuRow glyph="pin" label={pinned?text("Unpin", "取消置顶"):text("Pin", "置顶")}/></Menu.Item>
         <Menu.Item className={item} onSelect={()=>setEditing(true)}><MenuRow glyph="pen" label={text("Edit project", "编辑项目")}/></Menu.Item>
         <Menu.Separator className={MENU_SEPARATOR}/>
-        <Menu.Sub><Menu.SubTrigger className={item}><MenuRow glyph="layers" label={text("Section", "分区")} submenu/></Menu.SubTrigger><Menu.Portal><Menu.SubContent className={MENU_PANEL+" "+styles.menu+" min-w-[180px]"}>
+        <Menu.Sub><Menu.SubTrigger className={item}><MenuRow glyph="layers" label={text("Section", "分区")} submenu/></Menu.SubTrigger><Menu.Portal><Menu.SubContent sideOffset={4} alignOffset={-4} className={MENU_PANEL+" "+styles.menu+" min-w-[180px]"}>
           {["",...view.projectSectionNames].map(section=><Menu.Item key={section} className={item} onSelect={()=>selectSection(section)}><MenuRow glyph="layers" label={section||text("Projects", "项目")} checked={(view.projectSections[project.id]||"")===section}/></Menu.Item>)}
           <Menu.Separator className={MENU_SEPARATOR}/>
           <Menu.Item className={item} onSelect={()=>setAddingSection(true)}><MenuRow glyph="add-circle" label={text("New section…", "新建分区…")}/></Menu.Item>
