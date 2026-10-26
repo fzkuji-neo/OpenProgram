@@ -89,6 +89,8 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
     return { path: at(name), type: draft.kind, size: 0 } satisfies PierreTreeEntry;
   }, [draft, props.entries, translate]);
   const drafting = useRef<PierreTreeEntry | null>(null);
+  // A rename asked for before a pending reload lands is started again after it.
+  const pendingRename = useRef<string | null>(null);
   const ranks = useRef(new Map<string, number>());
   ranks.current = new Map(props.entries.map((entry, index) => [entry.path, index]));
   if (draftEntry) ranks.current.set(draftEntry.path, -1);
@@ -116,6 +118,7 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
     renaming: {
       onRename: ({ sourcePath, destinationPath }) => {
         const path = normalize(sourcePath);
+        pendingRename.current = null;
         if (drafting.current?.path === path) {
           drafting.current = null;
           latest.current.onDraftCommit?.(baseName(destinationPath));
@@ -173,7 +176,9 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
     scrollToTop() { const first = latest.current.entries[0]; if (first) model.scrollToPath(modelPath(first), { offset: "top" }); },
     startRename(path) {
       const entry = metadata.current.get(path);
-      return entry ? model.startRenaming(modelPath(entry)) : false;
+      if (!entry) return false;
+      pendingRename.current = modelPath(entry);
+      return model.startRenaming(pendingRename.current);
     },
   }), [model]);
   const wantedSelection = (props.selectedPaths?.length ? props.selectedPaths : props.selected ? [props.selected] : []).join("\0");
@@ -202,10 +207,11 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
     applySelection();
     syncing.current = false;
     drafting.current = draftEntry;
+    // Resetting the rows ends an open name editor; reopen the one in use.
     if (draftEntry) {
       model.startRenaming(modelPath(draftEntry), { removeIfCanceled: true });
       model.scrollToPath(modelPath(draftEntry), { offset: "center" });
-    }
+    } else if (pendingRename.current) model.startRenaming(pendingRename.current);
   // applySelection reads the selection key below; a selection change alone
   // must not reset the rows, or a Shift-click loses its anchor.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -350,8 +356,16 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
     <FileColumnsHeader ref={header} sort={props.sort} onSortChange={props.onSortChange} />
     <FileTree model={model} style={{ flex: "1 1 0", minHeight: 0, display: "block" }}
       onClick={event => { const entry = fromEvent(event); if (entry) { if (props.onActivate) props.onActivate(entry.path, entry.type); else if (entry.type === "file") props.onOpen(entry.path); } }}
-      onBlur={event => { const input = renameInput(event); if (input) keepDraftName(input); }}
-      onKeyDown={event => { if (event.key !== "Enter") return; const input = renameInput(event); if (input) { keepDraftName(input); return; } const path = model.getFocusedPath(); const entry = path && metadata.current.get(normalize(path)); if (entry) { if (props.onActivate) props.onActivate(entry.path, entry.type); else if (entry.type === "file") props.onOpen(entry.path); } }}
+      onBlur={event => { const input = renameInput(event); if (input) { pendingRename.current = null; keepDraftName(input); } }}
+      onKeyDown={event => {
+        const input = renameInput(event);
+        if (input && (event.key === "Enter" || event.key === "Escape")) pendingRename.current = null;
+        if (event.key !== "Enter") return;
+        if (input) { keepDraftName(input); return; }
+        const path = model.getFocusedPath();
+        const entry = path && metadata.current.get(normalize(path));
+        if (entry) { if (props.onActivate) props.onActivate(entry.path, entry.type); else if (entry.type === "file") props.onOpen(entry.path); }
+      }}
       onContextMenu={event => { const entry = fromEvent(event); if (entry) props.onContextMenu(event, entry.path, entry.type); }} />
     {externalTarget !== null ? <div className={styles.externalDropHint}>{translate(`Add to ${externalTarget || "the project root"}`, `添加到 ${externalTarget || "项目根目录"}`)}</div> : null}
     {visibleFolders.map(path => <FolderSizeSubscription key={path} projectId={props.projectId} path={path} onValue={(text, scanning) => {

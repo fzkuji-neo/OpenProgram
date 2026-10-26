@@ -745,8 +745,10 @@ export function FileTree({
 
   /** Finder-style keys on the tree: copy, cut, paste, move to, delete, rename. */
   function onTreeKeyDown(event: React.KeyboardEvent) {
-    const target = event.target as HTMLElement | null;
-    if (target?.closest("input, textarea, [contenteditable='true']")) return;
+    // The innermost target: keys typed in Pierre's name editor come out of
+    // its shadow root retargeted to the tree host.
+    const target = event.nativeEvent.composedPath()[0];
+    if (target instanceof Element && target.closest("input, textarea, [contenteditable='true']")) return;
     const mod = event.metaKey || event.ctrlKey;
     const primary = selected;
     const paths = currentSelection().map(item => item.path);
@@ -785,8 +787,7 @@ export function FileTree({
         setFilter("");
         setSearchOpen(false);
         expandChain(parentOf(path));
-        // Expanding may load the parent first; rename once its row exists.
-        requestAnimationFrame(() => pierreRef.current?.startRename(path));
+        pierreRef.current?.startRename(path);
       },
       delete: () => setConfirmDelete(actionTargets(path)),
     };
