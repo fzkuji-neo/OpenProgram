@@ -30,6 +30,7 @@ their provider packages (e.g. ``openprogram.providers.openai_codex``).
 - **`local.py`** — Explicit local-server identity; unrelated cloud providers retain auth requirements
 - **`metadata.py`** — Provider-level metadata: display labels, env-var mappings, default
 - **`models.py`** — Model registry and utilities
+- **`plugin_dirs.py`** — Where provider directories live: this package, then plugin roots
 - **`recording.py`** — Record provider calls to a JSONL recording file
 - **`register.py`** — Register the built-in API providers and authentication adapters
 - **`registry.py`** — openprogram.providers.registry

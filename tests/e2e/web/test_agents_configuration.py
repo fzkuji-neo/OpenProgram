@@ -6,7 +6,7 @@ import subprocess
 
 import pytest
 
-from tests.support.select import choose
+from tests.support.radix_select import choose
 
 ROOT = Path(__file__).resolve().parents[3]
 pytestmark = pytest.mark.browser

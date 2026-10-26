@@ -38,8 +38,10 @@ relies on.
 - **`_workflow_check.py`** — ``openprogram workflows check``: validate, test and commit a workflow
 - **`_workflow_packages.py`** — Workflow packages: loading, registration and checks
 - **`application_client.py`** — Use installed application operations from Programs and local CLI clients
+- **`guides.py`** — Tool guides: instructions a tool hands the model when a call needs them
 - **`meta_storage.py`** — Profile-scoped persistence for tool profiles and Functions UI metadata
 - **`permission_rule.py`** — 权限规则字符串的解析、序列化、匹配。
+- **`prechecks.py`** — Argument checks that run before a call asks for approval
 - **`watcher.py`** — Background watcher
 
 ## Sub-packages

@@ -9,7 +9,7 @@ from fastapi.responses import Response
 import pytest
 import uvicorn
 
-from tests.support.select import choose
+from tests.support.radix_select import choose
 from tests.support.waiting import wait_until
 
 ROOT = Path(__file__).resolve().parents[3]
