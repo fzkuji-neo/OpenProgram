@@ -12,7 +12,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import {
-  Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+  Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandShortcut,
 } from "@/components/ui/command";
 import { SolarIcon, type SolarIconName } from "@/components/solar-icons";
 import { useTranslation } from "@/lib/i18n";
@@ -113,15 +113,18 @@ export function MoveToDialog({ open, projectId, rootName, paths, onOpenChange, o
   const loading = base !== null && level === null;
 
   const choose = (dir: string) => { onOpenChange(false); onMove(dir); };
-  const row = (dir: string, icon: SolarIconName = "folder") => (
-    <CommandItem key={dir || "."} value={`dir:${dir}`} disabled={!usable(dir)} onSelect={() => choose(dir)}>
-      <SolarIcon name={icon} size={16} motionPreset="none" aria-hidden="true" />
-      <span className="min-w-0 truncate">{dir ? baseOf(dir) : rootName}</span>
-      {dir === here
-        ? <span className="ml-auto shrink-0 text-xs text-muted-foreground">{text("Current", "当前位置")}</span>
-        : dir && parentOf(dir) ? <span className="ml-auto min-w-0 truncate text-xs text-muted-foreground">{parentOf(dir)}</span> : null}
-    </CommandItem>
-  );
+  // The trailing note is the folder's parent, unless the group heading
+  // already names it; Nova's CommandShortcut keeps it at the right edge.
+  const row = (dir: string, icon: SolarIconName = "folder", showParent = true) => {
+    const note = dir === here ? text("Current", "当前位置") : showParent && dir ? parentOf(dir) : "";
+    return (
+      <CommandItem key={dir || "."} value={`dir:${dir}`} disabled={!usable(dir)} onSelect={() => choose(dir)}>
+        <SolarIcon name={icon} size={16} motionPreset="none" aria-hidden="true" />
+        <span className="min-w-0 truncate">{dir ? baseOf(dir) : rootName}</span>
+        {note ? <CommandShortcut className="min-w-0 truncate tracking-normal">{note}</CommandShortcut> : null}
+      </CommandItem>
+    );
+  };
 
   // Tab steps into the highlighted folder, the way a shell completes a path.
   const onKeyDown = (event: React.KeyboardEvent) => {
@@ -147,8 +150,11 @@ export function MoveToDialog({ open, projectId, rootName, paths, onOpenChange, o
             <CommandGroup heading={text("Project", "项目")}>{row("")}</CommandGroup>
             {recent.length ? <CommandGroup heading={text("Recent", "最近")}>{recent.map(dir => row(dir, "history"))}</CommandGroup> : null}
           </> : null}
+          {base && !term ? (
+            <CommandGroup heading={text("This folder", "这个文件夹")}>{row(base, "folder-open")}</CommandGroup>
+          ) : null}
           {nearby.length ? (
-            <CommandGroup heading={base ? base : text("Folders", "文件夹")}>{nearby.map(dir => row(dir))}</CommandGroup>
+            <CommandGroup heading={base ? base : text("Folders", "文件夹")}>{nearby.map(dir => row(dir, "folder", false))}</CommandGroup>
           ) : null}
           {elsewhere.length ? (
             <CommandGroup heading={text("Elsewhere in the project", "项目中的其他位置")}>{elsewhere.map(dir => row(dir))}</CommandGroup>
