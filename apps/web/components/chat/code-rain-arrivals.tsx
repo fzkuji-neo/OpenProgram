@@ -181,22 +181,27 @@ function startArrivals(mount: HTMLElement): () => void {
     }
   }
 
-  /** Streamed pieces: short drops land on the new characters. */
+  /** Streamed pieces: drops land on the new characters. They fall as far
+   *  and as slowly as a sent message's, so a reply rains as visibly while
+   *  it streams; the canvas blends behind the lines already written. */
   function fallOnto(t: Tracker, fresh: Fresh[], t0: number) {
     const box = area()?.getBoundingClientRect();
     if (!box) return;
-    const v = 800;
-    const landed = new Set<string>();
+    const v = 650;
+    // One drop per column and line; the characters it covers decode when
+    // it lands.
+    const landed = new Map<string, number>();
     for (const f of fresh) {
       const x = f.rect.left + f.rect.width / 2 - box.left;
       const y = f.rect.top + f.rect.height / 2 - box.top;
-      const fall = (3 + Math.random() * 3) * STEP;
-      const reveal = t0 + fall / v + Math.random() * 0.04;
       const key = `${Math.floor(x / BAND)}:${Math.round(y)}`;
-      if (!landed.has(key)) {
-        landed.add(key);
-        drops.push(drop(x, y - fall, t0, y, v, 5 + Math.floor(Math.random() * 4)));
+      let fall = landed.get(key);
+      if (fall === undefined) {
+        fall = Math.min(y, (6 + Math.random() * 6) * STEP);
+        landed.set(key, fall);
+        drops.push(drop(x, y - fall, t0, y, v, 8 + Math.floor(Math.random() * 7)));
       }
+      const reveal = t0 + fall / v;
       t.chars.set(f.index, state(f, reveal, reveal + 0.12 + Math.random() * 0.22));
     }
   }
