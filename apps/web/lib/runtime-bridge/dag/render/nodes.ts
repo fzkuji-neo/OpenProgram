@@ -18,6 +18,7 @@ import { type GNode } from "../types";
 import { _branchColor, _svg } from "./shapes";
 import { TILE_R, buildTile, tileFor } from "./tiles";
 import { paintAgents } from "./agents";
+import { paintBelts } from "./edges";
 import { _summaryExpanded } from "../store/globals";
 import type { ThreadModel } from "../passes/thread";
 
@@ -111,12 +112,10 @@ export function patchHistoryStatus(host: HTMLElement, graph: GNode[]): boolean {
     applyStatusPaint(g, el, node);
     (g as any)._nodeData = node;
   }
-  // The belts into working nodes flow, and the agents move with them.
-  host.querySelectorAll("svg.history-svg .history-edge[data-to]").forEach((edge) => {
-    const to = edge.getAttribute("data-to") || "";
-    edge.classList.toggle("is-live", byId[to]?.status === "running");
-  });
-  paintAgents(nodeG);
+  // The belts into working nodes run, and the agents move with them.
+  const svg = host.querySelector("svg.history-svg");
+  if (svg) paintBelts(svg, graph);
+  paintAgents(nodeG, graph);
   return true;
 }
 

@@ -522,6 +522,55 @@ test("status-only patch keeps the SVG root and does not replaceChildren", async 
   assert.equal(host.querySelector("g.dag-agents .dag-agent-bubble"), null);
 });
 
+test("each working agent stands on its own step and only belts into work run", async () => {
+  const { document } = parseHTML(`<!doctype html><html><body>
+    <div class="history-body">
+      <svg class="history-svg"><g class="history-world">
+        <g class="dag-belts">
+          <line class="dag-belt-goods" data-to="u" data-live="self"></line>
+          <line class="dag-belt-goods" data-to="a" data-live="self"></line>
+          <line class="dag-belt-goods" data-to="sp" data-live="busy"></line>
+          <line class="dag-belt-goods" data-to="done" data-live="busy"></line>
+        </g>
+        <g class="history-nodes">
+          <g class="history-node" data-msg-id="u" transform="translate(30,30)">
+            <g class="dag-tile t-user"><rect data-node-shape="1"></rect></g></g>
+          <g class="history-node" data-msg-id="a" transform="translate(30,70)">
+            <g class="dag-tile t-llm"><rect data-node-shape="1"></rect></g></g>
+          <g class="history-node" data-msg-id="sp" data-spawn-name="researcher" transform="translate(70,110)">
+            <g class="dag-tile t-agent"><rect data-node-shape="1"></rect></g></g>
+          <g class="history-node" data-msg-id="done" transform="translate(70,150)">
+            <g class="dag-tile t-shell"><rect data-node-shape="1"></rect></g></g>
+        </g>
+      </g></svg>
+    </div>
+  </body></html>`);
+  globalThis.document = document;
+  const { patchHistoryStatus } = await import(
+    "../../lib/runtime-bridge/dag/render/nodes.ts"
+  );
+  const host = document.querySelector(".history-body");
+  const ok = patchHistoryStatus(host, [
+    { id: "u", role: "user", predecessor: "ROOT", status: "done", _lane: 0 },
+    { id: "a", role: "assistant", predecessor: "u", status: "running", _lane: 0, created_at: 1 },
+    // A call folded into the turn's count: the bubble still names it.
+    { id: "edit", role: "tool", function: "edit", caller: "a", status: "running", _lane: 0, created_at: 2,
+      input: JSON.stringify({ path: "b.ts" }) },
+    { id: "sp", role: "user", source: "agent_spawn", predecessor: "", caller: "a", status: "done", _lane: 1 },
+    { id: "sp-a", role: "assistant", predecessor: "sp", status: "running", _lane: 1, created_at: 3 },
+    { id: "done", role: "tool", function: "bash", caller: "a", status: "done", _lane: 0 },
+  ]);
+  assert.equal(ok, true);
+  const bubbles = Array.from(host.querySelectorAll("g.dag-agents .dag-agent-bubble text"))
+    .map((t) => t.textContent);
+  assert.equal(host.querySelectorAll("g.dag-agents .dag-agent-token").length, 2);
+  assert.ok(bubbles.some((t) => t.startsWith("Main agent") && t.includes("b.ts")), bubbles.join(" | "));
+  assert.ok(bubbles.some((t) => t.startsWith("researcher")), bubbles.join(" | "));
+  const live = Array.from(host.querySelectorAll(".dag-belt-goods.is-live"))
+    .map((l) => l.getAttribute("data-to"));
+  assert.deepEqual(live, ["a", "sp"]);
+});
+
 test("branches_list does not repaint tags before a payload graph", () => {
   const src = readFileSync(
     new URL("../../lib/runtime-bridge/conversations.ts", import.meta.url),

@@ -34,6 +34,21 @@ export interface Tile {
 export const TILE_R = 12;
 const ICON = 15;
 
+// The transcript names a call by what it did ("Ran", "Edited"); a bubble
+// over a working agent says what it is doing. Chinese titles are plain
+// verbs and read right either way.
+const NOW: Record<string, string> = {
+  "Analyzed image": "Analyzing image", Asked: "Asking", Edited: "Editing",
+  "Executed code": "Executing code", Fetched: "Fetching", "Found files": "Finding files",
+  "Generated image": "Generating image", "Handed to a new agent": "Handing to a new agent",
+  "Inspected code": "Inspecting code", Listed: "Listing", Messaged: "Messaging",
+  Patched: "Patching", "Ran program": "Running program", Ran: "Running",
+  "Read conversation": "Reading conversation", Read: "Reading", Scheduled: "Scheduling",
+  "Searched code": "Searching code", "Searched the web": "Searching the web",
+  Searched: "Searching", Typed: "Typing", "Updated todos": "Updating todos",
+  "Used skill": "Using skill", "Waited for output": "Waiting for output", Wrote: "Writing",
+};
+
 function toolName(node: GNode): string {
   return String(node.name || node.function || "");
 }
@@ -60,7 +75,8 @@ export function tileFor(node: GNode): Tile {
   if (isCall) {
     const input = typeof node.input === "string" ? node.input : undefined;
     const shown = presentTool(toolName(node), input, translateText);
-    const doing = shown.target ? `${shown.title} ${shown.target}` : shown.title;
+    const title = NOW[shown.title] ?? shown.title;
+    const doing = shown.target ? `${title} ${shown.target}` : title;
     return { icon: shown.icon, tone: shown.tone, doing };
   }
   if (node.role === "assistant" || node.role === "llm") {

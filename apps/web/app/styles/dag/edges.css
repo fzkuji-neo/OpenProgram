@@ -14,13 +14,19 @@
   stroke: color-mix(in srgb, var(--text-muted, #8a887f) 22%, var(--bg-primary, #191918));
   stroke-width: 8;
 }
-.history-edge.is-live {
-  stroke-dasharray: 4 6;
+/* A running belt carries goods: round beads in the branch colour ride
+   the track towards the working node, under the solid line. */
+.dag-belt-goods { display: none; }
+.dag-belt-goods.is-live {
+  display: inline;
+  stroke: color-mix(in srgb, var(--belt-goods) 60%, var(--bg-primary, #191918));
+  stroke-width: 6;
+  stroke-dasharray: 0.1 13;
   animation: dag-belt-flow 0.8s linear infinite;
 }
-@keyframes dag-belt-flow { to { stroke-dashoffset: -10; } }
+@keyframes dag-belt-flow { to { stroke-dashoffset: -13.1; } }
 @media (prefers-reduced-motion: reduce) {
-  .history-edge.is-live { animation: none; }
+  .dag-belt-goods.is-live { animation: none; }
 }
 /* Edges are double-clickable. The hit-area is a wide invisible
    sibling path under the visible stroke (see ``history-edge-hit``).

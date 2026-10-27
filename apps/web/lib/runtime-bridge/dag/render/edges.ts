@@ -29,6 +29,39 @@ function isRunning(node: GNode): boolean {
   return (node as Record<string, unknown>).status === "running";
 }
 
+/** Every running node and every node a running node descends from. */
+function busyIds(graph: GNode[]): Set<string> {
+  const byId: Record<string, GNode> = Object.create(null);
+  graph.forEach((n) => { byId[n.id] = n; });
+  const busy = new Set<string>();
+  graph.forEach((n) => {
+    if (!isRunning(n)) return;
+    let cur: GNode | undefined = n;
+    while (cur && !busy.has(cur.id)) {
+      busy.add(cur.id);
+      const p: string | null | undefined = cur.predecessor || cur.caller;
+      cur = p ? byId[p] : undefined;
+    }
+  });
+  return busy;
+}
+
+/** Start or stop the goods on every belt (dag/rendering.md §3). A chain
+ *  belt runs into a node that is running itself; a thread belt runs
+ *  while anything down the item it leads to is running — the call
+ *  being made, or a sub-agent's turn behind its spawn. ``data-to``
+ *  lists the ids a belt leads to, so the in-place status patch can
+ *  repaint it from a new graph. */
+export function paintBelts(root: Element, graph: GNode[]): void {
+  const busy = busyIds(graph);
+  const running = new Set(graph.filter(isRunning).map((n) => n.id));
+  root.querySelectorAll(".dag-belt-goods[data-to]").forEach((goods) => {
+    const ids = (goods.getAttribute("data-to") || "").split(" ");
+    const hit = goods.getAttribute("data-live") === "busy" ? busy : running;
+    goods.classList.toggle("is-live", ids.some((id) => hit.has(id)));
+  });
+}
+
 function beltLayer(edgeG: SVGElement): SVGElement {
   const prev = edgeG.previousElementSibling;
   if (prev?.classList.contains("dag-belts")) return prev as SVGElement;
@@ -38,29 +71,35 @@ function beltLayer(edgeG: SVGElement): SVGElement {
 }
 
 /** A chain or thread edge as a conveyor belt (dag/rendering.md §3): a
- *  wide neutral track with the branch-coloured line on it. The line into
- *  a node that is working flows (``is-live``, app/styles/dag/edges.css);
- *  ``data-to`` names that node, so a status patch can start or stop it. */
+ *  wide neutral track with the branch-coloured line on it, and the goods
+ *  that ride the track towards a working node (``paintBelts``,
+ *  app/styles/dag/edges.css). */
 function belt(
   edgeG: SVGElement,
   at: { x1: number; y1: number; x2: number; y2: number },
   color: string,
   dash: Record<string, string> | null,
-  live: boolean,
-  to: string,
+  to: string[],
   kind = "",
 ): void {
   if (!dash) {
     // Tracks sit in their own layer under every line, so a track laid
     // later never covers the coloured line of a junction drawn earlier.
-    beltLayer(edgeG).appendChild(_svg("line", {
+    const layer = beltLayer(edgeG);
+    layer.appendChild(_svg("line", {
       ...at, class: "dag-belt", "stroke-linecap": "round", "pointer-events": "none",
+    }));
+    // The goods ride on top of the track and show only while it runs.
+    layer.appendChild(_svg("line", {
+      ...at, class: "dag-belt-goods", "stroke-linecap": "round", "pointer-events": "none",
+      "data-to": to.join(" "), "data-live": kind === "thread-edge" ? "busy" : "self",
+      style: `--belt-goods: ${color}`,
     }));
   }
   edgeG.appendChild(_svg("line", {
     ...at, stroke: color, "stroke-width": 2, "stroke-linecap": "round",
-    "pointer-events": "none", "data-to": to,
-    class: ["history-edge", kind, live ? "is-live" : ""].filter(Boolean).join(" "),
+    "pointer-events": "none",
+    class: ["history-edge", kind].filter(Boolean).join(" "),
     ...(dash ?? {}),
   }));
 }
@@ -154,14 +193,13 @@ export function drawEdges(
       }
     }
 
-    // The belt into a working node runs; a ghost line keeps its dashes
-    // and gets no belt — it is not what the next request carries.
-    const live = isRunning(node);
+    // A ghost line keeps its dashes and gets no belt — it is not what
+    // the next request carries.
     if (c.y > fromY) {
-      belt(edgeG, { x1: trunkX, y1: fromY, x2: trunkX, y2: c.y }, color, isGhost ? dash : null, live, id);
+      belt(edgeG, { x1: trunkX, y1: fromY, x2: trunkX, y2: c.y }, color, isGhost ? dash : null, [id]);
     }
     if (c.x !== trunkX) {
-      belt(edgeG, { x1: trunkX, y1: c.y, x2: c.x, y2: c.y }, color, isGhost ? dash : null, live, id);
+      belt(edgeG, { x1: trunkX, y1: c.y, x2: c.x, y2: c.y }, color, isGhost ? dash : null, [id]);
     }
   });
 
@@ -240,10 +278,12 @@ export function drawEdges(
     if (fpNode.display === "root" && !coversIds(node)
         && !(node as Record<string, unknown>).superseded_summary) continue;
     const s = pos(fpNode);
-    const vx = s.x + 14;
-    const r = 10;
+    // Down the middle of the gap between this column and the next, clear
+    // of the tiles an open thread stacks under the fork point.
+    const vx = s.x + COL_W / 2;
+    const r = 8;
     edgeG.appendChild(_svg("path", {
-      d: `M ${s.x} ${s.y} Q ${vx} ${s.y + 12} ${vx} ${s.y + 24} `
+      d: `M ${s.x} ${s.y} Q ${vx} ${s.y} ${vx} ${s.y + 20} `
         + `L ${vx} ${ey - r} Q ${vx} ${ey} ${vx + r} ${ey} `
         + `L ${ex} ${ey}`,
       stroke: color, "stroke-width": 1.5, fill: "none",
@@ -254,6 +294,11 @@ export function drawEdges(
   }
 
   // ── Call threads (dag/rendering.md §12) ──
+  const itemAt: Record<string, string> = Object.create(null);
+  Object.keys(tree.byId).forEach((id) => {
+    const p = pos(tree.byId[id]);
+    itemAt[`${p.x},${p.y}`] = id;
+  });
   // A faint dotted line from the anchor down its thread column to the
   // last item. Drawn under the nodes, so every square and triangle on
   // the line covers its own crossing.
@@ -263,18 +308,21 @@ export function drawEdges(
     if (!anchorNode || !rows.length) return;
     const ap = pos(anchorNode);
     const tx = PAD_X + geom.threadColOf[anchor] * COL_W;
-    const lastY = PAD_Y + rows[rows.length - 1] * ROW_H;
     // The trunk pattern, one level down: a solid vertical drops the
     // anchor's own column, and every item gets a horizontal stub into
     // its row — down first, then right, exactly like chain edges, in
     // the anchor's own branch colour. The execution layer is already
     // said by the shapes and the column; the line needs no third voice.
     const tColor = _branchColor(anchorNode, stableLeafOfNode);
-    const live = isRunning(anchorNode);
-    belt(edgeG, { x1: ap.x, y1: ap.y, x2: ap.x, y2: lastY }, tColor, null, live, anchor, "thread-edge");
-    rows.forEach((r) => {
+    const items = rows.map((r) => itemAt[`${tx},${PAD_Y + r * ROW_H}`] || "");
+    // The trunk runs down to the item in work, each stub into its own.
+    rows.forEach((r, i) => {
       const ry = PAD_Y + r * ROW_H;
-      belt(edgeG, { x1: ap.x, y1: ry, x2: tx, y2: ry }, tColor, null, live, anchor, "thread-edge");
+      const fromY = i ? PAD_Y + rows[i - 1] * ROW_H : ap.y;
+      belt(edgeG, { x1: ap.x, y1: fromY, x2: ap.x, y2: ry }, tColor, null,
+        items.slice(i).filter(Boolean), "thread-edge");
+      belt(edgeG, { x1: ap.x, y1: ry, x2: tx, y2: ry }, tColor, null,
+        items[i] ? [items[i]] : [], "thread-edge");
     });
   });
 
@@ -330,4 +378,5 @@ export function drawEdges(
             class: "history-edge attach-edge" }),
     }));
   });
+  if (edgeG.parentNode) paintBelts(edgeG.parentNode as Element, graphIn);
 }

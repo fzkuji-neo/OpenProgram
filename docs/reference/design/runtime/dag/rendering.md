@@ -337,10 +337,15 @@ is conveyed only by line style:
 **Chain and thread edges are conveyor belts**: an 8px neutral track
 (`.dag-belt`, its own layer under every line, opaque so tracks that share a
 trunk or meet at a junction never darken where they stack) with the 2px
-branch-coloured line on it. The line into a node that is running flows
-(`is-live`, moving dashes); a status patch starts and stops it through the
-line's `data-to`. Ghost lines keep their dashes and get no track: they are not
-what the next request carries.
+branch-coloured line on it. A belt that leads to work carries goods: beads in
+the branch colour ride the track towards the working node, under the solid
+line, so a running belt never reads as a dashed ghost line. A chain belt runs
+into a node that is itself running; a thread belt runs while anything down
+the item it leads to is running — the call being made, or a sub-agent's turn
+behind its spawn — and the thread trunk runs down to that item only.
+`paintBelts` sets this from the graph through each belt's `data-to`, so the
+in-place status patch repaints it. Ghost lines keep their dashes and get no
+track: they are not what the next request carries.
 
 **Every line is drawn centre to centre**, and the tiles' background fill paints
 over the ends, so a line joins every tile seamlessly without a measured
@@ -369,8 +374,12 @@ npm test" looks alike in both places; tones are shared CSS variables
 **Agents stand on their step** (`render/agents.ts`). Every agent that is
 working puts a round token with its initial, in its branch colour, on the
 upper-left corner of the tile it is on, and a bubble beside the tile says
-"name · what it is doing" (the tile's activity text: "Thinking…", "Ran npm
-test"). One token per agent, on its latest running tile. With nothing
+"name · what it is doing" (the tile's activity text in the present tense:
+"Thinking…", "Running npm test"). Agents are read from the whole graph: a
+node belongs to the sub-agent whose spawn root its chain leads back to, else
+to the main agent, and each agent shows its latest running node. When that
+node is folded into a count, the token stands on the nearest drawn tile and
+the bubble still names the call; agents sharing a tile stack their bubbles. With nothing
 running, the main agent's token rests on HEAD without a bubble. The layer is
 rebuilt from the node DOM, so the in-place status patch repaints it.
 
