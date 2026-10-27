@@ -4,6 +4,8 @@ export interface Model {
   id: string;
   name: string;
   provider: string;
+  /** The provider's display name, as Settings shows it (enabled list). */
+  providerLabel?: string;
   enabled: boolean;
   capabilities: Capability[];
   context?: number;

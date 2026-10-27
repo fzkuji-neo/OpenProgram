@@ -535,7 +535,7 @@ def list_enabled_models() -> list[dict[str, Any]]:
     """
     from openprogram.providers.enabled_models import ENABLED_MODELS
 
-    from openprogram.providers.metadata import label_for
+    from openprogram.providers.metadata import label_for, prettify_provider_id
     from openprogram.providers.storage import _read_providers_cfg
 
     cfg = _read_providers_cfg()
@@ -552,7 +552,12 @@ def list_enabled_models() -> list[dict[str, Any]]:
             continue
         row = _model_to_dict(model, enabled=True)
         row["provider"] = provider
-        row["provider_label"] = label_for(provider)
+        # The same name the provider list gives it: a custom provider's is
+        # the label the user chose.
+        row["provider_label"] = (
+            (pcfg.get("label") or prettify_provider_id(provider))
+            if pcfg.get("source") == "custom" else label_for(provider)
+        )
         out.append(row)
     return out
 

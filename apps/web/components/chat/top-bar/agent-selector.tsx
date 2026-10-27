@@ -60,8 +60,9 @@ export function AgentSelector({
     queryKey: ["models-enabled"],
     queryFn: api.listEnabledModels,
   });
-  const { providers, ready: labelsReady } = useProviderLabels();
-  const providerName = (id: string) => providers?.find((p) => p.id === id)?.label || id;
+  // Group headings name the provider as Settings does: the enabled list
+  // carries the label, so the rows never show an id that a later fetch renames.
+  const providerName = (id: string) => models?.find((m) => m.provider === id)?.providerLabel || id;
 
   async function pick(provider: string, model: string) {
     onClose();
@@ -119,9 +120,8 @@ export function AgentSelector({
     <>
       {/* Grammar-A header naming the dimension. */}
       <div className={GROUP_LABEL}>{text("Models", "模型")}</div>
-      {/* Rows wait for the labels: drawn with provider ids first, the
-          names would change under the pointer as the labels arrive. */}
-      {!models || !labelsReady ? null : models.length === 0 ? (
+      {/* Nothing until the list arrives, or the empty-state note flashes. */}
+      {!models ? null : models.length === 0 ? (
         <div className="px-[8px] py-[8px] text-[12px] text-text-muted">
           {t("agent.no_enabled_models")}{" "}
           <a
@@ -169,18 +169,6 @@ export function AgentSelector({
       )}
     </>
   );
-}
-
-/** Provider display names, as Settings shows them. The model chip calls this
- *  too, so the labels are already cached when the menu first opens. A failed
- *  fetch counts as ready: the rows then fall back to the provider ids. */
-export function useProviderLabels() {
-  const { data: providers, isPending } = useQuery({
-    queryKey: ["provider-labels"],
-    queryFn: api.listProviders,
-    staleTime: 5 * 60_000,
-  });
-  return { providers, ready: !isPending };
 }
 
 function ModelRow({ model: m, active, onPick }: { model: EnabledModel; active: boolean; onPick: () => void }) {

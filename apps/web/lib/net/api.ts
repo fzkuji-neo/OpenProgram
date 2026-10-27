@@ -38,6 +38,7 @@ interface RawModel {
   enabled?: boolean;
   custom?: boolean;
   provider?: string;
+  provider_label?: string;
 }
 
 function mapModel(m: RawModel, provider: string): Model {
@@ -51,6 +52,7 @@ function mapModel(m: RawModel, provider: string): Model {
     id: m.id,
     name: m.name || m.id,
     provider: m.provider || provider,
+    ...(m.provider_label ? { providerLabel: m.provider_label } : {}),
     enabled: m.enabled ?? false,
     capabilities: caps,
     context: m.context_window,
