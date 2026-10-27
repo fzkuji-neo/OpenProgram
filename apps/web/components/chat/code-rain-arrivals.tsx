@@ -45,7 +45,12 @@ type Tracker = {
   lostAt: number | null;
 };
 type Fresh = { index: number; ch: string; rect: DOMRect; fade: number };
-type Drop = { x: number; y0: number; start: number; stopY: number; v: number; len: number; glyphs: string[] };
+/** A drop lands on one character (``anchor``) and is re-aimed at it every
+ *  frame: the chat scrolls while a reply streams, and text reflows. */
+type Drop = {
+  x: number; y0: number; start: number; stopY: number; v: number; len: number; glyphs: string[];
+  anchor: { tracker: Tracker; index: number; length: number };
+};
 
 const ROOTS = { user: ".user-md", assistant: ".chat-text" } as const;
 
@@ -172,8 +177,9 @@ function startArrivals(mount: HTMLElement): () => void {
       const start = t0 + Math.random() * 0.25;
       // The drop sinks into the column's first character; the characters
       // below it keep decoding at the same speed, as if it went on.
-      const first = Math.min(...list.map((f) => f.rect.top + f.rect.height / 2 - box.top));
-      drops.push(drop(key * BAND + BAND / 2, y0, start, first, v, 10 + Math.floor(Math.random() * 9)));
+      const head = list.reduce((a, b) => (b.rect.top < a.rect.top ? b : a));
+      const first = head.rect.top + head.rect.height / 2 - box.top;
+      drops.push(drop(t, head, key * BAND + BAND / 2, y0, start, first, v, 10 + Math.floor(Math.random() * 9)));
       for (const f of list) {
         const reveal = start + (f.rect.top + f.rect.height / 2 - box.top - y0) / v;
         t.chars.set(f.index, state(f, reveal, reveal + 0.18 + Math.random() * 0.32));
@@ -199,7 +205,7 @@ function startArrivals(mount: HTMLElement): () => void {
       if (fall === undefined) {
         fall = Math.min(y, (6 + Math.random() * 6) * STEP);
         landed.set(key, fall);
-        drops.push(drop(x, y - fall, t0, y, v, 8 + Math.floor(Math.random() * 7)));
+        drops.push(drop(t, f, x, y - fall, t0, y, v, 8 + Math.floor(Math.random() * 7)));
       }
       const reveal = t0 + fall / v;
       t.chars.set(f.index, state(f, reveal, reveal + 0.12 + Math.random() * 0.22));
@@ -216,8 +222,10 @@ function startArrivals(mount: HTMLElement): () => void {
     const root = parent?.closest<HTMLElement>(`${ROOTS.user}, ${ROOTS.assistant}`);
     return !!parent && !!root && getComputedStyle(parent).color === getComputedStyle(root).color;
   }
-  const drop = (x: number, y0: number, start: number, stopY: number, v: number, len: number): Drop =>
-    ({ x, y0, start, stopY, v, len, glyphs: Array.from({ length: len }, randomGlyph) });
+  const drop = (tracker: Tracker, f: Fresh, x: number, y0: number, start: number, stopY: number, v: number, len: number): Drop => ({
+    x, y0, start, stopY, v, len, glyphs: Array.from({ length: len }, randomGlyph),
+    anchor: { tracker, index: f.index, length: f.ch.length },
+  });
 
   // ---- Tracking messages that arrive live ----
   function track(el: HTMLElement) {
@@ -319,15 +327,21 @@ function startArrivals(mount: HTMLElement): () => void {
     hidden.clear();
     fades.forEach((hl) => hl.clear());
     let busy = drops.length > 0;
+    const locators = new Map<Tracker, ReturnType<typeof locator>>();
+    const locate = (tr: Tracker) => {
+      let fn = locators.get(tr);
+      if (!fn) { fn = locator(tr); locators.set(tr, fn); }
+      return fn;
+    };
 
     // Characters: hidden until reached, code while decoding, then green.
     for (const tr of trackers) {
       if (!tr.chars.size || tr.lostAt !== null) continue;
       busy = true;
-      const locate = locator(tr);
+      const locateIn = locate(tr);
       for (const [index, c] of tr.chars) {
         if (t >= c.settle + c.fade) { tr.chars.delete(index); continue; }
-        const range = locate(index, c.ch.length);
+        const range = locateIn(index, c.ch.length);
         if (!range) { tr.chars.delete(index); continue; }
         if (t >= c.settle) {
           fades[Math.min(FADE_STEPS - 1, Math.floor(((t - c.settle) / FADE) * FADE_STEPS))].add(range);
@@ -352,6 +366,16 @@ function startArrivals(mount: HTMLElement): () => void {
     // into the text, so nothing ever rises back up.
     ctx!.font = `600 15px ${CODE_RAIN_FONT}`;
     drops = drops.filter((d) => {
+      // Follow the character: same fall length, landing where it is now.
+      const { tracker, index, length } = d.anchor;
+      const rect = tracker.lostAt === null && tracker.el.isConnected
+        ? locate(tracker)(index, length)?.getClientRects()[0] : undefined;
+      if (rect) {
+        const stopY = rect.top + rect.height / 2 - box.top;
+        d.y0 += stopY - d.stopY;
+        d.stopY = stopY;
+        d.x = rect.left + rect.width / 2 - box.left;
+      }
       const head = d.y0 + (t - d.start) * d.v;
       if (head < d.y0) return true;
       if (head - (d.len - 1) * STEP > d.stopY) return false;
