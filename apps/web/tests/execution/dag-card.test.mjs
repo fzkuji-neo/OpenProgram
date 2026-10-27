@@ -42,11 +42,13 @@ test("Every key sits in one fixed column so the values line up", () => {
   assert.match(css, /\.history-tooltip-kv-key \{[^}]*flex: none;[^}]*width: 84px;/);
 });
 
-test("Light themes fill covered nodes with a wash of the branch colour, and the legend says the same", () => {
+test("Covered tiles fill with their tone, and the legend uses the canvas tile classes", () => {
   const vis = readFileSync(new URL("../../lib/runtime-bridge/dag/render/visibility.ts", import.meta.url), "utf8");
-  assert.match(vis, /light-dark\(color-mix\(in srgb, \$\{lane\} 30%, var\(--bg-primary\)\), var\(--text-bright, #ffffff\)\)/);
+  assert.match(vis, /classList\.toggle\("is-covered", visible\)/);
+  const css = readFileSync(new URL("../../app/styles/dag/nodes.css", import.meta.url), "utf8");
+  assert.match(css, /\.history-node\.is-covered \.dag-tile > rect\[data-node-shape\] \{\s*fill: color-mix\(in srgb, var\(--tone\) 24%/);
   const legend = readFileSync(new URL("../../components/chat/dag-view.tsx", import.meta.url), "utf8");
-  assert.match(legend, /light-dark\(color-mix\(in srgb, \$\{STROKE\} 30%, var\(--bg-primary\)\)/);
+  assert.match(legend, /className=\{`dag-tile t-\$\{tone\} dag-legend-tile`\}/);
 });
 
 test("A session opens readable and framed on HEAD; only the Fit button shows everything", () => {
@@ -60,6 +62,6 @@ test("A session opens readable and framed on HEAD; only the Fit button shows eve
 test("The fold count steps past an error or cross-session mark on the shoulder", () => {
   const nodes = readFileSync(new URL("../../lib/runtime-bridge/dag/render/nodes.ts", import.meta.url), "utf8");
   assert.match(nodes, /querySelector\("\[data-status-bang\], \[data-corner-mark\]"\)/);
-  assert.match(nodes, /String\(NODE_R \+ \(marked \? 11 : 5\)\)/);
+  assert.match(nodes, /String\(TILE_R \+ \(marked \? 10 : 3\)\)/);
   assert.match(nodes, /"data-corner-mark": "1"/);
 });

@@ -37,6 +37,8 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Maximize2, Minus, Plus, Shapes } from "lucide-react";
+import { SolarIcon } from "@/components/solar-icons";
+import type { SolarIconName } from "@/components/solar-icons/bodies";
 
 import { useTranslation } from "@/lib/i18n";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
@@ -48,28 +50,25 @@ import { DagCanvasTools } from "@/components/chat/dag-tools";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const STROKE = "var(--accent-primary, #4a7dfc)";
-const GHOST = "var(--dag-ghost, #c9c7bf)";
+/** A tile swatch: the same `dag-tile t-<tone>` classes the canvas tiles
+ *  carry (render/tiles.ts, app/styles/dag/nodes.css), so the key and the
+ *  canvas can never drift apart. */
+function LegendTile({ icon, tone, state = "covered" }: {
+  icon: SolarIconName;
+  tone: string;
+  state?: "covered" | "outline";
+}) {
+  return (
+    <span className={`dag-tile t-${tone} dag-legend-tile`} data-state={state} aria-hidden="true">
+      <SolarIcon name={icon} size={12} motionPreset="none" />
+    </span>
+  );
+}
 
-/** Shape swatches, drawn with the same primitives `render/shapes.ts` uses so
- *  the key and the canvas can never drift apart. */
-const SHAPES: Record<string, React.ReactNode> = {
-  root: <rect x="3" y="3" width="9" height="9" transform="rotate(45 7.5 7.5)"
-    fill="none" stroke={STROKE} strokeWidth="1.6" />,
-  user: <circle cx="7.5" cy="7.5" r="5" fill="none" stroke={STROKE} strokeWidth="1.6" />,
-  llm: <polygon points="7.5,2 12.5,12 2.5,12" fill="none" stroke={STROKE} strokeWidth="1.6" />,
-  tool: <rect x="2.5" y="2.5" width="10" height="10" fill="none" stroke={STROKE} strokeWidth="1.6" />,
-  ghost: <circle cx="7.5" cy="7.5" r="5" fill="none" stroke={GHOST} strokeWidth="1.4" />,
-  // The coverage fill `render/visibility.ts` paints: a wash of the
-  // branch colour on light canvases, the brightest ink on dark ones.
-  covered: <circle cx="7.5" cy="7.5" r="5" stroke={STROKE} strokeWidth="1.6"
-    fill={`light-dark(color-mix(in srgb, ${STROKE} 30%, var(--bg-primary)), var(--text-bright, #ffffff))`} />,
-};
-
-function LegendRow({ shape, label }: { shape: React.ReactNode; label: string }) {
+function LegendRow({ swatch, label }: { swatch: React.ReactNode; label: string }) {
   return (
     <div className="dag-legend-row">
-      <svg width="15" height="15" aria-hidden="true">{shape}</svg>
+      {swatch}
       <span>{label}</span>
     </div>
   );
@@ -117,25 +116,16 @@ function DagLegend() {
         // 弹层菜单共用的那一份视觉定义；.dag-legend-body 只负责锚位
         // （向上弹）和行的排版。
         <div className={`dag-legend-body ${MENU_PANEL}`}>
-          <LegendRow shape={SHAPES.root} label={text("root", "root")} />
-          <LegendRow shape={SHAPES.user} label={text("user turn", "用户轮")} />
-          <LegendRow shape={SHAPES.llm} label={text("model reply", "模型回复")} />
-          <LegendRow shape={SHAPES.tool} label={text("code / tool", "代码/工具")} />
-          <LegendRow
-            shape={
-              <rect x="1" y="4" width="13" height="7" rx="3.5"
-                fill="none" stroke={STROKE} strokeWidth="1.6" />
-            }
-            label={text("compaction summary", "压缩摘要")}
-          />
-          <LegendRow
-            shape={SHAPES.covered}
-            label={text("in the next request", "在下次请求里")}
-          />
-          <LegendRow
-            shape={SHAPES.ghost}
-            label={text("archived — folded or failed", "已留档 · 折叠或失败")}
-          />
+          <LegendRow swatch={<LegendTile icon="chat-round-line" tone="user" />} label={text("your message", "你的消息")} />
+          <LegendRow swatch={<LegendTile icon="stars" tone="llm" />} label={text("model reply", "模型回复")} />
+          <LegendRow swatch={<LegendTile icon="programming" tone="shell" />}
+            label={text("tool call — same icon as in the chat", "工具调用，图标与对话里一致")} />
+          <LegendRow swatch={<LegendTile icon="bot" tone="agent" />} label={text("sub-agent", "子 agent")} />
+          <LegendRow swatch={<LegendTile icon="archive" tone="memory" />} label={text("compaction summary", "压缩摘要")} />
+          <LegendRow swatch={<LegendTile icon="stars" tone="llm" state="outline" />}
+            label={text("outline: not in the next request", "空心：不在下次请求里")} />
+          <LegendRow swatch={<span className="dag-legend-token" aria-hidden="true">M</span>}
+            label={text("an agent, on the step it is working on", "agent 站在它正在做的那一步上")} />
         </div>
       )}
     </div>

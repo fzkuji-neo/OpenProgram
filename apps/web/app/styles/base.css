@@ -1016,22 +1016,6 @@ html[data-sidebar-closed] #sidebar .sidebar-nav-action {
 .history-edge.fork-edge {
   animation: forkEdgeFlow 1.2s linear infinite;
 }
-/* Pulse around DAG mini-map nodes whose async job is currently
-   running. is-running class is toggled by branches-panel via a
-   MutationObserver on .history-body so the indicator survives
-   history-graph re-renders. */
-@keyframes historyNodePulse {
-  0%, 100% { filter: drop-shadow(0 0 2px var(--accent-blue));  }
-  50%      { filter: drop-shadow(0 0 7px var(--accent-blue));  }
-}
-.history-node.is-running circle,
-.history-node.is-running ellipse,
-.history-node.is-running rect,
-.history-node.is-running path,
-.history-node.is-running polygon {
-  animation: historyNodePulse 1.2s ease-in-out infinite;
-}
-
 /* ===== Reduced motion =====
    Blanket opt-out for users who asked the OS to stop animating things.
    Roughly twenty infinite animations (.spinner, .activity-indicator,

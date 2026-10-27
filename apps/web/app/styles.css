@@ -20,6 +20,7 @@
 @import "./styles/chat/thinking-spinner.css";
 @import "./styles/chat/context-card.css";
 @import "./styles/chat/runtime-program.css";
+@import "./styles/tool-tones.css";
 @import "./styles/chat/execution-strip.css";
 @import "./styles/chat/jump-latest.css";
 @import "./styles/chat/message-rail.css";

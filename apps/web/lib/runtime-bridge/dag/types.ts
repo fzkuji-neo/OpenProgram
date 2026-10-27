@@ -31,12 +31,13 @@ export interface GNode {
 }
 
 // Square grid: same vertical and horizontal step so the DAG reads
-// as a chessboard layout.
-export const ROW_H = 32;
-export const COL_W = 32;
-export const NODE_R = 5;
-export const PAD_X = 18;
-export const PAD_Y = 16;
+// as a chessboard layout. A 24px tile (render/tiles.ts) on a 40px step
+// leaves a 16px run of belt between neighbours.
+export const ROW_H = 40;
+export const COL_W = 40;
+// Room for the agent token that stands on a tile's corner (render/agents.ts).
+export const PAD_X = 30;
+export const PAD_Y = 30;
 
 // Categorical branch palette — 唯一定义在 lib/format-utils/lane-colors.ts。
 export { LANE_COLORS } from "@/lib/format-utils/lane-colors";

@@ -483,8 +483,8 @@ test("status-only patch keeps the SVG root and does not replaceChildren", async 
   const { document } = parseHTML(`<!doctype html><html><body>
     <div class="history-body">
       <svg class="history-svg"><g class="history-world"><g class="history-nodes">
-        <g class="history-node" data-msg-id="a">
-          <circle data-node-shape="1" data-base-stroke="#888" data-base-stroke-width="2.2" stroke="#888"></circle>
+        <g class="history-node" data-msg-id="a" transform="translate(30,30)">
+          <g class="dag-tile t-shell"><rect data-node-shape="1"></rect></g>
         </g>
       </g></g></svg>
     </div>
@@ -508,10 +508,9 @@ test("status-only patch keeps the SVG root and does not replaceChildren", async 
   assert.equal(replaced, 0);
   assert.equal(host.querySelector("svg.history-svg"), svg);
   assert.ok(host.querySelector(".history-node").classList.contains("is-running"));
-  assert.equal(
-    host.querySelector("[data-node-shape]").getAttribute("stroke-dasharray"),
-    "4 3",
-  );
+  // A working node gets its agent: the token and the bubble saying what it does.
+  assert.ok(host.querySelector("g.dag-agents .dag-agent-token"));
+  assert.ok(host.querySelector("g.dag-agents .dag-agent-bubble"));
   const again = patchHistoryStatus(host, [
     { id: "a", status: "error", is_error: true, _depth: 1, _lane: 0 },
   ]);
@@ -519,10 +518,8 @@ test("status-only patch keeps the SVG root and does not replaceChildren", async 
   assert.equal(replaced, 0);
   assert.equal(host.querySelector("svg.history-svg"), svg);
   assert.equal(host.querySelector("[data-status-bang]").textContent, "!");
-  assert.equal(
-    host.querySelector("[data-node-shape]").getAttribute("stroke"),
-    "#e5534b",
-  );
+  assert.ok(host.querySelector(".history-node").classList.contains("is-error"));
+  assert.equal(host.querySelector("g.dag-agents .dag-agent-bubble"), null);
 });
 
 test("branches_list does not repaint tags before a payload graph", () => {

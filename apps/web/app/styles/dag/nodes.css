@@ -3,44 +3,110 @@
    对应来源：lib/runtime-bridge/dag/render/nodes.ts */
 
 .history-node { cursor: pointer; }
-.history-node circle,
-.history-node polygon,
-.history-node rect {
-  transition: filter 0.1s ease-out;
+
+/* Tiles (render/tiles.ts, dag/rendering.md §4): the execution timeline's
+   icon tile on the graph. --tone comes from the tile's kind
+   (app/styles/tool-tones.css); every state below changes the tone or the
+   fill, never the tile's shape. */
+.dag-tile { --tone: var(--tool-tone-function); color: var(--tone); }
+.dag-tile.t-user { --tone: var(--accent-primary, #4a7dfc); }
+.dag-tile.t-llm { --tone: var(--timeline-llm); }
+.dag-tile.t-root { --tone: var(--text-secondary); }
+.dag-tile.t-shell { --tone: var(--tool-tone-shell); }
+.dag-tile.t-edit { --tone: var(--tool-tone-edit); }
+.dag-tile.t-read { --tone: var(--tool-tone-read); }
+.dag-tile.t-search { --tone: var(--tool-tone-search); }
+.dag-tile.t-web { --tone: var(--tool-tone-web); }
+.dag-tile.t-agent { --tone: var(--tool-tone-agent); }
+.dag-tile.t-memory { --tone: var(--tool-tone-memory); }
+.dag-tile.t-plan { --tone: var(--tool-tone-plan); }
+.dag-tile.t-media { --tone: var(--tool-tone-media); }
+.dag-tile.t-system { --tone: var(--tool-tone-system); }
+.history-node.is-error .dag-tile { --tone: var(--accent-red, #e5534b); }
+.history-node.is-faded .dag-tile,
+.history-node.is-ghost .dag-tile { --tone: var(--dag-ghost, #c9c7bf); }
+
+/* Outside the next request (§8): an outline on the canvas colour, the
+   icon a little quieter. The canvas fill also buries the belt ends that
+   run centre to centre under the tile. */
+.dag-tile > rect[data-node-shape] {
+  fill: var(--bg-primary, #191918);
+  stroke: color-mix(in srgb, var(--tone) 55%, transparent);
+  stroke-width: 1.2;
+  transition: fill 0.15s ease-out, stroke 0.15s ease-out, filter 0.1s ease-out;
 }
-.history-node:hover circle,
-.history-node:hover polygon,
-.history-node:hover rect {
-  filter: brightness(1.2);
+.dag-tile-icon { opacity: 0.7; transition: opacity 0.15s ease-out; }
+/* Covered: filled with its tone, like the timeline's tile. */
+.history-node.is-covered .dag-tile > rect[data-node-shape] {
+  fill: color-mix(in srgb, var(--tone) 24%, var(--bg-primary, #191918));
+  stroke: var(--tone);
 }
-/* HEAD — a breathing glow on the glyph itself (render/nodes.ts stamps
-   data-head + the branch colour as `color`, dag/rendering.md §4).
-   drop-shadow hugs the shape's outline at every zoom — unlike a drawn
-   halo ring, which reads as a second blurrier node — and the slow
-   pulse says "you are here" without repainting anything. */
+.history-node.is-covered .dag-tile-icon { opacity: 1; }
+/* Aged out of the window soon (§8): the outline steps back. */
+.history-node.is-aged .dag-tile > rect[data-node-shape] { stroke-opacity: 0.45; }
+
+.history-node:hover .dag-tile > rect[data-node-shape] { filter: brightness(1.2); }
+
+/* HEAD — a breathing glow on its own tile, in the tile's tone (§4).
+   drop-shadow hugs the outline at every zoom; the slow pulse says
+   "you are here" without repainting anything. */
 .history-node [data-head="1"] {
   animation: dag-head-glow 2.4s ease-in-out infinite;
 }
 @keyframes dag-head-glow {
-  0%, 100% { filter: drop-shadow(0 0 2px currentColor); }
-  50% { filter: drop-shadow(0 0 7px currentColor); }
+  0%, 100% { filter: drop-shadow(0 0 2px var(--tone)); }
+  50% { filter: drop-shadow(0 0 7px var(--tone)); }
 }
+
+/* Running: a short arc travels round the tile, the timeline tile's
+   orbit drawn as a stroke (SVG has no conic gradient). */
+.dag-tile-orbit {
+  fill: none;
+  stroke: var(--tone);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-dasharray: 22 78;
+  opacity: 0;
+}
+.history-node.is-running .dag-tile-orbit {
+  opacity: 1;
+  animation: dag-orbit 1.1s linear infinite;
+}
+@keyframes dag-orbit { to { stroke-dashoffset: -100; } }
+
+/* Agent tokens (render/agents.ts): the agent stands on the tile it works
+   on and bobs; the bubble says what it is doing. Idle, it rests. */
+.dag-agent-disc { stroke: var(--bg-primary, #191918); stroke-width: 2; }
+.dag-agent-letter {
+  font-size: 9px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  fill: #fff;
+}
+.dag-agent-token:not(.is-idle) > * { animation: dag-agent-bob 1.2s ease-in-out infinite; }
+@keyframes dag-agent-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2.5px); }
+}
+.dag-agent-bubble rect {
+  fill: var(--bg-secondary, var(--bg-primary));
+  stroke: var(--border-color, rgba(128, 128, 128, 0.35));
+  stroke-width: 1;
+}
+.dag-agent-bubble text {
+  font-size: 11px;
+  font-family: var(--font-sans);
+  fill: var(--text-primary);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .history-node [data-head="1"] {
     animation: none;
-    filter: drop-shadow(0 0 4px currentColor);
+    filter: drop-shadow(0 0 4px var(--tone));
   }
-}
-
-/* status=running：同形状虚线描边 + 呼吸（rendering.md 第四节）。 */
-.history-node.is-running circle,
-.history-node.is-running polygon,
-.history-node.is-running rect {
-  animation: dag-breathe 1.6s ease-in-out infinite;
-}
-@keyframes dag-breathe {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
+  .history-node.is-running .dag-tile-orbit,
+  .dag-agent-token > * { animation: none; }
+  .history-node.is-running .dag-tile-orbit { stroke-dasharray: none; }
 }
 
 /* Next-message context range: nodes/edges outside the active branch
@@ -86,11 +152,7 @@
 
 /* Ghosts do not brighten on hover: the whole point of the state is
    that these nodes read as receded. They stay clickable. */
-.history-node.is-ghost:hover circle,
-.history-node.is-ghost:hover polygon,
-.history-node.is-ghost:hover rect,
-.history-node.is-archived-failure:hover circle,
-.history-node.is-archived-failure:hover polygon,
-.history-node.is-archived-failure:hover rect {
+.history-node.is-ghost:hover .dag-tile > rect[data-node-shape],
+.history-node.is-archived-failure:hover .dag-tile > rect[data-node-shape] {
   filter: none;
 }

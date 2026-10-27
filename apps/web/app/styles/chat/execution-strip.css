@@ -9,10 +9,7 @@
   /* Placed by the stream column's gap (chat/stream-blocks.css). */
   margin: 0;
   --timeline-line: light-dark(rgba(36, 36, 32, 0.22), rgba(226, 225, 218, 0.28));
-  --timeline-thinking: light-dark(#7c3aed, #b78cff);
-  --timeline-function: light-dark(#d14a1f, #ff9a66);
-  --timeline-llm: light-dark(#00849a, #45d7e8);
-  --timeline-subagent: light-dark(#0b8a4b, #4bd58a);
+  /* The step tones live in tool-tones.css, shared with the DAG. */
 }
 /* The summary row is 28px tall for its click target, which leaves ~7.5px
    of empty row above and below the sentence. The stream column's gap is
@@ -281,22 +278,22 @@
 .tl-sub .tl-step-icon svg { width: 11px; height: 11px; }
 .tl-sub .tl-step-body { font-size: 12.5px; padding: 8px 12px; }
 
-/* Tones. Generic kinds keep their old hues; per-tool tones come from
-   components/chat/messages/tool-presentation.ts. */
+/* Tones (values in tool-tones.css). Generic kinds keep their old hues;
+   per-tool tones come from components/chat/messages/tool-presentation.ts. */
 .tl-step-icon.k-thinking { --tone: var(--timeline-thinking); }
 .tl-step-icon.k-function { --tone: var(--timeline-function); }
 .tl-step-icon.k-llm { --tone: var(--timeline-llm); }
 .tl-step-icon.k-subagent { --tone: var(--timeline-subagent); }
-.tl-step-icon.t-shell { --tone: light-dark(#15803d, #4ade80); }
-.tl-step-icon.t-edit { --tone: light-dark(#b45309, #fbbf24); }
-.tl-step-icon.t-read { --tone: light-dark(#1d4ed8, #60a5fa); }
-.tl-step-icon.t-search { --tone: light-dark(#0e7490, #22d3ee); }
-.tl-step-icon.t-web { --tone: light-dark(#4338ca, #818cf8); }
+.tl-step-icon.t-shell { --tone: var(--tool-tone-shell); }
+.tl-step-icon.t-edit { --tone: var(--tool-tone-edit); }
+.tl-step-icon.t-read { --tone: var(--tool-tone-read); }
+.tl-step-icon.t-search { --tone: var(--tool-tone-search); }
+.tl-step-icon.t-web { --tone: var(--tool-tone-web); }
 .tl-step-icon.t-agent { --tone: var(--timeline-subagent); }
-.tl-step-icon.t-memory { --tone: light-dark(#a21caf, #e879f9); }
-.tl-step-icon.t-plan { --tone: light-dark(#475569, #a5b4c8); }
-.tl-step-icon.t-media { --tone: light-dark(#be123c, #fb7185); }
-.tl-step-icon.t-system { --tone: light-dark(#57534e, #c4bfb8); }
+.tl-step-icon.t-memory { --tone: var(--tool-tone-memory); }
+.tl-step-icon.t-plan { --tone: var(--tool-tone-plan); }
+.tl-step-icon.t-media { --tone: var(--tool-tone-media); }
+.tl-step-icon.t-system { --tone: var(--tool-tone-system); }
 .tl-step-icon.t-function { --tone: var(--timeline-function); }
 .tl-step-icon.is-error { --tone: var(--accent-red); }
 /* 手动函数运行的底部操作行：与聊天消息 footer 同款（时间戳 + 图标，

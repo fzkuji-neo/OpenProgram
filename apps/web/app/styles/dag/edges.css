@@ -5,6 +5,21 @@
    so every branch reads as its own continuous ribbon. No CSS overrides
    here beyond fill:none (belt-and-braces in case the inline drops). */
 .history-edge { fill: none; }
+
+/* Belts (dag/rendering.md §3): chain and thread edges run on a wide
+   neutral track; the line into a working node flows along it. */
+.dag-belt {
+  stroke: color-mix(in srgb, var(--text-muted, #8a887f) 22%, transparent);
+  stroke-width: 8;
+}
+.history-edge.is-live {
+  stroke-dasharray: 4 6;
+  animation: dag-belt-flow 0.8s linear infinite;
+}
+@keyframes dag-belt-flow { to { stroke-dashoffset: -10; } }
+@media (prefers-reduced-motion: reduce) {
+  .history-edge.is-live { animation: none; }
+}
 /* Edges are double-clickable. The hit-area is a wide invisible
    sibling path under the visible stroke (see ``history-edge-hit``).
    Hovering the hit path fattens the visible stroke for feedback. */

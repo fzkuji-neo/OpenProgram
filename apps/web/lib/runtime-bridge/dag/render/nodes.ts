@@ -14,14 +14,10 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { type GNode, NODE_R } from "../types";
-import {
-  CAPSULE_RING,
-  _branchColor,
-  _buildShapeEl,
-  _shapeFor,
-  _svg,
-} from "./shapes";
+import { type GNode } from "../types";
+import { _branchColor, _svg } from "./shapes";
+import { TILE_R, buildTile, tileFor } from "./tiles";
+import { paintAgents } from "./agents";
 import { _summaryExpanded } from "../store/globals";
 import type { ThreadModel } from "../passes/thread";
 
@@ -52,7 +48,12 @@ function applyStatusPaint(
   const isSuperseded = !!(node as Record<string, unknown>).superseded_summary;
   const isErr = status === "error" || !!node.is_error;
 
+  // Status is a CSS state of the tile (app/styles/dag/nodes.css): the
+  // running comet, the red tone of an error, the grey of a turn kept only
+  // for the record. A cancelled turn fades as a whole.
   g.classList.toggle("is-running", status === "running");
+  g.classList.toggle("is-error", isErr && !isFailed && !isSuperseded);
+  g.classList.toggle("is-faded", isFailed || isSuperseded);
   if (status === "cancelled" || status === "stopped") {
     g.setAttribute("opacity", "0.45");
   } else {
@@ -61,32 +62,14 @@ function applyStatusPaint(
   g.classList.toggle("is-archived-failure", isFailed);
   g.setAttribute("data-failed", isFailed ? "1" : "0");
 
-  if (el) {
-    if (status === "running") el.setAttribute("stroke-dasharray", "4 3");
-    else el.removeAttribute("stroke-dasharray");
-
-    const base = el.getAttribute("data-base-stroke") || "";
-    const baseW = el.getAttribute("data-base-stroke-width") || "";
-    if (isFailed || isSuperseded) {
-      el.setAttribute("stroke", "var(--dag-ghost, #c9c7bf)");
-      el.setAttribute("stroke-width", "1.6");
-    } else if (isErr) {
-      el.setAttribute("stroke", "#e5534b");
-      if (baseW) el.setAttribute("stroke-width", baseW);
-    } else if (base) {
-      el.setAttribute("stroke", base);
-      if (baseW) el.setAttribute("stroke-width", baseW);
-    }
-  }
-
   const wantBang = !!(el && isErr);
   let bang = g.querySelector("[data-status-bang]");
   if (wantBang && !bang) {
     bang = _svg("text", {
-      x: String(NODE_R + 2),
-      y: String(-NODE_R),
-      fill: "#e5534b",
-      "font-size": "9",
+      x: String(TILE_R + 2),
+      y: String(-TILE_R + 2),
+      fill: "var(--accent-red, #e5534b)",
+      "font-size": "11",
       "font-weight": "700",
       "pointer-events": "none",
       "data-status-bang": "1",
@@ -106,7 +89,7 @@ function applyStatusPaint(
 function seatShoulderCount(g: Element): void {
   const marked = g.querySelector("[data-status-bang], [data-corner-mark]");
   g.querySelectorAll(".history-thread-count").forEach((cnt) => {
-    cnt.setAttribute("x", String(NODE_R + (marked ? 11 : 5)));
+    cnt.setAttribute("x", String(TILE_R + (marked ? 10 : 3)));
   });
 }
 
@@ -128,6 +111,12 @@ export function patchHistoryStatus(host: HTMLElement, graph: GNode[]): boolean {
     applyStatusPaint(g, el, node);
     (g as any)._nodeData = node;
   }
+  // The belts into working nodes flow, and the agents move with them.
+  host.querySelectorAll("svg.history-svg .history-edge[data-to]").forEach((edge) => {
+    const to = edge.getAttribute("data-to") || "";
+    edge.classList.toggle("is-live", byId[to]?.status === "running");
+  });
+  paintAgents(nodeG);
   return true;
 }
 
@@ -201,53 +190,28 @@ export function drawNodes(
       "data-ghost": isGhost ? "1" : "0",
       "data-failed": isFailed ? "1" : "0",
     });
-    const hit = _svg("circle", {
-      r: "7",
+    const hit = _svg("rect", {
+      x: -TILE_R - 3, y: -TILE_R - 3, width: TILE_R * 2 + 6, height: TILE_R * 2 + 6,
       fill: "transparent",
       "pointer-events": "all",
     });
     g.appendChild(hit);
     (g as SVGGraphicsElement).style.cursor = "pointer";
-    const r = NODE_R + 3;
-    const el = _buildShapeEl(_shapeFor(node), color, r);
-    if (el) {
-      el.setAttribute("pointer-events", "none");
-      el.setAttribute("data-node-shape", "1");
-      el.setAttribute("data-base-stroke", color);
-      el.setAttribute(
-        "data-base-stroke-width",
-        el.getAttribute("stroke-width") || "2.2",
-      );
-      // HEAD is said by a breathing glow around its own glyph (§4):
-      // light rides the shape at every zoom, where a fill changed what
-      // the glyph looks like and a halo ring read as a second node.
-      // ``color`` on the <g> feeds the CSS glow's ``currentColor``.
-      if (isHead) {
-        el.setAttribute("data-head", "1");
-        (g as SVGGraphicsElement).style.color = color;
-      }
-      g.appendChild(el);
-    }
+    const tile = buildTile(tileFor(node));
+    const el = tile.querySelector("[data-node-shape]") as SVGElement | null;
+    // HEAD is said by a breathing glow around its own tile (§4), in the
+    // tile's tone: light rides the shape at every zoom, where a fill
+    // would change what the tile looks like.
+    if (isHead && el) el.setAttribute("data-head", "1");
+    g.appendChild(tile);
     applyStatusPaint(g, el, node);
-    // ── 内圈：双圈圆的里圈（rendering.md §9）────────────────────
-    // 细一号的同心圆，跟外圈同色，在白填充（在上下文中）与镂空两种
-    // 状态下都可见。
-    if (isCapsule) {
-      g.appendChild(_svg("circle", {
-        r: String((NODE_R + 3) * CAPSULE_RING),
-        fill: "none",
-        stroke: color,
-        "stroke-width": "1.2",
-        "pointer-events": "none",
-      }));
-    }
     // ── 折叠数：肩上的数字，与调用线程的折叠数同一套语言（§12）──
     // 数字贴在右上角说"后面收着这么多节点"；展开后消失，因为那时
     // 它们都在屏上。
     if (isCapsule && !capsuleOpen && !isInert) {
       const cnt = _svg("text", {
-        x: String(NODE_R + 5),
-        y: String(-NODE_R - 1),
+        x: String(TILE_R + 3),
+        y: String(-TILE_R + 2),
         class: "history-thread-count",
         "pointer-events": "none",
       });
@@ -259,13 +223,12 @@ export function drawNodes(
     // ── 覆盖态的两级衰减（rendering.md 第八节）──
     const cov = coverageSet ? coverageSet[id] : undefined;
     if (el && cov && cov.aged) {
-      el.setAttribute("stroke-opacity", "0.4");
       g.classList.add("is-aged");
     }
     if (cov && cov.spilled) {
       const spill = _svg("text", {
-        x: String(-NODE_R - 9),
-        y: String(-NODE_R + 1),
+        x: String(-TILE_R - 11),
+        y: String(-TILE_R + 3),
         fill: color,
         "font-size": "9",
         "pointer-events": "none",
@@ -278,8 +241,8 @@ export function drawNodes(
     if ((node as Record<string, unknown>).spawn_remote
         || (node as Record<string, unknown>).spawn_out) {
       const arrow = _svg("text", {
-        x: String(NODE_R + 2),
-        y: String(-NODE_R + 1),
+        x: String(TILE_R + 2),
+        y: String(-TILE_R + 3),
         fill: color,
         "font-size": "10",
         "font-weight": "700",
@@ -295,8 +258,8 @@ export function drawNodes(
     // 同一类事件，一并计入。展开后角标消失：调用变成线程上的真节点。
     if (threadCount && !threadOpen) {
       const cnt = _svg("text", {
-        x: String(NODE_R + 5),
-        y: String(-NODE_R - 1),
+        x: String(TILE_R + 3),
+        y: String(-TILE_R + 2),
         class: "history-thread-count",
         "pointer-events": "none",
       });

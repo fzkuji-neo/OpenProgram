@@ -16,8 +16,6 @@
  *   * attach / merge references — unchanged.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { type GNode, COL_W, PAD_X, PAD_Y, ROW_H } from "../types";
 import { _branchColor, _edgePath, _svg } from "./shapes";
 import { _onEdgeDblclick } from "../interaction/nodes";
@@ -26,6 +24,46 @@ import { isChainNode, isSpawnRoot } from "../passes/thread";
 import type { Geometry } from "../layout/geometry";
 
 const GHOST_STROKE = "var(--dag-ghost, #c9c7bf)";
+
+function isRunning(node: GNode): boolean {
+  return (node as Record<string, unknown>).status === "running";
+}
+
+function beltLayer(edgeG: SVGElement): SVGElement {
+  const prev = edgeG.previousElementSibling;
+  if (prev?.classList.contains("dag-belts")) return prev as SVGElement;
+  const layer = _svg("g", { class: "dag-belts" });
+  edgeG.parentNode?.insertBefore(layer, edgeG);
+  return layer;
+}
+
+/** A chain or thread edge as a conveyor belt (dag/rendering.md §3): a
+ *  wide neutral track with the branch-coloured line on it. The line into
+ *  a node that is working flows (``is-live``, app/styles/dag/edges.css);
+ *  ``data-to`` names that node, so a status patch can start or stop it. */
+function belt(
+  edgeG: SVGElement,
+  at: { x1: number; y1: number; x2: number; y2: number },
+  color: string,
+  dash: Record<string, string> | null,
+  live: boolean,
+  to: string,
+  kind = "",
+): void {
+  if (!dash) {
+    // Tracks sit in their own layer under every line, so a track laid
+    // later never covers the coloured line of a junction drawn earlier.
+    beltLayer(edgeG).appendChild(_svg("line", {
+      ...at, class: "dag-belt", "stroke-linecap": "round", "pointer-events": "none",
+    }));
+  }
+  edgeG.appendChild(_svg("line", {
+    ...at, stroke: color, "stroke-width": 2, "stroke-linecap": "round",
+    "pointer-events": "none", "data-to": to,
+    class: ["history-edge", kind, live ? "is-live" : ""].filter(Boolean).join(" "),
+    ...(dash ?? {}),
+  }));
+}
 
 export function drawEdges(
   edgeG: SVGElement,
@@ -116,19 +154,14 @@ export function drawEdges(
       }
     }
 
+    // The belt into a working node runs; a ghost line keeps its dashes
+    // and gets no belt — it is not what the next request carries.
+    const live = isRunning(node);
     if (c.y > fromY) {
-      edgeG.appendChild(_svg("line", {
-        x1: trunkX, y1: fromY, x2: trunkX, y2: c.y,
-        stroke: color, "stroke-width": 1.6, "stroke-linecap": "round",
-        "pointer-events": "none", class: "history-edge", ...dash,
-      }));
+      belt(edgeG, { x1: trunkX, y1: fromY, x2: trunkX, y2: c.y }, color, isGhost ? dash : null, live, id);
     }
     if (c.x !== trunkX) {
-      edgeG.appendChild(_svg("line", {
-        x1: trunkX, y1: c.y, x2: c.x, y2: c.y,
-        stroke: color, "stroke-width": 1.6, "stroke-linecap": "round",
-        "pointer-events": "none", class: "history-edge", ...dash,
-      }));
+      belt(edgeG, { x1: trunkX, y1: c.y, x2: c.x, y2: c.y }, color, isGhost ? dash : null, live, id);
     }
   });
 
@@ -237,20 +270,11 @@ export function drawEdges(
     // the anchor's own branch colour. The execution layer is already
     // said by the shapes and the column; the line needs no third voice.
     const tColor = _branchColor(anchorNode, stableLeafOfNode);
-    edgeG.appendChild(_svg("line", {
-      x1: ap.x, y1: ap.y, x2: ap.x, y2: lastY,
-      stroke: tColor, "stroke-width": 1.4,
-      "stroke-linecap": "round",
-      "pointer-events": "none", class: "history-edge thread-edge",
-    }));
+    const live = isRunning(anchorNode);
+    belt(edgeG, { x1: ap.x, y1: ap.y, x2: ap.x, y2: lastY }, tColor, null, live, anchor, "thread-edge");
     rows.forEach((r) => {
       const ry = PAD_Y + r * ROW_H;
-      edgeG.appendChild(_svg("line", {
-        x1: ap.x, y1: ry, x2: tx, y2: ry,
-        stroke: tColor, "stroke-width": 1.4,
-        "stroke-linecap": "round",
-        "pointer-events": "none", class: "history-edge thread-edge",
-      }));
+      belt(edgeG, { x1: ap.x, y1: ry, x2: tx, y2: ry }, tColor, null, live, anchor, "thread-edge");
     });
   });
 

@@ -162,15 +162,14 @@ export function paintSelection(): void {
   if (pruned) emit();
 }
 
-/** A dashed rounded box a few pixels outside the node's glyph. Sized
- *  from the glyph itself, so a capsule gets a wide ring and a dot a
- *  small one. */
+/** A dashed rounded box a few pixels outside the node's tile, sized
+ *  from the tile itself. */
 function selectionRing(g: SVGGElement): SVGElement {
   const glyph = g.querySelector<SVGGraphicsElement>("[data-node-shape]");
-  let x = -6;
-  let y = -6;
-  let w = 12;
-  let h = 12;
+  let x = -12;
+  let y = -12;
+  let w = 24;
+  let h = 24;
   try {
     const bb = glyph?.getBBox();
     if (bb && bb.width) ({ x, y, width: w, height: h } = bb);
@@ -184,7 +183,7 @@ function selectionRing(g: SVGGElement): SVGElement {
     y: y - pad,
     width: w + pad * 2,
     height: h + pad * 2,
-    rx: 4,
+    rx: 10,
     "pointer-events": "none",
   });
 }

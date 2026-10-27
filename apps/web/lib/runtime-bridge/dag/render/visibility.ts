@@ -13,9 +13,6 @@
  * triggers recomputation.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
-import { _applyShapeSize } from "./shapes";
 import {
   _chatMutationObserver,
   _chatScrollWired,
@@ -28,37 +25,10 @@ import {
 } from "../store/globals";
 
 export function _applyVisibility(nodeEl: Element, visible: boolean): void {
-  let shape: SVGElement | null = null;
-  const kids = nodeEl.children;
-  for (let i = 0; i < kids.length; i++) {
-    const c = kids[i] as SVGElement;
-    const tag = c.tagName;
-    if (tag !== "circle" && tag !== "polygon" && tag !== "rect") continue;
-    // Skip the invisible hit-area circle (pointer-events=all) and the
-    // selection ring (interaction/selection.ts).
-    if (c.getAttribute("pointer-events") === "all") continue;
-    if (c.classList.contains("dag-select-ring")) continue;
-    shape = c;
-    break;
-  }
-  if (shape) {
-    _applyShapeSize(shape);
-    // Hollow = the canvas colour, never transparent: the fill is what
-    // buries the centre-to-centre edge ends inside the outline
-    // (shapes.ts) — transparent would show a phantom dot of line cap
-    // at the glyph's centre.
-    // Filled: on a dark canvas the theme's brightest ink, near-white.
-    // On a light canvas that ink is near-black, and a column of black
-    // glyphs read as heavy blots — so light themes fill with a pale
-    // wash of the node's own branch colour instead, which still parts
-    // clearly from the hollow canvas fill.
-    const lane = shape.getAttribute("data-base-stroke") || "var(--text-muted)";
-    shape.setAttribute(
-      "fill",
-      visible
-        ? `light-dark(color-mix(in srgb, ${lane} 30%, var(--bg-primary)), var(--text-bright, #ffffff))`
-        : "var(--bg-primary, #191918)");
-  }
+  // Covered = part of what the next request carries (dag/rendering.md §8):
+  // the tile fills with its tone; outside it, the tile is an outline.
+  // The colours live in app/styles/dag/nodes.css.
+  nodeEl.classList.toggle("is-covered", visible);
 }
 
 export function _setVisibleSet(newSet: Record<string, boolean>): void {
