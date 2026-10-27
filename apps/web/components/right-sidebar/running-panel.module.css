@@ -24,7 +24,7 @@
 /* The line is solid (mixed into the panel's own colour, not translucent),
    so where two pieces meet the shade never doubles. Rows sit above it: a
    hovered row lifts into a card the line passes under, never over. */
-.panel { --branch-line: color-mix(in srgb, var(--text-muted) 38%, var(--color-sidebar)); --branch-indent: 24px; --branch-x: calc(17px - var(--branch-indent)); }
+.panel { --branch-line: color-mix(in srgb, var(--text-muted) 38%, var(--color-sidebar)); --branch-indent: 24px; --branch-x: calc(19px - var(--branch-indent)); }
 .branch { position: relative; margin-left: calc(var(--depth, 1) * var(--branch-indent)); }
 /* The pieces meet end to end and never overlap, so the translucent line
    keeps one shade: the first child's elbow starts just under its parent's
@@ -43,6 +43,9 @@
 
 /* The kind's colour, as on the chat timeline's tool rows. */
 .glyph { flex: none; width: 18px; height: 18px; display: grid; place-items: center; color: light-dark(#d14a1f, #ff9a66); }
+/* Agents: the sidebar folders' colour and icon family, a size up. */
+.agentGlyph { flex: none; width: 22px; height: 22px; display: grid; place-items: center; color: var(--folder-color); }
+.agentGlyph[data-small] { width: 18px; height: 18px; }
 .glyph[data-tone="run"] { color: var(--text-secondary); }
 .glyph[data-tone="shell"] { color: light-dark(#15803d, #4ade80); }
 .glyph[data-tone="agent"] { color: light-dark(#0b8a4b, #4bd58a); }

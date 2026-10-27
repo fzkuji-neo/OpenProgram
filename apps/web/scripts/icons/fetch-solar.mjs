@@ -74,6 +74,8 @@ const ICONS = {
   "gallery": "bold-duotone",
   "gallery-add": "bold-duotone",
   "bot": "bold-duotone",
+  // Activity's agent rows
+  "user-rounded": "bold-duotone",
   "book": "bold-duotone",
   "chat-round-question-mark": "bold-duotone",
   "map": "bold-duotone",

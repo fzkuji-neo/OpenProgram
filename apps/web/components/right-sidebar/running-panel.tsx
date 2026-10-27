@@ -47,6 +47,13 @@ function Glyph({ name, tone }: { name: SolarIconName; tone: ToolTone | "run" }) 
   </span>;
 }
 
+/** An agent: a person glyph in the folder colour, a size up from the other rows. */
+function AgentGlyph({ small }: { small?: boolean }) {
+  return <span className={styles.agentGlyph} data-small={small ? "1" : undefined} aria-hidden="true">
+    <SolarIcon name="user-rounded" size={small ? 16 : 22} motionPreset="none" />
+  </span>;
+}
+
 /** A conversation or a run: a line glyph in the text colour. */
 function RunGlyph() {
   return <span className={styles.glyph} data-tone="run" aria-hidden="true"><MessageSquareText size={15} strokeWidth={1.8} /></span>;
@@ -381,7 +388,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   // ---- rows ----------------------------------------------------------------
   function mainRow(): ReactNode {
     const { label, tone } = mainStatus();
-    return <Row key="main" glyph={<Glyph name="bot" tone="agent" />} title={mainName} status={label} tone={tone} onOpen={() => open({ kind: "main", id: "main" })} />;
+    return <Row key="main" glyph={<AgentGlyph />} title={mainName} status={label} tone={tone} onOpen={() => open({ kind: "main", id: "main" })} />;
   }
   /** An agent's status line: what waits on the reader first, then what runs. */
   function agentLook(item: ExecutionSnapshot): { label: string; tone: Tone; at: number } {
@@ -416,13 +423,13 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   };
   function agentRow(item: ExecutionSnapshot, line?: Line, by = false): ReactNode {
     const { label, tone } = agentLook(item);
-    return <Row key={`agent:${item.execution_id}`} line={line} glyph={<Glyph name="bot" tone="agent" />} title={agentName(item)}
+    return <Row key={`agent:${item.execution_id}`} line={line} glyph={<AgentGlyph />} title={agentName(item)}
       status={by ? label + startedBy(branches.agentParentOf(item)) : label} tone={tone}
       onOpen={() => open({ kind: "run", id: item.execution_id })} />;
   }
   function spawnRow(item: AgentCall, line?: Line, by = false): ReactNode {
     const label = `${spawnState(item, text)} · ${when(item.at, text)}`;
-    return <Row key={`spawn:${item.id}`} line={line} glyph={<Glyph name="bot" tone="agent" />} title={item.description || text("Sub-agent", "子代理")}
+    return <Row key={`spawn:${item.id}`} line={line} glyph={<AgentGlyph />} title={item.description || text("Sub-agent", "子代理")}
       status={by ? label + startedBy(item.owner_job_id) : label} tone={item.failed ? "err" : "muted"}
       onOpen={() => open({ kind: "spawn", id: item.id })} />;
   }
@@ -645,7 +652,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       {backBar(toActivity)}
       <div className={styles.scroll}>
         <div className={styles.head}>
-          <div className={styles.kind}><Glyph name="bot" tone="agent" />{text("Sub-agent", "子代理")} · {updatedTime(item.at)}</div>
+          <div className={styles.kind}><AgentGlyph small />{text("Sub-agent", "子代理")} · {updatedTime(item.at)}</div>
           <h3 className={styles.title}>{item.description || text("Sub-agent", "子代理")}</h3>
           <Status tone={item.failed ? "err" : "muted"}>{spawnState(item, text)}</Status>
         </div>
