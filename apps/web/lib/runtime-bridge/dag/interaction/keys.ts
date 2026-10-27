@@ -5,6 +5,7 @@
  *
  *   H / V / L        switch tool (hand, select, lasso — any registered
  *                    tool's ``key``)
+ *   F                camera to the next working agent (else HEAD)
  *   Delete / ⌫       delete the selection
  *   Esc              clear the selection
  *   ⌘Z / Ctrl+Z      undo the last delete in this session
@@ -21,6 +22,7 @@ import {
   setSpaceHeld,
   setTool,
 } from "./selection";
+import { focusAgent } from "./canvas";
 import { canUndoDeletion, deleteSelection, undoDeletion } from "./node-delete";
 
 function onKeyDown(e: KeyboardEvent): void {
@@ -52,6 +54,11 @@ function onKeyDown(e: KeyboardEvent): void {
     return;
   }
   if (e.shiftKey || e.repeat) return;
+  if (e.key.toLowerCase() === "f") {
+    e.preventDefault();
+    focusAgent();
+    return;
+  }
   const tool = dagTools().find((t) => t.key === e.key.toLowerCase());
   if (tool && tool.id !== activeTool().id) {
     e.preventDefault();

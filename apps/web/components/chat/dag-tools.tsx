@@ -4,9 +4,11 @@
  * The DAG canvas's tool rail and selection action bar
  * (dag/rendering.md §13).
  *
- * The rail runs down the canvas's left edge, one button per registered
- * tool (lib/runtime-bridge/dag/interaction/selection.ts owns what each
- * tool DOES; this file only gives it a face). The action bar appears at
+ * The rail runs down the canvas's left edge like a game's hotbar: one
+ * icon per registered tool, its key in the corner
+ * (lib/runtime-bridge/dag/interaction/selection.ts owns what each tool
+ * DOES; this file only gives it a face), then the camera button that
+ * finds the working agent. The action bar appears at
  * the top left, above the rail, while something is selected — and for a
  * few seconds after a delete, as the way back. The top right belongs to
  * the pane's perspective controls.
@@ -17,6 +19,7 @@ import {
   Copy,
   Hand,
   Lasso,
+  LocateFixed,
   MousePointer2,
   Trash2,
   Undo2,
@@ -40,6 +43,7 @@ import {
   lastDeletion,
   undoDeletion,
 } from "@/lib/runtime-bridge/dag/interaction/node-delete";
+import { focusAgent } from "@/lib/runtime-bridge/dag/interaction/canvas";
 
 /** Each tool's face. A tool registered without one shows its id. */
 const FACES: Record<string, { Icon: LucideIcon; en: string; zh: string }> = {
@@ -70,13 +74,27 @@ function DagToolRail() {
             className="dag-tool-btn"
             aria-pressed={tool.id === current}
             aria-label={label}
-            data-tip={`${label} (${tool.key.toUpperCase()})`}
+            aria-keyshortcuts={tool.key.toUpperCase()}
+            data-tip={label}
             onClick={() => setTool(tool.id)}
           >
-            {Icon ? <Icon size={16} strokeWidth={2} /> : tool.id.slice(0, 1)}
+            {Icon ? <Icon size={18} strokeWidth={2} /> : tool.id.slice(0, 1)}
+            <kbd className="dag-tool-key" aria-hidden="true">{tool.key.toUpperCase()}</kbd>
           </button>
         );
       })}
+      <span className="dag-tool-gap" aria-hidden="true" />
+      <button
+        type="button"
+        className="dag-tool-btn"
+        aria-label={text("Find the working agent", "找到正在工作的 agent")}
+        aria-keyshortcuts="F"
+        data-tip={text("Find the working agent — again for the next", "找到正在工作的 agent，再按换下一个")}
+        onClick={() => focusAgent()}
+      >
+        <LocateFixed size={18} strokeWidth={2} />
+        <kbd className="dag-tool-key" aria-hidden="true">F</kbd>
+      </button>
     </div>
   );
 }

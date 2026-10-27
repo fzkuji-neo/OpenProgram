@@ -30,7 +30,9 @@
  * were looking. Only a session switch re-fits.
  */
 
+import { animate, type AnimationPlaybackControls } from "framer-motion";
 import { COL_W, PAD_X, PAD_Y } from "../types";
+import { TILE_R } from "../render/tiles";
 import { closeNodeLayers } from "../render/inspector";
 import { hideTooltip } from "./tooltip";
 import {
@@ -239,6 +241,50 @@ export function resetZoom(): void {
   dismissOverlays();
   const { host } = _handle;
   zoomAt(host.clientWidth / 2, host.clientHeight / 2, 1 / _viewScale);
+}
+
+/** Where the camera can go to find someone: each working agent's tile,
+ *  in the order the token layer drew them, else HEAD. World units. */
+function agentSpots(world: SVGGElement): { x: number; y: number }[] {
+  const spots: { x: number; y: number }[] = [];
+  world.querySelectorAll(".dag-agents > .dag-agent-token:not(.is-idle)").forEach((t) => {
+    const m = /translate\(([-\d.]+),([-\d.]+)\)/.exec(t.getAttribute("transform") || "");
+    // A token is pinned to its tile's top-left corner (render/agents.ts).
+    if (m) spots.push({ x: Number(m[1]) + TILE_R, y: Number(m[2]) + TILE_R });
+  });
+  if (!spots.length) {
+    const head = headPoint(world);
+    if (head) spots.push(head);
+  }
+  return spots;
+}
+
+let _focusTurn = 0;
+let _glide: AnimationPlaybackControls | null = null;
+
+/** Glide the camera to the next working agent (or HEAD), keeping the
+ *  zoom. Pressed again it moves on to the next agent, so with several
+ *  at work one key walks through them all. */
+export function focusAgent(): void {
+  if (!_handle) return;
+  dismissOverlays();
+  const { world, host } = _handle;
+  const spots = agentSpots(world);
+  if (!spots.length) return;
+  const at = spots[_focusTurn++ % spots.length];
+  const w = host.clientWidth;
+  const h = host.clientHeight - COMPOSER_STRIP;
+  const from = { tx: _viewTx, ty: _viewTy };
+  const to = { tx: Math.round(w / 2 - at.x * _viewScale), ty: Math.round(h / 2 - at.y * _viewScale) };
+  _glide?.stop();
+  _glide = animate(0, 1, {
+    duration: 0.32,
+    ease: [0.22, 1, 0.36, 1],
+    onUpdate: (k) => {
+      setView(from.tx + (to.tx - from.tx) * k, from.ty + (to.ty - from.ty) * k, _viewScale);
+      applyView();
+    },
+  });
 }
 
 /** Wire the pan / zoom gestures onto ``host`` once. */
