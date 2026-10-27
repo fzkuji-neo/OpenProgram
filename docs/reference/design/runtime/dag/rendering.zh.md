@@ -336,7 +336,7 @@ agent，否则属于主 agent；每个 agent 显示它最新的运行中节点�
 
 | 徽标 | 含义 |
 |---|---|
-| 折叠数（右上肩，注文灰） | 节点折叠的调用线程的大小——第十二节。数字贴着字形，没有任何包裹形状：带轮廓的东西会被读成节点。展开后消失——调用都在屏上，数得出来 |
+| 折叠数（右上肩，注文灰） | 节点折叠的调用线程的大小——第十二节，写作 `+N`（"里面还有 N 个"）。贴着字形，没有任何包裹形状：带轮廓的东西会被读成节点。展开后消失——调用都在屏上，数得出来 |
 | `↗`（右上角） | 跨会话 spawn 的**两侧都标**：目标 session 的第一个 user 节点标 `spawn_remote`，源 session 的发起节点标 `spawn_out`。目标投影把外部 caller 归到 ROOT；源 attach 卡片保留目标 session 和分支 head。跨会话 attach 的终点属于另一个图，因此不生成本图内 `attach_returns` 边。当前字形只标识跨会话关系，点击不会跳转。**只在跨会话时出现**：同会话 spawn 的两端在同一个图内，保留普通回流边，不加 ↗ |
 
 ---
@@ -745,7 +745,7 @@ checkout 成活动分支——接管这个 agent 的对话。徽章永不压住�
 |---|---|
 | 无限画布（平移 / 缩放 / fit / 点阵） | `apps/web/lib/runtime-bridge/dag/interaction/canvas.ts` 与 `apps/web/app/styles/dag/canvas.css` 的 `.history-body`；视角状态在 `apps/web/lib/runtime-bridge/dag/store/globals.ts`；HUD 在 `apps/web/components/chat/dag-view.tsx` |
 | 第一节 lane / tier / depth 布局 | `apps/web/lib/runtime-bridge/dag/layout/geometry.ts::computeGeometry`（链 lane 按 tier 打包并 lane 内归零、前序分行、场景3分叉行+间隔列、线程递归安放并下移后续链行、占用线程列）；格点性、无重叠、线程列行、分叉几何均由 `apps/web/scripts/runtime/check-dag-subagent.mjs` 真实执行并断言 |
-| 第二节 规则③ 字形占格 | 没有任何形状按文字定尺寸，画布上除肩上折叠数与胶囊注记外没有文字 |
+| 第二节 规则③ 字形占格 | 没有任何形状按文字定尺寸；注文只占空格子，不挤动布局（`render/captions.ts`） |
 | 第四节 HEAD 呼吸光晕 | `apps/web/lib/runtime-bridge/dag/render/nodes.ts` 戳 `data-head` 并把分支色写进 `color`；`dag-head-glow` 关键帧在 `apps/web/app/styles/dag/nodes.css`（reduced-motion → 恒定光）；所有字形保持空心（`apps/web/lib/runtime-bridge/dag/render/shapes.ts`）；HEAD 指向已归并回复时落到锚上（`apps/web/lib/runtime-bridge/dag/pipeline.ts` 经 `threadModel.anchorOf`） |
 | 第〇节/第十二节 调用线程聚合 | `apps/web/lib/runtime-bridge/dag/passes/thread.ts`（`buildThreadModel`：锚归并、事件归属、递归可见性）；`apps/web/lib/runtime-bridge/dag/render/nodes.ts` 画肩上折叠数（`history-thread-count`）；`apps/web/lib/runtime-bridge/dag/store/globals.ts` 的 `_threadOpen` |
 | 规则②推论（不画占位框） | `apps/web/lib/runtime-bridge/dag/render/shapes.ts`：无 `square_outline`；task 渲染为普通方块 |

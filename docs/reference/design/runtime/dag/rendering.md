@@ -417,7 +417,7 @@ placeholder box:
 
 | Badge | Meaning |
 |---|---|
-| fold count (upper-right shoulder, annotation grey) | the size of the node's folded call thread — §12. Digits glued to the glyph, no enclosing shape: anything shaped would read as a node. Open, it disappears — the calls are on screen and countable |
+| fold count (upper-right shoulder, annotation grey) | the size of the node's folded call thread — §12, written `+N` ("N more inside"). Glued to the glyph, no enclosing shape: anything shaped would read as a node. Open, it disappears — the calls are on screen and countable |
 | `↗` (top-right corner) | marked on **both sides** of a cross-session spawn: `spawn_remote` on the first target-session user node and `spawn_out` on the initiating source-session node. The target projection places the external caller at ROOT; the source attach card stores the target session and branch head. A cross-session attach does not create an in-graph `attach_returns` edge because its endpoint belongs to another graph. The glyph currently indicates the cross-session relation only; clicking it does not navigate. **Cross-session only**: a same-session spawn has both ends in one graph and keeps the ordinary return edge, so it has no ↗ |
 
 ---
@@ -945,7 +945,7 @@ The whole spec is implemented. Where each part lives:
 |---|---|
 | Infinite canvas (pan / zoom / fit / dot lattice) | `apps/web/lib/runtime-bridge/dag/interaction/canvas.ts` + `.history-body` in `apps/web/app/styles/dag/canvas.css`; view state in `apps/web/lib/runtime-bridge/dag/store/globals.ts`; HUD in `apps/web/components/chat/dag-view.tsx` |
 | §1 lane / tier / depth layout | `apps/web/lib/runtime-bridge/dag/layout/geometry.ts::computeGeometry` (tier-packed chain lanes with per-lane tier zeroing, preorder rows, scene-3 fork rows + gap column, recursive thread placement that inserts later chain rows and reserves thread columns); lattice, no-overlap, thread columns/rows and fork geometry all executed and asserted by `apps/web/scripts/runtime/check-dag-subagent.mjs` |
-| §2 rule ③ glyphs are cells | no shape is sized from text, and no text draws on the canvas beyond the shoulder count and the capsule note |
+| §2 rule ③ glyphs are cells | no shape is sized from text; captions take only free cells and never move the layout (`render/captions.ts`) |
 | §4 HEAD breathing glow | `apps/web/lib/runtime-bridge/dag/render/nodes.ts` stamps `data-head` + the branch colour as `color`; `dag-head-glow` keyframes in `apps/web/app/styles/dag/nodes.css` (reduced-motion → steady glow); every glyph stays hollow (`apps/web/lib/runtime-bridge/dag/render/shapes.ts`); HEAD pointing at a merged reply re-seats on its anchor (`apps/web/lib/runtime-bridge/dag/pipeline.ts` via `threadModel.anchorOf`) |
 | §0/§12 call-thread aggregation | `apps/web/lib/runtime-bridge/dag/passes/thread.ts` (`buildThreadModel`: anchor merge, event attribution, recursive visibility); `apps/web/lib/runtime-bridge/dag/render/nodes.ts` draws the shoulder count (`history-thread-count`); `_threadOpen` in `apps/web/lib/runtime-bridge/dag/store/globals.ts` |
 | Rule ② corollary (no placeholder box) | `apps/web/lib/runtime-bridge/dag/render/shapes.ts`: no `square_outline`; task renders as a plain square |

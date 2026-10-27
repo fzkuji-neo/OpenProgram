@@ -214,7 +214,7 @@ export function drawNodes(
         class: "history-thread-count",
         "pointer-events": "none",
       });
-      cnt.textContent = String(covered.length);
+      cnt.textContent = `+${covered.length}`;
       g.appendChild(cnt);
     }
     // 胶囊不带文字注记：形状（双圈）说明它是什么，肩上数字说明收了
@@ -262,7 +262,7 @@ export function drawNodes(
         class: "history-thread-count",
         "pointer-events": "none",
       });
-      cnt.textContent = String(threadCount);
+      cnt.textContent = `+${threadCount}`;
       g.appendChild(cnt);
       seatShoulderCount(g);
     }
