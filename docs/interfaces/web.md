@@ -220,11 +220,15 @@ Opening `/settings` directly lands on `/settings/general`. Model credentials sta
 
 In narrow windows (900px wide or less) the left sidebar starts collapsed to its icon rail until you open it, and an opened sidebar closes again after you navigate. The list column on History (projects), Agents and Settings collapses to an icon rail with the button before the page title. Below 760px these columns start as icon rails too, and collapse when the window is resized to that width. A sidebar or column you open or close yourself keeps that choice.
 
-### Welcome animation
+### Code rain style
 
-A new, empty chat shows only the input box. Turn on **Welcome animation** in Settings → General to play a code rain behind it: green columns of letters, digits, symbols and katakana falling down the chat area. It is off by default and saved in this browser. Once it is on, **Code rain density** sets how many streams fall at once, from 10% to 100% (40% by default), and applies while you drag. When the system asks for reduced motion, the rain is drawn as a still frame.
+**Code rain style** in Settings → General gives the chat a Matrix look. It is off by default and saved in this browser.
 
-Once a chat has messages the background rain fades out, and only new messages come through it. A message you send is rained onto from above: each character shows as code when a stream reaches it, decodes into the real character, and fades from green into the text colour. A streamed reply gets short streams that land on each new piece and decode the same way. History that loads or scrolls back into view shows as it is. The animation only changes how the text looks while it plays; selection, copy and find work on the real text throughout. Under reduced motion new messages appear without it. While a reply has not started, the **thinking…** status turns into code as well: the spinner becomes small columns of falling glyphs, and the green label decodes from glyphs into its letters, then flickers back into code now and then.
+- **Empty chat**: a new, empty chat plays a code rain behind the input box: green columns of letters, digits, symbols and katakana falling down the chat area. **Code rain density** sets how many streams fall at once, from 10% to 100% (40% by default), and applies while you drag.
+- **New messages**: once a chat has messages the background rain fades out, and only new messages come through it. Streams fall onto a message you send and onto each new piece of a streamed reply; each character shows as code when a stream reaches it, decodes into the real character, and fades from green into the text colour. The streams pass behind the text already in the chat. History that loads or scrolls back into view shows as it is, and selection, copy and find work on the real text throughout.
+- **In progress**: everything still running shows as code. The **thinking…** status, a running tool group's label (such as *Searching the web…*) and a running step's title become a green monospace line that decodes from glyphs into its letters and flickers back into code now and then; spinners and running step icons become small columns of falling glyphs; a streaming sub-call ends in a blinking block cursor. Once a step finishes it returns to its usual look.
+
+When the system asks for reduced motion, the empty-chat rain is drawn as a still frame, new messages appear without the rain, and in-progress labels stay still.
 
 ### Tab drag appearance
 

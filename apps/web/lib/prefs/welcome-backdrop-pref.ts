@@ -1,6 +1,7 @@
 /**
- * Welcome animation preference: whether the empty chat shows the code
- * rain backdrop, and how dense the rain is. Off by default; saved on this
+ * Code rain style preference (Settings → General → Code rain style):
+ * whether the chat uses the Matrix look, and how dense the empty chat's
+ * rain is. Off by default; saved on this
  * device (localStorage) and broadcast to every mounted reader, including
  * other windows.
  */
@@ -38,6 +39,8 @@ function read(): State {
 
 function update(next: State, persist: boolean): void {
   current = next;
+  // The code rain style's CSS keys off this (code-rain-style.css).
+  document.documentElement.dataset.codeRain = next.enabled ? "on" : "off";
   if (persist) {
     try {
       window.localStorage.setItem(WELCOME_BACKDROP_STORAGE_KEY, next.enabled ? "on" : "off");

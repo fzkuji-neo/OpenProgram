@@ -1,7 +1,7 @@
 /**
  * WelcomeBackdrop — the code rain behind the empty chat.
  *
- * Shown only when the "Welcome animation" setting is on (off by default,
+ * Shown only when the "Code rain style" setting is on (off by default,
  * see welcome-backdrop-pref.ts), as dense as that setting says.
  * Reduced-motion draws a single still frame. When the chat gets its first
  * message the rain stops: no new drops start and the scene fades out,

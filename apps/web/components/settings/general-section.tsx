@@ -445,10 +445,10 @@ export function GeneralSection() {
         </SettingsRow>
 
         <SettingsRow
-          label={text("Welcome animation", "欢迎页动画")}
+          label={text("Code rain style", "代码雨风格")}
           description={text(
-            "Code rain behind an empty chat; new messages arrive through it. Saved on this device.",
-            "空白对话背后的代码雨，新消息也从雨中落下。保存在此设备。",
+            "A Matrix look for chats: code rain behind an empty chat, new messages fall in through it, and anything in progress shows as code. Saved on this device.",
+            "黑客帝国风格：空白对话背后下代码雨，新消息从雨中落下，进行中的状态都显示为代码。保存在此设备。",
           )}
           htmlFor="welcome-code-rain"
         >

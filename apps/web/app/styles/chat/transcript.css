@@ -122,29 +122,3 @@
   opacity: 1;
   transform: none;
 }
-
-/* Code rain arrivals (components/chat/code-rain-arrivals.tsx): the canvas
-   over the chat area that drops and code glyphs are drawn on, and the
-   highlights that hide characters until they decode and then fade them
-   from green to their own colour. */
-:root { --code-rain-ink: #118a3a; --code-rain-head: #063d18; }
-:root[data-theme-mode="dark"] { --code-rain-ink: #22e35b; --code-rain-head: #eafff0; }
-/* The colour the green fades into: each message's body text colour. */
-.user-md { --code-rain-text: var(--text-bright); }
-.chat-text { --code-rain-text: var(--text-primary); }
-.code-rain-arrivals {
-  position: fixed;
-  pointer-events: none;
-  z-index: 30;
-  /* Streams pass behind the text: the darker (lighter in dark mode) of
-     the stream and what is under it wins, so text stays on top. */
-  mix-blend-mode: darken;
-}
-:root[data-theme-mode="dark"] .code-rain-arrivals { mix-blend-mode: lighten; }
-::highlight(code-rain-hidden) { color: transparent; }
-::highlight(code-rain-fade-0) { color: var(--code-rain-ink); }
-::highlight(code-rain-fade-1) { color: color-mix(in srgb, var(--code-rain-ink) 80%, var(--code-rain-text, var(--text-primary))); }
-::highlight(code-rain-fade-2) { color: color-mix(in srgb, var(--code-rain-ink) 60%, var(--code-rain-text, var(--text-primary))); }
-::highlight(code-rain-fade-3) { color: color-mix(in srgb, var(--code-rain-ink) 40%, var(--code-rain-text, var(--text-primary))); }
-::highlight(code-rain-fade-4) { color: color-mix(in srgb, var(--code-rain-ink) 22%, var(--code-rain-text, var(--text-primary))); }
-::highlight(code-rain-fade-5) { color: color-mix(in srgb, var(--code-rain-ink) 8%, var(--code-rain-text, var(--text-primary))); }

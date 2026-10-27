@@ -34,27 +34,6 @@
   font-style: italic;
   opacity: 0.85;
 }
-/* With the code rain on, the status is code (thinking-status.tsx): falling
-   glyphs for the spinner and a green monospace label that decodes and
-   flickers. --code-rain-ink and --code-rain-head live in transcript.css. */
-.code-rain-thinking-icon { display: inline-flex; width: 18px; height: 18px; flex: none; }
-.code-rain-thinking-icon canvas { width: 18px; height: 18px; }
-.pending-label.code-rain-thinking-label {
-  color: var(--code-rain-ink);
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  font-style: normal;
-  font-size: 12.5px;
-  letter-spacing: 0.4px;
-  opacity: 1;
-}
-:root[data-theme-mode="dark"] .code-rain-thinking-label {
-  text-shadow: 0 0 6px color-mix(in srgb, var(--code-rain-ink) 55%, transparent);
-}
-.code-rain-thinking-label [data-ch] { display: inline-block; min-width: 1ch; text-align: center; }
-.code-rain-thinking-label [data-ch].wide { min-width: 1em; }
-.code-rain-thinking-label [data-state="code"] { transform: scaleX(-1); opacity: 0.8; }
-.code-rain-thinking-label [data-state="head"] { color: var(--code-rain-head); }
-
 .typing-indicator .dot {
   width: 8px;
   height: 8px;

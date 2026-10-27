@@ -38,6 +38,7 @@ import { LlmNodeContent } from "./llm-node-content";
 import { renderMarkdown, useMarkdownReady } from "./markdown";
 import { MessageTimestamp } from "./message-actions";
 import { PluginSlot } from "@/components/plugins/plugin-slot";
+import { CodeRainIcon, CodeRainText, useCodeRainStyle } from "../code-rain-style";
 
 export { SPAWNING_TOOL_NAMES } from "./tool-group-summary";
 
@@ -99,6 +100,7 @@ export function ExecutionStrip({
 }) {
   // The reader's own click wins over the conversation's view.
   const view = useTranscriptViewHere();
+  const codeRain = useCodeRainStyle();
   const [chosen, setOpen] = useState<boolean | null>(null);
   const open = chosen ?? view !== "normal";
   const { text } = useTranslation();
@@ -123,7 +125,9 @@ export function ExecutionStrip({
         aria-expanded={open}
         onClick={() => setOpen(!open)}
       >
-        <span className={"tl-label" + (streaming ? " tl-label-shimmer" : "")}>{summary.label}</span>
+        {streaming && codeRain
+          ? <CodeRainText className="tl-label" text={summary.label} />
+          : <span className={"tl-label" + (streaming ? " tl-label-shimmer" : "")}>{summary.label}</span>}
         {failedNote ? <span className="tl-fail">{failedNote}</span> : null}
         {hasBadge ? (
           <span className="turn-files-diff tl-diff">
@@ -242,6 +246,7 @@ export function StepRow({
   const [kidsOpen, setKidsOpen] = useState(!!defaultKidsOpen);
   const [copied, setCopied] = useState(false);
   const { text } = useTranslation();
+  const codeRain = useCodeRainStyle() && !!running;
   const persistedOpen = useSessionStore((state) =>
     stateKey ? state.llmContentOpen[stateKey] : undefined,
   );
@@ -317,6 +322,8 @@ export function StepRow({
               <line x1="6" y1="6" x2="18" y2="18" />
               <line x1="18" y1="6" x2="6" y2="18" />
             </svg>
+          ) : codeRain ? (
+            <CodeRainIcon size={15} />
           ) : (
             <SolarIcon name={glyphName} size={13} motionPreset="none" />
           )}
@@ -326,7 +333,7 @@ export function StepRow({
             + (detail ? " tl-step-link" : "")}
           onClick={detail ? openDetail : undefined}
         >
-          {title}
+          {codeRain ? <CodeRainText text={title} /> : title}
         </span>
         {target ? <code className="tl-step-target">{target}</code> : null}
         {/* 不加 title：流式中 note 每个 delta 都在变，原生 tooltip 会
