@@ -46,6 +46,9 @@
 /* Agents: the sidebar folders' colour and icon family, a size up. */
 .agentGlyph { flex: none; width: 22px; height: 22px; display: grid; place-items: center; color: var(--folder-color); }
 .agentGlyph[data-small] { width: 18px; height: 18px; }
+/* The row button shrinks unsized svgs to 1rem; an unlayered rule outranks it. */
+.agentGlyph svg { width: 22px; height: 22px; }
+.agentGlyph[data-small] svg { width: 16px; height: 16px; }
 .glyph[data-tone="run"] { color: var(--text-secondary); }
 .glyph[data-tone="shell"] { color: light-dark(#15803d, #4ade80); }
 .glyph[data-tone="agent"] { color: light-dark(#0b8a4b, #4bd58a); }
