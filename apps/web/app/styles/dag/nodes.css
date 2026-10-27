@@ -41,7 +41,8 @@
   fill: color-mix(in srgb, var(--tone) 24%, var(--bg-primary, #191918));
   stroke: var(--tone);
 }
-.history-node.is-covered .dag-tile-icon { opacity: 1; }
+.history-node.is-covered .dag-tile-icon,
+.dag-tile.t-root .dag-tile-icon { opacity: 1; }
 /* Aged out of the window soon (§8): the outline steps back. */
 .history-node.is-aged .dag-tile > rect[data-node-shape] { stroke-opacity: 0.45; }
 

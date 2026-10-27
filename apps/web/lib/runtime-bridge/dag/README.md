@@ -43,12 +43,14 @@ dag/
 │   ├── tooltip-content.ts               pure tooltip content model
 │   └── tooltip.ts                       tooltip DOM lifecycle and positioning
 ├── render/
-│   ├── nodes.ts                         node shapes and coverage marks
-│   ├── edges.ts                         conv / fork / attach / spawn edges
+│   ├── nodes.ts                         node tiles, status and coverage marks
+│   ├── tiles.ts                         icon tile per node kind (presentTool for calls)
+│   ├── agents.ts                        agent tokens and activity bubbles
+│   ├── edges.ts                         conv / fork / attach / spawn edges, belts
 │   ├── badges.ts                        branch-name badges
-│   ├── visibility.ts                    white-fill + chat-scroll/mutation sync
+│   ├── visibility.ts                    coverage fill + chat-scroll/mutation sync
 │   ├── inspector.ts                     node inspector popover + context menu
-│   └── shapes.ts                        SVG primitives, branch colour, shape helpers
+│   └── shapes.ts                        SVG primitives, branch colour, text width
 └── store/
     └── globals.ts                       module-level state (HEAD, collapsed set, ...)
 ```
@@ -58,22 +60,23 @@ dag/
 `render/` drawers as arguments. Reifying it into one object would
 shorten those signatures; nothing depends on it happening.
 
-## Node kinds and shapes
+## Node kinds and tiles
 
-See `docs/reference/design/runtime/dag/rendering.md` for the full schema.
-Quick reference:
+See `docs/reference/design/runtime/dag/rendering.md` §4 for the full schema.
+Every node is the same rounded icon tile; `tileFor` (`render/tiles.ts`)
+picks its icon and tone:
 
-| node kind                      | role            | function field   | shape          |
-|--------------------------------|-----------------|------------------|----------------|
-| ROOT                           | `user`          | —                | diamond        |
-| `user_msg`                     | `user`          | —                | circle         |
-| `llm_reply`                    | `assistant`/`llm` | —              | triangle       |
-| `function_call` (code)         | `tool`          | `bash`, `gui_agent`, …| square    |
-| branch-referencing             | `tool`          | `attach`, `merge`/`task`| square_outline |
-| compaction summary             | `assistant`/`llm` | — (has `covers_ids`) | capsule      |
+| node kind                      | role            | function field   | icon / tone          |
+|--------------------------------|-----------------|------------------|----------------------|
+| ROOT                           | `user`          | —                | house / root         |
+| `user_msg`                     | `user`          | —                | chat bubble / user   |
+| `llm_reply`                    | `assistant`/`llm` | —              | sparkles / llm       |
+| `function_call` (code)         | `tool`          | `bash`, `gui_agent`, …| `presentTool` |
+| sub-agent spawn                | `tool`          | spawn            | bot / agent          |
+| branch-referencing             | `tool`          | `attach`, `merge` | link, pull request / plan |
+| compaction summary             | `assistant`/`llm` | — (has `covers_ids`) | archive / memory |
 
-ROOT is special-cased by `display=root` → diamond. Every other node's
-shape comes from its `role`. There are no anchor / placeholder /
+ROOT is special-cased by `display=root`. There are no anchor / placeholder /
 scaffold nodes: a function call is a single `role=tool` node hanging
 off its caller via `caller`. Backend `graph_layout/filter.py`
 strips all `display=runtime` rows before the frontend sees them, so
@@ -117,7 +120,7 @@ adding a new pass, check that you don't regress any of these:
 
 * **LLM-called `gui_agent` displays as a reply child square**
   (issue #137). The code (`role=tool`) call hangs off the reply via
-  `caller`, so it renders one tier right of the triangle.
+  `caller`, so it renders one tier right of the reply.
   `demoteDecorationCards` keeps the next user turn on the same lane
   so it doesn't visually fork.
 

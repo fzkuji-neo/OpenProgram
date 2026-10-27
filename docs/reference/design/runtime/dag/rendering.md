@@ -310,8 +310,9 @@ placeholder node.
 counts hang beside it in annotation grey, never inside a shape sized to its own
 text. A glyph that grows with its label is a glyph every neighbour has to be
 measured against — that negotiation is what §12's earlier pill got wrong.
-Every glyph, the §9 compaction capsule included, is drawn on the reference
-circle and occupies exactly one cell.
+Every glyph is the same rounded tile (§4), the §9 compaction capsule
+included, and occupies exactly one cell; the grid leaves a gap of one tile
+between neighbours so the belt between them stays visible.
 Names draw NOTHING on the canvas at all any more: a sub-agent's name lives in
 the tooltip and inspector, and the only per-node text is the fold count on the
 shoulder (§12) and the capsule's coverage count (§9).
@@ -333,26 +334,52 @@ is conveyed only by line style:
 | attach merge-back (source tip → embed position) | long dashes `4 4` | source branch's color | shown when both ends are visible — an agent-internal tip merged into its triangle draws no line; the spawn head's position ON the thread is the return relationship |
 | inter-branch communication (send_message) | dotted `1 5` | target branch's color | **shown only on hover** (numerous; always-on would smear) |
 
-**Every line is drawn centre to centre**, and the glyphs' background fill paints
-over the ends. Glyph edges sit at different distances per shape, so any fixed
-stand-off eventually gaps against a sloped triangle side; a line that dies under
-the glyph joins seamlessly for every shape.
+**Chain and thread edges are conveyor belts**: an 8px neutral track
+(`.dag-belt`, its own layer under every line, opaque so tracks that share a
+trunk or meet at a junction never darken where they stack) with the 2px
+branch-coloured line on it. The line into a node that is running flows
+(`is-live`, moving dashes); a status patch starts and stops it through the
+line's `data-to`. Ghost lines keep their dashes and get no track: they are not
+what the next request carries.
+
+**Every line is drawn centre to centre**, and the tiles' background fill paints
+over the ends, so a line joins every tile seamlessly without a measured
+stand-off.
 
 ---
 
-## 4. Node legend: shape = role, stroke = status
+## 4. Node legend: icon tile = role, tone = kind, state = CSS
 
-**Shape**: ◇ ROOT · ○ user · △ llm · ■ code · ◉ merge (solid circle with a hole, the graph's unique
-"convergence" shape) · ◎ compaction summary (a double circle: the reference circle with a thin inner ring — §9) ·
-■ sub-agent spawn (a square like every call — dispatching an agent IS a
-function call; it expands into the agent's own activity — §12).
+**Every node is a rounded icon tile**, the same tile the execution timeline
+draws beside each step (`apps/web/lib/runtime-bridge/dag/render/tiles.ts`). A
+call takes the icon and tone `presentTool` gives it in the transcript, so "ran
+npm test" looks alike in both places; tones are shared CSS variables
+(`apps/web/app/styles/tool-tones.css`). Conversation nodes get their own:
+
+| Node | Icon | Tone |
+|---|---|---|
+| ROOT | house | secondary ink |
+| user | speech bubble | accent |
+| llm reply | sparkles | timeline llm |
+| call | per tool (`presentTool`) | per tool (shell, edit, read, search, web, …) |
+| sub-agent spawn | bot | agent — dispatching an agent IS a call; it expands into the agent's activity (§12) |
+| compaction summary | archive | memory (§9) |
+| merge / attach | pull request / link | plan |
+
+**Agents stand on their step** (`render/agents.ts`). Every agent that is
+working puts a round token with its initial, in its branch colour, on the
+upper-left corner of the tile it is on, and a bubble beside the tile says
+"name · what it is doing" (the tile's activity text: "Thinking…", "Ran npm
+test"). One token per agent, on its latest running tile. With nothing
+running, the main agent's token rests on HEAD without a bubble. The layer is
+rebuilt from the node DOM, so the in-place status patch repaints it.
 
 **HEAD is a breathing glow on its own glyph**: a `drop-shadow` in the branch
 colour that swells and settles on a slow cycle (2.4s), stamped on the shape
 itself (`data-head`). The light hugs the glyph's outline at every zoom —
 unlike a drawn halo ring, which reads as a second, blurrier node beside the
 first — and unlike a solid fill, it leaves the shape vocabulary intact: HEAD
-stays visibly a triangle/circle like its neighbours, just lit. Under
+stays visibly the same tile as its neighbours, just lit. Under
 `prefers-reduced-motion` the pulse freezes to a steady glow. HEAD carries no
 coverage mark of its own: it is the one node that cannot leave the context
 window — the next request lands on it.
@@ -363,9 +390,9 @@ placeholder box:
 | status | Drawing |
 |---|---|
 | success | default stroke |
-| running | same-shape dashed stroke + breathing-opacity animation |
-| error | red stroke + `!` badge at the upper right |
-| cancelled | whole node grayed 50% |
+| running | `is-running`: a short arc orbits the tile, and its token and bubble appear |
+| error | `is-error`: the tone turns red + `!` badge at the upper right |
+| cancelled | `is-faded`: the tone turns ghost grey |
 
 **Badges** (attached to the node, no grid cell of their own):
 
@@ -477,14 +504,13 @@ lane/tier/depth + an ASCII grid.
 
 ## 8. The fill means context coverage
 
-A node's fill marks it as **part of what the next LLM call will carry**. On a
-dark canvas the fill is the theme's brightest ink, near-white; on a light
-canvas that ink is near-black, and a column of black glyphs reads as heavy
-blots, so light themes fill with a 30% wash of the node's own branch colour
-over the canvas (`light-dark()` in `apps/web/lib/runtime-bridge/dag/render/visibility.ts`;
-the legend swatch uses the same expression). Either way it parts from the
-hollow glyph, which is filled with the canvas colour. "White fill" below means
-this fill.
+A node's fill marks it as **part of what the next LLM call will carry**. A
+covered tile (`is-covered`, set in
+`apps/web/lib/runtime-bridge/dag/render/visibility.ts`) is filled with a 24%
+wash of its own tone and drawn at full ink, like the timeline's tile; an
+uncovered tile is an outline on the canvas colour with a quieter icon. The
+same rule holds in both themes, and the legend swatch is a covered tile.
+"White fill" below means this fill.
 There is no mode to choose and no switch to find: whenever the graph is
 showing, it owns its pane. A lone session tab gets the chat shell plus this
 graph; two session tabs split into two `PeerSessionPane`s where the shell — and

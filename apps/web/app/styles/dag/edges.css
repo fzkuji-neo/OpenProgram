@@ -9,7 +9,9 @@
 /* Belts (dag/rendering.md §3): chain and thread edges run on a wide
    neutral track; the line into a working node flows along it. */
 .dag-belt {
-  stroke: color-mix(in srgb, var(--text-muted, #8a887f) 22%, transparent);
+  /* Opaque: tracks overlap at every junction and along a shared trunk,
+     and a translucent track would darken where they stack. */
+  stroke: color-mix(in srgb, var(--text-muted, #8a887f) 22%, var(--bg-primary, #191918));
   stroke-width: 8;
 }
 .history-edge.is-live {
