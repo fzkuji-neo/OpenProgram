@@ -28,7 +28,7 @@ import { AgentsViewMenu } from "./agents-view-menu";
 import { DebuggerPanel } from "./debugger-panel";
 import { SidebarNotice } from "./sidebar-notice";
 import { executionTitle, shortTime, updatedTime } from "./debugger-presentation";
-import { ProgramOutput, ProgressBar, progressLook, seconds, type ProgressLook } from "./program-progress";
+import { clock, ProgramOutput, ProgressBar, progressLook, seconds, type ProgressLook } from "./program-progress";
 import styles from "./running-panel.module.css";
 
 type Text = (en: string, zh: string) => string;
@@ -167,14 +167,14 @@ function programTitle(item: ManagedProcess, text: Text): string {
   return item.title?.trim() || programName(item, text);
 }
 
-/** The command's first line, as the row's monospace subtitle. */
+/** The command on one line, as the row's monospace subtitle. */
 function commandLine(item: ManagedProcess): string {
-  return item.command.trim().split("\n")[0];
+  return item.command.trim().replace(/\s+/g, " ");
 }
 
-/** "eval · 45 / 100 · 3.4/s · ~16 s left", or what it last printed. */
+/** "eval · 45 / 100 · 3.4/s"; the time left sits at the bar's end. */
 function progressLine(look: ProgressLook): string {
-  return [look.stage, look.count, look.rate, look.eta].filter(Boolean).join(" · ");
+  return [look.stage, look.count, look.rate].filter(Boolean).join(" · ");
 }
 
 /** A program's status line on its row: progress while it runs, the outcome after. */
@@ -439,7 +439,8 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     // A running program always shows a bar (sweeping when the amount is
     // unknown); a finished one keeps its bar only if it reported progress.
     const bar = active || look?.fraction != null
-      ? <span className={styles.rowBar}><ProgressBar fraction={look?.fraction ?? null} tone={programBarTone(item, look)} /></span>
+      ? <span className={styles.rowBar}><ProgressBar fraction={look?.fraction ?? null} tone={programBarTone(item, look)}
+        note={active ? look?.eta && text(`${look.eta} left`, `剩 ${look.eta}`) : null} /></span>
       : null;
     return <Row key={`program:${item.id}`} glyph={<Glyph name="code-square" tone="shell" />} title={programTitle(item, text)}
       sub={commandLine(item)} status={programStatus(item, look, now, text)} tone={programTone(item)} extra={bar}
@@ -465,10 +466,10 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     if (!active && !look) return null;
     const end = item.ended_at ?? now;
     const stats: [string, string][] = active
-      ? [[text("Elapsed", "已用时间"), seconds(now - item.started_at, text)],
+      ? [[text("Elapsed", "已用时间"), clock(now - item.started_at)],
         [text("Speed", "速度"), look?.rate ?? "—"],
-        [text("Left", "剩余"), look?.eta?.replace(/^~|^约剩 /, "") ?? "—"]]
-      : [[text("Took", "用时"), seconds(end - item.started_at, text)],
+        [text("Left", "剩余"), look?.eta ?? "—"]]
+      : [[text("Took", "用时"), clock(end - item.started_at)],
         [text("Ended", "结束"), updatedTime(end)],
         [text("Exit code", "退出码"), item.exit_code != null ? String(item.exit_code) : "—"]];
     return <div className={styles.progress}>

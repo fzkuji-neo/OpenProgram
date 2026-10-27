@@ -18,7 +18,9 @@ export type ProgressLook = {
   count: string | null;
   /** A bar's own description ("eval"), shown before the count. */
   stage: string | null;
+  /** "3.4/s", or with a byte unit "1.2 MB/s". */
   rate: string | null;
+  /** Seconds left, compact ("1m 4s"). */
   eta: string | null;
   failed: boolean;
 };
@@ -30,6 +32,15 @@ function amount(value: number, unit?: string | null): string {
     return new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 }).format(value);
   }
   return Number.isInteger(value) ? value.toLocaleString() : value.toFixed(1);
+}
+
+/** "45s", "1m 4s", "2h 5m": for figures in a narrow panel. */
+export function clock(value: number): string {
+  const s = Math.max(0, Math.round(value));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return s % 60 ? `${m}m ${s % 60}s` : `${m}m`;
+  return m % 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${Math.floor(m / 60)}h`;
 }
 
 export function seconds(value: number, text: Text): string {
@@ -51,26 +62,30 @@ export function progressLook(progress: ProcessProgress | null | undefined, text:
   let count: string | null = null;
   if (known && unit === "%") count = `${Math.round(current!)}%`;
   else if (known) count = `${amount(current!, unit)} / ${amount(total!, unit)}${unit ? ` ${unit}` : ""}${counted ? ` ${counted}` : ""}`;
-  const per = unit && unit !== "%" ? unit : counted;
+  const per = unit && BYTES.test(unit) ? unit : null;
   return {
     fraction: known && progress.state !== "indeterminate" ? Math.min(1, current! / total!) : null,
     count,
     stage: progress.source === "bar" ? progress.label || null : null,
     rate: progress.rate ? `${progress.rate >= 10 ? Math.round(progress.rate) : progress.rate.toFixed(1)}${per ? ` ${per}` : ""}/s` : null,
-    eta: progress.eta != null && known && current! < total! ? text(`~${seconds(progress.eta, text)} left`, `约剩 ${seconds(progress.eta, text)}`) : null,
+    eta: progress.eta != null && known && current! < total! ? clock(progress.eta) : null,
     failed: progress.state === "error",
   };
 }
 
 /** A thin bar; with no fraction it sweeps to show work without an amount. */
-export function ProgressBar({ fraction, tone, size = "sm" }: {
+export function ProgressBar({ fraction, tone, size = "sm", note }: {
   fraction: number | null; tone: "run" | "ok" | "err" | "muted"; size?: "sm" | "md";
+  /** A short figure at the bar's right end, such as the time left. */
+  note?: string | null;
 }) {
-  return <span className={styles.bar} data-size={size} data-tone={tone} data-indeterminate={fraction == null ? "1" : undefined}
+  const bar = <span className={styles.bar} data-size={size} data-tone={tone} data-indeterminate={fraction == null ? "1" : undefined}
     data-program-bar="" role="progressbar" aria-valuemin={0} aria-valuemax={100}
     aria-valuenow={fraction == null ? undefined : Math.round(fraction * 100)}>
     <span className={styles.fill} style={fraction == null ? undefined : { width: `${fraction * 100}%` }} />
   </span>;
+  if (!note) return bar;
+  return <span className={styles.withNote}>{bar}<span className={styles.note}>{note}</span></span>;
 }
 
 // ---- output ------------------------------------------------------------------

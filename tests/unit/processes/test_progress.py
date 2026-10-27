@@ -96,6 +96,7 @@ def test_line_cap_counts_newlines_not_redraws(store, monkeypatch):
     ("FOO=1 timeout 600 uv run python -m pkg.main", "pkg.main"),
     ("nohup python train.py > log 2>&1 &", "train.py"),
     ("cd a; ls -la", "ls"),
+    ("sleep 45; echo done", "sleep"),
 ])
 def test_names_the_command_a_chain_runs(command, name):
     assert command_display(command)["name"] == name

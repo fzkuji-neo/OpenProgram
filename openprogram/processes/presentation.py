@@ -55,8 +55,13 @@ def _main_command(words: list[str]) -> list[str]:
                 break
         if segment:
             candidates.append(segment)
-    main = [segment for segment in candidates if re.split(r"[/\\]", segment[0])[-1] not in SETUP]
-    return (main or candidates or [[]])[-1]
+    head = lambda segment: re.split(r"[/\\]", segment[0])[-1]
+    main = [segment for segment in candidates if head(segment) not in SETUP]
+    if main:
+        return main[-1]
+    # Only setup steps: a trailing echo is a done marker, not the work.
+    quiet = [segment for segment in candidates if head(segment) not in {"echo", "printf", "true", ":", "cd"}]
+    return (quiet or candidates or [[]])[0]
 
 
 def command_display(command: str) -> dict[str, str]:

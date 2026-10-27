@@ -94,8 +94,8 @@ and neither header carries a count.
    does (the bash call's `description`, else the script or module it runs,
    past setup steps such as `cd` and `mkdir`), with its command in
    monospace under the title. While it runs, the status line is its
-   progress ("45 / 100 samples · 3.4 samples/s · ~16 s left") over a thin
-   bar, or, with no amount known, how long it has run and its last output
+   progress ("45 / 100 samples · 3.4/s") over a thin bar with the time
+   left at its end ("16s left"), or, with no amount known, how long it has run and its last output
    line over a sweeping bar. Once it ends the status says how ("Completed ·
    10 / 10 epochs · 4 min 5 s", "Failed at 62 / 200 · exit 1").
    `agent` calls never appear here; they are reached through the agents.

@@ -1,6 +1,9 @@
 /* A background program's progress bar and output (program-progress.tsx). */
 .bar { position: relative; display: block; height: 3px; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--text-primary) 9%, transparent); }
 .bar[data-size="md"] { height: 6px; }
+.withNote { display: flex; align-items: center; gap: 8px; }
+.withNote .bar { flex: 1; min-width: 0; }
+.note { flex: none; color: var(--text-muted); font-size: 11px; line-height: 1; font-variant-numeric: tabular-nums; }
 .fill { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: inherit; background: var(--accent-blue); transition: width .6s ease; }
 .bar[data-tone="ok"] .fill { background: var(--accent-green); }
 .bar[data-tone="err"] .fill { background: var(--accent-red); }
