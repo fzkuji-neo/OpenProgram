@@ -67,7 +67,8 @@
   bottom: calc(100% + 8px);
   right: 0;
   z-index: 30;
-  min-width: 190px;
+  width: max-content;
+  max-width: 320px;
   gap: 2px;
   font-size: 12px;
   color: var(--text-secondary);
@@ -93,13 +94,22 @@
   align-items: center;
   justify-content: center;
   border-radius: 5px;
-  border: 1px solid var(--tone);
-  background: color-mix(in srgb, var(--tone) 24%, var(--bg-primary));
+  background: color-mix(in srgb, var(--tone) 30%, var(--bg-primary));
 }
 .dag-legend-tile[data-state="outline"] {
-  border-color: color-mix(in srgb, var(--tone) 55%, transparent);
-  background: var(--bg-primary);
-  opacity: 0.85;
+  background: color-mix(in srgb, var(--tone) 12%, var(--bg-primary));
+}
+.dag-legend-tile[data-state="outline"] svg { opacity: 0.6; }
+.dag-legend-tile[data-state="error"] { --tone: var(--accent-red, #e5534b); }
+/* A running belt: the track with the goods riding it (dag/edges.css). */
+.dag-legend-belt {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 6px;
+  border-radius: 3px;
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--accent-primary, #4a7dfc) 70%, transparent) 1.8px, transparent 2.2px) 0 50% / 6px 6px repeat-x,
+    color-mix(in srgb, var(--text-muted, #8a887f) 22%, var(--bg-primary, #191918));
 }
 .dag-legend-token {
   flex: 0 0 auto;

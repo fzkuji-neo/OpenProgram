@@ -26,25 +26,26 @@
 .history-node.is-faded .dag-tile,
 .history-node.is-ghost .dag-tile { --tone: var(--dag-ghost, #c9c7bf); }
 
-/* Outside the next request (§8): an outline on the canvas colour, the
-   icon a little quieter. The canvas fill also buries the belt ends that
-   run centre to centre under the tile. */
+/* Flat blocks, no outline: a tile is a block of its tone, and how much
+   tone it carries says whether it is in the next request (§8).
+   Outside it: a faint block, the icon quieter. The block is opaque, so
+   it also buries the belt ends that run centre to centre under it. */
 .dag-tile > rect[data-node-shape] {
-  fill: var(--bg-primary, #191918);
-  stroke: color-mix(in srgb, var(--tone) 55%, transparent);
-  stroke-width: 1.2;
-  transition: fill 0.15s ease-out, stroke 0.15s ease-out, filter 0.1s ease-out;
+  fill: color-mix(in srgb, var(--tone) 12%, var(--bg-primary, #191918));
+  stroke: none;
+  transition: fill 0.15s ease-out, filter 0.1s ease-out;
 }
-.dag-tile-icon { opacity: 0.7; transition: opacity 0.15s ease-out; }
-/* Covered: filled with its tone, like the timeline's tile. */
+.dag-tile-icon { opacity: 0.6; transition: opacity 0.15s ease-out; }
+/* Covered: a full block of its tone, like the timeline's tile. */
 .history-node.is-covered .dag-tile > rect[data-node-shape] {
-  fill: color-mix(in srgb, var(--tone) 24%, var(--bg-primary, #191918));
-  stroke: var(--tone);
+  fill: color-mix(in srgb, var(--tone) 30%, var(--bg-primary, #191918));
 }
 .history-node.is-covered .dag-tile-icon,
 .dag-tile.t-root .dag-tile-icon { opacity: 1; }
-/* Aged out of the window soon (§8): the outline steps back. */
-.history-node.is-aged .dag-tile > rect[data-node-shape] { stroke-opacity: 0.45; }
+/* Aged out of the window soon (§8): the block steps back. */
+.history-node.is-covered.is-aged .dag-tile > rect[data-node-shape] {
+  fill: color-mix(in srgb, var(--tone) 20%, var(--bg-primary, #191918));
+}
 
 .history-node:hover .dag-tile > rect[data-node-shape] { filter: brightness(1.2); }
 
@@ -53,8 +54,7 @@
    reads by colour, and the agents' markers keep their size above it. */
 .is-far .dag-tile-icon { display: none; }
 .is-far .dag-tile > rect[data-node-shape] {
-  fill: color-mix(in srgb, var(--tone) 70%, var(--bg-primary, #191918));
-  stroke: var(--tone);
+  fill: color-mix(in srgb, var(--tone) 75%, var(--bg-primary, #191918));
 }
 .is-far .history-node:not(.is-covered) .dag-tile > rect[data-node-shape] {
   fill: color-mix(in srgb, var(--tone) 30%, var(--bg-primary, #191918));
@@ -71,21 +71,14 @@
   50% { filter: drop-shadow(0 0 7px var(--tone)); }
 }
 
-/* Running: a short arc travels round the tile, the timeline tile's
-   orbit drawn as a stroke (SVG has no conic gradient). */
-.dag-tile-orbit {
-  fill: none;
-  stroke: var(--tone);
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-dasharray: 22 78;
-  opacity: 0;
+/* Running: the block breathes in its tone — flat, no ring around it. */
+.history-node.is-running .dag-tile > rect[data-node-shape] {
+  animation: dag-tile-breathe 1.4s ease-in-out infinite;
 }
-.history-node.is-running .dag-tile-orbit {
-  opacity: 1;
-  animation: dag-orbit 1.1s linear infinite;
+@keyframes dag-tile-breathe {
+  0%, 100% { fill: color-mix(in srgb, var(--tone) 30%, var(--bg-primary, #191918)); }
+  50% { fill: color-mix(in srgb, var(--tone) 60%, var(--bg-primary, #191918)); }
 }
-@keyframes dag-orbit { to { stroke-dashoffset: -100; } }
 
 /* Agent tokens (render/agents.ts): the agent stands on the tile it works
    on and bobs; the bubble says what it is doing. Idle, it rests. */
@@ -102,10 +95,9 @@
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-2.5px); }
 }
+/* A flat chip, no outline: a block a step off the canvas. */
 .dag-agent-bubble rect {
-  fill: var(--bg-secondary, var(--bg-primary));
-  stroke: var(--border-color, rgba(128, 128, 128, 0.35));
-  stroke-width: 1;
+  fill: color-mix(in srgb, var(--text-primary) 10%, var(--bg-primary, #191918));
 }
 .dag-agent-bubble text {
   font-size: 11px;
@@ -118,9 +110,11 @@
     animation: none;
     filter: drop-shadow(0 0 4px var(--tone));
   }
-  .history-node.is-running .dag-tile-orbit,
+  .history-node.is-running .dag-tile > rect[data-node-shape],
   .dag-agent-token .dag-agent-mark > g > * { animation: none; }
-  .history-node.is-running .dag-tile-orbit { stroke-dasharray: none; }
+  .history-node.is-running .dag-tile > rect[data-node-shape] {
+    fill: color-mix(in srgb, var(--tone) 45%, var(--bg-primary, #191918));
+  }
 }
 
 /* Next-message context range: nodes/edges outside the active branch

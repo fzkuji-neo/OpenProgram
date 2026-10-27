@@ -26,7 +26,7 @@ import {
 
 export function _applyVisibility(nodeEl: Element, visible: boolean): void {
   // Covered = part of what the next request carries (dag/rendering.md §8):
-  // the tile fills with its tone; outside it, the tile is an outline.
+  // the tile is a full block of its tone; outside it, a faint one.
   // The colours live in app/styles/dag/nodes.css.
   nodeEl.classList.toggle("is-covered", visible);
 }

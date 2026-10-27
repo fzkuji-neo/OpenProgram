@@ -13,6 +13,7 @@ import type { GNode } from "../types";
 import { getSocket, runtimeState } from "../../state";
 import { translateText } from "@/lib/i18n";
 import { _branchColor, _svg, _textWidth } from "./shapes";
+import { taskLabel } from "./tiles";
 import { isSpawnRoot, type ThreadModel } from "../passes/thread";
 import { _currentHead } from "../store/globals";
 
@@ -69,11 +70,10 @@ function _drawPill(
     height: String(bh),
     rx: String(bh / 2),
     ry: String(bh / 2),
+    // A flat block, no outline (app/styles/dag/badges.css).
     fill: isActive
-      ? "color-mix(in srgb, " + color + " 14%, var(--bg-primary, #fff))"
+      ? "color-mix(in srgb, " + color + " 28%, var(--bg-primary, #fff))"
       : "var(--bg-tertiary, #f2f0ea)",
-    stroke: isActive ? color : "var(--border, #e4e2da)",
-    "stroke-width": isActive ? "1.5" : "1",
   }));
   const tip = _svg("title", {});
   tip.textContent = tipText;
@@ -256,7 +256,9 @@ export function drawBadges(
         if (e) { anchor = e; break; }
       }
       const p = pos(anchor);
-      const label = thread.nameOf[sid] || sid.slice(0, 8);
+      // An agent with no name goes by its task, never by its id.
+      const label = thread.nameOf[sid] || taskLabel(root)
+        || translateText("Sub-agent", "子 agent");
       const bw = Math.max(
         Math.ceil(_textWidth(label, BADGE_FONT_SMALL)) + 18, 40);
       const finalTip = tipId;

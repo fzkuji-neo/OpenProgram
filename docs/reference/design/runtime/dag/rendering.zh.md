@@ -118,7 +118,7 @@ HUD 不自带任何外观。这几个胶囊带着 shadcn `elevated` `sm` 按钮�
 ### 分支切换在图里
 
 画布上方没有分支条。每条分支的名字是画在图里的按钮，锚在该分支最后一个对话层
-节点下方（`apps/web/lib/runtime-bridge/dag/render/badges.ts`，第五节）：活跃分支的标签按 lane 色描边加底色，点
+节点下方（`apps/web/lib/runtime-bridge/dag/render/badges.ts`，第五节）：活跃分支的标签是 lane 色的扁平色块，点
 其他标签即 checkout。图本身已经画出分支结构，再来一条横条是重复信息，还会横穿
 面板右上角的悬浮视角按钮。重命名、删除、merge、attach 留在右侧栏的分支列表里，
 那里有这些流程需要的纵向空间。
@@ -243,7 +243,7 @@ lane 与它分叉出来的 lane 之间**多留一个空列**——分支是平�
 **② 严格对齐 + 紧凑化**：节点落在格点上；**空行上移补齐、空列左移补齐，不保留
 空行空列**。本条适用于一切显隐变化：执行子树收起/展开、分支折叠、visibility
 过滤——收起后它占的行列立刻腾出。**推论：任何"占位框"都违反本条**——running
-状态用节点自身的描边表达（见图例），不画虚线占位节点。
+状态用节点自身的色块表达（见图例），不画虚线占位节点。
 
 **③ 字形占格，文字是注文**：一个节点占它那个格点；计数用注文灰挂在旁边，绝不
 装进按自身文字定尺寸的形状里。跟着标签长的字形，是每个邻居都得拿它量一遍的
@@ -325,8 +325,8 @@ agent，否则属于主 agent；每个 agent 显示它最新的运行中节点�
 
 | status | 画法 |
 |---|---|
-| success | 默认描边 |
-| running | `is-running`：一段短弧绕图块转圈，令牌和气泡出现 |
+| success | 普通色块 |
+| running | `is-running`：色块按自己的色调呼吸，令牌和气泡出现 |
 | error | `is-error`：色调变红 + 右上角 `!` 角标 |
 | cancelled | `is-faded`：色调变成 ghost 灰 |
 
@@ -368,7 +368,7 @@ agent，否则属于主 agent；每个 agent 显示它最新的运行中节点�
 | 9 | 分支间通信（send_message） | 点线 `1 5`、目标分支色、默认隐藏 hover 显示；目标分支末尾加 from_branch user 节点 |
 | 10 | spawn 派活 → 返回 | 子 agent 头是发起轮线程上的一个条目（第十二节）：落在派活实际发生的序列位置，前后是它前后的调用。返回不需要额外的线——它触发的 followup 回复归并进同一个锚轮（第〇节），派活、干活、返回从上到下读一列（聊天流仍渲染 Spawned 卡片，显示序提前——见 `ui/invariants.md` 规则 9） |
 | 11 | 调用线程默认聚合 | 见第〇节/第十二节：默认收成肩上折叠数，点击展开进布局，收起按规则② 即时回收；各节点展开状态互不影响、可递归 |
-| 12 | 状态与徽标图例 | 见第四节：status 画在节点描边上，不画占位框；跨会话 spawn 两侧都标 ↗ |
+| 12 | 状态与徽标图例 | 见第四节：status 画在节点色块上，不画占位框；跨会话 spawn 两侧都标 ↗ |
 | 13 | badge 锚定·避让·碰撞·已合并 | 见第五节：锚对话层末节点正下方、锚位被边占才左偏半格、碰撞下移一行、合并即消名（来源进 merge tooltip） |
 
 **回送节点与切换器（语义补充，无独立布局场景）**：send_message 的回送
@@ -407,7 +407,7 @@ apps/web/lib/runtime-bridge/dag/
                      `apps/server/openprogram_server/_webui/graph_layout/tier.py` 算好随节点下发，
                      前端只消费。
   apps/web/lib/runtime-bridge/dag/render/edges.ts    第三节的线型表
-  apps/web/lib/runtime-bridge/dag/render/nodes.ts    第四节的形状 + 状态描边 + 徽标
+  apps/web/lib/runtime-bridge/dag/render/nodes.ts    第四节的图块 + 状态 + 徽标
   apps/web/lib/runtime-bridge/dag/render/badges.ts   第五节的分支名 badge
   apps/web/lib/runtime-bridge/dag/store/globals.ts   展开状态、lastGraph、签名
 ```
@@ -421,8 +421,9 @@ caller/predecessor），`graph_layout/` 做 lane/tier/depth 标注——**tier �
 
 节点的填充表示它**属于下一次 LLM 调用会携带的内容**。被覆盖的图块
 （`is-covered`，由 `apps/web/lib/runtime-bridge/dag/render/visibility.ts` 设置）用
-自己色调 24% 的浅底填充、图标满墨，和时间线的图块一样；未覆盖的图块是画布色上
-的一圈轮廓，图标更淡。两种主题同一条规则，图例色块就是一个被覆盖的图块。下文
+自己色调 30% 的满色块、图标满墨，和时间线的图块一样；未覆盖的图块是 12% 的浅色
+块，图标更淡。图块、气泡和分支标签都是不带描边的扁平色块：所有区分都靠色调深浅。
+两种主题同一条规则，图例色块就是一个被覆盖的图块。下文
 的"白色填充""白点"都指这个填充。没有模式可选，也没
 有开关要找：只要图在显示，它就独占面板。单个会话 tab 得到聊天外壳加这张图；
 两个会话 tab 分屏时两侧都是 `PeerSessionPane`，外壳——以及这张图——根本不
@@ -468,11 +469,11 @@ caller/predecessor），`graph_layout/` 做 lane/tier/depth 标注——**tier �
 | 状态 | 画法 |
 |---|---|
 | 在上下文中 | 白色填充（基线） |
-| `aged` | 描边压到 40% 不透明度——读作"还在，但只剩梗概" |
+| `aged` | 被覆盖的色块淡一档（20% 色调）——读作"还在，但只剩梗概" |
 | `spilled` | 节点**左**上角加 `▤` |
 
-`aged` 压的是 **`stroke-opacity`，绝不是 `opacity`**：白点是覆盖信号，整体
-变淡会把它一起淡掉，两件独立的事就塌成一件。`▤` 占左上角是因为右上角已被
+`aged` 压的是 **色块的色调，绝不是 `opacity`**：填充是覆盖信号，整体
+变淡会把图标和徽标一起淡掉，两件独立的事就塌成一件。`▤` 占左上角是因为右上角已被
 占用（`!` 报错、`↗` 跨会话 spawn），右下角是折叠徽标；用 `<text>` 画，免得
 `_applyVisibility` 找"第一个形状子元素"时把它当成节点本体。
 
@@ -570,7 +571,7 @@ tooltip 和检查器里。
 `失败轮 · 已留档`。两种状态长得像，是因为在图唯一关心的那根轴上它们**就是**
 一样的：在盘上、可读、永不进下一次请求。
 
-这层灰有意覆盖第四节给活跃错误的红色描边。红色的意思是"这件事现在需要你"，
+这层灰有意覆盖第四节给活跃错误的红色色块。红色的意思是"这件事现在需要你"，
 留档的线不是——重试已经发生过了。`!` 字形本身保留，所以这条线为什么终止仍然
 一眼可读。
 
@@ -741,7 +742,7 @@ checkout 成活动分支——接管这个 agent 的对话。徽章永不压住�
 | 第四节 HEAD 呼吸光晕 | `apps/web/lib/runtime-bridge/dag/render/nodes.ts` 戳 `data-head` 并把分支色写进 `color`；`dag-head-glow` 关键帧在 `apps/web/app/styles/dag/nodes.css`（reduced-motion → 恒定光）；所有字形保持空心（`apps/web/lib/runtime-bridge/dag/render/shapes.ts`）；HEAD 指向已归并回复时落到锚上（`apps/web/lib/runtime-bridge/dag/pipeline.ts` 经 `threadModel.anchorOf`） |
 | 第〇节/第十二节 调用线程聚合 | `apps/web/lib/runtime-bridge/dag/passes/thread.ts`（`buildThreadModel`：锚归并、事件归属、递归可见性）；`apps/web/lib/runtime-bridge/dag/render/nodes.ts` 画肩上折叠数（`history-thread-count`）；`apps/web/lib/runtime-bridge/dag/store/globals.ts` 的 `_threadOpen` |
 | 规则②推论（不画占位框） | `apps/web/lib/runtime-bridge/dag/render/shapes.ts`：无 `square_outline`；task 渲染为普通方块 |
-| 第四节 状态画在描边上 | `graph_builder` 下发 status；`nodes.ts` 画描边（running 虚线呼吸 / error 红+! / cancelled 灰化） |
+| 第四节 状态画在描边上 | `graph_builder` 下发 status；`nodes.ts` 把它设成图块的 CSS 状态（running 呼吸 / error 红+! / cancelled 灰化） |
 | 第五节 badge 锚定 | `apps/web/lib/runtime-bridge/dag/render/badges.ts`：锚对话层末节点、锚位有竖线左偏半格、实测像素盒碰撞下移一行 |
 | 场景 8 merge 形状与连线 | `apps/web/lib/runtime-bridge/dag/render/shapes.ts` `merge_dot`（◉）；`edges.ts` 汇入线 peer 色 2.4px 实线 |
 | 场景 8/10 attach 指针 | 后端 display=runtime 过滤 + `graph_builder` 把 ref 戳到嵌入位置（`attach_returns`），`edges.ts` 画回流长虚线 |
@@ -750,7 +751,7 @@ checkout 成活动分支——接管这个 agent 的对话。徽章永不压住�
 | 两个视角共用输入框 | `apps/web/app/styles/chat/center-pane.css` 隐藏 `#chatArea` 而非 `#chatView`；由 `apps/web/scripts/tabs/check-center-tabs.mjs` 断言 |
 | 图内分支标签（checkout 按钮） | `apps/web/lib/runtime-bridge/dag/render/badges.ts`；hover 样式在 `apps/web/app/styles/dag/badges.css` 的 `.history-branch-tag` |
 | 第八节 覆盖查询 | `routes/tree.py::_coverage_nodes` 填 `/context-range` 的 `nodes`；测试见 `tests/unit/context/test_context_range_coverage.py` |
-| 第八节 aged / spilled 绘制 | `apps/web/lib/runtime-bridge/dag/render/nodes.ts`（stroke-opacity + `▤`），数据来自 `apps/web/lib/runtime-bridge/dag/store/globals.ts` 的 `_coverageSet` |
+| 第八节 aged / spilled 绘制 | `apps/web/lib/runtime-bridge/dag/render/nodes.ts`（淡一档的色块 + `▤`），数据来自 `apps/web/lib/runtime-bridge/dag/store/globals.ts` 的 `_coverageSet` |
 | 第九节 `covers_ids` 下发 | `apps/server/openprogram_server/_webui/graph_builder.py` 把 `metadata.covers` 解析成 id；测试见 `tests/unit/dag/test_graph_builder_covers.py` |
 | 第九节 胶囊形状 | `apps/web/lib/runtime-bridge/dag/render/shapes.ts` 的 `capsule`（按 `covers_ids` 判定，打 `data-shape` 标让 `_applyShapeSize` 别改它的几何） |
 | 第九节 折叠 / 褶皱 / 幽灵 | `apps/web/lib/runtime-bridge/dag/passes/fold-summaries.ts`（折叠）、`apps/web/lib/runtime-bridge/dag/render/nodes.ts`（褶皱、`已压缩 · N 轮` 注记、幽灵描边）、`apps/web/lib/runtime-bridge/dag/render/edges.ts`（幽灵虚线边）、`apps/web/lib/runtime-bridge/dag/store/globals.ts` 的 `_summaryExpanded`；由 `apps/web/scripts/runtime/check-dag-summary.mjs` 实跑 |

@@ -20,7 +20,7 @@ import { translateText } from "@/lib/i18n";
 import { type GNode } from "../types";
 import { isSpawnRoot } from "../passes/thread-nodes";
 import { _branchColor, _svg, _textWidth } from "./shapes";
-import { TILE_R, tileFor } from "./tiles";
+import { TILE_R, taskLabel, tileFor } from "./tiles";
 
 const LAYER = "dag-agents";
 const BUBBLE_FONT = "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif";
@@ -71,7 +71,7 @@ function agentName(agent: string, byId: Record<string, GNode>, drawn: Map<string
   const root = byId[agent] as Record<string, unknown> | undefined;
   const label = (root?.spawned_from as { label?: string } | undefined)?.label
     || (root?.branch_name as string | undefined);
-  return label?.trim() || translateText("Sub-agent", "子 agent");
+  return label?.trim() || taskLabel(byId[agent]) || translateText("Sub-agent", "子 agent");
 }
 
 function seat(g: Element): { x: number; y: number } | null {

@@ -150,7 +150,7 @@ gesture, and the fit centres the graph in the strip above it
 
 There is no branch strip above the canvas. Each branch's name is a button drawn
 in the graph itself, anchored below the branch's last conversation-layer node
-(`apps/web/lib/runtime-bridge/dag/render/badges.ts`, §5): the active branch's tag is outlined and tinted in its
+(`apps/web/lib/runtime-bridge/dag/render/badges.ts`, §5): the active branch's tag is a flat block tinted in its
 lane colour, and clicking any other tag checks that branch out. The graph
 already draws the branch structure; a strip above it would repeat that
 information and cut a line across the pane's floating view controls. Rename,
@@ -303,7 +303,7 @@ up to fill, empty columns shift left to fill, no empty rows or columns are kept.
 applies to every visibility change: execution subtree collapse/expand, branch folding,
 visibility filtering — once collapsed, the rows and columns it occupied must be freed
 immediately. **Corollary: any "placeholder box" violates this rule** — the running state
-is expressed by the node's own stroke (see the legend), not by drawing a dashed
+is expressed by the node's own block (see the legend), not by drawing a dashed
 placeholder node.
 
 **③ Glyphs are cells; text is a caption.** A node occupies its grid point;
@@ -405,8 +405,8 @@ placeholder box:
 
 | status | Drawing |
 |---|---|
-| success | default stroke |
-| running | `is-running`: a short arc orbits the tile, and its token and bubble appear |
+| success | the plain block |
+| running | `is-running`: the block breathes in its tone, and its token and bubble appear |
 | error | `is-error`: the tone turns red + `!` badge at the upper right |
 | cancelled | `is-faded`: the tone turns ghost grey |
 
@@ -457,7 +457,7 @@ placeholder box:
 | 9 | cross-branch messaging (send_message) | dotted `1 5`, target branch color, hidden by default / shown on hover; a from_branch user node lands at the target branch tail |
 | 10 | spawn dispatch → return | the sub-agent's head is an item ON its caller's thread (§12): it sits in the sequence position the spawn actually happened at, between the calls before and after it. Its return needs no extra line — the followup reply it triggers merges into the same anchor (§0), so dispatch, work and return are one column read top to bottom (the chat stream still renders the Spawned card, display order moved ahead — see `ui/invariants.md` rule 9) |
 | 11 | call-thread default aggregation | see §0/§12: folded to a shoulder count by default, click to open into layout, fold reclaims rows/cols per rule ②; open state is per-node independent and recursive |
-| 12 | status & badge legend | see §4: status drawn on the node's own stroke, no placeholder boxes; both sides of a cross-session spawn carry the ↗ corner mark |
+| 12 | status & badge legend | see §4: status drawn on the node's own block, no placeholder boxes; both sides of a cross-session spawn carry the ↗ corner mark |
 | 13 | badge anchoring · avoidance · collision · merged | see §5: anchor directly below the branch's last conversation-layer node, half-column left shift only when an edge crosses the anchor cell, collision shifts down one row, merging erases the badge (provenance moves into the merge node's tooltip) |
 
 **Send-back nodes and the switcher (semantic note, no dedicated layout scene)**: a
@@ -508,7 +508,7 @@ apps/web/lib/runtime-bridge/dag/
                      computes them in `apps/server/openprogram_server/_webui/graph_layout/` and ships
                      them on the node; the front end only consumes the values.
   apps/web/lib/runtime-bridge/dag/render/edges.ts    the line-style table of section 3
-  apps/web/lib/runtime-bridge/dag/render/nodes.ts    the shapes + status strokes + badges of section 4
+  apps/web/lib/runtime-bridge/dag/render/nodes.ts    the tiles + status states + badges of section 4
   apps/web/lib/runtime-bridge/dag/render/badges.ts   the branch-name badge of section 5
   apps/web/lib/runtime-bridge/dag/store/globals.ts   expansion state, lastGraph, signatures
 ```
@@ -522,10 +522,12 @@ lane/tier/depth + an ASCII grid.
 
 A node's fill marks it as **part of what the next LLM call will carry**. A
 covered tile (`is-covered`, set in
-`apps/web/lib/runtime-bridge/dag/render/visibility.ts`) is filled with a 24%
-wash of its own tone and drawn at full ink, like the timeline's tile; an
-uncovered tile is an outline on the canvas colour with a quieter icon. The
-same rule holds in both themes, and the legend swatch is a covered tile.
+`apps/web/lib/runtime-bridge/dag/render/visibility.ts`) is a full block of
+its own tone (30% over the canvas) with its icon at full ink, like the
+timeline's tile; an uncovered tile is a faint block (12%) with a quieter icon.
+Tiles, bubbles and branch tags are flat colour blocks with no outline: depth
+of tone carries every distinction. The same rule holds in both themes, and the
+legend swatch is a covered tile.
 "White fill" below means this fill.
 There is no mode to choose and no switch to find: whenever the graph is
 showing, it owns its pane. A lone session tab gets the chat shell plus this
@@ -578,12 +580,12 @@ itself**; it asks the backend and draws the answer.
 | State | Drawing |
 |---|---|
 | in context | white fill (the baseline) |
-| `aged` | stroke dimmed to 40% opacity — reads as "still here, but only the gist" |
+| `aged` | a covered block a step fainter (20% tone) — reads as "still here, but only the gist" |
 | `spilled` | `▤` at the node's upper LEFT |
 
-`aged` dims **`stroke-opacity`, never `opacity`**: the white fill is the
-coverage signal, and fading the whole node would fade that too, collapsing two
-independent facts into one. The `▤` mark takes the upper left because the upper
+`aged` lowers **the block's tone, never `opacity`**: the fill is the
+coverage signal, and fading the whole node would fade the icon and badges too,
+collapsing two independent facts into one. The `▤` mark takes the upper left because the upper
 right is spoken for (`!` error, `↗` cross-session spawn) and the lower right
 holds the fold badge; it is drawn as `<text>` so `_applyVisibility`'s
 "first shape child" scan cannot mistake it for the node body.
@@ -711,7 +713,7 @@ covered turn, and the inspector labels it `Failed turn · Recorded`. The two sta
 alike because on the only axis the graph is about they *are* alike: on disk,
 readable, and never in the next request.
 
-The grey deliberately replaces the red `!` stroke §4 gives a live error. Red
+The grey deliberately replaces the red block §4 gives a live error. Red
 means "this needs you now", and an archived line does not — the retry already
 happened. The `!` glyph itself stays, so why the line ended is still legible.
 
@@ -937,7 +939,7 @@ The whole spec is implemented. Where each part lives:
 | §4 HEAD breathing glow | `apps/web/lib/runtime-bridge/dag/render/nodes.ts` stamps `data-head` + the branch colour as `color`; `dag-head-glow` keyframes in `apps/web/app/styles/dag/nodes.css` (reduced-motion → steady glow); every glyph stays hollow (`apps/web/lib/runtime-bridge/dag/render/shapes.ts`); HEAD pointing at a merged reply re-seats on its anchor (`apps/web/lib/runtime-bridge/dag/pipeline.ts` via `threadModel.anchorOf`) |
 | §0/§12 call-thread aggregation | `apps/web/lib/runtime-bridge/dag/passes/thread.ts` (`buildThreadModel`: anchor merge, event attribution, recursive visibility); `apps/web/lib/runtime-bridge/dag/render/nodes.ts` draws the shoulder count (`history-thread-count`); `_threadOpen` in `apps/web/lib/runtime-bridge/dag/store/globals.ts` |
 | Rule ② corollary (no placeholder box) | `apps/web/lib/runtime-bridge/dag/render/shapes.ts`: no `square_outline`; task renders as a plain square |
-| §4 status on the stroke | `graph_builder` emits status; `nodes.ts` draws it on the stroke (running dashed+breathing / error red+! / cancelled grayed) |
+| §4 status on the block | `graph_builder` emits status; `nodes.ts` sets it as a CSS state of the tile (running breathing / error red+! / cancelled grayed) |
 | §5 badge anchoring | `apps/web/lib/runtime-bridge/dag/render/badges.ts`: anchor at last conversation-layer node, half-column left shift when a line crosses the anchor cell, measured-pixel-box collision slides down one row |
 | Scene 8 merge shape and lines | `apps/web/lib/runtime-bridge/dag/render/shapes.ts` `merge_dot` (◉); `edges.ts` merge-in line peer-colored 2.4px solid |
 | Scenes 8/10 attach pointer | backend filters it (display=runtime) + `graph_builder` stamps the ref onto the embed host (`attach_returns`); `edges.ts` draws the long-dash return line |
@@ -946,7 +948,7 @@ The whole spec is implemented. Where each part lives:
 | Composer shared by both perspectives | `apps/web/app/styles/chat/center-pane.css` hides `#chatArea`, not `#chatView`; asserted by `apps/web/scripts/tabs/check-center-tabs.mjs` |
 | In-graph branch tags (checkout buttons) | `apps/web/lib/runtime-bridge/dag/render/badges.ts`; hover styles on `.history-branch-tag` in `apps/web/app/styles/dag/badges.css` |
 | §8 coverage query | `routes/tree.py::_coverage_nodes` fills `/context-range`'s `nodes`; tested in `tests/unit/context/test_context_range_coverage.py` |
-| §8 aged / spilled drawing | `apps/web/lib/runtime-bridge/dag/render/nodes.ts` (stroke-opacity + `▤`), fed by `_coverageSet` in `apps/web/lib/runtime-bridge/dag/store/globals.ts` |
+| §8 aged / spilled drawing | `apps/web/lib/runtime-bridge/dag/render/nodes.ts` (fainter block + `▤`), fed by `_coverageSet` in `apps/web/lib/runtime-bridge/dag/store/globals.ts` |
 | §9 `covers_ids` on the wire | `apps/server/openprogram_server/_webui/graph_builder.py` resolves `metadata.covers` to ids; tested in `tests/unit/dag/test_graph_builder_covers.py` |
 | §9 capsule shape | `apps/web/lib/runtime-bridge/dag/render/shapes.ts` `capsule` (keyed on `covers_ids`, tagged `data-shape` so `_applyShapeSize` leaves its geometry alone) |
 | §9 fold + pleats + ghosts | `apps/web/lib/runtime-bridge/dag/passes/fold-summaries.ts` (fold), `apps/web/lib/runtime-bridge/dag/render/nodes.ts` (pleats, `Compacted · N turns` caption, ghost stroke), `apps/web/lib/runtime-bridge/dag/render/edges.ts` (dashed ghost edge), `_summaryExpanded` in `apps/web/lib/runtime-bridge/dag/store/globals.ts`; executed by `apps/web/scripts/runtime/check-dag-summary.mjs` |

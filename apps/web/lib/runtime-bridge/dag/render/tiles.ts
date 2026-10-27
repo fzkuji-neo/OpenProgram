@@ -85,17 +85,21 @@ export function tileFor(node: GNode): Tile {
   return { icon: "chat-round-line", tone: "user", doing: translateText("Reading your message", "读取你的消息") };
 }
 
-/** The tile group: frame, icon and the running comet that orbits it. */
+/** A short name for an agent that has none: the start of its task. */
+export function taskLabel(root: GNode | undefined): string {
+  const text = String(root?.preview || "").replace(/\s+/g, " ").trim();
+  if (!text || text.startsWith("[")) return "";
+  const chars = Array.from(text);
+  return chars.length > 14 ? chars.slice(0, 13).join("") + "…" : text;
+}
+
+/** The tile group: a flat block and its icon. Running, the block
+ *  breathes (app/styles/dag/nodes.css). */
 export function buildTile(tile: Tile): SVGElement {
   const g = _svg("g", { class: `dag-tile t-${tile.tone}`, "pointer-events": "none" });
   g.appendChild(_svg("rect", {
     x: -TILE_R, y: -TILE_R, width: TILE_R * 2, height: TILE_R * 2,
     rx: 7, ry: 7, "data-node-shape": "1", "data-shape": "tile",
-  }));
-  // Running: a short arc travelling round the frame (CSS animates it).
-  g.appendChild(_svg("rect", {
-    x: -TILE_R - 2.5, y: -TILE_R - 2.5, width: TILE_R * 2 + 5, height: TILE_R * 2 + 5,
-    rx: 9, ry: 9, pathLength: 100, class: "dag-tile-orbit",
   }));
   const box = SOLAR_VIEWBOXES[tile.icon] ?? "0 0 24 24";
   const icon = _svg("svg", {

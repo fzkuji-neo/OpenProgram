@@ -56,7 +56,7 @@ import { cn } from "@/lib/utils";
 function LegendTile({ icon, tone, state = "covered" }: {
   icon: SolarIconName;
   tone: string;
-  state?: "covered" | "outline";
+  state?: "covered" | "outline" | "error";
 }) {
   return (
     <span className={`dag-tile t-${tone} dag-legend-tile`} data-state={state} aria-hidden="true">
@@ -123,9 +123,13 @@ function DagLegend() {
           <LegendRow swatch={<LegendTile icon="bot" tone="agent" />} label={text("sub-agent", "子 agent")} />
           <LegendRow swatch={<LegendTile icon="archive" tone="memory" />} label={text("compaction summary", "压缩摘要")} />
           <LegendRow swatch={<LegendTile icon="stars" tone="llm" state="outline" />}
-            label={text("outline: not in the next request", "空心：不在下次请求里")} />
+            label={text("faint: not in the next request", "浅色：不在下次请求里")} />
+          <LegendRow swatch={<LegendTile icon="programming" tone="shell" state="error" />}
+            label={text("failed", "失败")} />
           <LegendRow swatch={<span className="dag-legend-token" aria-hidden="true">M</span>}
             label={text("an agent, on the step it is working on", "agent 站在它正在做的那一步上")} />
+          <LegendRow swatch={<span className="dag-legend-belt" aria-hidden="true" />}
+            label={text("goods on a belt: work is under way there", "传送带运货：那里正在工作")} />
         </div>
       )}
     </div>
