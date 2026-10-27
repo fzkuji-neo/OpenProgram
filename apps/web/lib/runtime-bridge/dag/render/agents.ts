@@ -79,29 +79,44 @@ function seat(g: Element): { x: number; y: number } | null {
   return m ? { x: Number(m[1]), y: Number(m[2]) } : null;
 }
 
-function token(x: number, y: number, name: string, color: string): SVGElement {
-  const t = _svg("g", { class: "dag-agent-token", transform: `translate(${x},${y})` });
-  t.appendChild(_svg("circle", { r: 8, fill: color, class: "dag-agent-disc" }));
-  const letter = _svg("text", { class: "dag-agent-letter", "text-anchor": "middle", y: 3.5 });
-  letter.textContent = Array.from(name.trim())[0]?.toUpperCase() || "A";
-  t.appendChild(letter);
-  return t;
+/** A marker pinned to a point on its tile (``at``, world units). The
+ *  inner group keeps the marker's on-screen size when the canvas zooms
+ *  out (``--dag-marker-scale``, interaction/canvas.ts), so ``dx``/``dy``
+ *  are screen offsets from the pin. */
+function marker(at: { x: number; y: number }, cls: string, dx: number, dy: number): {
+  outer: SVGElement; inner: SVGElement;
+} {
+  const outer = _svg("g", { class: cls, transform: `translate(${at.x},${at.y})` });
+  const scaled = _svg("g", { class: "dag-agent-mark" });
+  const inner = _svg("g", { transform: `translate(${dx},${dy})` });
+  scaled.appendChild(inner);
+  outer.appendChild(scaled);
+  return { outer, inner };
 }
 
-function bubble(x: number, y: number, label: string, color: string): SVGElement {
+function token(at: { x: number; y: number }, k: number, name: string, color: string): SVGElement {
+  const { outer, inner } = marker({ x: at.x - TILE_R, y: at.y - TILE_R }, "dag-agent-token", -k * 12, 0);
+  inner.appendChild(_svg("circle", { r: 8, fill: color, class: "dag-agent-disc" }));
+  const letter = _svg("text", { class: "dag-agent-letter", "text-anchor": "middle", y: 3.5 });
+  letter.textContent = Array.from(name.trim())[0]?.toUpperCase() || "A";
+  inner.appendChild(letter);
+  return outer;
+}
+
+function bubble(at: { x: number; y: number }, k: number, label: string, color: string): SVGElement {
   let text = label;
   while (_textWidth(text, BUBBLE_FONT) > BUBBLE_MAX && text.length > 2) {
     text = text.slice(0, -2) + "…";
   }
   const w = Math.ceil(_textWidth(text, BUBBLE_FONT)) + 22;
-  const b = _svg("g", { class: "dag-agent-bubble", transform: `translate(${x},${y})` });
+  const { outer, inner: b } = marker({ x: at.x + TILE_R, y: at.y }, "dag-agent-bubble", 10, k * (BUBBLE_H + 4));
   b.appendChild(_svg("rect", { x: 0, y: -BUBBLE_H / 2, width: w, height: BUBBLE_H, rx: 6, ry: 6 }));
   // The agent's colour as a dot, so a bubble reads back to its token.
   b.appendChild(_svg("circle", { cx: 9, cy: 0, r: 3, fill: color, class: "dag-agent-bubble-dot" }));
   const t = _svg("text", { x: 16, y: 4 });
   t.textContent = text;
   b.appendChild(t);
-  return b;
+  return outer;
 }
 
 /** Rebuild the token layer above ``nodeG`` from ``graph``'s running nodes. */
@@ -140,15 +155,14 @@ export function paintAgents(nodeG: Element, graph: GNode[]): void {
     onSeat.set(g, k + 1);
     const name = agentName(w.agent, byId, drawn);
     const color = _branchColor(w.node);
-    layer.appendChild(token(at.x - TILE_R - k * 12, at.y - TILE_R, name, color));
-    layer.appendChild(bubble(at.x + TILE_R + 10, at.y + k * (BUBBLE_H + 4),
-      `${name} · ${tileFor(w.node).doing}`, color));
+    layer.appendChild(token(at, k, name, color));
+    layer.appendChild(bubble(at, k, `${name} · ${tileFor(w.node).doing}`, color));
   }
   if (!latest.size) {
     const head = nodeG.querySelector<NodeG>(".history-node.is-head");
     const at = head ? seat(head) : null;
     if (head?._nodeData && at) {
-      layer.appendChild(token(at.x - TILE_R, at.y - TILE_R, translateText("Main agent", "主 agent"),
+      layer.appendChild(token(at, 0, translateText("Main agent", "主 agent"),
         _branchColor(head._nodeData)));
       layer.lastElementChild?.classList.add("is-idle");
     }

@@ -61,6 +61,8 @@ function dismissOverlays(): void {
 
 const MIN_SCALE = 0.25;
 const MAX_SCALE = 3;
+/** Below this the tiles draw as solid blocks (``is-far``). */
+const FAR_SCALE = 0.55;
 
 /** Zoom rates. A pinch (ctrlKey wheel) delivers small continuous
  *  deltas while a plain wheel delivers ±100-ish notches — one shared
@@ -134,6 +136,11 @@ export function applyView(): void {
   host.style.backgroundImage =
     `radial-gradient(var(--border-light, rgba(255, 255, 255, 0.10)) `
     + `${dotR}px, transparent ${dotR}px)`;
+  // Semantic zoom (dag/rendering.md §4): zoomed out, the agents keep
+  // their on-screen size like markers on a map, and below FAR_SCALE the
+  // tiles turn into solid blocks of their tone, too small for an icon.
+  host.style.setProperty("--dag-marker-scale", String(Math.max(1, 1 / _viewScale)));
+  host.classList.toggle("is-far", _viewScale < FAR_SCALE);
   const pct = document.querySelector<HTMLElement>(".dag-hud-zoom");
   if (pct) pct.textContent = Math.round(_viewScale * 100) + "%";
 }

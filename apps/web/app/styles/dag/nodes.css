@@ -48,6 +48,18 @@
 
 .history-node:hover .dag-tile > rect[data-node-shape] { filter: brightness(1.2); }
 
+/* Zoomed far out (interaction/canvas.ts ``is-far``): an icon at a few
+   pixels is noise, so a tile becomes a solid block of its tone — the map
+   reads by colour, and the agents' markers keep their size above it. */
+.is-far .dag-tile-icon { display: none; }
+.is-far .dag-tile > rect[data-node-shape] {
+  fill: color-mix(in srgb, var(--tone) 70%, var(--bg-primary, #191918));
+  stroke: var(--tone);
+}
+.is-far .history-node:not(.is-covered) .dag-tile > rect[data-node-shape] {
+  fill: color-mix(in srgb, var(--tone) 30%, var(--bg-primary, #191918));
+}
+
 /* HEAD — a breathing glow on its own tile, in the tile's tone (§4).
    drop-shadow hugs the outline at every zoom; the slow pulse says
    "you are here" without repainting anything. */
@@ -84,7 +96,8 @@
   font-weight: 600;
   fill: #fff;
 }
-.dag-agent-token:not(.is-idle) > * { animation: dag-agent-bob 1.2s ease-in-out infinite; }
+.dag-agent-mark { transform: scale(var(--dag-marker-scale, 1)); }
+.dag-agent-token:not(.is-idle) .dag-agent-mark > g > * { animation: dag-agent-bob 1.2s ease-in-out infinite; }
 @keyframes dag-agent-bob {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-2.5px); }
@@ -106,7 +119,7 @@
     filter: drop-shadow(0 0 4px var(--tone));
   }
   .history-node.is-running .dag-tile-orbit,
-  .dag-agent-token > * { animation: none; }
+  .dag-agent-token .dag-agent-mark > g > * { animation: none; }
   .history-node.is-running .dag-tile-orbit { stroke-dasharray: none; }
 }
 

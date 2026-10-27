@@ -379,7 +379,14 @@ upper-left corner of the tile it is on, and a bubble beside the tile says
 node belongs to the sub-agent whose spawn root its chain leads back to, else
 to the main agent, and each agent shows its latest running node. When that
 node is folded into a count, the token stands on the nearest drawn tile and
-the bubble still names the call; agents sharing a tile stack their bubbles. With nothing
+the bubble still names the call; agents sharing a tile stack their bubbles.
+
+**Semantic zoom.** Zoomed out, tokens and bubbles keep their on-screen size,
+like unit markers on a map (`--dag-marker-scale`, set by
+`interaction/canvas.ts`; the marker is pinned to its tile in world units and
+only its body scales). Below 55% an icon is a few pixels of noise, so every
+tile becomes a solid block of its tone (`is-far`): the map reads by colour,
+and covered tiles stay brighter than the rest. With nothing
 running, the main agent's token rests on HEAD without a bubble. The layer is
 rebuilt from the node DOM, so the in-place status patch repaints it.
 
