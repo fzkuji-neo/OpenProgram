@@ -167,7 +167,7 @@ def make_room(store: ProcessStore, session_id: str) -> str:
 
 
 def run(command: str, *, cwd: str | None, run_command: str, tty: bool, yield_ms: int,
-        shown_cwd: str | None = None) -> Reply:
+        shown_cwd: str | None = None, title: str | None = None) -> Reply:
     from openprogram.processes import current_owner
 
     session_id, _, _ = current_owner()
@@ -179,6 +179,8 @@ def run(command: str, *, cwd: str | None, run_command: str, tty: bool, yield_ms:
         raise RuntimeError(f"command launch {record['status']}")
     if shown_cwd != record.get("cwd"):
         store.update(record["id"], cwd=shown_cwd)
+    if isinstance(title, str) and title.strip():
+        store.update(record["id"], title=title.strip()[:120])
     reply = collect(store, record["id"], yield_ms, started, stop_on_cancel=True)
     if reply.running:
         reply.record = store.update(record["id"], background=True)

@@ -43,7 +43,9 @@ def bash(command: str,
 
     Args:
         command: The shell command to execute.
-        description: Short active-voice description shown in UI (display only).
+        description: Short active-voice description of what the command
+            does, such as "Evaluate 100 samples"; it names the command in the
+            UI while it runs (display only).
         workdir: Starting directory for this call only. Relative paths use the
             bound worktree, or the local process directory when unbound. No
             shell expansion is performed. Omit to use the backend default.
@@ -64,10 +66,10 @@ def bash(command: str,
         # No conversation to own a session (a script or test calling the
         # tool directly): run to completion as a plain subprocess.
         return _run_once(command, workdir)
-    return _run_session(command, workdir, yield_time_ms, tty)
+    return _run_session(command, workdir, yield_time_ms, tty, description)
 
 
-def _run_session(command, workdir, yield_time_ms, tty):
+def _run_session(command, workdir, yield_time_ms, tty, description=None):
     from openprogram.agent.types import AgentToolResult
     from openprogram.providers.types import TextContent
 
@@ -81,7 +83,8 @@ def _run_session(command, workdir, yield_time_ms, tty):
             worktree=current_worktree_path(),
         )
         reply = session.run(command, cwd=run_cwd, run_command=run_command, tty=bool(tty),
-                            yield_ms=session.clamp_exec_yield(yield_time_ms), shown_cwd=start_cwd)
+                            yield_ms=session.clamp_exec_yield(yield_time_ms), shown_cwd=start_cwd,
+                            title=description)
     except (OSError, ValueError, RuntimeError) as exc:
         return AgentToolResult(
             content=[TextContent(text=f"Error: shell launch failed: {exc}")],

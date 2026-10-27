@@ -89,8 +89,15 @@ and neither header carries a count.
 2. **Programs and commands**: shell calls still running, shell calls still
    out when their run stopped (warning tone), and every background
    program. Running rows first, then rows that need the reader, then the
-   rest, newest first within each, 20 at a time. Each status names its
-   kind ("Command · Running · 12 s", "Background program · Exited · …").
+   rest, newest first within each, 20 at a time. A command's status names
+   its kind ("Command · Running · 12 s"). A program is titled by what it
+   does (the bash call's `description`, else the script or module it runs,
+   past setup steps such as `cd` and `mkdir`), with its command in
+   monospace under the title. While it runs, the status line is its
+   progress ("45 / 100 samples · 3.4 samples/s · ~16 s left") over a thin
+   bar, or, with no amount known, how long it has run and its last output
+   line over a sweeping bar. Once it ends the status says how ("Completed ·
+   10 / 10 epochs · 4 min 5 s", "Failed at 62 / 200 · exit 1").
    `agent` calls never appear here; they are reached through the agents.
 
 Calls and programs are placed only after the executions are read, so they
@@ -136,8 +143,29 @@ arrow names the page it returns to. Nothing expands in place.
 - **Call**: titled by its description, with its kind, start and state, the
   run it came from, and the task (`prompt`) or the command. Tasks read as
   prose, commands as monospace; both show a few lines until **Show all**.
-- **Program**: state, the run it came from, folder, environment, exit,
-  command and output, with **Stop program** while it runs.
+- **Program**: titled like its row. A progress card comes first: the
+  count and percent, the bar, then elapsed time, speed and time left while
+  it runs, or how long it took, when it ended and its exit code. Then
+  **Stop program** while it runs, the command, and the output as a
+  terminal shows it: a line redrawn with carriage returns keeps its last
+  frame, colours stay, and the view follows new lines while the reader is
+  at the end (marked **Live**). Last come the run it came from, the
+  program name when a description titles it, folder and environment. An
+  open program page is read every second.
+
+### Program progress
+
+The server reads progress out of a program's output
+(`openprogram/processes/progress.py`), most trusted source first:
+`##progress 45/100 samples` lines the program prints on purpose (the bash
+tool asks the model to print them for long loops), the OSC 9;4 terminal
+progress sequence, tqdm and pip bars, and counters such as `Epoch 3/10`,
+`step 120 of 1000` or `[45/100]`. Once a more trusted source has spoken,
+less trusted ones are ignored, so an inner per-batch bar never overwrites
+an explicit sample count. Speed and time left are the bar's own, or
+measured since the count began. Output is stored as a terminal shows it,
+so a redrawn bar takes one line of the 2,000-line limit, and the agent
+reading a background command gets each redraw once.
 
 ## Look
 

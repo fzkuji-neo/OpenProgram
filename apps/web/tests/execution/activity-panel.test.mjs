@@ -175,7 +175,8 @@ test("sub-agents are paged under the main conversation", async () => {
 test("ongoing shell calls show on the main agent and, with programs, in their own group", async () => {
   await mounted([], async (host, click) => {
     assert.match(host.textContent, /AgentsMain agentRunning bash · \d+ s/);
-    assert.match(host.textContent, /Programs and commandspythonBackground program · Running · \d+ sbashCommand · Running · \d+ s/);
+    // A program row: its name, its command in monospace, then its state.
+    assert.match(host.textContent, /Programs and commandspythonpython worker\.pyRunning · \d+ sbashCommand · Running · \d+ s/);
     assert.doesNotMatch(host.textContent, /will appear here/);
     await click("Main agent");
     assert.match(host.textContent, /Running now.*bash/s);
@@ -428,4 +429,17 @@ test("a run page selects its run once, not again each time the list polls", asyn
     globalThis.activityController = controller("other"); await render();
     assert.deepEqual(selected, ["latest", "latest"]);
   } finally { await act(async () => root.unmount()); host.remove(); }
+});
+
+test("a program shows its description, progress and live output", async () => {
+  await mounted([], async (host, click) => {
+    assert.match(host.textContent, /Evaluate 100 samplespython eval\.py45 \/ 100 samples · 3\.4 samples\/s · ~16 s left/);
+    assert.ok(host.querySelector('[role="progressbar"][aria-valuenow="45"]'));
+    await click("Evaluate 100 samples");
+    assert.match(host.textContent, /45 \/ 100 samples45%/);
+    assert.match(host.textContent, /Speed3\.4 samples\/sLeft16 s/);
+  }, [{
+    id: "proc", command: "python eval.py", title: "Evaluate 100 samples", status: "running", started_at: now - 13, backend_id: "local",
+    progress: { source: "marker", state: "normal", current: 45, total: 100, label: "samples", rate: 3.4, eta: 16, updated_at: now },
+  }]);
 });

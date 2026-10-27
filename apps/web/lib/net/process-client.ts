@@ -34,6 +34,27 @@ export type ManagedProcess = {
   tty?: boolean;
   /** A bash call returned while it was still running: a background terminal. */
   background?: boolean;
+  /** What the command does, in the model's words ("Evaluate 100 samples"). */
+  title?: string | null;
+  /** How far it is, read from its output (openprogram/processes/progress.py). */
+  progress?: ProcessProgress | null;
+  /** The last line of output with text, without escape codes. */
+  last_line?: string | null;
+};
+
+/** ``current`` of ``total``; ``total`` null means the amount is unknown. */
+export type ProcessProgress = {
+  source: "marker" | "osc" | "bar" | "counter";
+  state: "normal" | "error" | "paused" | "indeterminate";
+  current: number | null;
+  total: number | null;
+  /** What is counted ("samples", "epochs") or, for a bar, its description. */
+  label?: string | null;
+  unit?: string | null;
+  /** Items per second and seconds left, when known. */
+  rate?: number | null;
+  eta?: number | null;
+  updated_at: number;
 };
 export const processIsActive = (process: ManagedProcess) =>
   ["starting", "running", "stopping", "unknown"].includes(process.status);

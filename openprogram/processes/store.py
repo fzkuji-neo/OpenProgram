@@ -20,7 +20,7 @@ COMMAND_KINDS = frozenset({"stop", "write", "interrupt"})
 PUBLIC_FIELDS = (
     "id", "session_id", "execution_id", "tool_call_id", "command", "cwd",
     "status", "started_at", "ended_at", "pid", "exit_code", "backend_id", "truncated",
-    "tty", "background",
+    "tty", "background", "title",
 )
 
 
@@ -146,21 +146,36 @@ class ProcessStore:
         return [json.loads(row[0]) for row in rows]
 
     def append_output(self, process_id, chunk: bytes):
+        from . import progress
+
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
-            row = db.execute("SELECT record,output,output_start FROM processes WHERE id=?", (process_id,)).fetchone()
+            row = db.execute("SELECT record,output,output_start,poll_offset FROM processes WHERE id=?",
+                             (process_id,)).fetchone()
             if row is None:
                 return
-            full = bytes(row["output"]) + chunk
+            old = bytes(row["output"])
+            # Only the unfinished last line can still be redrawn; it and the
+            # new chunk are stored as a terminal shows them.
+            start = old.rfind(b"\n") + 1
+            region = old[start:] + chunk
+            region_at = row["output_start"] + start
+            read = row["poll_offset"] - region_at if row["poll_offset"] > region_at else None
+            collapsed, mapped = progress.collapse(region, read)
+            poll_offset = row["poll_offset"] if mapped is None else region_at + mapped
+            full = old[:start] + collapsed
             output = full[-MAX_OUTPUT_BYTES:]
-            lines = output.splitlines(keepends=True)
-            if len(lines) > MAX_OUTPUT_LINES:
-                output = b"".join(lines[-MAX_OUTPUT_LINES:])
+            lines = output.split(b"\n")
+            if len(lines) > MAX_OUTPUT_LINES + 1:
+                output = b"\n".join(lines[-(MAX_OUTPUT_LINES + 1):])
             dropped = len(full) - len(output)
             record = json.loads(row["record"])
             record["truncated"] = record["truncated"] or bool(dropped)
-            db.execute("UPDATE processes SET output=?,output_start=?,record=? WHERE id=?",
-                       (output, row["output_start"] + dropped, json.dumps(record), process_id))
+            record["progress"] = progress.merge(record.get("progress"),
+                                                progress.parse(region.decode("utf-8", errors="replace")))
+            record["last_line"] = progress.last_line(output)
+            db.execute("UPDATE processes SET output=?,output_start=?,poll_offset=?,record=? WHERE id=?",
+                       (output, row["output_start"] + dropped, poll_offset, json.dumps(record), process_id))
 
     def output(self, process_id, *, poll=False):
         with self.connect() as db:
@@ -251,6 +266,9 @@ class ProcessStore:
 
 def public_record(record):
     from .presentation import command_display
+    from .progress import public
     return {**{key: record.get(key) for key in PUBLIC_FIELDS},
             "can_stop": record["status"] in LIVE,
-            "display": command_display(record.get("command") or "")}
+            "display": command_display(record.get("command") or ""),
+            "progress": public(record.get("progress")),
+            "last_line": record.get("last_line")}

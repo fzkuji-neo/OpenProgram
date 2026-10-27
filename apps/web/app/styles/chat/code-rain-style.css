@@ -66,3 +66,17 @@
 ::highlight(code-rain-fade-3) { color: color-mix(in srgb, var(--code-rain-ink) 40%, var(--code-rain-text, var(--text-primary))); }
 ::highlight(code-rain-fade-4) { color: color-mix(in srgb, var(--code-rain-ink) 22%, var(--code-rain-text, var(--text-primary))); }
 ::highlight(code-rain-fade-5) { color: color-mix(in srgb, var(--code-rain-ink) 8%, var(--code-rain-text, var(--text-primary))); }
+
+/* ---- Programs in Activity (components/right-sidebar/program-progress.tsx) ---- */
+/* A running program's bar fills with green blocks, and its output reads
+   as a green terminal. Errors keep their red. */
+:root[data-code-rain="on"] [data-program-bar][data-tone="run"] > span {
+  background: repeating-linear-gradient(90deg, var(--code-rain-ink) 0 5px, transparent 5px 7px);
+}
+:root[data-code-rain="on"] [data-program-output] {
+  color: var(--code-rain-ink);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+:root[data-theme-mode="dark"][data-code-rain="on"] [data-program-output] {
+  text-shadow: 0 0 6px color-mix(in srgb, var(--code-rain-ink) 35%, transparent);
+}

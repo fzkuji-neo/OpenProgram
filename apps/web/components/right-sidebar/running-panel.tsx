@@ -28,6 +28,7 @@ import { AgentsViewMenu } from "./agents-view-menu";
 import { DebuggerPanel } from "./debugger-panel";
 import { SidebarNotice } from "./sidebar-notice";
 import { executionTitle, shortTime, updatedTime } from "./debugger-presentation";
+import { ProgramOutput, ProgressBar, progressLook, seconds, type ProgressLook } from "./program-progress";
 import styles from "./running-panel.module.css";
 
 type Text = (en: string, zh: string) => string;
@@ -62,12 +63,19 @@ function Status({ tone, children }: { tone: Tone; children: ReactNode }) {
  *  the parent's row; later siblings continue the run from the row above. */
 type Line = { depth: number; last: boolean; first: boolean; guides: number[] };
 
-function Row({ glyph, title, status, tone, onOpen, line }: {
-  glyph: ReactNode; title: string; status: ReactNode; tone: Tone; onOpen: () => void; line?: Line;
+/** ``sub``: a monospace line under the title (a program's command);
+ *  ``extra``: what goes under the status (a program's progress bar). */
+function Row({ glyph, title, sub, status, tone, onOpen, line, extra }: {
+  glyph: ReactNode; title: string; sub?: string; status: ReactNode; tone: Tone; onOpen: () => void; line?: Line; extra?: ReactNode;
 }) {
   const row = <Button variant="ghost" className={styles.row} onClick={onOpen}>
     {glyph}
-    <span className={styles.rowText}><span className={styles.name}>{title}</span><Status tone={tone}>{status}</Status></span>
+    <span className={styles.rowText}>
+      <span className={styles.name}>{title}</span>
+      {sub && <span className={styles.sub}>{sub}</span>}
+      <Status tone={tone}>{status}</Status>
+      {extra}
+    </span>
     <ChevronRight size={14} className={styles.chevron} aria-hidden="true" />
   </Button>;
   // A sub-agent sits under the branch that started it: an elbow from that
@@ -152,6 +160,41 @@ function programName(item: ManagedProcess, text: Text): string {
   const display = item.display;
   if (display?.kind === "snippet") return `${display.name} ${text("snippet", "代码片段")}`;
   return display?.name || item.command.trim().match(/^(?:[^\s=]+=[^\s]+\s+)*([^\s]+)/)?.[1]?.split("/").pop() || text("Program", "程序");
+}
+
+/** What a program does in the model's words, else the program it runs. */
+function programTitle(item: ManagedProcess, text: Text): string {
+  return item.title?.trim() || programName(item, text);
+}
+
+/** The command's first line, as the row's monospace subtitle. */
+function commandLine(item: ManagedProcess): string {
+  return item.command.trim().split("\n")[0];
+}
+
+/** "eval · 45 / 100 · 3.4/s · ~16 s left", or what it last printed. */
+function progressLine(look: ProgressLook): string {
+  return [look.stage, look.count, look.rate, look.eta].filter(Boolean).join(" · ");
+}
+
+/** A program's status line on its row: progress while it runs, the outcome after. */
+function programStatus(item: ManagedProcess, look: ProgressLook | null, now: number, text: Text): string {
+  if (processIsActive(item)) {
+    if (item.status === "running" && look && (look.count || look.rate)) return progressLine(look);
+    return [`${programState(item, text)} · ${duration(now - item.started_at, text)}`, item.last_line].filter(Boolean).join(" · ");
+  }
+  const took = item.ended_at != null ? seconds(item.ended_at - item.started_at, text) : when(item.started_at, text);
+  if (item.status === "failed" || (item.exit_code != null && item.exit_code !== 0)) {
+    const at = look?.count && look.fraction != null && look.fraction < 1 ? text(` at ${look.count}`, `于 ${look.count}`) : "";
+    return `${programState(item, text)}${at}${item.exit_code != null ? ` · exit ${item.exit_code}` : ""}`;
+  }
+  return [programState(item, text), look?.count, took].filter(Boolean).join(" · ");
+}
+
+function programBarTone(item: ManagedProcess, look: ProgressLook | null): "run" | "ok" | "err" | "muted" {
+  if (processIsActive(item)) return look?.failed ? "err" : "run";
+  if (item.status === "failed" || (item.exit_code != null && item.exit_code !== 0)) return "err";
+  return ["completed", "exited"].includes(item.status) ? "ok" : "muted";
 }
 
 /** A call that started no sub-agent: why, in the reader's words. */
@@ -292,7 +335,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     if (entry.kind === "main") return mainName;
     if (entry.kind === "call") { const item = call(entry.id); return item ? item.description || item.name : text("Call", "调用"); }
     if (entry.kind === "spawn") { const item = spawn(entry.id); return item?.description || text("Sub-agent", "子代理"); }
-    if (entry.kind === "program") { const item = program(entry.id); return item ? programName(item, text) : text("Program", "程序"); }
+    if (entry.kind === "program") { const item = program(entry.id); return item ? programTitle(item, text) : text("Program", "程序"); }
     const item = execution(entry.id);
     return item ? isAgent(item) ? agentName(item) : runTitle(item) : text("Run", "运行");
   }
@@ -390,10 +433,16 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       status={withKind ? `${callKind(item, text)} · ${phase}` : phase} tone={item.status === "running" ? "run" : "warn"}
       onOpen={() => open({ kind: "call", id: item.id })} />;
   }
-  function programRow(item: ManagedProcess, withKind = false): ReactNode {
-    const phase = `${programState(item, text)} · ${processIsActive(item) ? duration(now - item.started_at, text) : when(item.started_at, text)}`;
-    return <Row key={`program:${item.id}`} glyph={<Glyph name="code-square" tone="shell" />} title={programName(item, text)}
-      status={withKind ? `${text("Background program", "后台程序")} · ${phase}` : phase} tone={programTone(item)}
+  function programRow(item: ManagedProcess): ReactNode {
+    const look = progressLook(item.progress, text);
+    const active = processIsActive(item) && item.status !== "unknown";
+    // A running program always shows a bar (sweeping when the amount is
+    // unknown); a finished one keeps its bar only if it reported progress.
+    const bar = active || look?.fraction != null
+      ? <span className={styles.rowBar}><ProgressBar fraction={look?.fraction ?? null} tone={programBarTone(item, look)} /></span>
+      : null;
+    return <Row key={`program:${item.id}`} glyph={<Glyph name="code-square" tone="shell" />} title={programTitle(item, text)}
+      sub={commandLine(item)} status={programStatus(item, look, now, text)} tone={programTone(item)} extra={bar}
       onOpen={() => open({ kind: "program", id: item.id })} />;
   }
   function runRow(item: ExecutionSnapshot): ReactNode {
@@ -406,6 +455,36 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     return <Row key={`execution:${item.execution_id}`} glyph={<RunGlyph />} title={runTitle(item)}
       status={`${text("Branch", "分支")} · ${executionState(item, text)}`} tone={executionTone(item)}
       onOpen={() => open({ kind: "run", id: item.execution_id })} />;
+  }
+
+  /** A program page's progress: the count and bar, then time, speed and
+   *  time left while it runs, or how long it took and how it ended. */
+  function programProgressCard(item: ManagedProcess): ReactNode {
+    const look = progressLook(item.progress, text);
+    const active = processIsActive(item) && item.status !== "unknown";
+    if (!active && !look) return null;
+    const end = item.ended_at ?? now;
+    const stats: [string, string][] = active
+      ? [[text("Elapsed", "已用时间"), seconds(now - item.started_at, text)],
+        [text("Speed", "速度"), look?.rate ?? "—"],
+        [text("Left", "剩余"), look?.eta?.replace(/^~|^约剩 /, "") ?? "—"]]
+      : [[text("Took", "用时"), seconds(end - item.started_at, text)],
+        [text("Ended", "结束"), updatedTime(end)],
+        [text("Exit code", "退出码"), item.exit_code != null ? String(item.exit_code) : "—"]];
+    return <div className={styles.progress}>
+      <div className={styles.progressTop}>
+        <span className={styles.progressCount}>
+          {look?.count ?? (active ? text("Working…", "运行中…") : programState(item, text))}
+        </span>
+        {look?.fraction != null && <span className={styles.progressPercent}>{Math.floor(look.fraction * 100)}%</span>}
+      </div>
+      {look?.stage && <span className={styles.progressStage}>{look.stage}</span>}
+      {(active || look?.fraction != null) && <ProgressBar size="md" fraction={look?.fraction ?? null} tone={programBarTone(item, look)} />}
+      {active && !look?.count && item.last_line && <span className={styles.progressLast}>{item.last_line}</span>}
+      <dl className={styles.stats}>
+        {stats.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+      </dl>
+    </div>;
   }
 
   // ---- issue block on a page --------------------------------------------------
@@ -614,9 +693,10 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       {!item ? <SidebarNotice>{processes.stale ? text("Program details unavailable.", "暂时无法读取程序详情。") : text("Loading program…", "正在读取程序…")}</SidebarNotice> : <div className={styles.scroll}>
         <div className={styles.head}>
           <div className={styles.kind}><Glyph name="code-square" tone="shell" />{text("Background program", "后台程序")} · {updatedTime(item.started_at)}</div>
-          <h3 className={styles.title}>{programName(item, text)}</h3>
+          <h3 className={styles.title}>{programTitle(item, text)}</h3>
           <Status tone={programTone(item)}>{programState(item, text)}</Status>
         </div>
+        {programProgressCard(item)}
         {issue && issueBlock(issue, "program")}
         {processIsActive(item) && <div className={styles.actions} data-inline="1">
           <Button variant="elevated" size="sm" disabled={pending === item.id || processes.stale || item.can_stop === false} onClick={async () => {
@@ -627,17 +707,20 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
           }}>{pending === item.id ? text("Stopping…", "正在停止…") : text("Stop program", "停止程序")}</Button>
         </div>}
         {actionError && <p role="alert" className={styles.error}>{actionError}</p>}
+        <Long label={text("Command", "命令")} body={item.command} mono open={taskOpen} onToggle={() => setTaskOpen(value => !value)} text={text} />
+        <h4 className={styles.section}>
+          {text("Output", "输出")}
+          {processIsActive(item) && item.status !== "unknown" && <span className={styles.live}>{text("Live", "实时")}</span>}
+        </h4>
+        {item.truncated && <p className={styles.empty}>{text("Earlier output was truncated; the process record is retained.", "较早的输出已截断，程序记录仍然保留。")}</p>}
+        <ProgramOutput output={processes.detail?.output || ""} live={processIsActive(item) && item.status !== "unknown"}
+          empty={processes.detail ? text("No output yet.", "还没有输出。") : text("Loading output…", "正在读取输出…")} />
         <dl className={styles.facts}>
           {run && <><dt>{text("From", "来自")}</dt><dd><button type="button" className={styles.link} onClick={() => open({ kind: "run", id: run.root.execution_id })}>{runTitle(run.root)}</button></dd></>}
+          {item.title && <><dt>{text("Program", "程序")}</dt><dd>{programName(item, text)}</dd></>}
           <dt>{text("Folder", "工作目录")}</dt><dd>{item.cwd || "—"}</dd>
-          {item.ended_at != null && <><dt>{text("Ended", "结束")}</dt><dd>{updatedTime(item.ended_at)}</dd></>}
-          {item.exit_code != null && <><dt>{text("Exit code", "退出码")}</dt><dd>{item.exit_code}</dd></>}
           <dt>{text("Environment", "运行环境")}</dt><dd>{item.backend_id}</dd>
         </dl>
-        <Long label={text("Command", "命令")} body={item.command} mono open={taskOpen} onToggle={() => setTaskOpen(value => !value)} text={text} />
-        <h4 className={styles.section}>{text("Output", "输出")}</h4>
-        {item.truncated && <p className={styles.empty}>{text("Earlier output was truncated; the process record is retained.", "较早的输出已截断，程序记录仍然保留。")}</p>}
-        <pre className={styles.output}>{processes.detail?.output || text("No output recorded yet.", "尚无输出记录。")}</pre>
       </div>}
     </div>;
   }
@@ -674,7 +757,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   const rank = (tone: Tone) => tone === "run" ? 0 : tone === "warn" ? 1 : 2;
   const work = [
     ...shellCalls.map(entry => ({ tone: (entry.status === "running" ? "run" : "warn") as Tone, at: entry.started_at, node: callRow(entry) })),
-    ...processes.items.map(entry => ({ tone: programTone(entry), at: entry.started_at, node: programRow(entry, true) })),
+    ...processes.items.map(entry => ({ tone: programTone(entry), at: entry.started_at, node: programRow(entry) })),
   ].sort((a, b) => rank(a.tone) - rank(b.tone) || b.at - a.at);
   const empty = state.fetchedAt && processes.loaded && !model.issues.length && !showMain && !work.length;
   const filteredOut = text(...({

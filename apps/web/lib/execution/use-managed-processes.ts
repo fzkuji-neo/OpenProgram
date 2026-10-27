@@ -52,7 +52,8 @@ export function useManagedProcesses(active: boolean, sessionId: string | null, s
         finally {
           clearTimeout(timeout);
           pending = null;
-          if (!disposed) timer = setTimeout(poll, dirty ? 250 : 3000);
+          // An open program page follows its output and progress every second.
+          if (!disposed) timer = setTimeout(poll, dirty ? 250 : selectedId ? 1000 : 3000);
         }
       })();
       return pending;

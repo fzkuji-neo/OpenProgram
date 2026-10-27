@@ -52,6 +52,12 @@ DESCRIPTION = (
     "chaining is necessary, use syntax supported by the active host shell.\n"
     "- To wait on a background command, call write_stdin with empty chars "
     "rather than running sleep.\n"
+    "- For a long command, pass description (\"Evaluate 100 samples\") so the "
+    "user can tell what is running. If it works through a known number of "
+    "items, have it print `##progress <done>/<total> <what>` lines (for "
+    "example `##progress 45/100 samples`) as it goes; the user sees them as a "
+    "progress bar. tqdm bars and `Epoch 3/10`-style counters are picked up "
+    "too.\n"
     "- For git, prefer new commits over amending, and never skip hooks "
     "(--no-verify) unless explicitly asked.\n"
 )
