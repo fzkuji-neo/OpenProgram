@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { HoverTip, TipBody } from "@/components/ui/tooltip";
 
-import { AgentSelector } from "./agent-selector";
+import { AgentSelector, useProviderLabels } from "./agent-selector";
 import { MENU_PANEL } from "./menu-styles";
 import { useBoundChat } from "./bound-chat";
 import { pushAgentSettings, pushBranchInfo, pushStatusBadge } from "@/lib/tabs/top-bar-sync";
@@ -138,6 +138,8 @@ export function AgentBadge({
     queryKey: ["models-enabled"],
     queryFn: api.listEnabledModels,
   });
+  // Warm the provider names the menu labels its rows with.
+  useProviderLabels();
   const nameById = useMemo(() => {
     const m = new Map<string, string>();
     for (const mdl of enabledModels ?? []) {
