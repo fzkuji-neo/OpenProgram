@@ -274,10 +274,13 @@ def _finish_owned_run(session_id: str, msg_id: str) -> bool:
         if not (task and task.get("msg_id") == msg_id):
             return False
         state._running_tasks.pop(session_id, None)
-    # The active-runtime registration is the handoff counterpart to the
-    # provisional reservation.  Retire it only after ownership was matched;
-    # a late finisher must not clear a newer run in the same session.
-    state._unregister_active_runtime(session_id)
+        # The active-runtime registration is the handoff counterpart to the
+        # provisional reservation.  Retire it only after ownership was
+        # matched (a late finisher must not clear a newer run), and under the
+        # same lock: between the two, _is_run_active still answered True from
+        # the runtime while _run_identity found no task, so a load in that
+        # window handed clients an active run with no ids to clear it by.
+        state._unregister_active_runtime(session_id)
     return True
 
 

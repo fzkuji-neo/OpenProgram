@@ -89,7 +89,7 @@ globalThis.localStorage = { getItem: () => null, setItem() {} };
 globalThis.WebSocket = { OPEN: 1 };
 const { useChatSubmit, stopSession } = await import("../../components/chat/composer/submit/use-chat-submit.ts");
 const { sendChatMessage } = await import("../../components/chat/composer/submit/send-chat-message.ts");
-const { useSendQueue, queueFor } = await import("../../lib/chat/send-queue.ts");
+const { useSendQueue, queueFor, reconcileAfterSessionLoad } = await import("../../lib/chat/send-queue.ts");
 const { pasteStore, placeholderToken } = await import("../../components/chat/composer/paste/paste-store.ts");
 const pending = await import("../../lib/chat/pending-user-text.ts");
 
@@ -637,4 +637,22 @@ test("a clear before the previous send's ACK leaves the next queued message wait
   useSendQueue.getState().drain(sid);
   assert.deepEqual(host.frames.map(frame => frame.text), ["first", "second"]);
   assert.equal(queueFor(sid).length, 0);
+});
+
+test("an active run reported without ids is asked again, so a finished turn cannot stay busy", async t => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  reconcileAfterSessionLoad("A", true, null);
+  assert.deepEqual(host.sessions.runningTasks.A, { session_id: "A", msg_id: "" });
+  t.mock.timers.tick(1500);
+  await nextTurn(); await nextTurn();
+  assert.deepEqual(host.frames, [{ action: "get_run_state", session_id: "A" }]);
+  // The reply names the session idle: the slot clears.
+  reconcileAfterSessionLoad("A", false, null);
+  assert.equal(host.sessions.runningTasks.A, undefined);
+  // A reply that names the turn needs no second ask.
+  host.frames.length = 0;
+  reconcileAfterSessionLoad("B", true, { msg_id: "user-B", execution_id: "exec-B" });
+  t.mock.timers.tick(1500);
+  await nextTurn(); await nextTurn();
+  assert.deepEqual(host.frames, []);
 });

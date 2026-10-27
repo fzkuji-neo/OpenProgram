@@ -340,6 +340,11 @@ export function reconcileAfterSessionLoad(
         msg_id: runTask?.msg_id || "",
         ...(runTask?.execution_id ? { execution_id: runTask.execution_id } : {}),
       });
+      // An active run reported without its ids (a turn handing over its
+      // slot as it starts or ends) leaves a slot no clear can name, so the
+      // session would look busy for good. Ask again until the reply names
+      // the turn or reports the session idle.
+      if (!runTask?.msg_id && !runTask?.execution_id) recheckRunState(sessionId);
     }
     return;
   }
@@ -348,6 +353,26 @@ export function reconcileAfterSessionLoad(
   if (!wasRunning) {
     queueMicrotask(() => useSendQueue.getState().drain(sessionId));
   }
+}
+
+const RUN_STATE_RECHECK_MS = 1500;
+const runStateRechecks = new Set<string>();
+
+function recheckRunState(sessionId: string): void {
+  if (runStateRechecks.has(sessionId)) return;
+  runStateRechecks.add(sessionId);
+  setTimeout(() => {
+    runStateRechecks.delete(sessionId);
+    const task = useSessionStore.getState().runningTasks[sessionId];
+    // A just-sent message holds the same anonymous slot until its ack.
+    if (!task || task.msg_id || task.execution_id || hasPendingFirstAck(sessionId)) return;
+    void import("@/lib/runtime-bridge/state").then(({ getSocket }) => {
+      const socket = getSocket();
+      if (socket?.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ action: "get_run_state", session_id: sessionId }));
+      } else recheckRunState(sessionId);
+    });
+  }, RUN_STATE_RECHECK_MS);
 }
 
 /** Turn settings of the last outgoing send per session, so a rejected
