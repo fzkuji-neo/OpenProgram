@@ -136,7 +136,11 @@
   position: fixed;
   pointer-events: none;
   z-index: 30;
+  /* Streams pass behind the text: the darker (lighter in dark mode) of
+     the stream and what is under it wins, so text stays on top. */
+  mix-blend-mode: darken;
 }
+:root[data-theme-mode="dark"] .code-rain-arrivals { mix-blend-mode: lighten; }
 ::highlight(code-rain-hidden) { color: transparent; }
 ::highlight(code-rain-fade-0) { color: var(--code-rain-ink); }
 ::highlight(code-rain-fade-1) { color: color-mix(in srgb, var(--code-rain-ink) 80%, var(--code-rain-text, var(--text-primary))); }

@@ -161,7 +161,7 @@ function startArrivals(mount: HTMLElement): () => void {
   function fallFromAbove(t: Tracker, fresh: Fresh[], box: DOMRect, t0: number) {
     const v = 1100;
     const top = Math.min(...fresh.map((f) => f.rect.top));
-    const y0 = Math.max(box.top, top - 360) - box.top;
+    const y0 = Math.max(box.top, top - 240) - box.top;
     const bands = new Map<number, typeof fresh>();
     for (const f of fresh) {
       const key = Math.floor((f.rect.left + f.rect.width / 2 - box.left) / BAND);
@@ -190,7 +190,7 @@ function startArrivals(mount: HTMLElement): () => void {
     for (const f of fresh) {
       const x = f.rect.left + f.rect.width / 2 - box.left;
       const y = f.rect.top + f.rect.height / 2 - box.top;
-      const fall = (4 + Math.random() * 4) * STEP;
+      const fall = (3 + Math.random() * 3) * STEP;
       const reveal = t0 + fall / v + Math.random() * 0.04;
       const key = `${Math.floor(x / BAND)}:${Math.round(y)}`;
       if (!landed.has(key)) {
@@ -352,16 +352,18 @@ function startArrivals(mount: HTMLElement): () => void {
       if (head - (d.len - 1) * STEP > d.stopY) return false;
       for (let k = 0; k < d.len; k++) {
         const y = head - k * STEP;
-        if (y < d.y0 - STEP) break;
+        if (y < d.y0) break;
         if (y > d.stopY) continue;
+        // Streams fade in where they start instead of popping into view.
+        const enter = Math.min(1, 0.25 + (y - d.y0) / (3 * STEP));
         if (k === 0) {
           ctx!.fillStyle = pal.head;
-          ctx!.globalAlpha = 1;
+          ctx!.globalAlpha = enter;
           ctx!.shadowColor = pal.tail;
           ctx!.shadowBlur = pal.dark ? 10 : 0;
         } else {
           ctx!.fillStyle = pal.tail;
-          ctx!.globalAlpha = Math.max(0.05, 1 - k / d.len) * (pal.dark ? 0.9 : 0.75);
+          ctx!.globalAlpha = enter * Math.max(0.05, 1 - k / d.len) * (pal.dark ? 0.9 : 0.75);
           ctx!.shadowBlur = 0;
         }
         if (Math.random() < 0.03) d.glyphs[k] = randomGlyph();
