@@ -37,7 +37,7 @@ import { summarizeToolGroup } from "./tool-group-summary";
 import { shouldRenderTurnFiles } from "./turn-files-presentation";
 import { AssistantFileCards } from "./assistant-file-cards";
 import { parseAttachments } from "./user-attachments";
-import { ActivityIndicator } from "./activity-indicator";
+import { ThinkingStatus } from "./thinking-status";
 import { UserBubble } from "./user-bubble";
 import { SubAgentsCard } from "./sub-agents-card";
 
@@ -143,11 +143,9 @@ const MarkdownText = memo(function MarkdownText({ text }: { text: string }) {
 });
 
 function TypingIndicator() {
-  const { text } = useTranslation();
   return (
     <div className="pending-body">
-      <ActivityIndicator />
-      <span className="pending-label">{text("thinking…", "思考中…")}</span>
+      <ThinkingStatus />
     </div>
   );
 }

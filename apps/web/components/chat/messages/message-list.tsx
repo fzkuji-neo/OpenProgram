@@ -1,7 +1,7 @@
 "use client";
 import { TranscriptSessionContext } from "./transcript-view-scope";
 import { TranscriptReadStatus } from "./transcript-read-status";
-import { ActivityIndicator } from "./activity-indicator";
+import { ThinkingStatus } from "./thinking-status";
 
 /**
  * Message list — the React message stream.
@@ -552,7 +552,6 @@ export const RecyclableRow = memo(function RecyclableRow({
  *  hidden by ``MessageList``.
  */
 function PendingReplyIndicator({ timestamp }: { timestamp?: number }) {
-  const { text } = useTranslation();
   const [fallbackTimestamp] = useState(() => Date.now());
   return (
     <div className="message assistant pending-standalone">
@@ -564,8 +563,7 @@ function PendingReplyIndicator({ timestamp }: { timestamp?: number }) {
         role="status"
         aria-live="polite"
       >
-        <ActivityIndicator />
-        <span className="pending-label">{text("thinking…", "思考中…")}</span>
+        <ThinkingStatus />
         <MessageTimestamp timestamp={timestamp ?? fallbackTimestamp} />
       </div>
     </div>

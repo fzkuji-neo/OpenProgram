@@ -127,8 +127,8 @@
    over the chat area that drops and code glyphs are drawn on, and the
    highlights that hide characters until they decode and then fade them
    from green to their own colour. */
-:root { --code-rain-ink: #118a3a; }
-:root[data-theme-mode="dark"] { --code-rain-ink: #22e35b; }
+:root { --code-rain-ink: #118a3a; --code-rain-head: #063d18; }
+:root[data-theme-mode="dark"] { --code-rain-ink: #22e35b; --code-rain-head: #eafff0; }
 /* The colour the green fades into: each message's body text colour. */
 .user-md { --code-rain-text: var(--text-bright); }
 .chat-text { --code-rain-text: var(--text-primary); }
