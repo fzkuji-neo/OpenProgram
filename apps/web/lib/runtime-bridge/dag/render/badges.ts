@@ -194,7 +194,6 @@ export function drawBadges(
     // 收起时自动回到会话层节点。分支归属按 lane——展开的执行节点
     // 与所属轮次同 lane。查预扫表，不再逐行全图扫。
     const lane = (node as any)._lane ?? 0;
-    const said = node;
     node = deepestByLane[lane] ?? node;
     const p = pos(node);
     let bx = p.x;
@@ -203,9 +202,16 @@ export function drawBadges(
     // 下走）时左偏半格——徽标永不压边。
     const hasLineBelow = maxYByX[p.x] !== undefined && maxYByX[p.x] > p.y;
     if (hasLineBelow) bx -= 16;
-    // An unnamed branch reads as the words at its tip, never as an id.
-    const label = (b.name as string) || taskLabel(said)
-      || translateText("Branch", "分支");
+    // The server names an unnamed branch by its head id; the canvas says
+    // what you asked on it instead — your words, never a reply's.
+    let asked: GNode | undefined;
+    for (let id: string | undefined = hid, i = 0; id && i < 10000 && !asked; i++) {
+      const m: GNode | undefined = fullById[id];
+      if (m?.role === "user" && taskLabel(m)) asked = m;
+      id = m ? ((m.predecessor as string) || (m.caller as string) || undefined) : undefined;
+    }
+    const label = (b.is_named ? (b.name as string) : taskLabel(asked))
+      || (b.name as string) || hid.slice(0, 8);
     const isActive = !!b.active;
     const color = _branchColor(node, stableLeafOfNode);
     _drawPill(
