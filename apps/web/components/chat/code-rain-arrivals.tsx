@@ -170,8 +170,10 @@ function startArrivals(mount: HTMLElement): () => void {
     }
     for (const [key, list] of bands) {
       const start = t0 + Math.random() * 0.25;
-      const bottom = Math.max(...list.map((f) => f.rect.top + f.rect.height / 2 - box.top));
-      drops.push(drop(key * BAND + BAND / 2, y0, start, bottom, v, 10 + Math.floor(Math.random() * 9)));
+      // The drop sinks into the column's first character; the characters
+      // below it keep decoding at the same speed, as if it went on.
+      const first = Math.min(...list.map((f) => f.rect.top + f.rect.height / 2 - box.top));
+      drops.push(drop(key * BAND + BAND / 2, y0, start, first, v, 10 + Math.floor(Math.random() * 9)));
       for (const f of list) {
         const reveal = start + (f.rect.top + f.rect.height / 2 - box.top - y0) / v;
         t.chars.set(f.index, state(f, reveal, reveal + 0.18 + Math.random() * 0.32));
@@ -341,20 +343,18 @@ function startArrivals(mount: HTMLElement): () => void {
       }
     }
 
-    // Drops: a bright head, a green tail that drains into the text.
+    // Drops: a bright head and a fading tail that keep falling and sink
+    // into the text, so nothing ever rises back up.
     ctx!.font = `600 15px ${CODE_RAIN_FONT}`;
     drops = drops.filter((d) => {
-      const travelled = (t - d.start) * d.v;
-      if (travelled < 0) return true;
-      const head = d.y0 + travelled;
-      const past = head - d.stopY;
-      if (past > d.len * STEP) return false;
-      const headY = Math.min(head, d.stopY);
+      const head = d.y0 + (t - d.start) * d.v;
+      if (head < d.y0) return true;
+      if (head - (d.len - 1) * STEP > d.stopY) return false;
       for (let k = 0; k < d.len; k++) {
-        const y = headY - k * STEP;
+        const y = head - k * STEP;
         if (y < d.y0 - STEP) break;
-        if (past > 0 && k * STEP < past) continue;
-        if (k === 0 && past <= 0) {
+        if (y > d.stopY) continue;
+        if (k === 0) {
           ctx!.fillStyle = pal.head;
           ctx!.globalAlpha = 1;
           ctx!.shadowColor = pal.tail;
