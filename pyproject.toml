@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=83,<85", "wheel"]
+requires = ["setuptools>=84.1.0,<85", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -152,7 +152,7 @@ dev = [
     "pip>=24",
     # test_wheel_contains_both_runtime_shims builds with --no-isolation, so
     # the backend must be importable in the dev env (not bundled on 3.12+)
-    "setuptools>=83,<85",
+    "setuptools>=84.1.0,<85",
     "pytest-timeout>=2.3",
     # full-suite runs go 126s -> 27s with -n auto; keep serial default so
     # single-file debugging stays overhead-free
