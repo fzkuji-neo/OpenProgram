@@ -18,9 +18,10 @@ const mocks = {
   zustand: `export function create(init) {
     let state;
     const get = () => state;
-    const set = (patch) => { state = { ...state, ...(typeof patch === 'function' ? patch(state) : patch) }; };
+    const listeners = new Set();
+    const set = (patch) => { const prev = state; state = { ...state, ...(typeof patch === 'function' ? patch(state) : patch) }; for (const l of listeners) l(state, prev); };
     const store = (select = value => value) => select(state);
-    store.getState = get; store.setState = set;
+    store.getState = get; store.setState = set; store.subscribe = l => (listeners.add(l), () => listeners.delete(l));
     state = init(set, get, store);
     return store;
   }`,
@@ -89,7 +90,7 @@ globalThis.localStorage = { getItem: () => null, setItem() {} };
 globalThis.WebSocket = { OPEN: 1 };
 const { useChatSubmit, stopSession } = await import("../../components/chat/composer/submit/use-chat-submit.ts");
 const { sendChatMessage } = await import("../../components/chat/composer/submit/send-chat-message.ts");
-const { useSendQueue, queueFor, reconcileAfterSessionLoad } = await import("../../lib/chat/send-queue.ts");
+const { useSendQueue, queueFor, reconcileAfterSessionLoad, recheckRunState } = await import("../../lib/chat/send-queue.ts");
 const { pasteStore, placeholderToken } = await import("../../components/chat/composer/paste/paste-store.ts");
 const pending = await import("../../lib/chat/pending-user-text.ts");
 
@@ -572,31 +573,6 @@ test("version retry refreshes only the original target and never loops indefinit
   assert.equal(queueFor('A')[0].text,'bound retry');
 });
 
-test("pending steer storage excludes ordinary drafts and attachments and tolerates disabled storage", async t => {
-  const {savePendingSteers,loadPendingSteers}=await import('../../lib/chat/pending-steer-storage.ts');
-  let saved=null;
-  const previous=globalThis.sessionStorage;
-  t.after(()=>{globalThis.sessionStorage=previous});
-  globalThis.sessionStorage={getItem:()=>saved,setItem:(_key,value)=>{saved=value},removeItem:()=>{saved=null}};
-  running();
-  await composer('ordinary draft').submit();
-  const draft=queueFor('A')[0];
-  savePendingSteers({A:[draft]});
-  assert.equal(saved,null);
-  const command={type:'execution.command',action:'execution.steer',command_id:'id',execution_id:'exec-A',expected_version:7,payload:{message:draft.text}};
-  savePendingSteers({A:[{...draft,steerCommand:command,injecting:true}]});
-  assert.deepEqual(loadPendingSteers().A[0].steerCommand,command);
-  assert.equal(loadPendingSteers().A[0].injecting,false);
-  savePendingSteers({A:[{...draft,steerCommand:command,docs:[{dataB64:'secret attachment'}]}]});
-  assert.equal(saved,null);
-  saved='not json'; assert.deepEqual(loadPendingSteers(),{});
-  saved=JSON.stringify({A:[{...draft,steerCommand:{...command,action:'execution.cancel'}}]});
-  assert.deepEqual(loadPendingSteers(),{});
-  globalThis.sessionStorage={getItem(){throw Error('blocked')},setItem(){throw Error('blocked')},removeItem(){throw Error('blocked')}};
-  assert.deepEqual(loadPendingSteers(),{});
-  assert.doesNotThrow(()=>savePendingSteers({A:[{...draft,steerError:'cancelled'}]}));
-});
-
 test("an attached send clears the composer files when the socket accepts it, not at ACK", async () => {
   const calls = [];
   const options = {
@@ -643,6 +619,8 @@ test("an active run reported without ids is asked again, so a finished turn cann
   t.mock.timers.enable({ apis: ["setTimeout"] });
   reconcileAfterSessionLoad("A", true, null);
   assert.deepEqual(host.sessions.runningTasks.A, { session_id: "A", msg_id: "" });
+  // The session store asks for this on every write of a slot without ids.
+  recheckRunState("A");
   t.mock.timers.tick(1500);
   await nextTurn(); await nextTurn();
   assert.deepEqual(host.frames, [{ action: "get_run_state", session_id: "A" }]);
@@ -652,6 +630,7 @@ test("an active run reported without ids is asked again, so a finished turn cann
   // A reply that names the turn needs no second ask.
   host.frames.length = 0;
   reconcileAfterSessionLoad("B", true, { msg_id: "user-B", execution_id: "exec-B" });
+  recheckRunState("B");
   t.mock.timers.tick(1500);
   await nextTurn(); await nextTurn();
   assert.deepEqual(host.frames, []);

@@ -910,6 +910,9 @@ export const useSessionStore = createWithEqualityFn<ConvState>((set) => ({
           );
         });
       }
+      if (t && !t.msg_id && !t.execution_id) {
+        void import("@/lib/chat/send-queue").then((m) => m.recheckRunState(sessionId));
+      }
       return { runningTasks: next };
     }),
   setPaused: (p) => set({ paused: p }),

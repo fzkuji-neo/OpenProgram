@@ -38,6 +38,11 @@ export function shouldHonorRunningTaskClear(
   if (!current) return true;
   const cur = executionKey(current);
   const gone = executionKey(cleared);
-  if (cur && gone) return cur === gone;
-  return false;
+  if (cur && gone && cur === gone) return true;
+  // A slot learned before admission (a load during the reservation) names
+  // only its message, while the clear names the execution admission minted:
+  // the same message is the same turn.
+  const mid = (current.msg_id || "").trim();
+  return Boolean(mid && !(current.execution_id || "").trim()
+    && mid === (cleared?.msg_id || "").trim());
 }

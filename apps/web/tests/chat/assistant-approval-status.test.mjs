@@ -28,6 +28,8 @@ await build({
       a.path.includes('turn-files-presentation') ? 'export const shouldRenderTurnFiles=()=>false;' :
       a.path.includes('assistant-file-cards') ? 'export const AssistantFileCards=()=>null;' :
       a.path.includes('sub-agents-card') ? 'export const SubAgentsCard=()=>null;' :
+      // The plain style of the thinking status: the spinner the tests look for.
+      a.path.includes('thinking-status') ? 'import {createElement} from "react"; import {ActivityIndicator} from "./components/chat/messages/activity-indicator"; export const ThinkingStatus=()=>createElement(ActivityIndicator);' :
       'import {createElement} from "react"; export const Avatar=()=>null, UserBubble=()=>null, AttachCard=()=>null, ExecutionStrip=({children,streaming})=>createElement("section",{"data-active":String(!!streaming)},children), summarizeToolGroup=()=>({label:"",failed:0,added:null,removed:null}), FunctionStep=()=>null, StepRow=()=>null, SPAWNING_TOOL_NAMES=new Set(), SubAgentStep=()=>null, ThinkingStep=({text})=>text, MessageActions=()=>null, MessageTimestamp=()=>null, RuntimeBlock=()=>null, TurnFilesChips=()=>null;'
     }));
   }}],

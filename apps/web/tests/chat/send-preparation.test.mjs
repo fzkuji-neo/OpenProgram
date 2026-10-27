@@ -29,9 +29,10 @@ const mocks = {
     zustand: `export function create(init) {
     let state;
     const get = () => state;
-    const set = (patch) => { state = { ...state, ...(typeof patch === 'function' ? patch(state) : patch) }; };
+    const listeners = new Set();
+    const set = (patch) => { const prev = state; state = { ...state, ...(typeof patch === 'function' ? patch(state) : patch) }; for (const l of listeners) l(state, prev); };
     const store = (select = value => value) => select(state);
-    store.getState = get; store.setState = set;
+    store.getState = get; store.setState = set; store.subscribe = l => (listeners.add(l), () => listeners.delete(l));
     state = init(set, get, store);
     return store;
   }`,

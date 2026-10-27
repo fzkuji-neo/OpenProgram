@@ -10,13 +10,13 @@
  * a session's running task clears, the head entry is sent as an
  * ordinary turn.
  *
- * Ordinary unsent drafts remain in memory. Text steering commands and held
- * steering drafts survive same-window refresh until their delivery is resolved.
+ * Text rows survive a reload, a closed window and an App restart until they
+ * are sent (queue-storage.ts); rows with attachments stay in memory.
  * Each queue belongs to one conversation.
  */
 
 import { create } from "zustand";
-import { loadPendingSteers, savePendingSteers } from "./pending-steer-storage";
+import { adoptOrphanedQueues, saveQueues } from "./queue-storage";
 import { hasPendingFirstAck } from "./pending-user-text";
 import type { ChatAttachment } from "@/components/chat/composer/submit/send-chat-message";
 import { queuedMessagePayload, snapshotQueuedAttachments, type QueuedAttachments } from "./queued-attachments";
@@ -115,15 +115,8 @@ function hintGoalQueue(before: Record<string, QueuedMessage[]>, after: Record<st
 
 let seq = 0;
 
-export const useSendQueue = create<SendQueueState>((rawSet, get) => {
-  const set = (patch: Partial<SendQueueState> | ((state: SendQueueState) => Partial<SendQueueState>)) => {
-    const before = get().queues;
-    rawSet(patch);
-    savePendingSteers(get().queues);
-    hintGoalQueue(before, get().queues);
-  };
-  return {
-  queues: loadPendingSteers(),
+export const useSendQueue = create<SendQueueState>((set, get) => ({
+  queues: {},
 
   enqueue: (sessionId, draft) => {
     const id = `q${++seq}_${Date.now().toString(36)}`;
@@ -276,8 +269,39 @@ export const useSendQueue = create<SendQueueState>((rawSet, get) => {
     // Socket closed mid-drain: retain the complete payload at the head.
     restore();
   },
-};
+}));
+
+// Every write, the store's own actions and the helpers below alike, is saved
+// and tells the server whether a queue waits.
+useSendQueue.subscribe((state, previous) => {
+  if (state.queues === previous.queues) return;
+  saveQueues(state.queues);
+  hintGoalQueue(previous.queues, state.queues);
 });
+
+// Rows a reload or restart left behind join this window's queues, and their
+// sessions are asked for their run state: the reply confirms restored steering
+// receipts and drains an idle session. Before the socket opens, its open
+// handler asks for every session with a queue.
+if (typeof window !== "undefined") {
+  void adoptOrphanedQueues().then((adopted) => {
+    const sessions = Object.keys(adopted);
+    if (!sessions.length) return;
+    useSendQueue.setState((s) => {
+      const queues = { ...s.queues };
+      for (const sid of sessions) {
+        const ids = new Set((queues[sid] ?? EMPTY).map((row) => row.id));
+        queues[sid] = [...(queues[sid] ?? EMPTY), ...adopted[sid].filter((row) => !ids.has(row.id))];
+      }
+      return { queues };
+    });
+    void import("@/lib/runtime-bridge/state").then(({ getSocket }) => {
+      const socket = getSocket();
+      if (socket?.readyState !== WebSocket.OPEN) return;
+      for (const sid of sessions) socket.send(JSON.stringify({ action: "get_run_state", session_id: sid }));
+    });
+  });
+}
 
 /** Move one entry to the front without cancelling an execution. */
 export function promoteToHead(sessionId: string, id: string): void {
@@ -340,11 +364,6 @@ export function reconcileAfterSessionLoad(
         msg_id: runTask?.msg_id || "",
         ...(runTask?.execution_id ? { execution_id: runTask.execution_id } : {}),
       });
-      // An active run reported without its ids (a turn handing over its
-      // slot as it starts or ends) leaves a slot no clear can name, so the
-      // session would look busy for good. Ask again until the reply names
-      // the turn or reports the session idle.
-      if (!runTask?.msg_id && !runTask?.execution_id) recheckRunState(sessionId);
     }
     return;
   }
@@ -358,13 +377,18 @@ export function reconcileAfterSessionLoad(
 const RUN_STATE_RECHECK_MS = 1500;
 const runStateRechecks = new Set<string>();
 
-function recheckRunState(sessionId: string): void {
+/** A running slot with neither id (an active run reported without them, a
+ *  legacy setRunning(true)) matches no running_task_clear, so the session
+ *  would look busy for good. The session store calls this for every such
+ *  write: ask the server again until the reply names the turn or reports
+ *  the session idle. A just-sent message holds the same slot until its ack
+ *  and is left alone. */
+export function recheckRunState(sessionId: string): void {
   if (runStateRechecks.has(sessionId)) return;
   runStateRechecks.add(sessionId);
   setTimeout(() => {
     runStateRechecks.delete(sessionId);
     const task = useSessionStore.getState().runningTasks[sessionId];
-    // A just-sent message holds the same anonymous slot until its ack.
     if (!task || task.msg_id || task.execution_id || hasPendingFirstAck(sessionId)) return;
     void import("@/lib/runtime-bridge/state").then(({ getSocket }) => {
       const socket = getSocket();

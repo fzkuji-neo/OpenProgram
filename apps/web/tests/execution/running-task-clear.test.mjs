@@ -41,3 +41,15 @@ test("empty slot honors any clear", () => {
   assert.equal(shouldHonorRunningTaskClear(undefined, { execution_id: "a_reply" }), true);
   assert.equal(shouldHonorRunningTaskClear(undefined, undefined), true);
 });
+
+test("a slot that only knows its message clears on that message's turn", () => {
+  const reserved = { msg_id: "b" };
+  assert.equal(
+    shouldHonorRunningTaskClear(reserved, { execution_id: "exec_1", msg_id: "b" }),
+    true,
+  );
+  assert.equal(
+    shouldHonorRunningTaskClear(reserved, { execution_id: "exec_0", msg_id: "a" }),
+    false,
+  );
+});
