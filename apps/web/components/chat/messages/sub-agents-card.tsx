@@ -223,7 +223,7 @@ export function SubAgentsCard({ cards, sessionId }: { cards: ChatMsg[]; sessionI
     <div className="sub-agents-card" data-open={current ? "1" : "0"}>
       <div className="sub-agents-head">
         <span className="sub-agents-logo" aria-hidden="true">
-          <SolarIcon name="bot" size={18} motionPreset="none" />
+          <SolarIcon name="ghost" size={18} motionPreset="none" />
         </span>
         <span className="sub-agents-title">
           {text(`${agents.length} sub-agent${agents.length === 1 ? "" : "s"}`, `${agents.length} 个子代理`)}

@@ -93,7 +93,7 @@ family.
 | Browser control | `cursor` |
 | Generate image / analyze image | `gallery-add` / `gallery` |
 | Canvas, send file, message an agent | `plain-2` |
-| Sub-agent tools | `bot` |
+| Sub-agent tools | `ghost` |
 | Read conversation | `book` |
 | Ask the user | `chat-round-question-mark` |
 | Plan mode | `map` |
@@ -106,7 +106,7 @@ family.
 | Self-update | `refresh` |
 | MCP | `plug-circle` |
 | Any other function | `sledgehammer` |
-| Fallbacks by row kind: thinking / LLM / sub-agent / function | `lightbulb-bolt` / `cpu` / `bot` / `sledgehammer` |
+| Fallbacks by row kind: thinking / LLM / sub-agent / function | `lightbulb-bolt` / `cpu` / `ghost` / `sledgehammer` |
 
 Solar has no wrench, so generic function rows use the sledgehammer as
 their tool mark. The thinking fallback reuses `lightbulb-bolt`, the same

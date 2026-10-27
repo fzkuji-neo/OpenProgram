@@ -116,11 +116,11 @@ function DagLegend() {
         // 弹层菜单共用的那一份视觉定义；.dag-legend-body 只负责锚位
         // （向上弹）和行的排版。
         <div className={`dag-legend-body ${MENU_PANEL}`}>
-          <LegendRow swatch={<LegendTile icon="chat-round-line" tone="user" />} label={text("your message", "你的消息")} />
+          <LegendRow swatch={<LegendTile icon="user-rounded" tone="user" />} label={text("your message", "你的消息")} />
           <LegendRow swatch={<LegendTile icon="stars" tone="llm" />} label={text("model reply", "模型回复")} />
           <LegendRow swatch={<LegendTile icon="programming" tone="shell" />}
             label={text("tool call — same icon as in the chat", "工具调用，图标与对话里一致")} />
-          <LegendRow swatch={<LegendTile icon="bot" tone="agent" />} label={text("sub-agent", "子 agent")} />
+          <LegendRow swatch={<LegendTile icon="ghost" tone="agent" />} label={text("sub-agent", "子 agent")} />
           <LegendRow swatch={<LegendTile icon="archive" tone="memory" />} label={text("compaction summary", "压缩摘要")} />
           <LegendRow swatch={<LegendTile icon="stars" tone="llm" state="outline" />}
             label={text("faint: not in the next request", "浅色：不在下次请求里")} />

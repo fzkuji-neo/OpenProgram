@@ -65,7 +65,7 @@ export function tileFor(node: GNode): Tile {
     return { icon: "archive", tone: "memory", doing: translateText("Compacting", "压缩上下文") };
   }
   if (isSpawnRoot(node)) {
-    return { icon: "bot", tone: "agent", doing: translateText("Handing to an agent", "交给子 agent") };
+    return { icon: "ghost", tone: "agent", doing: translateText("Handing to an agent", "交给子 agent") };
   }
   if (node.function === "merge") {
     return { icon: "git-pull-request", tone: "plan", doing: translateText("Merging", "合并分支") };
@@ -87,7 +87,7 @@ export function tileFor(node: GNode): Tile {
     return { icon: "stars", tone: "llm", doing: translateText("Thinking…", "思考中…") };
   }
   const said = String(node.preview || "").replace(/\s+/g, " ").trim();
-  return { icon: "chat-round-line", tone: "user",
+  return { icon: "user-rounded", tone: "user",
     doing: translateText("Reading your message", "读取你的消息"), did: said };
 }
 

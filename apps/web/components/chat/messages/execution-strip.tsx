@@ -292,7 +292,7 @@ export function StepRow({
     else useSessionStore.getState().showDetail(detail);
   }
   const glyphName: SolarIconName = glyph ?? (icon === "thinking" ? "lightbulb-bolt"
-    : icon === "subagent" ? "bot"
+    : icon === "subagent" ? "ghost"
     : icon === "llm" ? "cpu" : "sledgehammer");
   return (
     <div

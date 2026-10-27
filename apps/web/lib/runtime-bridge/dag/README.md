@@ -72,7 +72,7 @@ picks its icon and tone:
 | `user_msg`                     | `user`          | —                | chat bubble / user   |
 | `llm_reply`                    | `assistant`/`llm` | —              | sparkles / llm       |
 | `function_call` (code)         | `tool`          | `bash`, `gui_agent`, …| `presentTool` |
-| sub-agent spawn                | `tool`          | spawn            | bot / agent          |
+| sub-agent spawn                | `tool`          | spawn            | ghost / agent          |
 | branch-referencing             | `tool`          | `attach`, `merge` | link, pull request / plan |
 | compaction summary             | `assistant`/`llm` | — (has `covers_ids`) | archive / memory |
 

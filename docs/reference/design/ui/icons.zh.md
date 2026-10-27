@@ -67,7 +67,7 @@ Solar 的撤回图标都是细线箭头，在按钮尺寸下几乎看不见，�
 | 浏览器操作 | `cursor` |
 | 生成图片 / 分析图片 | `gallery-add` / `gallery` |
 | 画布、发送文件、给代理发消息 | `plain-2` |
-| 子代理类工具 | `bot` |
+| 子代理类工具 | `ghost` |
 | 读取对话 | `book` |
 | 向用户提问 | `chat-round-question-mark` |
 | 规划模式 | `map` |
@@ -80,7 +80,7 @@ Solar 的撤回图标都是细线箭头，在按钮尺寸下几乎看不见，�
 | 自我更新 | `refresh` |
 | MCP | `plug-circle` |
 | 其他函数 | `sledgehammer` |
-| 按行类别兜底：思考 / LLM / 子代理 / 函数 | `lightbulb-bolt` / `cpu` / `bot` / `sledgehammer` |
+| 按行类别兜底：思考 / LLM / 子代理 / 函数 | `lightbulb-bolt` / `cpu` / `ghost` / `sledgehammer` |
 
 Solar 没有扳手，通用函数行用锤子（sledgehammer）作为工具标记；思考行兜底复用 `lightbulb-bolt`，与模型选择器里表示推理能力的图标相同。失败行保留小号描边 ✗，摘要后的展开箭头仍是 lucide `ChevronRight`，二者都不是类型图标。
 

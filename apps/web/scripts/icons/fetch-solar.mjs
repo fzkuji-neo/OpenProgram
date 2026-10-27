@@ -73,8 +73,8 @@ const ICONS = {
   "cursor": "bold-duotone",
   "gallery": "bold-duotone",
   "gallery-add": "bold-duotone",
-  "bot": "bold-duotone",
-  // Activity's agent rows
+  // agents (sub-agent tools, Activity, the DAG) and your messages in the DAG
+  "ghost": "bold-duotone",
   "user-rounded": "bold-duotone",
   "book": "bold-duotone",
   "chat-round-question-mark": "bold-duotone",

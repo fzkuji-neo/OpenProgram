@@ -47,10 +47,10 @@ function Glyph({ name, tone }: { name: SolarIconName; tone: ToolTone | "run" }) 
   </span>;
 }
 
-/** An agent: a person glyph in the folder colour, a size up from the other rows. */
+/** An agent: a ghost in the folder colour, a size up from the other rows. */
 function AgentGlyph({ small }: { small?: boolean }) {
   return <span className={styles.agentGlyph} data-small={small ? "1" : undefined} aria-hidden="true">
-    <SolarIcon name="user-rounded" size={small ? 16 : 22} motionPreset="none" />
+    <SolarIcon name="ghost" size={small ? 16 : 22} motionPreset="none" />
   </span>;
 }
 

@@ -117,7 +117,7 @@ function computerUseAgentPresentation(args: Args, text: Text): ToolPresentation 
   const target = computerUseAgentTarget(args);
   const app = appStepArgs(args);
   if (isFreshCall(args)) {
-    return { icon: "bot", tone: "agent", title: text("Handed to a new agent", "交给新代理"),
+    return { icon: "ghost", tone: "agent", title: text("Handed to a new agent", "交给新代理"),
       target: firstLine(pick(args, "brief")) };
   }
   if (app && app.action === "code") {
@@ -233,7 +233,7 @@ export function presentTool(name: string, input: string | undefined, text: Text)
     case "mixture_of_agents":
     case "list_agents":
     case "archive_agent":
-      return { icon: "bot", tone: "agent", title: text("Sub-agent", "子代理"),
+      return { icon: "ghost", tone: "agent", title: text("Sub-agent", "子代理"),
         target: firstLine(pick(args, "description", "name", "prompt", "task")) };
     case "send_message":
       return { icon: "plain-2", tone: "agent", title: text("Messaged", "发送消息"),

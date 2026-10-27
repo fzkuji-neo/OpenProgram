@@ -66,7 +66,7 @@ agent reaches a terminal status.
 
 ## Card
 
-- **Header:** bot glyph, "N sub-agents", and a status note (running /
+- **Header:** ghost glyph, "N sub-agents", and a status note (running /
   failed / cancelled / done). While the selected agent runs, the header
   also shows Cancel (through `execution.cancel`).
 - **Tabs:** one pill per agent. The name, after its status dot, opens the
