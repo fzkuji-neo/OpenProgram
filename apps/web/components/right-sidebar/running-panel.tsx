@@ -141,6 +141,7 @@ function executionState(item: ExecutionSnapshot, text: Text): string {
 }
 
 function programState(item: ManagedProcess, text: Text): string {
+  if (item.status === "exited" && item.exit_code === 0) return text("Completed", "已完成");
   return text(...({
     starting: ["Starting", "正在启动"], running: ["Running", "正在运行"], stopping: ["Stopping", "正在停止"],
     completed: ["Completed", "已完成"], exited: ["Exited", "已退出"], failed: ["Failed", "失败"],
@@ -183,12 +184,13 @@ function programStatus(item: ManagedProcess, look: ProgressLook | null, now: num
     if (item.status === "running" && look && (look.count || look.rate)) return progressLine(look);
     return [`${programState(item, text)} · ${duration(now - item.started_at, text)}`, item.last_line].filter(Boolean).join(" · ");
   }
-  const took = item.ended_at != null ? seconds(item.ended_at - item.started_at, text) : when(item.started_at, text);
   if (item.status === "failed" || (item.exit_code != null && item.exit_code !== 0)) {
     const at = look?.count && look.fraction != null && look.fraction < 1 ? text(` at ${look.count}`, `于 ${look.count}`) : "";
     return `${programState(item, text)}${at}${item.exit_code != null ? ` · exit ${item.exit_code}` : ""}`;
   }
-  return [programState(item, text), look?.count, took].filter(Boolean).join(" · ");
+  // With a bar, how long it took sits at the bar's end.
+  const took = item.ended_at != null ? seconds(item.ended_at - item.started_at, text) : when(item.started_at, text);
+  return [programState(item, text), look?.count, look?.fraction == null ? took : null].filter(Boolean).join(" · ");
 }
 
 function programBarTone(item: ManagedProcess, look: ProgressLook | null): "run" | "ok" | "err" | "muted" {
@@ -440,7 +442,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     // unknown); a finished one keeps its bar only if it reported progress.
     const bar = active || look?.fraction != null
       ? <span className={styles.rowBar}><ProgressBar fraction={look?.fraction ?? null} tone={programBarTone(item, look)}
-        note={active ? look?.eta && text(`${look.eta} left`, `剩 ${look.eta}`) : null} /></span>
+        note={active ? look?.eta && text(`${look.eta} left`, `剩 ${look.eta}`) : item.ended_at != null ? clock(item.ended_at - item.started_at) : null} /></span>
       : null;
     return <Row key={`program:${item.id}`} glyph={<Glyph name="code-square" tone="shell" />} title={programTitle(item, text)}
       sub={commandLine(item)} status={programStatus(item, look, now, text)} tone={programTone(item)} extra={bar}

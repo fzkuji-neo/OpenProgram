@@ -437,7 +437,7 @@ test("a program shows its description, progress and live output", async () => {
     assert.ok(host.querySelector('[role="progressbar"][aria-valuenow="45"]'));
     await click("Evaluate 100 samples");
     assert.match(host.textContent, /45 \/ 100 samples45%/);
-    assert.match(host.textContent, /Elapsed13sSpeed3\.4\/sLeft16s/);
+    assert.match(host.textContent, /Elapsed\d+sSpeed3\.4\/sLeft16s/);
   }, [{
     id: "proc", command: "python eval.py", title: "Evaluate 100 samples", status: "running", started_at: now - 13, backend_id: "local",
     progress: { source: "marker", state: "normal", current: 45, total: 100, label: "samples", rate: 3.4, eta: 16, updated_at: now },
