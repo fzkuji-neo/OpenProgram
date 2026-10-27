@@ -70,10 +70,9 @@ function _drawPill(
     height: String(bh),
     rx: String(bh / 2),
     ry: String(bh / 2),
-    // A flat block, no outline (app/styles/dag/badges.css).
-    fill: isActive
-      ? "color-mix(in srgb, " + color + " 28%, var(--bg-primary, #fff))"
-      : "var(--bg-tertiary, #f2f0ea)",
+    // No background: the rect is only the click target; the name itself
+    // carries the branch colour (app/styles/dag/badges.css).
+    fill: "transparent",
   }));
   const tip = _svg("title", {});
   tip.textContent = tipText;
@@ -86,9 +85,7 @@ function _drawPill(
     "font-size": small ? "9" : "10.5",
     "font-family": "var(--font-sans)",
     "font-weight": isActive ? "600" : "500",
-    fill: isActive
-      ? "var(--text-bright, #1a1a17)"
-      : "var(--text-secondary, #6b6a63)",
+    fill: isActive ? color : "var(--text-secondary, #6b6a63)",
     "pointer-events": "none",
   });
   text.textContent = label;

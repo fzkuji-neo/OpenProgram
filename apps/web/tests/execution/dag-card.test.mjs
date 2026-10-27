@@ -46,12 +46,12 @@ test("Covered tiles fill with their tone, and the legend uses the canvas tile cl
   const vis = readFileSync(new URL("../../lib/runtime-bridge/dag/render/visibility.ts", import.meta.url), "utf8");
   assert.match(vis, /classList\.toggle\("is-covered", visible\)/);
   const css = readFileSync(new URL("../../app/styles/dag/nodes.css", import.meta.url), "utf8");
-  assert.match(css, /\.history-node\.is-covered \.dag-tile > rect\[data-node-shape\] \{\s*fill: color-mix\(in srgb, var\(--tone\) 30%/);
-  // Flat blocks: no tile, bubble or legend swatch draws an outline.
-  assert.match(css, /\.dag-tile > rect\[data-node-shape\] \{[^}]*stroke: none;/);
-  assert.doesNotMatch(css, /dag-agent-bubble rect \{[^}]*stroke/);
+  // Just the icon: the plate is the canvas colour, coverage is the icon's ink.
+  assert.match(css, /\.dag-tile > rect\[data-node-shape\] \{\s*fill: var\(--bg-primary, #191918\);\s*stroke: none;/);
+  assert.match(css, /\.history-node\.is-covered \.dag-tile-icon,/);
+  assert.doesNotMatch(css, /dag-agent-bubble rect/);
   const hud = readFileSync(new URL("../../app/styles/dag/hud.css", import.meta.url), "utf8");
-  assert.doesNotMatch(hud, /\.dag-legend-tile \{[^}]*border:/);
+  assert.doesNotMatch(hud, /\.dag-legend-tile \{[^}]*(border|background):/);
   const legend = readFileSync(new URL("../../components/chat/dag-view.tsx", import.meta.url), "utf8");
   assert.match(legend, /className=\{`dag-tile t-\$\{tone\} dag-legend-tile`\}/);
 });

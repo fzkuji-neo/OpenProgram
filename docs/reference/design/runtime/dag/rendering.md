@@ -313,9 +313,12 @@ measured against — that negotiation is what §12's earlier pill got wrong.
 Every glyph is the same rounded tile (§4), the §9 compaction capsule
 included, and occupies exactly one cell; the grid leaves a gap of one tile
 between neighbours so the belt between them stays visible.
-Names draw NOTHING on the canvas at all any more: a sub-agent's name lives in
-the tooltip and inspector, and the only per-node text is the fold count on the
-shoulder (§12) and the capsule's coverage count (§9).
+A call or a message of yours carries a caption in annotation grey to the
+right of its icon ("Ran npm test", "Read a.ts", the start of what you wrote;
+`render/captions.ts`). A caption only takes room nobody uses: it runs along
+its row up to the next tile or branch tag and is dropped when there is too
+little room, so it never pushes the layout. The tile an agent stands on shows
+the agent's bubble instead, and zoomed far out captions are hidden.
 
 ---
 
@@ -406,7 +409,7 @@ placeholder box:
 | status | Drawing |
 |---|---|
 | success | the plain block |
-| running | `is-running`: the block breathes in its tone, and its token and bubble appear |
+| running | `is-running`: the icon breathes, and its token and bubble appear |
 | error | `is-error`: the tone turns red + `!` badge at the upper right |
 | cancelled | `is-faded`: the tone turns ghost grey |
 
@@ -522,11 +525,12 @@ lane/tier/depth + an ASCII grid.
 
 A node's fill marks it as **part of what the next LLM call will carry**. A
 covered tile (`is-covered`, set in
-`apps/web/lib/runtime-bridge/dag/render/visibility.ts`) is a full block of
-its own tone (30% over the canvas) with its icon at full ink, like the
-timeline's tile; an uncovered tile is a faint block (12%) with a quieter icon.
-Tiles, bubbles and branch tags are flat colour blocks with no outline: depth
-of tone carries every distinction. The same rule holds in both themes, and the
+`apps/web/lib/runtime-bridge/dag/render/visibility.ts`) shows its icon at full
+ink; an uncovered tile's icon is faint (38%), an aged one a step back (70%).
+A node is just its icon — no frame and no background (the plate under it is
+the canvas colour, there only to bury belt ends). Bubbles, captions and branch
+tags are words with no chip behind them, each with a canvas-colour halo so a
+line passing behind breaks around the letters. The same rule holds in both themes, and the
 legend swatch is a covered tile.
 "White fill" below means this fill.
 There is no mode to choose and no switch to find: whenever the graph is

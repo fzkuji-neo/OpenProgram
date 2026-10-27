@@ -26,58 +26,55 @@
 .history-node.is-faded .dag-tile,
 .history-node.is-ghost .dag-tile { --tone: var(--dag-ghost, #c9c7bf); }
 
-/* Flat blocks, no outline: a tile is a block of its tone, and how much
-   tone it carries says whether it is in the next request (§8).
-   Outside it: a faint block, the icon quieter. The block is opaque, so
-   it also buries the belt ends that run centre to centre under it. */
+/* Just the icon (dag/rendering.md §4): no frame, no background. The
+   tile's plate is the canvas colour — invisible, there only to bury the
+   belt ends that run centre to centre under it. How much ink the icon
+   carries says whether the node is in the next request (§8). */
 .dag-tile > rect[data-node-shape] {
-  fill: color-mix(in srgb, var(--tone) 12%, var(--bg-primary, #191918));
+  fill: var(--bg-primary, #191918);
   stroke: none;
-  transition: fill 0.15s ease-out, filter 0.1s ease-out;
 }
-.dag-tile-icon { opacity: 0.6; transition: opacity 0.15s ease-out; }
-/* Covered: a full block of its tone, like the timeline's tile. */
-.history-node.is-covered .dag-tile > rect[data-node-shape] {
-  fill: color-mix(in srgb, var(--tone) 30%, var(--bg-primary, #191918));
+.dag-tile-icon {
+  opacity: 0.38;
+  transition: opacity 0.15s ease-out, filter 0.1s ease-out;
 }
 .history-node.is-covered .dag-tile-icon,
 .dag-tile.t-root .dag-tile-icon { opacity: 1; }
-/* Aged out of the window soon (§8): the block steps back. */
-.history-node.is-covered.is-aged .dag-tile > rect[data-node-shape] {
-  fill: color-mix(in srgb, var(--tone) 20%, var(--bg-primary, #191918));
-}
+/* Aged out of the window soon (§8): the icon steps back. */
+.history-node.is-covered.is-aged .dag-tile-icon { opacity: 0.7; }
 
-.history-node:hover .dag-tile > rect[data-node-shape] { filter: brightness(1.2); }
+.history-node:hover .dag-tile-icon { filter: brightness(1.25); }
 
 /* Zoomed far out (interaction/canvas.ts ``is-far``): an icon at a few
-   pixels is noise, so a tile becomes a solid block of its tone — the map
-   reads by colour, and the agents' markers keep their size above it. */
+   pixels is noise, so a tile becomes a dot of its tone — the map reads
+   by colour, and the agents' markers keep their size above it. */
 .is-far .dag-tile-icon { display: none; }
-.is-far .dag-tile > rect[data-node-shape] {
-  fill: color-mix(in srgb, var(--tone) 75%, var(--bg-primary, #191918));
-}
+.is-far .dag-tile > rect[data-node-shape] { fill: var(--tone); }
 .is-far .history-node:not(.is-covered) .dag-tile > rect[data-node-shape] {
-  fill: color-mix(in srgb, var(--tone) 30%, var(--bg-primary, #191918));
+  fill: color-mix(in srgb, var(--tone) 40%, var(--bg-primary, #191918));
 }
 
-/* HEAD — a breathing glow on its own tile, in the tile's tone (§4).
-   drop-shadow hugs the outline at every zoom; the slow pulse says
-   "you are here" without repainting anything. */
-.history-node [data-head="1"] {
+/* HEAD — a breathing glow on its own icon, in the icon's tone (§4).
+   The slow pulse says "you are here" without repainting anything. */
+.history-node.is-head .dag-tile-icon,
+.is-far .history-node.is-head .dag-tile > rect[data-node-shape] {
   animation: dag-head-glow 2.4s ease-in-out infinite;
 }
 @keyframes dag-head-glow {
-  0%, 100% { filter: drop-shadow(0 0 2px var(--tone)); }
-  50% { filter: drop-shadow(0 0 7px var(--tone)); }
+  0%, 100% { filter: drop-shadow(0 0 1px var(--tone)); }
+  50% { filter: drop-shadow(0 0 6px var(--tone)); }
 }
 
-/* Running: the block breathes in its tone — flat, no ring around it. */
-.history-node.is-running .dag-tile > rect[data-node-shape] {
-  animation: dag-tile-breathe 1.4s ease-in-out infinite;
+/* Running: the icon breathes. */
+.history-node.is-running .dag-tile-icon {
+  animation: dag-icon-breathe 1.4s ease-in-out infinite;
 }
-@keyframes dag-tile-breathe {
-  0%, 100% { fill: color-mix(in srgb, var(--tone) 30%, var(--bg-primary, #191918)); }
-  50% { fill: color-mix(in srgb, var(--tone) 60%, var(--bg-primary, #191918)); }
+.history-node.is-running.is-head .dag-tile-icon {
+  animation: dag-icon-breathe 1.4s ease-in-out infinite, dag-head-glow 2.4s ease-in-out infinite;
+}
+@keyframes dag-icon-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
 }
 
 /* Agent tokens (render/agents.ts): the agent stands on the tile it works
@@ -95,26 +92,24 @@
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-2.5px); }
 }
-/* A flat chip, no outline: a block a step off the canvas. */
-.dag-agent-bubble rect {
-  fill: color-mix(in srgb, var(--text-primary) 10%, var(--bg-primary, #191918));
-}
+/* The bubble is words, no chip: brighter than a caption, with the same
+   canvas-colour halo. */
 .dag-agent-bubble text {
   font-size: 11px;
   font-family: var(--font-sans);
+  font-weight: 500;
   fill: var(--text-primary);
+  stroke: var(--bg-primary, #191918);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  paint-order: stroke;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .history-node [data-head="1"] {
-    animation: none;
-    filter: drop-shadow(0 0 4px var(--tone));
-  }
-  .history-node.is-running .dag-tile > rect[data-node-shape],
+  .history-node.is-head .dag-tile-icon,
+  .history-node.is-running .dag-tile-icon,
   .dag-agent-token .dag-agent-mark > g > * { animation: none; }
-  .history-node.is-running .dag-tile > rect[data-node-shape] {
-    fill: color-mix(in srgb, var(--tone) 45%, var(--bg-primary, #191918));
-  }
+  .history-node.is-head .dag-tile-icon { filter: drop-shadow(0 0 4px var(--tone)); }
 }
 
 /* Next-message context range: nodes/edges outside the active branch
@@ -164,3 +159,20 @@
 .history-node.is-archived-failure:hover .dag-tile > rect[data-node-shape] {
   filter: none;
 }
+
+/* Captions (render/captions.ts): what a call or message is, in
+   annotation grey to the right of its tile. Gone when an agent's bubble
+   speaks for the tile, and when zoomed too far out to read. */
+.dag-caption {
+  font-size: 10.5px;
+  font-family: var(--font-sans);
+  fill: var(--text-muted, #8a887f);
+  /* A halo in the canvas colour, like a label on a map: a line that
+     passes behind the caption breaks around the letters. */
+  stroke: var(--bg-primary, #191918);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+}
+.dag-caption.is-hidden,
+.is-far .dag-caption { display: none; }

@@ -58,6 +58,7 @@ import { drawNodes, patchHistoryStatus } from "./render/nodes";
 import { drawBadges } from "./render/badges";
 import { drawEdges } from "./render/edges";
 import { paintAgents } from "./render/agents";
+import { drawCaptions } from "./render/captions";
 import {
   type DagSignatureInput,
   branchTagsSignature,
@@ -410,6 +411,7 @@ export function render(graphIn: GNode[], headIdIn: string | null): void {
 
   drawBadges(world, tree, pos, stableLeafOfNode, runtimeState.currentSessionId,
     fullById, threadModel);
+  drawCaptions(world, nodeG);
   paintAgents(nodeG, graphIn);
 
   // 会话切换后的首次绘制淡入（配合 transcript 的 session-enter），

@@ -14,10 +14,14 @@
   fill: var(--text-primary);
 }
 
-/* 图内分支标签 = 分支切换按钮（顶部分支条已删）。扁平色块、无描边：
-   非活动标签 hover 底色提亮示意可点；活动标签是分支色的色块。 */
-.history-branch-tag:not(.active):hover .history-branch-tag-bg {
-  fill: var(--bg-hover, #ecebe4);
+/* 图内分支标签 = 分支切换按钮（顶部分支条已删）。不加背景，只有文字：
+   活动标签的名字用分支色；非活动标签 hover 文字提亮示意可点。文字带画布色
+   描边光晕，线从后面穿过时在字周围断开。 */
+.history-branch-tag text {
+  stroke: var(--bg-primary, #191918);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  paint-order: stroke;
 }
 .history-branch-tag:not(.active):hover text {
   fill: var(--text-bright, #1a1a17);

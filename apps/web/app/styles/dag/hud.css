@@ -93,13 +93,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 5px;
-  background: color-mix(in srgb, var(--tone) 30%, var(--bg-primary));
+  color: var(--tone);
 }
-.dag-legend-tile[data-state="outline"] {
-  background: color-mix(in srgb, var(--tone) 12%, var(--bg-primary));
-}
-.dag-legend-tile[data-state="outline"] svg { opacity: 0.6; }
+.dag-legend-tile[data-state="outline"] svg { opacity: 0.38; }
 .dag-legend-tile[data-state="error"] { --tone: var(--accent-red, #e5534b); }
 /* A running belt: the track with the goods riding it (dag/edges.css). */
 .dag-legend-belt {

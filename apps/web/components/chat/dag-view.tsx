@@ -60,7 +60,7 @@ function LegendTile({ icon, tone, state = "covered" }: {
 }) {
   return (
     <span className={`dag-tile t-${tone} dag-legend-tile`} data-state={state} aria-hidden="true">
-      <SolarIcon name={icon} size={12} motionPreset="none" />
+      <SolarIcon name={icon} size={16} motionPreset="none" />
     </span>
   );
 }

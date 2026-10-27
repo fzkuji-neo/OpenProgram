@@ -27,12 +27,15 @@ export interface Tile {
   tone: TileTone;
   /** What the node does, for the agent's activity bubble. */
   doing: string;
+  /** What the node did, for its caption on the canvas (render/captions.ts);
+   *  empty for kinds that need none. */
+  did?: string;
 }
 
 /** Half the tile's side. The grid (types.ts) leaves a gap of one tile
  *  between neighbours, so a belt between two tiles stays visible. */
 export const TILE_R = 12;
-const ICON = 15;
+const ICON = 18;
 
 // The transcript names a call by what it did ("Ran", "Edited"); a bubble
 // over a working agent says what it is doing. Chinese titles are plain
@@ -77,12 +80,15 @@ export function tileFor(node: GNode): Tile {
     const shown = presentTool(toolName(node), input, translateText);
     const title = NOW[shown.title] ?? shown.title;
     const doing = shown.target ? `${title} ${shown.target}` : title;
-    return { icon: shown.icon, tone: shown.tone, doing };
+    const did = shown.target ? `${shown.title} ${shown.target}` : shown.title;
+    return { icon: shown.icon, tone: shown.tone, doing, did };
   }
   if (node.role === "assistant" || node.role === "llm") {
     return { icon: "stars", tone: "llm", doing: translateText("Thinking…", "思考中…") };
   }
-  return { icon: "chat-round-line", tone: "user", doing: translateText("Reading your message", "读取你的消息") };
+  const said = String(node.preview || "").replace(/\s+/g, " ").trim();
+  return { icon: "chat-round-line", tone: "user",
+    doing: translateText("Reading your message", "读取你的消息"), did: said };
 }
 
 /** A short name for an agent that has none: the start of its task. */
@@ -97,9 +103,11 @@ export function taskLabel(root: GNode | undefined): string {
  *  breathes (app/styles/dag/nodes.css). */
 export function buildTile(tile: Tile): SVGElement {
   const g = _svg("g", { class: `dag-tile t-${tile.tone}`, "pointer-events": "none" });
+  // The plate hugs the icon, so a belt runs right up to it.
+  const plate = ICON / 2 + 1;
   g.appendChild(_svg("rect", {
-    x: -TILE_R, y: -TILE_R, width: TILE_R * 2, height: TILE_R * 2,
-    rx: 7, ry: 7, "data-node-shape": "1", "data-shape": "tile",
+    x: -plate, y: -plate, width: plate * 2, height: plate * 2,
+    rx: 5, ry: 5, "data-node-shape": "1", "data-shape": "tile",
   }));
   const box = SOLAR_VIEWBOXES[tile.icon] ?? "0 0 24 24";
   const icon = _svg("svg", {

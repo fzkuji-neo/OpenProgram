@@ -108,12 +108,11 @@ function bubble(at: { x: number; y: number }, k: number, label: string, color: s
   while (_textWidth(text, BUBBLE_FONT) > BUBBLE_MAX && text.length > 2) {
     text = text.slice(0, -2) + "…";
   }
-  const w = Math.ceil(_textWidth(text, BUBBLE_FONT)) + 22;
-  const { outer, inner: b } = marker({ x: at.x + TILE_R, y: at.y }, "dag-agent-bubble", 10, k * (BUBBLE_H + 4));
-  b.appendChild(_svg("rect", { x: 0, y: -BUBBLE_H / 2, width: w, height: BUBBLE_H, rx: 6, ry: 6 }));
-  // The agent's colour as a dot, so a bubble reads back to its token.
-  b.appendChild(_svg("circle", { cx: 9, cy: 0, r: 3, fill: color, class: "dag-agent-bubble-dot" }));
-  const t = _svg("text", { x: 16, y: 4 });
+  // No chip behind it: the agent's colour as a dot, then the words, with
+  // a canvas-colour halo so a line behind them breaks around the letters.
+  const { outer, inner: b } = marker({ x: at.x + TILE_R, y: at.y }, "dag-agent-bubble", 8, k * (BUBBLE_H + 4));
+  b.appendChild(_svg("circle", { cx: 3, cy: 0, r: 3, fill: color, class: "dag-agent-bubble-dot" }));
+  const t = _svg("text", { x: 11, y: 0, "dominant-baseline": "central" });
   t.textContent = text;
   b.appendChild(t);
   return outer;
@@ -147,17 +146,23 @@ export function paintAgents(nodeG: Element, graph: GNode[]): void {
 
   // Agents folded onto the same tile stack their bubbles under each other.
   const onSeat = new Map<NodeG, number>();
+  const seated = new Set<string>();
   for (const w of latest.values()) {
     const g = seatOf(w.node, byId, drawn);
     const at = g ? seat(g) : null;
     if (!g || !at) continue;
     const k = onSeat.get(g) || 0;
     onSeat.set(g, k + 1);
+    seated.add(g.getAttribute("data-msg-id") || "");
     const name = agentName(w.agent, byId, drawn);
     const color = _branchColor(w.node);
     layer.appendChild(token(at, k, name, color));
     layer.appendChild(bubble(at, k, `${name} · ${tileFor(w.node).doing}`, color));
   }
+  // A bubble speaks for its tile: the tile's own caption steps aside.
+  world.querySelectorAll(".dag-caption[data-for]").forEach((c) => {
+    c.classList.toggle("is-hidden", seated.has(c.getAttribute("data-for") || ""));
+  });
   if (!latest.size) {
     const head = nodeG.querySelector<NodeG>(".history-node.is-head");
     const at = head ? seat(head) : null;
