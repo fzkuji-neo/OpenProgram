@@ -883,6 +883,13 @@ whether a click selects, and what a drag does. The rail renders whatever is
 registered, so a later tool (notes, annotations) is one registration plus its
 icon.
 
+The rail reads like a game's hotbar: bare icons with no surface behind them,
+each tool's key in its corner, the tool in hand in the accent colour with a
+short bar at its left. Below the tools sits the camera: **Find the working
+agent** (F) glides the view to the tile a working agent stands on, keeping the
+zoom; pressed again it moves to the next working agent, and with none at work
+it goes to HEAD (`focusAgent` in `interaction/canvas.ts`).
+
 **Selection.** View state of the current session's canvas. Each selected node
 gets a dashed accent box just outside its glyph. The set is re-applied after
 every repaint and pruned to the nodes the canvas still draws, so a node that is
@@ -894,9 +901,8 @@ Esc reach the selection rather than the draft.
 left reads `N selected | Copy ID · Delete · ✕`, with Delete in the danger
 colour. After a delete it reads `Deleted N nodes | Undo` for a few seconds.
 It sits on the rail's left edge rather than at the top right, which belongs to
-the pane's perspective controls. Rail and bar share one quiet surface: the
-input box's fill, a hairline edge and a light contact shadow. The current tool
-is marked with a neutral grey fill.
+the pane's perspective controls. The bar is a flat chip of the input box's
+fill, with no edge and no shadow.
 
 **Deleting.** Delete or ⌫ deletes the selection at once, with no
 confirmation, and ⌘Z undoes it. The store
