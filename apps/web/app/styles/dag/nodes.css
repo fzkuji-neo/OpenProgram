@@ -22,7 +22,6 @@
 .dag-tile.t-plan { --tone: var(--tool-tone-plan); }
 .dag-tile.t-media { --tone: var(--tool-tone-media); }
 .dag-tile.t-system { --tone: var(--tool-tone-system); }
-.history-node.is-error .dag-tile { --tone: var(--accent-red, #e5534b); }
 .history-node.is-faded .dag-tile,
 .history-node.is-ghost .dag-tile { --tone: var(--dag-ghost, #c9c7bf); }
 
@@ -93,20 +92,15 @@
   50% { opacity: 0.45; }
 }
 
-/* Agent tokens (render/agents.ts): the agent stands on the tile it works
-   on and bobs; the bubble says what it is doing. Idle, it rests. */
-.dag-agent-disc { stroke: var(--bg-primary, #191918); stroke-width: 2; }
-.dag-agent-letter {
-  font-size: 9px;
-  font-family: var(--font-sans);
-  font-weight: 600;
-  fill: #fff;
-}
+/* Agent rings (render/agents.ts): a ring of the agent's branch colour
+   round the tile it works on, pulsing while it works, steady at rest. */
+.dag-agent-ring { fill: none; stroke-width: 2; }
 .dag-agent-mark { transform: scale(var(--dag-marker-scale, 1)); }
-.dag-agent-token:not(.is-idle) .dag-agent-mark > g > * { animation: dag-agent-bob 1.2s ease-in-out infinite; }
-@keyframes dag-agent-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2.5px); }
+.dag-agent-token.is-idle .dag-agent-ring { opacity: 0.55; }
+.dag-agent-token:not(.is-idle) .dag-agent-ring { animation: dag-agent-pulse 1.4s ease-in-out infinite; }
+@keyframes dag-agent-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 /* The bubble is words, no chip: brighter than a caption, with the same
    canvas-colour halo. */
@@ -124,7 +118,7 @@
 @media (prefers-reduced-motion: reduce) {
   .history-node.is-head .dag-tile-icon,
   .history-node.is-running .dag-tile-icon,
-  .dag-agent-token .dag-agent-mark > g > * { animation: none; }
+  .dag-agent-token .dag-agent-ring { animation: none; }
   .history-node.is-head .dag-tile-icon { filter: drop-shadow(0 0 4px var(--tone)); }
 }
 

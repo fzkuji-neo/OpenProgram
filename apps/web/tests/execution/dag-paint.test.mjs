@@ -508,7 +508,7 @@ test("status-only patch keeps the SVG root and does not replaceChildren", async 
   assert.equal(replaced, 0);
   assert.equal(host.querySelector("svg.history-svg"), svg);
   assert.ok(host.querySelector(".history-node").classList.contains("is-running"));
-  // A working node gets its agent: the token and the bubble saying what it does.
+  // A working node gets its agent: the ring and the bubble saying what it does.
   assert.ok(host.querySelector("g.dag-agents .dag-agent-token"));
   assert.ok(host.querySelector("g.dag-agents .dag-agent-bubble"));
   const again = patchHistoryStatus(host, [

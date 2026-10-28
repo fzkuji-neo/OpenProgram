@@ -303,18 +303,21 @@ lane 色；**绝不给某类线固定颜色**。类型只靠线型：
 | merge / attach | 合并请求 / 链接 | plan |
 
 **agent 站在它正在做的那一步上**（`render/agents.ts`）。每个正在工作的 agent
-在它所在图块的左上角放一个圆形令牌：分支色、写着名字首字母；图块旁边一个气泡
+在它所在的图块外画一圈分支色的环（工作时脉动；同一图块上的第二个 agent 再往外一圈）；图块旁边一个气泡
 写着"名字 · 在做什么"（图块的活动文字，英文用进行时："思考中…""运行 npm
 test"）。agent 从整张图读出：一个节点属于它的链能追溯到的那个 spawn 根对应的子
 agent，否则属于主 agent；每个 agent 显示它最新的运行中节点。那个节点被折进计数时，
-令牌站在最近的已绘制图块上，气泡仍然说出那次调用；同一图块上的几个 agent 气泡上
+环画在最近的已绘制图块外，气泡仍然说出那次调用；同一图块上的几个 agent 气泡上
 下堆叠。
 
-**语义缩放。** 缩小时令牌和气泡保持屏幕上的大小，像地图上的单位标记
+早先的版本在图块角上放一个写着 agent 首字母（"M"）的圆形令牌；没人看得懂这个字母，
+而气泡本来就写着 agent 的名字，所以改成环标出*在哪*，气泡说出*是谁*。
+
+**语义缩放。** 缩小时环和气泡保持屏幕上的大小，像地图上的单位标记
 （`--dag-marker-scale`，由 `interaction/canvas.ts` 设置；标记以世界坐标钉在图块上，
 只缩放它的本体）。低于 55% 时图标只剩几个像素的噪点，所以每个图块变成自己色调的
-实心块（`is-far`）：地图靠颜色读，被覆盖的图块仍比其余的亮。什么都没在运行时，主 agent 的令牌停在 HEAD
-上，不带气泡。这一层从节点 DOM 重建，所以原地的状态补丁也会重画它。
+实心块（`is-far`）：地图靠颜色读，被覆盖的图块仍比其余的亮。什么都没在运行时，主 agent 的环停在 HEAD
+上，不脉动、稍暗，不带气泡。这一层从节点 DOM 重建，所以原地的状态补丁也会重画它。
 
 **HEAD 是字形自己身上的呼吸光晕**：一圈分支色的 `drop-shadow`，以 2.4 秒的
 慢周期胀起又落下，直接盖在形状上（`data-head`）。光贴着字形轮廓走，任何缩放
@@ -328,8 +331,8 @@ agent，否则属于主 agent；每个 agent 显示它最新的运行中节点�
 | status | 画法 |
 |---|---|
 | success | 普通色块 |
-| running | `is-running`：图标呼吸，令牌和气泡出现 |
-| error | `is-error`：色调变红 + 右上角 `!` 角标 |
+| running | `is-running`：图标呼吸，它的 agent 的环和气泡出现 |
+| error | `is-error`：右上角红色 `!` 角标；色调不变，失败的 agent 回复仍是它自己颜色的幽灵 |
 | cancelled | `is-faded`：色调变成 ghost 灰 |
 
 **徽标**（附着在节点上，不占格）：
@@ -579,7 +582,7 @@ tooltip 和检查器里。
 `失败轮 · 已留档`。两种状态长得像，是因为在图唯一关心的那根轴上它们**就是**
 一样的：在盘上、可读、永不进下一次请求。
 
-这层灰有意覆盖第四节给活跃错误的红色色块。红色的意思是"这件事现在需要你"，
+这层灰有意覆盖图块的色调。红色 `!` 的意思是"这件事现在需要你"，
 留档的线不是——重试已经发生过了。`!` 字形本身保留，所以这条线为什么终止仍然
 一眼可读。
 
@@ -766,7 +769,7 @@ checkout 成活动分支——接管这个 agent 的对话。徽章永不压住�
 | 第四节 HEAD 呼吸光晕 | `apps/web/lib/runtime-bridge/dag/render/nodes.ts` 戳 `data-head` 并把分支色写进 `color`；`dag-head-glow` 关键帧在 `apps/web/app/styles/dag/nodes.css`（reduced-motion → 恒定光）；所有字形保持空心（`apps/web/lib/runtime-bridge/dag/render/shapes.ts`）；HEAD 指向已归并回复时落到锚上（`apps/web/lib/runtime-bridge/dag/pipeline.ts` 经 `threadModel.anchorOf`） |
 | 第〇节/第十二节 调用线程聚合 | `apps/web/lib/runtime-bridge/dag/passes/thread.ts`（`buildThreadModel`：锚归并、事件归属、递归可见性）；`apps/web/lib/runtime-bridge/dag/render/nodes.ts` 画肩上折叠数（`history-thread-count`）；`apps/web/lib/runtime-bridge/dag/store/globals.ts` 的 `_threadOpen` |
 | 规则②推论（不画占位框） | `apps/web/lib/runtime-bridge/dag/render/shapes.ts`：无 `square_outline`；task 渲染为普通方块 |
-| 第四节 状态画在描边上 | `graph_builder` 下发 status；`nodes.ts` 把它设成图块的 CSS 状态（running 呼吸 / error 红+! / cancelled 灰化） |
+| 第四节 状态画在描边上 | `graph_builder` 下发 status；`nodes.ts` 把它设成图块的 CSS 状态（running 呼吸 / error 红色 ! / cancelled 灰化） |
 | 第五节 badge 锚定 | `apps/web/lib/runtime-bridge/dag/render/badges.ts`：名字放在本分支可见末节点那一行、图块右侧、实测像素盒碰撞下移一行 |
 | 场景 8 merge 形状与连线 | `apps/web/lib/runtime-bridge/dag/render/shapes.ts` `merge_dot`（◉）；`edges.ts` 汇入线 peer 色 2.4px 实线 |
 | 场景 8/10 attach 指针 | 后端 display=runtime 过滤 + `graph_builder` 把 ref 戳到嵌入位置（`attach_returns`），`edges.ts` 画回流长虚线 |
@@ -779,7 +782,7 @@ checkout 成活动分支——接管这个 agent 的对话。徽章永不压住�
 | 第九节 `covers_ids` 下发 | `apps/server/openprogram_server/_webui/graph_builder.py` 把 `metadata.covers` 解析成 id；测试见 `tests/unit/dag/test_graph_builder_covers.py` |
 | 第九节 胶囊形状 | `apps/web/lib/runtime-bridge/dag/render/shapes.ts` 的 `capsule`（按 `covers_ids` 判定，打 `data-shape` 标让 `_applyShapeSize` 别改它的几何） |
 | 第九节 折叠 / 褶皱 / 幽灵 | `apps/web/lib/runtime-bridge/dag/passes/fold-summaries.ts`（折叠）、`apps/web/lib/runtime-bridge/dag/render/nodes.ts`（褶皱、`已压缩 · N 轮` 注记、幽灵描边）、`apps/web/lib/runtime-bridge/dag/render/edges.ts`（幽灵虚线边）、`apps/web/lib/runtime-bridge/dag/store/globals.ts` 的 `_summaryExpanded`；由 `apps/web/scripts/runtime/check-dag-summary.mjs` 实跑 |
-| 第十节 失败留档 | `apps/web/lib/runtime-bridge/dag/render/nodes.ts::_isArchivedFailure`——`status=error` **且**离开 HEAD 链；灰覆盖第四节的红 |
+| 第十节 失败留档 | `apps/web/lib/runtime-bridge/dag/render/nodes.ts::_isArchivedFailure`——`status=error` **且**离开 HEAD 链；灰覆盖色调，`!` 保留 |
 | 第十一节 一张卡两个状态 / fork 并编辑 | `apps/web/lib/runtime-bridge/dag/interaction/tooltip.ts`：`renderNodeInfo` 喂两个状态，`expandTooltip` 原地加深；`apps/web/lib/runtime-bridge/dag/render/inspector.ts` 只构建动词列表（+ 原始 JSON 层），`apps/web/lib/runtime-bridge/dag/interaction/nodes.ts` 接线；动作走 `POST /api/chat/checkout` |
 | 第十一节 图例 | `apps/web/components/chat/dag-view.tsx` 的 `DagLegend`（挂在画布 HUD 里），`apps/web/app/styles/dag/hud.css` 的 `.dag-legend` |
 | 第十二节 调用线程 + agent spawn | `apps/web/lib/runtime-bridge/dag/render/shapes.ts`（spawn → 方块）、`apps/web/lib/runtime-bridge/dag/passes/thread.ts`（模型）、`apps/web/lib/runtime-bridge/dag/layout/geometry.ts`（递归安放）、`apps/web/lib/runtime-bridge/dag/render/edges.ts`（线程点线、中心连线、场景3横桥）、`apps/web/lib/runtime-bridge/dag/render/nodes.ts`（`data-thread*`、肩上折叠数）、`apps/web/lib/runtime-bridge/dag/interaction/nodes.ts`（`toggleThreadOpen`）；由 `apps/web/scripts/runtime/check-dag-subagent.mjs` 实跑 |

@@ -2,9 +2,10 @@
  * Renderer: agent tokens (dag/rendering.md §4).
  *
  * Every agent that is working stands on the step it is working on: a
- * round token with its initial in its branch colour, and beside the tile
- * a bubble saying what it is doing ("Main agent · Ran npm test"). With
- * nothing running, the main agent's token rests on HEAD without a bubble.
+ * ring of its branch colour round the tile, and beside the tile a bubble
+ * saying who and what ("Main agent · Ran npm test"). A letter on a disc
+ * read as a cryptic badge; the bubble already names the agent. With
+ * nothing running, the main agent's ring rests on HEAD without a bubble.
  *
  * Agents are read from the whole graph, not from the tiles on screen: a
  * running call folded into its turn's count still names what the agent
@@ -94,12 +95,11 @@ function marker(at: { x: number; y: number }, cls: string, dx: number, dy: numbe
   return { outer, inner };
 }
 
-function token(at: { x: number; y: number }, k: number, name: string, color: string): SVGElement {
-  const { outer, inner } = marker({ x: at.x - TILE_R, y: at.y - TILE_R }, "dag-agent-token", -k * 12, 0);
-  inner.appendChild(_svg("circle", { r: 8, fill: color, class: "dag-agent-disc" }));
-  const letter = _svg("text", { class: "dag-agent-letter", "text-anchor": "middle", y: 3.5 });
-  letter.textContent = Array.from(name.trim())[0]?.toUpperCase() || "A";
-  inner.appendChild(letter);
+/** A ring round the tile the agent stands on; a second agent on the
+ *  same tile gets the next ring out. */
+function token(at: { x: number; y: number }, k: number, color: string): SVGElement {
+  const { outer, inner } = marker(at, "dag-agent-token", 0, 0);
+  inner.appendChild(_svg("circle", { r: TILE_R + 4 + k * 4, stroke: color, class: "dag-agent-ring" }));
   return outer;
 }
 
@@ -156,7 +156,7 @@ export function paintAgents(nodeG: Element, graph: GNode[]): void {
     seated.add(g.getAttribute("data-msg-id") || "");
     const name = agentName(w.agent, byId, drawn);
     const color = _branchColor(w.node);
-    layer.appendChild(token(at, k, name, color));
+    layer.appendChild(token(at, k, color));
     layer.appendChild(bubble(at, k, `${name} · ${tileFor(w.node).doing}`, color));
   }
   // A bubble speaks for its tile: the tile's own caption and the branch
@@ -168,8 +168,7 @@ export function paintAgents(nodeG: Element, graph: GNode[]): void {
     const head = nodeG.querySelector<NodeG>(".history-node.is-head");
     const at = head ? seat(head) : null;
     if (head?._nodeData && at) {
-      layer.appendChild(token(at, 0, translateText("Main agent", "主 agent"),
-        _branchColor(head._nodeData)));
+      layer.appendChild(token(at, 0, _branchColor(head._nodeData)));
       layer.lastElementChild?.classList.add("is-idle");
     }
   }

@@ -105,7 +105,18 @@
 }
 .dag-legend-tile.t-user svg { width: 13px; height: 13px; }
 .dag-legend-tile[data-state="outline"] svg { opacity: 0.38; }
-.dag-legend-tile[data-state="error"] { --tone: var(--accent-red, #e5534b); }
+/* Failed keeps its tone; the red ``!`` at its shoulder says so (nodes.ts). */
+.dag-legend-tile[data-state="error"] { position: relative; }
+.dag-legend-tile[data-state="error"]::after {
+  content: "!";
+  position: absolute;
+  top: -5px;
+  right: -4px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent-red, #e5534b);
+}
 /* A running belt: the track with the goods riding it (dag/edges.css). */
 .dag-legend-belt {
   flex: 0 0 auto;
@@ -116,17 +127,11 @@
     radial-gradient(circle, color-mix(in srgb, var(--accent-primary, #4a7dfc) 70%, transparent) 1.8px, transparent 2.2px) 0 50% / 6px 6px repeat-x,
     color-mix(in srgb, var(--text-muted, #8a887f) 22%, var(--bg-primary, #191918));
 }
-.dag-legend-token {
+/* An agent: the ring of its colour round the tile it stands on
+   (render/agents.ts). */
+.dag-legend-ring {
   flex: 0 0 auto;
-  width: 16px;
-  height: 16px;
-  margin: 0 1px;
-  border-radius: 50%;
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  font-weight: 600;
-  color: #fff;
-  background: var(--accent-primary, #4a7dfc);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--accent-primary, #4a7dfc);
 }

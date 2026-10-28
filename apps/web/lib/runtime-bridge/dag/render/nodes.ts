@@ -50,8 +50,9 @@ function applyStatusPaint(
   const isErr = status === "error" || !!node.is_error;
 
   // Status is a CSS state of the tile (app/styles/dag/nodes.css): the
-  // running comet, the red tone of an error, the grey of a turn kept only
-  // for the record. A cancelled turn fades as a whole.
+  // running comet, the grey of a turn kept only for the record. An error
+  // keeps its tone and gets a red ``!``: a red tile changed what the node
+  // looked like, not just how it ended. A cancelled turn fades as a whole.
   g.classList.toggle("is-running", status === "running");
   g.classList.toggle("is-error", isErr && !isFailed && !isSuperseded);
   g.classList.toggle("is-faded", isFailed || isSuperseded);

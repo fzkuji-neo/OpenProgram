@@ -126,7 +126,7 @@ function DagLegend() {
             label={text("faint: not in the next request", "浅色：不在下次请求里")} />
           <LegendRow swatch={<LegendTile icon="programming" tone="shell" state="error" />}
             label={text("failed", "失败")} />
-          <LegendRow swatch={<span className="dag-legend-token" aria-hidden="true">M</span>}
+          <LegendRow swatch={<span className="dag-legend-ring" aria-hidden="true"><LegendTile icon="ghost" tone="llm" /></span>}
             label={text("an agent, on the step it is working on", "agent 站在它正在做的那一步上")} />
           <LegendRow swatch={<span className="dag-legend-belt" aria-hidden="true" />}
             label={text("goods on a belt: work is under way there", "传送带运货：那里正在工作")} />

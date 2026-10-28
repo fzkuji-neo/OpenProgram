@@ -375,22 +375,26 @@ npm test" looks alike in both places; tones are shared CSS variables
 | merge / attach | pull request / link | plan |
 
 **Agents stand on their step** (`render/agents.ts`). Every agent that is
-working puts a round token with its initial, in its branch colour, on the
-upper-left corner of the tile it is on, and a bubble beside the tile says
-"name · what it is doing" (the tile's activity text in the present tense:
+working draws a ring of its branch colour round the tile it is on (pulsing
+while it works; a second agent on the same tile gets the next ring out), and
+a bubble beside the tile says "name · what it is doing" (the tile's activity text in the present tense:
 "Thinking…", "Running npm test"). Agents are read from the whole graph: a
 node belongs to the sub-agent whose spawn root its chain leads back to, else
 to the main agent, and each agent shows its latest running node. When that
-node is folded into a count, the token stands on the nearest drawn tile and
+node is folded into a count, the ring goes round the nearest drawn tile and
 the bubble still names the call; agents sharing a tile stack their bubbles.
 
-**Semantic zoom.** Zoomed out, tokens and bubbles keep their on-screen size,
+An earlier version put a round token with the agent's initial ("M") on the
+tile's corner; nobody could tell what the letter meant, and the bubble already
+names the agent, so the ring marks *where* and the bubble says *who*.
+
+**Semantic zoom.** Zoomed out, rings and bubbles keep their on-screen size,
 like unit markers on a map (`--dag-marker-scale`, set by
 `interaction/canvas.ts`; the marker is pinned to its tile in world units and
 only its body scales). Below 55% an icon is a few pixels of noise, so every
 tile becomes a solid block of its tone (`is-far`): the map reads by colour,
 and covered tiles stay brighter than the rest. With nothing
-running, the main agent's token rests on HEAD without a bubble. The layer is
+running, the main agent's ring rests on HEAD, steady and dimmer, without a bubble. The layer is
 rebuilt from the node DOM, so the in-place status patch repaints it.
 
 **HEAD is a breathing glow on its own glyph**: a `drop-shadow` in the branch
@@ -409,8 +413,8 @@ placeholder box:
 | status | Drawing |
 |---|---|
 | success | the plain block |
-| running | `is-running`: the icon breathes, and its token and bubble appear |
-| error | `is-error`: the tone turns red + `!` badge at the upper right |
+| running | `is-running`: the icon breathes, and its agent's ring and bubble appear |
+| error | `is-error`: a red `!` badge at the upper right; the tone stays, so an agent reply that failed is still a ghost of its own colour |
 | cancelled | `is-faded`: the tone turns ghost grey |
 
 **Badges** (attached to the node, no grid cell of their own):
@@ -722,8 +726,8 @@ covered turn, and the inspector labels it `Failed turn · Recorded`. The two sta
 alike because on the only axis the graph is about they *are* alike: on disk,
 readable, and never in the next request.
 
-The grey deliberately replaces the red block §4 gives a live error. Red
-means "this needs you now", and an archived line does not — the retry already
+The grey deliberately replaces the tile's tone. The red `!` on a live
+error means "this needs you now", and an archived line does not — the retry already
 happened. The `!` glyph itself stays, so why the line ended is still legible.
 
 Both halves of the test matter. `status` alone would grey the error you are
@@ -971,7 +975,7 @@ The whole spec is implemented. Where each part lives:
 | §4 HEAD breathing glow | `apps/web/lib/runtime-bridge/dag/render/nodes.ts` stamps `data-head` + the branch colour as `color`; `dag-head-glow` keyframes in `apps/web/app/styles/dag/nodes.css` (reduced-motion → steady glow); every glyph stays hollow (`apps/web/lib/runtime-bridge/dag/render/shapes.ts`); HEAD pointing at a merged reply re-seats on its anchor (`apps/web/lib/runtime-bridge/dag/pipeline.ts` via `threadModel.anchorOf`) |
 | §0/§12 call-thread aggregation | `apps/web/lib/runtime-bridge/dag/passes/thread.ts` (`buildThreadModel`: anchor merge, event attribution, recursive visibility); `apps/web/lib/runtime-bridge/dag/render/nodes.ts` draws the shoulder count (`history-thread-count`); `_threadOpen` in `apps/web/lib/runtime-bridge/dag/store/globals.ts` |
 | Rule ② corollary (no placeholder box) | `apps/web/lib/runtime-bridge/dag/render/shapes.ts`: no `square_outline`; task renders as a plain square |
-| §4 status on the block | `graph_builder` emits status; `nodes.ts` sets it as a CSS state of the tile (running breathing / error red+! / cancelled grayed) |
+| §4 status on the block | `graph_builder` emits status; `nodes.ts` sets it as a CSS state of the tile (running breathing / error `!` / cancelled grayed) |
 | §5 badge anchoring | `apps/web/lib/runtime-bridge/dag/render/badges.ts`: anchor at last conversation-layer node, half-column left shift when a line crosses the anchor cell, measured-pixel-box collision slides down one row |
 | Scene 8 merge shape and lines | `apps/web/lib/runtime-bridge/dag/render/shapes.ts` `merge_dot` (◉); `edges.ts` merge-in line peer-colored 2.4px solid |
 | Scenes 8/10 attach pointer | backend filters it (display=runtime) + `graph_builder` stamps the ref onto the embed host (`attach_returns`); `edges.ts` draws the long-dash return line |
@@ -984,7 +988,7 @@ The whole spec is implemented. Where each part lives:
 | §9 `covers_ids` on the wire | `apps/server/openprogram_server/_webui/graph_builder.py` resolves `metadata.covers` to ids; tested in `tests/unit/dag/test_graph_builder_covers.py` |
 | §9 capsule shape | `apps/web/lib/runtime-bridge/dag/render/shapes.ts` `capsule` (keyed on `covers_ids`, tagged `data-shape` so `_applyShapeSize` leaves its geometry alone) |
 | §9 fold + pleats + ghosts | `apps/web/lib/runtime-bridge/dag/passes/fold-summaries.ts` (fold), `apps/web/lib/runtime-bridge/dag/render/nodes.ts` (pleats, `Compacted · N turns` caption, ghost stroke), `apps/web/lib/runtime-bridge/dag/render/edges.ts` (dashed ghost edge), `_summaryExpanded` in `apps/web/lib/runtime-bridge/dag/store/globals.ts`; executed by `apps/web/scripts/runtime/check-dag-summary.mjs` |
-| §10 archived failure | `apps/web/lib/runtime-bridge/dag/render/nodes.ts::_isArchivedFailure` — `status=error` AND off the HEAD chain; grey overrides §4's red |
+| §10 archived failure | `apps/web/lib/runtime-bridge/dag/render/nodes.ts::_isArchivedFailure` — `status=error` AND off the HEAD chain; grey overrides the tone, the `!` stays |
 | §11 one card, two states / fork & edit | `apps/web/lib/runtime-bridge/dag/interaction/tooltip.ts`: `renderNodeInfo` feeds both states, `expandTooltip` deepens the card in place; `apps/web/lib/runtime-bridge/dag/render/inspector.ts` builds only the verb list (+ raw JSON layer), wired in `apps/web/lib/runtime-bridge/dag/interaction/nodes.ts`; the actions go through `POST /api/chat/checkout` |
 | §11 legend | `DagLegend` in `apps/web/components/chat/dag-view.tsx` (inside the canvas HUD), `.dag-legend` in `apps/web/app/styles/dag/hud.css` |
 | §12 call thread + agent spawn | `apps/web/lib/runtime-bridge/dag/render/shapes.ts` (spawn → square), `apps/web/lib/runtime-bridge/dag/passes/thread.ts` (model), `apps/web/lib/runtime-bridge/dag/layout/geometry.ts` (recursive placement), `apps/web/lib/runtime-bridge/dag/render/edges.ts` (dotted thread line, centre-to-centre chain edges, scene-3 bridge), `apps/web/lib/runtime-bridge/dag/render/nodes.ts` (`data-thread*`, shoulder count), `apps/web/lib/runtime-bridge/dag/interaction/nodes.ts` (`toggleThreadOpen`); executed by `apps/web/scripts/runtime/check-dag-subagent.mjs` |
