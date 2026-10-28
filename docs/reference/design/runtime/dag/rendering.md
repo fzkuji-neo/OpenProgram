@@ -953,7 +953,9 @@ lower right, above the composer, in the rail's raised material. Each node is a
 dot of its tone, and the part on screen is a frame in the accent colour. A
 press or a drag on the map moves the camera there at the same zoom. The map
 frames the graph and the view together, so the frame is never cut off, and it
-holds still while you drag. When the
+holds still while you drag. HEAD is a larger dot ringed in the accent colour,
+the "you are here" of the map, and a wheel over the map scrolls or zooms the
+canvas about its middle. When the
 whole graph is already on screen the map fades out: there is nothing to find
 (`apps/web/lib/runtime-bridge/dag/interaction/minimap.ts`, repainted by
 `applyView` on every view change).

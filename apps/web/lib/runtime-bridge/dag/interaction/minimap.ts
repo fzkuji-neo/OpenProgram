@@ -14,7 +14,7 @@ const W = 168;
 const H = 112;
 const PAD = 8;
 
-interface Dot { x: number; y: number; color: string }
+interface Dot { x: number; y: number; color: string; head: boolean }
 interface MapData { dots: Dot[]; x0: number; y0: number; x1: number; y1: number }
 export interface MapView { tx: number; ty: number; scale: number; w: number; h: number }
 
@@ -37,7 +37,7 @@ function readGraph(world: SVGGElement): MapData {
     if (!toneColor.has(tone)) {
       toneColor.set(tone, tile ? getComputedStyle(tile).color : "#888");
     }
-    dots.push({ x, y, color: toneColor.get(tone)! });
+    dots.push({ x, y, color: toneColor.get(tone)!, head: g.classList.contains("is-head") });
     x0 = Math.min(x0, x); y0 = Math.min(y0, y);
     x1 = Math.max(x1, x); y1 = Math.max(y1, y);
   });
@@ -85,6 +85,17 @@ function mapCanvas(host: HTMLElement, jump: (x: number, y: number) => void): HTM
   // The map holds still under a drag (``paintMinimap``); let go, it
   // refits around where the view ended up.
   c.addEventListener("lostpointercapture", (e) => toWorld(e));
+  // A wheel over the map is a wheel over the canvas, about its middle
+  // rather than about whatever the map happens to cover.
+  c.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const r = host.getBoundingClientRect();
+    host.dispatchEvent(new WheelEvent("wheel", {
+      deltaX: e.deltaX, deltaY: e.deltaY, deltaMode: e.deltaMode,
+      ctrlKey: e.ctrlKey, metaKey: e.metaKey, cancelable: true,
+      clientX: r.left + r.width / 2, clientY: r.top + (r.height - 150) / 2, // above the composer (canvas.ts COMPOSER_STRIP)
+    }));
+  }, { passive: false });
   panel.appendChild(c);
   return c;
 }
@@ -127,6 +138,17 @@ export function paintMinimap(
     ctx.fill();
   }
   const accent = getComputedStyle(c).getPropertyValue("--accent-primary").trim() || "#4a7dfc";
+  // HEAD is where you are: a larger dot ringed in the accent colour.
+  const head = d.dots.find((dot) => dot.head);
+  if (head) {
+    ctx.beginPath();
+    ctx.arc(fit.ox + head.x * fit.k, fit.oy + head.y * fit.k, r + 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = head.color;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = accent;
+    ctx.stroke();
+  }
   const frame: [number, number, number, number] = [
     fit.ox + vx0 * fit.k, fit.oy + vy0 * fit.k, (vx1 - vx0) * fit.k, (vy1 - vy0) * fit.k,
   ];
