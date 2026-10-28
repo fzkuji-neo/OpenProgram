@@ -171,7 +171,8 @@ export function AgentBadge({
     <DropdownMenu open={open} onOpenChange={onOpenChange} modal={false}>
       <HoverTip label={tipBody}>
         <DropdownMenuTrigger asChild>
-          <span
+          <button
+            type="button"
             id={id}
             className={cn(buttonVariants({ variant: "elevated", size: "sm" })) + " runtime-badge agent-badge" + (locked ? " locked" : "")}
             onMouseEnter={() => iconRef.current?.startAnimation?.()}
@@ -185,7 +186,7 @@ export function AgentBadge({
               aria-hidden="true"
             />
             {label ? <span className="badge-details">{label}</span> : null}
-          </span>
+          </button>
         </DropdownMenuTrigger>
       </HoverTip>
       <DropdownMenuContent

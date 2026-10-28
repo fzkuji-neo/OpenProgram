@@ -107,7 +107,8 @@ export function PermissionBadge() {
           }
         >
           <PopoverTrigger asChild>
-            <span
+            <button
+              type="button"
               id="permissionBadge"
               className={`${cn(buttonVariants({ variant: "elevated", size: "sm" }))} runtime-badge permission-badge`}
               onMouseEnter={() => iconRef.current?.startAnimation?.()}
@@ -121,7 +122,7 @@ export function PermissionBadge() {
                 aria-hidden="true"
               />
               <span className="badge-details" aria-live="polite">{pending ? text("Updating permissions…", "正在更新权限…") : label}</span>
-            </span>
+            </button>
           </PopoverTrigger>
         </HoverTip>
         <PopoverContent

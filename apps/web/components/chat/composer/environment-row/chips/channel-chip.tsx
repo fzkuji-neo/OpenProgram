@@ -75,14 +75,14 @@ export function ChannelChip() {
         }
       >
         <PopoverTrigger asChild>
-          <span
-            role="button"
-            className={cn(buttonVariants({ variant: "elevated", size: "sm" }), "status-badge cursor-pointer")}
+          <button
+            type="button"
+            className={cn(buttonVariants({ variant: "elevated", size: "sm" }), "status-badge")}
             data-channel-chip=""
           >
             <SolarIcon name="chat-round-dots" size={14} aria-hidden="true" style={color ? { color } : undefined} />
             <span className="badge-short">{label}</span>
-          </span>
+          </button>
         </PopoverTrigger>
       </HoverTip>
       <PopoverContent
