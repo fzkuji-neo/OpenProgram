@@ -12,8 +12,8 @@ def test_quote_and_edit_in_split_conversations(tmp_path, reduced_motion):
     from playwright.sync_api import sync_playwright, expect
     entry = r'''
 import React from 'react';import {createRoot} from 'react-dom/client';
-import {UserBubble} from './components/chat/messages/user-bubble';
-import {SelectionQuote} from './components/chat/messages/quote-to-chat';
+import {UserBubble} from './components/chat/messages/bubbles/user-bubble';
+import {SelectionQuote} from './components/chat/messages/editing/quote-to-chat';
 import {useSessionStore} from './lib/session-store';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
 window.edits=[];window.failEdit=true;window.checkouts=[];window.failCheckout=true;window.loads=[];

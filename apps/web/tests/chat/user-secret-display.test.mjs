@@ -15,9 +15,9 @@ const mocks={
  '@/lib/prefs/user-profile':'export const useUserProfile=()=>({name:"User",avatar:{}});',
  './message-actions':'export const MessageActions=()=>null;',
  './use-avatar-align':'export const useAvatarAlign=()=>({containerRef:{current:null},avatarTop:0});',
- './user-attachments':'export const AttachmentChips=()=>null;export const parseAttachments=text=>({attachments:[],text,recordings:[]});',
- '../recording/recording-card':'export const RecordingCard=()=>null;',
- './message-editor':'export const MessageEditor=()=>null;',
+ '../attachments/user-attachments':'export const AttachmentChips=()=>null;export const parseAttachments=text=>({attachments:[],text,recordings:[]});',
+ '../../recording/recording-card':'export const RecordingCard=()=>null;',
+ '../editing/message-editor':'export const MessageEditor=()=>null;',
  './markdown':'export const renderUserMarkdown=s=>s.replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");',
 };
 registerHooks({resolve(s,c,next){
@@ -26,7 +26,7 @@ registerHooks({resolve(s,c,next){
  return next(s,c);
 },load(url,c,next){if(url.endsWith('/user-bubble.tsx'))return {format:'module',source:ts.transpileModule(readFileSync(new URL(url),'utf8'),{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText,shortCircuit:true};return next(url,c);}});
 const {document,window}=parseHTML('<html><body></body></html>');Object.assign(globalThis,{document,window,IS_REACT_ACT_ENVIRONMENT:true});
-const {UserBubble}=await import('../../components/chat/messages/user-bubble.tsx');
+const {UserBubble}=await import('../../components/chat/messages/bubbles/user-bubble.tsx');
 const {elementsForBody}=await import('../../lib/chat/paste-elements.ts');
 const a='ghp_'+'A'.repeat(36),b='ghp_'+'B'.repeat(36);
 async function mount(msg){const host=document.createElement('div');document.body.append(host);const root=createRoot(host);let sid='A';const render=()=>root.render(createElement(UserBubble,{msg,sessionIdOverride:sid}));await act(render);return {host,async click(selector){const button=host.querySelector(selector);assert.ok(button);await act(()=>button.dispatchEvent(new window.Event('click',{bubbles:true})));},async update(next,session=sid){msg=next;sid=session;await act(render);},async close(){await act(()=>root.unmount());host.remove();}};}

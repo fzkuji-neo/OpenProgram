@@ -377,19 +377,19 @@ try {
 
 // --- execution strip: visible while the assistant works ------------------
 const strip = readFileSync(
-  new URL("../../components/chat/messages/execution-strip.tsx", import.meta.url),
+  new URL("../../components/chat/messages/execution/execution-strip.tsx", import.meta.url),
   "utf8",
 );
 const assistantBubble = readFileSync(
-  new URL("../../components/chat/messages/assistant-bubble.tsx", import.meta.url),
+  new URL("../../components/chat/messages/bubbles/assistant-bubble.tsx", import.meta.url),
   "utf8",
 );
 const messageList = readFileSync(
-  new URL("../../components/chat/messages/message-list.tsx", import.meta.url),
+  new URL("../../components/chat/messages/list/message-list.tsx", import.meta.url),
   "utf8",
 );
 const spawnedFromCard = readFileSync(
-  new URL("../../components/chat/messages/spawned-from-card.tsx", import.meta.url),
+  new URL("../../components/chat/messages/cards/spawned-from-card.tsx", import.meta.url),
   "utf8",
 );
 // Scope to ExecutionStrip's own body — `Collapse` and `StepRow` further

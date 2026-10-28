@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { presentTool, summarizeResult } from '../../components/chat/messages/tool-presentation.ts';
+import { presentTool, summarizeResult } from '../../components/chat/messages/execution/tool-presentation.ts';
 
 const en = (english) => english;
 

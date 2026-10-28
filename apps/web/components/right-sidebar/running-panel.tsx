@@ -23,7 +23,7 @@ import { useActivityView } from "@/lib/prefs/activity-view";
 import { loadSubAgentTranscript } from "@/lib/chat/sub-agent-transcripts";
 import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
 import { SolarIcon, type SolarIconName } from "@/components/solar-icons";
-import { presentTool, type ToolTone } from "@/components/chat/messages/tool-presentation";
+import { presentTool, type ToolTone } from "@/components/chat/messages/execution/tool-presentation";
 import { SectionHeader } from "@/components/sidebar/section-header";
 import { Button } from "@/components/ui/button";
 import { AgentsViewMenu } from "./agents-view-menu";

@@ -18,10 +18,10 @@ def test_surfaces_send_execution_cancel_and_use_cancel_copy():
         ROOT / "apps/web/components/chat/composer/index.tsx"
     ).read_text(encoding="utf-8")
     strip = (
-        ROOT / "apps/web/components/chat/messages/execution-strip.tsx"
+        ROOT / "apps/web/components/chat/messages/execution/execution-strip.tsx"
     ).read_text(encoding="utf-8")
     attach = (
-        ROOT / "apps/web/components/chat/messages/attach-card.tsx"
+        ROOT / "apps/web/components/chat/messages/cards/attach-card.tsx"
     ).read_text(encoding="utf-8")
     tui = (ROOT / "apps/cli/src/screens/REPL.tsx").read_text(encoding="utf-8")
     parser = (

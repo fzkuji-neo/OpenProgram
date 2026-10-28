@@ -1,8 +1,8 @@
 /* 行内统一 diff 着色（turn-files 卡下方展开的 diff）。
-   对应组件：components/chat/messages/unified-diff.tsx */
+   对应组件：components/chat/messages/turn-files/unified-diff.tsx */
 
 /* ===== Per-turn file diff =====
-   Rendered by components/chat/messages/unified-diff.tsx from the
+   Rendered by components/chat/messages/turn-files/unified-diff.tsx from the
    `turn_file_diff` WS action, inline under a turn's file-edit card.
    Hand-rolled unified-diff colouring: the parser tags each row
    add/del/hunk/meta/ctx and these rules paint it. Two gutter columns

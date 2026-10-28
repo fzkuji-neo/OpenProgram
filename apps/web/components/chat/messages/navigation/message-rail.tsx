@@ -16,14 +16,14 @@ import { useSessionStore } from "@/lib/session-store";
 import { whenAreaScrollSettles } from "@/lib/chat/chat-scroll";
 import type { TurnFileSummary } from "@/lib/session-store/types";
 import { Markdown } from "@/lib/format-utils/markdown";
-import { parseAttachments, AttachmentChips } from "./user-attachments";
+import { parseAttachments, AttachmentChips } from "../attachments/user-attachments";
 import { maskSecrets } from "@/lib/chat/secret-mask";
-import { TurnFilesChips } from "./turn-files-chips";
+import { TurnFilesChips } from "../turn-files/turn-files-chips";
 import {
   fileWriteState,
   shouldRenderTurnFiles,
   type FileWriteState,
-} from "./turn-files-presentation";
+} from "../turn-files/turn-files-presentation";
 import {
   packRailRow,
   unpackRailRow,

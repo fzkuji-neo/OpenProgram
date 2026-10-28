@@ -26,8 +26,8 @@ import {
   type AnimatedNavIconHandle,
   ArrowUpRightIcon,
 } from "@/components/animated-icons";
-import { renderMarkdown, useMarkdownReady } from "./markdown";
-import { MessageTimestamp } from "./message-actions";
+import { renderMarkdown, useMarkdownReady } from "../bubbles/markdown";
+import { MessageTimestamp } from "../bubbles/message-actions";
 
 /** Commands go out as they are; a `load_session` goes through the managed
  *  session read, since the transcript applies only the reply to a read it

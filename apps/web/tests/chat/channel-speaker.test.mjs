@@ -40,7 +40,7 @@ test('a legacy label naming the same sender is stripped, anything else stays', (
 });
 
 test('the user bubble names a channel sender above the bubble', () => {
-  const bubble = read('components/chat/messages/user-bubble.tsx');
+  const bubble = read('components/chat/messages/bubbles/user-bubble.tsx');
   assert.match(bubble, /className="user-channel-speaker"/);
   assert.match(bubble, /stripLegacySpeakerLabel\(roomEvent\.rest, msg\.speaker\)/);
   assert.match(read('lib/chat/conv-mapper.ts'), /speaker: readSpeaker\(m\)/);
@@ -61,13 +61,13 @@ test('earlier group messages split off ahead of the text', () => {
   // Text that only looks like the block stays as typed.
   const typed = '[earlier messages in this chat]\nnot json\n\nhi';
   assert.deepEqual(splitRoomHistory(typed), { history: [], rest: typed });
-  assert.match(read('components/chat/messages/user-bubble.tsx'), /className="user-room-history-toggle"/);
+  assert.match(read('components/chat/messages/bubbles/user-bubble.tsx'), /className="user-room-history-toggle"/);
 });
 
 test('an overheard group message drops its mark and is labelled', () => {
   assert.deepEqual(splitRoomEvent('[room event]\nlunch at noon?'), { roomEvent: true, rest: 'lunch at noon?' });
   assert.deepEqual(splitRoomEvent('[room event] typed by hand'), { roomEvent: false, rest: '[room event] typed by hand' });
-  const bubble = read('components/chat/messages/user-bubble.tsx');
+  const bubble = read('components/chat/messages/bubbles/user-bubble.tsx');
   assert.match(bubble, /splitRoomEvent\(msg\.content\)/);
   assert.match(bubble, /text\("overheard", "旁听"\)/);
 });

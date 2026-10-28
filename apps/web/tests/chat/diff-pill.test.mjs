@@ -13,7 +13,7 @@ test("+N −N pills take the Claude app's DiffIndicator look", () => {
   assert.match(card, /\.turn-files-stat\{display:flex;align-items:center;gap:1px;padding:0 6px\}/);
   assert.match(card, /\.turn-files-stat\.is-add\{color:var\(--git-added\);background:color-mix\(in srgb,var\(--git-added\) 20%,transparent\)\}/);
   assert.match(card, /\.turn-files-diff\.is-plain\{[^}]*\}\.turn-files-diff\.is-plain \.turn-files-stat\{padding:0;background:none\}/);
-  assert.match(read("components/chat/messages/turn-files-chips.tsx"), /className="turn-files-diff is-plain"/);
+  assert.match(read("components/chat/messages/turn-files/turn-files-chips.tsx"), /className="turn-files-diff is-plain"/);
   const bar = read("app/styles/chat/composer/top-bar-chips.css");
   assert.match(bar, /\.diff-badge \{[^}]*height: 18px;[^}]*font-weight: 500;\s*font-size: 11px;\s*line-height: 14px;\s*font-family: var\(--font-sans\);/);
   assert.match(bar, /\.diff-badge \.is-del \{\s*color: var\(--git-removed\);/);
@@ -21,8 +21,8 @@ test("+N −N pills take the Claude app's DiffIndicator look", () => {
 
 test("each sign sits 1px from its count in every pill", () => {
   for (const path of [
-    "components/chat/messages/turn-files-chips.tsx",
-    "components/chat/messages/execution-strip.tsx",
+    "components/chat/messages/turn-files/turn-files-chips.tsx",
+    "components/chat/messages/execution/execution-strip.tsx",
     "components/chat/top-bar/git-chip.tsx",
   ]) {
     const source = read(path);

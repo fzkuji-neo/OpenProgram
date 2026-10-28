@@ -15,7 +15,7 @@ def test_chat_stream_snapshot_and_terminal_tree_keep_execution_groups(tmp_path, 
     entry = r'''
 import React from 'react';
 import {createRoot} from 'react-dom/client';
-import {AssistantBubble} from './components/chat/messages/assistant-bubble';
+import {AssistantBubble} from './components/chat/messages/bubbles/assistant-bubble';
 import {useSessionStore} from './lib/session-store';
 import {applyChatWsMessage} from './lib/net/chat-stream';
 import {convToChatMsgs} from './lib/chat/conv-mapper';

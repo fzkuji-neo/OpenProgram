@@ -60,12 +60,12 @@ td code{white-space:nowrap}
 <p class="lede">对话记录里，一串连续的工具调用折叠成一行。本页规定这一行写什么：用一句短话说明这些调用做了什么，由客户端根据记录里已有的工具调用生成；如果这串调用改了文件，就带一个 <code>+N −M</code> 徽标。本页也评估是否值得为整轮加一行摘要。</p>
 
 <h2>这一行从哪来</h2>
-<p><a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/chat/messages/assistant-bubble.tsx">assistant-bubble.tsx</a> 把一轮的有序 <code>blocks</code> 切成段：每个文本块单独成段，每串连续的思考和工具块合成一个 <code>ExecutionStrip</code>（<a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/chat/messages/execution-strip.tsx">execution-strip.tsx</a>），标题由 <code>summarizeToolGroup()</code> 生成。没有有序 blocks 的旧记录走 <code>LegacyRuntimeTrace</code>，它把调用交给同一个函数。折叠行是一行 28px，见<a href="chat-turn-visual-spec.zh.html">聊天轮次视觉规范</a>。</p>
+<p><a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/chat/messages/bubbles/assistant-bubble.tsx">assistant-bubble.tsx</a> 把一轮的有序 <code>blocks</code> 切成段：每个文本块单独成段，每串连续的思考和工具块合成一个 <code>ExecutionStrip</code>（<a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/chat/messages/execution/execution-strip.tsx">execution-strip.tsx</a>），标题由 <code>summarizeToolGroup()</code> 生成。没有有序 blocks 的旧记录走 <code>LegacyRuntimeTrace</code>，它把调用交给同一个函数。折叠行是一行 28px，见<a href="chat-turn-visual-spec.zh.html">聊天轮次视觉规范</a>。</p>
 
 <h2>每个调用带的数据</h2>
 <table>
 <tr><th>字段</th><th>来源</th><th>用途</th></tr>
-<tr><td><code>tool</code></td><td>block</td><td>通过 <a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/chat/messages/tool-presentation.ts">tool-presentation.ts</a> 的 <code>presentTool()</code> 归类，和时间线行用同一套分类。</td></tr>
+<tr><td><code>tool</code></td><td>block</td><td>通过 <a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/chat/messages/execution/tool-presentation.ts">tool-presentation.ts</a> 的 <code>presentTool()</code> 归类，和时间线行用同一套分类。</td></tr>
 <tr><td><code>input</code></td><td>block，调用参数的完整 JSON</td><td>路径（<code>file_path</code>、<code>path</code>）、命令、搜索模式、URL。<code>edit</code> 带 <code>old_string</code>/<code>new_string</code>，<code>write</code> 带 <code>content</code>，<code>apply_patch</code> 带整个补丁。</td></tr>
 <tr><td><code>result</code>、<code>is_error</code>、<code>outcome</code></td><td>block</td><td>成功或失败。<code>edit</code> 的结果写 <code>(N replacements)</code>；<code>apply_patch</code> 的结果写 <code>Added</code>、<code>Updated</code> 或 <code>Deleted</code>。</td></tr>
 <tr><td>运行中</td><td><code>msg.tools[].status</code></td><td>哪个调用正在跑。</td></tr>
@@ -164,7 +164,7 @@ td code{white-space:nowrap}
 
 <h2>实现</h2>
 <ul>
-<li><a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/chat/messages/tool-group-summary.ts">tool-group-summary.ts</a> 是纯函数模块。<code>summarizeToolGroup(blocks, {text, active, runningIds, spawnNames, turnFiles, turnBlocks})</code> 返回 <code>{label, failed, added, removed}</code>；没有徽标时 <code>added</code> 和 <code>removed</code> 都是 <code>null</code>。<code>SPAWNING_TOOL_NAMES</code> 定义在这里；没有专门分桶的工具沿用 <code>presentTool()</code> 的分类；同时导出 <code>lineDiff()</code>（去掉首尾相同行后做行级 LCS，上限 <code>LINE_DIFF_CAP</code> = 2,000 行）和 <code>parsePatch()</code>。</li>
+<li><a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/chat/messages/execution/tool-group-summary.ts">tool-group-summary.ts</a> 是纯函数模块。<code>summarizeToolGroup(blocks, {text, active, runningIds, spawnNames, turnFiles, turnBlocks})</code> 返回 <code>{label, failed, added, removed}</code>；没有徽标时 <code>added</code> 和 <code>removed</code> 都是 <code>null</code>。<code>SPAWNING_TOOL_NAMES</code> 定义在这里；没有专门分桶的工具沿用 <code>presentTool()</code> 的分类；同时导出 <code>lineDiff()</code>（去掉首尾相同行后做行级 LCS，上限 <code>LINE_DIFF_CAP</code> = 2,000 行）和 <code>parsePatch()</code>。</li>
 <li><code>ExecutionStrip</code> 接收 <code>label: string | ToolGroupSummary</code>。工作流运行卡片和调试面板传的纯字符串照旧渲染，不带失败提示和徽标。这一行渲染带省略号的标题、红色失败提示、徽标（本轮文件卡片的 <code>.turn-files-diff</code> / <code>.turn-files-stat</code> 胶囊）、箭头和悬停提示。</li>
 <li><code>AssistantBubble</code> 给每一段传入该段的 blocks、整轮 blocks、<code>msg.turnFiles</code>、运行中调用 id，以及该段是否是正在进行的末段。</li>
 <li>旧记录走同一个函数。<code>LegacyRuntimeTrace</code>（没有有序 blocks 的 agent 调用）把每个调用转成以函数名命名的工具块，标题读作"使用了 extract_tables"而不是"调用 1 个函数"，调用进行中也会显示扫光。没有工具块的旧子代理条只传子代理名称。</li>

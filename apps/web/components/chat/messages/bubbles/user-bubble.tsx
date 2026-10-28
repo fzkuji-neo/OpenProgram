@@ -15,9 +15,9 @@ import { useTranslation } from "@/lib/i18n";
 import { useUserProfile } from "@/lib/prefs/user-profile";
 
 import { MessageActions } from "./message-actions";
-import { AttachmentChips, parseAttachments } from "./user-attachments";
-import { MessageEditor } from "./message-editor";
-import { RecordingCard } from "../recording/recording-card";
+import { AttachmentChips, parseAttachments } from "../attachments/user-attachments";
+import { MessageEditor } from "../editing/message-editor";
+import { RecordingCard } from "../../recording/recording-card";
 import { renderUserMarkdown } from "./markdown";
 import { collapsePastedSpans, pasteSentinel } from "@/lib/chat/paste-elements";
 import { collapseSecrets, maskSecrets, secretParts, secretSentinel } from "@/lib/chat/secret-mask";

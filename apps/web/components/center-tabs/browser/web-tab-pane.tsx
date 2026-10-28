@@ -39,7 +39,7 @@ import {
 } from "@/lib/desktop/desktop-bridge";
 import { useTranslation } from "@/lib/i18n";
 import { showToast } from "@/lib/format-utils/toast";
-import { appendToComposer } from "@/components/chat/messages/quote-to-chat";
+import { appendToComposer } from "@/components/chat/messages/editing/quote-to-chat";
 import { pageCommentText, pickedElementName, type PickedElement } from "@/lib/browser/page-comment";
 import { regionFile } from "@/lib/browser/region-shot";
 import { queueComposerFiles } from "@/lib/composer-inbox";

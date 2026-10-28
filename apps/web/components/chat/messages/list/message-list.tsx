@@ -1,7 +1,7 @@
 "use client";
 import { TranscriptSessionContext } from "./transcript-view-scope";
 import { TranscriptReadStatus } from "./transcript-read-status";
-import { ThinkingStatus } from "./thinking-status";
+import { ThinkingStatus } from "../execution/thinking-status";
 
 /**
  * Message list — the React message stream.
@@ -54,26 +54,26 @@ import {
   type WindowNode,
 } from "@/lib/chat/message-window";
 import { showToast } from "@/lib/format-utils/toast";
-import { renderMarkdown, useMarkdownReady } from "./markdown";
+import { renderMarkdown, useMarkdownReady } from "../bubbles/markdown";
 
 const JUMP_LATEST_FADE_MS = 280;
 /** A row mounted this soon after its message arrived still plays msgAppear. */
 const APPEAR_WINDOW_MS = 1000;
 
-import { AssistantBubble } from "./assistant-bubble";
-import { GoalDetails, useSessionGoal } from "../badges/goal-chip";
-import { AttachCard } from "./attach-card";
-import { DecisionOutputs } from "./decision-output";
-import { SystemAccessWaits } from "./system-access-waits";
-import { TodoPlanCard } from "./todo-plan-card";
-import { MessageRail } from "./message-rail";
-import { ConversationFind } from "./conversation-find";
-import { AgentBranchBanner } from "./agent-branch-banner";
-import { RuntimeBlock } from "./runtime-block";
-import { SpawnedFromCard } from "./spawned-from-card";
-import { SelectionQuote } from "./quote-to-chat";
-import { UserBubble } from "./user-bubble";
-import { MessageTimestamp } from "./message-actions";
+import { AssistantBubble } from "../bubbles/assistant-bubble";
+import { GoalDetails, useSessionGoal } from "../../badges/goal-chip";
+import { AttachCard } from "../cards/attach-card";
+import { DecisionOutputs } from "../runtime/decision-output";
+import { SystemAccessWaits } from "../runtime/system-access-waits";
+import { TodoPlanCard } from "../cards/todo-plan-card";
+import { MessageRail } from "../navigation/message-rail";
+import { ConversationFind } from "../navigation/conversation-find";
+import { AgentBranchBanner } from "../cards/agent-branch-banner";
+import { RuntimeBlock } from "../runtime/runtime-block";
+import { SpawnedFromCard } from "../cards/spawned-from-card";
+import { SelectionQuote } from "../editing/quote-to-chat";
+import { UserBubble } from "../bubbles/user-bubble";
+import { MessageTimestamp } from "../bubbles/message-actions";
 import { formatMessageTime } from "@/lib/chat/message-time";
 
 /** goal 循环的内部 spawn 轮 label（openprogram/programs/workflow/goal/

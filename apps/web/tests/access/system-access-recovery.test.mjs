@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import { transformSync } from 'esbuild';
 import { systemAccessAction } from '../../lib/access/system-access-action.ts';
 import { systemAccessRequired } from '../../lib/access/system-access-result.ts';
-const source = transformSync(readFileSync(new URL('../../components/chat/messages/system-access-recovery.tsx',import.meta.url),'utf8'),{loader:'tsx',format:'cjs',jsx:'automatic'}).code;
+const source = transformSync(readFileSync(new URL('../../components/chat/messages/runtime/system-access-recovery.tsx',import.meta.url),'utf8'),{loader:'tsx',format:'cjs',jsx:'automatic'}).code;
 const output={status:'infeasible',reason_code:'system_access_required',system_access:[{id:'screen_recording',status:'not_granted'}]};
 function harness(autoOpen, responses, result=output) {
  let index=0, dirty=true, mounted=true, calls=[], resumed=0, view;

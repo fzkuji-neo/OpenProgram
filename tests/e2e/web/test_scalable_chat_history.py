@@ -10,7 +10,7 @@ def test_large_history_fast_scroll_eviction_restore_and_latest(tmp_path):
     from playwright.sync_api import sync_playwright, expect
     entry = r'''
 import React from 'react';import {createRoot} from 'react-dom/client';
-import {MessageList} from './components/chat/messages/message-list';
+import {MessageList} from './components/chat/messages/list/message-list';
 import {useSessionStore} from './lib/session-store';
 import {registerSessionHistory,useSessionHistory} from './lib/chat/session-history';
 import {seedHistoryWindow,loadSessionHistoryWindow} from './lib/runtime-bridge/session-history-loader';

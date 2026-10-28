@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { afterTwoAnimationFrames } from "../../components/chat/messages/collapse-frame.ts";
+import { afterTwoAnimationFrames } from "../../components/chat/messages/list/collapse-frame.ts";
 
 const bubblesCss = readFileSync(
   new URL("../../app/styles/chat/messages/bubbles.css", import.meta.url),
   "utf8",
 );
 const messageList = readFileSync(
-  new URL("../../components/chat/messages/message-list.tsx", import.meta.url),
+  new URL("../../components/chat/messages/list/message-list.tsx", import.meta.url),
   "utf8",
 );
 

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo } from "react";
 import { FileTextIcon, ArrowUpRightIcon } from "@/components/animated-icons";
-import { useActionIconAnimation } from "./use-action-icon-animation";
+import { useActionIconAnimation } from "../bubbles/use-action-icon-animation";
 import { useTranslation } from "@/lib/i18n";
 import { useSessionStore, type ChatMsg } from "@/lib/session-store";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";

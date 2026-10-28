@@ -1,5 +1,5 @@
 /* 消息气泡：用户/助手/系统角色、头像、markdown 正文、错误卡与中断徽条。
-   对应组件：components/chat/messages/user-bubble.tsx、assistant-bubble.tsx */
+   对应组件：components/chat/messages/bubbles/user-bubble.tsx、assistant-bubble.tsx */
 
 .message {
   /* The one vertical gap inside a message: between markdown blocks, and
@@ -344,7 +344,7 @@
 }
 .message-content pre code { background: none; border: 0; color: inherit; padding: 0; font-size: inherit; overflow-wrap: inherit; }
 
-/* Fenced code block chrome (components/chat/messages/markdown.ts), the
+/* Fenced code block chrome (components/chat/messages/bubbles/markdown.ts), the
    Claude app's: one hairline card, the language as a quiet label inside
    it rather than a header bar, the copy button only while hovered. */
 .message-content .md-code {

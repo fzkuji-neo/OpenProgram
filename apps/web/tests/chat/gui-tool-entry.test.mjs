@@ -7,7 +7,7 @@ import {build} from 'esbuild';
 import {act,createElement} from 'react';
 import {createRoot} from 'react-dom/client';
 import {parseHTML} from 'linkedom';
-import {guiToolView} from '../../components/chat/messages/gui-tool-view.ts';
+import {guiToolView} from '../../components/chat/messages/execution/gui-tool-view.ts';
 const web=dirname(fileURLToPath(new URL('../../package.json',import.meta.url)));
 const dir=await mkdtemp(join(web,'.gui-entry-'));
 after(()=>rm(dir,{recursive:true,force:true}));
@@ -22,10 +22,10 @@ const mocks={
   '@/lib/runtime-bridge/session-load': 'export const sendRuntimeCommand=()=>false;',
   '@/components/plugins/plugin-slot': 'export const PluginSlot=()=>null;',
   './llm-node-content': 'export const LlmNodeContent=()=>null;',
-  './markdown': 'export const renderMarkdown=t=>t,useMarkdownReady=()=>{};',
-  './message-actions': 'export const MessageTimestamp=()=>null;',
+  '../bubbles/markdown': 'export const renderMarkdown=t=>t,useMarkdownReady=()=>{};',
+  '../bubbles/message-actions': 'export const MessageTimestamp=()=>null;',
 };
-await build({absWorkingDir:web,entryPoints:['components/chat/messages/execution-strip.tsx'],outfile:file,
+await build({absWorkingDir:web,entryPoints:['components/chat/messages/execution/execution-strip.tsx'],outfile:file,
   bundle:true,packages:'external',platform:'node',format:'esm',jsx:'automatic',plugins:[{name:'services',setup(b){
     b.onResolve({filter:/.*/},a=>mocks[a.path]?{path:a.path,namespace:'mock'}:null);
     b.onLoad({filter:/.*/,namespace:'mock'},a=>({contents:mocks[a.path],resolveDir:web}));

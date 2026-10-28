@@ -1,5 +1,5 @@
 /* attach/spawn 指针卡（子 agent 任务卡）。
-   对应组件：components/chat/messages/attach-card.tsx、spawned-from-card.tsx */
+   对应组件：components/chat/messages/cards/attach-card.tsx、spawned-from-card.tsx */
 
 /* 一行态的 attach 卡（顶层 /task 斜杠路径仍用）：头部即全部。 */
 .attach-card[data-expanded="0"] .attach-card-header { border-bottom: none; }

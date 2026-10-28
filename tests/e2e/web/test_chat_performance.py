@@ -12,7 +12,7 @@ def test_chat_render_scroll_and_markdown_retention(tmp_path):
     from playwright.sync_api import sync_playwright
     entry=r'''
 import React from 'react';import {createRoot} from 'react-dom/client';
-import {MessageList} from './components/chat/messages/message-list';
+import {MessageList} from './components/chat/messages/list/message-list';
 import {useSessionStore} from './lib/session-store';
 import {runtimeState} from './lib/runtime-bridge/state';
 import {renderMd} from './lib/runtime-bridge/markdown-render';

@@ -5,7 +5,7 @@ import {
   lineDiff,
   parsePatch,
   summarizeToolGroup,
-} from '../../components/chat/messages/tool-group-summary.ts';
+} from '../../components/chat/messages/execution/tool-group-summary.ts';
 
 const en = (english) => english;
 const zh = (_english, chinese) => chinese;

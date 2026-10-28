@@ -34,10 +34,10 @@ import { optimisticAction } from "@/lib/runtime-bridge/optimistic-action";
 import { SystemAccessRecovery } from "./system-access-recovery";
 import { systemAccessRequired } from "@/lib/access/system-access-result";
 
-import type { TNode } from "./tree-types";
-import { ExecutionStrip, StepRow, TreeStep, decodeEscapes } from "./execution-strip";
-import { ActionButton, MessageTimestamp, NavButton, SVG } from "./message-actions";
-import { renderMarkdown, useMarkdownReady } from "./markdown";
+import type { TNode } from "../execution/tree-types";
+import { ExecutionStrip, StepRow, TreeStep, decodeEscapes } from "../execution/execution-strip";
+import { ActionButton, MessageTimestamp, NavButton, SVG } from "../bubbles/message-actions";
+import { renderMarkdown, useMarkdownReady } from "../bubbles/markdown";
 import { runtimeAnswer, runtimeSummaryLabel } from "./runtime-summary";
 
 /** Commands go out as they are; a `load_session` goes through the managed

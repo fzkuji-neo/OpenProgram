@@ -24,7 +24,7 @@ import { ManageEmptyState, ManageIconButton } from "@/components/ui/manage-page"
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { useTranslation, type Locale } from "@/lib/i18n";
-import { parseAttachments } from "@/components/chat/messages/user-attachments";
+import { parseAttachments } from "@/components/chat/messages/attachments/user-attachments";
 import { formatRelativeTime } from "@/lib/format-utils/format";
 import { pushPath } from "@/lib/shallow-nav";
 import { useSessionStore, type ConvSummary } from "@/lib/session-store";

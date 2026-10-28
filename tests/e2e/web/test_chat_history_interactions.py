@@ -11,9 +11,9 @@ def test_history_jump_failure_cancellation_and_restore(tmp_path):
     from playwright.sync_api import sync_playwright, expect
     entry = r'''
 import React from 'react';import {createRoot} from 'react-dom/client';
-import {useChatAreaStick} from './components/chat/messages/use-chat-area-stick';
+import {useChatAreaStick} from './components/chat/messages/list/use-chat-area-stick';
 import {writeChatScroll} from './lib/chat/chat-scroll';
-import {useHistoryWindow} from './components/chat/messages/use-history-window';
+import {useHistoryWindow} from './components/chat/messages/list/use-history-window';
 import {useSessionStore} from './lib/session-store';
 import {useSessionHistory,registerSessionHistory} from './lib/chat/session-history';
 import {loadSessionHistoryWindow,seedHistoryWindow} from './lib/runtime-bridge/session-history-loader';
@@ -23,7 +23,7 @@ import {PeerSessionPane} from './components/chat/pane/peer-session-pane';
 import {applyChatWsMessage} from './lib/net/chat-stream';
 import {loadSessionData,renderSessionMessages} from './lib/runtime-bridge/conversations';
 import {requestSessionLoad,acceptSessionLoad,failSessionLoad,preserveSessionReadRows} from './lib/runtime-bridge/session-load';
-import {TranscriptReadStatus} from './components/chat/messages/transcript-read-status';
+import {TranscriptReadStatus} from './components/chat/messages/list/transcript-read-status';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
 const queryClient=new QueryClient({defaultOptions:{queries:{retry:false}}});
 function result(id,start=200){let end=start+50;return {messages:Array.from({length:50},(_,i)=>({id:`${id}-${start+i}`,role:'user',content:`Message ${start+i}`,status:'completed'})),history:{snapshot:id,head_id:`${id}-499`,before:`${id}-${start}`,after:end<500?`${id}-${end-1}`:null,start,end,total:500}};}

@@ -13,7 +13,7 @@
  * the same element rather than repainted attributes.
  */
 
-import { presentTool, type ToolTone } from "@/components/chat/messages/tool-presentation";
+import { presentTool, type ToolTone } from "@/components/chat/messages/execution/tool-presentation";
 import { SOLAR_BODIES, SOLAR_VIEWBOXES, type SolarIconName } from "@/components/solar-icons/bodies";
 import { getLocale, translateText } from "@/lib/i18n";
 import { type GNode } from "../types";

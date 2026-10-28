@@ -43,7 +43,7 @@ import {
 } from "./inspector";
 import { _buildTree } from "../../layout/build-tree";
 import { releaseEditableFocus, select } from "../selection/selection";
-import type { TNode } from "@/components/chat/messages/tree-types";
+import type { TNode } from "@/components/chat/messages/execution/tree-types";
 
 function _chatBubbleFor(msgId: string): Element | null {
   if (!msgId) return null;

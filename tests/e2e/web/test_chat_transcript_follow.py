@@ -11,8 +11,8 @@ def test_send_jump_peer_and_loader_follow(tmp_path):
     from playwright.sync_api import sync_playwright, expect
     entry = r'''
 import React,{useRef} from 'react';import {createRoot} from 'react-dom/client';
-import {useChatAreaStick} from './components/chat/messages/use-chat-area-stick';
-import {useHistoryWindow} from './components/chat/messages/use-history-window';
+import {useChatAreaStick} from './components/chat/messages/list/use-chat-area-stick';
+import {useHistoryWindow} from './components/chat/messages/list/use-history-window';
 import {useSessionStore} from './lib/session-store';
 import {useSessionHistory,registerSessionHistory} from './lib/chat/session-history';
 import {seedHistoryWindow,loadSessionHistoryWindow,registerHistoryViewport} from './lib/runtime-bridge/session-history-loader';
@@ -99,7 +99,7 @@ def test_public_send_on_latest_window(tmp_path):
     from playwright.sync_api import sync_playwright, expect
     entry = r'''
 import React from 'react';import {createRoot} from 'react-dom/client';
-import {useChatAreaStick} from './components/chat/messages/use-chat-area-stick';
+import {useChatAreaStick} from './components/chat/messages/list/use-chat-area-stick';
 import {useSessionStore} from './lib/session-store';
 import {registerSessionHistory} from './lib/chat/session-history';
 import {seedHistoryWindow} from './lib/runtime-bridge/session-history-loader';
@@ -188,7 +188,7 @@ def test_welcome_first_send_retries_after_lock_lifts(tmp_path):
     from playwright.sync_api import sync_playwright
     entry = r'''
 import React from 'react';import {createRoot} from 'react-dom/client';
-import {useChatAreaStick} from './components/chat/messages/use-chat-area-stick';
+import {useChatAreaStick} from './components/chat/messages/list/use-chat-area-stick';
 import {useSessionStore} from './lib/session-store';
 import {runtimeState,setSocket} from './lib/runtime-bridge/state';
 import {sendChatMessage} from './components/chat/composer/submit/send-chat-message';
@@ -238,7 +238,7 @@ def test_send_during_older_load_then_fetches_latest(tmp_path):
     from playwright.sync_api import sync_playwright
     entry = r'''
 import React from 'react';import {createRoot} from 'react-dom/client';
-import {useChatAreaStick} from './components/chat/messages/use-chat-area-stick';
+import {useChatAreaStick} from './components/chat/messages/list/use-chat-area-stick';
 import {useSessionStore} from './lib/session-store';
 import {useSessionHistory,registerSessionHistory,updateSessionHistory} from './lib/chat/session-history';
 import {seedHistoryWindow,loadSessionHistoryWindow} from './lib/runtime-bridge/session-history-loader';
@@ -301,7 +301,7 @@ def test_jump_during_older_send_wait_still_fetches_latest(tmp_path):
     from playwright.sync_api import sync_playwright
     entry = r'''
 import React from 'react';import {createRoot} from 'react-dom/client';
-import {useChatAreaStick} from './components/chat/messages/use-chat-area-stick';
+import {useChatAreaStick} from './components/chat/messages/list/use-chat-area-stick';
 import {useSessionStore} from './lib/session-store';
 import {useSessionHistory,registerSessionHistory} from './lib/chat/session-history';
 import {seedHistoryWindow,loadOlderSessionHistory} from './lib/runtime-bridge/session-history-loader';
@@ -377,7 +377,7 @@ def test_cancelled_or_failed_jump_releases_lock_and_does_not_retry(tmp_path):
     from playwright.sync_api import sync_playwright
     entry = r'''
 import React from 'react';import {createRoot} from 'react-dom/client';
-import {useChatAreaStick} from './components/chat/messages/use-chat-area-stick';
+import {useChatAreaStick} from './components/chat/messages/list/use-chat-area-stick';
 import {useSessionStore} from './lib/session-store';
 import {useSessionHistory,registerSessionHistory} from './lib/chat/session-history';
 import {seedHistoryWindow,loadOlderSessionHistory} from './lib/runtime-bridge/session-history-loader';
@@ -487,7 +487,7 @@ def test_cold_activation_follows_async_transcript_and_later_growth(tmp_path):
     from playwright.sync_api import sync_playwright, expect
     entry = r'''
 import React from 'react';import {createRoot} from 'react-dom/client';
-import {useChatAreaStick} from './components/chat/messages/use-chat-area-stick';
+import {useChatAreaStick} from './components/chat/messages/list/use-chat-area-stick';
 import {useSessionStore} from './lib/session-store';
 useSessionStore.setState({currentSessionId:'cold',activeChatKey:'cold'});
 function Main(){const ids=useSessionStore(s=>s.messageOrder.cold??[]);const {detached,jumpToLatest}=useChatAreaStick('cold',ids.at(-1)??null,true);return <><div id="chatArea"><div id="chatMessages">{ids.map(id=><div className="row" key={id}>{id}</div>)}</div></div>{detached&&<button onClick={jumpToLatest}>Jump</button>}</>;}
@@ -530,8 +530,8 @@ def test_session_reload_preserves_reading_anchor_when_latest_page_is_shorter(tmp
     from playwright.sync_api import sync_playwright, expect
     entry = r'''
 import React from 'react';import {createRoot} from 'react-dom/client';
-import {useChatAreaStick} from './components/chat/messages/use-chat-area-stick';
-import {useHistoryWindow} from './components/chat/messages/use-history-window';
+import {useChatAreaStick} from './components/chat/messages/list/use-chat-area-stick';
+import {useHistoryWindow} from './components/chat/messages/list/use-history-window';
 import {useSessionStore} from './lib/session-store';
 import {registerSessionHistory} from './lib/chat/session-history';
 import {seedHistoryWindow} from './lib/runtime-bridge/session-history-loader';

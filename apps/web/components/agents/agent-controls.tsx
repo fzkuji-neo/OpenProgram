@@ -4,7 +4,7 @@ import { forwardRef, type ComponentProps } from "react";
 import { type ManageTabIcon } from "@/components/ui/manage-page";
 import { BotIcon, ZapIcon, WorkflowIcon, type AnimatedNavIconHandle } from "@/components/animated-icons";
 import { Button } from "@/components/ui/button";
-import { useActionIconAnimation } from "@/components/chat/messages/use-action-icon-animation";
+import { useActionIconAnimation } from "@/components/chat/messages/bubbles/use-action-icon-animation";
 
 /** Use the same whole-button hover/focus contract as chat actions. */
 export const AgentButton = forwardRef<HTMLButtonElement, ComponentProps<typeof Button> & { icon?: ManageTabIcon }>(function AgentButton({ icon: Icon, children, ...props }, buttonRef) {

@@ -13,7 +13,7 @@ def test_steering_boundary_and_history(tmp_path):
 import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
-import {MessageRow} from './components/chat/messages/message-list';
+import {MessageRow} from './components/chat/messages/list/message-list';
 import {useSessionStore} from './lib/session-store';
 import {applyChatWsMessage} from './lib/net/chat-stream';
 import {convToChatMsgs} from './lib/chat/conv-mapper';
@@ -87,7 +87,7 @@ def test_pending_steer_survives_reload_without_an_ordinary_send(tmp_path, delive
 import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
-import {QueuedMessages} from './components/chat/messages/queued-messages';
+import {QueuedMessages} from './components/chat/messages/editing/queued-messages';
 import {useSendQueue,registerChatSender,reconcileAfterSessionLoad,holdSteeringForStop} from './lib/chat/send-queue';
 import {steerQueuedMessage} from './lib/chat/steer-message';
 import {useSessionStore} from './lib/session-store';

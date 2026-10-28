@@ -73,7 +73,7 @@ Each row of the expanded execution timeline starts with a 24 px tinted
 square (20 px when nested) holding a 13 px glyph (11 px nested). The
 glyphs are Solar Bold Duotone, so the rows read as flat filled marks in
 the tone colour rather than line drawings. `presentTool()` in
-`apps/web/components/chat/messages/tool-presentation.ts` picks the glyph
+`apps/web/components/chat/messages/execution/tool-presentation.ts` picks the glyph
 per tool (`ToolPresentation.icon`, a `SolarIconName`); `StepRow` in
 `execution-strip.tsx` falls back to a glyph per row kind when no tool
 glyph is given. The tile and its tone colours are unchanged by the icon

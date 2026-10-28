@@ -192,7 +192,7 @@ test("F18 web production has no leftover follow writers", () => {
 
 test("follow ownership contracts stay in the production files", () => {
   const stick = readFileSync(
-    new URL("../../components/chat/messages/use-chat-area-stick.ts", import.meta.url),
+    new URL("../../components/chat/messages/list/use-chat-area-stick.ts", import.meta.url),
     "utf8",
   );
   const loader = readFileSync(
@@ -458,6 +458,6 @@ test("content re-wrapping under a reader at the latest keeps them there", () => 
   assert.equal(scrolledAwayFromLatest(2510, 2510), false);
   assert.equal(scrolledAwayFromLatest(2510, 2509.5), false);
   assert.equal(scrolledAwayFromLatest(2510, 2400), true);
-  const hook = readFileSync(new URL("../../components/chat/messages/use-chat-area-stick.ts", import.meta.url), "utf8");
+  const hook = readFileSync(new URL("../../components/chat/messages/list/use-chat-area-stick.ts", import.meta.url), "utf8");
   assert.match(hook, /&& !scrolledAwayFromLatest\(scrollTopRef\.current, area\.scrollTop\)\n\s+&& performance\.now\(\) - lastPointerRef\.current > GROWTH_SUPPRESS_MS\n\s+\) \{\n\s+applySnap\(area\);\n\s+\}\n\s+const atBottom = syncDetached\(\);/);
 });

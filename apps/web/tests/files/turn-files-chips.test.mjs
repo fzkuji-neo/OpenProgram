@@ -16,7 +16,7 @@ await build({
   absWorkingDir: webPath,
   stdin: {
     contents: [
-      'export { TurnFilesChips } from "./components/chat/messages/turn-files-chips.tsx";',
+      'export { TurnFilesChips } from "./components/chat/messages/turn-files/turn-files-chips.tsx";',
       'export { useSessionStore } from "./lib/session-store/index.ts";',
       'export { setSocket } from "./lib/runtime-bridge/state.ts";',
       'export { useCenterTabs } from "./lib/tabs/center-tabs-store.ts";',

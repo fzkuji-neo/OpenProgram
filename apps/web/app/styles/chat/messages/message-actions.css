@@ -1,5 +1,5 @@
 /* 消息悬停操作条：复制/重试/编辑按钮、兄弟消息导航、时间戳、行内编辑态。
-   对应组件：components/chat/messages/message-actions.tsx、user-bubble.tsx */
+   对应组件：components/chat/messages/bubbles/message-actions.tsx、user-bubble.tsx */
 
 /* Hover-reveal action bar (copy / retry / branch) — mirrors
    ChatGPT/Claude UX. Hidden by default; fades in when the user mouses

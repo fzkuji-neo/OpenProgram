@@ -1,5 +1,5 @@
 /* "跳到最新" 悬浮按钮。
-   对应组件：components/chat/messages/message-list.tsx */
+   对应组件：components/chat/messages/list/message-list.tsx */
 
 /* 钉在 #chatView（列，不滚）上，贴着输入框上方。
    不要 portal 进 #chatArea：那是滚动层，absolute bottom 会落到

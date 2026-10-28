@@ -1,5 +1,5 @@
 /* 用户消息附件 chips。
-   对应组件：components/chat/messages/user-attachments.tsx */
+   对应组件：components/chat/messages/attachments/user-attachments.tsx */
 
 /* User-message attachment chips (Claude-Code-style file pills) — the
    composer encodes dropped files into the message text; UserBubble
@@ -63,7 +63,7 @@ button.user-attach-chip {
   padding-left: 4px;
 }
 
-/* Attachment preview overlay (components/chat/messages/attachment-preview.tsx) */
+/* Attachment preview overlay (components/chat/messages/attachments/attachment-preview.tsx) */
 .attach-preview-backdrop {
   position: fixed;
   inset: 0;

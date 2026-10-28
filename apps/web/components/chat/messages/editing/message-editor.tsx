@@ -12,14 +12,14 @@ import { absRawFileUrl } from "@/lib/files/files-shared";
 import { buildAttachmentEnvelope } from "@/lib/chat/attachment-marker";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
 import { setRunActive } from "@/lib/runtime-bridge/chat-handlers";
-import { ChatInputRow } from "../composer/input/chat-input-row";
-import { useFileMention } from "../composer/attach/use-file-mention";
-import { expandAtMentions } from "../composer/attach/at-mention";
-import { useComposerAttachments } from "../composer/attach/use-composer-attachments";
-import { attachmentsBlockSend } from "../composer/attach/attachment-session-cache";
-import { AttachmentStrip } from "../composer/attach/attachment-strip";
-import { readImageFile, type PendingImage } from "../composer/attach/image-attach";
-import { AttachmentChips, parseAttachments } from "./user-attachments";
+import { ChatInputRow } from "../../composer/input/chat-input-row";
+import { useFileMention } from "../../composer/attach/use-file-mention";
+import { expandAtMentions } from "../../composer/attach/at-mention";
+import { useComposerAttachments } from "../../composer/attach/use-composer-attachments";
+import { attachmentsBlockSend } from "../../composer/attach/attachment-session-cache";
+import { AttachmentStrip } from "../../composer/attach/attachment-strip";
+import { readImageFile, type PendingImage } from "../../composer/attach/image-attach";
+import { AttachmentChips, parseAttachments } from "../attachments/user-attachments";
 import styles from "./message-editor.module.css";
 
 export function MessageEditor({ msg, sessionId, onDone }: {

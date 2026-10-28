@@ -7,7 +7,7 @@ const read = (path) => readFileSync(new URL(path, root), "utf8");
 
 const runtimeFiles = [
   "components/app-shell.tsx",
-  "components/chat/messages/markdown.ts",
+  "components/chat/messages/bubbles/markdown.ts",
   "components/settings/provider-icon.tsx",
   "lib/format-utils/markdown.tsx",
   "lib/net/use-ws.ts",

@@ -1,4 +1,4 @@
-import type { AssistantBlock, TurnFileSummary } from "../../../lib/session-store/types.ts";
+import type { AssistantBlock, TurnFileSummary } from "../../../../lib/session-store/types.ts";
 
 const FILE_WRITING_TOOLS = new Set(["write", "edit", "apply_patch"]);
 

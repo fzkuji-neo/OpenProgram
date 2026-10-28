@@ -18,7 +18,7 @@ test("a reply's footnotes render as notes, not a dead link", () => {
 });
 
 test("a footnote link moves within its own reply and leaves the URL alone", () => {
-  const md = read("components/chat/messages/markdown.ts");
+  const md = read("components/chat/messages/bubbles/markdown.ts");
   assert.match(md, /closest<HTMLAnchorElement>\("a\[data-footnote-ref\], a\[data-footnote-backref\]"\)/);
   assert.match(md, /event\.preventDefault\(\);\n\s+const id = note\.getAttribute\("href"\)\?\.slice\(1\)/);
   assert.match(md, /note\.closest\("\.md-rendered"\)/, "only notes of the same reply");

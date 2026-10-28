@@ -1,4 +1,4 @@
-/* Sub-agents card (components/chat/messages/sub-agents-card.tsx): the
+/* Sub-agents card (components/chat/messages/cards/sub-agents-card.tsx): the
    agents a turn spawned, one tab each. The raised surface, header row and
    inset well match the file-change card (turn-files-card.css). */
 .sub-agents-card {

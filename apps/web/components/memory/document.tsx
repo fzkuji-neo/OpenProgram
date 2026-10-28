@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { EditorPanel } from "./parts";
 import { memoryDraft } from "./autosave";
-import { UnifiedDiff } from "@/components/chat/messages/unified-diff";
+import { UnifiedDiff } from "@/components/chat/messages/turn-files/unified-diff";
 import { useTranslation } from "@/lib/i18n";
 import styles from "./memory-page.module.css";
 import { useMemoryUrl } from "./api";

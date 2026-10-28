@@ -6,9 +6,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { presentTool } from '../../components/chat/messages/tool-presentation.ts';
-import { guiToolView, guiStatus, guiResultNote } from '../../components/chat/messages/gui-tool-view.ts';
-import { summarizeToolGroup } from '../../components/chat/messages/tool-group-summary.ts';
+import { presentTool } from '../../components/chat/messages/execution/tool-presentation.ts';
+import { guiToolView, guiStatus, guiResultNote } from '../../components/chat/messages/execution/gui-tool-view.ts';
+import { summarizeToolGroup } from '../../components/chat/messages/execution/tool-group-summary.ts';
 
 const web = dirname(fileURLToPath(new URL('../../package.json', import.meta.url)));
 const dir = await mkdtemp(join(web, '.gui-detail-'));

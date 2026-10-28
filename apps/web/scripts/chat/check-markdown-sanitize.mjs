@@ -125,7 +125,7 @@ const { join } = await import("node:path");
 const bundleDir = await mkdtemp(join(root, ".md-sanitize-"));
 const bundle = join(bundleDir, "markdown.mjs");
 await build({
-  absWorkingDir: root, entryPoints: ["components/chat/messages/markdown.ts"],
+  absWorkingDir: root, entryPoints: ["components/chat/messages/bubbles/markdown.ts"],
   bundle: true, platform: "node", format: "esm", outfile: bundle, logLevel: "silent",
   alias: { "@": root.replace(/\/$/, "") },
 });

@@ -3,11 +3,11 @@
 import type { ReactNode } from "react";
 import { useSessionStore } from "@/lib/session-store";
 import { useTranslation } from "@/lib/i18n";
-import { renderMarkdown, useMarkdownReady } from "../chat/messages/markdown";
-import { LlmNodeContent } from "../chat/messages/llm-node-content";
-import type { TNode } from "../chat/messages/tree-types";
+import { renderMarkdown, useMarkdownReady } from "../chat/messages/bubbles/markdown";
+import { LlmNodeContent } from "../chat/messages/execution/llm-node-content";
+import type { TNode } from "../chat/messages/execution/tree-types";
 import { GuiToolDetail } from "./gui-tool-detail";
-import { guiToolView } from "../chat/messages/gui-tool-view";
+import { guiToolView } from "../chat/messages/execution/gui-tool-view";
 
 export const VIEW_DETAIL = "detail";
 export const VIEW_CONTEXT = "context";

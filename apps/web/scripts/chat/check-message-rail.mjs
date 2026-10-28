@@ -14,11 +14,11 @@ import { dirname, join } from "node:path";
 import {
   packRailRow,
   unpackRailRow,
-} from "../../components/chat/messages/message-rail-row.ts";
+} from "../../components/chat/messages/navigation/message-rail-row.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(
-  join(here, "../..", "components", "chat", "messages", "message-rail.tsx"),
+  join(here, "../..", "components", "chat", "messages", "navigation", "message-rail.tsx"),
   "utf8",
 );
 

@@ -17,7 +17,7 @@ ENTRY = r'''
 import React, {useRef, useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {useChatSubmit} from './components/chat/composer/submit/use-chat-submit';
-import {useChatAreaStick} from './components/chat/messages/use-chat-area-stick';
+import {useChatAreaStick} from './components/chat/messages/list/use-chat-area-stick';
 import {useSessionStore} from './lib/session-store';
 import {useSendQueue, queueFor} from './lib/chat/send-queue';
 import {peekTakeLatest} from './lib/chat/chat-scroll';

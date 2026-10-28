@@ -4,7 +4,7 @@
 // 879-line sessions-list.tsx (title/label formatting, channel brand,
 // placeholder detection, the LegacyConv shape, wsSend).
 
-import { parseAttachments } from "@/components/chat/messages/user-attachments";
+import { parseAttachments } from "@/components/chat/messages/attachments/user-attachments";
 import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
 
 export function wsSend(payload: unknown): boolean {

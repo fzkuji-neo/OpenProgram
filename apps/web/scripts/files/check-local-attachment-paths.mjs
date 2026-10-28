@@ -154,7 +154,7 @@ assert.match(
 assert.match(submit, /buildAttachmentEnvelope\(\s*pendingImages,\s*pendingDocs,?\s*\)/,
   "submit must use the behavior-tested envelope builder");
 const messageParser = readFileSync(
-  new URL("components/chat/messages/user-attachments.tsx", root),
+  new URL("components/chat/messages/attachments/user-attachments.tsx", root),
   "utf8",
 );
 assert.match(messageParser, /extractAttachmentMentions\(text, includeRaw\)/,

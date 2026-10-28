@@ -1,5 +1,5 @@
 /* 输入中指示：三点弹跳与等待回复占位（.typing-indicator / .pending-*）。
-   对应组件：components/chat/messages/message-list.tsx */
+   对应组件：components/chat/messages/list/message-list.tsx */
 
 /* Typing indicator (three bouncing dots) */
 .typing-indicator {

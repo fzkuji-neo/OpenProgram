@@ -8,7 +8,7 @@ import {parseHTML} from 'linkedom';
 const web=dirname(fileURLToPath(new URL('../../package.json',import.meta.url)));
 const dir=await mkdtemp(join(web,'.chat-activation-'));after(()=>rm(dir,{recursive:true,force:true}));
 const output=join(dir,'hook.mjs');
-await build({absWorkingDir:web,entryPoints:['components/chat/messages/use-chat-area-stick.ts'],outfile:output,bundle:true,packages:'external',platform:'node',format:'esm',jsx:'automatic',plugins:[{name:'services',setup(b){
+await build({absWorkingDir:web,entryPoints:['components/chat/messages/list/use-chat-area-stick.ts'],outfile:output,bundle:true,packages:'external',platform:'node',format:'esm',jsx:'automatic',plugins:[{name:'services',setup(b){
  b.onResolve({filter:/^@\//},a=>a.path.endsWith('/chat-scroll')?null:{path:a.path,namespace:'service'});
  b.onLoad({filter:/.*/,namespace:'service'},a=>({contents:
  a.path.includes('session-store')?'export const useSessionStore=f=>f(globalThis.chatState);':

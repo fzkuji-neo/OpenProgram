@@ -22,8 +22,8 @@
  */
 "use client";
 
-import { PendingDecisionPanels } from "../messages/decision-output";
-import { QueuedMessages } from "../messages/queued-messages";
+import { PendingDecisionPanels } from "../messages/runtime/decision-output";
+import { QueuedMessages } from "../messages/editing/queued-messages";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useCompactControlsRow } from "./controls/use-compact-controls-row";

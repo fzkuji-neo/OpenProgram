@@ -80,7 +80,7 @@ test("no hand-rolled modal backdrops or dialog surface overrides remain", () => 
   const useModal = all.filter((file) => /useModalA11y\(/.test(read(file)));
   assert.deepEqual(
     useModal.map((file) => relative(".", file)).sort(),
-    ["components/chat/messages/attachment-preview.tsx", "lib/hooks/use-modal-a11y.ts"].sort(),
+    ["components/chat/messages/attachments/attachment-preview.tsx", "lib/hooks/use-modal-a11y.ts"].sort(),
     "only the attachment lightbox keeps the hand-rolled modal hook",
   );
 });

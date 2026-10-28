@@ -18,7 +18,7 @@ def test_activity_motion_geometry_and_accessibility(tmp_path: Path) -> None:
         "node", "-e", """
 const esbuild = require('esbuild');
 esbuild.buildSync({absWorkingDir:process.argv[1], stdin:{contents:
-  'export {createElement} from "react"; export {createRoot} from "react-dom/client"; export {ActivityIndicator} from "./components/chat/messages/activity-indicator.tsx";',
+  'export {createElement} from "react"; export {createRoot} from "react-dom/client"; export {ActivityIndicator} from "./components/chat/messages/execution/activity-indicator.tsx";',
   resolveDir:process.argv[1],loader:'tsx'},bundle:true,format:'iife',globalName:'ActivityBundle',jsx:'automatic',outfile:process.argv[2]});
 """, str(WEB), str(bundle),
     ], cwd=ROOT, check=True, capture_output=True, text=True)
@@ -89,8 +89,8 @@ def test_existing_function_structure_without_added_logos(tmp_path: Path) -> None
 import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
-import {AssistantBubble} from './components/chat/messages/assistant-bubble';
-import {RuntimeBlock} from './components/chat/messages/runtime-block';
+import {AssistantBubble} from './components/chat/messages/bubbles/assistant-bubble';
+import {RuntimeBlock} from './components/chat/messages/runtime/runtime-block';
 import {SOLAR_BODIES} from './components/solar-icons';
 // gui_agent rows carry their tool glyph from tool-presentation, not a brand logo.
 window.expectedFunctionGlyph=SOLAR_BODIES.monitor;

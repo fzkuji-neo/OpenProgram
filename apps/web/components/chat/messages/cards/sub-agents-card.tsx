@@ -23,7 +23,7 @@ import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
 import { useSessionStore, type ChatMsg } from "@/lib/session-store";
 import { cn } from "@/lib/utils";
 
-import { AssistantBubble } from "./assistant-bubble";
+import { AssistantBubble } from "../bubbles/assistant-bubble";
 
 const LIVE = new Set(["running", "pending", "queued"]);
 const TERMINAL = new Set(["completed", "errored", "failed", "cancelled"]);

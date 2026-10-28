@@ -426,11 +426,11 @@ Every Group B field becomes a property of `SessionScopeState`, read through
   `use-fn-form-wrapper.ts`, `apps/web/lib/execution/use-pending-run-function.ts`,
   `apps/web/components/sidebar/favorites-list.tsx`,
   `apps/web/components/sidebar/sidebar.tsx`,
-  `apps/web/components/chat/messages/runtime-block.tsx`, and
+  `apps/web/components/chat/messages/runtime/runtime-block.tsx`, and
   `apps/web/lib/runtime-bridge/functions-panel.ts`.
 - `welcomeVisible` and `transcriptLoadingId` are per-session booleans, read by
   `apps/web/components/chat/welcome/welcome-screen.tsx` and
-  `apps/web/components/chat/messages/message-list.tsx`.
+  `apps/web/components/chat/messages/list/message-list.tsx`.
 - `composerFocusTick` is a per-session counter, so focusing one pane's textarea
   does not yank the other.
 - `branchInfo`, `statusBadge`, `paused`, `providerInfo` are per-session. They

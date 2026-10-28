@@ -10,8 +10,8 @@ import {
   remainingScroll,
 } from "../../lib/chat/chat-scroll.ts";
 
-const messageList = readFileSync(new URL("../../components/chat/messages/use-chat-area-stick.ts", import.meta.url), "utf8") + readFileSync(
-  new URL("../../components/chat/messages/message-list.tsx", import.meta.url),
+const messageList = readFileSync(new URL("../../components/chat/messages/list/use-chat-area-stick.ts", import.meta.url), "utf8") + readFileSync(
+  new URL("../../components/chat/messages/list/message-list.tsx", import.meta.url),
   "utf8",
 );
 const jumpCss = readFileSync(
@@ -73,7 +73,7 @@ test("jump uses the same native smooth scroll as the left rail", () => {
     "utf8",
   );
   const rail = readFileSync(
-    new URL("../../components/chat/messages/message-rail.tsx", import.meta.url),
+    new URL("../../components/chat/messages/navigation/message-rail.tsx", import.meta.url),
     "utf8",
   );
   assert.match(scroll, /behavior: "smooth"/);

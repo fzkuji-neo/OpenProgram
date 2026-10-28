@@ -2,7 +2,7 @@
    execution timeline's icon tiles (chat/execution-strip.css) and the
    DAG's node tiles (dag/graph/nodes.css), so one call reads the same colour in
    the transcript and on the graph. Per-tool tones are picked in
-   components/chat/messages/tool-presentation.ts. */
+   components/chat/messages/execution/tool-presentation.ts. */
 :root {
   --timeline-thinking: light-dark(#7c3aed, #b78cff);
   --timeline-function: light-dark(#d14a1f, #ff9a66);

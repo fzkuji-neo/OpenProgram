@@ -1,5 +1,5 @@
 /* 执行时间线（.tl 系列；spec: docs/design/ui/chat-turn-visual-spec.html）。
-   对应组件：components/chat/messages/execution-strip.tsx */
+   对应组件：components/chat/messages/execution/execution-strip.tsx */
 
 /* ═══ 执行时间线（docs/design/ui/chat-turn-visual-spec.html） ═══
    一轮的执行痕迹：外层无框；收起态一行淡文字摘要 ›；展开后竖线串起
@@ -279,7 +279,7 @@
 .tl-sub .tl-step-body { font-size: 12.5px; padding: 8px 12px; }
 
 /* Tones (values in tool-tones.css). Generic kinds keep their old hues;
-   per-tool tones come from components/chat/messages/tool-presentation.ts. */
+   per-tool tones come from components/chat/messages/execution/tool-presentation.ts. */
 .tl-step-icon.k-thinking { --tone: var(--timeline-thinking); }
 .tl-step-icon.k-function { --tone: var(--timeline-function); }
 .tl-step-icon.k-llm { --tone: var(--timeline-llm); }

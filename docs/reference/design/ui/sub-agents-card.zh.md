@@ -7,7 +7,7 @@
 相关：[`chat-turn-visual-spec.html`](chat-turn-visual-spec.zh.html)
 （执行时间线与子代理步骤行）、
 [`indicator-dots.md`](indicator-dots.zh.md)（标签状态点）。
-代码：`apps/web/components/chat/messages/sub-agents-card.tsx`、
+代码：`apps/web/components/chat/messages/cards/sub-agents-card.tsx`、
 `apps/web/lib/chat/sub-agent-transcripts.ts`、
 `apps/web/lib/net/chat-stream.ts`（`handleSubAgentResponse`）、
 `openprogram/agent/production_driver/execution.py`（`_turn_event_sink`）、

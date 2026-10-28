@@ -27,6 +27,6 @@ test("every reload after a branch switch goes through the managed session read",
     if (helper && /\.send\(JSON\.stringify/.test(helper[1]) && /wsSend\(\{ action: ["']load_session["']/.test(source)) raw.push(path);
   }
   assert.deepEqual(raw, []);
-  const card = readFileSync(join(web, "components/chat/messages/sub-agents-card.tsx"), "utf8");
+  const card = readFileSync(join(web, "components/chat/messages/cards/sub-agents-card.tsx"), "utf8");
   assert.match(card, /function wsSend\(payload: unknown\): void \{\n  sendRuntimeCommand\(payload\);\n\}/);
 });

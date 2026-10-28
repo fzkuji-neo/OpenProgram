@@ -1,6 +1,6 @@
 import React from 'react';
 import {createRoot} from 'react-dom/client';
-import {AssistantBubble} from '../components/chat/messages/assistant-bubble';
+import {AssistantBubble} from '../components/chat/messages/bubbles/assistant-bubble';
 import {PersistentFilePanes} from '../components/center-tabs/files/persistent-file-panes';
 import {useCenterTabs} from '../lib/tabs/center-tabs-store';
 import {useSessionStore} from '../lib/session-store';

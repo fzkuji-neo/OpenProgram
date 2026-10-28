@@ -24,7 +24,7 @@ import { SimpleSelect } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { SectionHeader } from "../sidebar/section-header";
 import { useTranslation } from "@/lib/i18n";
-import { ExecutionStrip } from "../chat/messages/execution-strip";
+import { ExecutionStrip } from "../chat/messages/execution/execution-strip";
 import { executionTitle, executionRequest, executionGuidance, executionNeedsAttention, executionStatusLabel, activityRows, shortTime, updatedTime } from "./debugger-presentation";
 import styles from "./debugger-panel.module.css";
 

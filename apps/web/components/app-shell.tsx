@@ -32,7 +32,7 @@ import { CommandPalette } from "./command-palette";
 import { Composer } from "./chat/composer";
 import { LegacyTopbarBridge } from "./chat/top-bar";
 import { WelcomeScreen } from "./chat/welcome/welcome-screen";
-import { MessageList } from "./chat/messages/message-list";
+import { MessageList } from "./chat/messages/list/message-list";
 import { PeerSessionPane } from "./chat/pane/peer-session-pane";
 import { DagView } from "./chat/dag/dag-view";
 import { ViewControls } from "./chat/pane/view-controls";

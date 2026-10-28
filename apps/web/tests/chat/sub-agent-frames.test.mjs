@@ -105,10 +105,10 @@ test("the conversation's bookkeeping ignores sub-agent frames", () => {
 });
 
 test("each turn with spawns shows the Sub-agents card", () => {
-  const bubble = read("components/chat/messages/assistant-bubble.tsx");
+  const bubble = read("components/chat/messages/bubbles/assistant-bubble.tsx");
   assert.match(bubble, /<SubAgentsCard cards=\{subAgentCards\} sessionId=\{bubbleSessionId\} \/>/);
   assert.match(bubble, /const subAgentCards = \[\.\.\.attachFifo\];/, "copied before the timeline consumes the queue");
-  const card = read("components/chat/messages/sub-agents-card.tsx");
+  const card = read("components/chat/messages/cards/sub-agents-card.tsx");
   assert.match(card, /role="tablist"/);
   assert.match(card, /role="tab"\n\s+className="sub-agents-tab-select"/);
   assert.match(card, /<AssistantBubble msg=\{msg\} sessionIdOverride=\{sessionId\} embedded \/>/);
@@ -126,10 +126,10 @@ test("on a sub-agent branch the way back comes from the load, not the graph", ()
   // A bounded load ships graph: [], so the banner and the Spawned-from card
   // read the server's spawned_branch and return to the conversation's
   // newest turn rather than to the spawning reply.
-  const banner = readFileSync(new URL("../../components/chat/messages/agent-branch-banner.tsx", import.meta.url), "utf8");
+  const banner = readFileSync(new URL("../../components/chat/messages/cards/agent-branch-banner.tsx", import.meta.url), "utf8");
   assert.match(banner, /const spawned = conv\?\.spawned_branch;\n\s+if \(spawned !== undefined\) \{\n\s+if \(!spawned\) return null;/);
   assert.match(banner, /backTarget: spawned\.back_target,/);
-  const card = readFileSync(new URL("../../components/chat/messages/spawned-from-card.tsx", import.meta.url), "utf8");
+  const card = readFileSync(new URL("../../components/chat/messages/cards/spawned-from-card.tsx", import.meta.url), "utf8");
   assert.match(card, /const target = spawned\?\.root_id === msg\.id && spawned\.back_target\n\s+\? spawned\.back_target\n\s+: sf\.callerId;/);
   assert.doesNotMatch(card, /\btitle=\{/);
 });

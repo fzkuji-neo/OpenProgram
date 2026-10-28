@@ -4,8 +4,8 @@ import { useSessionStore, type PendingDecision } from "@/lib/session-store";
 import { useDecisionSubmissions, type DecisionSubmission } from "@/lib/chat/decision-submissions";
 import { isSettled, showsReceipt } from "@/lib/chat/decision-receipts";
 import { useTranslation } from "@/lib/i18n";
-import { AnswerSummary } from "../composer/modes/question/answer-summary";
-import { QuestionMode } from "../composer/modes/question/question-mode";
+import { AnswerSummary } from "../../composer/modes/question/answer-summary";
+import { QuestionMode } from "../../composer/modes/question/question-mode";
 import styles from "./decision-output.module.css";
 
 // Match the lifetime of session receipts: switching panes or answering a later

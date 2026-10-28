@@ -14,7 +14,7 @@
  * 不走这里（assistant-bubble 平铺实时块），落定后切到本组件。
  */
 import { stepOpenByDefault } from "@/lib/prefs/transcript-view";
-import { useTranscriptViewHere } from "./transcript-view-scope";
+import { useTranscriptViewHere } from "../list/transcript-view-scope";
 import type { ExecutionCommand } from "@/lib/execution/execution-debugger";
 import { memo, useEffect, useState } from "react";
 import { ChevronRight } from "lucide-react";
@@ -22,7 +22,7 @@ import { SolarIcon, type SolarIconName } from "@/components/solar-icons";
 import { presentTool, summarizeResult, type ToolTone } from "./tool-presentation";
 import { guiResultNote, isGuiToolCall } from "./gui-tool-view";
 import type { ToolGroupSummary } from "./tool-group-summary";
-import { afterTwoAnimationFrames } from "./collapse-frame";
+import { afterTwoAnimationFrames } from "../list/collapse-frame";
 
 import type { AssistantBlock, ChatMsg, DetailNode } from "@/lib/session-store";
 import { useSessionStore } from "@/lib/session-store";
@@ -35,10 +35,10 @@ import {
 import { fetchFullToolOutput } from "@/lib/net/tool-output";
 import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
 import { LlmNodeContent } from "./llm-node-content";
-import { renderMarkdown, useMarkdownReady } from "./markdown";
-import { MessageTimestamp } from "./message-actions";
+import { renderMarkdown, useMarkdownReady } from "../bubbles/markdown";
+import { MessageTimestamp } from "../bubbles/message-actions";
 import { PluginSlot } from "@/components/plugins/plugin-slot";
-import { CodeRainIcon, CodeRainText, useCodeRainStyle } from "../welcome/code-rain-style";
+import { CodeRainIcon, CodeRainText, useCodeRainStyle } from "../../welcome/code-rain-style";
 
 export { SPAWNING_TOOL_NAMES } from "./tool-group-summary";
 

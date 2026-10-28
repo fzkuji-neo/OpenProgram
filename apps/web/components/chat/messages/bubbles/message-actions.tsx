@@ -1,7 +1,7 @@
 "use client";
-import { quoteToChat } from "./quote-to-chat";
+import { quoteToChat } from "../editing/quote-to-chat";
 import { useActionIconAnimation } from "./use-action-icon-animation";
-import { parseAttachments } from "./user-attachments";
+import { parseAttachments } from "../attachments/user-attachments";
 
 /**
  * Per-message hover action bar — React port of the legacy

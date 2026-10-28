@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 
-const source = ts.createSourceFile('steps.tsx', readFileSync(new URL('../../components/chat/messages/execution-strip.tsx',import.meta.url),'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+const source = ts.createSourceFile('steps.tsx', readFileSync(new URL('../../components/chat/messages/execution/execution-strip.tsx',import.meta.url),'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 let callback, sameDetail;
 function visit(node) {
   if(ts.isCallExpression(node) && node.expression.getText(source)==='useEffect' && node.arguments[0]?.getText(source).includes('store.populateDetail(detail)')) callback=node.arguments[0];

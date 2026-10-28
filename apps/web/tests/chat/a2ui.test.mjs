@@ -90,7 +90,7 @@ test("Only a fence still open at the end of the text is marked partial", () => {
 });
 
 test("Chat markdown swaps a2ui fences before code chrome and styles them", () => {
-  const md = readFileSync(new URL("../../components/chat/messages/markdown.ts", import.meta.url), "utf8");
+  const md = readFileSync(new URL("../../components/chat/messages/bubbles/markdown.ts", import.meta.url), "utf8");
   assert.match(md, /withCodeChrome\(withA2ui\(renderMd\(markOpenA2uiFence\(src\)\)\)\)/);
   const styles = readFileSync(new URL("../../app/styles.css", import.meta.url), "utf8");
   assert.match(styles, /@import "\.\/styles\/chat\/messages\/a2ui\.css";/);

@@ -20,7 +20,7 @@ const mocks = {
     'next/navigation': 'export const useRouter=()=>({push(){}});',
     'next/link': 'export default function Link(){return null;}',
     './attachment-preview': 'export const AttachmentPreview=()=>{throw Error("No attachment should render")};',
-    './turn-files-chips': 'export const TurnFilesChips=()=>{throw Error("No files should render")};',
+    '../turn-files/turn-files-chips': 'export const TurnFilesChips=()=>{throw Error("No files should render")};',
 };
 const loaderHooks = registerHooks({ resolve(s, c, next) {
         if (s.endsWith('.css'))
@@ -60,7 +60,7 @@ test('untrusted message previews and skill fetch render text without injected el
                 a1: { id: 'a1', role: 'assistant', status: 'completed', content: '$<input data-audit="rail-assistant" value="synthetic">$' },
                 u2: { id: 'u2', role: 'user', content: 'second message' }
             } };
-        const { MessageRail } = await import(new URL('components/chat/messages/message-rail.tsx', base));
+        const { MessageRail } = await import(new URL('components/chat/messages/navigation/message-rail.tsx', base));
         await act(() => root.render(createElement(MessageRail)));
         const rail = host.querySelector('.msg-rail');
         assert.ok(rail);

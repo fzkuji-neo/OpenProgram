@@ -6,7 +6,7 @@
  * label that decodes from code (components/chat/welcome/code-rain-style.tsx).
  */
 import { useTranslation } from "@/lib/i18n";
-import { CodeRainIcon, CodeRainText, useCodeRainStyle } from "../welcome/code-rain-style";
+import { CodeRainIcon, CodeRainText, useCodeRainStyle } from "../../welcome/code-rain-style";
 import { ActivityIndicator } from "./activity-indicator";
 
 export function ThinkingStatus() {

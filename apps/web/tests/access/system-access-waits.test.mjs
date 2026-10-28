@@ -57,7 +57,7 @@ window.setInterval = callback => { timers.add(callback); return callback; };
 window.clearInterval = callback => timers.delete(callback);
 const { act, createElement } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { SystemAccessWaits } = await import("../../components/chat/messages/system-access-waits.tsx");
+const { SystemAccessWaits } = await import("../../components/chat/messages/runtime/system-access-waits.tsx");
 const { rememberSystemAccessWait, rememberedSystemAccessWaits } = await import("../../lib/access/system-access-wait-state.ts");
 const waiting = {wait_id:"os-wait",session_id:"session",execution_id:"execution",required_capabilities:["screen_recording"]};
 

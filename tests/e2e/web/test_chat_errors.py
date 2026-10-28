@@ -14,7 +14,7 @@ def test_failed_reply_notice_follows_content_and_survives_reload(tmp_path):
 import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
-import {AssistantBubble} from './components/chat/messages/assistant-bubble';
+import {AssistantBubble} from './components/chat/messages/bubbles/assistant-bubble';
 import {useSessionStore} from './lib/session-store';
 import {applyChatWsMessage} from './lib/net/chat-stream';
 import {convToChatMsgs} from './lib/chat/conv-mapper';

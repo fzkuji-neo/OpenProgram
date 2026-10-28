@@ -9,7 +9,7 @@ import {
   shouldRenderTurnFiles,
   turnFilesListLayout,
   turnFilesSummaryComplete,
-} from "../../components/chat/messages/turn-files-presentation.ts";
+} from "../../components/chat/messages/turn-files/turn-files-presentation.ts";
 
 test("plain assistant replies do not create a file-change surface", () => {
   assert.equal(shouldRenderTurnFiles(undefined, undefined), false);

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { runtimeAnswer } from '../../components/chat/messages/runtime-summary.ts';
+import { runtimeAnswer } from '../../components/chat/messages/runtime/runtime-summary.ts';
 
 test('direct GUI answer is full persisted prose and retains takeover instructions', () => {
   const summary = '屏幕显示浏览器设置页。'.repeat(20);

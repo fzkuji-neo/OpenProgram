@@ -1,5 +1,5 @@
-import type { TurnFileSummary } from "../../../lib/session-store/types.ts";
-import type { FileWriteState } from "./turn-files-presentation.ts";
+import type { TurnFileSummary } from "../../../../lib/session-store/types.ts";
+import type { FileWriteState } from "../turn-files/turn-files-presentation.ts";
 
 export type RailMsg = {
   id: string;

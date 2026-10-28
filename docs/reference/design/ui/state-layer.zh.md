@@ -338,11 +338,11 @@ React context 提供键，让消费方读 `map[scopeKey]` 而不是读全局。`
   `use-fn-form-wrapper.ts`、`apps/web/lib/execution/use-pending-run-function.ts`、
   `apps/web/components/sidebar/favorites-list.tsx`、
   `apps/web/components/sidebar/sidebar.tsx`、
-  `apps/web/components/chat/messages/runtime-block.tsx`、
+  `apps/web/components/chat/messages/runtime/runtime-block.tsx`、
   `apps/web/lib/runtime-bridge/functions-panel.ts`。
 - `welcomeVisible`、`transcriptLoadingId` 是每会话布尔值，消费方为
   `apps/web/components/chat/welcome/welcome-screen.tsx` 和
-  `apps/web/components/chat/messages/message-list.tsx`。
+  `apps/web/components/chat/messages/list/message-list.tsx`。
 - `composerFocusTick` 是每会话计数器，这样聚焦一个窗格的输入框不会把另一个拽走。
 - `branchInfo`、`statusBadge`、`paused`、`providerInfo` 按会话分。它们喂给顶栏，而顶栏
   显示的是*聚焦*会话，所以顶栏读聚焦作用域。

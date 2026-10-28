@@ -14,7 +14,7 @@ def test_history_loads_on_scroll_preserves_anchor_and_recycles(tmp_path):
     entry = r'''
 import React from 'react';
 import {createRoot} from 'react-dom/client';
-import {MessageList} from './components/chat/messages/message-list';
+import {MessageList} from './components/chat/messages/list/message-list';
 import {useSessionStore} from './lib/session-store';
 import {registerSessionHistory} from './lib/chat/session-history';
 import {runtimeState,setSocket} from './lib/runtime-bridge/state';

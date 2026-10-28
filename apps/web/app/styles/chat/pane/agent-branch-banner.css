@@ -1,5 +1,5 @@
 /* "正在查看子 agent 分支" 顶部横幅。
-   对应组件：components/chat/messages/agent-branch-banner.tsx */
+   对应组件：components/chat/messages/cards/agent-branch-banner.tsx */
 
 /* ── "正在查看子 agent 分支" 横幅（agent-branch-banner.tsx）────────
    贴在转录顶部：接管 agent 分支后，attach 卡片留在主分支的转录里，

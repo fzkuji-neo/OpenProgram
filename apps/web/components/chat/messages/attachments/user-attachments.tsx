@@ -28,7 +28,7 @@ import { useSessionStore } from "@/lib/session-store";
 import { absRawFileUrl } from "@/lib/files/files-shared";
 import { extractAttachmentMentions } from "@/lib/chat/attachment-marker";
 import { AttachmentPreview } from "./attachment-preview";
-import type { RecordingInfo } from "../recording/recording-card";
+import type { RecordingInfo } from "../../recording/recording-card";
 
 export interface ParsedAttachment {
   /** Original wire representation, preserved by the message editor. */

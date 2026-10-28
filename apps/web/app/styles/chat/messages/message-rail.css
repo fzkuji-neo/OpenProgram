@@ -1,5 +1,5 @@
 /* 右缘消息导航：刻度条、预览卡与 rail-flash 定位强调。
-   对应组件：components/chat/messages/message-rail.tsx */
+   对应组件：components/chat/messages/navigation/message-rail.tsx */
 
 /* ═══ 左缘消息导航（Codex 风格刻度 + Dock 放大 + 单条预览卡） ═══ */
 .msg-rail-anchor {

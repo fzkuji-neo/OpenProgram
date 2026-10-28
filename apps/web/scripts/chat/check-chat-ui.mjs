@@ -15,8 +15,8 @@ const welcomeCss = source("components/chat/welcome/welcome-screen.module.css");
 const welcomeBackdrop = source("components/chat/welcome/welcome-backdrop.tsx");
 const welcomeBackdropPref = source("lib/prefs/welcome-backdrop-pref.ts");
 const generalSettings = source("components/settings/general-section.tsx");
-const messageList = source("components/chat/messages/use-chat-area-stick.ts") + source("components/chat/messages/message-list.tsx");
-const messageActions = source("components/chat/messages/message-actions.tsx");
+const messageList = source("components/chat/messages/list/use-chat-area-stick.ts") + source("components/chat/messages/list/message-list.tsx");
+const messageActions = source("components/chat/messages/bubbles/message-actions.tsx");
 // The strip is split across center-tab-strip.tsx and its submodules;
 // read them as one text so the assertions below are unchanged.
 const tabs = readCenterTabStripSource();
@@ -24,17 +24,17 @@ const tabsCss = source("components/center-tabs/strip/center-tabs.module.css");
 const conversations = source("lib/runtime-bridge/conversations.ts");
 const chatHandlers = source("lib/runtime-bridge/chat-handlers.ts");
 const sessionStore = source("lib/session-store/index.ts");
-const assistantBubble = source("components/chat/messages/assistant-bubble.tsx");
-const queuedMessages = source("components/chat/messages/queued-messages.tsx");
+const assistantBubble = source("components/chat/messages/bubbles/assistant-bubble.tsx");
+const queuedMessages = source("components/chat/messages/editing/queued-messages.tsx");
 const composerKeydown = source("components/chat/composer/input/use-composer-keydown.ts");
-const userBubble = source("components/chat/messages/user-bubble.tsx");
-const runtimeBlock = source("components/chat/messages/runtime-block.tsx");
-const attachCard = source("components/chat/messages/attach-card.tsx");
-const executionStrip = source("components/chat/messages/execution-strip.tsx");
+const userBubble = source("components/chat/messages/bubbles/user-bubble.tsx");
+const runtimeBlock = source("components/chat/messages/runtime/runtime-block.tsx");
+const attachCard = source("components/chat/messages/cards/attach-card.tsx");
+const executionStrip = source("components/chat/messages/execution/execution-strip.tsx");
 const executionCss = source("app/styles/chat/execution/execution-strip.css");
 const runtimeHelpers = source("lib/runtime-bridge/helpers.ts");
 const markdownRenderer = source("lib/runtime-bridge/markdown-render.ts");
-const chatMarkdown = source("components/chat/messages/markdown.ts");
+const chatMarkdown = source("components/chat/messages/bubbles/markdown.ts");
 const chatVisualSpec = source("../../docs/reference/design/ui/chat-turn-visual-spec.zh.html");
 const controlsCluster = source("components/chat/composer/controls/controls-cluster.tsx");
 const contextBreakdownPanel = source("components/chat/badges/context-breakdown-panel.tsx");
@@ -598,7 +598,7 @@ assert.doesNotMatch(
 assert.match(controlsCluster, /styles\.effortText\}`\}\s*aria-expanded=\{thinkingMenuOpen\}/);
 
 const { runtimeSummaryLabel } = await import(
-  "../../components/chat/messages/runtime-summary.ts"
+  "../../components/chat/messages/runtime/runtime-summary.ts"
 );
 const { convToChatMsgs } = await import("../../lib/chat/conv-mapper.ts");
 const directRunAfterAssistant = convToChatMsgs([
@@ -903,7 +903,7 @@ assert.match(
   assert.match(actionButton, /aria-label=\{title\}/);
   assert.doesNotMatch(actionButton, /^\s+title=\{/m, "message actions must not use native title tooltips");
   assert.match(actionButton, /\{\.\.\.handlers\}/, "the whole button keeps driving the animated icon");
-  const editor = source("components/chat/messages/message-editor.tsx");
+  const editor = source("components/chat/messages/editing/message-editor.tsx");
   assert.match(editor, /<HoverTip label=\{<TipBody title=\{text\("Add images or files"/);
   assert.match(editor, /variant="ghost" size="icon-sm"[\s\S]*<SolarIcon name="paperclip"/);
   assert.match(editor, /variant="elevated" size="sm" onClick=\{onDone\}/);

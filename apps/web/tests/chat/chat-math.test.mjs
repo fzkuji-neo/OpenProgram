@@ -90,7 +90,7 @@ const { typesetMath } = await import(
   "../../lib/runtime-bridge/markdown-render.ts"
 );
 const { renderMarkdown } = await import(
-  "../../components/chat/messages/markdown.ts"
+  "../../components/chat/messages/bubbles/markdown.ts"
 );
 
 function paint(src) {
@@ -144,7 +144,7 @@ test("invalid math does not throw", () => {
 const { act, createElement } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { AssistantBubble } = await import(
-  "../../components/chat/messages/assistant-bubble.tsx"
+  "../../components/chat/messages/bubbles/assistant-bubble.tsx"
 );
 
 test("assistant bubble mount, stream update, and history paint sample math", async () => {

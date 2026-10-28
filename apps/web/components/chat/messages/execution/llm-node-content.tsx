@@ -10,7 +10,7 @@ import { useExecutionStreamStore } from "@/lib/execution-stream/store";
 import type { StreamAttempt, StreamBlock } from "@/lib/execution-stream/types";
 import { useTranslation } from "@/lib/i18n";
 import { useSessionStore, type DetailNode } from "@/lib/session-store";
-import { renderMarkdown, useMarkdownReady } from "./markdown";
+import { renderMarkdown, useMarkdownReady } from "../bubbles/markdown";
 import type { TNode } from "./tree-types";
 
 const MAX_LLM_CONTENT_DEPTH = 8;

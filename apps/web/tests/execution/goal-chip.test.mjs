@@ -701,7 +701,7 @@ test("recoverable Goal states keep a usable details entry", async () => {
 });
 
 test("LLM tree rows show and copy replies from legacy and current projections", async () => {
-  const { TreeStep } = await import("../../components/chat/messages/execution-strip.tsx");
+  const { TreeStep } = await import("../../components/chat/messages/execution/execution-strip.tsx");
   const oldNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
   let copied;
   Object.defineProperty(globalThis, "navigator", { configurable: true, value: {
@@ -728,7 +728,7 @@ test("LLM tree rows show and copy replies from legacy and current projections", 
 });
 
 test("nested LLM content keeps Markdown, parallel refs, continuation and recursion in order", async () => {
-  const { LlmNodeContent } = await import("../../components/chat/messages/llm-node-content.tsx");
+  const { LlmNodeContent } = await import("../../components/chat/messages/execution/llm-node-content.tsx");
   const node = {
     path: "llm-root",
     name: "LLM",
@@ -822,7 +822,7 @@ test("nested LLM content keeps Markdown, parallel refs, continuation and recursi
 });
 
 test("legacy LLM projections retain child tools and explicit unsupported blocks", async () => {
-  const { LlmNodeContent } = await import("../../components/chat/messages/llm-node-content.tsx");
+  const { LlmNodeContent } = await import("../../components/chat/messages/execution/llm-node-content.tsx");
   const host = document.createElement("div");
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -888,7 +888,7 @@ test("legacy LLM projections retain child tools and explicit unsupported blocks"
 });
 
 test("an empty LLM reply is labelled without inventing an output", async () => {
-  const { TreeStep } = await import("../../components/chat/messages/execution-strip.tsx");
+  const { TreeStep } = await import("../../components/chat/messages/execution/execution-strip.tsx");
   const host = document.createElement("div");
   document.body.appendChild(host);
   const root = createRoot(host);

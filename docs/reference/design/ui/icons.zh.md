@@ -51,7 +51,7 @@ Solar 的撤回图标都是细线箭头，在按钮尺寸下几乎看不见，�
 
 ## 执行时间线用 Solar
 
-展开后的执行时间线，每一行以一个 24px 的着色方块开头（嵌套时 20px），里面是 13px 的图标（嵌套时 11px）。图标用 Solar Bold Duotone，所以各行显示为色调色的扁平实心标记，而不是线稿。`apps/web/components/chat/messages/tool-presentation.ts` 里的 `presentTool()` 按工具选图（`ToolPresentation.icon`，类型为 `SolarIconName`）；没有工具图标时，`execution-strip.tsx` 的 `StepRow` 按行类别兜底。方块本身和色调配色不随图标族改变。
+展开后的执行时间线，每一行以一个 24px 的着色方块开头（嵌套时 20px），里面是 13px 的图标（嵌套时 11px）。图标用 Solar Bold Duotone，所以各行显示为色调色的扁平实心标记，而不是线稿。`apps/web/components/chat/messages/execution/tool-presentation.ts` 里的 `presentTool()` 按工具选图（`ToolPresentation.icon`，类型为 `SolarIconName`）；没有工具图标时，`execution-strip.tsx` 的 `StepRow` 按行类别兜底。方块本身和色调配色不随图标族改变。
 
 | 行 | Solar 图标 |
 |---|---|

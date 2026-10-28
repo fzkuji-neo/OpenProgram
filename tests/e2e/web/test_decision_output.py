@@ -19,7 +19,7 @@ import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {Composer} from './components/chat/composer';
 import {useDecisionSubmissions} from './lib/chat/decision-submissions';
 window.decisionReceipt = id => useDecisionSubmissions.getState().submissions[id];
-import {DecisionOutputs} from './components/chat/messages/decision-output';
+import {DecisionOutputs} from './components/chat/messages/runtime/decision-output';
 import {useSessionStore} from './lib/session-store';
 import {SessionScopeProvider} from './lib/session-store/session-scope';
 import {queueFor} from './lib/chat/send-queue';

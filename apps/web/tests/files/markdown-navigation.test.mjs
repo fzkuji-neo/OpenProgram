@@ -14,7 +14,7 @@ const mocks = {
   "@/lib/runtime-bridge/markdown-render": "export const typesetMath=()=>{};",
   "@/lib/i18n": "export const useTranslation=()=>({text:(en)=>en,t:(key)=>key});",
   "@/components/animated-icons": "export const FileTextIcon=()=>null; export const RefreshCwIcon=()=>null;",
-  "@/components/chat/messages/use-action-icon-animation": "export const useActionIconAnimation=()=>({});",
+  "@/components/chat/messages/bubbles/use-action-icon-animation": "export const useActionIconAnimation=()=>({});",
   "@/lib/documents/office-editor": "export const convertOfficeDocument=()=>{throw Error('unexpected office conversion')};",
   "@/lib/documents/raster-format": "export const convertRasterToPng=()=>{throw Error('unexpected image conversion')};",
   "./office-surface": "export const OfficeSurface=()=>{throw Error('unexpected office surface')};",

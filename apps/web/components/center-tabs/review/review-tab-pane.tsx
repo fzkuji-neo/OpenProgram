@@ -37,7 +37,7 @@ import type {
 import { requestReviewScope } from "./use-review-scope";
 import { requestReviewDiff, requestRevertHunk } from "./use-review-diff";
 import { hunkRange, lineCommentText, type DiffLine, type ReviewHunk } from "./review-diff-rows.ts";
-import { appendToComposer } from "@/components/chat/messages/quote-to-chat";
+import { appendToComposer } from "@/components/chat/messages/editing/quote-to-chat";
 import { showToast } from "@/lib/format-utils/toast";
 import { MenuCheck } from "@/components/chat/top-bar/menu-check";
 import { MenuRow, type MenuGlyph } from "@/components/ui/menu-parts";

@@ -21,6 +21,6 @@ test("A local message keeps its arrival when the server renames it", () => {
 test("Rows that mount again do not fade up from nothing", () => {
   const css = readFileSync(new URL("../../app/styles/chat/pane/transcript.css", import.meta.url), "utf8");
   assert.match(css, /\.msg-slot:not\(\[data-appear\]\) \.message,\n\.msg-row:not\(\[data-appear\]\) \.message/);
-  const list = readFileSync(new URL("../../components/chat/messages/message-list.tsx", import.meta.url), "utf8");
+  const list = readFileSync(new URL("../../components/chat/messages/list/message-list.tsx", import.meta.url), "utf8");
   assert.equal((list.match(/useState\(\(\) => messageArrivedWithin\(id, APPEAR_WINDOW_MS\)\)/g) ?? []).length, 2);
 });

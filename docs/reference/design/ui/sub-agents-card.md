@@ -8,7 +8,7 @@ transcript keeps only its own turns.
 Related: [`chat-turn-visual-spec.html`](chat-turn-visual-spec.html)
 (execution timeline and the sub-agent step row),
 [`indicator-dots.md`](indicator-dots.md) (tab status dots).
-Code: `apps/web/components/chat/messages/sub-agents-card.tsx`,
+Code: `apps/web/components/chat/messages/cards/sub-agents-card.tsx`,
 `apps/web/lib/chat/sub-agent-transcripts.ts`,
 `apps/web/lib/net/chat-stream.ts` (`handleSubAgentResponse`),
 `openprogram/agent/production_driver/execution.py` (`_turn_event_sink`),

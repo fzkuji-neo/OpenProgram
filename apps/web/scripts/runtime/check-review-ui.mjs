@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-import { historyPresentation } from "../../components/chat/messages/turn-files-history-state.ts";
+import { historyPresentation } from "../../components/chat/messages/turn-files/turn-files-history-state.ts";
 
 const read = (path) => fs.readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
-const card = read("components/chat/messages/turn-files-chips.tsx");
-const cardPresentation = read("components/chat/messages/turn-files-presentation.ts");
-const bubble = read("components/chat/messages/assistant-bubble.tsx");
-const rail = read("components/chat/messages/message-rail.tsx");
+const card = read("components/chat/messages/turn-files/turn-files-chips.tsx");
+const cardPresentation = read("components/chat/messages/turn-files/turn-files-presentation.ts");
+const bubble = read("components/chat/messages/bubbles/assistant-bubble.tsx");
+const rail = read("components/chat/messages/navigation/message-rail.tsx");
 const review = read("components/center-tabs/review/review-tab-pane.tsx");
 const reviewScope = read("components/center-tabs/review/use-review-scope.ts");
 const reviewDiff = read("components/center-tabs/review/use-review-diff.ts");

@@ -4,7 +4,7 @@ import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { GitBranchIcon, QuoteIcon } from "@/components/animated-icons";
-import { useActionIconAnimation } from "./use-action-icon-animation";
+import { useActionIconAnimation } from "../bubbles/use-action-icon-animation";
 import { useSessionStore } from "@/lib/session-store";
 import { useTranslation } from "@/lib/i18n";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";

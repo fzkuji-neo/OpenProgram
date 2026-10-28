@@ -18,7 +18,7 @@ import {
 } from "@/lib/session-store";
 import { useTranslation } from "@/lib/i18n";
 
-import { AttachCard } from "./attach-card";
+import { AttachCard } from "../cards/attach-card";
 import {
   ExecutionStrip,
   FunctionStep,
@@ -26,20 +26,20 @@ import {
   SubAgentStep,
   StepRow,
   ThinkingStep,
-} from "./execution-strip";
-import type { TNode } from "./tree-types";
+} from "../execution/execution-strip";
+import type { TNode } from "../execution/tree-types";
 import { MessageActions, MessageTimestamp } from "./message-actions";
 import { typesetMath } from "@/lib/runtime-bridge/markdown-render";
 import { renderMermaidLazily } from "@/lib/chat/mermaid-lazy";
 import { renderMarkdown, useMarkdownReady } from "./markdown";
-import { TurnFilesChips } from "./turn-files-chips";
-import { summarizeToolGroup } from "./tool-group-summary";
-import { shouldRenderTurnFiles } from "./turn-files-presentation";
-import { AssistantFileCards } from "./assistant-file-cards";
-import { parseAttachments } from "./user-attachments";
-import { ThinkingStatus } from "./thinking-status";
+import { TurnFilesChips } from "../turn-files/turn-files-chips";
+import { summarizeToolGroup } from "../execution/tool-group-summary";
+import { shouldRenderTurnFiles } from "../turn-files/turn-files-presentation";
+import { AssistantFileCards } from "../attachments/assistant-file-cards";
+import { parseAttachments } from "../attachments/user-attachments";
+import { ThinkingStatus } from "../execution/thinking-status";
 import { UserBubble } from "./user-bubble";
-import { SubAgentsCard } from "./sub-agents-card";
+import { SubAgentsCard } from "../cards/sub-agents-card";
 
 function SteeringInput({block, sessionId}: {block: AssistantBlock; sessionId?: string}) {
   const user = useSessionStore(s => block.message_id ? s.messagesById[block.message_id] : undefined);
