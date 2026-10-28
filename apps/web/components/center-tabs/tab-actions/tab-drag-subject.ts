@@ -2,7 +2,7 @@ import {
   dragCoordinator,
   type TabDragSubject,
   type TabDropIntent,
-} from "@/lib/tabs/tab-drag-coordinator";
+} from "@/lib/tabs/transfer/tab-drag-coordinator";
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";
 import {
   findCenterTabGroup,

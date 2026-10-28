@@ -1,6 +1,6 @@
 import type { PendingChannelChoice } from "@/lib/runtime-bridge/draft-channel-choice";
 import type { ComposerSettings } from "@/lib/session-store/types";
-import { pendingTransfers } from "@/lib/tabs/pending-transfer-projection";
+import { pendingTransfers } from "@/lib/tabs/transfer/pending-transfer-projection";
 
 export interface PersistedSessionDraftState {
   version: 1;

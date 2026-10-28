@@ -129,7 +129,7 @@ for (const duringJournal of [false, true]) {
 
 // Rejected: clears the prepared drag coordinator token.
 {
-  const { dragCoordinator } = await import("../../../lib/tabs/tab-drag-coordinator.ts");
+  const { dragCoordinator } = await import("../../../lib/tabs/transfer/tab-drag-coordinator.ts");
   dragCoordinator.prepare({
     subject: { kind: "tab", tabIds: ["s:home"] },
     transferToken: "t5-rejected",

@@ -26,7 +26,7 @@ import {
   X,
 } from "lucide-react";
 
-import { bookmarkFaviconSources } from "@/lib/tabs/bookmarks";
+import { bookmarkFaviconSources } from "@/lib/tabs/browser/bookmarks";
 import { MenuRow } from "@/components/ui/menu-parts";
 import { TabFavicon } from "../strip/tab-favicon";
 import { ChromeIcon } from "@/components/animated-icons";
@@ -53,7 +53,7 @@ import {
   subscribeBookmarks,
   type BookmarkFolder,
   type BookmarkNode,
-} from "@/lib/tabs/bookmarks";
+} from "@/lib/tabs/browser/bookmarks";
 import {
   desktopBridge,
   type DesktopDownloadEntry,

@@ -1,15 +1,15 @@
-import { pruneFileSections } from "./file-section-requests";
-import { canvasActions } from "./store/canvas";
+import { pruneFileSections } from "./panes/file-section-requests";
+import { canvasActions } from "./store/layout/canvas";
 /** Public tab-store entry point. Actions are grouped by responsibility in store/. */
 import { create } from "zustand";
 import { readCenterTabsPayload } from "./center-tabs-persistence";
 import { fileHistoryFor } from "./navigation/selectors";
 import { browserActions } from "./store/browser";
-import { layoutActions } from "./store/layout";
+import { layoutActions } from "./store/layout/layout";
 import { navigationActions } from "./store/navigation";
 import { pagesActions } from "./store/pages";
 import { sessionsActions } from "./store/sessions";
-import { splitActions } from "./store/split";
+import { splitActions } from "./store/layout/split";
 import { bindTransfers } from "./store/transfers";
 import type { CenterTabsState } from "./store/types";
 export { builtinTabId, fileTabId, normalizeWebUrl, reviewTabId, sessionTabId, webTabId } from "./center-tab-ids";

@@ -4,7 +4,7 @@ import { desktopBridge } from "@/lib/desktop/bridge-api";
 import * as appearance from "@/lib/prefs/theme-pref";
 import { setFont } from "@/lib/prefs/font-pref";
 import { setShowBookmarksBar } from "@/lib/browser/browser-prefs";
-import * as bookmarks from "@/lib/tabs/bookmarks";
+import * as bookmarks from "@/lib/tabs/browser/bookmarks";
 import { setLocale } from "@/lib/i18n";
 import { setUserProfile, getUserProfile } from "@/lib/prefs/user-profile";
 import { agentCanAccessWebTab } from "@/lib/browser/web-page-management";
@@ -72,7 +72,7 @@ export async function executeInterface(operation: string, args: unknown[], page?
   if (typeof action !== "function") throw new Error("native_capability_unavailable");
   const result = await (action as (...values: unknown[]) => unknown).apply(target, args);
   if (method === "browserImport" && nativeMethod === "run" && result && typeof result === "object") {
-    const imported = result as { ok?: boolean; bookmarks?: import("@/lib/tabs/bookmarks").ImportedBookmarkNode[] };
+    const imported = result as { ok?: boolean; bookmarks?: import("@/lib/tabs/browser/bookmarks").ImportedBookmarkNode[] };
     if (imported.ok && imported.bookmarks) bookmarks.importBookmarkTree(imported.bookmarks);
   }
   return result;

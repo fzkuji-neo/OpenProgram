@@ -1,4 +1,4 @@
-import type { CenterTab } from "./store/types";
+import type { CenterTab } from "../store/types";
 
 export interface FileSectionRequest { sequence: number; document: string; fragment: string; }
 export type FileSectionRequests = Record<string, FileSectionRequest>;

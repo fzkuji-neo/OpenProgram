@@ -15,7 +15,7 @@ import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import type {
   dragCoordinator,
   TabDropIntent,
-} from "@/lib/tabs/tab-drag-coordinator";
+} from "@/lib/tabs/transfer/tab-drag-coordinator";
 
 export function useTabDropActions() {
   const moveTab = useCenterTabs((s) => s.moveTab);

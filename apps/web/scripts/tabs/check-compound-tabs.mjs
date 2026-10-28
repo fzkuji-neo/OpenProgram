@@ -28,7 +28,7 @@ registerHooks({
 });
 
 const groups = await import("../../lib/tabs/center-tab-groups.ts");
-const drag = await import("../../lib/tabs/tab-drag-coordinator.ts");
+const drag = await import("../../lib/tabs/transfer/tab-drag-coordinator.ts");
 
 const coordinator = drag.createTabDragCoordinator();
 const tabPrepared = {

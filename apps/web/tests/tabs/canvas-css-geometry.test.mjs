@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { canvasCssGeometry, canvasGeometry, canvasViewport, presetLayout, leaves } from '../../lib/tabs/canvas-layout.ts';
+import { canvasCssGeometry, canvasGeometry, canvasViewport, presetLayout, leaves } from '../../lib/tabs/canvas/canvas-layout.ts';
 
 // Resolves calc(P% + Npx) against a containing length.
 const resolve = (css, size) => {

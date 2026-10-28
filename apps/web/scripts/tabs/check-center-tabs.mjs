@@ -355,7 +355,7 @@ assert.doesNotMatch(strip, /warmTimer/, "the warm-timer drag state must be gone"
 assert.doesNotMatch(strip, /spareWindow|residentWindow|warmPool/,
   "no resident spare window may be introduced in place of the pre-warm");
 const coordinator = readFileSync(
-  new URL("../../lib/tabs/tab-drag-coordinator.ts", import.meta.url),
+  new URL("../../lib/tabs/transfer/tab-drag-coordinator.ts", import.meta.url),
   "utf8",
 );
 assert.doesNotMatch(coordinator, /DETACH_WARM_DELAY_MS/,

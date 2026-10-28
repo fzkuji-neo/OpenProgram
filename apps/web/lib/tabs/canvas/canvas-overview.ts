@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { translateText } from "../i18n";
+import { translateText } from "../../i18n";
 import type { CanvasDrop } from "./canvas-drag";
 import type { Rect } from "./canvas-layout";
 

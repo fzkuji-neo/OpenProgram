@@ -1,5 +1,5 @@
-import type { FileSectionRequests } from "../file-section-requests";
-import type { CanvasDockSide, CanvasLayout, LayoutNode } from "../canvas-layout";
+import type { FileSectionRequests } from "../panes/file-section-requests";
+import type { CanvasDockSide, CanvasLayout, LayoutNode } from "../canvas/canvas-layout";
 import type { CenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import type { BuiltinPage } from "@/lib/tabs/center-tab-ids";
 import { type TabPageHistory } from "../navigation/page-history";

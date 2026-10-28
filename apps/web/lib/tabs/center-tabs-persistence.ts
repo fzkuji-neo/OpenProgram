@@ -1,4 +1,4 @@
-import { holdsLayout, mapNode, leaves, rowLayout } from "./canvas-layout";
+import { holdsLayout, mapNode, leaves, rowLayout } from "./canvas/canvas-layout";
 import { normalizeTabPageHistory } from "./navigation/page-history";
 import { topLevelTabs } from "../browser/web-page-management";
 import { normalizeSessionHistory } from "./navigation/session-history";
@@ -10,7 +10,7 @@ import { normalizeSessionHistory } from "./navigation/session-history";
  * the persisted payload. No zustand, no store instance — only localStorage,
  * the layout helpers, and the deterministic id helpers.
  */
-import { pendingTransfers } from "@/lib/tabs/pending-transfer-projection";
+import { pendingTransfers } from "@/lib/tabs/transfer/pending-transfer-projection";
 import {
   findCenterTabGroup,
   focusCenterTabGroupMember,
@@ -19,7 +19,7 @@ import {
   ungroupCenterTab,
 } from "@/lib/tabs/center-tab-groups";
 import type { CenterTabGroup } from "@/lib/tabs/center-tab-groups";
-import type { TransferJournalEntry } from "@/lib/tabs/tab-transfer-journal";
+import type { TransferJournalEntry } from "@/lib/tabs/transfer/tab-transfer-journal";
 import { nextDraftSessionId, sessionTabId } from "@/lib/tabs/center-tab-ids";
 import type { CenterTab } from "@/lib/tabs/center-tabs-store";
 

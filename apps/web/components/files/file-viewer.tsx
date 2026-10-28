@@ -1,5 +1,5 @@
 "use client";
-import type { FileSectionNavigation } from "@/lib/tabs/file-section-requests";
+import type { FileSectionNavigation } from "@/lib/tabs/panes/file-section-requests";
 
 /** Shared project, attachment and retained-version preview dispatch.
  * FileViewer owns the authorized source URL. Format adapters only consume that

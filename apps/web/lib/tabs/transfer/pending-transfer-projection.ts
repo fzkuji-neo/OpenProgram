@@ -1,4 +1,4 @@
-import type { TransferJournalEntry } from "@/lib/tabs/tab-transfer-journal";
+import type { TransferJournalEntry } from "@/lib/tabs/transfer/tab-transfer-journal";
 
 const entriesByWindow = new Map<string, Map<string, TransferJournalEntry>>();
 

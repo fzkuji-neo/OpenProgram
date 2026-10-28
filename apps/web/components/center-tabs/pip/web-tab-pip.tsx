@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { type SidebarMenuItem } from "@/components/sidebar/use-sidebar-menu";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
-import { useCanvasOverview } from "@/lib/tabs/canvas-overview";
+import { useCanvasOverview } from "@/lib/tabs/canvas/canvas-overview";
 import {
   browserTakeoverKind,
   controlResourceFromSession,

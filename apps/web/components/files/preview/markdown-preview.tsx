@@ -1,5 +1,5 @@
 "use client";
-import type { FileSectionNavigation } from "@/lib/tabs/file-section-requests";
+import type { FileSectionNavigation } from "@/lib/tabs/panes/file-section-requests";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Markdown } from "@/lib/format-utils/markdown";
 import { splitFrontmatter } from "@/lib/format-utils/obsidian-document";

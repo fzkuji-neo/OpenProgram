@@ -35,7 +35,7 @@ import { useTranslation } from "@/lib/i18n";
 import { navigate } from "@/lib/navigate";
 import { useSessionStore } from "@/lib/session-store";
 import { formatRelativeTime } from "@/lib/format-utils/format";
-import { openNewChat, openSession } from "@/lib/tabs/open-session";
+import { openNewChat, openSession } from "@/lib/tabs/navigation/open-session";
 import { isPaletteShortcut, paletteSessions } from "@/lib/command-palette";
 
 type Icon = ComponentType<LucideProps>;

@@ -1,5 +1,5 @@
 "use client";
-import type { FileSectionNavigation } from "@/lib/tabs/file-section-requests";
+import type { FileSectionNavigation } from "@/lib/tabs/panes/file-section-requests";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FileTextIcon, RefreshCwIcon } from "@/components/animated-icons";
 import { useActionIconAnimation } from "@/components/chat/messages/bubbles/use-action-icon-animation";

@@ -1,15 +1,15 @@
-import { filePreviewLayout, filePreviewId, type FilePreviewTarget, type PagePreviewTarget } from "../file-preview-layout";
+import { filePreviewLayout, filePreviewId, type FilePreviewTarget, type PagePreviewTarget } from "../panes/file-preview-layout";
 import { findCenterTabGroup, normalizeCenterTabLayout } from "@/lib/tabs/center-tab-groups";
 import { documentControllers } from "@/lib/files/document-controller-registry";
 import { builtinTabId, fileTabId, nextBrowserHomeId, nextNtpId } from "@/lib/tabs/center-tab-ids";
 import { replaceGroupTabId } from "@/lib/tabs/center-tabs-persistence";
-import { openReviewTabLayout } from "@/lib/tabs/review-tab-layout";
+import { openReviewTabLayout } from "@/lib/tabs/panes/review-tab-layout";
 import type { StoreApi } from "zustand";
 import { topLevelTabs, webTabSessionIds } from "../../browser/web-page-management";
 import { mapTabPages } from "../navigation/page-history";
 import { sessionHistory } from "../navigation/session-history";
 import { commitCenterTabsState, focusOrCreate, independentTab } from "./core";
-import { requestFileSection } from "../file-section-requests";
+import { requestFileSection } from "../panes/file-section-requests";
 import type { CenterTab, CenterTabsState } from "./types";
 
 export function pagesActions(set: StoreApi<CenterTabsState>["setState"], get: StoreApi<CenterTabsState>["getState"], closedSessionAckTombstones: Set<string>): Pick<CenterTabsState, "openFilePreview" | "openPagePreview" | "openFileTab" | "openBuiltinTab" | "openApplicationTab" | "openReviewTab" | "setTabDirty" | "setTabDagView" | "retargetFileTab" | "openNewTabPage" | "closeTab"> {

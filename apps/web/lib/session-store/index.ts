@@ -15,7 +15,7 @@ import {
   draftChannelChoiceHost,
   type DraftChannelChoiceHost,
 } from "../runtime-bridge/draft-channel-choice";
-import type { SessionTransferSnapshot } from "../tabs/tab-transfer-journal";
+import type { SessionTransferSnapshot } from "../tabs/transfer/tab-transfer-journal";
 import { forgetTakeLatestSession } from "@/lib/chat/history/chat-scroll";
 import { noteMessageArrival, rekeyMessageArrival } from "./message-arrivals";
 import {

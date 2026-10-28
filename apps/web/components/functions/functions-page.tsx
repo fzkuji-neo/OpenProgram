@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { useTranslation } from "@/lib/i18n";
 import { refreshFunctionsList } from "@/lib/abilities/functions-actions";
-import { getLastChatPath } from "@/lib/tabs/last-chat-path";
+import { getLastChatPath } from "@/lib/tabs/navigation/last-chat-path";
 import { runtimeState } from "@/lib/runtime-bridge/state";
 import { useFunctions } from "@/lib/abilities/functions-store";
 import { setPendingRunFunction } from "@/lib/execution/use-pending-run-function";

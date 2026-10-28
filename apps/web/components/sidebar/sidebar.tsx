@@ -47,7 +47,7 @@ import { SidebarPrimaryNav } from "./sidebar-primary-nav";
 import { Sidebar as SidebarShell } from "@/components/ui/sidebar";
 import { useWindowGlobals } from "./use-window-globals";
 import { runtimeState } from "@/lib/runtime-bridge/state";
-import { openNewChat } from "@/lib/tabs/open-session";
+import { openNewChat } from "@/lib/tabs/navigation/open-session";
 import { useResizableRail } from "../layout/use-resizable-rail";
 import { useStableScrollEnd } from "./use-stable-scroll-end";
 import { PluginSlot } from "../plugins/plugin-slot";

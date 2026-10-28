@@ -10,7 +10,7 @@ registerHooks({resolve(specifier,context,next){
   return next(specifier,context);
 }});
 const { collectFileOutputs, previewTarget }=await import('../../lib/chat/transcript/file-outputs.ts');
-const { filePreviewLayout }=await import('../../lib/tabs/file-preview-layout.ts');
+const { filePreviewLayout }=await import('../../lib/tabs/panes/file-preview-layout.ts');
 const { normalizeCenterTabLayout }=await import('../../lib/tabs/center-tab-groups.ts');
 const chat={id:'s:a',kind:'session',sessionId:'a',title:'Chat'};
 const initial=()=>({tabs:[chat,{id:'s:b',kind:'session',sessionId:'b',title:'Other'}],groups:[],activeId:chat.id});

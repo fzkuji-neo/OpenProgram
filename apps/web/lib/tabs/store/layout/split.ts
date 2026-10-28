@@ -2,8 +2,8 @@ import { findCenterTabGroup, ungroupCenterTab } from "@/lib/tabs/center-tab-grou
 import { hostnameOf, webTabId } from "@/lib/tabs/center-tab-ids";
 import { clampSplitRatio } from "@/lib/tabs/center-tabs-persistence";
 import type { StoreApi } from "zustand";
-import { commitCenterTabsState, tabsForLayout } from "./core";
-import type { CenterTabsState } from "./types";
+import { commitCenterTabsState, tabsForLayout } from "../core";
+import type { CenterTabsState } from "../types";
 
 export function splitActions(set: StoreApi<CenterTabsState>["setState"], get: StoreApi<CenterTabsState>["getState"]): Pick<CenterTabsState, "openWebTabInSplit" | "setSplitWebTab" | "setSplitRatio"> {
   return {

@@ -1,5 +1,5 @@
-import { findCenterTabGroup, resolveCenterTabPanes } from "./center-tab-groups.ts";
-import type { CenterTabsState } from "./store/types";
+import { findCenterTabGroup, resolveCenterTabPanes } from "../center-tab-groups.ts";
+import type { CenterTabsState } from "../store/types";
 
 type TabLayout = Pick<CenterTabsState, "tabs" | "groups" | "activeId">;
 

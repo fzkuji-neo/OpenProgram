@@ -1,11 +1,11 @@
-import { useCenterTabs } from './center-tabs-store';
-import { desktopBridge } from '../desktop/desktop-bridge';
-import { jsonFetch } from '../net/fetch-client';
-import { ingestBrowserResource, type BackendResource } from '../chat/resources/session-resources';
+import { useCenterTabs } from '../center-tabs-store';
+import { desktopBridge } from '../../desktop/desktop-bridge';
+import { jsonFetch } from '../../net/fetch-client';
+import { ingestBrowserResource, type BackendResource } from '../../chat/resources/session-resources';
 import type { TabDragSubject } from './tab-drag-coordinator';
-import { useSessionStore } from '../session-store';
-import { showToast } from '../format-utils/toast';
-import { translateText } from '../i18n';
+import { useSessionStore } from '../../session-store';
+import { showToast } from '../../format-utils/toast';
+import { translateText } from '../../i18n';
 
 /** A split tab can carry its single webpage into Resources without attaching
  * the conversation itself. Multiple webpages require an individual pane drag. */

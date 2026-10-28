@@ -1049,7 +1049,7 @@ html[data-sidebar-closed] #sidebar .sidebar-nav-action {
 html[data-canvas-dragging] .desktop-tab-row { z-index: 100000; }
 .center-canvas-content { box-sizing: border-box; container-type: inline-size; }
 
-/* 拖放预览：柔和的系统蓝圆角块，带一点弹性。由 lib/tabs/canvas-drag 挂到 body，
+/* 拖放预览：柔和的系统蓝圆角块，带一点弹性。由 lib/tabs/canvas/canvas-drag 挂到 body，
    不属于任何组件，所以放在全局样式里。 */
 .canvas-drop-preview {
   position: fixed;

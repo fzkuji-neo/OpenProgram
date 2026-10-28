@@ -1,9 +1,9 @@
 import type { CenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import { MAX_CENTER_TAB_GROUP_MEMBERS, findCenterTabGroup } from "@/lib/tabs/center-tab-groups";
-import { holdsLayout } from "@/lib/tabs/canvas-layout";
+import { holdsLayout } from "@/lib/tabs/canvas/canvas-layout";
 import type { CenterTabsPersistedPayload } from "@/lib/tabs/center-tabs-persistence";
 import { normalizeCenterTabsPayload, orderTabs, persistCenterTabsPayload, persistedState } from "@/lib/tabs/center-tabs-persistence";
-import type { DesktopTransferPayload, TabDropPlacement } from "@/lib/tabs/tab-transfer-journal";
+import type { DesktopTransferPayload, TabDropPlacement } from "@/lib/tabs/transfer/tab-transfer-journal";
 import type { StoreApi } from "zustand";
 import { pageHistory } from "../navigation/page-history";
 import { fileHistoryFor } from "../navigation/selectors";

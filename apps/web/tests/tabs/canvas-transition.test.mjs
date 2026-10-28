@@ -11,8 +11,8 @@ const {parseHTML} = require('linkedom');
 const dir = await mkdtemp(join(root, '.canvas-transition-'));
 after(() => rm(dir, {recursive: true, force: true}));
 await build({absWorkingDir: root, stdin: {contents: `
-export {captureCanvasTransition, playCanvasTransition, prepareCanvasFold} from './lib/tabs/canvas-transition';
-export {canvasDragging} from './lib/tabs/canvas-drag';
+export {captureCanvasTransition, playCanvasTransition, prepareCanvasFold} from './lib/tabs/canvas/canvas-transition';
+export {canvasDragging} from './lib/tabs/canvas/canvas-drag';
 `, resolveDir: root}, bundle: true, format: 'esm', platform: 'node', packages: 'external',
   tsconfig: join(root, 'tsconfig.json'), outfile: join(dir, 'probe.mjs'), loader: {'.css': 'empty'}});
 

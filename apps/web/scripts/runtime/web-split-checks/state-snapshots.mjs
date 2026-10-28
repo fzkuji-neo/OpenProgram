@@ -114,11 +114,11 @@ globalThis.localStorage = {
   stageTransferMutation: testContext.stageTransferMutation,
   updateTransferJournal: testContext.updateTransferJournal,
   writeTransferJournal: testContext.writeTransferJournal,
-} = await import("../../../lib/tabs/tab-transfer-journal.ts"));
+} = await import("../../../lib/tabs/transfer/tab-transfer-journal.ts"));
 
 (testContext.sessionDraftPersistence = await import("../../../lib/chat/send/session-draft-persistence.ts"));
 
-(testContext.pendingProjection = await import("../../../lib/tabs/pending-transfer-projection.ts"));
+(testContext.pendingProjection = await import("../../../lib/tabs/transfer/pending-transfer-projection.ts"));
 
 
 testContext.assert.equal(testContext.writeTransferJournal(testContext.journalEntry("one"), "journal-a"), true);

@@ -1,4 +1,4 @@
-import { holdsLayout, leaves, rowLayout, sanitizeLayout, removePane, type CanvasLayout } from "./canvas-layout.ts";
+import { holdsLayout, leaves, rowLayout, sanitizeLayout, removePane, type CanvasLayout } from "./canvas/canvas-layout.ts";
 import type { CenterTab } from "./center-tabs-store";
 
 export const MAX_CENTER_TAB_GROUP_MEMBERS = Number.POSITIVE_INFINITY;

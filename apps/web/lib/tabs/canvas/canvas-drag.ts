@@ -1,14 +1,14 @@
-import { useCenterTabs } from "./center-tabs-store";
+import { useCenterTabs } from "../center-tabs-store";
 import { rowLayout, type CanvasDockSide, type Rect } from "./canvas-layout";
 import { closeOverview, holdOverviewLanding, landOverview, openOverview, OVERVIEW_SIDE, overviewDropAt, overviewHeld, overviewOpen, useCanvasOverview } from "./canvas-overview";
 import { captureCanvasTransition } from "./canvas-transition";
 import { captureVisiblePanes } from "./window-snapshots";
-import { findCenterTabGroup } from "./center-tab-groups";
+import { findCenterTabGroup } from "../center-tab-groups";
 import { rememberCanvas } from "./canvas-history";
-import { dropWebTabResource, resourceDropTarget } from "./tab-resource-drop";
-import { desktopBridge, buildTransferPayload } from "../desktop/desktop-bridge";
-import { translateText } from "../i18n";
-import { DRAG_SURFACE_STYLE } from "../prefs/visual-effects-config";
+import { dropWebTabResource, resourceDropTarget } from "../transfer/tab-resource-drop";
+import { desktopBridge, buildTransferPayload } from "../../desktop/desktop-bridge";
+import { translateText } from "../../i18n";
+import { DRAG_SURFACE_STYLE } from "../../prefs/visual-effects-config";
 /** A drop in the window overview. "dock" merges the tab into the window
  *  that holds targetId, beside the whole window; "fill" opens it on its
  *  own, in the strip before the tab `before` (null: last; absent: where

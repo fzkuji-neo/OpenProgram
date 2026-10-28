@@ -3,8 +3,8 @@ import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 import {
   PANE_MIN, dockLayout, leaves, presetLayout, resizeSplit, rowLayout, snapResize, tilePane, unitRects,
-} from '../../lib/tabs/canvas-layout.ts';
-import { rememberCanvas, takePreviousCanvas } from '../../lib/tabs/canvas-history.ts';
+} from '../../lib/tabs/canvas/canvas-layout.ts';
+import { rememberCanvas, takePreviousCanvas } from '../../lib/tabs/canvas/canvas-history.ts';
 
 const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 const rectOf = (layout, content) => {
@@ -90,12 +90,12 @@ test('Return to previous layout finds a layout by any tab it involved', () => {
 });
 
 test('the window overview takes drags while open; its cards keep their splits', async () => {
-  const overview = await read('lib/tabs/canvas-overview.ts');
+  const overview = await read('lib/tabs/canvas/canvas-overview.ts');
   assert.match(overview, /const side: OverviewSide = px < OVERVIEW_SIDE \? "left" : px > 1 - OVERVIEW_SIDE \? "right" : py < 0\.5 \? "top" : "bottom";/, 'a card splits by quarter strips and halves, with no dead centre');
   assert.match(overview, /return \{ targetId: card\.dataset\.overviewTarget!, paneId: "root", side, rect, action: "dock", label \};/, 'a card merges beside the whole window');
   assert.match(overview, /action: "fill", label, before \};\s*\}\s*$/, 'empty space opens the tab on its own, where its gap is');
   assert.match(overview, /if \(x < r\.left \|\| x > r\.right \|\| y < r\.top \|\| y > r\.bottom\) \{ setHover\(null, ""\); return null; \}/, 'outside the overview the strip and detach keep working');
-  const drag = await read('lib/tabs/canvas-drag.ts');
+  const drag = await read('lib/tabs/canvas/canvas-drag.ts');
   assert.doesNotMatch(drag, /canvasDropAt|PANE_SIDE|canvasEdgeBand/, 'the in-canvas drop zones are gone');
   assert.match(drag, /if \(useCanvasOverview\.getState\(\)\.mode === "drag" && !overviewHeld\(\)\) closeOverview\(\);/, 'every drag end closes it unless a merge is landing');
   assert.match(drag, /event\.preventDefault\(\);\s*const grip = event\.currentTarget/, 'a pane drag does not select text');
@@ -122,7 +122,7 @@ test('the window overview takes drags while open; its cards keep their splits', 
   assert.match(lifecycle, /void captureVisiblePanes\(\)\.then\(\(\) => openOverview\("browse"\)\)/, 'the panes are pictured before the overview covers them');
   assert.match(drag, /void captureVisiblePanes\(\[tabId\]\)\.then\(\(\) => \{ if \(!finished\) openOverview\("drag", \[tabId\]\); \}\);/);
   assert.match(view, /\{shot \? <img className=\{styles\.shot\} src=\{shot\}/, 'cards show what each pane looked like');
-  const shots = await read('lib/tabs/window-snapshots.ts');
+  const shots = await read('lib/tabs/canvas/window-snapshots.ts');
   assert.match(shots, /const page = await bridge\.webTab\.capture\?\.\(id, "presentation"\)/, 'web pages are pictured from their own view');
   assert.match(shots, /g\.drawImage\(inner, \(frame\.left - pane\.left\) \* k, \(frame\.top - pane\.top\) \* k, frame\.width \* k, frame\.height \* k\);/, 'the page is drawn into its pane picture under the toolbar, keeping the pane proportions');
   assert.match(shots, /if \(shot && chrome\) remember\(\[\[id, await underChrome\(shot, chrome\)\]\]\);/, 'a page pictured off screen keeps the toolbar band it was seen with');
@@ -149,14 +149,14 @@ test('the window overview takes drags while open; its cards keep their splits', 
 });
 
 test('a merge drop zooms the window out of its card, then both sides of the split move together', async () => {
-  const overview = await read('lib/tabs/canvas-overview.ts');
+  const overview = await read('lib/tabs/canvas/canvas-overview.ts');
   assert.match(overview, /if \(drop\.action === "fill"\) \{ useCanvasOverview\.setState\(\{ mode: "browse", hover: null, label: "" \}\); return; \}\n  if \(drop\.action !== "dock"\) return;/, 'a drop on empty space browses on; only a merge lands');
   const strip = await read('components/center-tabs/tab-actions/use-tab-pointer-drag.ts');
   assert.ok(strip.indexOf('holdOverviewLanding(canvasDrop, prepared.subject.tabIds)') < strip.indexOf('const committed = dragCoordinator.commit();'), 'the strip holds it before the drag state clears');
   assert.match(overview, /if \(landingFrom\) useCanvasOverview\.setState\(\{ hover: null, landing: drop\.targetId, landed: false \}\);/, 'the landing starts at the release, before the merge commits');
   assert.match(overview, /landingFrom\.apply = apply;\n  useCanvasOverview\.setState\(\{ landed: true \}\);/, 'a ready merge is held, not committed');
   assert.match(overview, /export function closeOverview\(\) \{\n  const apply = landingFrom\?\.apply;[\s\S]*?apply\?\.\(\);\n\}/, 'closing commits a held merge, so an early close never drops it');
-  const drag = await read('lib/tabs/canvas-drag.ts');
+  const drag = await read('lib/tabs/canvas/canvas-drag.ts');
   assert.match(drag, /if \(!landOverview\(dock\)\) dock\(\);/, 'a drop outside a landing commits at once');
   assert.match(drag, /cleanup\(target\?\.drop\);/, 'a pane drop holds it too');
   assert.match(drag, /if \(drop\) holdOverviewLanding\(drop, \[tabId\]\);/);
@@ -168,10 +168,10 @@ test('a merge drop zooms the window out of its card, then both sides of the spli
   assert.match(view, /if \(!growing \|\| !landed\) return;[\s\S]*?rects\.set\(pane\.dataset\.overviewPane!, new DOMRect\(frame\.left \+ \(r\.left - box\.left\) \/ s,[\s\S]*?const startTime = grow\.current\?\.startTime;\n      captureCanvasLanding\(rects, Object\.fromEntries\(held\.sourceIds\.map\(id => \[id, side\]\)\), \{ from: growFrom\.current, startTime: typeof startTime === "number" \? startTime : null, duration: ZOOM_MS, easing: ZOOM_EASING \}\);\n    \}[\s\S]*?closeOverview\(\);/, 'once the merge is ready the live canvas takes the zoom over mid-way, panes starting where the card has them');
   const css = await read('components/center-tabs/canvas/canvas-overview.module.css');
   assert.match(css, /\.overview\[data-landing\] \.card:not\(\[data-zooming\]\),\n\.overview\[data-landing\] \.hint \{\n  transition-duration: 80ms;/, 'the other cards are gone before the hand-over');
-  const transition = await read('lib/tabs/canvas-transition.ts');
+  const transition = await read('lib/tabs/canvas/canvas-transition.ts');
   assert.match(transition, /if \(!from && side\) \{ entries\.push\(\{ el, side \}\);/, 'the docked tab comes in from its side');
   assert.match(view, /grow\.current\.startTime = document\.timeline\.currentTime;/, 'the card zoom starts on an explicit clock the main thread can read');
-  const shots = await read('lib/tabs/window-snapshots.ts');
+  const shots = await read('lib/tabs/canvas/window-snapshots.ts');
   assert.match(shots, /if \(look !== currentLook\(\)\) \{ await clearSaved\(\); return; \}/, 'saved pictures from another theme are dropped');
   assert.match(view, /const look = new MutationObserver\(\(\) => \{ forgetSnapshots\(\); later\(\); \}\);/, 'a theme change drops the pictures and takes new ones');
   assert.match(transition, /if \(startTime !== null\) zoom\.startTime = startTime;/, 'the canvas zoom runs on the card animation\'s own clock, so the hand-over cannot jump back');
@@ -202,7 +202,7 @@ test('the pane menu offers Move and resize, Arrange and the ⌃⌥ shortcuts', a
 });
 
 test('drags cannot hang: missed releases, errors and drag regions all end them', async () => {
-  const drag = await read('lib/tabs/canvas-drag.ts');
+  const drag = await read('lib/tabs/canvas/canvas-drag.ts');
   assert.match(drag, /if \(!owner \|\| event\.buttons !== 0 \|\| event\.pointerType === "touch"\) return;/, 'the first buttonless move ends a drag whose release was lost');
   assert.match(drag, /window\.addEventListener\("pointerdown", \(\) => owner\?\.cancel\(\), true\)/);
   assert.match(drag, /function resolveDrop[\s\S]*?catch \(error\)[\s\S]*?return \{ resource: null, drop: null, strip: null \}/, 'a failed drop lookup cannot skip cleanup');
@@ -245,7 +245,7 @@ test('the grip turns into macOS window buttons and unfolds the tiling menu from 
   assert.doesNotMatch(controls, /Close pane", "关闭格子"\)\}<span/, 'closing moved to the red and yellow buttons');
   const lifecycle = await read('components/center-tabs/tab-actions/use-tab-lifecycle.ts');
   assert.match(lifecycle, /window\.addEventListener\("op-close-center-tabs", onCloseTabs\)/);
-  const drag = await read('lib/tabs/canvas-drag.ts');
+  const drag = await read('lib/tabs/canvas/canvas-drag.ts');
   assert.match(drag, /closest\("button:not\(\[data-pane-light\]\)"\)/, 'the window buttons drag like the grip');
   assert.match(drag, /started = true;[\s\S]{0,200}grip\.setPointerCapture\(pointerId\)/, 'capture waits for a real drag so a press still clicks');
   const css = await read('components/center-tabs/canvas/canvas-controls.module.css');
@@ -297,11 +297,11 @@ test('browsing, a card can be picked up and dropped like a dragged tab', async (
   assert.match(view, /const gapAt = mode && sourceIds\.length \? Math\.min\(slot \?\? home, cards\.length\) : -1;/);
   assert.match(view, /data-overview-slot=""\n/, 'the gap wears no hover state');
   assert.match(view, /if \(drop\?\.action === "fill"\) commitCanvasDrop\(drop, ids\);/);
-  const overview = await read('lib/tabs/canvas-overview.ts');
+  const overview = await read('lib/tabs/canvas/canvas-overview.ts');
   assert.match(overview, /function laidOut\(el: HTMLElement/, 'the gap follows where cards are laid out, not where their spring has them');
   assert.match(overview, /let best = -1, bestDistance = gap \? outside\(laidOut\(gap, root, r\), x, y\) : Infinity/, 'the gap stays while it is the nearest thing to the pointer');
   assert.match(overview, /before = slot === null \? undefined : next\?\.dataset\.overviewFirst \?\? null/);
-  const drag = await read('lib/tabs/canvas-drag.ts');
+  const drag = await read('lib/tabs/canvas/canvas-drag.ts');
   assert.match(drag, /if \(group && whole\) useCenterTabs\.getState\(\)\.moveGroup\(group\.id, drop\.before\);\n\s+else useCenterTabs\.getState\(\)\.moveTab\(sourceId, drop\.before\);/);
   const css = await read('components/center-tabs/canvas/canvas-overview.module.css');
   assert.doesNotMatch(css, /cardIn/, 'no CSS entrance: a mode switch would replay it');
@@ -318,7 +318,7 @@ test('browsing, a card can be picked up and dropped like a dragged tab', async (
 });
 
 test('a tab dragged over the window on screen docks beside it, by the half under the pointer', async () => {
-  const drag = await read('lib/tabs/canvas-drag.ts');
+  const drag = await read('lib/tabs/canvas/canvas-drag.ts');
   assert.match(drag, /export function liveCanvasDropAt\(x: number, y: number, sourceIds: string\[\]\): CanvasDrop \| null \{\s*if \(overviewOpen\(\) \|\| !sourceIds\.length\) return null;/, 'only without the overview');
   assert.match(drag, /if \(sourceIds\.some\(id => members\.includes\(id\)\)\) return null;/, 'a tab never docks into its own window');
   assert.match(drag, /const side = px < OVERVIEW_SIDE \? "left" : px > 1 - OVERVIEW_SIDE \? "right" : py < 0\.5 \? "top" : "bottom";/, 'the same zones as an overview card');

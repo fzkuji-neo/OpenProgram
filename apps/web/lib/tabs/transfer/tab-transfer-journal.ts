@@ -1,9 +1,9 @@
-import type { CanvasLayout } from "./canvas-layout";
+import type { CanvasLayout } from "../canvas/canvas-layout";
 import type { DesktopWebTabBounds as Bounds } from "@/lib/desktop/desktop-bridge-types";
 import {
   registerPendingTransfer,
   unregisterPendingTransfer,
-} from "@/lib/tabs/pending-transfer-projection";
+} from "@/lib/tabs/transfer/pending-transfer-projection";
 import type { PendingChannelChoice } from "@/lib/runtime-bridge/draft-channel-choice";
 import type { ComposerSettings } from "@/lib/session-store/types";
 import type { FileDraft } from "@/lib/files/files-shared";

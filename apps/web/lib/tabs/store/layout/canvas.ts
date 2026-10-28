@@ -1,8 +1,8 @@
 import type { StoreApi } from "zustand";
-import type { CenterTabsState } from "./types";
-import { commitCenterTabsState } from "./core";
-import { findCenterTabGroup, placeDockedTabs, ungroupCenterTab } from "../center-tab-groups";
-import { dockLayout, leaves, rowLayout, sanitizeLayout } from "../canvas-layout";
+import type { CenterTabsState } from "../types";
+import { commitCenterTabsState } from "../core";
+import { findCenterTabGroup, placeDockedTabs, ungroupCenterTab } from "../../center-tab-groups";
+import { dockLayout, leaves, rowLayout, sanitizeLayout } from "../../canvas/canvas-layout";
 
 export function canvasActions(set: StoreApi<CenterTabsState>["setState"]): Pick<CenterTabsState, "setCanvas" | "previewCanvas" | "dockCanvas"> {
   return {

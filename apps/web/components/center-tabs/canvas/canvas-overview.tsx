@@ -4,13 +4,13 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { motion, type Transition } from "framer-motion";
 
 import { topLevelTabs } from "@/lib/browser/web-page-management";
-import { canvasGeometry, canvasViewport, leaves, removePane, rowLayout, type LayoutNode } from "@/lib/tabs/canvas-layout";
+import { canvasGeometry, canvasViewport, leaves, removePane, rowLayout, type LayoutNode } from "@/lib/tabs/canvas/canvas-layout";
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";
-import { canvasDragging, commitCanvasDrop, type CanvasDrop } from "@/lib/tabs/canvas-drag";
-import { captureVisiblePanes, captureWebTabs, forgetSnapshots, pruneSnapshots, restoreSnapshots, useWindowSnapshots } from "@/lib/tabs/window-snapshots";
-import { browseOverview, closeOverview, dismissOverview, holdOverviewLanding, openOverview, overviewDropAt, overviewLandingFrom, setOverviewZoomOut, useCanvasOverview, type OverviewSide } from "@/lib/tabs/canvas-overview";
+import { canvasDragging, commitCanvasDrop, type CanvasDrop } from "@/lib/tabs/canvas/canvas-drag";
+import { captureVisiblePanes, captureWebTabs, forgetSnapshots, pruneSnapshots, restoreSnapshots, useWindowSnapshots } from "@/lib/tabs/canvas/window-snapshots";
+import { browseOverview, closeOverview, dismissOverview, holdOverviewLanding, openOverview, overviewDropAt, overviewLandingFrom, setOverviewZoomOut, useCanvasOverview, type OverviewSide } from "@/lib/tabs/canvas/canvas-overview";
 import { centerTabStripEntries } from "@/lib/tabs/center-tab-groups";
-import { captureCanvasLanding, type CanvasEnter } from "@/lib/tabs/canvas-transition";
+import { captureCanvasLanding, type CanvasEnter } from "@/lib/tabs/canvas/canvas-transition";
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
 import { useTranslation } from "@/lib/i18n";
 import { CompoundMemberIcon, labelOf } from "../strip/tab-items";
@@ -71,7 +71,7 @@ function isPinch(e: WheelEvent) {
 }
 
 /** Every window in the strip as a card that keeps its split, over the
- *  center area. See lib/tabs/canvas-overview.ts for when it opens. */
+ *  center area. See lib/tabs/canvas/canvas-overview.ts for when it opens. */
 export function CanvasOverview() {
   const { t, text } = useTranslation();
   const { mode, sourceIds, hover, label, landing, landed, slot } = useCanvasOverview();

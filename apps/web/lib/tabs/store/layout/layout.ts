@@ -1,7 +1,7 @@
 import { findCenterTabGroup, focusCenterTabGroupMember, groupCenterTabs, mergeCenterTabGroup, moveCenterTab, moveCenterTabGroup, moveCenterTabGroupMember, ungroupCenterTab } from "@/lib/tabs/center-tab-groups";
 import type { StoreApi } from "zustand";
-import { commitCenterTabsState, detachesSplitPair, tabsForLayout } from "./core";
-import type { CenterTabsState } from "./types";
+import { commitCenterTabsState, detachesSplitPair, tabsForLayout } from "../core";
+import type { CenterTabsState } from "../types";
 
 export function layoutActions(set: StoreApi<CenterTabsState>["setState"], get: StoreApi<CenterTabsState>["getState"]): Pick<CenterTabsState, "setActive" | "moveTab" | "moveGroup" | "moveGroupMember" | "groupTab" | "mergeGroup" | "ungroupTab" | "focusGroupMember"> {
   return {

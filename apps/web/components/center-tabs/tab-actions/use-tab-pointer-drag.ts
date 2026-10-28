@@ -14,9 +14,9 @@
  * dragging; the torn-off window is created at RELEASE.
  */
 import { useLayoutEffect, useRef, useState } from "react";
-import { clearDropPreview, commitCanvasDrop, liveCanvasDropAt, showLiveCanvasDrop, showResourceDrop, setCanvasDragging } from "@/lib/tabs/canvas-drag";
-import { closeOverview, holdOverviewLanding, openOverview, overviewDropAt, overviewOpen } from "@/lib/tabs/canvas-overview";
-import { captureVisiblePanes, useWindowSnapshots } from "@/lib/tabs/window-snapshots";
+import { clearDropPreview, commitCanvasDrop, liveCanvasDropAt, showLiveCanvasDrop, showResourceDrop, setCanvasDragging } from "@/lib/tabs/canvas/canvas-drag";
+import { closeOverview, holdOverviewLanding, openOverview, overviewDropAt, overviewOpen } from "@/lib/tabs/canvas/canvas-overview";
+import { captureVisiblePanes, useWindowSnapshots } from "@/lib/tabs/canvas/window-snapshots";
 
 import {
   DETACH_HYSTERESIS_PX,
@@ -26,10 +26,10 @@ import {
   SWAP_OVERLAP_RATIO,
   type TabDragSubject,
   type TabDropIntent,
-} from "@/lib/tabs/tab-drag-coordinator";
+} from "@/lib/tabs/transfer/tab-drag-coordinator";
 import { buildTransferPayload, desktopBridge } from "@/lib/desktop/desktop-bridge";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
-import { dropWebTabResource, resourceDropTabId, resourceDropTarget } from "@/lib/tabs/tab-resource-drop";
+import { dropWebTabResource, resourceDropTabId, resourceDropTarget } from "@/lib/tabs/transfer/tab-resource-drop";
 import { useTranslation } from "@/lib/i18n";
 import { DRAG_SURFACE_STYLE } from "@/lib/prefs/visual-effects-config";
 import {

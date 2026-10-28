@@ -3,9 +3,9 @@ import {
   focusCenterTabGroupMember,
   groupCenterTabs,
   type CenterTabGroup,
-} from "./center-tab-groups.ts";
-import { reviewTabId } from "./center-tab-ids.ts";
-import type { CenterTab } from "./center-tabs-store.ts";
+} from "../center-tab-groups.ts";
+import { reviewTabId } from "../center-tab-ids.ts";
+import type { CenterTab } from "../center-tabs-store.ts";
 
 type ReviewScope = "turn" | "branch" | "workspace";
 

@@ -1,7 +1,7 @@
 /**
  * New-tab-page shortcuts — the Chrome-style tile grid's data, a flat
  * `{url, label}[]` under one localStorage key. Same read/subscribe shape
- * as lib/tabs/bookmarks.ts (custom event + `storage` for other tabs).
+ * as lib/tabs/browser/bookmarks.ts (custom event + `storage` for other tabs).
  *
  * Seeds only apply when the KEY IS ABSENT. Once the user touches the
  * grid the key exists, so an empty array means "user cleared it" and the

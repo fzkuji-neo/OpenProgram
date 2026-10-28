@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { rowLayout } from "../../lib/tabs/canvas-layout.ts";
-import { sessionForShellReturn, shellTabId } from "../../lib/tabs/shell-session.ts";
+import { rowLayout } from "../../lib/tabs/canvas/canvas-layout.ts";
+import { sessionForShellReturn, shellTabId } from "../../lib/tabs/navigation/shell-session.ts";
 
 const tabs = [
   { id: "s:a", kind: "session", title: "A", sessionId: "a" },

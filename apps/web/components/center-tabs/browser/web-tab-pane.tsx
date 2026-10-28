@@ -22,7 +22,7 @@
  *    back/forward buttons: iframe history is unreliable cross-origin.
  */
 import { memo, useEffect, useId, useRef, useState } from "react";
-import { canvasDragging, onCanvasDragChange } from "@/lib/tabs/canvas-drag";
+import { canvasDragging, onCanvasDragChange } from "@/lib/tabs/canvas/canvas-drag";
 import type { KeyboardEvent, ReactNode } from "react";
 import { ArrowLeft, ArrowRight, ChevronDown, ChevronUp, Crop, ExternalLink, House, MessageSquarePlus, PictureInPicture2, RotateCw, Search, Star, X } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
@@ -50,7 +50,7 @@ import {
   subscribeBookmarks,
   toggleBookmark,
   updateBookmarkFavicon,
-} from "@/lib/tabs/bookmarks";
+} from "@/lib/tabs/browser/bookmarks";
 import { normalizeWebUrl, useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import {
   collapseWebTabToPip,

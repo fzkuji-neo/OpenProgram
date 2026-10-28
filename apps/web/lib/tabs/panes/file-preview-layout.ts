@@ -1,7 +1,7 @@
-import { findCenterTabGroup, groupCenterTabs, normalizeCenterTabLayout } from "./center-tab-groups.ts";
-import { webTabId } from "./center-tab-ids.ts";
-import { replaceGroupTabId } from "./center-tabs-persistence.ts";
-import type { CenterTabsState } from "./store/types.ts";
+import { findCenterTabGroup, groupCenterTabs, normalizeCenterTabLayout } from "../center-tab-groups.ts";
+import { webTabId } from "../center-tab-ids.ts";
+import { replaceGroupTabId } from "../center-tabs-persistence.ts";
+import type { CenterTabsState } from "../store/types.ts";
 
 export interface FilePreviewTarget { projectId: string; path: string; readOnly?: boolean; }
 /** A local page shown in a browser tab instead of a file pane. */

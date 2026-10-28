@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { desktopBridge } from "../desktop/desktop-bridge";
-import { useCenterTabs } from "./center-tabs-store";
+import { desktopBridge } from "../../desktop/desktop-bridge";
+import { useCenterTabs } from "../center-tabs-store";
 
 /** Last-seen pictures of panes for the window overview, keyed by tab id.
  *  Like Mission Control and the iPad switcher, a window that is not on

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { bookmarkFaviconSources, updateBookmarkFavicon, readBookmarkTree, toggleBookmark, BOOKMARKS_STORAGE_KEY } from '../../lib/tabs/bookmarks.ts';
+import { bookmarkFaviconSources, updateBookmarkFavicon, readBookmarkTree, toggleBookmark, BOOKMARKS_STORAGE_KEY } from '../../lib/tabs/browser/bookmarks.ts';
 
 test('bookmark icons prefer saved images and fall back only to the website origin', () => {
   const bookmark = {title:'Page',url:'https://site.test/path?q=secret#section'};

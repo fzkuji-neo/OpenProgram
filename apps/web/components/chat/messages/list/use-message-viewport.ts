@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { noteChatWidth } from "@/lib/chat/history/message-window";
-import { canvasDragging, onCanvasDragChange } from "@/lib/tabs/canvas-drag";
+import { canvasDragging, onCanvasDragChange } from "@/lib/tabs/canvas/canvas-drag";
 
 const WIDTH_SETTLE_MS = 120;
 /** Set on the chat area while its width is changing. Rows off screen then

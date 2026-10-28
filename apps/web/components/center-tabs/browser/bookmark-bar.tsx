@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactElement } from "react";
 import { ChevronRight, ChevronsRight, Folder } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { itemCls, MENU_PANEL } from "@/components/chat/top-bar/menu-styles";
-import { bookmarkBarLayout, bookmarkFaviconSources, readBookmarkTree, subscribeBookmarks, type BookmarkFolder, type BookmarkNode } from "@/lib/tabs/bookmarks";
+import { bookmarkBarLayout, bookmarkFaviconSources, readBookmarkTree, subscribeBookmarks, type BookmarkFolder, type BookmarkNode } from "@/lib/tabs/browser/bookmarks";
 import { activeThemeId } from "@/lib/prefs/theme-pref";
 import { showBookmarksBar, subscribeBrowserPrefs } from "@/lib/browser/browser-prefs";
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";

@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SimpleSelect } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { importBookmarkTree } from "@/lib/tabs/bookmarks";
+import { importBookmarkTree } from "@/lib/tabs/browser/bookmarks";
 import {
   browserImportPromptFinished,
   consumeBrowserImportRequest,
@@ -31,7 +31,7 @@ import {
   removeShortcut,
   subscribeShortcuts,
   type Shortcut,
-} from "@/lib/tabs/ntp-shortcuts";
+} from "@/lib/tabs/browser/ntp-shortcuts";
 import {
   desktopBridge,
   type DesktopBrowserImportSource,

@@ -22,7 +22,7 @@ import {
 import { topLevelTabs } from "@/lib/browser/web-page-management";
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
 import { buildTransferPayload, desktopBridge } from "@/lib/desktop/desktop-bridge";
-import { dragCoordinator } from "@/lib/tabs/tab-drag-coordinator";
+import { dragCoordinator } from "@/lib/tabs/transfer/tab-drag-coordinator";
 import { useTranslation } from "@/lib/i18n";
 import { activeThemeId } from "@/lib/prefs/theme-pref";
 import {

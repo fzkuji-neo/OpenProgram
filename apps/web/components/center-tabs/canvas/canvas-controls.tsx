@@ -2,11 +2,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Equal, FileText, Globe, LayoutGrid, Maximize2, MessageSquare, Minus, SquareDashed, Undo2, X, Save } from "lucide-react";
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
-import { captureCanvasTransition, prepareCanvasFold } from "@/lib/tabs/canvas-transition";
+import { captureCanvasTransition, prepareCanvasFold } from "@/lib/tabs/canvas/canvas-transition";
 import { findCenterTabGroup } from "@/lib/tabs/center-tab-groups";
-import { canvasCssGeometry, canvasGeometry, canvasViewport, leaves, presetLayout, insertPane, removePane, equalize, resizeSplit, snapResize, tilePane, mapNode, type CanvasLayout, type CanvasPreset, type CanvasTile, type LayoutNode } from "@/lib/tabs/canvas-layout";
-import { rememberCanvas, takePreviousCanvas } from "@/lib/tabs/canvas-history";
-import { setCanvasDragging, startPaneDrag } from "@/lib/tabs/canvas-drag";
+import { canvasCssGeometry, canvasGeometry, canvasViewport, leaves, presetLayout, insertPane, removePane, equalize, resizeSplit, snapResize, tilePane, mapNode, type CanvasLayout, type CanvasPreset, type CanvasTile, type LayoutNode } from "@/lib/tabs/canvas/canvas-layout";
+import { rememberCanvas, takePreviousCanvas } from "@/lib/tabs/canvas/canvas-history";
+import { setCanvasDragging, startPaneDrag } from "@/lib/tabs/canvas/canvas-drag";
 import { useTranslation } from "@/lib/i18n";
 import { PaneDragLabel } from "../strip/tab-items";
 import { labelOf } from "../strip/tab-label";

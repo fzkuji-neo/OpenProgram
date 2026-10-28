@@ -110,7 +110,7 @@ export function AlwaysOnPanel({ draft, update, text }: Props) {
   async function openHome() {
     await act(async () => {
       const { session_id } = await openAlwaysOnHome(draft.id);
-      const { openSession } = await import("@/lib/tabs/open-session");
+      const { openSession } = await import("@/lib/tabs/navigation/open-session");
       openSession(session_id);
     });
   }

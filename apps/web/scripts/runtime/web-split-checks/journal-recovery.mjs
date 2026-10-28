@@ -412,7 +412,7 @@ testContext.values.clear();
   clampSplitRatioForWidth: testContext.clampSplitRatioForWidth,
   createSplitLayoutMeasureScheduler: testContext.createSplitLayoutMeasureScheduler,
   isSplitLayoutAvailable: testContext.isSplitLayoutAvailable,
-} = await import("../../../lib/tabs/split-layout.ts"));
+} = await import("../../../lib/tabs/canvas/split-layout.ts"));
 
 ({
   registerVisibleWebTabBounds: testContext.registerVisibleWebTabBounds,

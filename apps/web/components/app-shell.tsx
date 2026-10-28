@@ -11,9 +11,9 @@ import { ControlTips } from "./control-tips";
 import { CenterTabStrip } from "./center-tabs/strip/center-tab-strip";
 import { CanvasControls } from "./center-tabs/canvas/canvas-controls";
 import { CanvasOverview } from "./center-tabs/canvas/canvas-overview";
-import { playCanvasTransition } from "@/lib/tabs/canvas-transition";
-import { sessionForShellReturn } from "@/lib/tabs/shell-session";
-import { canvasCssGeometry, canvasGeometry, canvasViewport, leaves, rowLayout } from "@/lib/tabs/canvas-layout";
+import { playCanvasTransition } from "@/lib/tabs/canvas/canvas-transition";
+import { sessionForShellReturn } from "@/lib/tabs/navigation/shell-session";
+import { canvasCssGeometry, canvasGeometry, canvasViewport, leaves, rowLayout } from "@/lib/tabs/canvas/canvas-layout";
 import { WebTabPip } from "./center-tabs/pip/web-tab-pip";
 import { AppPreviewPip } from "./center-tabs/pip/app-preview-pip";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
@@ -44,15 +44,15 @@ import {
   clampSplitRatioForWidth,
   createSplitLayoutMeasureScheduler,
   isSplitLayoutAvailable,
-} from "@/lib/tabs/split-layout";
+} from "@/lib/tabs/canvas/split-layout";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
 import { newSession } from "@/lib/runtime-bridge/conversations";
 import { completeTabRouteNavigation } from "@/lib/tabs/navigation/route";
 import { setNavigate } from "@/lib/navigate";
 import { loadPluginClients } from "@/lib/plugins/slots";
 import { startAttentionBridge } from "@/lib/desktop/attention";
-import { openSession } from "@/lib/tabs/open-session";
-import { setLastChatPath } from "@/lib/tabs/last-chat-path";
+import { openSession } from "@/lib/tabs/navigation/open-session";
+import { setLastChatPath } from "@/lib/tabs/navigation/last-chat-path";
 import { enterExclusiveCoverageMode, renderHistoryGraph } from "@/lib/runtime-bridge/dag";
 import { initOverlayScrollbars } from "@/lib/runtime-bridge/scrollbar";
 import { hostPaintsRows } from "@/lib/chat/history/message-window";

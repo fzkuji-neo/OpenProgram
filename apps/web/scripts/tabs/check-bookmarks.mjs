@@ -6,9 +6,9 @@ import ts from "typescript";
 import { readCenterTabStripSource } from "./center-tab-strip-source.mjs";
 import { readRightDockCss } from "../runtime/_chat-css.mjs";
 
-const sourcePath = new URL("../../lib/tabs/bookmarks.ts", import.meta.url);
+const sourcePath = new URL("../../lib/tabs/browser/bookmarks.ts", import.meta.url);
 const sessionStorePath = new URL("../../lib/session-store/index.ts", import.meta.url);
-const navigationPath = new URL("../../lib/tabs/bookmark-navigation.ts", import.meta.url);
+const navigationPath = new URL("../../lib/tabs/browser/bookmark-navigation.ts", import.meta.url);
 const webTabPath = new URL("../../components/center-tabs/browser/web-tab-pane.tsx", import.meta.url);
 const browserHomePath = new URL("../../components/center-tabs/browser/browser-home-page.tsx", import.meta.url);
 // Bookmarks + web history are CENTER TABS now, opened from the main

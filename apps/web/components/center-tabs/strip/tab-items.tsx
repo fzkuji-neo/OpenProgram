@@ -21,8 +21,8 @@ import {
 } from "@/components/animated-icons";
 import type { CenterTab } from "@/lib/tabs/center-tabs-store";
 import type { CenterTabGroup } from "@/lib/tabs/center-tab-groups";
-import { rowLayout, type LayoutNode } from "@/lib/tabs/canvas-layout";
-import type { TabDragSubject } from "@/lib/tabs/tab-drag-coordinator";
+import { rowLayout, type LayoutNode } from "@/lib/tabs/canvas/canvas-layout";
+import type { TabDragSubject } from "@/lib/tabs/transfer/tab-drag-coordinator";
 import { useTranslation } from "@/lib/i18n";
 import { localPathFromUrl } from "@/lib/files/local-file-url";
 import { labelOf } from "./tab-label";
