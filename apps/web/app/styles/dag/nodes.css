@@ -82,7 +82,8 @@
    by colour. Like a marker on a map the dot never shrinks below about
    10px on screen, and the lines keep 1.5px. A selected dot does what a
    selected chip does up close — it fills with its full colour — and
-   grows to about 14px with a glow of that colour, so it stands out among
+   keeps its size (neighbours sit 14px apart; a larger dot merged with
+   the next), with a faint glow of that colour, so it stands out among
    the paler dots at any zoom, in either theme. */
 .is-far .dag-tile-icon { display: none; }
 .is-far .dag-tile {
@@ -100,15 +101,10 @@
   transform-origin: center;
   transform: scale(max(1, calc(var(--dag-marker-scale, 1) * 0.35)));
 }
-.is-far .history-node.is-selected .dag-tile { transform: scale(max(1.08, calc(var(--dag-marker-scale, 1) * 0.5))); }
+.is-far .history-node.is-selected .dag-tile { transform: scale(max(1, calc(var(--dag-marker-scale, 1) * 0.35))); }
 .is-far .history-node.is-selected .dag-tile > [data-node-shape] {
   fill: var(--tone);
-  /* A hairline of canvas between neighbours, so a run of selected dots
-     stays a row of dots rather than one bar. */
-  stroke: var(--bg-primary, #191918);
-  stroke-width: 1.5px;
-  vector-effect: non-scaling-stroke;
-  filter: drop-shadow(0 0 4px var(--tone));
+  filter: drop-shadow(0 0 2px var(--tone));
 }
 .is-far .history-edge { stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
 

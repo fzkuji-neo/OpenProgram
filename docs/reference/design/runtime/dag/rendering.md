@@ -438,8 +438,8 @@ shrank with the graph into specks of grey. So below 55%:
 
 - a dot never shrinks below about 10px on screen and a line below 1.5px;
 - **a selected node stays obvious**: like a selected chip up close, its dot
-  fills with its full colour (unselected dots are a paler mix), grows to
-  about 14px and glows in that colour. Never the ink colour: that is black
+  fills with its full colour (unselected dots are a paler mix), keeps
+  the dots' size (a larger dot merged with its neighbour) and glows faintly in that colour. Never the ink colour: that is black
   in the light theme and turned a selection into a blot. The minimap draws
   selected nodes larger in the accent colour, so a selection off screen
   still shows there. The press target grows with the dot;

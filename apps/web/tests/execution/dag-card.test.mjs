@@ -79,8 +79,8 @@ test("The fold count steps past an error or cross-session mark on the shoulder",
 
 test("Zoomed far out, a selection stays obvious and labels read like a map", () => {
   const css = readFileSync(new URL("../../app/styles/dag/nodes.css", import.meta.url), "utf8");
-  // A selected dot grows and fills with its own colour (not the ink colour: black in the light theme).
-  assert.match(css, /\.is-far \.history-node\.is-selected \.dag-tile \{ transform: scale\(max\(1\.08, calc\(var\(--dag-marker-scale, 1\) \* 0\.5\)\)\); \}/);
+  // A selected dot keeps the dots' size (larger ones merged) and fills with its own colour (not ink: black in the light theme).
+  assert.match(css, /\.is-far \.history-node\.is-selected \.dag-tile \{ transform: scale\(max\(1, calc\(var\(--dag-marker-scale, 1\) \* 0\.35\)\)\); \}/);
   assert.match(css, /\.is-far \.history-node\.is-selected \.dag-tile > \[data-node-shape\] \{\s*fill: var\(--tone\);/);
   // Your messages' words keep their size; call captions hide.
   assert.match(css, /\.is-far \.dag-caption:not\(\.is-turn\) \{ display: none; \}/);
