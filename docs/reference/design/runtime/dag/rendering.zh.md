@@ -262,6 +262,13 @@ lane 与它分叉出来的 lane 之间**多留一个空列**——分支是平�
 每条 lane 一个颜色（`apps/web/lib/runtime-bridge/dag/types.ts` `LANE_COLORS`）。任何线用它所属/指向分支的
 lane 色；**绝不给某类线固定颜色**。类型只靠线型：
 
+**通往 HEAD 的路穿 HEAD 的颜色。** 几条分支共享的轮次（从 ROOT 到分叉处）属于你当前
+所在的分支，所以它们、它们发起的调用以及它们的线都用 HEAD 的 lane 色
+（`layout/assign-lanes.ts` 的 `_stampPathLanes` 戳上 `_pathLane`，`_branchColor` 优先读
+它）。切到另一条分支，共享段就改画成那条分支的颜色；你离开的分支从分叉处往后保持自己
+的颜色。每个轮次的线都从 ROOT 沿主干往下画，线会重叠：`render/edges.ts` 最后画这条
+路，否则后画的分支会盖在它上面。
+
 | 连线类型 | 线型 | 颜色 | 默认 |
 |---|---|---|---|
 | 同分支父→子 | 实线 | 本分支色 | 显示 |

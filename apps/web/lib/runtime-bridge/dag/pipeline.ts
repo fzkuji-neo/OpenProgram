@@ -48,7 +48,7 @@ import { buildThreadModel } from "./passes/thread";
 import { projectTopPrograms } from "./passes/project-programs";
 import { _buildTree } from "./layout/build-tree";
 import { _assignDepth } from "./layout/depth";
-import { _assignLanes, _headAncestors } from "./layout/assign-lanes";
+import { _assignLanes, _headAncestors, _stampPathLanes } from "./layout/assign-lanes";
 import {
   _recomputeVisibility,
   _wireChatMutationSync,
@@ -309,6 +309,7 @@ export function render(graphIn: GNode[], headIdIn: string | null): void {
   _assignDepth(graph, tree.byId);
   const lanes = _assignLanes(tree.byId, headId);
   setLeafOfNode(lanes.leafOfNode);
+  _stampPathLanes(tree.byId, headId);
 
   const _colorMap: Record<string, string> = Object.create(null);
   Object.keys(tree.byId).forEach((id) => {

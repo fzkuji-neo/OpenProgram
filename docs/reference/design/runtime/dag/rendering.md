@@ -328,6 +328,15 @@ Each lane has one color (`apps/web/lib/runtime-bridge/dag/types.ts` `LANE_COLORS
 the branch it belongs to / points at; **never give a category of edge a fixed color.** Type
 is conveyed only by line style:
 
+**The road to HEAD wears HEAD's colour.** Turns shared by several branches —
+ROOT down to the fork — belong to whichever branch you are on, so they, the
+calls they made and their lines take HEAD's lane colour
+(`layout/assign-lanes.ts` `_stampPathLanes` stamps `_pathLane`, which
+`_branchColor` reads first). Check out another branch and the shared stretch
+repaints in that branch's colour; the branch you left keeps its own colour from
+the fork on. Each turn's line runs down the trunk from ROOT, so lines overlap:
+`render/edges.ts` draws the road last, else a later branch would lie over it.
+
 | Edge type | Line style | Color | Default |
 |---|---|---|---|
 | same-branch parent→child | solid | this branch's color | shown |

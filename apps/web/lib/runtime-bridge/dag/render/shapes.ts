@@ -34,7 +34,9 @@ export function _branchColor(
   _leafOfNode?: Record<string, string>,
 ): string {
   void _leafOfNode;
-  const lane = node._lane || 0;
+  // The road to HEAD wears HEAD's colour, shared turns included, so the
+  // branch you are on reads as one line from the root (rendering.md §5).
+  const lane = node._pathLane ?? node._lane ?? 0;
   if (lane === 0) return LANE_COLORS[0];
   return LANE_COLORS[1 + ((lane - 1) % (LANE_COLORS.length - 1))];
 }

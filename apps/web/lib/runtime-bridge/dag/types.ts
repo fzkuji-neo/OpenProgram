@@ -23,6 +23,9 @@ export interface GNode {
   children?: GNode[];
   _depth?: number;
   _lane?: number;
+  /** The lane whose colour the node wears: HEAD's, on the road to HEAD
+   *  (layout/assign-lanes.ts ``_stampPathLanes``), else its own. */
+  _pathLane?: number;
   _tier?: number;
   _internal?: boolean;
   _runNode?: boolean;

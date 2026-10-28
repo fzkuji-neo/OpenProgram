@@ -155,7 +155,8 @@ export function paintAgents(nodeG: Element, graph: GNode[]): void {
     onSeat.set(g, k + 1);
     seated.add(g.getAttribute("data-msg-id") || "");
     const name = agentName(w.agent, byId, drawn);
-    const color = _branchColor(w.node);
+    // The drawn node carries the colour of the road it is on (shapes.ts).
+    const color = _branchColor((g as NodeG)._nodeData ?? w.node);
     layer.appendChild(token(at, k, color));
     layer.appendChild(bubble(at, k, `${name} · ${tileFor(w.node).doing}`, color));
   }

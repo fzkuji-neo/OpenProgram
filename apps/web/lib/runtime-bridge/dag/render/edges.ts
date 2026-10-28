@@ -127,7 +127,11 @@ export function drawEdges(
   const forkNodes: string[] = [];
 
   // ── Conv-chain edges ──
-  Object.keys(tree.byId).forEach((id) => {
+  // Each turn's line runs down the trunk from ROOT, so lines overlap;
+  // the road to HEAD goes last, else a later branch's colour would lie
+  // over the shared turns that now wear HEAD's (shapes.ts ``_pathLane``).
+  const onRoad = (id: string): number => (tree.byId[id]._pathLane === undefined ? 0 : 1);
+  Object.keys(tree.byId).sort((a, b) => onRoad(a) - onRoad(b)).forEach((id) => {
     const node = tree.byId[id];
     if (node.display === "root") return;
     // A spawn head hangs on its owner's thread; the thread line below

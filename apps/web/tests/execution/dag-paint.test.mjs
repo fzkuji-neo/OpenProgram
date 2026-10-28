@@ -704,3 +704,26 @@ test("a branch's tag stays under its own tip, not a sibling's in the same lane",
   assert.deepEqual([x(tags[1]), y(tags[1])], [170, 150]);
   assert.deepEqual([x(tags[0]), y(tags[0])], [130, 190]);
 });
+
+test("the road to HEAD wears HEAD's colour; the branch left behind keeps its own", async () => {
+  const { _stampPathLanes } = await import("../../lib/runtime-bridge/dag/layout/assign-lanes.ts");
+  const { _branchColor } = await import("../../lib/runtime-bridge/dag/render/shapes.ts");
+  const nodes = [
+    { id: "ROOT", display: "root", _lane: 0 },
+    { id: "u1", role: "user", predecessor: "ROOT", _lane: 0 },
+    { id: "a1", role: "assistant", predecessor: "u1", _lane: 0 },
+    { id: "t1", role: "tool", function: "bash", caller: "a1", _lane: 0 },
+    { id: "u2", role: "user", predecessor: "a1", _lane: 0 },
+    { id: "u2b", role: "user", predecessor: "a1", _lane: 1 },
+    { id: "a2b", role: "assistant", predecessor: "u2b", _lane: 1 },
+  ];
+  const byId = Object.fromEntries(nodes.map((n) => [n.id, n]));
+  _stampPathLanes(byId, "a2b");
+  const green = _branchColor(byId.a2b);
+  for (const id of ["ROOT", "u1", "a1", "t1", "u2b"]) assert.equal(_branchColor(byId[id]), green, id);
+  assert.notEqual(_branchColor(byId.u2), green);
+  // Back on the first branch, the shared turns go back to its colour.
+  _stampPathLanes(byId, "u2");
+  assert.equal(_branchColor(byId.u1), _branchColor(byId.u2));
+  assert.notEqual(_branchColor(byId.u2b), _branchColor(byId.u2));
+});
