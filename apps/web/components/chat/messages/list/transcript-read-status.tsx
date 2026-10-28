@@ -1,9 +1,9 @@
 "use client";
 import { useSessionStore } from '@/lib/session-store';
 import { useSessionHistory } from '@/lib/chat/history/session-history';
-import { retrySessionHistory, loadSessionHistoryWindow } from '@/lib/runtime-bridge/session-history-loader';
+import { retrySessionHistory, loadSessionHistoryWindow } from '@/lib/runtime-bridge/session/session-history-loader';
 import { useTranslation } from '@/lib/i18n';
-import { requestSessionLoad } from '@/lib/runtime-bridge/session-load';
+import { requestSessionLoad } from '@/lib/runtime-bridge/session/session-load';
 
 export function TranscriptReadStatus({ sessionId }: { sessionId: string | null }) {
   const status = useSessionStore(s => sessionId ? s.transcriptReadStatus[sessionId] : undefined);

@@ -125,26 +125,26 @@ web 前端的状态存放方式是：**每个会话一个 Zustand store 实例�
 
 还有第二套更老的状态层，早于 React store：直接挂在浏览器 `window` 对象上的可变属性，
 由 `apps/web/lib/runtime-bridge/` 下的模块读写。类型就地声明，比如
-`apps/web/lib/runtime-bridge/chat-handlers.ts:34` 和
-`apps/web/lib/runtime-bridge/conversations.ts:75`：
+`apps/web/lib/runtime-bridge/session/chat-handlers.ts:34` 和
+`apps/web/lib/runtime-bridge/session/conversations.ts:75`：
 
 - `W.currentSessionId` —— 遗留层对"活动会话"的记法。
 - `W.conversations` —— 一份重量级的每会话表，存完整消息数组，与 store 里轻量的
   `conversations` 摘要表不是同一个东西。
 - `W.isRunning` —— 单个全局"有东西在跑"标志。
 - `W.__sessionStore` —— 让遗留代码伸手进 React store 的逃生口，用在
-  `apps/web/lib/runtime-bridge/chat-handlers.ts:895`。
+  `apps/web/lib/runtime-bridge/session/chat-handlers.ts:895`。
 
 ### 两层的关系
 
 它们是**手工保持同步的双轨系统**。WebSocket 帧到达 runtime bridge，bridge 更新
-`window.*` 的值，*同时*写穿到 React store。`apps/web/lib/runtime-bridge/conv-store-mirror.ts:4`
+`window.*` 的值，*同时*写穿到 React store。`apps/web/lib/runtime-bridge/session/conv-store-mirror.ts:4`
 明确写了这一点：侧栏读 `store.conversations`，所以每一处改动
 `window.conversations` 的地方都必须同时走这个镜像，才能让 store 保持权威。
 
 大部分进入的帧是用遗留全局而非 store 做闸门。`data.session_id === W.currentSessionId`
-这个模式贯穿 `apps/web/lib/runtime-bridge/chat-handlers.ts`（第 226、249、251、271、451、
-524、588、747 行）和 `apps/web/lib/runtime-bridge/conversations.ts`（第 332、387、527、530、
+这个模式贯穿 `apps/web/lib/runtime-bridge/session/chat-handlers.ts`（第 226、249、251、271、451、
+524、588、747 行）和 `apps/web/lib/runtime-bridge/session/conversations.ts`（第 332、387、527、530、
 536 行）。每一处都是一个"针对*非聚焦*会话的事件会被丢弃或错投"的地方。
 
 **哪些已经绕开了。** 分屏窗格完全不走遗留 shell。
@@ -339,7 +339,7 @@ React context 提供键，让消费方读 `map[scopeKey]` 而不是读全局。`
   `apps/web/components/sidebar/favorites-list.tsx`、
   `apps/web/components/sidebar/sidebar.tsx`、
   `apps/web/components/chat/messages/runtime/runtime-block.tsx`、
-  `apps/web/lib/runtime-bridge/functions-panel.ts`。
+  `apps/web/lib/runtime-bridge/actions/functions-panel.ts`。
 - `welcomeVisible`、`transcriptLoadingId` 是每会话布尔值，消费方为
   `apps/web/components/chat/welcome/welcome-screen.tsx` 和
   `apps/web/components/chat/messages/list/message-list.tsx`。
@@ -359,12 +359,12 @@ React context 提供键，让消费方读 `map[scopeKey]` 而不是读全局。`
 第 4 节描述的 `window.*` 层不属于这套设计，它正是 store 要取代的东西。下列条件全部成立
 后即可移除：
 
-1. `apps/web/lib/runtime-bridge/chat-handlers.ts` 和 `conversations.ts` 里每一处
+1. `apps/web/lib/runtime-bridge/session/chat-handlers.ts` 和 `conversations.ts` 里每一处
    `data.session_id === W.currentSessionId` 闸门都成为按 `data.session_id` 分键的 store
    写入，让后台会话的帧能落地而不是被丢弃。这要求 store 先把"聚焦"和"那个会话"区分开，
    也就是第 7 节的聚焦指针所做的事。
 2. `window.conversations` 没有任何 store 按键表覆盖不到的读取方，此时
-   `apps/web/lib/runtime-bridge/conv-store-mirror.ts` 就不再是必需的，可以直接删掉。
+   `apps/web/lib/runtime-bridge/session/conv-store-mirror.ts` 就不再是必需的，可以直接删掉。
 3. `W.isRunning` 没有读取方；`runningTasks` 覆盖它。
 4. 单例的 `#chatView` DOM shell 消失，换成 `PeerSessionPane` 已经证明可行的 React 路径。
    这是最重的一条——大约十个 runtime-bridge 模块靠写死的 id 访问那个 shell。

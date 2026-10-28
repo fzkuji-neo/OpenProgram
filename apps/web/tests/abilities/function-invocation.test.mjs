@@ -81,7 +81,7 @@ setSocket({
   send(payload) { wsFrames.push(JSON.parse(payload)); },
 });
 
-const { disposeSessionLoads } = await import("../../lib/runtime-bridge/session-load.ts");
+const { disposeSessionLoads } = await import("../../lib/runtime-bridge/session/session-load.ts");
 after(() => disposeSessionLoads(runtimeState.ws));
 
 const guiAgent = {
@@ -147,12 +147,12 @@ const {
   wsHandleChatResponse,
   settleFunctionReloadAfterSessionLoad,
 } = await import(
-  "../../lib/runtime-bridge/chat-handlers.ts"
+  "../../lib/runtime-bridge/session/chat-handlers.ts"
 );
 const {
   draftChannelChoiceHost,
   setDraftChannelChoice,
-} = await import("../../lib/runtime-bridge/draft-channel-choice.ts");
+} = await import("../../lib/runtime-bridge/actions/draft-channel-choice.ts");
 
 async function submitThroughComposer(input, sessionKey, overrides = {}) {
   let hook;
@@ -770,7 +770,7 @@ test("hidden advanced parameters are user-visible but internal parameters are no
 
 
 test("real retry handlers settle accepted and rejected dispatches", async (t) => {
-  const { startFunctionRetry } = await import("../../lib/runtime-bridge/function-retry.ts");
+  const { startFunctionRetry } = await import("../../lib/runtime-bridge/actions/function-retry.ts");
   t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
   const observed = [];
   function begin(id) {

@@ -3,7 +3,7 @@
  * shape `conversations.js` / `chat-ws.js` build) into the normalized
  * `ChatMsg[]` the React message store consumes.
  *
- * `renderSessionMessages` in `runtime-bridge/conversations.ts` feeds the
+ * `renderSessionMessages` in `runtime-bridge/session/conversations.ts` feeds the
  * result into the store so it mirrors the loaded conversation.
  */
 import { readPastedElements } from "../send/paste-elements.ts";

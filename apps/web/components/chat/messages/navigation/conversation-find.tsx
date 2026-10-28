@@ -14,7 +14,7 @@ import { wsRequest } from "@/lib/net/ws/ws-request";
 import { useSessionStore } from "@/lib/session-store";
 import { useSessionHistory } from "@/lib/chat/history/session-history";
 import { captureHistoryAnchor } from "@/lib/chat/history/history-viewport";
-import { loadSessionHistoryWindow, retrySessionHistory } from "@/lib/runtime-bridge/session-history-loader";
+import { loadSessionHistoryWindow, retrySessionHistory } from "@/lib/runtime-bridge/session/session-history-loader";
 import {
   chatOwnsFind, clearHighlights, locate, messageRow, normalizeMatches, paintHighlights, step, textRanges,
   totalOccurrences, type FindMatch,

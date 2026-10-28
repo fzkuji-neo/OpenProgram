@@ -13,7 +13,7 @@ import React from 'react';import {createRoot} from 'react-dom/client';
 import {MessageList} from './components/chat/messages/list/message-list';
 import {useSessionStore} from './lib/session-store';
 import {registerSessionHistory,useSessionHistory} from './lib/chat/history/session-history';
-import {seedHistoryWindow,loadSessionHistoryWindow} from './lib/runtime-bridge/session-history-loader';
+import {seedHistoryWindow,loadSessionHistoryWindow} from './lib/runtime-bridge/session/session-history-loader';
 import {runtimeState,setSocket} from './lib/runtime-bridge/state';
 import {heightsFor} from './lib/chat/history/message-window';
 import {readHistoryAnchor} from './lib/chat/history/history-viewport';

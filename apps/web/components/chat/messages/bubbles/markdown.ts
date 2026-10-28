@@ -9,7 +9,7 @@
 import { copyText } from "@/lib/clipboard";
 import { highlightEscapedCode } from "@/lib/chat/markdown/code-highlight";
 import { Marked } from "marked";
-import { renderMd, sanitizeHtml } from "@/lib/runtime-bridge/markdown-render";
+import { renderMd, sanitizeHtml } from "@/lib/runtime-bridge/dom/markdown-render";
 import { cjkEmphasis } from "@/lib/markdown/cjk-emphasis";
 import {
   A2UI_LANG,

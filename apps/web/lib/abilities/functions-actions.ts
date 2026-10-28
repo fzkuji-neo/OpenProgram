@@ -6,7 +6,7 @@ import { jsonFetch } from "@/lib/net/fetch-client";
 import { showToast } from "@/lib/format-utils/toast";
 import { translateText } from "@/lib/i18n";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
-import { newSession } from "@/lib/runtime-bridge/conversations";
+import { newSession } from "@/lib/runtime-bridge/session/conversations";
 
 let latestRefresh = 0;
 

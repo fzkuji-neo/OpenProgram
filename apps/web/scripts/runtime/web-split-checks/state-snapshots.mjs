@@ -365,7 +365,7 @@ testContext.secondarySession.getState().setComposerSettings({ tools: false, thin
 
 testContext.secondarySession.getState().setPendingProject("local_one", "project-one");
 
-(testContext.channelDrafts = await import("../../../lib/runtime-bridge/draft-channel-choice.ts"));
+(testContext.channelDrafts = await import("../../../lib/runtime-bridge/actions/draft-channel-choice.ts"));
 
 testContext.channelDrafts.setDraftChannelChoice(testContext.secondarySessionModule.draftChoiceHost(), "local_one", {
   channel: "slack",

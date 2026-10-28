@@ -64,7 +64,7 @@ import type { ChatRowProps } from "./sessions-list/use-chat-drag";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { pushPath } from "@/lib/shallow-nav";
 import { runtimeState } from "@/lib/runtime-bridge/state";
-import { newSession } from "@/lib/runtime-bridge/conversations";
+import { newSession } from "@/lib/runtime-bridge/session/conversations";
 import {
   type LegacyConv,
   bucketKey,

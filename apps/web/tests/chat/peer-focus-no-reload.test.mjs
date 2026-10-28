@@ -9,7 +9,7 @@ const root = dirname(fileURLToPath(new URL('../../package.json', import.meta.url
 const dir = await mkdtemp(join(root, '.peer-focus-test-'));
 after(() => rm(dir, { recursive: true, force: true }));
 await build({absWorkingDir:root,stdin:{contents:`
-export {peerPresentsSession,registerHistoryViewport} from './lib/runtime-bridge/session-history-loader';
+export {peerPresentsSession,registerHistoryViewport} from './lib/runtime-bridge/session/session-history-loader';
 `,resolveDir:root},bundle:true,format:'esm',platform:'node',packages:'external',tsconfig:join(root,'tsconfig.json'),outfile:join(dir,'test.mjs')});
 const {peerPresentsSession,registerHistoryViewport}=await import(pathToFileURL(join(dir,'test.mjs')));
 

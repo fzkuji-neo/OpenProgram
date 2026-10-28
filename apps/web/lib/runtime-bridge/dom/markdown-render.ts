@@ -1,7 +1,7 @@
 import renderMathInElement from "katex/contrib/auto-render";
 import { marked as npmMarked, type MarkedExtension } from "marked";
 import markedFootnote from "marked-footnote";
-import { cjkEmphasis } from "../markdown/cjk-emphasis.ts";
+import { cjkEmphasis } from "../../markdown/cjk-emphasis.ts";
 
 // The shared `marked` singleton (chat, memory, file previews) closes
 // `**bold**` in CJK prose the way readers expect; see cjk-emphasis.ts.

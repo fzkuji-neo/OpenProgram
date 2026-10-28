@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
 import { useSessionHistory } from '@/lib/chat/history/session-history';
 import { startHistoryAutoload } from '@/lib/chat/history/history-autoload';
 import { captureHistoryAnchor, readHistoryAnchor, restoreHistoryAnchor, saveHistoryAnchor } from '@/lib/chat/history/history-viewport';
-import { loadSessionHistoryWindow, registerHistoryViewport } from '@/lib/runtime-bridge/session-history-loader';
+import { loadSessionHistoryWindow, registerHistoryViewport } from '@/lib/runtime-bridge/session/session-history-loader';
 import { useSessionStore } from '@/lib/session-store';
 import { readChatScroll, readChatFollowLatest } from '@/lib/chat/history/chat-scroll';
 

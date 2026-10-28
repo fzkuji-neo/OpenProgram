@@ -8,8 +8,8 @@ const root = dirname(fileURLToPath(new URL('../../package.json', import.meta.url
 const dir = await mkdtemp(join(root, '.history-test-'));
 after(() => rm(dir, { recursive: true, force: true }));
 await build({absWorkingDir:root,stdin:{contents:`
-export {loadOlderSessionHistory,loadSessionData} from './lib/runtime-bridge/conversations';
-export {seedHistoryWindow,loadSessionHistoryWindow} from './lib/runtime-bridge/session-history-loader';
+export {loadOlderSessionHistory,loadSessionData} from './lib/runtime-bridge/session/conversations';
+export {seedHistoryWindow,loadSessionHistoryWindow} from './lib/runtime-bridge/session/session-history-loader';
 export {runtimeState,setSocket} from './lib/runtime-bridge/state';
 export {useSessionStore} from './lib/session-store';
 export {createHistoryFragmentDecoder} from './lib/net/ws/history-fragments';

@@ -1,4 +1,4 @@
-import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
+import { requestSessionLoad } from "@/lib/runtime-bridge/session/session-load";
 /**
  * Renderer: click / dblclick / contextmenu / chat-scroll glue.
  *

@@ -74,7 +74,7 @@ test("verifier identity survives streaming, accepted verdict and history mapping
   assert.deepEqual(useSessionStore.getState().messagesById[rid].goalVerification, mark);
   const accepted = {...mark,status:"met",requirements:[{id:"objective",verdict:"met",text:"Compute"}]};
   globalThis.CustomEvent = class { constructor(type, options) {this.type=type;this.detail=options.detail;} };
-  const { updateSessionGoal } = await import("../../lib/runtime-bridge/goal-state.ts");
+  const { updateSessionGoal } = await import("../../lib/runtime-bridge/actions/goal-state.ts");
   updateSessionGoal(sid,{version:5,verification_message:{message_id:rid,presentation:accepted}});
   applyChatWsMessage({type:"chat_response",data:{type:"result",session_id:sid,msg_id:uid,content:'{"requirements":[]}',goal_verification:mark}});
   assert.deepEqual(useSessionStore.getState().messagesById[rid].goalVerification, accepted);
@@ -95,7 +95,7 @@ function reply() {
 }
 
 test("accepted snapshot arriving before the row is replayed only for its exact identity", async () => {
-  const { updateSessionGoal } = await import("../../lib/runtime-bridge/goal-state.ts");
+  const { updateSessionGoal } = await import("../../lib/runtime-bridge/actions/goal-state.ts");
   const sid="accepted-before-message", uid="verify-late", rid=uid+"_reply";
   const accepted={id:"candidate-late",status:"met"};
   updateSessionGoal(sid,{version:9,verification_message:{message_id:rid,presentation:accepted}});
@@ -459,7 +459,7 @@ test('loading peer history keeps foreground text waiting for its next frame', ()
 test('accepted history flushes received text before merging its older snapshot', async () => {
   reset();
   const { runtimeState, setSocket } = await import('../../lib/runtime-bridge/state.ts');
-  const { requestSessionLoad, acceptSessionLoad, preserveSessionReadRows, disposeSessionLoads } = await import('../../lib/runtime-bridge/session-load.ts');
+  const { requestSessionLoad, acceptSessionLoad, preserveSessionReadRows, disposeSessionLoads } = await import('../../lib/runtime-bridge/session/session-load.ts');
   const previous = runtimeState.ws;
   const requests = [];
   const socket = { readyState: WebSocket.OPEN, send: raw => requests.push(JSON.parse(raw)) };
@@ -520,7 +520,7 @@ test('output resumes after a pause even within the same animation frame', () => 
 test('text buffered before a history request cannot override its completed snapshot', async () => {
   reset();send({type:'text',text:'Old partial'});
   const { runtimeState, setSocket } = await import('../../lib/runtime-bridge/state.ts');
-  const { requestSessionLoad, acceptSessionLoad, preserveSessionReadRows, disposeSessionLoads } = await import('../../lib/runtime-bridge/session-load.ts');
+  const { requestSessionLoad, acceptSessionLoad, preserveSessionReadRows, disposeSessionLoads } = await import('../../lib/runtime-bridge/session/session-load.ts');
   const previous = runtimeState.ws;
   const requests = [];
   const socket = {readyState:WebSocket.OPEN,send:raw=>requests.push(JSON.parse(raw))};setSocket(socket);

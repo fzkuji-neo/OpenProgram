@@ -27,9 +27,9 @@ import {
 import { useSessionStore, type ChatMsg } from "@/lib/session-store";
 import { useTranslation } from "@/lib/i18n";
 import { showToast } from "@/lib/format-utils/toast";
-import { setRunActive } from "@/lib/runtime-bridge/chat-handlers";
+import { setRunActive } from "@/lib/runtime-bridge/session/chat-handlers";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
-import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
+import { sendRuntimeCommand } from "@/lib/runtime-bridge/session/session-load";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { HoverTip, TipBody } from "@/components/ui/tooltip";

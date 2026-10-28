@@ -16,11 +16,11 @@ exportsByModule.set('@/lib/chat/send/send-queue', ['useSendQueue','reconcileAfte
 // Lazily imported by frame handlers; stubbed like the static imports.
 exportsByModule.set('@/lib/desktop/attention', ['reportExecutionStatus','reportAttention']);
 exportsByModule.set('@/lib/chat/transcript/todo-plan', ['useTodoStore']);
-const real = new Set(['@/lib/runtime-bridge/session-load','../execution/execution-recovery','./history-fragments','../execution/execution-message-recovery','@/lib/net/execution/execution-cursor']);
+const real = new Set(['@/lib/runtime-bridge/session/session-load','../execution/execution-recovery','./history-fragments','../execution/execution-message-recovery','@/lib/net/execution/execution-cursor']);
 const hooks=registerHooks({resolve(specifier, context, next) {
-  if(context.parentURL?.endsWith('/runtime-bridge/session-load.ts') && specifier==='@/lib/net/ws/chat-stream') return {url:'data:text/javascript,export const flushPendingChatDeltas=()=>{};',shortCircuit:true};
+  if(context.parentURL?.endsWith('/runtime-bridge/session/session-load.ts') && specifier==='@/lib/net/ws/chat-stream') return {url:'data:text/javascript,export const flushPendingChatDeltas=()=>{};',shortCircuit:true};
   if(specifier==='@/lib/net/ws/session-load') return {url:new URL('../../lib/net/ws/session-load.ts',import.meta.url).href,shortCircuit:true};
-  if(context.parentURL?.endsWith('/runtime-bridge/session-load.ts') && (specifier==='./state'||specifier==='@/lib/session-store')) return {url:'data:text/javascript,'+encodeURIComponent(specifier==='./state'?'export const runtimeState=globalThis.__wsFixture.exports.runtimeState; export const getSocket=()=>runtimeState.ws;':'export const useSessionStore=globalThis.__wsFixture.exports.useSessionStore;'),shortCircuit:true};
+  if(context.parentURL?.endsWith('/runtime-bridge/session/session-load.ts') && (specifier==='../state'||specifier==='@/lib/session-store')) return {url:'data:text/javascript,'+encodeURIComponent(specifier==='./state'?'export const runtimeState=globalThis.__wsFixture.exports.runtimeState; export const getSocket=()=>runtimeState.ws;':'export const useSessionStore=globalThis.__wsFixture.exports.useSessionStore;'),shortCircuit:true};
   if(context.parentURL===hookURL && real.has(specifier)) {
     const url=specifier.startsWith('@/')?new URL(`../../${specifier.slice(2)}.ts`,import.meta.url).href:new URL(`${specifier}.ts`,hookURL).href;
     return {url,shortCircuit:true};

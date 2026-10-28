@@ -6,9 +6,9 @@
  */
 
 import { useSessionStore } from "@/lib/session-store";
-import { escHtml } from "./markdown-render";
+import { escHtml } from "./dom/markdown-render";
 
-export { escHtml, renderMathInChat, renderMd, sanitizeHtml } from "./markdown-render";
+export { escHtml, renderMathInChat, renderMd, sanitizeHtml } from "./dom/markdown-render";
 
 export function escAttr(s: unknown): string {
   if (typeof s !== "string") s = String(s ?? "");

@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-import { shouldHydrateTranscriptForTreeUpdate } from "../../lib/runtime-bridge/transcript-hydration.ts";
+import { shouldHydrateTranscriptForTreeUpdate } from "../../lib/runtime-bridge/session/transcript-hydration.ts";
 
 const root = new URL("../../", import.meta.url);
 const source = (path) => readFileSync(new URL(path, root), "utf8");
 
-const handlers = source("lib/runtime-bridge/chat-handlers.ts");
+const handlers = source("lib/runtime-bridge/session/chat-handlers.ts");
 const design = source(
   "../../docs/reference/design/integrations/web-use.html",
 );

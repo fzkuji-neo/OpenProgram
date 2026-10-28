@@ -15,7 +15,7 @@ import React from 'react';import {createRoot} from 'react-dom/client';
 import {MessageList} from './components/chat/messages/list/message-list';
 import {useSessionStore} from './lib/session-store';
 import {runtimeState} from './lib/runtime-bridge/state';
-import {renderMd} from './lib/runtime-bridge/markdown-render';
+import {renderMd} from './lib/runtime-bridge/dom/markdown-render';
 import {marked} from 'marked';
 window.parseCount=0;const parse=marked.parse;marked.parse=(...args)=>{window.parseCount++;return parse(...args);};
 window.renderMd=renderMd;

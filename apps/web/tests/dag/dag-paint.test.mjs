@@ -573,7 +573,7 @@ test("each working agent stands on its own step and only belts into work run", a
 
 test("branches_list does not repaint tags before a payload graph", () => {
   const src = readFileSync(
-    new URL("../../lib/runtime-bridge/conversations.ts", import.meta.url),
+    new URL("../../lib/runtime-bridge/session/conversations.ts", import.meta.url),
     "utf8",
   );
   assert.match(

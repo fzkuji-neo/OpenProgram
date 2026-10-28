@@ -1,5 +1,5 @@
 /** Correlate function dispatch receipts without waiting for function completion. */
-import { optimisticAction } from './optimistic-action';
+import { optimisticAction } from '../optimistic-action';
 
 type Pending = { sessionId: string; cancel: () => void; restore: () => void; toast: (message: string, opts?: { tone?: 'info' | 'warn' | 'error' }) => void };
 const pending = new Map<string, Pending>();

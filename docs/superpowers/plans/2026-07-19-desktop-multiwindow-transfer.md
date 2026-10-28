@@ -51,7 +51,7 @@
 - Modify `apps/web/lib/state/center-tabs-store.ts`.
 - Modify `apps/web/lib/session-store/index.ts`.
 - Create `apps/web/lib/session-draft-persistence.ts`.
-- Modify `apps/web/lib/runtime-bridge/draft-channel-choice.ts`.
+- Modify `apps/web/lib/runtime-bridge/actions/draft-channel-choice.ts`.
 - Modify `apps/web/lib/state/files-shared.ts`.
 - Modify `apps/web/components/app-shell.tsx`.
 - Modify `apps/web/components/center-tabs/strip/center-tab-strip.tsx`.
@@ -193,7 +193,7 @@ interface DesktopBridge {
 - Modify `apps/web/lib/session-store/index.ts`
 - Create `apps/web/lib/session-draft-persistence.ts`
 - Modify `apps/web/lib/state/files-shared.ts`
-- Modify `apps/web/lib/runtime-bridge/draft-channel-choice.ts`
+- Modify `apps/web/lib/runtime-bridge/actions/draft-channel-choice.ts`
 - Create `apps/web/lib/tab-transfer-journal.ts`
 - Modify `apps/web/scripts/check-web-split.mjs`
 

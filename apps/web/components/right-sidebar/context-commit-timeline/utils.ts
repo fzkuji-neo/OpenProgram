@@ -1,7 +1,7 @@
 /** Small pure helpers shared by the timeline subcomponents. */
 
 import type { CommitMeta } from "./types";
-import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
+import { sendRuntimeCommand } from "@/lib/runtime-bridge/session/session-load";
 
 export function fmtRelTime(ts: number): string {
   const now = Date.now() / 1000;

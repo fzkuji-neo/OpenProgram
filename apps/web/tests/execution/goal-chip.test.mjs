@@ -655,7 +655,7 @@ test("background Goal updates are cached for a later session switch", async () =
 
 test("late session hydration preserves the newest Goal while loading other session fields", async () => {
   reset();
-  const { loadSessionData } = await import("../../lib/runtime-bridge/conversations.ts");
+  const { loadSessionData } = await import("../../lib/runtime-bridge/session/conversations.ts");
   const view = await mount();
   try {
     await frame(snapshot(5, "paused"));

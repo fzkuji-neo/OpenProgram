@@ -50,7 +50,7 @@ export async function startAgentConversation(options: AgentConversationIntent): 
     intent.config.memory.mode = saved.memory.mode === "off" || intent.config.memory.mode === "off" ? "off" : "read_only";
   }
   const [{ useCenterTabs }, { newSession }] = await Promise.all([
-    import("@/lib/tabs/center-tabs-store"), import("@/lib/runtime-bridge/conversations"),
+    import("@/lib/tabs/center-tabs-store"), import("@/lib/runtime-bridge/session/conversations"),
   ]);
   const key = useCenterTabs.getState().openDraftSessionTab();
   useSessionStore.getState().setComposerSettings({

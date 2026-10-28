@@ -1,5 +1,5 @@
 "use client";
-import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
+import { requestSessionLoad } from "@/lib/runtime-bridge/session/session-load";
 import { SelectionQuote } from "../messages/editing/quote-to-chat";
 
 /**

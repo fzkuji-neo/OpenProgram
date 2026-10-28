@@ -175,17 +175,17 @@ test("releasing viewports prunes idle notes after this turn, not during remount"
 test("F18 web production has no leftover follow writers", () => {
   const files = [
     "helpers.ts",
-    "chat-handlers.ts",
-    "conversations.ts",
+    "session/chat-handlers.ts",
+    "session/conversations.ts",
     "state.ts",
-    "session-history-loader.ts",
+    "session/session-history-loader.ts",
   ].map((name) => readFileSync(new URL(`../../lib/runtime-bridge/${name}`, import.meta.url), "utf8"));
   const joined = files.join("\n");
   assert.doesNotMatch(joined, /scrollToBottom/);
   assert.doesNotMatch(joined, /_skipScrollToBottom/);
   assert.doesNotMatch(joined, /stickToBottom/);
   assert.doesNotMatch(
-    readFileSync(new URL("../../lib/runtime-bridge/session-history-loader.ts", import.meta.url), "utf8"),
+    readFileSync(new URL("../../lib/runtime-bridge/session/session-history-loader.ts", import.meta.url), "utf8"),
     /direction===['"]latest['"]\) area\.scrollTop/,
   );
 });
@@ -196,7 +196,7 @@ test("follow ownership contracts stay in the production files", () => {
     "utf8",
   );
   const loader = readFileSync(
-    new URL("../../lib/runtime-bridge/session-history-loader.ts", import.meta.url),
+    new URL("../../lib/runtime-bridge/session/session-history-loader.ts", import.meta.url),
     "utf8",
   );
   const store = readFileSync(

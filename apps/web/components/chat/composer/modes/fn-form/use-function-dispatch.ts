@@ -10,7 +10,7 @@ import {
   draftChannelChoiceFor,
   draftChannelChoiceHost,
   dropDraftChannelChoice,
-} from "@/lib/runtime-bridge/draft-channel-choice";
+} from "@/lib/runtime-bridge/actions/draft-channel-choice";
 import { setWelcomeVisible } from "@/lib/runtime-bridge/helpers";
 import { setRunning } from "@/lib/runtime-bridge/ui";
 import type { AgenticFunction } from "@/lib/session-store";

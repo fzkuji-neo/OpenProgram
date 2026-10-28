@@ -46,7 +46,7 @@ import {
   isSplitLayoutAvailable,
 } from "@/lib/tabs/canvas/split-layout";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
-import { newSession } from "@/lib/runtime-bridge/conversations";
+import { newSession } from "@/lib/runtime-bridge/session/conversations";
 import { completeTabRouteNavigation } from "@/lib/tabs/navigation/route";
 import { setNavigate } from "@/lib/navigate";
 import { loadPluginClients } from "@/lib/plugins/slots";
@@ -54,7 +54,7 @@ import { startAttentionBridge } from "@/lib/desktop/attention";
 import { openSession } from "@/lib/tabs/navigation/open-session";
 import { setLastChatPath } from "@/lib/tabs/navigation/last-chat-path";
 import { enterExclusiveCoverageMode, renderHistoryGraph } from "@/lib/runtime-bridge/dag";
-import { initOverlayScrollbars } from "@/lib/runtime-bridge/scrollbar";
+import { initOverlayScrollbars } from "@/lib/runtime-bridge/dom/scrollbar";
 import { hostPaintsRows } from "@/lib/chat/history/message-window";
 
 function DeferredPaneLoading() {

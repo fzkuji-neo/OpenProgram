@@ -9,7 +9,7 @@ import { renderObsidianMarkdown } from "../../components/memory/obsidian-markdow
 const { window } = parseHTML("<!doctype html><html><body></body></html>");
 globalThis.window = window;
 globalThis.document = window.document;
-const { sanitizeHtml } = await import("../../lib/runtime-bridge/markdown-render.ts");
+const { sanitizeHtml } = await import("../../lib/runtime-bridge/dom/markdown-render.ts");
 
 function render(source) {
   const html = sanitizeHtml(renderObsidianMarkdown(

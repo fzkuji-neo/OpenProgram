@@ -1,7 +1,7 @@
 // Open a session or a new chat from outside the sidebar rows: a
 // notification click, the command palette or the sidebar's New chat.
 import { displayTitle } from "@/components/sidebar/sessions-list/helpers";
-import { newSession } from "@/lib/runtime-bridge/conversations";
+import { newSession } from "@/lib/runtime-bridge/session/conversations";
 import { useSessionStore } from "@/lib/session-store";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { pushPath } from "@/lib/shallow-nav";

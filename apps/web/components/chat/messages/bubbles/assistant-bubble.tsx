@@ -29,7 +29,7 @@ import {
 } from "../execution/execution-strip";
 import type { TNode } from "../execution/tree-types";
 import { MessageActions, MessageTimestamp } from "./message-actions";
-import { typesetMath } from "@/lib/runtime-bridge/markdown-render";
+import { typesetMath } from "@/lib/runtime-bridge/dom/markdown-render";
 import { renderMermaidLazily } from "@/lib/chat/markdown/mermaid-lazy";
 import { renderMarkdown, useMarkdownReady } from "./markdown";
 import { TurnFilesChips } from "../turn-files/turn-files-chips";

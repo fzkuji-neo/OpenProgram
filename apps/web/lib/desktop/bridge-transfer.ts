@@ -26,7 +26,7 @@ import { dragCoordinator } from "@/lib/tabs/transfer/tab-drag-coordinator";
 import type { TabDragSubject, TabDropIntent } from "@/lib/tabs/transfer/tab-drag-coordinator";
 import { useSessionStore } from "@/lib/session-store";
 import { fileDraftKey, fileDrafts } from "@/lib/files/files-shared";
-import { draftChannelChoiceFor, draftChannelChoiceHost } from "@/lib/runtime-bridge/draft-channel-choice";
+import { draftChannelChoiceFor, draftChannelChoiceHost } from "@/lib/runtime-bridge/actions/draft-channel-choice";
 import type { DesktopTransferReceipt } from "@/lib/desktop/desktop-transfer-types";
 import { invalidateWebTabGeometry, liveViewIds, readyWebTabIds, scheduleVisibleWebBoundsFlush, transferLockedIds, visibleWebBounds, webTabGeometryRevisions, webTabReadyWaiters } from "./bridge-state";
 import { type DesktopBridge } from "./bridge-api";

@@ -17,7 +17,7 @@ import { useEffect, useState } from "react";
 import { useSessionStore } from "@/lib/session-store";
 import { useTranslation } from "@/lib/i18n";
 import { runtimeState } from "@/lib/runtime-bridge/state";
-import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
+import { sendRuntimeCommand } from "@/lib/runtime-bridge/session/session-load";
 
 /** Commands go out as they are; a `load_session` goes through the managed
  *  session read, since the transcript applies only the reply to a read it

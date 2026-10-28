@@ -66,7 +66,7 @@
 | `apps/web/lib/runtime-bridge/dag/types.ts` | `layoutParent(n)` | 返回 `n.predecessor`（conv 前驱），构建树用 |
 | `apps/web/lib/runtime-bridge/dag/pipeline.ts` | `render` | `n.caller` 判 internal；`m.predecessor` 驱动对话链；`_signature` 用 `predecessor` |
 | `apps/web/lib/runtime-bridge/dag/render/{edges,nodes,badges}.ts` | — | 读 `predecessor` 画连线 / 判分支 |
-| `apps/web/lib/runtime-bridge/conversations.ts` | `LegacyMessage` / `BranchRow` | msg/branch dict 流转，两个 key 都透传 |
+| `apps/web/lib/runtime-bridge/session/conversations.ts` | `LegacyMessage` / `BranchRow` | msg/branch dict 流转，两个 key 都透传 |
 
 ### WS 协议
 

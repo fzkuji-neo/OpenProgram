@@ -21,8 +21,8 @@ const messageActions = source("components/chat/messages/bubbles/message-actions.
 // read them as one text so the assertions below are unchanged.
 const tabs = readCenterTabStripSource();
 const tabsCss = source("components/center-tabs/strip/center-tabs.module.css");
-const conversations = source("lib/runtime-bridge/conversations.ts");
-const chatHandlers = source("lib/runtime-bridge/chat-handlers.ts");
+const conversations = source("lib/runtime-bridge/session/conversations.ts");
+const chatHandlers = source("lib/runtime-bridge/session/chat-handlers.ts");
 const sessionStore = source("lib/session-store/index.ts");
 const assistantBubble = source("components/chat/messages/bubbles/assistant-bubble.tsx");
 const queuedMessages = source("components/chat/messages/editing/queued-messages.tsx");
@@ -33,7 +33,7 @@ const attachCard = source("components/chat/messages/cards/attach-card.tsx");
 const executionStrip = source("components/chat/messages/execution/execution-strip.tsx");
 const executionCss = source("app/styles/chat/execution/execution-strip.css");
 const runtimeHelpers = source("lib/runtime-bridge/helpers.ts");
-const markdownRenderer = source("lib/runtime-bridge/markdown-render.ts");
+const markdownRenderer = source("lib/runtime-bridge/dom/markdown-render.ts");
 const chatMarkdown = source("components/chat/messages/bubbles/markdown.ts");
 const chatVisualSpec = source("../../docs/reference/design/ui/chat-turn-visual-spec.zh.html");
 const controlsCluster = source("components/chat/composer/controls/controls-cluster.tsx");
@@ -200,7 +200,7 @@ assert.doesNotMatch(
   /\.is-recommended/,
 );
 assert.doesNotMatch(
-  source("lib/runtime-bridge/chat-handlers.ts"),
+  source("lib/runtime-bridge/session/chat-handlers.ts"),
   /compaction_recommended/,
 );
 

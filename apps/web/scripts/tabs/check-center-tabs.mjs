@@ -24,7 +24,7 @@ const ntp = readFileSync(
   "utf8",
 );
 const conversations = readFileSync(
-  new URL("../../lib/runtime-bridge/conversations.ts", import.meta.url),
+  new URL("../../lib/runtime-bridge/session/conversations.ts", import.meta.url),
   "utf8",
 );
 // The strip is split across center-tab-strip.tsx and its submodules

@@ -1,4 +1,4 @@
-import type { PendingChannelChoice } from "@/lib/runtime-bridge/draft-channel-choice";
+import type { PendingChannelChoice } from "@/lib/runtime-bridge/actions/draft-channel-choice";
 import type { ComposerSettings } from "@/lib/session-store/types";
 import { pendingTransfers } from "@/lib/tabs/transfer/pending-transfer-projection";
 

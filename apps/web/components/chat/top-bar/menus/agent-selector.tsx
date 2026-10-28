@@ -76,7 +76,7 @@ export function AgentSelector({
           (chatKey && chatKey !== "__new__" ? chatKey : undefined);
         if (!sid) {
           const { useCenterTabs } = await import("@/lib/tabs/center-tabs-store");
-          const { newSession } = await import("@/lib/runtime-bridge/conversations");
+          const { newSession } = await import("@/lib/runtime-bridge/session/conversations");
           const tabs = useCenterTabs.getState();
           const existing = tabs.tabs.find(
             (tab: { kind: string; draft?: boolean; sessionId?: string }) =>

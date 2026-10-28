@@ -13,7 +13,7 @@ registerHooks({
       if (specifier === "@/lib/tabs/center-tabs-store") {
         return { shortCircuit: true, url: "data:text/javascript,export const useCenterTabs = {getState: () => globalThis.launcherTabs};" };
       }
-      if (specifier === "@/lib/runtime-bridge/conversations") {
+      if (specifier === "@/lib/runtime-bridge/session/conversations") {
         return { shortCircuit: true, url: "data:text/javascript,export const newSession = (id) => globalThis.launcherNewSession(id);" };
       }
     }

@@ -1,7 +1,7 @@
 import { flushPendingChatDeltas } from "@/lib/net/ws/chat-stream";
 import { createSessionLoads, retainChangedRows, type SessionRead, type SessionReadStatus } from '@/lib/net/ws/session-load';
 import { useSessionStore, type ChatMsg } from '@/lib/session-store';
-import { runtimeState, getSocket } from './state';
+import { runtimeState, getSocket } from '../state';
 
 function rows(id: string): ChatMsg[] {
   const state = useSessionStore.getState();

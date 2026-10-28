@@ -87,7 +87,7 @@ const SAMPLE =
   "The relative drop is \\(d_t\\). \\(v_t = (d_t - d_{t+1}) / d_t\\).";
 
 const { typesetMath } = await import(
-  "../../lib/runtime-bridge/markdown-render.ts"
+  "../../lib/runtime-bridge/dom/markdown-render.ts"
 );
 const { renderMarkdown } = await import(
   "../../components/chat/messages/bubbles/markdown.ts"

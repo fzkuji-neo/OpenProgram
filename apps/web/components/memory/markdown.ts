@@ -3,7 +3,7 @@
  * [[wikilink]] expansion, and the marked.parse() wrapper.
  */
 import { marked } from "marked";
-import { sanitizeHtml } from "@/lib/runtime-bridge/markdown-render";
+import { sanitizeHtml } from "@/lib/runtime-bridge/dom/markdown-render";
 import { renderObsidianMarkdown } from "./obsidian-markdown";
 
 /** Parse YAML-ish frontmatter from raw markdown. Returns the

@@ -36,7 +36,7 @@
 
 import { readPastedElements, type PastedTextElement } from "../../chat/send/paste-elements.ts";
 import { rememberSystemAccessFromTree } from "../../access/system-access-result";
-import { verificationForMessage } from "../../runtime-bridge/goal-state";
+import { verificationForMessage } from "../../runtime-bridge/actions/goal-state";
 import {
   applyExecutionStreamFromChat,
   useExecutionStreamStore,

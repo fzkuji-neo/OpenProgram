@@ -6,7 +6,7 @@
  */
 
 import { SquarePenIcon, XIcon } from "@/components/animated-icons";
-import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
+import { sendRuntimeCommand } from "@/lib/runtime-bridge/session/session-load";
 
 export interface BranchRow {
   head_msg_id: string;

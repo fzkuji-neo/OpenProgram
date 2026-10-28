@@ -9,7 +9,7 @@
 
 import { useSessionStore, type StatusTone } from "@/lib/session-store";
 import { pushStatusBadge, setLastStatus } from "@/lib/tabs/top-bar-sync";
-import { startChannelHealthPoll, stopChannelHealthPoll } from "./conversations";
+import { startChannelHealthPoll, stopChannelHealthPoll } from "./session/conversations";
 import { escAttr } from "./helpers";
 import { runtimeState } from "./state";
 

@@ -1,5 +1,5 @@
 "use client";
-import { requestSessionLoad, acceptSessionLoad, failSessionLoad, disposeSessionLoads } from "@/lib/runtime-bridge/session-load";
+import { requestSessionLoad, acceptSessionLoad, failSessionLoad, disposeSessionLoads } from "@/lib/runtime-bridge/session/session-load";
 
 /**
  * Chat WebSocket lifecycle — React owner.
@@ -31,7 +31,7 @@ import {
   onWorkspaceAlignmentResolved,
   onBranchesListMessage,
   onChannelAccountsMessage,
-} from "@/lib/runtime-bridge/conversations";
+} from "@/lib/runtime-bridge/session/conversations";
 import {
   clearHydratedTreePaths,
   handleRunningTask,
@@ -45,8 +45,8 @@ import {
   wsHandleChatAck,
   wsHandleChatResponse,
   wsHandleStatus,
-} from "@/lib/runtime-bridge/chat-handlers";
-import { mirrorUpsertConv } from "@/lib/runtime-bridge/conv-store-mirror";
+} from "@/lib/runtime-bridge/session/chat-handlers";
+import { mirrorUpsertConv } from "@/lib/runtime-bridge/session/conv-store-mirror";
 import { runtimeState, setSocket } from "@/lib/runtime-bridge/state";
 import { applyChatWsMessage, clearSessionByMsgId, flushPendingChatDeltas } from "@/lib/net/ws/chat-stream";
 import { noteJobStatus } from "@/lib/chat/transcript/sub-agent-transcripts";
@@ -66,9 +66,9 @@ import { addSystemMessage, formatProviderLabel } from "@/lib/runtime-bridge/help
 import {
   loadProgramsMeta,
   renderFunctions,
-} from "@/lib/runtime-bridge/functions-panel";
+} from "@/lib/runtime-bridge/actions/functions-panel";
 import { refreshStatusSource, setRunning, updateStatus } from "@/lib/runtime-bridge/ui";
-import { refreshChannelBadge } from "@/lib/runtime-bridge/conversations";
+import { refreshChannelBadge } from "@/lib/runtime-bridge/session/conversations";
 import { onEnvironmentsMessage } from "@/lib/environments/store";
 import { loadExecutionCursors, recordExecutionCursor } from "@/lib/net/execution/execution-cursor";
 import { pushStatusBadge } from "@/lib/tabs/top-bar-sync";

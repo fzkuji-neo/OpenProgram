@@ -16,16 +16,16 @@ import { useEffect, useState } from "react";
 import { create } from "zustand";
 
 import { useBoundChat } from "../bound-chat";
-import { mirrorUpsertConv } from "@/lib/runtime-bridge/conv-store-mirror";
+import { mirrorUpsertConv } from "@/lib/runtime-bridge/session/conv-store-mirror";
 import {
   draftChannelChoiceFor,
   draftChannelChoiceHost,
   setDraftChannelChoice,
-} from "@/lib/runtime-bridge/draft-channel-choice";
+} from "@/lib/runtime-bridge/actions/draft-channel-choice";
 import {
   fetchChannelAccounts,
   refreshChannelBadge,
-} from "@/lib/runtime-bridge/conversations";
+} from "@/lib/runtime-bridge/session/conversations";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
 import { useSessionStore } from "@/lib/session-store";
 

@@ -1,5 +1,5 @@
 "use client";
-import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
+import { requestSessionLoad } from "@/lib/runtime-bridge/session/session-load";
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";

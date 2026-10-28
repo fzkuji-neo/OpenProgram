@@ -1,5 +1,5 @@
 "use client";
-import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
+import { requestSessionLoad } from "@/lib/runtime-bridge/session/session-load";
 
 import { useLayoutEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
@@ -11,7 +11,7 @@ import { useTranslation } from "@/lib/i18n";
 import { absRawFileUrl } from "@/lib/files/files-shared";
 import { buildAttachmentEnvelope } from "@/lib/chat/send/attachment-marker";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
-import { setRunActive } from "@/lib/runtime-bridge/chat-handlers";
+import { setRunActive } from "@/lib/runtime-bridge/session/chat-handlers";
 import { ChatInputRow } from "../../composer/input/chat-input-row";
 import { useFileMention } from "../../composer/attach/mention/use-file-mention";
 import { expandAtMentions } from "../../composer/attach/mention/at-mention";

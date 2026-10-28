@@ -19,7 +19,7 @@ import { api, type GoalControls } from "@/lib/net/api";
 import { SessionDebugger } from "@/components/right-sidebar/session-debugger";
 import { HttpError } from "@/lib/net/fetch-client";
 import { runtimeState } from "@/lib/runtime-bridge/state";
-import { updateSessionGoal } from "@/lib/runtime-bridge/goal-state";
+import { updateSessionGoal } from "@/lib/runtime-bridge/actions/goal-state";
 import { useSessionStore } from "@/lib/session-store";
 import { useTranslation } from "@/lib/i18n";
 

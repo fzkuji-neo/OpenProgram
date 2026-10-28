@@ -32,7 +32,7 @@ import { createPortal } from "react-dom";
 import { useSessionStore } from "@/lib/session-store";
 import { useSessionScope } from "@/lib/session-store/session-scope";
 import { getSocket } from "@/lib/runtime-bridge/state";
-import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
+import { sendRuntimeCommand } from "@/lib/runtime-bridge/session/session-load";
 import { useTranslation } from "@/lib/i18n";
 
 // Session-scope chips relocated from the dismantled 48px topbar row —

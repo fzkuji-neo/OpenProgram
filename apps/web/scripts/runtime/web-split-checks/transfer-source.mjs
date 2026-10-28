@@ -250,7 +250,7 @@ testContext.assert.doesNotMatch(
     pendingProjectsByChat: { chatA: "proj" },
   });
   const channelHostModule = await import(
-    "../../../lib/runtime-bridge/draft-channel-choice.ts"
+    "../../../lib/runtime-bridge/actions/draft-channel-choice.ts"
   );
   channelHostModule.draftChannelChoiceHost.__pendingChannelChoices = {
     chatA: { channel: "web" },

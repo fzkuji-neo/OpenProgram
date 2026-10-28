@@ -21,7 +21,7 @@ const root = fileURLToPath(new URL("../../", import.meta.url));
 const source = (p) => readFileSync(root + p, "utf8");
 
 const helpers = source("lib/runtime-bridge/helpers.ts");
-const markdownRenderer = source("lib/runtime-bridge/markdown-render.ts");
+const markdownRenderer = source("lib/runtime-bridge/dom/markdown-render.ts");
 
 // 1) renderMd — the chat bubble path — must sanitize what marked returns.
 assert.match(
@@ -82,7 +82,7 @@ assert.doesNotMatch(
 const { window } = parseHTML("<!doctype html><html><body></body></html>");
 globalThis.window = window;
 globalThis.document = window.document;
-const { renderMd } = await import("../../lib/runtime-bridge/markdown-render.ts");
+const { renderMd } = await import("../../lib/runtime-bridge/dom/markdown-render.ts");
 const cached = renderMd("hello **world**");
 assert.equal(renderMd("hello **world**"), cached, "same src must reuse the sanitized HTML");
 const unsafeControl = document.createElement("div");

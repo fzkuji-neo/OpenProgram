@@ -19,13 +19,13 @@ import { findCenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import { openOverview } from "@/lib/tabs/canvas/canvas-overview";
 import { captureVisiblePanes } from "@/lib/tabs/canvas/window-snapshots";
 import { useSessionStore } from "@/lib/session-store";
-import { newSession } from "@/lib/runtime-bridge/conversations";
+import { newSession } from "@/lib/runtime-bridge/session/conversations";
 import { flushFileDocumentsBeforeClose } from "@/lib/files/file-drafts";
 import { deleteAttachments } from "@/components/chat/composer/attach/attach-idb";
 import {
   draftChannelChoiceHost,
   dropDraftChannelChoice,
-} from "@/lib/runtime-bridge/draft-channel-choice";
+} from "@/lib/runtime-bridge/actions/draft-channel-choice";
 import { pushPath } from "@/lib/shallow-nav";
 import { cancelTabRouteNavigation, navigateTabRoute } from "@/lib/tabs/navigation/route";
 import { useTranslation } from "@/lib/i18n";

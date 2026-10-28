@@ -19,7 +19,7 @@ import {AssistantBubble} from './components/chat/messages/bubbles/assistant-bubb
 import {useSessionStore} from './lib/session-store';
 import {applyChatWsMessage} from './lib/net/ws/chat-stream';
 import {convToChatMsgs} from './lib/chat/transcript/conv-mapper';
-import {wsHandleChatResponse} from './lib/runtime-bridge/chat-handlers';
+import {wsHandleChatResponse} from './lib/runtime-bridge/session/chat-handlers';
 import {runtimeState,setSocket} from './lib/runtime-bridge/state';
 const sid='fixture-chat',uid='turn',rid='turn_reply';
 window.requests=[];

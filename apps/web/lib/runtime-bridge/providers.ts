@@ -13,7 +13,7 @@
  */
 
 import { useSessionStore } from "@/lib/session-store";
-import { refreshBranchTokens } from "./conversations";
+import { refreshBranchTokens } from "./session/conversations";
 import { escAttr, escHtml } from "./helpers";
 import { runtimeState, type ThinkingConfig } from "./state";
 

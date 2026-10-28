@@ -25,7 +25,7 @@ import {
   itemCls,
 } from "@/components/chat/top-bar/menu-styles";
 import { getSocket } from "@/lib/runtime-bridge/state";
-import { loadSessionHistoryWindow } from "@/lib/runtime-bridge/session-history-loader";
+import { loadSessionHistoryWindow } from "@/lib/runtime-bridge/session/session-history-loader";
 import {
   readContextBreakdownCache,
   readDraftContextBreakdown,

@@ -10,7 +10,7 @@ import { parseHTML } from 'linkedom';
 const base = new URL('../../', import.meta.url);
 const mocks = {
     '@/lib/abilities/skills-store': 'export const useSkills=()=>({detail:globalThis.auditSkill,deleteSkill:()=>{}});',
-    '@/lib/runtime-bridge/markdown-render': 'export const typesetMath=e=>{globalThis.auditMathText=e.textContent};',
+    '@/lib/runtime-bridge/dom/markdown-render': 'export const typesetMath=e=>{globalThis.auditMathText=e.textContent};',
     '@/lib/i18n': 'export const useTranslation=()=>({t:x=>x,text:x=>x});',
     '@/components/ui/button': 'export const Button=()=>null;',
     '@/lib/session-store': 'export const useSessionStore=selector=>selector(globalThis.auditState);',

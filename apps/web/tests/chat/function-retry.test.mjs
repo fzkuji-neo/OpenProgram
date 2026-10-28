@@ -8,7 +8,7 @@ import { build } from 'esbuild';
 const dir = await mkdtemp(join(tmpdir(), 'op-function-retry-'));
 after(() => rm(dir, {recursive:true,force:true}));
 const file = join(dir,'retry.mjs');
-await build({entryPoints:['lib/runtime-bridge/function-retry.ts'],bundle:true,platform:'node',format:'esm',outfile:file});
+await build({entryPoints:['lib/runtime-bridge/actions/function-retry.ts'],bundle:true,platform:'node',format:'esm',outfile:file});
 const {startFunctionRetry, settleFunctionRetry} = await import(pathToFileURL(file));
 function begin(id, send=()=>true) {
  const calls=[];

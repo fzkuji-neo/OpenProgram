@@ -19,7 +19,7 @@ import {
 } from "@/lib/chat/transcript/sub-agent-transcripts";
 import type { ExecutionCommand } from "@/lib/execution/execution-debugger";
 import { useTranslation } from "@/lib/i18n";
-import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
+import { sendRuntimeCommand } from "@/lib/runtime-bridge/session/session-load";
 import { useSessionStore, type ChatMsg } from "@/lib/session-store";
 import { cn } from "@/lib/utils";
 

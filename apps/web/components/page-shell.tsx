@@ -1,5 +1,5 @@
 "use client";
-import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
+import { requestSessionLoad } from "@/lib/runtime-bridge/session/session-load";
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -12,9 +12,9 @@ import {
   newSession,
   focusLoadedSession,
   renderSessionMessages,
-} from "@/lib/runtime-bridge/conversations";
+} from "@/lib/runtime-bridge/session/conversations";
 import { showHistorySkeleton } from "@/lib/runtime-bridge/dag/pipeline";
-import { peerPresentsSession } from "@/lib/runtime-bridge/session-history-loader";
+import { peerPresentsSession } from "@/lib/runtime-bridge/session/session-history-loader";
 
 type Page = "chat" | "settings" | "chats";
 

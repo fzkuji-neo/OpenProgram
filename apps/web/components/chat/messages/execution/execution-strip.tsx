@@ -33,7 +33,7 @@ import {
   streamPreviewForNode,
 } from "@/lib/execution-stream";
 import { fetchFullToolOutput } from "@/lib/net/tool-output";
-import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
+import { sendRuntimeCommand } from "@/lib/runtime-bridge/session/session-load";
 import { LlmNodeContent } from "./llm-node-content";
 import { renderMarkdown, useMarkdownReady } from "../bubbles/markdown";
 import { MessageTimestamp } from "../bubbles/message-actions";

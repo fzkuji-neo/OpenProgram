@@ -20,7 +20,7 @@ import { surfaceOriginForChat } from "@/lib/desktop/desktop-bridge";
 import { formatUsageFooterLabel } from "@/lib/format-utils/format";
 import { renderMathIn } from "@/lib/format-utils/markdown";
 import { runtimeState } from "@/lib/runtime-bridge/state";
-import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
+import { sendRuntimeCommand } from "@/lib/runtime-bridge/session/session-load";
 import {
   useSessionStore,
   type AgenticFunction,
@@ -28,7 +28,7 @@ import {
 } from "@/lib/session-store";
 import { useTranslation } from "@/lib/i18n";
 import { showToast } from "@/lib/format-utils/toast";
-import { startFunctionRetry } from "@/lib/runtime-bridge/function-retry";
+import { startFunctionRetry } from "@/lib/runtime-bridge/actions/function-retry";
 import { optimisticAction } from "@/lib/runtime-bridge/optimistic-action";
 
 import { SystemAccessRecovery } from "./system-access-recovery";

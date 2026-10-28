@@ -20,7 +20,7 @@ import type { ChatMsg } from "@/lib/session-store";
 import { useSessionStore } from "@/lib/session-store";
 import { useTranslation } from "@/lib/i18n";
 import { runtimeState } from "@/lib/runtime-bridge/state";
-import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
+import { sendRuntimeCommand } from "@/lib/runtime-bridge/session/session-load";
 import {
   type AnimatedNavIconHandle,
   ArrowUpRightIcon,

@@ -150,29 +150,29 @@ lives where prevents duplicating state later.
 There is a second, older state layer that predates the React store: plain
 mutable properties on the browser's `window` object, written and read by the
 modules under `apps/web/lib/runtime-bridge/`. Their types are declared inline, for
-example at `apps/web/lib/runtime-bridge/chat-handlers.ts:34` and
-`apps/web/lib/runtime-bridge/conversations.ts:75`:
+example at `apps/web/lib/runtime-bridge/session/chat-handlers.ts:34` and
+`apps/web/lib/runtime-bridge/session/conversations.ts:75`:
 
 - `W.currentSessionId` — the legacy notion of the active session.
 - `W.conversations` — a heavy per-session map holding full message arrays,
   distinct from the store's lightweight `conversations` summary map.
 - `W.isRunning` — a single global "something is running" flag.
 - `W.__sessionStore` — an escape hatch letting legacy code reach into the
-  React store, used at `apps/web/lib/runtime-bridge/chat-handlers.ts:895`.
+  React store, used at `apps/web/lib/runtime-bridge/session/chat-handlers.ts:895`.
 
 ### How the two layers relate
 
 They are a **dual-track system kept in sync by hand**. WebSocket frames arrive
 in the runtime bridge, which updates the `window.*` values *and* writes through
-to the React store. `apps/web/lib/runtime-bridge/conv-store-mirror.ts:4` documents
+to the React store. `apps/web/lib/runtime-bridge/session/conv-store-mirror.ts:4` documents
 this explicitly: the sidebar reads `store.conversations`, so every mutation of
 `window.conversations` must also call through the mirror to keep the store
 authoritative.
 
 Most incoming frames are gated on the legacy global rather than the store. The
 pattern `data.session_id === W.currentSessionId` appears throughout
-`apps/web/lib/runtime-bridge/chat-handlers.ts` (lines 226, 249, 251, 271, 451, 524,
-588, 747) and `apps/web/lib/runtime-bridge/conversations.ts` (lines 332, 387, 527,
+`apps/web/lib/runtime-bridge/session/chat-handlers.ts` (lines 226, 249, 251, 271, 451, 524,
+588, 747) and `apps/web/lib/runtime-bridge/session/conversations.ts` (lines 332, 387, 527,
 530, 536). Each of those is a place where an event for a *non-focused* session
 is dropped or misrouted.
 
@@ -427,7 +427,7 @@ Every Group B field becomes a property of `SessionScopeState`, read through
   `apps/web/components/sidebar/favorites-list.tsx`,
   `apps/web/components/sidebar/sidebar.tsx`,
   `apps/web/components/chat/messages/runtime/runtime-block.tsx`, and
-  `apps/web/lib/runtime-bridge/functions-panel.ts`.
+  `apps/web/lib/runtime-bridge/actions/functions-panel.ts`.
 - `welcomeVisible` and `transcriptLoadingId` are per-session booleans, read by
   `apps/web/components/chat/welcome/welcome-screen.tsx` and
   `apps/web/components/chat/messages/list/message-list.tsx`.
@@ -452,12 +452,12 @@ The `window.*` layer described in section 4 is not part of the design; it is
 what the store replaces. It can be removed once all of the following hold:
 
 1. Every `data.session_id === W.currentSessionId` gate in
-   `apps/web/lib/runtime-bridge/chat-handlers.ts` and `conversations.ts` is a store
+   `apps/web/lib/runtime-bridge/session/chat-handlers.ts` and `conversations.ts` is a store
    write keyed on `data.session_id`, so frames for background sessions land
    instead of being dropped. This requires the store to distinguish "focused"
    from "the session" first, which is what the focus pointers in section 7 do.
 2. `window.conversations` has no readers the store's keyed maps do not cover,
-   making `apps/web/lib/runtime-bridge/conv-store-mirror.ts` unnecessary rather than
+   making `apps/web/lib/runtime-bridge/session/conv-store-mirror.ts` unnecessary rather than
    load-bearing.
 3. `W.isRunning` has no readers; `runningTasks` covers it.
 4. The singleton `#chatView` DOM shell is gone, replaced by the React path that

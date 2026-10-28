@@ -15,7 +15,7 @@ function sources(dir) {
 }
 
 // The transcript applies only the reply to a session read it registered
-// (runtime-bridge/session-load.ts). A reload sent straight down the socket
+// (runtime-bridge/session/session-load.ts). A reload sent straight down the socket
 // after a branch switch is dropped once the session has been read, and the
 // view stays on the branch it left.
 test("every reload after a branch switch goes through the managed session read", () => {

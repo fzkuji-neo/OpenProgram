@@ -7,7 +7,7 @@ import { formatFileBytes, useFolderSize } from "./file-management";
 import { useTranslation } from "@/lib/i18n";
 import { FileColumnsHeader, fileKind } from "./file-tree-columns";
 import { carriesFiles } from "./file-tree-drop";
-import { attachOverlayScrollbar } from "@/lib/runtime-bridge/scrollbar";
+import { attachOverlayScrollbar } from "@/lib/runtime-bridge/dom/scrollbar";
 import styles from "./files-panel.module.css";
 
 export interface PierreTreeEntry { path: string; type: "file" | "dir"; size: number; mtime?: number }

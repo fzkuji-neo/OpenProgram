@@ -8,8 +8,8 @@
  */
 
 import { useSessionStore } from "@/lib/session-store";
-import { addAssistantMessage } from "./chat-handlers";
-import { runtimeState } from "./state";
+import { addAssistantMessage } from "../session/chat-handlers";
+import { runtimeState } from "../state";
 import { navigate } from "@/lib/navigate";
 import { openFunctionForm, refreshFunctionsList } from "@/lib/abilities/functions-actions";
 import { setPendingRunFunction } from "@/lib/execution/use-pending-run-function";

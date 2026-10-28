@@ -13,25 +13,25 @@ import { mirrorUpsertConv } from "./conv-store-mirror";
 import {
   draftChannelChoiceHost,
   switchDraftChannelChoice,
-} from "./draft-channel-choice";
-import { runtimeState, getSocket, type TreeEntry } from "./state";
-import { updateSessionGoal } from "./goal-state";
+} from "../actions/draft-channel-choice";
+import { runtimeState, getSocket, type TreeEntry } from "../state";
+import { updateSessionGoal } from "../actions/goal-state";
 import { useTodoStore } from "@/lib/chat/transcript/todo-plan";
 import {
   formatProgramResultContent,
   setWelcomeVisible,
-} from "./helpers";
+} from "../helpers";
 import {
   refreshStatusSource,
   setChannelHealth,
   updateContextStats,
-} from "./ui";
-import { loadAgentSettings, loadProviders, updateProviderBadge } from "./providers";
+} from "../ui";
+import { loadAgentSettings, loadProviders, updateProviderBadge } from "../providers";
 import {
   refreshHistoryContextRange,
   renderHistoryGraph,
   repaintBranchTags,
-} from "./dag";
+} from "../dag";
 import { convToChatMsgs } from "@/lib/chat/transcript/conv-mapper";
 import { navigate } from "@/lib/navigate";
 import { useSessionStore } from "@/lib/session-store";

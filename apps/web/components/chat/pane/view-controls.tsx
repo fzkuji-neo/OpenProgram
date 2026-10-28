@@ -48,7 +48,7 @@ import { useSessionStore } from "@/lib/session-store";
 import type { ConvSummary } from "@/lib/session-store";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { runtimeState } from "@/lib/runtime-bridge/state";
-import { newSession } from "@/lib/runtime-bridge/conversations";
+import { newSession } from "@/lib/runtime-bridge/session/conversations";
 import { wsSend } from "@/components/sidebar/sessions-list/helpers";
 import { showToast } from "@/lib/format-utils/toast";
 import {

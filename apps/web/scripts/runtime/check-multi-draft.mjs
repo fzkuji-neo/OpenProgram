@@ -239,7 +239,7 @@ pendingUserText.clearPendingFirstAck(second);
 // Legacy response bookkeeping must route by the envelope's session rather
 // than whichever tab happens to be visible when a background run completes.
 const responseRouting = await import(
-  "../../lib/runtime-bridge/chat-response-routing.ts"
+  "../../lib/runtime-bridge/session/chat-response-routing.ts"
 );
 assert.equal(
   responseRouting.responseSessionId({ session_id: first }, second),
@@ -258,7 +258,7 @@ assert.equal(
 );
 
 const channelDrafts = await import(
-  "../../lib/runtime-bridge/draft-channel-choice.ts"
+  "../../lib/runtime-bridge/actions/draft-channel-choice.ts"
 );
 const channelHost = {};
 channelDrafts.setDraftChannelChoice(channelHost, first, {
@@ -293,7 +293,7 @@ channelDrafts.dropDraftChannelChoice(channelHost, first);
 assert.equal(channelDrafts.draftChannelChoiceFor(channelHost, first), null);
 
 const chatHandlers = readFileSync(
-  new URL("../../lib/runtime-bridge/chat-handlers.ts", import.meta.url),
+  new URL("../../lib/runtime-bridge/session/chat-handlers.ts", import.meta.url),
   "utf8",
 );
 assert.match(

@@ -4,7 +4,7 @@ import {
   registerPendingTransfer,
   unregisterPendingTransfer,
 } from "@/lib/tabs/transfer/pending-transfer-projection";
-import type { PendingChannelChoice } from "@/lib/runtime-bridge/draft-channel-choice";
+import type { PendingChannelChoice } from "@/lib/runtime-bridge/actions/draft-channel-choice";
 import type { ComposerSettings } from "@/lib/session-store/types";
 import type { FileDraft } from "@/lib/files/files-shared";
 import { rebaseCenterTabsPayload } from "@/lib/tabs/center-tabs-store";

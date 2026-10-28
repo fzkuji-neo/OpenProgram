@@ -1,6 +1,6 @@
-import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
+import { requestSessionLoad } from "@/lib/runtime-bridge/session/session-load";
 import { showToast } from "@/lib/format-utils/toast";
-import { settleFunctionRetry } from "./function-retry";
+import { settleFunctionRetry } from "../actions/function-retry";
 /**
  * Chat-page WebSocket handlers.
  *
@@ -31,9 +31,9 @@ import {
 import {
   draftChannelChoiceHost,
   dropDraftChannelChoice,
-} from "./draft-channel-choice";
-import { runtimeState, getSocket } from "./state";
-import { escHtml, setWelcomeVisible } from "./helpers";
+} from "../actions/draft-channel-choice";
+import { runtimeState, getSocket } from "../state";
+import { escHtml, setWelcomeVisible } from "../helpers";
 import {
   setRunning,
   updateContextStats,
@@ -41,15 +41,15 @@ import {
   updatePlusBtnIndicator,
   refreshStatusSource,
   refreshWebSearchProviderLabel,
-} from "./ui";
+} from "../ui";
 import {
   loadAgentSettings,
   loadProviders,
   recordCacheWrite,
   refreshTokenBadge,
   renderTokenBadge,
-} from "./providers";
-import { refreshHistoryContextRange } from "./dag";
+} from "../providers";
+import { refreshHistoryContextRange } from "../dag";
 import { sessionAckIsActive, useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { writeChatScroll } from "@/lib/chat/history/chat-scroll";
 import { useSessionStore } from "@/lib/session-store";

@@ -16,7 +16,7 @@ import { defaultScrollerKey, noteTakeLatest } from "@/lib/chat/history/chat-scro
 import {
   draftChannelChoiceFor,
   draftChannelChoiceHost,
-} from "@/lib/runtime-bridge/draft-channel-choice";
+} from "@/lib/runtime-bridge/actions/draft-channel-choice";
 import {
   clearPendingFirstAck,
   clearPendingUserText,
@@ -48,9 +48,9 @@ import {
  *   - `setRunning(true)` — legacy run flag (runtime-bridge/ui.ts).
  *
  * The ack-pairing reservations live in `lib/chat/send/pending-user-text` (also
- * read by `lib/net/ws/chat-stream.ts` and `lib/runtime-bridge/chat-handlers.ts`),
+ * read by `lib/net/ws/chat-stream.ts` and `lib/runtime-bridge/session/chat-handlers.ts`),
  * and the first-message channel attach reads `draftChannelChoiceHost`
- * (lib/runtime-bridge/draft-channel-choice) — neither rides `window`.
+ * (lib/runtime-bridge/actions/draft-channel-choice) — neither rides `window`.
  */
 
 /** One inline binary attachment delivered alongside the user message.

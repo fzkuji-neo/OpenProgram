@@ -11,8 +11,8 @@ const runtimeFiles = [
   "components/settings/provider-icon.tsx",
   "lib/format-utils/markdown.tsx",
   "lib/net/ws/use-ws.ts",
-  "lib/runtime-bridge/conversations.ts",
-  "lib/runtime-bridge/markdown-render.ts",
+  "lib/runtime-bridge/session/conversations.ts",
+  "lib/runtime-bridge/dom/markdown-render.ts",
   "public/html/index.html",
 ];
 const runtimeSource = runtimeFiles.map((path) => read(path)).join("\n");
@@ -33,12 +33,12 @@ assert.equal(
   "the runtime CDN loader must be removed",
 );
 assert.match(
-  read("lib/runtime-bridge/markdown-render.ts"),
+  read("lib/runtime-bridge/dom/markdown-render.ts"),
   /from ["']marked["']/,
   "chat markdown must use the bundled marked dependency",
 );
 assert.match(
-  read("lib/runtime-bridge/markdown-render.ts"),
+  read("lib/runtime-bridge/dom/markdown-render.ts"),
   /from ["']katex\/contrib\/auto-render["']/,
   "chat math rendering must use bundled KaTeX auto-render",
 );

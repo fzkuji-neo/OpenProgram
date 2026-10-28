@@ -6,7 +6,7 @@ import { useApplicationLauncher } from "@/components/applications/use-applicatio
 import { FileText, MessageCirclePlus, TerminalSquare } from "lucide-react";
 
 import { useTranslation } from "@/lib/i18n";
-import { newSession } from "@/lib/runtime-bridge/conversations";
+import { newSession } from "@/lib/runtime-bridge/session/conversations";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import styles from "../strip/center-tabs.module.css";
 import { BrowserGlyph } from "../browser/toolbar/browser-glyph";

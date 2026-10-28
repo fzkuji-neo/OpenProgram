@@ -461,7 +461,7 @@ assert.equal(
 // the same draft can still send a normal turn afterwards.
 useSessionStore.getState().setCurrentDraft(provisional);
 const { handleChatResponse } = await import(
-  "../../lib/runtime-bridge/chat-handlers.ts"
+  "../../lib/runtime-bridge/session/chat-handlers.ts"
 );
 handleChatResponse({
   type: "local_command",
@@ -627,7 +627,7 @@ setSocket({
 const channelDraft = "local_channel-owner";
 runtimeState.currentSessionId = "real-session-b";
 const { draftChannelChoiceHost } = await import(
-  "../../lib/runtime-bridge/draft-channel-choice.ts"
+  "../../lib/runtime-bridge/actions/draft-channel-choice.ts"
 );
 draftChannelChoiceHost.__pendingChannelChoices = {
   [channelDraft]: { channel: "wechat", account_id: "work" },
@@ -647,7 +647,7 @@ assert.equal(
 assert.equal(sent.at(-1).account_id, "work");
 
 const channelDrafts = await import(
-  "../../lib/runtime-bridge/draft-channel-choice.ts"
+  "../../lib/runtime-bridge/actions/draft-channel-choice.ts"
 );
 const acknowledgedChannelHost = {};
 channelDrafts.setDraftChannelChoice(acknowledgedChannelHost, channelDraft, {
@@ -890,7 +890,7 @@ assert.match(
 assert.match(attachmentHook, /if \(!mountedRef\.current\) \{[\s\S]*releaseAttachmentPreviews/);
 
 const chatHandlers = readFileSync(
-  new URL("../../lib/runtime-bridge/chat-handlers.ts", import.meta.url),
+  new URL("../../lib/runtime-bridge/session/chat-handlers.ts", import.meta.url),
   "utf8",
 );
 const useWsSource = readFileSync(

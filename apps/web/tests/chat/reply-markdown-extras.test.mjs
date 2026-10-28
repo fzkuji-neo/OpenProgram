@@ -7,7 +7,7 @@ const { window } = parseHTML("<!doctype html><html><body></body></html>");
 globalThis.window = window;
 globalThis.document = window.document;
 
-const { renderMd } = await import("../../lib/runtime-bridge/markdown-render.ts");
+const { renderMd } = await import("../../lib/runtime-bridge/dom/markdown-render.ts");
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
 
 test("a reply's footnotes render as notes, not a dead link", () => {

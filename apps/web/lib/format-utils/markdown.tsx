@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { marked as npmMarked, Marked, type Tokens } from "marked";
-import { typesetMath } from "@/lib/runtime-bridge/markdown-render";
+import { typesetMath } from "@/lib/runtime-bridge/dom/markdown-render";
 import { renderMermaidLazily } from "@/lib/chat/markdown/mermaid-lazy";
 import { createDocumentMarkdown } from "./document-markdown";
 import { cjkEmphasis } from "@/lib/markdown/cjk-emphasis";

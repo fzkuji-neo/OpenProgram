@@ -11,7 +11,7 @@ import { parseHTML } from "linkedom";
 
 const base = new URL("../../", import.meta.url);
 const mocks = {
-  "@/lib/runtime-bridge/markdown-render": "export const typesetMath=()=>{};",
+  "@/lib/runtime-bridge/dom/markdown-render": "export const typesetMath=()=>{};",
   "@/lib/i18n": "export const useTranslation=()=>({text:(en)=>en,t:(key)=>key});",
   "@/components/animated-icons": "export const FileTextIcon=()=>null; export const RefreshCwIcon=()=>null;",
   "@/components/chat/messages/bubbles/use-action-icon-animation": "export const useActionIconAnimation=()=>({});",

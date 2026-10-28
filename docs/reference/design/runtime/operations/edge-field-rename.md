@@ -71,7 +71,7 @@ Rationale:
 | `apps/web/lib/runtime-bridge/dag/types.ts` | `layoutParent(n)` | returns `n.predecessor` (conv predecessor), used to build the tree |
 | `apps/web/lib/runtime-bridge/dag/pipeline.ts` | `render` | `n.caller` determines internal; `m.predecessor` drives the conversation chain; `_signature` uses `predecessor` |
 | `apps/web/lib/runtime-bridge/dag/render/{edges,nodes,badges}.ts` | — | read `predecessor` to draw edges / detect branches |
-| `apps/web/lib/runtime-bridge/conversations.ts` | `LegacyMessage` / `BranchRow` | msg/branch dict flow, both keys carried through |
+| `apps/web/lib/runtime-bridge/session/conversations.ts` | `LegacyMessage` / `BranchRow` | msg/branch dict flow, both keys carried through |
 
 ### WS Protocol
 

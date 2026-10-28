@@ -6,7 +6,7 @@ import { captureHistoryAnchor, captureAreaRestoreState, historyAreaStillOwned, r
 import { clearHeights, retainRowHeights } from '@/lib/chat/history/message-window';
 import { useSessionStore } from '@/lib/session-store';
 import { wsRequest } from '@/lib/net/ws/ws-request';
-import { getSocket, runtimeState } from './state';
+import { getSocket, runtimeState } from '../state';
 
 const windows = new Map<string, HistoryWindow>();
 const viewports = new Map<string, Map<HTMLElement, string>>();

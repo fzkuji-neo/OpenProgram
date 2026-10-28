@@ -5,7 +5,7 @@
 // placeholder detection, the LegacyConv shape, wsSend).
 
 import { parseAttachments } from "@/components/chat/messages/attachments/user-attachments";
-import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
+import { sendRuntimeCommand } from "@/lib/runtime-bridge/session/session-load";
 
 export function wsSend(payload: unknown): boolean {
   return sendRuntimeCommand(payload);

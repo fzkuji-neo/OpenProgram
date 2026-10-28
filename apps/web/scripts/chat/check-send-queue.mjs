@@ -82,7 +82,7 @@ const { stopSession } = await import(
   "../../components/chat/composer/submit/use-chat-submit.ts"
 );
 const { handleRunningTaskClear, restoreForegroundExecutionTask } = await import(
-  "../../lib/runtime-bridge/chat-handlers.ts"
+  "../../lib/runtime-bridge/session/chat-handlers.ts"
 );
 
 const A = "sess_a";
