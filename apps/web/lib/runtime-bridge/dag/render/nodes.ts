@@ -49,7 +49,7 @@ function applyStatusPaint(
   const isSuperseded = !!(node as Record<string, unknown>).superseded_summary;
   const isErr = status === "error" || !!node.is_error;
 
-  // Status is a CSS state of the tile (app/styles/dag/nodes.css): the
+  // Status is a CSS state of the tile (app/styles/dag/graph/nodes.css): the
   // running comet, the grey of a turn kept only for the record. An error
   // keeps its tone and gets a red ``!``: a red tile changed what the node
   // looked like, not just how it ended. A cancelled turn fades as a whole.
@@ -68,7 +68,7 @@ function applyStatusPaint(
   let bang = g.querySelector("[data-status-bang]");
   if (wantBang && !bang) {
     // The Activity panel's red badge, ``!`` in place of a count, on the
-    // icon's upper-right corner (app/styles/dag/nodes.css).
+    // icon's upper-right corner (app/styles/dag/graph/nodes.css).
     bang = _svg("g", {
       class: "dag-status-badge",
       transform: `translate(${TILE_R - 3},${-TILE_R + 5})`,

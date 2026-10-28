@@ -77,11 +77,11 @@
   color: var(--bg-primary, #191918);
 }
 
-/* Zoomed far out (interaction/canvas.ts ``is-far``): an icon at a few
+/* Zoomed far out (interaction/view/canvas.ts ``is-far``): an icon at a few
    pixels is noise, so a chip becomes a dot of its colour — the map reads
    by colour. The dot is a steady 7px on screen, so neighbours 14px apart
    never touch, and the lines keep 1.5px. With something selected the
-   rest of the graph fades (``has-selection``, interaction/selection.ts)
+   rest of the graph fades (``has-selection``, interaction/selection/selection.ts)
    and the selected dots keep their full colour, so a selection reads at
    a glance in either theme without growing or outlining anything. */
 .is-far .dag-tile-icon { display: none; }
@@ -172,7 +172,7 @@
   fill: color-mix(in srgb, var(--tone) 10%, var(--bg-primary, #191918));
 }
 
-/* Captions (render/captions.ts): what a call or message is, in
+/* Captions (render/labels/captions.ts): what a call or message is, in
    annotation grey to the right of its tile. Gone when an agent's bubble
    speaks for the tile, and when zoomed too far out to read. */
 .dag-caption {
@@ -191,7 +191,7 @@
 /* Zoomed out, captions shrink only gently (``--dag-label-scale``: 12px
    at 100%, about 8.5px at the least zoom), like place names on a map,
    rather than shrinking with the graph and jumping back at the far
-   scale; interaction/far-labels.ts hides the ones that would crowd
+   scale; interaction/view/far-labels.ts hides the ones that would crowd
    another, keeping those nearest HEAD. Far out only the
    opening words of your messages stay. */
 .dag-caption {

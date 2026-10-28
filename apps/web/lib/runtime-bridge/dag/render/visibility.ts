@@ -15,7 +15,7 @@ import {
 function _applyVisibility(nodeEl: Element, visible: boolean): void {
   // Covered = part of what the next request carries (dag/rendering.md §8):
   // the tile is a full block of its tone; outside it, a faint one.
-  // The colours live in app/styles/dag/nodes.css.
+  // The colours live in app/styles/dag/graph/nodes.css.
   nodeEl.classList.toggle("is-covered", visible);
 }
 
@@ -32,7 +32,7 @@ function _setVisibleSet(newSet: Record<string, boolean>): void {
   });
   setVisibleIds(newSet);
   // No auto-scroll: the canvas is a camera the user drives, not a scroll
-  // box (``../interaction/canvas.ts``). Yanking it to whatever the transcript last
+  // box (``../interaction/view/canvas.ts``). Yanking it to whatever the transcript last
   // highlighted would fight every pan.
 }
 

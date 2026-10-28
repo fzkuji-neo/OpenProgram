@@ -294,7 +294,7 @@ assert.match(
 // This used to hop through a `showDetail` wrapper in runtime-bridge/ui.ts;
 // that intermediary is gone and the click site calls the store directly.
 const dagInteraction = readFileSync(
-  new URL("../../lib/runtime-bridge/dag/interaction/nodes.ts", import.meta.url),
+  new URL("../../lib/runtime-bridge/dag/interaction/node/nodes.ts", import.meta.url),
   "utf8",
 );
 assert.match(
@@ -334,7 +334,7 @@ assert.doesNotMatch(
   "the DAG host must stay out of the right sidebar",
 );
 const dagView = readFileSync(
-  new URL("../../components/chat/dag-view.tsx", import.meta.url),
+  new URL("../../components/chat/dag/dag-view.tsx", import.meta.url),
   "utf8",
 );
 assert.match(

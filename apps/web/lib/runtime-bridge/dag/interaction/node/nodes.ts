@@ -23,9 +23,9 @@ import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
 
  
 
-import type { GNode } from "../types";
-import { getSocket, runtimeState } from "../../state";
-import { useSessionStore, type DetailNode } from "../../../session-store";
+import type { GNode } from "../../types";
+import { getSocket, runtimeState } from "../../../state";
+import { useSessionStore, type DetailNode } from "../../../../session-store";
 import {
   _currentHead,
   _headAncestorSet,
@@ -35,14 +35,14 @@ import {
   setLastSignature,
   toggleSummaryExpanded,
   toggleThreadOpen,
-} from "../store/globals";
+} from "../../store/globals";
 import {
   closeNodeLayers,
   forkAndEditNode,
   showNodeMenu,
-} from "../render/inspector";
-import { _buildTree } from "../layout/build-tree";
-import { releaseEditableFocus, select } from "./selection";
+} from "./inspector";
+import { _buildTree } from "../../layout/build-tree";
+import { releaseEditableFocus, select } from "../selection/selection";
 import type { TNode } from "@/components/chat/messages/tree-types";
 
 function _chatBubbleFor(msgId: string): Element | null {
@@ -141,7 +141,7 @@ function _detailTreeNode(node: GNode): TNode {
 /**
  * Build the right-rail DetailNode for a DAG node.
  *
- * Field accessors mirror ``dag/interaction/tooltip.ts`` (``preview ?? content ??
+ * Field accessors mirror ``dag/interaction/node/tooltip.ts`` (``preview ?? content ??
  * output`` for the body, ``llm`` for model/token meta) so the panel and
  * the hover card never disagree about what a node contains.
  */
@@ -225,7 +225,7 @@ export function _installInteractionHandlers(rerender: () => void): void {
     // A node click starts the node's own action — an expanded card
     // left over from a right-click would sit on top of the change.
     closeNodeLayers();
-    // A left click selects the node (./selection.ts); Shift/⌘ adds it
+    // A left click selects the node (../selection/selection.ts); Shift/⌘ adds it
     // or takes it out and does nothing else. A plain click then goes on
     // to the node's own action.
     releaseEditableFocus();
@@ -235,7 +235,7 @@ export function _installInteractionHandlers(rerender: () => void): void {
     }
     select([id], "replace");
     // A click is the node's own ACTION, not an info request — info
-    // lives on the hover card (interaction/tooltip.ts), the one surface per node.
+    // lives on the hover card (interaction/node/tooltip.ts), the one surface per node.
     // The old click-opened inspector popover landed on top of the very
     // expansion the same click had just triggered. The right rail's
     // Details view still fills quietly, for whenever the user opens
@@ -326,7 +326,7 @@ export function _installInteractionHandlers(rerender: () => void): void {
     // A sub-agent spawn rides the user role (its node IS the task
     // prompt) but is not an editable turn — never fork&edit it. Taking
     // over the agent's branch is the open-thread BADGE's job
-    // (render/badges.ts); double-click does nothing here.
+    // (render/labels/badges.ts); double-click does nothing here.
     if (gn && (gn as Record<string, unknown>).source === "agent_spawn"
         && !gn.predecessor) {
       return;

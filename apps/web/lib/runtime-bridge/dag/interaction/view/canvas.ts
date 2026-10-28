@@ -24,11 +24,11 @@
  */
 
 import { animate, type AnimationPlaybackControls } from "framer-motion";
-import { COL_W, COMPOSER_STRIP, PAD_X, PAD_Y } from "../types";
-import { TILE_R } from "../render/tiles";
-import { seatOf } from "../render/seat";
-import { closeNodeLayers } from "../render/inspector";
-import { hideTooltip } from "./tooltip";
+import { COL_W, COMPOSER_STRIP, PAD_X, PAD_Y } from "../../types";
+import { TILE_R } from "../../render/tiles";
+import { seatOf } from "../../render/seat";
+import { closeNodeLayers } from "../node/inspector";
+import { hideTooltip } from "../node/tooltip";
 import { WHEEL_ZOOM_RATE, wireGestures } from "./gestures";
 import { hideMinimap, paintMinimap } from "./minimap";
 import { paintFarLabels } from "./far-labels";
@@ -39,7 +39,7 @@ import {
   _viewTy,
   setView,
   setViewSession,
-} from "../store/globals";
+} from "../../store/globals";
 
 /** The inspector popover and the hover card are anchored in SCREEN
  *  space, at where their node was when they opened. The camera moving

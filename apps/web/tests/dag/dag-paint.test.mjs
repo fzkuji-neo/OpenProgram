@@ -16,7 +16,7 @@ import {
   shouldEmitHistorySvg,
 } from "../../lib/runtime-bridge/dag/paint-gate.ts";
 
-const WEB_ROOT = new URL("../../", import.meta.url);
+const WEB_ROOT = new URL("../..", import.meta.url);
 registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier.startsWith("@/")) {
@@ -601,7 +601,7 @@ test("a caption steps past a fork line running down where it would start", async
   for (const id of ["t1", "t2"]) {
     document.querySelector(`[data-msg-id="${id}"]`)._nodeData = call(id);
   }
-  const { drawCaptions } = await import("../../lib/runtime-bridge/dag/render/captions.ts");
+  const { drawCaptions } = await import("../../lib/runtime-bridge/dag/render/labels/captions.ts");
   const world = document.querySelector(".history-world");
   drawCaptions(world, world.querySelector(".history-nodes"));
   const x = (id) => Number(world.querySelector(`.dag-caption[data-for="${id}"]`).getAttribute("x"));
@@ -651,7 +651,7 @@ test("the minimap starts hidden; once on it stays put whatever the view", async 
   globalThis.document = document;
   globalThis.window ??= { devicePixelRatio: 1 };
   globalThis.getComputedStyle = () => ({ color: "#123", getPropertyValue: () => "" });
-  const { paintMinimap, toggleMinimap } = await import("../../lib/runtime-bridge/dag/interaction/minimap.ts");
+  const { paintMinimap, toggleMinimap } = await import("../../lib/runtime-bridge/dag/interaction/view/minimap.ts");
   const host = document.querySelector(".history-body");
   const world = document.querySelector(".history-world");
   const jumps = [];
@@ -675,7 +675,7 @@ test("the minimap starts hidden; once on it stays put whatever the view", async 
 test("a branch's tag stays under its own tip, not a sibling's in the same lane", async () => {
   const { document } = parseHTML(`<!doctype html><html><body><svg id="s"></svg></body></html>`);
   globalThis.document = document;
-  const { drawBadges } = await import("../../lib/runtime-bridge/dag/render/badges.ts");
+  const { drawBadges } = await import("../../lib/runtime-bridge/dag/render/labels/badges.ts");
   const { runtimeState } = await import("../../lib/runtime-bridge/state.ts");
   // u1 → r1 → u2 → r2 (HEAD) on lane 0; a scheduled job's reply jr
   // hangs off r1 on the same lane and is a branch of its own.

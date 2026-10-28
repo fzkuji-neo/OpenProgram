@@ -1,5 +1,5 @@
 /* DAG 角标与分支标签：.history-thread-count 折叠数、.history-branch-tag。
-   对应来源：lib/runtime-bridge/dag/render/badges.ts、nodes.ts */
+   对应来源：lib/runtime-bridge/dag/render/labels/badges.ts、nodes.ts */
 
 /* 折叠数角标（rendering.md §12）：「+N」贴在字形右上角，读作"里面还收着
    N 个"。淡灰、小号——它说明节点，不与节点争眼；画布色光晕让线从后面穿过
@@ -34,11 +34,11 @@
 /* An agent's bubble on the tile speaks for it (render/agents.ts). */
 .history-branch-tag.is-hidden { display: none; }
 
-/* Zoomed out (interaction/canvas.ts ``--dag-label-scale``), the way a
+/* Zoomed out (interaction/view/canvas.ts ``--dag-label-scale``), the way a
    map keeps its place names readable: branch names and fold counts
    shrink only gently (12px at 100%, about 8.5px at the least zoom),
    pinned at their start, with no jump at the far scale;
-   interaction/far-labels.ts hides any name that would crowd one already
+   interaction/view/far-labels.ts hides any name that would crowd one already
    shown. Far out the fold count is detail, and
    goes. */
 .history-branch-tag text,

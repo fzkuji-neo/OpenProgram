@@ -37,7 +37,7 @@
 
 /* Obsidian-style pane controls: perspective toggle + `…` overflow,
    floating at the pane's top-right over whichever surface is showing.
-   The same raised strip as the DAG canvas's rails (dag/tools.css
+   The same raised strip as the DAG canvas's rails (dag/panels/tools.css
    .dag-tool-rail): the input box's fill and the composer's shadow,
    deepening under the pointer as the composer's buttons do. */
 .chat-view-controls {

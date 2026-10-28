@@ -17,7 +17,7 @@
  *
  * Layout: the canvas, and — supplied by the pane, not by this
  * component — the composer. Branch switching lives INSIDE the graph:
- * each lane's tail name tag (render/badges.ts) is the checkout button,
+ * each lane's tail name tag (render/labels/badges.ts) is the checkout button,
  * so no strip row sits above the canvas. The composer is a
  * singleton anchored inside `#chatView`, which the graph perspective
  * deliberately leaves mounted (it hides `#chatArea` instead), so
@@ -42,15 +42,15 @@ import { useTranslation } from "@/lib/i18n";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
 import { useSessionStore } from "@/lib/session-store";
 import { enterExclusiveCoverageMode, renderHistoryGraph } from "@/lib/runtime-bridge/dag";
-import { fitCanvas, focusAgent, resetZoom, zoomStep } from "@/lib/runtime-bridge/dag/interaction/canvas";
-import { minimapOn, subscribeMinimap, toggleMinimap } from "@/lib/runtime-bridge/dag/interaction/minimap";
+import { fitCanvas, focusAgent, resetZoom, zoomStep } from "@/lib/runtime-bridge/dag/interaction/view/canvas";
+import { minimapOn, subscribeMinimap, toggleMinimap } from "@/lib/runtime-bridge/dag/interaction/view/minimap";
 import { MENU_PANEL } from "@/components/chat/top-bar/menu-styles";
-import { DagCanvasTools } from "@/components/chat/dag-tools";
-import { useKeySheetOpen } from "@/components/chat/dag-key-sheet";
-import { keySheetOpen, setKeySheet } from "@/lib/runtime-bridge/dag/interaction/help";
+import { DagCanvasTools } from "@/components/chat/dag/dag-tools";
+import { useKeySheetOpen } from "@/components/chat/dag/dag-key-sheet";
+import { keySheetOpen, setKeySheet } from "@/lib/runtime-bridge/dag/interaction/selection/key-sheet";
 
 /** A tile swatch: the same `dag-tile t-<tone>` classes the canvas tiles
- *  carry (render/tiles.ts, app/styles/dag/nodes.css), so the key and the
+ *  carry (render/tiles.ts, app/styles/dag/graph/nodes.css), so the key and the
  *  canvas can never drift apart. */
 function LegendTile({ icon, tone, state = "covered" }: {
   icon: SolarIconName;
@@ -128,7 +128,7 @@ function DagLegend() {
  *  All open to the column's left from the top, the map above the
  *  legend. Every glyph is Solar Bold Duotone with its hover pop, like
  *  the composer's buttons. The readout is written by
- *  `dag/interaction/canvas.ts` on every view change — it is the
+ *  `dag/interaction/view/canvas.ts` on every view change — it is the
  *  camera's number, and routing it through React state would repaint
  *  the tree on every wheel event of a gesture. */
 function DagZoomColumn() {
@@ -228,7 +228,7 @@ export function DagView({ visible }: { visible: boolean }) {
       aria-hidden={visible ? undefined : true}
     >
       {/* 分支切换直接在图内：每条 lane 尾部的分支名标签就是按钮
-          （render/badges.ts），点非活动分支即 checkout。页面顶部不再
+          （render/labels/badges.ts），点非活动分支即 checkout。页面顶部不再
           放分支条——那条横线会横穿右上角的悬浮视角按钮。 */}
       <div className="history-body"></div>
       {visible && <DagCanvasTools />}

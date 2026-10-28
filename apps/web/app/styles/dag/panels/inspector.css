@@ -1,9 +1,9 @@
 /* DAG 节点检查器、Raw JSON 卡与右键动词菜单。
-   对应来源：lib/runtime-bridge/dag/render/inspector.ts */
+   对应来源：lib/runtime-bridge/dag/interaction/node/inspector.ts */
 
 /* ============ Node inspector + context menu ============ */
 /* Floating layers the DAG renderer mounts on document.body
-   (render/inspector.ts), positioned in viewport coordinates so they
+   (interaction/node/inspector.ts), positioned in viewport coordinates so they
    can cross the pane edge instead of being clipped by it. */
 .dag-inspector {
   position: fixed;
@@ -67,7 +67,7 @@
   word-break: break-all;
 }
 
-/* The verb list render/inspector.ts appends inside the expanded card
+/* The verb list interaction/node/inspector.ts appends inside the expanded card
    (.history-tooltip.detail). Items and separators below are shared. */
 .dag-menu-verbs {
   margin: 0 -3px -3px;

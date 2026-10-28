@@ -18,7 +18,7 @@
 
 import { type GNode, COL_W, PAD_X, PAD_Y, ROW_H } from "../types";
 import { _branchColor, _edgePath, _svg } from "./shapes";
-import { _onEdgeDblclick } from "../interaction/nodes";
+import { _onEdgeDblclick } from "../interaction/node/nodes";
 import { coversIds } from "../passes/fold-summaries";
 import { isChainNode, isSpawnRoot } from "../passes/thread";
 import type { Geometry } from "../layout/geometry";
@@ -71,7 +71,7 @@ function beltLayer(edgeG: SVGElement): SVGElement {
 /** A chain or thread edge as a conveyor belt (dag/rendering.md §3): a
  *  wide neutral track with the branch-coloured line on it, and the goods
  *  that ride the track towards a working node (``paintBelts``,
- *  app/styles/dag/edges.css). */
+ *  app/styles/dag/graph/edges.css). */
 function belt(
   edgeG: SVGElement,
   at: { x1: number; y1: number; x2: number; y2: number },

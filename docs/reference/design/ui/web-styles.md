@@ -34,7 +34,7 @@ resolve exactly as they did before the split.
   after, nothing else. Every file opens with a comment naming the
   component and its tsx/ts source path.
 - **Placement follows the component tree.** A DAG node style belongs in
-  `dag/nodes.css` because the drawer lives in
+  `dag/graph/nodes.css` because the drawer lives in
   `lib/runtime-bridge/dag/render/nodes.ts`; a chat bubble style belongs in
   `chat/bubbles.css`. New components get new files, not appended sections.
 - **Genuinely global rules stay global.** Tokens and theme overrides live
@@ -45,5 +45,5 @@ resolve exactly as they did before the split.
   `*.module.css` (the composer) keep it; this tree covers the global
   stylesheet layer only.
 - Guard scripts that assert on style sources read the per-component file
-  (`check-dag-subagent.mjs` reads `dag/nodes.css` for the head-glow
+  (`check-dag-subagent.mjs` reads `dag/graph/nodes.css` for the head-glow
   keyframes).

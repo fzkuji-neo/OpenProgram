@@ -1,8 +1,8 @@
 /* Pure content model for the DAG node card. DOM lifecycle and positioning
- * stay in interaction/tooltip.ts; this module only decides what the card says. */
+ * stay in interaction/node/tooltip.ts; this module only decides what the card says. */
 
 import { translateText } from "@/lib/i18n";
-import type { GNode } from "../types";
+import type { GNode } from "../../types";
 
 export type TooltipRow =
   | { kind: "kv"; key: string; value: string }

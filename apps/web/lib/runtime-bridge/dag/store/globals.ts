@@ -94,7 +94,7 @@ export function setSummaryExpanded(v: Record<string, boolean>): void {
 }
 
 
-// ── infinite-canvas view (see ../interaction/canvas.ts) ──────────
+// ── infinite-canvas view (see ../interaction/view/canvas.ts) ──────────
 // Where the user has panned and zoomed to. Module state rather than
 // per-render state because the graph repaints on every capture and the
 // camera must not move when it does. ``_viewSession`` is what tells a
@@ -121,7 +121,7 @@ export function setLastGraph(g: GNode[] | null, h: string | null): void {
 }
 
 // The last render's call-thread model: which raw rows merged into the
-// node that stands for them on the canvas (interaction/node-delete.ts
+// node that stands for them on the canvas (interaction/selection/node-delete.ts
 // widens a selection with it, so deleting a glyph deletes all it shows).
 export let _lastThreadModel: ThreadModel | null = null;
 export function setLastThreadModel(v: ThreadModel | null): void {

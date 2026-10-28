@@ -56,15 +56,15 @@ const nodesSrc = readFileSync(
 const shapesSrc = readFileSync(
   new URL("../../lib/runtime-bridge/dag/render/shapes.ts", import.meta.url), "utf8");
 const interactionSrc = readFileSync(
-  new URL("../../lib/runtime-bridge/dag/interaction/nodes.ts", import.meta.url), "utf8");
+  new URL("../../lib/runtime-bridge/dag/interaction/node/nodes.ts", import.meta.url), "utf8");
 const inspectorSrc = readFileSync(
-  new URL("../../lib/runtime-bridge/dag/render/inspector.ts", import.meta.url), "utf8");
+  new URL("../../lib/runtime-bridge/dag/interaction/node/inspector.ts", import.meta.url), "utf8");
 const pipelineSrc = readFileSync(
   new URL("../../lib/runtime-bridge/dag/pipeline.ts", import.meta.url), "utf8");
 const edgesSrc = readFileSync(
   new URL("../../lib/runtime-bridge/dag/render/edges.ts", import.meta.url), "utf8");
 const canvasSrc = readFileSync(
-  new URL("../../lib/runtime-bridge/dag/interaction/canvas.ts", import.meta.url), "utf8");
+  new URL("../../lib/runtime-bridge/dag/interaction/view/canvas.ts", import.meta.url), "utf8");
 
 /* ---- 1. the thread pass ---- */
 
@@ -675,7 +675,7 @@ assert.match(
 /* ---- 6b. HUD: shared chrome, not a private lookalike ---- */
 
 const dagViewSrc = readFileSync(
-  new URL("../../components/chat/dag-view.tsx", import.meta.url), "utf8");
+  new URL("../../components/chat/dag/dag-view.tsx", import.meta.url), "utf8");
 const environmentRowCss = readFileSync(
   new URL("../../components/chat/composer/environment-row/environment-row.module.css",
     import.meta.url), "utf8");
@@ -712,7 +712,7 @@ assert.match(
   + "— edges are drawn centre to centre and the fill is what buries the "
   + "line ends inside the outline",
 );
-const _cssSrc = readFileSync(new URL("../../app/styles/dag/nodes.css",
+const _cssSrc = readFileSync(new URL("../../app/styles/dag/graph/nodes.css",
   import.meta.url), "utf8");
 assert.match(
   _cssSrc,

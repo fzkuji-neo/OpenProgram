@@ -13,7 +13,7 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import { useTranslation } from "@/lib/i18n";
 import { GROUP_LABEL, MENU_PANEL, MENU_TRAILING } from "@/components/chat/top-bar/menu-styles";
 import { MenuKey, type MenuKeys } from "@/components/ui/menu-parts";
-import { keySheetOpen, setKeySheet, subscribeKeySheet } from "@/lib/runtime-bridge/dag/interaction/help";
+import { keySheetOpen, setKeySheet, subscribeKeySheet } from "@/lib/runtime-bridge/dag/interaction/selection/key-sheet";
 
 type Row = [en: string, zh: string, keys: MenuKeys[]];
 

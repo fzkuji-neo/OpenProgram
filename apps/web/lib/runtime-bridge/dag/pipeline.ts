@@ -32,14 +32,14 @@ import { type GNode } from "./types";
 import { runtimeState } from "../state";
 import { computeGeometry } from "./layout/geometry";
 import { _branchColor, _svg } from "./render/shapes";
-import { attachCanvas, detachCanvas } from "./interaction/canvas";
-import { paintSelection } from "./interaction/selection";
-import "./interaction/keys";
+import { attachCanvas, detachCanvas } from "./interaction/view/canvas";
+import { paintSelection } from "./interaction/selection/selection";
+import "./interaction/selection/keys";
 import {
   hideTooltip as _hideTooltip,
   resetTooltip as _resetTooltip,
   showTooltip as _showTooltip,
-} from "./interaction/tooltip";
+} from "./interaction/node/tooltip";
 import { _collapseRuntimePairs } from "./passes/collapse-runtime-pairs";
 import { _mergeRuns } from "./passes/merge-runs";
 import { _demoteDecorationCards } from "./passes/demote-decoration-cards";
@@ -53,10 +53,10 @@ import {
   _recomputeVisibility,
 } from "./render/visibility";
 import { drawNodes, patchHistoryStatus } from "./render/nodes";
-import { drawBadges } from "./render/badges";
+import { drawBadges } from "./render/labels/badges";
 import { drawEdges } from "./render/edges";
 import { paintAgents } from "./render/agents";
-import { drawCaptions } from "./render/captions";
+import { drawCaptions } from "./render/labels/captions";
 import {
   type DagSignatureInput,
   branchTagsSignature,
@@ -370,7 +370,7 @@ export function render(graphIn: GNode[], headIdIn: string | null): void {
   const geom = computeGeometry(tree.byId, threadModel);
 
   // The SVG fills the pane; everything is drawn inside ``world``, which
-  // carries the user's pan and zoom (``./interaction/canvas.ts``). Nothing here is
+  // carries the user's pan and zoom (``./interaction/view/canvas.ts``). Nothing here is
   // sized to the content — an infinite canvas has no content size, and
   // the graph is reached by moving the camera, not by scrolling a box.
   const svg = _svg("svg", { class: "history-svg" });

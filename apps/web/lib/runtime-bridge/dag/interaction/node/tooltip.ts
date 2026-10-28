@@ -10,7 +10,7 @@
  *     ``pointer-events: none``; gone on mouse-off.
  *   * **Right-click** → the SAME card expands in place
  *     (``expandTooltip``): full fields, longer previews, coverage /
- *     context / id, and the verbs (render/inspector.ts builds them)
+ *     context / id, and the verbs (interaction/node/inspector.ts builds them)
  *     appended below. The card turns interactive and stays until a
  *     click lands elsewhere; hover cannot re-summon the brief state
  *     over it.
@@ -25,7 +25,7 @@
 
  
 
-import { type GNode } from "../types";
+import { type GNode } from "../../types";
 import {
   clampText,
   kindLabel,
@@ -125,7 +125,7 @@ export function showTooltip(
 }
 
 /** Expand THE card in place for ``node``: the detail rows plus the
- *  verb list ``menuEl`` (built by render/inspector.ts). If the brief
+ *  verb list ``menuEl`` (built by interaction/node/inspector.ts). If the brief
  *  state is already showing for this node it deepens where it stands —
  *  same window, more of it; otherwise the card appears where hover
  *  would have put it. The card turns interactive (`.detail` flips

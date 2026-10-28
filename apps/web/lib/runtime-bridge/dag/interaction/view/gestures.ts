@@ -5,13 +5,13 @@
  *   * mouse wheel or trackpad pinch → zoom about the cursor
  *   * two fingers on a trackpad → pan (``./wheel.ts`` tells them apart)
  *   * right (or middle) drag → pan, from anywhere on the graph
- *   * left drag on empty space → a box that selects (``./selection.ts``;
+ *   * left drag on empty space → a box that selects (``../selection/selection.ts``;
  *     a left press on a node is a click on it)
  */
 
 import { wheelKind } from "./wheel";
-import { SelectionBand, clearSelection, releaseEditableFocus, select } from "./selection";
-import { _viewScale, _viewTx, _viewTy, setView } from "../store/globals";
+import { SelectionBand, clearSelection, releaseEditableFocus, select } from "../selection/selection";
+import { _viewScale, _viewTx, _viewTy, setView } from "../../store/globals";
 
 /** Zoom rates. A pinch (ctrlKey wheel) delivers small continuous
  *  deltas while a plain wheel delivers ±100-ish notches — one shared

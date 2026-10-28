@@ -5,7 +5,7 @@
 
 .inputArea {
   /* 底部留白 12px：和画布上所有浮动控件到边缘的距离一致
-     （dag/tools.css、chat/center-pane.css）。原 24 太空。 */
+     （dag/panels/tools.css、chat/center-pane.css）。原 24 太空。 */
   padding: 12px 24px 12px;
 }
 /* 层级（从上到下）：输入框各组件 ≈ 弹出菜单 > 聊天遮罩 > 聊天内容。

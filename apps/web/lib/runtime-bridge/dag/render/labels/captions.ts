@@ -13,10 +13,10 @@
  * instead (render/agents.ts hides its caption).
  */
 
-import { type GNode, COL_W } from "../types";
-import { _svg, _textWidth } from "./shapes";
-import { TILE_R, tileFor } from "./tiles";
-import { seatOf as seat } from "./seat";
+import { type GNode, COL_W } from "../../types";
+import { _svg, _textWidth } from "../shapes";
+import { TILE_R, tileFor } from "../tiles";
+import { seatOf as seat } from "../seat";
 
 const LAYER = "dag-captions";
 const FONT = "10.5px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif";
@@ -117,7 +117,7 @@ export function drawCaptions(world: Element, nodeG: Element): void {
     const shown = fit(text, Math.min(MAX_W, right - x));
     if (!shown || right - x < MIN_W) continue;
     const label = _svg("text", {
-      // Your messages' words stay readable zoomed out (interaction/far-labels.ts).
+      // Your messages' words stay readable zoomed out (interaction/view/far-labels.ts).
       x, y: at.y, class: tile.tone === "user" ? "dag-caption is-turn" : "dag-caption",
       "dominant-baseline": "central",
       "data-for": g.getAttribute("data-msg-id") || "",

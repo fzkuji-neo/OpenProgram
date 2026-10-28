@@ -12,10 +12,10 @@
  */
 
 
-import { COMPOSER_STRIP } from "../types";
-import { seatOf } from "../render/seat";
+import { COMPOSER_STRIP } from "../../types";
+import { seatOf } from "../../render/seat";
 
-// As wide as the legend card that opens under it (dag/legend.css
+// As wide as the legend card that opens under it (dag/panels/legend.css
 // .dag-legend-body), so the two line up; 3:2.
 const W = 240;
 const H = 160;

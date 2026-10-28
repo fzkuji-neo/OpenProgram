@@ -34,7 +34,7 @@ import { LegacyTopbarBridge } from "./chat/top-bar";
 import { WelcomeScreen } from "./chat/welcome-screen";
 import { MessageList } from "./chat/messages/message-list";
 import { PeerSessionPane } from "./chat/peer-session-pane";
-import { DagView } from "./chat/dag-view";
+import { DagView } from "./chat/dag/dag-view";
 import { ViewControls } from "./chat/view-controls";
 import { useSessionStore } from "@/lib/session-store";
 import { SessionScopeProvider } from "@/lib/session-store/session-scope";

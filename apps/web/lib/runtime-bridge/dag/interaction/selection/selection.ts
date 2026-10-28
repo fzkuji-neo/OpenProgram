@@ -17,9 +17,9 @@
  * draws, and is dropped on a session switch.
  */
 
-import { runtimeState } from "../../state";
-import { repaintMinimap } from "./minimap";
-import { _svg } from "../render/shapes";
+import { runtimeState } from "../../../state";
+import { repaintMinimap } from "../view/minimap";
+import { _svg } from "../../render/shapes";
 
 let _selected: string[] = [];
 let _selectionSession: string | null = null;
@@ -99,7 +99,7 @@ export function paintSelection(): void {
     const id = g.getAttribute("data-msg-id") || "";
     const on = want.has(id);
     if (on) drawn.add(id);
-    // Selected, the chip itself lights up (dag/nodes.css): no frame.
+    // Selected, the chip itself lights up (dag/graph/nodes.css): no frame.
     g.classList.toggle("is-selected", on);
   });
   // Zoomed far out, the rest of the graph fades behind a selection.

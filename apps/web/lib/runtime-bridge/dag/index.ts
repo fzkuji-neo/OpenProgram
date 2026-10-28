@@ -15,7 +15,7 @@ import { type GNode } from "./types";
 import { runtimeState } from "../state";
 import { flushPendingHistoryEmit, render } from "./pipeline";
 import { _recomputeVisibility } from "./render/visibility";
-import { _installInteractionHandlers } from "./interaction/nodes";
+import { _installInteractionHandlers } from "./interaction/node/nodes";
 import {
   contextRangeUnchanged,
   type CoverageNode,

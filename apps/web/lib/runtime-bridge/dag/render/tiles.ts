@@ -27,7 +27,7 @@ export interface Tile {
   tone: TileTone;
   /** What the node does, for the agent's activity bubble. */
   doing: string;
-  /** What the node did, for its caption on the canvas (render/captions.ts);
+  /** What the node did, for its caption on the canvas (render/labels/captions.ts);
    *  empty for kinds that need none. */
   did?: string;
 }
@@ -130,7 +130,7 @@ export function taskLabel(root: GNode | undefined): string {
 /** The tile group: a round chip of the node's own colour and its icon
  *  (dag/rendering.md §4). Every kind of node is the same chip — your
  *  message, a reply, a call — so they read as one family; states restyle
- *  the chip itself (app/styles/dag/nodes.css), never add a frame. */
+ *  the chip itself (app/styles/dag/graph/nodes.css), never add a frame. */
 export function buildTile(tile: Tile): SVGElement {
   const g = _svg("g", { class: `dag-tile t-${tile.tone}`, "pointer-events": "none" });
   g.appendChild(_svg("circle", { r: TILE_R, "data-node-shape": "1", "data-shape": "tile" }));

@@ -18,10 +18,10 @@
  */
 
 import { translateText } from "@/lib/i18n";
-import { getSocket, runtimeState } from "../../state";
-import type { GNode } from "../types";
-import { _lastGraph, _lastThreadModel } from "../store/globals";
-import { isSpawnRoot } from "../passes/thread-nodes";
+import { getSocket, runtimeState } from "../../../state";
+import type { GNode } from "../../types";
+import { _lastGraph, _lastThreadModel } from "../../store/globals";
+import { isSpawnRoot } from "../../passes/thread-nodes";
 import { clearSelection, emit, selectedIds } from "./selection";
 
 export const DAG_NODES_EVENT = "op:dag-nodes";

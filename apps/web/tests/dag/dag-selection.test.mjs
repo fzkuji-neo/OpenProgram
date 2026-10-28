@@ -4,7 +4,7 @@ import { registerHooks } from "node:module";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-const WEB_ROOT = new URL("../../", import.meta.url);
+const WEB_ROOT = new URL("../..", import.meta.url);
 registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier.startsWith("@/")) {
@@ -23,24 +23,24 @@ registerHooks({
   },
 });
 
-const sel = await import("../../lib/runtime-bridge/dag/interaction/selection.ts");
-const { deletionTargets } = await import("../../lib/runtime-bridge/dag/interaction/node-delete.ts");
+const sel = await import("../../lib/runtime-bridge/dag/interaction/selection/selection.ts");
+const { deletionTargets } = await import("../../lib/runtime-bridge/dag/interaction/selection/node-delete.ts");
 
 test("One mouse, no tools, and no left rail", () => {
   assert.equal(sel.dagTools, undefined);
   assert.equal(sel.registerTool, undefined);
-  const tools = readFileSync(new URL("../../components/chat/dag-tools.tsx", import.meta.url), "utf8");
+  const tools = readFileSync(new URL("../../components/chat/dag/dag-tools.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(tools, /Lasso|MousePointer2|setTool|DagToolRail|focusAgent/);
 });
 
 test("Every view control is one column of Solar glyphs in the top-right corner", () => {
-  const view = readFileSync(new URL("../../components/chat/dag-view.tsx", import.meta.url), "utf8");
+  const view = readFileSync(new URL("../../components/chat/dag/dag-view.tsx", import.meta.url), "utf8");
   const column = view.slice(view.indexOf("function DagZoomColumn"), view.indexOf("export function DagView"));
   assert.match(column, /zoomStep\(1\)[\s\S]*dag-zoom-readout[\s\S]*zoomStep\(-1\)[\s\S]*fitCanvas\(\)[\s\S]*focusAgent\(\)[\s\S]*<DagLegend \/>[\s\S]*toggleMinimap\(\)[\s\S]*setKeySheet/);
   assert.doesNotMatch(view, /lucide-react/);
   // A frame, not the outward arrows that read as full screen.
   assert.doesNotMatch(view, /Maximize2|createPortal|dagHudSlot/);
-  const css = readFileSync(new URL("../../app/styles/dag/tools.css", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../../app/styles/dag/panels/tools.css", import.meta.url), "utf8");
   assert.match(css, /\.dag-zoom-column \{[^}]*right: 12px;[^}]*top: 86px;/);
   assert.match(css, /\.dag-minimap \{[^}]*right: 56px;[^}]*top: 12px;/);
   assert.match(css, /\.dag-key-sheet \{[^}]*right: 56px;[^}]*top: 12px;/);
@@ -48,10 +48,10 @@ test("Every view control is one column of Solar glyphs in the top-right corner",
 });
 
 test("A mouse wheel zooms, two fingers pan, a right drag pans, a left drag draws a box", async () => {
-  const canvas = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/gestures.ts", import.meta.url), "utf8");
+  const canvas = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/view/gestures.ts", import.meta.url), "utf8");
   const wheel = canvas.slice(canvas.indexOf('"wheel"'), canvas.indexOf('"pointerdown"'));
   assert.match(wheel, /const kind = wheelKind\(e\);[\s\S]*kind === "pan"[\s\S]*setView\([\s\S]*camera\.zoomAt\(/);
-  const { wheelKind } = await import("../../lib/runtime-bridge/dag/interaction/wheel.ts");
+  const { wheelKind } = await import("../../lib/runtime-bridge/dag/interaction/view/wheel.ts");
   const ev = (o) => ({ deltaMode: 0, deltaX: 0, deltaY: 0, ctrlKey: false, metaKey: false, ...o });
   // A mouse notch on macOS Chromium: wheelDeltaY 120, deltaY about -4.
   assert.equal(wheelKind(ev({ timeStamp: 1000, deltaY: -4, wheelDeltaY: 120 })), "zoom");
@@ -71,7 +71,7 @@ test("A mouse wheel zooms, two fingers pan, a right drag pans, a left drag draws
 });
 
 test("The selection bar sits top left, clear of the perspective controls", () => {
-  const css = readFileSync(new URL("../../app/styles/dag/tools.css", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../../app/styles/dag/panels/tools.css", import.meta.url), "utf8");
   assert.match(css, /\.dag-select-bar \{[^}]*top: 12px;[^}]*left: 12px;/);
 });
 
@@ -107,7 +107,7 @@ test("A followup reply merged into a glyph goes with it", () => {
 });
 
 test("A click selects the node, then runs its own action; Shift/⌘ only toggles", () => {
-  const nodes = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/nodes.ts", import.meta.url), "utf8");
+  const nodes = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/node/nodes.ts", import.meta.url), "utf8");
   const click = nodes.indexOf("if (e.shiftKey || e.metaKey) {");
   assert.ok(click > 0 && click < nodes.indexOf("showNodeMenu(gn, g)"));
   assert.doesNotMatch(nodes, /activeTool/);

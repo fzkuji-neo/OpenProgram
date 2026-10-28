@@ -9,13 +9,13 @@ import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import type { GNode } from "../types";
-import { getSocket, runtimeState } from "../../state";
+import type { GNode } from "../../types";
+import { getSocket, runtimeState } from "../../../state";
 import { translateText } from "@/lib/i18n";
-import { _branchColor, _svg, _textWidth } from "./shapes";
-import { TILE_R, taskLabel } from "./tiles";
-import { isSpawnRoot, type ThreadModel } from "../passes/thread";
-import { _currentHead } from "../store/globals";
+import { _branchColor, _svg, _textWidth } from "../shapes";
+import { TILE_R, taskLabel } from "../tiles";
+import { isSpawnRoot, type ThreadModel } from "../../passes/thread";
+import { _currentHead } from "../../store/globals";
 
 // canvas 量宽不认 var()（见 shapes.ts SPAWN_FONT 注释），写死同一字体栈。
 // 字号/字重必须跟下面 <text> 实际画的一致（取 active 的 600 偏保守），
@@ -80,7 +80,7 @@ function _drawPill(
     rx: String(bh / 2),
     ry: String(bh / 2),
     // No background: the rect is only the click target; the name itself
-    // carries the branch colour (app/styles/dag/badges.css).
+    // carries the branch colour (app/styles/dag/graph/badges.css).
     fill: "transparent",
   }));
   const tip = _svg("title", {});

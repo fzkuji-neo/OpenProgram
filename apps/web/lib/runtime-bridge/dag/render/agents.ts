@@ -78,7 +78,7 @@ function agentName(agent: string, byId: Record<string, GNode>, drawn: Map<string
 
 /** A marker pinned to a point on its tile (``at``, world units). The
  *  inner group keeps the marker's on-screen size when the canvas zooms
- *  out (``--dag-marker-scale``, interaction/canvas.ts), so ``dx``/``dy``
+ *  out (``--dag-marker-scale``, interaction/view/canvas.ts), so ``dx``/``dy``
  *  are screen offsets from the pin. */
 function marker(at: { x: number; y: number }, cls: string, dx: number, dy: number): {
   outer: SVGElement; inner: SVGElement;

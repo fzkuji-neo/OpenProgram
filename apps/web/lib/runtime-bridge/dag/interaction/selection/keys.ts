@@ -15,10 +15,10 @@
  */
 
 import { clearSelection, dagVisible, isEditableFocus, selectedIds } from "./selection";
-import { fitCanvas, focusAgent, frameSelection, resetZoom, zoomStep } from "./canvas";
+import { fitCanvas, focusAgent, frameSelection, resetZoom, zoomStep } from "../view/canvas";
 import { canUndoDeletion, deleteSelection, undoDeletion } from "./node-delete";
-import { keySheetOpen, setKeySheet } from "./help";
-import { toggleMinimap } from "./minimap";
+import { keySheetOpen, setKeySheet } from "./key-sheet";
+import { toggleMinimap } from "../view/minimap";
 
 function onKeyDown(e: KeyboardEvent): void {
   if (e.defaultPrevented || isEditableFocus() || !dagVisible()) return;

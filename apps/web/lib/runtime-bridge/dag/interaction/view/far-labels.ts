@@ -13,7 +13,7 @@
  * scale or the drawn graph changes.
  */
 
-import { seatOf } from "../render/seat";
+import { seatOf } from "../../render/seat";
 
 const CULLED = "is-culled";
 /** Air between two labels, in screen pixels. */

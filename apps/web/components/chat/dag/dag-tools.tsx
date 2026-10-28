@@ -28,14 +28,14 @@ import {
   selectedIds,
   selectionVersion,
   subscribeSelection,
-} from "@/lib/runtime-bridge/dag/interaction/selection";
+} from "@/lib/runtime-bridge/dag/interaction/selection/selection";
 import {
   deleteSelection,
   deletionPending,
   lastDeletion,
   undoDeletion,
-} from "@/lib/runtime-bridge/dag/interaction/node-delete";
-import { frameSelection } from "@/lib/runtime-bridge/dag/interaction/canvas";
+} from "@/lib/runtime-bridge/dag/interaction/selection/node-delete";
+import { frameSelection } from "@/lib/runtime-bridge/dag/interaction/view/canvas";
 import { DagKeySheet } from "./dag-key-sheet";
 
 function useSelectionVersion(): number {

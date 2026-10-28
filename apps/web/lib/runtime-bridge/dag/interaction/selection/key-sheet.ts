@@ -1,6 +1,6 @@
 /**
  * Whether the canvas's key sheet is open (dag/rendering.md §13). The
- * ``?`` key (keys.ts) and the zoom column's button (components/chat/dag-view.tsx)
+ * ``?`` key (keys.ts) and the zoom column's button (components/chat/dag/dag-view.tsx)
  * both flip it, so it lives outside React.
  */
 

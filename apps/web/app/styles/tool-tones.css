@@ -1,6 +1,6 @@
 /* Tool tones: the colour family of each kind of step, shared by the
    execution timeline's icon tiles (chat/execution-strip.css) and the
-   DAG's node tiles (dag/nodes.css), so one call reads the same colour in
+   DAG's node tiles (dag/graph/nodes.css), so one call reads the same colour in
    the transcript and on the graph. Per-tool tones are picked in
    components/chat/messages/tool-presentation.ts. */
 :root {

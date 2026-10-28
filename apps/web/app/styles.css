@@ -46,11 +46,11 @@
 /* ── DAG 画布（lib/runtime-bridge/dag/） ────────────────────── */
 @import "./styles/dag/view-host.css";
 @import "./styles/dag/dag-flash.css";
-@import "./styles/dag/canvas.css";
-@import "./styles/dag/edges.css";
-@import "./styles/dag/nodes.css";
-@import "./styles/dag/badges.css";
-@import "./styles/dag/tooltip.css";
-@import "./styles/dag/inspector.css";
-@import "./styles/dag/legend.css";
-@import "./styles/dag/tools.css";
+@import "./styles/dag/graph/canvas.css";
+@import "./styles/dag/graph/edges.css";
+@import "./styles/dag/graph/nodes.css";
+@import "./styles/dag/graph/badges.css";
+@import "./styles/dag/panels/tooltip.css";
+@import "./styles/dag/panels/inspector.css";
+@import "./styles/dag/panels/legend.css";
+@import "./styles/dag/panels/tools.css";

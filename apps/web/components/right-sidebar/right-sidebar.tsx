@@ -11,7 +11,7 @@
  * so those ids stay plain divs here.
  *
  * The session context DAG is NOT here: it is a center perspective
- * (`components/chat/dag-view.tsx`), reached from the chat pane's
+ * (`components/chat/dag/dag-view.tsx`), reached from the chat pane's
  * top-right view toggle. Clicking a node in that graph is what
  * populates the Detail / Context views below.
  *

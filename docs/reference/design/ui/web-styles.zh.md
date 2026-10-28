@@ -29,7 +29,7 @@ right-dock/dag）导入整棵树，特异性平局的判定与拆分前完全一
 
 - **一个组件一个文件。** 文件只写它命名的那个组件的样式。每个文件开头
   一段注释：这是哪个组件、对应的 tsx/ts 源路径。
-- **归属跟着组件树走。** DAG 节点样式属于 `dag/nodes.css`，因为绘制器在
+- **归属跟着组件树走。** DAG 节点样式属于 `dag/graph/nodes.css`，因为绘制器在
   `lib/runtime-bridge/dag/render/nodes.ts`；聊天气泡样式属于
   `chat/bubbles.css`。新组件开新文件，不往旧文件里追加段落。
 - **真正全局的留在全局。** 令牌与主题在 `base.css` / `themes/`；聊天列
@@ -38,4 +38,4 @@ right-dock/dag）导入整棵树，特异性平局的判定与拆分前完全一
 - **module CSS 保持 module CSS。** 已用 `*.module.css` 的组件（输入框）
   维持原样；本树只覆盖全局样式层。
 - 对样式源做断言的守卫脚本读对应的组件文件（`check-dag-subagent.mjs`
-  读 `dag/nodes.css` 校验 HEAD 光晕关键帧）。
+  读 `dag/graph/nodes.css` 校验 HEAD 光晕关键帧）。

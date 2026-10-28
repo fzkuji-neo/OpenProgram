@@ -3,13 +3,13 @@
 Self-contained SVG renderer for the session context DAG (PyCharm-style
 conversation history view). It paints into `#historyPanel .history-body`,
 hosted by the chat pane's graph perspective
-(`apps/web/components/chat/dag-view.tsx`) — see
+(`apps/web/components/chat/dag/dag-view.tsx`) — see
 `docs/reference/design/runtime/dag/rendering.md`. Imported for side
 effects by `apps/web/components/app-shell.tsx` via `./index`, which
 exports `renderHistoryGraph` / `repaintBranchTags` /
 `setHistoryContextRange` / `refreshHistoryContextRange` /
 `enterExclusiveCoverageMode` (imported by `../conversations.ts`,
-`../chat-handlers.ts`, `app-shell.tsx` and `components/chat/dag-view.tsx`).
+`../chat-handlers.ts`, `app-shell.tsx` and `components/chat/dag/dag-view.tsx`).
 
 This module replaced and removed the pre-split monolithic
 `apps/web/lib/runtime-bridge/history-graph.ts` (~1700 lines). Current code
@@ -38,31 +38,44 @@ dag/
 │   ├── assign-lanes.ts                  column index (prefers backend _lane)
 │   └── geometry.ts                      coordinates and graph bounds
 ├── interaction/
-│   ├── canvas.ts                        the view: pan / zoom / fit, lattice, one paint a frame
-│   ├── gestures.ts                      wheel, pinch, pan drag, selection-box drag
-│   ├── wheel.ts                         mouse wheel vs trackpad vs pinch
-│   ├── far-labels.ts                    zoomed-out label culling
-│   ├── minimap.ts                       the corner map
-│   ├── selection.ts                     selection state, hit-testing, the box
-│   ├── node-delete.ts                   delete, widening, undo
-│   ├── keys.ts / help.ts                shortcuts and their sheet
-│   ├── nodes.ts                         click / dblclick / contextmenu wiring
-│   ├── tooltip-content.ts               pure tooltip content model
-│   └── tooltip.ts                       tooltip DOM lifecycle and positioning
+│   ├── view/                            the camera
+│   │   ├── canvas.ts                    pan / zoom / fit, lattice, one paint a frame
+│   │   ├── gestures.ts                  wheel, pinch, pan drag, selection-box drag
+│   │   ├── wheel.ts                     mouse wheel vs trackpad vs pinch
+│   │   ├── far-labels.ts                zoomed-out label culling
+│   │   └── minimap.ts                   the corner map
+│   ├── node/                            one node under the pointer
+│   │   ├── nodes.ts                     click / dblclick / contextmenu wiring
+│   │   ├── tooltip.ts                   hover / detail card lifecycle and position
+│   │   ├── tooltip-content.ts           pure card content model
+│   │   └── inspector.ts                 verb menu + raw JSON layer
+│   └── selection/                       many nodes at once
+│       ├── selection.ts                 selection state, hit-testing, the box
+│       ├── node-delete.ts               delete, widening, undo
+│       ├── keys.ts                      shortcuts
+│       └── key-sheet.ts                 whether the shortcut sheet is open
 ├── render/
 │   ├── nodes.ts                         node tiles, status and coverage marks
 │   ├── tiles.ts                         icon tile per node kind (presentTool for calls)
 │   ├── agents.ts                        agent dots and activity bubbles
-│   ├── captions.ts                      the text beside each node
 │   ├── edges.ts                         conv / fork / attach / spawn edges, belts
-│   ├── badges.ts                        branch-name badges
 │   ├── visibility.ts                    the coverage fill (is-covered)
-│   ├── inspector.ts                     node inspector popover + context menu
 │   ├── seat.ts                          reads a drawn group's translate(x,y) back
-│   └── shapes.ts                        SVG primitives, branch colour, text width
+│   ├── shapes.ts                        SVG primitives, branch colour, text width
+│   └── labels/
+│       ├── captions.ts                  the text beside each node
+│       └── badges.ts                    branch-name badges, fold counts
 └── store/
     └── globals.ts                       module-level state (HEAD, collapsed set, ...)
 ```
+
+The rest of the module lives beside its kind of file, each in its own
+folder: the React parts in `apps/web/components/chat/dag/` (the host
+`dag-view.tsx`, the rail `dag-tools.tsx`, the shortcut sheet
+`dag-key-sheet.tsx`), the styles in `apps/web/app/styles/dag/`
+(`graph/` for the drawing, `panels/` for what floats over it), the tests
+in `apps/web/tests/dag/`. No folder holds more than about eight files;
+when one would, it splits by what its files are about.
 
 `pipeline.ts` still owns the render-context closure (`pos()`,
 `stableLeafOfNode`, `cinfo`, `internalSet`, …) and passes it into the
@@ -157,7 +170,7 @@ adding a new pass, check that you don't regress any of these:
 
 * **Sub-calls don't dim** (issue #129). A node outside the context
   range keeps its solid tile (`.history-node.out-of-context` in
-  `app/styles/dag/nodes.css`); only edges fade.
+  `app/styles/dag/graph/nodes.css`); only edges fade.
 
 * **Top-level `gui_agent` square auto-collapses** (issue #136).
   `applyCollapse` always starts `role=tool` clusters with ≥1
