@@ -12,6 +12,9 @@ export interface BranchRow {
   head_msg_id: string;
   name?: string;
   active?: boolean;
+  updated_at?: number | null;
+  /** A sub-agent's conversation kept in this session, not a branch the user made. */
+  sub_agent?: boolean;
 }
 
 // Fallback palette — 唯一定义在 lib/format-utils/lane-colors.ts。

@@ -99,7 +99,7 @@ test("the overview sums the sub-agents up under the main agent, whose page lists
   ], async (host, click) => {
     let text = host.textContent;
     // The overview is the main agent alone, with its sub-agents summed up.
-    assert.match(text, /AgentsMain agentRunning · 2 min3 sub-agents · 1 running$/);
+    assert.match(text, /AgentsMain agentRunning · 2 min · 3 sub-agents$/);
     assert.doesNotMatch(text, /Research|Form filler|Fix page close/);
     // The messages themselves stay in the chat.
     assert.doesNotMatch(text, /check and fix it|fill the form|what happened/);
@@ -167,7 +167,7 @@ test("sub-agents are paged on the main agent's page", async () => {
   const runs = Array.from({ length: 25 }, (_, i) => run(`j${i}`, "completed", now - i * 60 - (i > 2 ? 2 * DAY : 0),
     { parent_execution_id: "turn", display: { kind: "job_agent", label: `agent_${i}` } }));
   await mounted([run("turn", "completed", now - 3 * DAY), ...runs], async (host, click) => {
-    assert.match(host.textContent, /AgentsMain agentIdle · .*25 sub-agents/s);
+    assert.match(host.textContent, /AgentsMain agent.+ · 25 sub-agents/);
     await click("Main agent");
     const listed = () => [...host.querySelectorAll("button")].filter(button => /^agent \d+/.test(button.textContent)).length;
     assert.equal(listed(), 20);
@@ -199,10 +199,10 @@ test("the main conversation page shows its latest run, the sub-agents it started
     run("latest", "completed", now - 600, { task_label: "prepare the visa form", terminal_at: now - 480 })],
   async (host, click, selected) => {
     // A call that never started a sub-agent counts with the sub-agents.
-    assert.match(host.textContent, /AgentsMain agentIdle · .*2 sub-agents$/s);
+    assert.match(host.textContent, /AgentsMain agent\S+ · 2 sub-agents$/);
     await click("Main agent");
     let text = host.textContent;
-    assert.match(text, /Main agentNeurIPS trip.*Idle · /s);
+    assert.doesNotMatch(text, /Idle/);
     assert.match(text, /Last message.*prepare the visa form.*Completed · /s);
     assert.match(text, /Sub-agents.*Fix page close.*Interrupted.*Upload fix.*Failed to start/s);
     await click("Upload fix");
@@ -223,7 +223,7 @@ test("a command cut short by a restart is history, not something to handle", asy
   const bash = { id: "c2", execution_id: "old", name: "bash", description: "Install the browser", command: "npx playwright install", prompt: "", started_at: now - DAY, status: "unknown" };
   await mounted([run("old", "reconciliation_required", now - DAY), run("latest", "completed", now - 600, { terminal_at: now - 500 })],
   async (host, click) => {
-    assert.match(host.textContent, /Main agentIdle · /);
+    assert.match(host.textContent, /AgentsMain agent\d\d:\d\dPrograms/);
     // The command is listed with the shell work, greyed as interrupted.
     assert.match(host.textContent, /Programs and commandsInstall the browserCommand · Interrupted · /);
     await click("Main agent");
@@ -265,7 +265,8 @@ test("titles read as the words a person wrote, not attachment markup, sender ids
     run("d", "paused", now - 40, { task_label: "[oTestUser000@im.wechat] hello there" }),
   ], async (host, click) => {
     // Paused runs are the main agent's; its page names each one.
-    assert.match(host.textContent, /Main agentWaiting for you/);
+    // Four runs wait for an answer: a red 4 on the glyph, the line keeps the time.
+    assert.match(host.textContent, /Agents4Main agent\d\d:\d\d$/);
     await click("Main agent");
     const text = host.textContent;
     assert.match(text, /"Attachment IMG_0177\.JPG" is waiting for your answer/);
@@ -347,7 +348,7 @@ test("showing what waits for you keeps the branches above it and lights the menu
   await withView({ show: "attention" }, () => mounted([...viewSessions, waiting], async (host, click) => {
     await click("Main agent");
     const text = host.textContent;
-    assert.match(text, /Sub-agents.*Research.*Book hotelPaused/s);
+    assert.match(text, /Sub-agentsResearch.*1Book hotel/s);
     assert.doesNotMatch(text, /Read pages|Fix page close/);
     assert.equal(host.querySelector("[data-view-changed]").getAttribute("data-view-changed"), "1");
   }, [], {}, { calls: [agentCall] }));
@@ -403,9 +404,10 @@ test("a sub-agent waiting on a question shows it and goes to the chat's card to 
   try {
     await mounted([run("turn", "completed", now - 600), run("j_ask", "paused", now - 300, { parent_execution_id: "turn", display: { kind: "job_agent", label: "Book_hotel" } })],
     async (host, click) => {
-      assert.match(host.textContent, /1 sub-agent · 1 waiting for you/);
+      assert.match(host.textContent, /Agents1Main agent\S+ · 1 sub-agent/);
       await click("Main agent");
-      assert.match(host.textContent, /Book hotelWaiting for your answer · /);
+      // Waiting, a sub-agent carries the red count; its page says what it waits on.
+      assert.match(host.textContent, /1Book hotel\d\d:\d\d/);
       await click("Book hotel");
       assert.match(host.textContent, /Book hotelWaiting for your answerWaiting for your answerWhich venue should I book\?Choices: Hotel A · Hotel BAnswer in chat/);
       await click("Answer in chat");
@@ -472,7 +474,7 @@ test("each branch the reader made is a main agent of its own, with its runs and 
       run("alt", "running", now - 60),
     ], async (host, click) => {
       // One row per branch, the checked-out one tagged; each sums up only its own sub-agents.
-      assert.match(host.textContent, /AgentsmainCurrentIdle · .*1 sub-agentTry another wordingRunning · 1 min/s);
+      assert.match(host.textContent, /AgentsmainCurrent\S+ · 1 sub-agentTry another wordingRunning · 1 min/);
       assert.doesNotMatch(host.textContent, /Main agent/);
       await click("Try another wording");
       let text = host.textContent;

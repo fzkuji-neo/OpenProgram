@@ -63,9 +63,9 @@ function RunGlyph() {
   return <span className={styles.glyph} data-tone="run" aria-hidden="true"><MessageSquareText size={15} strokeWidth={1.8} /></span>;
 }
 
-function Status({ tone, children }: { tone: Tone; children: ReactNode }) {
+function Status({ tone, children, dot = true }: { tone: Tone; children: ReactNode; dot?: boolean }) {
   return <span className={styles.status} data-tone={tone}>
-    <span className={`indicator-dot sm ${DOT[tone]}`} aria-hidden="true" />
+    {dot && <span className={`indicator-dot sm ${DOT[tone]}`} aria-hidden="true" />}
     <span className={styles.statusText}>{children}</span>
   </span>;
 }
@@ -76,15 +76,23 @@ type Line = { depth: number; last: boolean; first: boolean; guides: number[] };
 
 /** ``sub``: a monospace line under the title (a program's command);
  *  ``extra``: what goes under the status (a program's progress bar). */
-function Row({ glyph, title, badge, sub, status, tone, onOpen, line, extra }: {
+/** A row: its glyph, with a red count on the corner when something
+ *  waits for the reader (the Dock's badge), the name, and one line of
+ *  status coloured by its tone (running blue, failed red, else muted). */
+function Row({ glyph, title, badge, sub, status, tone, onOpen, line, extra, count = 0 }: {
   glyph: ReactNode; title: string; badge?: ReactNode; sub?: string; status: ReactNode; tone: Tone; onOpen: () => void; line?: Line; extra?: ReactNode;
+  /** How many things wait for the reader here. */
+  count?: number;
 }) {
   const row = <Button variant="ghost" className={styles.row} onClick={onOpen}>
-    {glyph}
+    <span className={styles.glyphWrap}>
+      {glyph}
+      {count > 0 && <span className={styles.countBadge}>{count > 99 ? "99+" : count}</span>}
+    </span>
     <span className={styles.rowText}>
       {badge ? <span className={styles.nameLine}><span className={styles.name}>{title}</span>{badge}</span> : <span className={styles.name}>{title}</span>}
       {sub && <span className={styles.sub}>{sub}</span>}
-      <Status tone={tone}>{status}</Status>
+      {status ? <Status tone={tone} dot={false}>{status}</Status> : null}
       {extra}
     </span>
     <ChevronRight size={14} className={styles.chevron} aria-hidden="true" />
@@ -333,11 +341,11 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       top = next;
     }
   };
-  type Scope = { key: string; head: string | null; name: string; active: boolean; color: string | null; members: Set<string> | null };
+  type Scope = { key: string; head: string | null; name: string; active: boolean; color: string | null; updatedAt: number | null; members: Set<string> | null };
   const scopes: Scope[] = conversationBranches.length > 1
-    ? conversationBranches.map(branch => ({ key: branch.head, head: branch.head, active: branch.active, color: branch.color,
+    ? conversationBranches.map(branch => ({ key: branch.head, head: branch.head, active: branch.active, color: branch.color, updatedAt: branch.updatedAt,
       name: branch.name || text("Unnamed branch", "未命名分支"), members: memberships.get(branch.head) ?? new Set<string>() }))
-    : [{ key: "main", head: null, name: mainName, active: true, color: null, members: null }];
+    : [{ key: "main", head: null, name: mainName, active: true, color: null, updatedAt: null, members: null }];
   const inScope = (scope: Scope, item: ExecutionSnapshot) => !scope.members || scope.members.has(rootOf(item).execution_id);
   const fullTree = branches.tree<AgentCall>(owner => failedSpawns(owner).map(leaf => ({ at: leaf.at, leaf })));
   /** What one main agent holds: its runs, what it is doing, what waits on the reader, its sub-agents. */
@@ -354,7 +362,9 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   }
   type ScopeFacts = ReturnType<typeof scopeFacts>;
   const scopeOf = (key: string) => scopes.find(scope => scope.key === key) ?? scopes.find(scope => scope.active) ?? scopes[0];
-  function scopeStatus(facts: ScopeFacts): { label: string; tone: Tone } {
+  /** A main agent's state. Resting, it is just the time of its last
+   *  message (the branch's own time when no run of it is listed). */
+  function scopeStatus(facts: ScopeFacts, scope?: Scope): { label: string; tone: Tone } {
     const { ids, latestRun, running, live, issues } = facts;
     if (live) {
       const step = running.at(-1);
@@ -366,10 +376,10 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       return { label: `${doing} · ${duration(now - since, text)}`, tone: "run" };
     }
     if (issues.length) return { label: issues.length === 1 ? waitingState(issues[0].execution) : text("Waiting for you", "等你处理"), tone: "warn" };
-    if (!latestRun) return { label: text("No messages yet", "还没有消息"), tone: "muted" };
+    if (!latestRun) return { label: scope?.updatedAt ? when(scope.updatedAt, text) : "", tone: "muted" };
     const at = when(latestRun.terminal_at ?? latestRun.updated_at ?? startedAt(latestRun), text);
     if (latestRun.status === "failed") return { label: `${text("Failed", "失败")} · ${at}`, tone: "err" };
-    if (latestRun.status === "completed" || latestRun.status === "reconciliation_required") return { label: `${text("Idle", "空闲")} · ${at}`, tone: "muted" };
+    if (["completed", "reconciliation_required", "paused"].includes(latestRun.status)) return { label: at, tone: "muted" };
     return { label: `${executionState(latestRun, text)} · ${at}`, tone: "muted" };
   }
 
@@ -419,10 +429,15 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   /** A main agent's row: its branch's colour and a tag on the checked-out one. */
   function scopeRow(scope: Scope): ReactNode {
     const facts = scopeFacts(scope);
-    const { label, tone } = scopeStatus(facts);
+    // What waits for the reader is the red count on the glyph, its own
+    // and its sub-agents'; the line keeps what it is doing or its time.
+    const waiting = facts.issues.length + facts.tree.filter(row => lookOf(row).tone === "warn").length;
+    const look = facts.issues.length ? scopeStatus({ ...facts, issues: [] }, scope) : scopeStatus(facts, scope);
+    const subs = facts.tree.length ? text(`${facts.tree.length} sub-agent${facts.tree.length === 1 ? "" : "s"}`, `${facts.tree.length} 个子代理`) : "";
     const current = scope.head && scope.active ? <span className={styles.current}>{text("Current", "当前")}</span> : null;
-    return <Row key={scope.key} glyph={<AgentGlyph color={scope.color} />} title={scope.name} badge={current} status={label} tone={tone}
-      extra={subAgentSummary(facts.tree)} onOpen={() => open({ kind: "main", id: scope.key })} />;
+    return <Row key={scope.key} glyph={<AgentGlyph color={scope.color} />} title={scope.name} badge={current} count={waiting}
+      status={[look.label, subs].filter(Boolean).join(" · ")} tone={look.tone === "warn" ? "muted" : look.tone}
+      onOpen={() => open({ kind: "main", id: scope.key })} />;
   }
   /** An agent's status line: what waits on the reader first, then what runs. */
   function agentLook(item: ExecutionSnapshot): { label: string; tone: Tone; at: number } {
@@ -453,8 +468,12 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     return text(` · by ${name}`, ` · ${name}启动`);
   };
   function agentRow(item: ExecutionSnapshot, line?: Line, by = false): ReactNode {
-    const { label, tone } = agentLook(item);
-    return <Row key={`agent:${item.execution_id}`} line={line} glyph={<AgentGlyph />} title={agentName(item)}
+    // Its own waits: a sub-agent below it shows its own count.
+    const below = [...subtreeOf(item)].map(execution).filter((entry): entry is ExecutionSnapshot => Boolean(entry) && entry !== item && isAgent(entry!));
+    const waiting = issuesOf(item).filter(issue => !below.some(agent => subtreeOf(agent).has(issue.execution.execution_id))).length;
+    // Waiting, the red count says so; the line keeps the time.
+    const { label, tone } = waiting ? { label: when(startedAt(item), text), tone: "muted" as Tone } : agentLook(item);
+    return <Row key={`agent:${item.execution_id}`} line={line} glyph={<AgentGlyph />} title={agentName(item)} count={waiting}
       status={by ? label + startedBy(branches.agentParentOf(item)) : label} tone={tone}
       onOpen={() => open({ kind: "run", id: item.execution_id })} />;
   }
@@ -609,25 +628,12 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     </>;
   }
 
-  /** The main agent's sub-agents in one line: how many, how many run,
-   *  how many need the reader. */
-  function subAgentSummary(tree: BranchRow<AgentCall>[]): ReactNode {
-    if (tree.length === 0) return null;
-    const count = (tone: Tone) => tree.filter(row => lookOf(row).tone === tone).length;
-    const running = count("run"), waiting = count("warn");
-    return <span className={styles.subSummary}>
-      {text(`${tree.length} sub-agent${tree.length === 1 ? "" : "s"}`, `${tree.length} 个子代理`)}
-      {running > 0 && <span data-tone="run">{text(` · ${running} running`, ` · ${running} 个运行中`)}</span>}
-      {waiting > 0 && <span data-tone="warn">{text(` · ${waiting} waiting for you`, ` · ${waiting} 个等你处理`)}</span>}
-    </span>;
-  }
-
   // ---- pages -------------------------------------------------------------------
   if (view?.kind === "main") {
     const scope = scopeOf(view.id);
     const facts = scopeFacts(scope);
     const { latestRun, tree } = facts;
-    const { label, tone } = scopeStatus(facts);
+    const { label, tone } = scopeStatus(facts, scope);
     const runningHere = [...facts.running.filter(entry => !agentOf(entry)).map(entry => callRow(entry)), ...facts.programs.map(entry => programRow(entry))];
     return <div className={styles.panel}>
       {backBar(toActivity)}

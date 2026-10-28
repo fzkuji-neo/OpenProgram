@@ -5,22 +5,25 @@
  * (`runtimeState._branchesByConv`): name, which one is checked out, and
  * each one's lane colour in the graph. The runtime fetches them when a
  * conversation loads; this re-reads them whenever it says they changed.
+ * Sub-agents' own conversations kept in the session are left out.
  */
 import { useEffect, useState } from "react";
 import { runtimeState } from "@/lib/runtime-bridge/state";
 import { LANE_COLORS } from "@/lib/format-utils/lane-colors";
 import type { BranchRow } from "./branches/types";
 
-export type ConversationBranch = { head: string; name: string | null; active: boolean; color: string };
+export type ConversationBranch = { head: string; name: string | null; active: boolean; color: string; updatedAt: number | null };
 
 function read(sessionId: string | null): ConversationBranch[] {
   if (!sessionId) return [];
   const rows = (runtimeState._branchesByConv[sessionId] as BranchRow[] | undefined) || [];
   const colors = runtimeState._branchLaneColorMap as Record<string, string>;
+  // A sub-agent's own conversation is reached through its main agent.
   return rows.map((row, index) => ({
     head: row.head_msg_id, name: row.name || null, active: Boolean(row.active),
     color: colors[row.head_msg_id] || LANE_COLORS[index % LANE_COLORS.length],
-  }));
+    updatedAt: row.updated_at ?? null, subAgent: Boolean(row.sub_agent),
+  })).filter(row => !row.subAgent).map(({ subAgent: _, ...row }) => row);
 }
 
 export function useConversationBranches(sessionId: string | null): ConversationBranch[] {

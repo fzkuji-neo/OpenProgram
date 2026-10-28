@@ -97,9 +97,10 @@
 .sectionRow { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-right: 4px; }
 .sectionRow .section { margin-right: 0; }
 /* The main agent's sub-agents summed up under its status. */
-.subSummary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: var(--right-panel-meta-size, 12px); }
-.subSummary [data-tone="run"] { color: var(--accent-blue); }
-.subSummary [data-tone="warn"] { color: color-mix(in srgb, var(--accent-yellow) 85%, var(--text-primary)); }
+/* The Dock's badge: a red count on the glyph's corner for what waits for the reader. */
+.glyphWrap { position: relative; flex: none; display: grid; place-items: center; }
+.countBadge { position: absolute; top: -5px; right: -7px; min-width: 15px; height: 15px; padding: 0 4px; border-radius: 8px; background: var(--accent-red); color: #fff; font-size: 10px; line-height: 15px; text-align: center; font-variant-numeric: tabular-nums; box-shadow: 0 0 0 2px var(--color-sidebar); pointer-events: none; }
+.status[data-tone="run"] { color: var(--accent-blue); }
 .section { margin: 18px 8px 4px; color: var(--text-muted); font-weight: 400; font-size: 12px; line-height: 1.4; font-family: var(--font-sans); }
 .facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px 14px; margin: 16px 8px 0; font-size: 12.5px; }
 .facts dt { color: var(--text-muted); }

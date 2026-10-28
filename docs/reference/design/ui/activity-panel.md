@@ -3,9 +3,10 @@
 The right sidebar's **Activity** lists one conversation's main agent
 (the sub-agents it starts are on its page) and, separately, the programs and
 commands they run in a shell. What waits for the reader is never a group
-of its own: it is the row it concerns, with a warning status. Statuses use
-the common words: Running, Completed, Failed, Cancelled, Interrupted,
-Idle, Waiting for your answer, Waiting for approval.
+of its own: it is the row it concerns, with a red count on its glyph's
+corner, like an app's badge in the Dock. Statuses use the common words:
+Running, Completed, Failed, Cancelled, Interrupted, Waiting for your
+answer, Waiting for approval; a row at rest shows only its time.
 Messages are never rows; they stay in the chat.
 
 Related: [`indicator-dots.md`](indicator-dots.md) (status dots),
@@ -58,13 +59,11 @@ and neither header carries a count.
 
 1. **Agents**: the main agent alone (the conversation's own agent, named
    and drawn like the sub-agents). It reads as running (with the call it
-   is on, or "Waiting for a sub-agent", and the time so far), waiting for
-   the reader ("Waiting for your answer", "Waiting for approval", or
-   "Waiting for you" when several runs wait), "Idle · <time of the last
-   message>", or "Failed · <time>". Under its status, one line sums up
-   the sub-agents the model started: how many, how many run (running
-   tone) and how many wait for the reader (warning tone), as in "5
-   sub-agents · 1 running · 1 waiting for you". The sub-agents themselves are listed on the
+   is on, or "Waiting for a sub-agent", and the time so far, in blue),
+   "Failed · <time>" (red), or otherwise just the time of its last
+   message, followed by how many sub-agents the model started ("Oct 15 ·
+   5 sub-agents"). What waits for the reader, its own runs and its
+   sub-agents', is the red count on the ghost. The sub-agents themselves are listed on the
    main agent's page, so the overview stays one row however many the
    model starts. Calls and programs whose execution is not listed count as
    the main agent's.
@@ -79,7 +78,11 @@ and neither header carries a count.
    sub-agent, count as the checked-out branch's. A branch's page is the
    main agent's page for that branch, titled **Branch**, with **Switch to
    this branch** (the Branches panel's checkout) when it is not the
-   current one. Sub-agents' own conversations are not branches here.
+   current one. A branch with no run listed shows the branch's own time.
+   Sub-agents' own conversations are not branches here: an older session
+   keeps a sub-agent's turns inline, and their tip, whose chain starts
+   at a spawn root, comes marked `sub_agent` in the server's branch rows
+   (`build_branches_payload`) and is left out.
 2. **Programs and commands**: shell calls still running, shell calls cut
    short when their run was interrupted ("Command · Interrupted ·
    Yesterday", muted), and every background program. Running rows first,
@@ -113,14 +116,15 @@ arrow names the page it returns to. Nothing expands in place.
   sub-agent reads as running with its call, Interrupted (an `agent` call
   cut short shows as the sub-agent it started), or its final state with
   the time; one waiting for the reader is listed once, in place, with the
-  warning tone. An `agent` call that started no sub-agent sits in the
+  time and a red count on its ghost (its own waits; a sub-agent below it
+  carries its own). An `agent` call that started no sub-agent sits in the
   tree where that sub-agent would, as **Failed to start** or **Not
   started**. The list shows 20 rows at a time with **Show earlier**.
 
   The section heading's button opens the view menu, built from the
   composer options menu's pieces: the same radix wrapper and
   `MENU_PANEL` frame, a value row per setting that opens a submenu, and
-  check rows in it. **Show** is All, Waiting for you (rows in the warning tone)
+  check rows in it. **Show** is All, Waiting for you (rows with a red count)
   or Running (rows in the running tone). By structure, a filter keeps
   each match and the agents above it (`pruneBranches`) and redraws the
   lines for what is left. **Arrange** is By structure (the tree) or By
@@ -190,7 +194,7 @@ reading a background command gets each redraw once.
 ## Look
 
 Rows have no frame at rest: a bare glyph in its kind's colour, the name
-over a status line led by the shared indicator dot, a chevron. Hover lifts
+over a one-line status coloured by its tone (no dot), a chevron. Hover lifts
 the row into a raised card: the file cards' shadow over a solid fill a
 step toward the text colour (4%), since the panel is the input surface
 itself and a card of the same colour would show no edge. Rows stack above the

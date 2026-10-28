@@ -228,6 +228,33 @@ def _attach_embed_stats(
     return count, tokens
 
 
+def _spawned_heads(session_id: str, heads: list[str]) -> set[str]:
+    """Tips whose chain starts at a sub-agent's spawn root.
+
+    Older sessions keep a sub-agent's turns in the parent session: its
+    first user node is a spawn root (``spawn_branch_root`` / source
+    ``agent_spawn``) and its reply has no caller, so ``list_branches``
+    reports the reply as a tip like any branch the user made.
+    """
+    from openprogram.agent.session_db import default_db
+    from openprogram.store import SessionNodeWriter
+    from openprogram.store.session.session_store.shared import _is_spawn_root
+    nodes = SessionNodeWriter(default_db(), session_id).load().nodes
+    spawned = set()
+    for head in heads:
+        key, seen = head, set()
+        while key and key not in seen:
+            seen.add(key)
+            node = nodes.get(key)
+            if node is None:
+                break
+            if _is_spawn_root(node.metadata or {}):
+                spawned.add(head)
+                break
+            key = node.predecessor
+    return spawned
+
+
 def build_branches_payload(session_id: str | None) -> dict:
     """Build the ``branches_list`` data dict for a session.
 
@@ -249,6 +276,7 @@ def build_branches_payload(session_id: str | None) -> dict:
             from openprogram.webui.graph_builder import build_session_graph
             graph = build_session_graph(session_id, active_head)
             leaves = db.list_branches(session_id)
+            spawned = _spawned_heads(session_id, [row["head_msg_id"] for row in leaves])
             for row in leaves:
                 # An archived branch is retired from the agent list
                 # (agent-collaboration.md §2.6). The panel is the same
@@ -272,7 +300,11 @@ def build_branches_payload(session_id: str | None) -> dict:
                     "name": name,
                     "is_named": bool(row.get("name")),
                     "created_at": row.get("created_at"),
+                    "updated_at": row.get("updated_at"),
                     "active": (mid == active_head),
+                    # A sub-agent's conversation kept in this session: its
+                    # tip is addressable, but it is not a branch the user made.
+                    "sub_agent": mid in spawned,
                 })
         except Exception as e:
             _s._log(f"[list_branches] {session_id}: {e}")
