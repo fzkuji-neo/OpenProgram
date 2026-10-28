@@ -88,23 +88,18 @@
    tone from the same `dag-tile t-<tone>` classes as app/styles/dag/nodes.css. */
 .dag-legend-tile {
   flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 18%, var(--bg-primary, #191918));
 }
-/* Your message: the raised button it is on the canvas (dag/nodes.css). */
-.dag-legend-tile.t-user {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--bg-input);
-  box-shadow: var(--shadow-raised);
-}
-.dag-legend-tile.t-user svg { width: 15px; height: 15px; }
-.dag-legend-tile[data-state="outline"] svg { opacity: 0.38; }
+.dag-legend-tile svg { width: 13px; height: 13px; }
+.dag-legend-tile[data-state="outline"] { background: color-mix(in srgb, var(--tone) 10%, var(--bg-primary, #191918)); }
+.dag-legend-tile[data-state="outline"] svg { opacity: 0.6; }
 /* Failed keeps its tone; the Activity panel's red badge with a ``!``
    sits on its corner (nodes.css ``dag-status-badge``). */
 .dag-legend-tile[data-state="error"] { position: relative; }

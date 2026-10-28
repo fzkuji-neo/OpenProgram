@@ -205,9 +205,8 @@ export function drawNodes(
     // messages that started it as well as by its line.
     if (shown.tone === "user") (tile as SVGElement).style.setProperty("--tone", _branchColor(node));
     const el = tile.querySelector("[data-node-shape]") as SVGElement | null;
-    // HEAD is said by a breathing glow around its own tile (§4), in the
-    // tile's tone: light rides the shape at every zoom, where a fill
-    // would change what the tile looks like.
+    // HEAD is said by a breathing glow round its own chip (§4), in the
+    // chip's colour: light rides the shape at every zoom.
     if (isHead && el) el.setAttribute("data-head", "1");
     g.appendChild(tile);
     applyStatusPaint(g, el, node);

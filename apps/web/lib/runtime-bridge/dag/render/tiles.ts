@@ -1,8 +1,8 @@
 /**
  * Renderer: node tiles (dag/rendering.md §4).
  *
- * Every node is a rounded tile with an icon, the same tile the execution
- * timeline draws beside each step: a call gets the icon and tone
+ * Every node is a round chip tinted with its colour, icon in full colour:
+ * a call gets the icon and tone
  * `presentTool` gives it there, so "ran npm test" looks alike in the
  * transcript and on the graph. Conversation nodes get their own icons:
  * your message, the agent's reply (a ghost: agents are ghosts across the
@@ -32,10 +32,10 @@ export interface Tile {
   did?: string;
 }
 
-/** Half the tile's side. The grid (types.ts) leaves a gap of one tile
- *  between neighbours, so a belt between two tiles stays visible. */
-export const TILE_R = 12;
-const ICON = 18;
+/** The chip's radius. On the 40px grid (types.ts) a 28px chip leaves a
+ *  12px gap, so a belt between two chips stays visible. */
+export const TILE_R = 14;
+const ICON = 16;
 
 // The transcript names a call by what it did ("Ran", "Edited"); a bubble
 // over a working agent says what it is doing. Chinese titles are plain
@@ -110,23 +110,16 @@ export function taskLabel(root: GNode | undefined): string {
   return chars.length > 14 ? chars.slice(0, 13).join("") + "…" : text;
 }
 
-/** The tile group: a flat block and its icon. Running, the block
- *  breathes (app/styles/dag/nodes.css). */
+/** The tile group: a round chip of the node's own colour and its icon
+ *  (dag/rendering.md §4). Every kind of node is the same chip — your
+ *  message, a reply, a call — so they read as one family; states restyle
+ *  the chip itself (app/styles/dag/nodes.css), never add a frame. */
 export function buildTile(tile: Tile): SVGElement {
   const g = _svg("g", { class: `dag-tile t-${tile.tone}`, "pointer-events": "none" });
-  // The plate hugs the icon, so a belt runs right up to it. Your own
-  // messages are buttons you can press (fork, edit), so theirs is the
-  // app's raised button: a round one with a shadow (nodes.css).
-  const raised = tile.tone === "user";
-  const plate = raised ? TILE_R : ICON / 2 + 1;
-  g.appendChild(_svg("rect", {
-    x: -plate, y: -plate, width: plate * 2, height: plate * 2,
-    rx: raised ? plate : 5, ry: raised ? plate : 5, "data-node-shape": "1", "data-shape": "tile",
-  }));
+  g.appendChild(_svg("circle", { r: TILE_R, "data-node-shape": "1", "data-shape": "tile" }));
   const box = SOLAR_VIEWBOXES[tile.icon] ?? "0 0 24 24";
-  const size = raised ? ICON - 1 : ICON;
   const icon = _svg("svg", {
-    x: -size / 2, y: -size / 2, width: size, height: size,
+    x: -ICON / 2, y: -ICON / 2, width: ICON, height: ICON,
     viewBox: box, class: "dag-tile-icon", "aria-hidden": "true",
   });
   icon.innerHTML = SOLAR_BODIES[tile.icon];

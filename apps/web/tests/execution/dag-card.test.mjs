@@ -42,16 +42,22 @@ test("Every key sits in one fixed column so the values line up", () => {
   assert.match(css, /\.history-tooltip-kv-key \{[^}]*flex: none;[^}]*width: 84px;/);
 });
 
-test("Covered tiles fill with their tone, and the legend uses the canvas tile classes", () => {
+test("Every node is one tinted round chip; states restyle the chip, never frame it", () => {
   const vis = readFileSync(new URL("../../lib/runtime-bridge/dag/render/visibility.ts", import.meta.url), "utf8");
   assert.match(vis, /classList\.toggle\("is-covered", visible\)/);
+  const tiles = readFileSync(new URL("../../lib/runtime-bridge/dag/render/tiles.ts", import.meta.url), "utf8");
+  assert.match(tiles, /_svg\("circle", \{ r: TILE_R, "data-node-shape": "1"/);
+  assert.doesNotMatch(tiles, /raised/);
   const css = readFileSync(new URL("../../app/styles/dag/nodes.css", import.meta.url), "utf8");
-  // Just the icon: the plate is the canvas colour, coverage is the icon's ink.
-  assert.match(css, /\.dag-tile > rect\[data-node-shape\] \{\s*fill: var\(--bg-primary, #191918\);\s*stroke: none;/);
-  assert.match(css, /\.history-node\.is-covered \.dag-tile-icon,/);
+  // The chip: a tint of its colour mixed into the canvas, so it stays opaque.
+  assert.match(css, /\.dag-tile > \[data-node-shape\] \{\s*fill: color-mix\(in srgb, var\(--tone\) 18%, var\(--bg-primary, #191918\)\);/);
+  // Selected: the chip fills solid, the icon turns to the canvas colour.
+  assert.match(css, /\.history-node\.is-selected \.dag-tile > \[data-node-shape\] \{ fill: var\(--tone\); \}/);
+  assert.ok(css.indexOf("is-selected .dag-tile >") > css.indexOf("is-head .dag-tile >"), "selected wins over HEAD");
+  const sel = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/selection.ts", import.meta.url), "utf8");
+  assert.match(sel, /g\.classList\.toggle\("is-selected", on\)/);
+  assert.doesNotMatch(sel, /dag-select-ring/);
   assert.doesNotMatch(css, /dag-agent-bubble rect/);
-  const hud = readFileSync(new URL("../../app/styles/dag/hud.css", import.meta.url), "utf8");
-  assert.doesNotMatch(hud, /\.dag-legend-tile \{[^}]*(border|background):/);
   const legend = readFileSync(new URL("../../components/chat/dag-view.tsx", import.meta.url), "utf8");
   assert.match(legend, /className=\{`dag-tile t-\$\{tone\} dag-legend-tile`\}/);
 });

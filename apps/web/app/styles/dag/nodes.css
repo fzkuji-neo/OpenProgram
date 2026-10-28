@@ -7,7 +7,7 @@
 /* Tiles (render/tiles.ts, dag/rendering.md §4): the execution timeline's
    icon tile on the graph. --tone comes from the tile's kind
    (app/styles/tool-tones.css); every state below changes the tone or the
-   fill, never the tile's shape. */
+   fill, never the chip's shape. */
 .dag-tile { --tone: var(--tool-tone-function); color: var(--tone); }
 .dag-tile.t-user { --tone: var(--accent-primary, #4a7dfc); }
 .dag-tile.t-llm { --tone: var(--timeline-llm); }
@@ -25,67 +25,69 @@
 .history-node.is-faded .dag-tile,
 .history-node.is-ghost .dag-tile { --tone: var(--dag-ghost, #c9c7bf); }
 
-/* Just the icon (dag/rendering.md §4): no frame, no background. The
-   tile's plate is the canvas colour — invisible, there only to bury the
-   belt ends that run centre to centre under it. How much ink the icon
-   carries says whether the node is in the next request (§8). */
-.dag-tile > rect[data-node-shape] {
-  fill: var(--bg-primary, #191918);
+/* The chip (dag/rendering.md §4): every node is the same round chip, a
+   tint of its own colour with the icon in full colour — your message, a
+   reply and a call alike. The tint is mixed into the canvas colour, so
+   the chip stays opaque and buries the belt ends running under it.
+   Every state below restyles the chip itself, the way a game button
+   lights up when pressed; nothing is drawn around it. */
+.dag-tile > [data-node-shape] {
+  fill: color-mix(in srgb, var(--tone) 18%, var(--bg-primary, #191918));
   stroke: none;
+  transition: fill 0.15s ease-out;
 }
-/* Your messages are the one node you press (fork, edit): the app's
-   raised button — the input box's fill and the composer's shadow
-   (components/ui/button.tsx ``elevated``), deeper on hover. */
-.history-body { --dag-raise: rgb(0 0 0 / 0.32); --dag-raise-hover: rgb(0 0 0 / 0.45); }
-:root[data-theme-mode="light"] .history-body {
-  --dag-raise: rgb(0 0 0 / 0.12);
-  --dag-raise-hover: rgb(0 0 0 / 0.2);
-}
-.dag-tile.t-user > rect[data-node-shape] {
-  fill: var(--bg-input, #262624);
-  filter: drop-shadow(0 1px 1.5px var(--dag-raise));
-  transition: filter 0.15s ease-out;
-}
-.history-node:hover .dag-tile.t-user > rect[data-node-shape] {
-  filter: drop-shadow(0 2px 3px var(--dag-raise-hover));
-}
-.dag-tile-icon {
-  opacity: 0.38;
-  transition: opacity 0.15s ease-out, filter 0.1s ease-out;
-}
-.history-node.is-covered .dag-tile-icon,
-.dag-tile.t-root .dag-tile-icon { opacity: 1; }
-/* Aged out of the window soon (§8): the icon steps back. */
-.history-node.is-covered.is-aged .dag-tile-icon { opacity: 0.7; }
+.dag-tile { transform-box: fill-box; transform-origin: center; transition: transform 0.15s ease-out; }
+.dag-tile-icon { transition: opacity 0.15s ease-out, color 0.15s ease-out; }
 
-.history-node:hover .dag-tile-icon { filter: brightness(1.25); }
+/* Not in the next request (§8): the whole chip steps back, still legible.
+   Aged out soon, a little; outside the window, more. */
+.history-node:not(.is-covered) .dag-tile > [data-node-shape] {
+  fill: color-mix(in srgb, var(--tone) 10%, var(--bg-primary, #191918));
+}
+.history-node:not(.is-covered) .dag-tile-icon { opacity: 0.6; }
+.dag-tile.t-root .dag-tile-icon { opacity: 1; }
+.history-node.is-covered.is-aged .dag-tile-icon { opacity: 0.75; }
+
+/* Hover: a stronger tint, the icon at full strength. */
+.history-node:hover .dag-tile > [data-node-shape] {
+  fill: color-mix(in srgb, var(--tone) 30%, var(--bg-primary, #191918));
+}
+.history-node:hover .dag-tile .dag-tile-icon { opacity: 1; }
 
 /* Zoomed far out (interaction/canvas.ts ``is-far``): an icon at a few
-   pixels is noise, so a tile becomes a dot of its tone — the map reads
+   pixels is noise, so a chip becomes a dot of its colour — the map reads
    by colour, and the agents' markers keep their size above it. */
 .is-far .dag-tile-icon { display: none; }
-.is-far .dag-tile > rect[data-node-shape] { fill: var(--tone); }
-.is-far .history-node:not(.is-covered) .dag-tile > rect[data-node-shape] {
+.is-far .dag-tile > [data-node-shape] { fill: var(--tone); }
+.is-far .history-node:not(.is-covered) .dag-tile > [data-node-shape] {
   fill: color-mix(in srgb, var(--tone) 40%, var(--bg-primary, #191918));
 }
 
-/* HEAD — a breathing glow on its own icon, in the icon's tone (§4).
-   The slow pulse says "you are here" without repainting anything. */
-.history-node.is-head .dag-tile-icon,
-.is-far .history-node.is-head .dag-tile > rect[data-node-shape] {
+/* HEAD — "you are here": the chip glows in its colour on a slow breath
+   (§4), so it stands out without changing shape. */
+.history-node.is-head .dag-tile > [data-node-shape] {
+  fill: color-mix(in srgb, var(--tone) 24%, var(--bg-primary, #191918));
   animation: dag-head-glow 2.4s ease-in-out infinite;
 }
+.history-node.is-head .dag-tile .dag-tile-icon { opacity: 1; }
 @keyframes dag-head-glow {
-  0%, 100% { filter: drop-shadow(0 0 1px var(--tone)); }
-  50% { filter: drop-shadow(0 0 6px var(--tone)); }
+  0%, 100% { filter: drop-shadow(0 0 2px color-mix(in srgb, var(--tone) 60%, transparent)); }
+  50% { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--tone) 70%, transparent)); }
+}
+
+/* Selected: the chip fills solid in its colour and the icon turns to the
+   canvas colour, a little larger — a pressed button, no frame. Last, so it wins over HEAD and over
+   the faint state. */
+.history-node.is-selected .dag-tile { transform: scale(1.08); }
+.history-node.is-selected .dag-tile > [data-node-shape] { fill: var(--tone); }
+.history-node.is-selected .dag-tile .dag-tile-icon {
+  opacity: 1;
+  color: var(--bg-primary, #191918);
 }
 
 /* Running: the icon breathes. */
 .history-node.is-running .dag-tile-icon {
   animation: dag-icon-breathe 1.4s ease-in-out infinite;
-}
-.history-node.is-running.is-head .dag-tile-icon {
-  animation: dag-icon-breathe 1.4s ease-in-out infinite, dag-head-glow 2.4s ease-in-out infinite;
 }
 @keyframes dag-icon-breathe {
   0%, 100% { opacity: 1; }
@@ -126,10 +128,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .history-node.is-head .dag-tile-icon,
+  .history-node.is-head .dag-tile > [data-node-shape],
   .history-node.is-running .dag-tile-icon,
   .dag-agent-token .dag-agent-dot { animation: none; }
-  .history-node.is-head .dag-tile-icon { filter: drop-shadow(0 0 4px var(--tone)); }
+  .history-node.is-head .dag-tile > [data-node-shape] { filter: drop-shadow(0 0 5px color-mix(in srgb, var(--tone) 65%, transparent)); }
 }
 
 /* Next-message context range: nodes/edges outside the active branch
@@ -175,9 +177,9 @@
 
 /* Ghosts do not brighten on hover: the whole point of the state is
    that these nodes read as receded. They stay clickable. */
-.history-node.is-ghost:hover .dag-tile > rect[data-node-shape],
-.history-node.is-archived-failure:hover .dag-tile > rect[data-node-shape] {
-  filter: none;
+.history-node.is-ghost:hover .dag-tile > [data-node-shape],
+.history-node.is-archived-failure:hover .dag-tile > [data-node-shape] {
+  fill: color-mix(in srgb, var(--tone) 10%, var(--bg-primary, #191918));
 }
 
 /* Captions (render/captions.ts): what a call or message is, in

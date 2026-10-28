@@ -376,8 +376,25 @@ stand-off.
 
 ## 4. Node legend: icon tile = role, tone = kind, state = CSS
 
-**Every node is a rounded icon tile**, the same tile the execution timeline
-draws beside each step (`apps/web/lib/runtime-bridge/dag/render/tiles.ts`). A
+**Every node is the same round chip** (`apps/web/lib/runtime-bridge/dag/render/tiles.ts`):
+a 28px circle tinted with the node's own colour (18% of the tone mixed into the
+canvas, so it stays opaque and buries the belt ends under it) and its icon in
+full colour. Your message, a reply and a call are one family; an earlier version
+mixed a grey raised button for your messages with black square plates and icons
+at 38% for everything else, and the graph read as grey parts that did not
+belong together. Every state restyles the chip itself, the way a game button
+lights up when pressed — nothing is drawn around it:
+
+| State | The chip |
+|---|---|
+| normal | 18% tint, icon in full colour |
+| hover | 30% tint |
+| selected (§13) | filled solid in its colour, the icon in the canvas colour, 8% larger |
+| HEAD | 24% tint and a slow breathing glow in its colour |
+| not in the next request (§8) | 10% tint, icon at 60% |
+| error | the red `!` badge on its upper-right edge |
+
+A 
 call takes the icon and tone `presentTool` gives it in the transcript, so "ran
 npm test" looks alike in both places; tones are shared CSS variables
 (`apps/web/app/styles/tool-tones.css`). Conversation nodes get their own:
@@ -385,7 +402,7 @@ npm test" looks alike in both places; tones are shared CSS variables
 | Node | Icon | Tone |
 |---|---|---|
 | ROOT | house | secondary ink |
-| user | person, on a round raised button | its branch colour, so a branch reads by its messages as well as its line |
+| user | person | its branch colour, so a branch reads by its messages as well as its line |
 | agent reply | ghost (agents are ghosts across the app) | timeline llm |
 | call | per tool (`presentTool`) | per tool (shell, edit, read, search, web, …) |
 | sub-agent spawn | ghost | agent — dispatching an agent IS a call; it expands into the agent's activity (§12) |
@@ -417,9 +434,9 @@ and covered tiles stay brighter than the rest. With nothing
 running, the main agent's dot rests on HEAD, steady, without a bubble. The layer is
 rebuilt from the node DOM, so the in-place status patch repaints it.
 
-**HEAD is a breathing glow on its own glyph**: a `drop-shadow` in the branch
+**HEAD is a breathing glow on its own chip**: a `drop-shadow` in the chip's
 colour that swells and settles on a slow cycle (2.4s), stamped on the shape
-itself (`data-head`). The light hugs the glyph's outline at every zoom —
+itself (`data-head`). The light hugs the chip's outline at every zoom —
 unlike a drawn halo ring, which reads as a second, blurrier node beside the
 first — and unlike a solid fill, it leaves the shape vocabulary intact: HEAD
 stays visibly the same tile as its neighbours, just lit. Under
@@ -552,12 +569,9 @@ lane/tier/depth + an ASCII grid.
 A node's fill marks it as **part of what the next LLM call will carry**. A
 covered tile (`is-covered`, set in
 `apps/web/lib/runtime-bridge/dag/render/visibility.ts`) shows its icon at full
-ink; an uncovered tile's icon is faint (38%), an aged one a step back (70%).
-A node is just its icon — no frame and no background (the plate under it is
-the canvas colour, there only to bury belt ends). The one exception is your
-own message, the node you press to fork or edit: it is the app's raised
-button, round, the input box's fill with the composer's shadow, so a first-time
-reader sees what can be clicked. Bubbles, captions and branch
+ink on its tinted chip; an uncovered one steps back — the tint drops to 10%
+and the icon to 60% — and an aged one a step back (icon 75%). Both stay
+legible: an icon at 38% turned most of a long session grey. Bubbles, captions and branch
 tags are words with no chip behind them, each with a canvas-colour halo so a
 line passing behind breaks around the letters. The same rule holds in both themes, and the
 legend swatch is a covered tile.
@@ -923,7 +937,11 @@ tools: Shift+1 fits the graph, Shift+0 returns to 100%, and + / − step the
 zoom, the same steps as the HUD's buttons (`interaction/keys.ts`).
 
 **Selection.** View state of the current session's canvas. Each selected node
-gets the same lit disc just outside its glyph, whatever the tile's shape (a rounded square beside a circle read as two kinds of selection): the app's focus ring (`--focus-ring`) over a faint ink wash, drawn behind the tile. The box that selects wears the same look. It is neutral on purpose — an accent ring vanished into the blue main line, and dashes read as unfinished. The set is re-applied after
+lights up in place (`is-selected`): its chip fills solid in its own colour and
+its icon turns to the canvas colour, a pressed button. Nothing is drawn around
+it — dashed rings, rings round square tiles and a grey disc behind the tile were
+all tried and all made the edge harder to see. The box that selects is an
+accent outline over an 8% accent fill. The set is re-applied after
 every repaint and pruned to the nodes the canvas still draws, so a node that is
 deleted or folded away leaves the selection. A session switch drops it.
 Selecting on the canvas takes keyboard focus from the composer, so Delete and

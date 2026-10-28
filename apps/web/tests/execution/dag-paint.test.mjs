@@ -608,7 +608,7 @@ test("a caption steps past a fork line running down where it would start", async
   // The fork line runs down x=90 past t1's row: the caption starts past it.
   assert.equal(x("t1"), 96);
   // Below the line's end the caption keeps its place beside the tile.
-  assert.equal(x("t2"), 90);
+  assert.equal(x("t2"), 92);
 });
 
 test("a message's caption reads an attachment as words, not its raw marker", async () => {
@@ -701,8 +701,8 @@ test("a branch's tag stays under its own tip, not a sibling's in the same lane",
   const x = (t) => Number(/translate\(([-\d.]+)/.exec(t)[1]);
   const y = (t) => Number(/,([-\d.]+)\)/.exec(t)[1]);
   // Each name sits on its own tip's row, just right of the tile.
-  assert.deepEqual([x(tags[1]), y(tags[1])], [170, 150]);
-  assert.deepEqual([x(tags[0]), y(tags[0])], [130, 190]);
+  assert.deepEqual([x(tags[1]), y(tags[1])], [172, 150]);
+  assert.deepEqual([x(tags[0]), y(tags[0])], [132, 190]);
 });
 
 test("the road to HEAD wears HEAD's colour; the branch left behind keeps its own", async () => {

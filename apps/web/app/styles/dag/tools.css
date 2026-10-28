@@ -106,18 +106,7 @@
 
 
 
-/* A selected node, and the box that selects: one look — the app's focus
-   ring (``--focus-ring``, the ink at half strength) over a faint ink
-   wash. Neutral on purpose: an accent ring vanished into the blue main
-   line, and no branch colour can swallow it. The ring is a disc behind
-   the tile, so the wash lights the margin round it; drawn in the node's
-   group, it pans and zooms with it, and its stroke does not scale. */
-.dag-select-ring {
-  fill: color-mix(in srgb, var(--text-bright, #fff) 10%, transparent);
-  stroke: var(--focus-ring, rgb(255 255 255 / 0.5));
-  stroke-width: 1.5;
-  vector-effect: non-scaling-stroke;
-}
+/* A selected node lights up in place (dag/nodes.css ``is-selected``). */
 
 /* The selection box while left-dragging — screen space, over the
    graph, never in the way of the pointer. */
@@ -131,8 +120,8 @@
   z-index: 2;
 }
 .dag-select-band rect {
-  fill: color-mix(in srgb, var(--text-bright, #fff) 6%, transparent);
-  stroke: var(--focus-ring, rgb(255 255 255 / 0.5));
+  fill: color-mix(in srgb, var(--accent-primary, #4a7dfc) 8%, transparent);
+  stroke: var(--accent-primary, #4a7dfc);
   stroke-width: 1;
   stroke-linejoin: round;
 }

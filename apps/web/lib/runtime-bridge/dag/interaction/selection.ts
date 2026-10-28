@@ -82,7 +82,7 @@ function canvasHost(): HTMLElement | null {
   return document.querySelector<HTMLElement>("#historyPanel .history-body");
 }
 
-/** Ring every selected node and drop ids the canvas no longer draws
+/** Light every selected node and drop ids the canvas no longer draws
  *  (deleted, folded away, another session). Called after each repaint
  *  and on every selection change. */
 export function paintSelection(): void {
@@ -98,43 +98,14 @@ export function paintSelection(): void {
     const id = g.getAttribute("data-msg-id") || "";
     const on = want.has(id);
     if (on) drawn.add(id);
-    const ring = g.querySelector(":scope > .dag-select-ring");
-    // Behind the tile: its fill lights the margin round the plate, not
-    // the icon.
-    if (on && !ring) g.insertBefore(selectionRing(g), g.querySelector(":scope > .dag-tile"));
-    else if (!on && ring) ring.remove();
+    // Selected, the chip itself lights up (dag/nodes.css): no frame.
+    g.classList.toggle("is-selected", on);
   });
   if (drawn.size !== want.size) {
     _selected = _selected.filter((id) => drawn.has(id));
     pruned = true;
   }
   if (pruned) emit();
-}
-
-/** A lit disc a few pixels wider than the node's tile, centred on it. */
-function selectionRing(g: SVGGElement): SVGElement {
-  const glyph = g.querySelector<SVGGraphicsElement>("[data-node-shape]");
-  let x = -12;
-  let y = -12;
-  let w = 24;
-  let h = 24;
-  try {
-    const bb = glyph?.getBBox();
-    if (bb && bb.width) ({ x, y, width: w, height: h } = bb);
-  } catch {
-    /* not laid out yet — the default box fits a plain node */
-  }
-  // Always the same circle round the tile, whatever its shape: one ring
-  // reads as one "selected", where a rounded square beside a circle read
-  // as two. Never smaller than your message's round button, so a square
-  // tile's corners stay inside it.
-  return _svg("circle", {
-    class: "dag-select-ring",
-    cx: x + w / 2,
-    cy: y + h / 2,
-    r: Math.max(12, w / 2, h / 2) + 4,
-    "pointer-events": "none",
-  });
 }
 
 /* ── hit-testing for the box (screen space) ──────────────────────── */
