@@ -99,15 +99,15 @@ test("the overview sums the sub-agents up under the main agent, whose page lists
   ], async (host, click) => {
     let text = host.textContent;
     // The overview is the main agent alone, with its sub-agents summed up.
-    assert.match(text, /AgentsMain agentRunning · 2 min3 sub-agents · 1 running · 1 needs you/);
+    assert.match(text, /AgentsMain agentRunning · 2 min3 sub-agents · 1 running$/);
     assert.doesNotMatch(text, /Research|Form filler|Fix page close/);
     // The messages themselves stay in the chat.
     assert.doesNotMatch(text, /check and fix it|fill the form|what happened/);
-    // Its page lists every sub-agent, newest first; the stopped one once,
-    // where it sits, with a warning status.
+    // Its page lists every sub-agent, newest first; the interrupted one
+    // once, where it sits, as plain history.
     await click("Main agent");
     text = host.textContent;
-    assert.match(text, /Sub-agents it started.*ResearchCompleted.*Form fillerRunning.*Fix page closeStopped/s);
+    assert.match(text, /Sub-agents.*ResearchCompleted.*Form fillerRunning.*Fix page closeInterrupted/s);
     assert.equal(text.match(/Fix page close/g).length, 1);
     // They are the page's own list, so the first level draws no lines.
     assert.equal(host.querySelectorAll("[data-last]").length, 0);
@@ -116,49 +116,46 @@ test("the overview sums the sub-agents up under the main agent, whose page lists
   }, [], {}, { calls: [agentCall] });
 });
 
-test("a stopped agent call opens a page with its task and what can be done", async () => {
+test("an interrupted agent call opens a page with its task and nothing to handle", async () => {
   globalThis.agentTip = "j_fix_tip";
   await mounted([run("turn", "reconciliation_required", now - 3 * DAY, { task_label: "check and fix it" }), spawned], async (host, click) => {
     await click("Main agent");
     await click("Fix page close");
     const text = host.textContent;
     assert.match(text, /Sub-agent ·/);
-    assert.match(text, /Stopped/);
-    assert.match(text, /before this sub-agent finished/);
-    assert.match(text, /Task given to it.*Inspect the close branch/s);
+    assert.match(text, /Interrupted/);
+    assert.doesNotMatch(text, /Mark as ended|to handle|Waiting for you/);
+    assert.match(text, /Task.*Inspect the close branch/s);
     assert.match(text, /From.*check and fix it/s);
     await click("Open its conversation");
     assert.deepEqual(globalThis.sentCommands.map(c => c.action), ["checkout_branch", "load_session"]);
     assert.equal(globalThis.sentCommands[0].head_msg_id, "j_fix_tip");
-    await click("Mark as ended");
-    assert.equal(globalThis.commands[0].action, "execution.cancel");
-    assert.equal(globalThis.commands[0].execution_id, "turn");
     // Back goes up one level, to the main agent's page, then the overview.
     await click("← Main agent");
-    assert.match(host.textContent, /Sub-agents it started/);
+    assert.match(host.textContent, /Sub-agents/);
     await click("Activity");
     assert.match(host.textContent, /AgentsMain agent/);
   }, [], {}, { calls: [agentCall] });
   delete globalThis.agentTip;
 });
 
-test("an agent page leads with its issue, then where it came from and what it did", async () => {
+test("an agent page leads with its status, then where it came from and what it did", async () => {
   await mounted([run("turn", "reconciliation_required", now - 3 * DAY, { task_label: "check and fix it" }), spawned,
     run("j_other", "completed", now - 3 * DAY + 50, { parent_execution_id: "turn", display: { kind: "job_agent", label: "Write_docs" } })],
   async (host, click, selected) => {
     await click("Main agent");
     await click("Fix page close");
     let text = host.textContent;
-    assert.match(text, /Sub-agent ·.*Fix page close.*Stopped/s);
+    assert.match(text, /Sub-agent ·.*Fix page close.*Interrupted/s);
     // The page carries the run's own record (progress, controls, raw
     // details) after what it did; opening it selects the run.
-    assert.match(text, /before this sub-agent finished.*Mark as ended.*Open its conversation.*From.*check and fix it.*Task given to it.*What it did.*Progress.*DEBUGGER/s);
+    assert.match(text, /Open its conversation.*From.*check and fix it.*Task.*Steps.*Progress.*DEBUGGER/s);
     assert.doesNotMatch(text, /Technical details/);
     assert.deepEqual(selected, ["j_fix"]);
     await click("check and fix it");
     text = host.textContent;
-    assert.match(text, /Run ·.*check and fix it.*1 to handle/s);
-    assert.match(text, /Sub-agent "Fix page close" stopped.*What this run did.*Write docs.*Fix page close.*DEBUGGER/s);
+    assert.match(text, /Run ·.*check and fix it/s);
+    assert.match(text, /Steps.*Write docs.*Fix page close.*DEBUGGER/s);
     assert.match(host.textContent, /← Fix page close/);
     await click("Write docs");
     assert.deepEqual(selected, ["j_fix", "turn", "j_other"]);
@@ -170,7 +167,7 @@ test("sub-agents are paged on the main agent's page", async () => {
   const runs = Array.from({ length: 25 }, (_, i) => run(`j${i}`, "completed", now - i * 60 - (i > 2 ? 2 * DAY : 0),
     { parent_execution_id: "turn", display: { kind: "job_agent", label: `agent_${i}` } }));
   await mounted([run("turn", "completed", now - 3 * DAY), ...runs], async (host, click) => {
-    assert.match(host.textContent, /AgentsMain agentIdle · last.*25 sub-agents/s);
+    assert.match(host.textContent, /AgentsMain agentIdle · .*25 sub-agents/s);
     await click("Main agent");
     const listed = () => [...host.querySelectorAll("button")].filter(button => /^agent \d+/.test(button.textContent)).length;
     assert.equal(listed(), 20);
@@ -187,7 +184,7 @@ test("ongoing shell calls show on the main agent and, with programs, in their ow
     assert.match(host.textContent, /Programs and commandspythonpython worker\.pyRunning · \d+ sbashCommand · Running · \d+ s/);
     assert.doesNotMatch(host.textContent, /will appear here/);
     await click("Main agent");
-    assert.match(host.textContent, /Running now.*bash/s);
+    assert.match(host.textContent, /Running.*bash/s);
     await click("bash");
     assert.match(host.textContent, /Command.*sleep 30/s);
   }, [{ id: "proc", command: "python worker.py", status: "running", started_at: now, backend_id: "local" }], {},
@@ -202,16 +199,16 @@ test("the main conversation page shows its latest run, the sub-agents it started
     run("latest", "completed", now - 600, { task_label: "prepare the visa form", terminal_at: now - 480 })],
   async (host, click, selected) => {
     // A call that never started a sub-agent counts with the sub-agents.
-    assert.match(host.textContent, /AgentsMain agentIdle · last.*2 sub-agents · 1 needs you/s);
+    assert.match(host.textContent, /AgentsMain agentIdle · .*2 sub-agents$/s);
     await click("Main agent");
     let text = host.textContent;
-    assert.match(text, /Main agentNeurIPS trip.*Idle · last/s);
-    assert.match(text, /Latest run.*prepare the visa form.*Completed · /s);
-    assert.match(text, /Sub-agents it started.*Fix page close.*Stopped.*Upload fix.*Failed to start/s);
+    assert.match(text, /Main agentNeurIPS trip.*Idle · /s);
+    assert.match(text, /Last message.*prepare the visa form.*Completed · /s);
+    assert.match(text, /Sub-agents.*Fix page close.*Interrupted.*Upload fix.*Failed to start/s);
     await click("Upload fix");
     text = host.textContent;
     assert.match(text, /← Main agent/);
-    assert.match(text, /Upload fix.*Failed to start.*did not start a sub-agent.*Started by.*Main agent.*Error.*JobAgentInputError.*Task given to it.*Fix the upload path/s);
+    assert.match(text, /Upload fix.*Failed to start.*did not start a sub-agent.*Started by.*Main agent.*Error.*JobAgentInputError.*Task.*Fix the upload path/s);
     await click("Main agent");
     // The main page has no inspector of its own: the latest run's row
     // opens the run, whose page holds the record.
@@ -222,15 +219,19 @@ test("the main conversation page shows its latest run, the sub-agents it started
   }, [], {}, { calls: [agentCall], spawns: [failedSpawn] });
 });
 
-test("the main conversation reads as waiting on you while one of its own calls is stopped", async () => {
+test("a command cut short by a restart is history, not something to handle", async () => {
   const bash = { id: "c2", execution_id: "old", name: "bash", description: "Install the browser", command: "npx playwright install", prompt: "", started_at: now - DAY, status: "unknown" };
   await mounted([run("old", "reconciliation_required", now - DAY), run("latest", "completed", now - 600, { terminal_at: now - 500 })],
   async (host, click) => {
-    assert.match(host.textContent, /Main agent1 to handle · last/);
-    // The stopped command is also listed with the shell work, waiting on you.
-    assert.match(host.textContent, /Programs and commandsInstall the browserCommand · Stopped · /);
+    assert.match(host.textContent, /Main agentIdle · /);
+    // The command is listed with the shell work, greyed as interrupted.
+    assert.match(host.textContent, /Programs and commandsInstall the browserCommand · Interrupted · /);
     await click("Main agent");
-    assert.match(host.textContent, /Command "Install the browser" stopped.*Mark as ended.*Latest run/s);
+    assert.match(host.textContent, /Last message/);
+    assert.doesNotMatch(host.textContent, /Mark as ended|to handle|Install the browser/);
+    await click("Activity");
+    await click("Install the browser");
+    assert.match(host.textContent, /Interrupted.*interrupted before this call returned/s);
   }, [], {}, { calls: [bash] });
 });
 
@@ -239,7 +240,7 @@ test("a sub-agent another one started sits under it and names it", async () => {
     run("j_child", "completed", now - 400, { parent_execution_id: "j_parent", display: { kind: "job_agent", label: "Read_pages" } })],
   async (host, click) => {
     await click("Main agent");
-    assert.match(host.textContent, /Sub-agents it started.*Research.*Read pages/s);
+    assert.match(host.textContent, /Sub-agents.*Research.*Read pages/s);
     // Research is the page's own list; Read pages hangs under it.
     const depths = [...host.querySelectorAll("[style*='--depth']")].map(node => node.getAttribute("style"));
     assert.deepEqual(depths.map(style => style.match(/--depth:\s*(\d)/)[1]), ["1"]);
@@ -249,9 +250,9 @@ test("a sub-agent another one started sits under it and names it", async () => {
     assert.deepEqual([...host.querySelectorAll("[data-first]")].map(node => node.getAttribute("data-first")), ["1"]);
     await click("Read pages");
     assert.match(host.textContent, /Started by.*Research/s);
-    assert.match(host.textContent, /Task given to it.*Read the pages/s);
+    assert.match(host.textContent, /Task.*Read the pages/s);
     await click("Research");
-    assert.match(host.textContent, /Sub-agent ·.*Research.*What it did.*Read pages/s);
+    assert.match(host.textContent, /Sub-agent ·.*Research.*Steps.*Read pages/s);
   }, [], {}, { spawns: [{ id: "j_parent_user_reply_t_x", caller: "j_parent_user_reply", owner_job_id: "j_parent", job_id: "j_child",
     description: "Read pages", prompt: "Read the pages", at: now - 400, failed: false, error: "" }] });
 });
@@ -264,10 +265,10 @@ test("titles read as the words a person wrote, not attachment markup, sender ids
     run("d", "paused", now - 40, { task_label: "[oTestUser000@im.wechat] hello there" }),
   ], async (host, click) => {
     // Paused runs are the main agent's; its page names each one.
-    assert.match(host.textContent, /Main agentPaused · /);
+    assert.match(host.textContent, /Main agentWaiting for you/);
     await click("Main agent");
     const text = host.textContent;
-    assert.match(text, /"Attachment IMG_0177\.JPG" is waiting for you/);
+    assert.match(text, /"Attachment IMG_0177\.JPG" is waiting for your answer/);
     assert.match(text, /what about this\?/);
     assert.match(text, /Continue the interrupted task(?! using)/);
     assert.match(text, /hello there/);
@@ -341,13 +342,13 @@ async function withView(view, body) {
   try { await body(); } finally { setActivityView(DEFAULT_ACTIVITY_VIEW); }
 }
 
-test("showing what needs you keeps the branches above it and lights the menu button", async () => {
-  await withView({ show: "attention" }, () => mounted(viewSessions, async (host, click) => {
+test("showing what waits for you keeps the branches above it and lights the menu button", async () => {
+  const waiting = run("j_wait", "paused", now - 510, { parent_execution_id: "j_done", display: { kind: "job_agent", label: "Book_hotel" } });
+  await withView({ show: "attention" }, () => mounted([...viewSessions, waiting], async (host, click) => {
     await click("Main agent");
     const text = host.textContent;
-    assert.match(text, /Sub-agents it started.*Fix page closeStopped/s);
-    assert.doesNotMatch(text, /Research|Read pages/);
-    assert.equal(host.querySelectorAll("[data-last]").length, 0);
+    assert.match(text, /Sub-agents.*Research.*Book hotelPaused/s);
+    assert.doesNotMatch(text, /Read pages|Fix page close/);
     assert.equal(host.querySelector("[data-view-changed]").getAttribute("data-view-changed"), "1");
   }, [], {}, { calls: [agentCall] }));
 });
@@ -356,7 +357,7 @@ test("arranged by time the agents are one list, latest first, each naming who st
   await withView({ arrange: "time" }, () => mounted(viewSessions, async (host, click) => {
     await click("Main agent");
     const text = host.textContent;
-    assert.match(text, /Sub-agents it started.*Read pagesCompleted · .* · by Research.*ResearchCompleted · .* · by Main agent.*Fix page closeStopped · .* · by Main agent/s);
+    assert.match(text, /Sub-agents.*Read pagesCompleted · .* · by Research.*ResearchCompleted · .* · by Main agent.*Fix page closeInterrupted · .* · by Main agent/s);
     assert.equal(host.querySelectorAll("[data-last]").length, 0, "no tree lines");
   }, [], {}, { calls: [agentCall] }));
 });
@@ -364,7 +365,7 @@ test("arranged by time the agents are one list, latest first, each naming who st
 test("a filter with nothing to show says so and keeps the menu reachable", async () => {
   await withView({ show: "running" }, () => mounted(viewSessions, async (host, click) => {
     await click("Main agent");
-    assert.match(host.textContent, /Sub-agents it startedNo sub-agent is running\./);
+    assert.match(host.textContent, /Sub-agentsNo sub-agent is running\./);
     assert.ok(host.querySelector("[aria-label='Show and arrange agents']"));
   }, [], {}, { calls: [agentCall] }));
 });
@@ -402,7 +403,7 @@ test("a sub-agent waiting on a question shows it and goes to the chat's card to 
   try {
     await mounted([run("turn", "completed", now - 600), run("j_ask", "paused", now - 300, { parent_execution_id: "turn", display: { kind: "job_agent", label: "Book_hotel" } })],
     async (host, click) => {
-      assert.match(host.textContent, /1 sub-agent · 1 needs you/);
+      assert.match(host.textContent, /1 sub-agent · 1 waiting for you/);
       await click("Main agent");
       assert.match(host.textContent, /Book hotelWaiting for your answer · /);
       await click("Book hotel");
@@ -471,7 +472,7 @@ test("each branch the reader made is a main agent of its own, with its runs and 
       run("alt", "running", now - 60),
     ], async (host, click) => {
       // One row per branch, the checked-out one tagged; each sums up only its own sub-agents.
-      assert.match(host.textContent, /AgentsmainCurrentIdle · last .*1 sub-agentTry another wordingRunning · 1 min/s);
+      assert.match(host.textContent, /AgentsmainCurrentIdle · .*1 sub-agentTry another wordingRunning · 1 min/s);
       assert.doesNotMatch(host.textContent, /Main agent/);
       await click("Try another wording");
       let text = host.textContent;
@@ -481,7 +482,7 @@ test("each branch the reader made is a main agent of its own, with its runs and 
       await click("Activity");
       await click("main");
       text = host.textContent;
-      assert.match(text, /Branch · Current.*main.*Sub-agents it started.*Research/s);
+      assert.match(text, /Branch · Current.*main.*Sub-agents.*Research/s);
       assert.doesNotMatch(text, /Switch to this branch/);
     }, [], { branches: [
       { branch_id: "session:h_main", session_id: "session", head_msg_id: "h_main", name: "main", execution_ids: ["turn"] },

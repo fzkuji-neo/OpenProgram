@@ -35,10 +35,10 @@
 .branch[data-last="0"]::after { content: ""; position: absolute; left: var(--branch-x); top: calc(50% - 8px); bottom: 0; border-left: 1.5px solid var(--branch-line); pointer-events: none; }
 .guide { position: absolute; top: 0; bottom: 0; left: calc(var(--branch-x) - var(--up) * var(--branch-indent)); border-left: 1.5px solid var(--branch-line); pointer-events: none; }
 .rowText { display: grid; gap: 1px; min-width: 0; flex: 1; }
-.name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--text-bright); }
+.name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; color: var(--text-bright); }
 /* A branch's name with the tag on the checked-out one. */
 .nameLine { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.current { flex: none; padding: 0 6px; border-radius: 999px; background: color-mix(in srgb, var(--accent-blue) 14%, transparent); color: color-mix(in srgb, var(--accent-blue) 80%, var(--text-primary)); font-size: 10.5px; font-weight: 500; line-height: 1.6; }
+.current { flex: none; padding: 0 6px; border-radius: 999px; background: color-mix(in srgb, var(--accent-blue) 14%, transparent); color: color-mix(in srgb, var(--accent-blue) 80%, var(--text-primary)); font-size: 10.5px; font-weight: 400; line-height: 1.6; }
 /* A program's command under its title. */
 .sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-family: var(--font-mono); font-size: 11.5px; line-height: 1.45; }
 .rowBar { display: block; margin: 5px 0 2px; }
@@ -73,7 +73,7 @@
 .status[data-tone="err"] { color: var(--accent-red); }
 .status :global(.indicator-dot.is-muted) { --dot-color: var(--text-muted); }
 
-.more { margin: 4px 8px; padding: 0; border: 0; background: none; font-weight: 500; font-size: 12.5px; font-family: var(--font-sans); color: var(--text-secondary); cursor: pointer; }
+.more { margin: 4px 8px; padding: 0; border: 0; background: none; font-weight: 400; font-size: 12.5px; font-family: var(--font-sans); color: var(--text-secondary); cursor: pointer; }
 .more:hover { color: var(--text-bright); }
 .note { margin: 10px 8px 0; color: var(--text-secondary); font-size: 12.5px; line-height: 1.55; }
 .empty { margin: 4px 8px; color: var(--text-muted); font-size: var(--right-panel-meta-size, 12px); }
@@ -82,12 +82,12 @@
 .head { display: grid; gap: 4px; padding: 10px 8px 0; }
 .kind { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: var(--right-panel-meta-size, 12px); }
 .kind .glyph { width: 14px; height: 14px; }
-.title { margin: 0; color: var(--text-bright); font-weight: 600; font-size: 15px; line-height: 1.4; font-family: var(--font-sans); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.title { margin: 0; color: var(--text-bright); font-weight: 400; font-size: 15px; line-height: 1.4; font-family: var(--font-sans); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
 .head .status { margin-top: 2px; font-size: 12.5px; }
 
 /* What needs the reader: a soft tint, no border, its actions as raised pills. */
 .issue { margin: 14px 8px 0; padding: 12px; border-radius: 12px; background: color-mix(in srgb, var(--accent-yellow) 9%, transparent); }
-.issueTitle { margin: 0; color: color-mix(in srgb, var(--accent-yellow) 85%, var(--text-primary)); font-weight: 600; font-size: 13px; line-height: 1.45; font-family: var(--font-sans); overflow-wrap: anywhere; }
+.issueTitle { margin: 0; color: color-mix(in srgb, var(--accent-yellow) 85%, var(--text-primary)); font-weight: 400; font-size: 13px; line-height: 1.45; font-family: var(--font-sans); overflow-wrap: anywhere; }
 .issueText { margin: 4px 0 0; color: var(--text-secondary); font-size: 12.5px; line-height: 1.55; }
 .choices { margin: 6px 0 0; color: var(--text-primary); font-size: 12.5px; line-height: 1.55; overflow-wrap: anywhere; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
@@ -100,7 +100,7 @@
 .subSummary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: var(--right-panel-meta-size, 12px); }
 .subSummary [data-tone="run"] { color: var(--accent-blue); }
 .subSummary [data-tone="warn"] { color: color-mix(in srgb, var(--accent-yellow) 85%, var(--text-primary)); }
-.section { margin: 18px 8px 4px; color: var(--text-muted); font-weight: 500; font-size: 12px; line-height: 1.4; font-family: var(--font-sans); }
+.section { margin: 18px 8px 4px; color: var(--text-muted); font-weight: 400; font-size: 12px; line-height: 1.4; font-family: var(--font-sans); }
 .facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px 14px; margin: 16px 8px 0; font-size: 12.5px; }
 .facts dt { color: var(--text-muted); }
 .facts dd { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
@@ -118,11 +118,11 @@
    figures (elapsed, speed, left; or took, ended, exit code). */
 .progress { display: grid; gap: 8px; margin: 14px 8px 0; padding: 12px; border-radius: 12px; background: color-mix(in srgb, var(--text-primary) 3.5%, transparent); }
 .progressTop { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; }
-.progressCount { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-bright); font-weight: 600; font-size: 17px; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.progressCount { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-bright); font-weight: 400; font-size: 17px; line-height: 1.3; font-variant-numeric: tabular-nums; }
 .progressPercent { flex: none; color: var(--text-secondary); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .progressStage { margin-top: -4px; color: var(--text-muted); font-size: 12px; }
 .progressLast { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font-family: var(--font-mono); font-size: 11.5px; }
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 2px 0 0; }
 .stats dt { color: var(--text-muted); font-size: 11.5px; }
-.stats dd { margin: 1px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
-.section .live { margin-left: 8px; padding: 1px 6px; border-radius: 999px; background: color-mix(in srgb, var(--accent-green) 14%, transparent); color: color-mix(in srgb, var(--accent-green) 80%, var(--text-primary)); font-size: 10.5px; font-weight: 500; }
+.stats dd { margin: 1px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); font-size: 13px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.section .live { margin-left: 8px; padding: 1px 6px; border-radius: 999px; background: color-mix(in srgb, var(--accent-green) 14%, transparent); color: color-mix(in srgb, var(--accent-green) 80%, var(--text-primary)); font-size: 10.5px; font-weight: 400; }

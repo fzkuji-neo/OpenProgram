@@ -2,8 +2,10 @@
 
 The right sidebar's **Activity** lists one conversation's main agent
 (the sub-agents it starts are on its page) and, separately, the programs and
-commands they run in a shell. What needs the reader is never a group of
-its own: it is the row it concerns, with a warning status.
+commands they run in a shell. What waits for the reader is never a group
+of its own: it is the row it concerns, with a warning status. Statuses use
+the common words: Running, Completed, Failed, Cancelled, Interrupted,
+Idle, Waiting for your answer, Waiting for approval.
 Messages are never rows; they stay in the chat.
 
 Related: [`indicator-dots.md`](indicator-dots.md) (status dots),
@@ -13,7 +15,7 @@ Code: `apps/web/components/right-sidebar/running-panel.tsx`,
 `apps/web/lib/execution/activity-model.ts`, `apps/web/lib/prefs/activity-view.ts`,
 `openprogram/execution/activity_calls.py`.
 
-## Branches, runs and issues
+## Branches, runs and waits
 
 A **sub-agent** is an execution whose display kind is `job_agent`. Every
 execution belongs to one **branch**: a sub-agent runs its own branch and
@@ -40,15 +42,14 @@ transcript row's caller names the branch that made the call: a `j_…` reply
 is a sub-agent's, anything else the main agent's. Effects are not
 read for this: their metadata carries whole provider payloads.
 
-An **issue** is a concrete thing waiting on the reader:
-
-- a stopped call: the run stopped before it returned;
-- an execution paused on a question or approval, or stopped during an
-  action that no stopped call already names;
-- a program whose state is unknown or lost.
+Only a run paused on a question or an approval **waits for the reader**
+(the model's `issues` filtered to paused executions). A call or run cut
+short by a restart reads as **Interrupted** and a program whose
+supervisor is gone as **Status unknown**: both are history in the muted
+tone, with nothing to do about them.
 
 An execution whose only missing records are model responses
-(`provider_response_incomplete`) is not an issue; it reads as ended.
+(`provider_response_incomplete`) reads as ended.
 
 ## Overview
 
@@ -57,12 +58,13 @@ and neither header carries a count.
 
 1. **Agents**: the main agent alone (the conversation's own agent, named
    and drawn like the sub-agents). It reads as running (with the call it
-   is on, or "Waiting for a sub-agent", and the time so far), waiting on
-   the reader (paused, or holding issues of its own), idle since its last
-   run, or that its last run failed. Under its status, one line sums up
+   is on, or "Waiting for a sub-agent", and the time so far), waiting for
+   the reader ("Waiting for your answer", "Waiting for approval", or
+   "Waiting for you" when several runs wait), "Idle · <time of the last
+   message>", or "Failed · <time>". Under its status, one line sums up
    the sub-agents the model started: how many, how many run (running
-   tone) and how many need the reader (warning tone), as in "5 sub-agents
-   · 1 running · 1 needs you". The sub-agents themselves are listed on the
+   tone) and how many wait for the reader (warning tone), as in "5
+   sub-agents · 1 running · 1 waiting for you". The sub-agents themselves are listed on the
    main agent's page, so the overview stays one row however many the
    model starts. Calls and programs whose execution is not listed count as
    the main agent's.
@@ -78,10 +80,10 @@ and neither header carries a count.
    main agent's page for that branch, titled **Branch**, with **Switch to
    this branch** (the Branches panel's checkout) when it is not the
    current one. Sub-agents' own conversations are not branches here.
-2. **Programs and commands**: shell calls still running, shell calls still
-   out when their run stopped (warning tone), and every background
-   program. Running rows first, then rows that need the reader, then the
-   rest, newest first within each, 20 at a time. A command's status names
+2. **Programs and commands**: shell calls still running, shell calls cut
+   short when their run was interrupted ("Command · Interrupted ·
+   Yesterday", muted), and every background program. Running rows first,
+   then the rest, newest first within each, 20 at a time. A command's status names
    its kind ("Command · Running · 12 s"). A program is titled by what it
    does (the bash call's `description`, else the script or module it runs,
    past setup steps such as `cd` and `mkdir`), with its command in
@@ -100,17 +102,17 @@ never flash as unowned.
 Every row opens a page; a stack of pages backs the panel, and the back
 arrow names the page it returns to. Nothing expands in place.
 
-- **Main agent**: the conversation title and its state. Its own issues
-  come first, each naming its run, then what it is running now, its
-  **Latest run** (the row opens that run's page), and **Sub-agents it
-  started**: every sub-agent, depth first and newest first. The first
+- **Main agent**: the conversation title (one line) and its state. What
+  waits for the reader comes first, each naming its message, then
+  **Running**, **Last message** (the row opens that run's page), and
+  **Sub-agents**: every sub-agent, depth first and newest first. The first
   level is the page's own list; a deeper sub-agent is indented under the
   one that started it, a hairline elbow runs from under that agent's
   glyph into its own, the line carries on to its later siblings, and the
   lines of rows above with siblings still to come run past it. A
-  sub-agent reads as running with its call, stopped (a stopped `agent`
-  call shows as the sub-agent it started), or its final state with the
-  time; one that needs the reader is listed once, in place, with the
+  sub-agent reads as running with its call, Interrupted (an `agent` call
+  cut short shows as the sub-agent it started), or its final state with
+  the time; one waiting for the reader is listed once, in place, with the
   warning tone. An `agent` call that started no sub-agent sits in the
   tree where that sub-agent would, as **Failed to start** or **Not
   started**. The list shows 20 rows at a time with **Show earlier**.
@@ -118,7 +120,7 @@ arrow names the page it returns to. Nothing expands in place.
   The section heading's button opens the view menu, built from the
   composer options menu's pieces: the same radix wrapper and
   `MENU_PANEL` frame, a value row per setting that opens a submenu, and
-  check rows in it. **Show** is All, Needs you (rows in the warning tone)
+  check rows in it. **Show** is All, Waiting for you (rows in the warning tone)
   or Running (rows in the running tone). By structure, a filter keeps
   each match and the agents above it (`pruneBranches`) and redraws the
   lines for what is left. **Arrange** is By structure (the tree) or By
@@ -128,19 +130,19 @@ arrow names the page it returns to. Nothing expands in place.
   stays reachable. The button stays lit while the view differs from the
   default; the view is a per-browser preference in local storage.
 - **Sub-agent / run**: kind, start and duration, the name or message, its
-  state. Its issues come first, each with its actions as raised pills:
-  **Mark as ended** (cancel) when the execution allows it. A pause with a
+  state. A question or approval it waits on comes first, its action a
+  raised pill. A pause with a
   queued decision (`pendingDecisions`, matched by execution) shows its
   prompt and choices, and **Answer in chat** / **Review in chat** scrolls
   to the composer's decision card (`data-decision-output`) and focuses its
   first control; the choice is made there, not in Activity. A pause with
   no queued decision is answered in the run page's own record (below);
-  from the main page, **Answer** / **See the run** opens that page. A
-  single such pause reads as "Waiting for your answer" or "Needs your
+  from the main page, **Open** opens that page. A
+  single such pause reads as "Waiting for your answer" or "Waiting for
   approval" in the list and on the page. A sub-agent adds **Open its conversation**,
   **Started by** (the main agent or the sub-agent above it),
-  **From** (the run of the message that started it) and **Task given to
-  it**, from its `agent` call. Then what it did: open calls (an `agent`
+  **From** (the run of the message that started it) and **Task**, from
+  its `agent` call. Then **Steps**: open calls (an `agent`
   call is reached through the sub-agent it started), child executions,
   the sub-agents it started and the ones that failed to start, programs.
   Last, under **Progress**, the run's own record: the `DebuggerPanel` in
@@ -157,7 +159,9 @@ arrow names the page it returns to. Nothing expands in place.
   failed to start, a note that it has no conversation, **Started by**, the
   error line and the task.
 - **Call**: titled by its description, with its kind, start and state, the
-  run it came from, and the task (`prompt`) or the command. Tasks read as
+  run it came from, and the task (`prompt`) or the command. A call cut
+  short reads **Interrupted**, with a line saying the run was interrupted
+  before it returned. Tasks read as
   prose, commands as monospace; both show a few lines until **Show all**.
 - **Program**: titled like its row. A progress card comes first: the
   count and percent, the bar, then elapsed time, speed and time left while
@@ -193,5 +197,5 @@ itself and a card of the same colour would show no edge. Rows stack above the
 tree lines, so a lifted card and its shadow cover the line instead of
 being crossed by it. The line is one solid colour, the muted text mixed
 into the panel's own background rather than a translucent stroke, so
-where its pieces overlap at a joint it never darkens. An issue on a page is a
+where its pieces overlap at a joint it never darkens. A wait on a page is a
 soft amber tint with no border.

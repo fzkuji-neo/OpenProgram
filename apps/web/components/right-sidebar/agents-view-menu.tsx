@@ -78,7 +78,7 @@ export function AgentsViewMenu() {
         icon="eye"
         label={text("Show", "显示")}
         value={view.show}
-        options={[["all", text("All", "全部"), "list"], ["attention", text("Needs you", "需要处理"), "question-circle"], ["running", text("Running", "正在运行"), "play"]]}
+        options={[["all", text("All", "全部"), "list"], ["attention", text("Waiting for you", "等你处理"), "question-circle"], ["running", text("Running", "正在运行"), "play"]]}
         onPick={show => setActivityView({ show })}
       />
       <DropdownMenuSeparator className={MENU_SEPARATOR} />

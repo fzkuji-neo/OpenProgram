@@ -5,7 +5,7 @@
  * reader made, each with its sub-agents summed up; a main agent's page
  * lists those sub-agents as a tree under the agent that started each or
  * newest first, with a menu that filters and arranges it, and an agent
- * that needs the reader stays in place with a warning status. Programs
+ * waiting for the reader stays in place with a warning status. Programs
  * and commands holds the shell calls and background programs. Each row
  * opens a page and the arrow at the top goes back one level. Nothing
  * expands in place and no group folds.
@@ -17,7 +17,7 @@ import { useSessionStore } from "@/lib/session-store";
 import { useExecutionDebugger } from "@/lib/execution/use-execution-debugger";
 import { useManagedProcesses } from "@/lib/execution/use-managed-processes";
 import { processIsActive, stopProcess, type ActiveToolCall, type AgentCall, type ManagedProcess } from "@/lib/net/process-client";
-import { buildExecutionCommand, canExecuteAction, newCommandId, type ExecutionSnapshot } from "@/lib/execution/execution-debugger";
+import { type ExecutionSnapshot } from "@/lib/execution/execution-debugger";
 import { activityModel, agentBranches, executionPending, pruneBranches, spawnedBy, startedAt, type ActivityIssue, type BranchRow } from "@/lib/execution/activity-model";
 import { useActivityView } from "@/lib/prefs/activity-view";
 import { loadSubAgentTranscript } from "@/lib/chat/sub-agent-transcripts";
@@ -133,10 +133,9 @@ function callKind(call: ActiveToolCall, text: Text): string {
 }
 
 function executionTone(item: ExecutionSnapshot): Tone {
-  if (executionPending(item)) return "warn";
   if (LIVE.includes(item.status)) return "run";
   if (item.status === "completed") return "ok";
-  if (["failed", "interrupted"].includes(item.status)) return "err";
+  if (item.status === "failed") return "err";
   return "muted";
 }
 
@@ -146,8 +145,8 @@ function executionState(item: ExecutionSnapshot, text: Text): string {
   return text(...({
     queued: ["Waiting to start", "等待开始"], running: ["Running", "正在运行"], pausing: ["Pausing", "正在暂停"],
     paused: ["Paused", "已暂停"], cancelling: ["Stopping", "正在停止"],
-    reconciliation_required: executionPending(item) ? ["Stopped", "已停止"] : ["Ended", "已结束"],
-    completed: ["Completed", "已完成"], failed: ["Failed", "失败"], cancelled: ["Stopped", "已停止"], interrupted: ["Interrupted", "中断"],
+    reconciliation_required: executionPending(item) ? ["Interrupted", "已中断"] : ["Ended", "已结束"],
+    completed: ["Completed", "已完成"], failed: ["Failed", "失败"], cancelled: ["Cancelled", "已取消"], interrupted: ["Interrupted", "已中断"],
   }[item.status] as [string, string] | undefined || ["Status unavailable", "状态不可用"]));
 }
 
@@ -156,13 +155,12 @@ function programState(item: ManagedProcess, text: Text): string {
   return text(...({
     starting: ["Starting", "正在启动"], running: ["Running", "正在运行"], stopping: ["Stopping", "正在停止"],
     completed: ["Completed", "已完成"], exited: ["Exited", "已退出"], failed: ["Failed", "失败"],
-    stopped: ["Stopped", "已停止"], interrupted: ["Interrupted", "中断"], unknown: ["State unconfirmed", "状态待确认"], lost: ["State unconfirmed", "状态待确认"],
+    stopped: ["Stopped", "已停止"], interrupted: ["Interrupted", "已中断"], unknown: ["Status unknown", "状态未知"], lost: ["Status unknown", "状态未知"],
   }[item.status] as [string, string] | undefined || [item.status, item.status]));
 }
 
 function programTone(item: ManagedProcess): Tone {
-  if (["unknown", "lost"].includes(item.status)) return "warn";
-  if (processIsActive(item)) return "run";
+  if (processIsActive(item) && item.status !== "unknown") return "run";
   if (["completed", "exited"].includes(item.status)) return "ok";
   if (item.status === "failed") return "err";
   return "muted";
@@ -297,13 +295,18 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     walk(item);
     return ids;
   };
-  /** What waits on the reader inside an agent, including the stopped call that started it. */
+  /** What waits on the reader: a run paused on a question or an approval.
+   *  A call or run cut short by a restart is history, not a task. */
+  const waits = model.issues.filter((issue): issue is Extract<ActivityIssue, { kind: "execution" }> =>
+    issue.kind === "execution" && issue.execution.status === "paused");
+  /** A run's state, read as Interrupted when the call that started a
+   *  sub-agent was cut off before it finished. */
+  const stateOf = (item: ExecutionSnapshot) => !["completed", "failed"].includes(item.status) && !LIVE.includes(item.status)
+    && calls.some(entry => entry.status !== "running" && agentOf(entry)?.execution_id === item.execution_id)
+    ? text("Interrupted", "已中断") : executionState(item, text);
   const issuesOf = (item: ExecutionSnapshot) => {
     const ids = subtreeOf(item);
-    return model.issues.filter(issue => issue.kind === "call"
-      ? ids.has(issue.call.execution_id) || agentOf(issue.call)?.execution_id === item.execution_id
-      : issue.kind === "execution" ? ids.has(issue.execution.execution_id)
-        : Boolean(issue.program.execution_id && ids.has(issue.program.execution_id)));
+    return waits.filter(issue => ids.has(issue.execution.execution_id));
   };
   const activeIn = (ids: Set<string>) => executions.some(entry => ids.has(entry.execution_id) && LIVE.includes(entry.status))
     || calls.some(entry => ids.has(entry.execution_id) && entry.status === "running")
@@ -345,10 +348,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     const running = calls.filter(entry => entry.status === "running" && (ids.has(entry.execution_id) || unlisted(entry.execution_id)));
     const programs = processes.items.filter(entry => processIsActive(entry) && entry.execution_id && ids.has(entry.execution_id));
     const live = executions.some(entry => ids.has(entry.execution_id) && LIVE.includes(entry.status)) || running.length > 0 || programs.length > 0;
-    const issues = model.issues.filter(issue => issue.kind === "call"
-      ? !agentOf(issue.call) && (ids.has(issue.call.execution_id) || unlisted(issue.call.execution_id))
-      : issue.kind === "execution" ? ids.has(issue.execution.execution_id)
-        : ids.has(issue.program.execution_id ?? "") || unlisted(issue.program.execution_id));
+    const issues = waits.filter(issue => ids.has(issue.execution.execution_id));
     const tree = scope.members ? pruneBranches(fullTree, row => row.kind === "agent" ? inScope(scope, row.item) : scope.active) : fullTree;
     return { ids, latestRun: runs[0] ?? null, running, programs, live, issues, tree };
   }
@@ -365,14 +365,11 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
           : `${text("Running", "正在运行")} ${step.description || step.name}`;
       return { label: `${doing} · ${duration(now - since, text)}`, tone: "run" };
     }
-    if (!latestRun) return issues.length
-      ? { label: text(`${issues.length} to handle`, `有 ${issues.length} 项待处理`), tone: "warn" }
-      : { label: text("No runs yet", "还没有运行"), tone: "muted" };
+    if (issues.length) return { label: issues.length === 1 ? waitingState(issues[0].execution) : text("Waiting for you", "等你处理"), tone: "warn" };
+    if (!latestRun) return { label: text("No messages yet", "还没有消息"), tone: "muted" };
     const at = when(latestRun.terminal_at ?? latestRun.updated_at ?? startedAt(latestRun), text);
-    if (issues.length && latestRun.status !== "paused") return { label: `${text(`${issues.length} to handle`, `有 ${issues.length} 项待处理`)} · ${text("last", "上次")} ${at}`, tone: "warn" };
-    if (latestRun.status === "paused" || executionPending(latestRun)) return { label: `${executionState(latestRun, text)} · ${at}`, tone: "warn" };
-    if (latestRun.status === "completed" || latestRun.status === "reconciliation_required") return { label: `${text("Idle", "空闲")} · ${text("last", "上次")} ${at}`, tone: "muted" };
-    if (["failed", "interrupted"].includes(latestRun.status)) { const what = executionState(latestRun, text); return { label: `${text(`Last run ${what.toLowerCase()}`, `上次运行${what}`)} · ${at}`, tone: "err" }; }
+    if (latestRun.status === "failed") return { label: `${text("Failed", "失败")} · ${at}`, tone: "err" };
+    if (latestRun.status === "completed" || latestRun.status === "reconciliation_required") return { label: `${text("Idle", "空闲")} · ${at}`, tone: "muted" };
     return { label: `${executionState(latestRun, text)} · ${at}`, tone: "muted" };
   }
 
@@ -383,15 +380,6 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     if (entry.kind === "program") { const item = program(entry.id); return item ? programTitle(item, text) : text("Program", "程序"); }
     const item = execution(entry.id);
     return item ? isAgent(item) ? agentName(item) : runTitle(item) : text("Run", "运行");
-  }
-
-  async function endRun(item: ExecutionSnapshot) {
-    setPending(item.execution_id); setActionError(null);
-    try {
-      const result = await state.command(buildExecutionCommand(item, "cancel", newCommandId()));
-      if (result && result.status === "rejected") setActionError(text("The run could not be marked as ended. Its status updates automatically.", "没能标为已结束，状态会自动更新。"));
-    } catch { setActionError(text("The run could not be marked as ended. Its status updates automatically.", "没能标为已结束，状态会自动更新。")); }
-    finally { setPending(null); }
   }
 
   /** The open question or approval an execution is waiting on, if the chat has it. */
@@ -442,24 +430,21 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     const issues = issuesOf(item);
     const live = activeIn(ids);
     const runningCall = calls.filter(entry => ids.has(entry.execution_id) && entry.status === "running").at(-1);
-    const only = issues.length === 1 ? issues[0] : null;
     if (issues.length) return {
-      label: only?.kind === "call" ? `${text("Stopped", "已停止")} · ${when(only.at, text)}`
-        : only?.kind === "execution" ? `${waitingState(only.execution)} · ${when(only.at, text)}`
-          : text(`${issues.length} to handle`, `有 ${issues.length} 项待处理`),
+      label: issues.length === 1 ? `${waitingState(issues[0].execution)} · ${when(issues[0].at, text)}` : text("Waiting for you", "等你处理"),
       tone: "warn", at: live ? now : startedAt(item),
     };
     if (live) return {
       label: `${runningCall ? `${text("Running", "正在运行")} ${runningCall.description || runningCall.name}` : text("Running", "正在运行")} · ${duration(now - startedAt(item), text)}`,
       tone: "run", at: now,
     };
-    return { label: `${executionState(item, text)} · ${when(startedAt(item), text)}`, tone: executionTone(item), at: startedAt(item) };
+    return { label: `${stateOf(item)} · ${when(startedAt(item), text)}`, tone: executionTone(item), at: startedAt(item) };
   }
-  /** A paused or stopped execution in the reader's words: what it waits on. */
+  /** A paused or interrupted execution in the reader's words: what it waits on. */
   function waitingState(item: ExecutionSnapshot): string {
     const decision = item.status === "paused" ? decisionFor(item.execution_id) : undefined;
-    if (decision) return decision.kind === "approval" ? text("Needs your approval", "需要你授权") : text("Waiting for your answer", "等你回答");
-    return executionState(item, text);
+    if (decision) return decision.kind === "approval" ? text("Waiting for approval", "等你授权") : text("Waiting for your answer", "等你回答");
+    return stateOf(item);
   }
   /** Who started a branch, appended when the list is not a tree. */
   const startedBy = (owner: string | null) => {
@@ -483,9 +468,9 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     const look = presentTool(item.name, undefined, text);
     const phase = item.status === "running"
       ? `${text("Running", "正在运行")} · ${duration(now - item.started_at, text)}`
-      : `${text("Stopped", "已停止")} · ${when(item.started_at, text)}`;
+      : `${text("Interrupted", "已中断")} · ${when(item.started_at, text)}`;
     return <Row key={`call:${item.id}`} glyph={<Glyph name={look.icon} tone={look.tone} />} title={item.description || item.name}
-      status={withKind ? `${callKind(item, text)} · ${phase}` : phase} tone={item.status === "running" ? "run" : "warn"}
+      status={withKind ? `${callKind(item, text)} · ${phase}` : phase} tone={item.status === "running" ? "run" : "muted"}
       onOpen={() => open({ kind: "call", id: item.id })} />;
   }
   function programRow(item: ManagedProcess): ReactNode {
@@ -543,55 +528,27 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     </div>;
   }
 
-  // ---- issue block on a page --------------------------------------------------
-  function issueBlock(issue: ActivityIssue, here: "main" | "run" | "agent" | "call" | "program"): ReactNode {
-    let heading = "", body = "";
-    let choices: string[] = [];
-    const actions: ReactNode[] = [];
-    const owner = issue.kind === "call" ? issue.owner : issue.kind === "execution" ? issue.execution : null;
-    if (issue.kind === "call") {
-      const name = issue.call.description || issue.call.name;
-      heading = here === "call" || here === "agent" ? "" : text(`${callKind(issue.call, text)} "${name}" stopped`, `${callKind(issue.call, text)}“${name}”已停止`);
-      body = here === "agent"
-        ? text("The run stopped before this sub-agent finished.", "运行停止了，这个子代理没有做完。")
-        : text("The run stopped before this call returned.", "运行在这次调用返回前停止了。");
-      const job = agentOf(issue.call);
-      if (job && here !== "agent") actions.push(<Button key="agent" variant="elevated" size="sm" onClick={() => void openAgentConversation(job)}>{text("Open its conversation", "打开它的对话")}</Button>);
-    } else if (issue.kind === "execution") {
-      const waiting = issue.execution.status === "paused";
-      const decision = waiting ? decisionFor(issue.execution.execution_id) : undefined;
-      const approval = decision?.kind === "approval";
-      // The main agent's page gathers several runs, so each block names its run.
-      const title = runTitle(issue.execution);
-      heading = here === "main"
-        ? waiting
-          ? approval ? text(`"${title}" needs your approval`, `“${title}”需要你授权`) : text(`"${title}" is waiting for your answer`, `“${title}”在等你回答`)
-          : text(`"${title}" stopped during an action`, `“${title}”在一个操作途中停止了`)
-        : waiting
-          ? approval ? text("Needs your approval", "需要你授权") : text("Waiting for your answer", "在等你回答")
-          : text("Stopped during an action", "在一个操作途中停止了");
-      body = !waiting ? text("The run stopped before an action returned.", "运行在一个操作返回前停止了。")
-        : decision ? decision.prompt || decision.questions?.[0]?.prompt || ""
-          : text("This run paused on a question or an approval.", "这次运行停在一个问题或审批上。");
-      choices = decision?.options?.length ? decision.options : decision?.questions?.[0]?.options ?? [];
-      // Without a queued decision the run's own page holds the wait and
-      // the controls; from the main page that page is one step away.
-      if (decision) actions.push(<Button key="answer" variant="elevated" size="sm" onClick={() => answerInChat(decision.id)}>{approval ? text("Review in chat", "去聊天里授权") : text("Answer in chat", "去聊天里回答")}</Button>);
-      else if (here === "main") actions.push(<Button key="run" variant="elevated" size="sm" onClick={() => openRun(issue.execution.execution_id)}>{waiting ? text("Answer", "去处理") : text("See the run", "查看这次运行")}</Button>);
-    } else {
-      heading = here === "program" ? "" : text(`Program "${programName(issue.program, text)}": state unconfirmed`, `后台程序“${programName(issue.program, text)}”状态待确认`);
-      body = text("Its supervisor is unavailable, so whether it exited is not known. The record is kept.", "程序监督进程不可用，不确定它是否已退出，记录仍保留。");
-      if (here !== "program") actions.push(<Button key="program" variant="elevated" size="sm" onClick={() => open({ kind: "program", id: issue.program.id })}>{text("See the program", "查看程序")}</Button>);
-    }
-    if (owner && executionPending(owner) && canExecuteAction(owner, "cancel")) {
-      actions.push(<Button key="end" variant="elevated" size="sm" disabled={pending === owner.execution_id} onClick={() => void endRun(owner)}>
-        {pending === owner.execution_id ? text("Marking…", "正在标记…") : text("Mark as ended", "标为已结束")}</Button>);
-    }
+  // ---- what waits on the reader -------------------------------------------------
+  function waitBlock(issue: Extract<ActivityIssue, { kind: "execution" }>, here: "main" | "run" | "agent"): ReactNode {
+    const decision = decisionFor(issue.execution.execution_id);
+    const approval = decision?.kind === "approval";
+    // The main agent's page gathers several runs, so each block names its message.
+    const title = runTitle(issue.execution);
+    const heading = here === "main"
+      ? approval ? text(`"${title}" is waiting for approval`, `“${title}”在等你授权`) : text(`"${title}" is waiting for your answer`, `“${title}”在等你回答`)
+      : approval ? text("Waiting for approval", "等你授权") : text("Waiting for your answer", "等你回答");
+    const body = decision ? decision.prompt || decision.questions?.[0]?.prompt || "" : text("It paused on a question or an approval.", "它停在一个问题或授权上。");
+    const choices = decision?.options?.length ? decision.options : decision?.questions?.[0]?.options ?? [];
+    // Without a queued decision the run's own page holds the wait and
+    // the controls; from the main page that page is one step away.
+    const action = decision
+      ? <Button variant="elevated" size="sm" onClick={() => answerInChat(decision.id)}>{approval ? text("Review in chat", "去聊天里授权") : text("Answer in chat", "去聊天里回答")}</Button>
+      : here === "main" ? <Button variant="elevated" size="sm" onClick={() => openRun(issue.execution.execution_id)}>{text("Open", "打开")}</Button> : null;
     return <div className={styles.issue} key={issue.key}>
-      {heading && <h4 className={styles.issueTitle}>{heading}</h4>}
-      <p className={styles.issueText}>{body}</p>
+      <h4 className={styles.issueTitle}>{heading}</h4>
+      {body && <p className={styles.issueText}>{body}</p>}
       {choices.length > 0 && <p className={styles.choices}>{text("Choices: ", "可选：")}{choices.join(text(" · ", "、"))}</p>}
-      {actions.length > 0 && <div className={styles.actions}>{actions}</div>}
+      {action && <div className={styles.actions}>{action}</div>}
     </div>;
   }
 
@@ -629,7 +586,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     if (rows.length === 0) return <p className={styles.empty}>{tree.length === 0
       ? text("No sub-agents yet.", "还没有启动过子代理。")
       : text(...({
-        attention: ["No sub-agent needs you.", "没有需要处理的子代理。"],
+        attention: ["No sub-agents waiting for you.", "没有等你处理的子代理。"],
         running: ["No sub-agent is running.", "没有正在运行的子代理。"],
         all: ["", ""],
       }[listView.show] as [string, string]))}</p>;
@@ -661,7 +618,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     return <span className={styles.subSummary}>
       {text(`${tree.length} sub-agent${tree.length === 1 ? "" : "s"}`, `${tree.length} 个子代理`)}
       {running > 0 && <span data-tone="run">{text(` · ${running} running`, ` · ${running} 个运行中`)}</span>}
-      {waiting > 0 && <span data-tone="warn">{text(` · ${waiting} need${waiting === 1 ? "s" : ""} you`, ` · ${waiting} 个要你处理`)}</span>}
+      {waiting > 0 && <span data-tone="warn">{text(` · ${waiting} waiting for you`, ` · ${waiting} 个等你处理`)}</span>}
     </span>;
   }
 
@@ -680,15 +637,15 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
           <h3 className={styles.title}>{scope.head ? scope.name : conversationTitle || mainName}</h3>
           <Status tone={tone}>{label}</Status>
         </div>
-        {facts.issues.map(issue => issueBlock(issue, "main"))}
+        {facts.issues.map(issue => waitBlock(issue, "main"))}
         {scope.head && !scope.active && <div className={styles.actions} data-inline="1">
           <Button variant="elevated" size="sm" onClick={() => switchTo(scope.head!)}>{text("Switch to this branch", "切换到这个分支")}</Button>
         </div>}
         {actionError && <p role="alert" className={styles.error}>{actionError}</p>}
-        {runningHere.length > 0 && <><h4 className={styles.section}>{text("Running now", "正在做")}</h4>{runningHere}</>}
-        {latestRun && <><h4 className={styles.section}>{text("Latest run", "最近一次运行")}</h4>{runRow(latestRun)}</>}
+        {runningHere.length > 0 && <><h4 className={styles.section}>{text("Running", "正在运行")}</h4>{runningHere}</>}
+        {latestRun && <><h4 className={styles.section}>{text("Last message", "最后一条消息")}</h4>{runRow(latestRun)}</>}
         <div className={styles.sectionRow}>
-          <h4 className={styles.section}>{text("Sub-agents it started", "它启动的子代理")}</h4>
+          <h4 className={styles.section}>{text("Sub-agents", "子代理")}</h4>
           {tree.length > 0 && <AgentsViewMenu />}
         </div>
         {subAgentList(tree)}
@@ -718,10 +675,10 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
         <div className={styles.head}>
           <div className={styles.kind}>{agent ? text("Sub-agent", "子代理") : isRoot ? text("Run", "一次运行") : text("Branch", "分支")} · {updatedTime(startedAt(item))} · {text("took", "用时")} {duration(end - startedAt(item), text)}</div>
           <h3 className={styles.title}>{agent ? agentName(item) : runTitle(item)}</h3>
-          <Status tone={issues.length ? "warn" : executionTone(item)}>{issues.length ? issues.length === 1 && issues[0].kind === "execution" ? waitingState(issues[0].execution)
-            : agent && issues.length === 1 && issues[0].kind === "call" ? text("Stopped", "已停止") : text(`${issues.length} to handle`, `有 ${issues.length} 项待处理`) : executionState(item, text)}</Status>
+          <Status tone={issues.length ? "warn" : executionTone(item)}>{issues.length === 1 ? waitingState(issues[0].execution)
+            : issues.length ? text("Waiting for you", "等你处理") : stateOf(item)}</Status>
         </div>
-        {issues.map(issue => issueBlock(issue, agent ? "agent" : "run"))}
+        {issues.map(issue => waitBlock(issue, agent ? "agent" : "run"))}
         {agent && <div className={styles.actions} data-inline="1">
           <Button variant="elevated" size="sm" onClick={() => void openAgentConversation(item)}>{text("Open its conversation", "打开它的对话")}</Button>
         </div>}
@@ -736,10 +693,10 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
             <dt>{text("From", "来自")}</dt>
             <dd><button type="button" className={styles.link} onClick={() => open({ kind: "run", id: run.root.execution_id })}>{runTitle(run.root)}</button></dd>
           </dl>}
-        {task && <Long label={text("Task given to it", "交给它的任务")} body={task} mono={false} open={taskOpen} onToggle={() => setTaskOpen(value => !value)} text={text} />}
-        <h4 className={styles.section}>{agent ? text("What it did", "它做了什么") : text("What this run did", "这次运行做了什么")}</h4>
+        {task && <Long label={text("Task", "任务")} body={task} mono={false} open={taskOpen} onToggle={() => setTaskOpen(value => !value)} text={text} />}
+        <h4 className={styles.section}>{text("Steps", "步骤")}</h4>
         {kids.length + nested.length + ownCalls.length + ownPrograms.length + failed.length === 0
-          ? <p className={styles.empty}>{text("No sub-agents, open calls or background programs.", "没有子代理、未返回的调用或后台程序。")}</p>
+          ? <p className={styles.empty}>{text("No sub-agents, calls or programs.", "没有子代理、调用或程序。")}</p>
           : <>{ownCalls.map(entry => callRow(entry))}{kids.filter(entry => !isAgent(entry)).map(childRow)}
             {startedNewestFirst([...kids.filter(isAgent), ...nested], failed)}{ownPrograms.map(entry => programRow(entry))}</>}
         <h4 className={styles.section}>{text("Progress", "进展")}</h4>
@@ -769,7 +726,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
           <dt>{text("Started by", "由谁启动")}</dt><dd>{fromLink(item.owner_job_id)}</dd>
         </dl>
         {item.error && <><h4 className={styles.section}>{text("Error", "报错")}</h4><p className={styles.code} data-open="1">{item.error}</p></>}
-        {item.prompt && <Long label={text("Task given to it", "交给它的任务")} body={item.prompt} mono={false} open={taskOpen} onToggle={() => setTaskOpen(value => !value)} text={text} />}
+        {item.prompt && <Long label={text("Task", "任务")} body={item.prompt} mono={false} open={taskOpen} onToggle={() => setTaskOpen(value => !value)} text={text} />}
       </div>
     </div>;
   }
@@ -779,7 +736,6 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     if (!item) return <div className={styles.panel}>{backBar(toActivity)}<SidebarNotice>{text("This call has returned.", "这次调用已经返回。")}</SidebarNotice></div>;
     const look = presentTool(item.name, undefined, text);
     const owner = execution(item.execution_id);
-    const issue = model.issues.find(entry => entry.kind === "call" && entry.call.id === item.id);
     const run = owner ? model.runOf(owner.execution_id) : null;
     return <div className={styles.panel}>
       {backBar(toActivity)}
@@ -787,15 +743,17 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
         <div className={styles.head}>
           <div className={styles.kind}><Glyph name={look.icon} tone={look.tone} />{callKind(item, text)} · {updatedTime(item.started_at)}</div>
           <h3 className={styles.title}>{item.description || item.name}</h3>
-          <Status tone={item.status === "running" ? "run" : "warn"}>{item.status === "running" ? `${text("Running", "正在运行")} · ${duration(now - item.started_at, text)}` : text("Stopped", "已停止")}</Status>
+          <Status tone={item.status === "running" ? "run" : "muted"}>{item.status === "running" ? `${text("Running", "正在运行")} · ${duration(now - item.started_at, text)}` : text("Interrupted", "已中断")}</Status>
         </div>
-        {issue && issueBlock(issue, "call")}
+        {item.status !== "running" && <p className={styles.note}>{agentOf(item)
+          ? text("The run was interrupted before this sub-agent finished.", "这个子代理还没做完，运行就中断了。")
+          : text("The run was interrupted before this call returned.", "这次调用还没返回，运行就中断了。")}</p>}
         {actionError && <p role="alert" className={styles.error}>{actionError}</p>}
         {run && <dl className={styles.facts}>
           <dt>{text("From", "来自")}</dt>
           <dd><button type="button" className={styles.link} onClick={() => open({ kind: "run", id: run.root.execution_id })}>{runTitle(run.root)}</button></dd>
         </dl>}
-        {item.prompt && <Long label={text("Task given to it", "交给它的任务")} body={item.prompt} mono={false} open={taskOpen} onToggle={() => setTaskOpen(value => !value)} text={text} />}
+        {item.prompt && <Long label={text("Task", "任务")} body={item.prompt} mono={false} open={taskOpen} onToggle={() => setTaskOpen(value => !value)} text={text} />}
         {item.command && <Long label={text("Command", "命令")} body={item.command} mono open={taskOpen} onToggle={() => setTaskOpen(value => !value)} text={text} />}
       </div>
     </div>;
@@ -803,7 +761,6 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
 
   if (view?.kind === "program") {
     const item = processes.detail?.process.id === view.id ? processes.detail.process : program(view.id);
-    const issue = item ? model.issues.find(entry => entry.kind === "program" && entry.program.id === item.id) : undefined;
     const run = item?.execution_id ? model.runOf(item.execution_id) : null;
     return <div className={styles.panel}>
       {backBar(toActivity)}
@@ -815,7 +772,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
           <Status tone={programTone(item)}>{programState(item, text)}</Status>
         </div>
         {programProgressCard(item)}
-        {issue && issueBlock(issue, "program")}
+        {["unknown", "lost"].includes(item.status) && <p className={styles.note}>{text("The program's supervisor is unavailable, so whether it is still running is not known.", "程序的监督进程不可用，不知道它是否还在运行。")}</p>}
         {processIsActive(item) && <div className={styles.actions} data-inline="1">
           <Button variant="elevated" size="sm" disabled={pending === item.id || processes.stale || item.can_stop === false} onClick={async () => {
             setPending(item.id); setActionError(null);
@@ -848,16 +805,16 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   // sub-agents it starts are summed up under it and listed on its page.
   // Programs and commands lists what they run in a shell.
   const showMain = scopes.length > 1 || fullTree.length > 0 || executions.some(item => !branches.parentOf(item)) || calls.some(entry => entry.status === "running");
-  // Shell work: running and stopped calls that are not sub-agents, and
-  // background programs, live first, then what needs the reader, then the rest.
+  // Shell work: running and interrupted calls that are not sub-agents, and
+  // background programs, live first, then the rest, newest first.
   const shellCalls = calls.filter(entry => presentTool(entry.name, undefined, text).tone !== "agent" && !agentOf(entry)
     && (entry.status === "running" || model.issues.some(issue => issue.kind === "call" && issue.call.id === entry.id)));
   const rank = (tone: Tone) => tone === "run" ? 0 : tone === "warn" ? 1 : 2;
   const work = [
-    ...shellCalls.map(entry => ({ tone: (entry.status === "running" ? "run" : "warn") as Tone, at: entry.started_at, node: callRow(entry) })),
+    ...shellCalls.map(entry => ({ tone: (entry.status === "running" ? "run" : "muted") as Tone, at: entry.started_at, node: callRow(entry) })),
     ...processes.items.map(entry => ({ tone: programTone(entry), at: entry.started_at, node: programRow(entry) })),
   ].sort((a, b) => rank(a.tone) - rank(b.tone) || b.at - a.at);
-  const empty = state.fetchedAt && processes.loaded && !model.issues.length && !showMain && !work.length;
+  const empty = state.fetchedAt && processes.loaded && !waits.length && !showMain && !work.length;
   return <section className={styles.panel} aria-label={text("Conversation activity", "会话运行记录")}>
     {readFailed && readNotice?.sessionId === sessionId && <p role="status" className={`${styles.notice} ${readNotice.persistent && !hasRead ? styles.error : ""}`}>{hasRead
       ? text("Updating status… Showing saved records.", "正在更新状态，当前显示上次记录。")
