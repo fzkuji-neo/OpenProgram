@@ -1,12 +1,14 @@
 "use client";
 
 /**
- * Activity: two lists. Agents holds the main agent and every sub-agent,
- * as a tree under the agent that started each or newest first, with a menu
- * that filters and arranges it; an agent that needs the reader stays in
- * place with a warning status. Programs and commands holds the shell calls
- * and background programs. Each row opens a page and the arrow at the top
- * goes back one level. Nothing expands in place and no group folds.
+ * Activity: two lists. Agents holds the main agent, one per branch the
+ * reader made, each with its sub-agents summed up; a main agent's page
+ * lists those sub-agents as a tree under the agent that started each or
+ * newest first, with a menu that filters and arranges it, and an agent
+ * that needs the reader stays in place with a warning status. Programs
+ * and commands holds the shell calls and background programs. Each row
+ * opens a page and the arrow at the top goes back one level. Nothing
+ * expands in place and no group folds.
  */
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { ChevronRight, MessageSquareText } from "lucide-react";
@@ -27,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { AgentsViewMenu } from "./agents-view-menu";
 import { DebuggerPanel } from "./debugger-panel";
 import { SidebarNotice } from "./sidebar-notice";
+import { useConversationBranches } from "./use-conversation-branches";
 import { executionTitle, shortTime, updatedTime } from "./debugger-presentation";
 import { clock, ProgramOutput, ProgressBar, progressLook, seconds, type ProgressLook } from "./program-progress";
 import styles from "./running-panel.module.css";
@@ -47,9 +50,10 @@ function Glyph({ name, tone, large }: { name: SolarIconName; tone: ToolTone | "r
   </span>;
 }
 
-/** An agent: a ghost in the folder colour, a size up from the other rows. */
-function AgentGlyph({ small }: { small?: boolean }) {
-  return <span className={styles.agentGlyph} data-small={small ? "1" : undefined} aria-hidden="true">
+/** An agent: a ghost in the folder colour (a branch's own: its lane colour),
+ *  a size up from the other rows. */
+function AgentGlyph({ small, color }: { small?: boolean; color?: string | null }) {
+  return <span className={styles.agentGlyph} data-small={small ? "1" : undefined} style={color ? { color } : undefined} aria-hidden="true">
     <SolarIcon name="ghost" size={small ? 16 : 22} motionPreset="none" />
   </span>;
 }
@@ -72,13 +76,13 @@ type Line = { depth: number; last: boolean; first: boolean; guides: number[] };
 
 /** ``sub``: a monospace line under the title (a program's command);
  *  ``extra``: what goes under the status (a program's progress bar). */
-function Row({ glyph, title, sub, status, tone, onOpen, line, extra }: {
-  glyph: ReactNode; title: string; sub?: string; status: ReactNode; tone: Tone; onOpen: () => void; line?: Line; extra?: ReactNode;
+function Row({ glyph, title, badge, sub, status, tone, onOpen, line, extra }: {
+  glyph: ReactNode; title: string; badge?: ReactNode; sub?: string; status: ReactNode; tone: Tone; onOpen: () => void; line?: Line; extra?: ReactNode;
 }) {
   const row = <Button variant="ghost" className={styles.row} onClick={onOpen}>
     {glyph}
     <span className={styles.rowText}>
-      <span className={styles.name}>{title}</span>
+      {badge ? <span className={styles.nameLine}><span className={styles.name}>{title}</span>{badge}</span> : <span className={styles.name}>{title}</span>}
       {sub && <span className={styles.sub}>{sub}</span>}
       <Status tone={tone}>{status}</Status>
       {extra}
@@ -224,6 +228,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   // shows each one with its choices; Activity says what is asked and goes there.
   const allDecisions = useSessionStore(s => s.pendingDecisions);
   const listView = useActivityView();
+  const conversationBranches = useConversationBranches(sessionId);
   const [shown, setShown] = useState(PAGE);
   const [programsShown, setProgramsShown] = useState(PAGE);
   const [taskOpen, setTaskOpen] = useState(false);
@@ -307,33 +312,64 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   const failedSpawns = (owner: string | null) => spawns.filter(item => !item.job_id && (item.owner_job_id ?? null) === owner
     && (owner === null || executions.some(entry => entry.execution_id === owner)));
 
-  // ---- the main agent -----------------------------------------------------
-  const mainIds = ownedBy(null);
-  const mainRuns = executions.filter(item => mainIds.has(item.execution_id) && !branches.parentOf(item)).sort((a, b) => startedAt(b) - startedAt(a));
-  const latestRun = mainRuns[0] ?? null;
-  // Calls and programs whose execution is not listed belong to the main agent.
-  const mainCalls = calls.filter(entry => entry.status === "running" && (mainIds.has(entry.execution_id) || !execution(entry.execution_id)));
-  const mainPrograms = processes.items.filter(entry => processIsActive(entry) && entry.execution_id && mainIds.has(entry.execution_id));
-  const mainLive = executions.some(entry => mainIds.has(entry.execution_id) && LIVE.includes(entry.status)) || mainCalls.length > 0 || mainPrograms.length > 0;
-  const mainIssues = model.issues.filter(issue => issue.kind === "call"
-    ? !agentOf(issue.call) && (mainIds.has(issue.call.execution_id) || !execution(issue.call.execution_id))
-    : issue.kind === "execution" ? mainIds.has(issue.execution.execution_id)
-      : !issue.program.execution_id || mainIds.has(issue.program.execution_id));
-  function mainStatus(): { label: string; tone: Tone } {
-    if (mainLive) {
-      const step = mainCalls.at(-1);
-      const since = executions.filter(entry => mainIds.has(entry.execution_id) && LIVE.includes(entry.status)).map(startedAt).sort((a, b) => a - b)[0]
+  // ---- the main agent, one per branch -------------------------------------
+  // With one branch the main agent is the whole conversation. With more,
+  // each branch the reader made is a main agent of its own, holding the
+  // runs on that branch; calls and programs whose execution is not listed,
+  // and calls that started no sub-agent, count as the checked-out branch's.
+  const memberships = new Map((state.branches || []).filter(entry => entry.session_id === sessionId)
+    .map(entry => [entry.head_msg_id, new Set(entry.execution_ids)]));
+  const rootOf = (item: ExecutionSnapshot): ExecutionSnapshot => {
+    let top = item;
+    for (const seen = new Set<string>(); ; ) {
+      const parent = branches.parentOf(top);
+      if (!parent || seen.has(parent)) return top;
+      seen.add(parent);
+      const next = execution(parent);
+      if (!next) return top;
+      top = next;
+    }
+  };
+  type Scope = { key: string; head: string | null; name: string; active: boolean; color: string | null; members: Set<string> | null };
+  const scopes: Scope[] = conversationBranches.length > 1
+    ? conversationBranches.map(branch => ({ key: branch.head, head: branch.head, active: branch.active, color: branch.color,
+      name: branch.name || text("Unnamed branch", "未命名分支"), members: memberships.get(branch.head) ?? new Set<string>() }))
+    : [{ key: "main", head: null, name: mainName, active: true, color: null, members: null }];
+  const inScope = (scope: Scope, item: ExecutionSnapshot) => !scope.members || scope.members.has(rootOf(item).execution_id);
+  const fullTree = branches.tree<AgentCall>(owner => failedSpawns(owner).map(leaf => ({ at: leaf.at, leaf })));
+  /** What one main agent holds: its runs, what it is doing, what waits on the reader, its sub-agents. */
+  function scopeFacts(scope: Scope) {
+    const ids = new Set([...ownedBy(null)].filter(id => inScope(scope, execution(id)!)));
+    const runs = executions.filter(item => ids.has(item.execution_id) && !branches.parentOf(item)).sort((a, b) => startedAt(b) - startedAt(a));
+    const unlisted = (id: string | null | undefined) => scope.active && (!id || !execution(id));
+    const running = calls.filter(entry => entry.status === "running" && (ids.has(entry.execution_id) || unlisted(entry.execution_id)));
+    const programs = processes.items.filter(entry => processIsActive(entry) && entry.execution_id && ids.has(entry.execution_id));
+    const live = executions.some(entry => ids.has(entry.execution_id) && LIVE.includes(entry.status)) || running.length > 0 || programs.length > 0;
+    const issues = model.issues.filter(issue => issue.kind === "call"
+      ? !agentOf(issue.call) && (ids.has(issue.call.execution_id) || unlisted(issue.call.execution_id))
+      : issue.kind === "execution" ? ids.has(issue.execution.execution_id)
+        : ids.has(issue.program.execution_id ?? "") || unlisted(issue.program.execution_id));
+    const tree = scope.members ? pruneBranches(fullTree, row => row.kind === "agent" ? inScope(scope, row.item) : scope.active) : fullTree;
+    return { ids, latestRun: runs[0] ?? null, running, programs, live, issues, tree };
+  }
+  type ScopeFacts = ReturnType<typeof scopeFacts>;
+  const scopeOf = (key: string) => scopes.find(scope => scope.key === key) ?? scopes.find(scope => scope.active) ?? scopes[0];
+  function scopeStatus(facts: ScopeFacts): { label: string; tone: Tone } {
+    const { ids, latestRun, running, live, issues } = facts;
+    if (live) {
+      const step = running.at(-1);
+      const since = executions.filter(entry => ids.has(entry.execution_id) && LIVE.includes(entry.status)).map(startedAt).sort((a, b) => a - b)[0]
         ?? step?.started_at ?? now;
       const doing = !step ? text("Running", "正在运行")
         : step.name === "agent" ? text("Waiting for a sub-agent", "等待子代理")
           : `${text("Running", "正在运行")} ${step.description || step.name}`;
       return { label: `${doing} · ${duration(now - since, text)}`, tone: "run" };
     }
-    if (!latestRun) return mainIssues.length
-      ? { label: text(`${mainIssues.length} to handle`, `有 ${mainIssues.length} 项待处理`), tone: "warn" }
+    if (!latestRun) return issues.length
+      ? { label: text(`${issues.length} to handle`, `有 ${issues.length} 项待处理`), tone: "warn" }
       : { label: text("No runs yet", "还没有运行"), tone: "muted" };
     const at = when(latestRun.terminal_at ?? latestRun.updated_at ?? startedAt(latestRun), text);
-    if (mainIssues.length && latestRun.status !== "paused") return { label: `${text(`${mainIssues.length} to handle`, `有 ${mainIssues.length} 项待处理`)} · ${text("last", "上次")} ${at}`, tone: "warn" };
+    if (issues.length && latestRun.status !== "paused") return { label: `${text(`${issues.length} to handle`, `有 ${issues.length} 项待处理`)} · ${text("last", "上次")} ${at}`, tone: "warn" };
     if (latestRun.status === "paused" || executionPending(latestRun)) return { label: `${executionState(latestRun, text)} · ${at}`, tone: "warn" };
     if (latestRun.status === "completed" || latestRun.status === "reconciliation_required") return { label: `${text("Idle", "空闲")} · ${text("last", "上次")} ${at}`, tone: "muted" };
     if (["failed", "interrupted"].includes(latestRun.status)) { const what = executionState(latestRun, text); return { label: `${text(`Last run ${what.toLowerCase()}`, `上次运行${what}`)} · ${at}`, tone: "err" }; }
@@ -341,7 +377,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   }
 
   function viewTitle(entry: View): string {
-    if (entry.kind === "main") return mainName;
+    if (entry.kind === "main") return scopeOf(entry.id).name;
     if (entry.kind === "call") { const item = call(entry.id); return item ? item.description || item.name : text("Call", "调用"); }
     if (entry.kind === "spawn") { const item = spawn(entry.id); return item?.description || text("Sub-agent", "子代理"); }
     if (entry.kind === "program") { const item = program(entry.id); return item ? programTitle(item, text) : text("Program", "程序"); }
@@ -371,6 +407,12 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     card.querySelector<HTMLElement>("button:not([disabled]), input:not([disabled]), textarea:not([disabled])")?.focus({ preventScroll: true });
   }
 
+  /** Check out a branch, the same as clicking it in the Branches panel. */
+  function switchTo(head: string) {
+    sendRuntimeCommand({ action: "checkout_branch", session_id: sessionId, head_msg_id: head });
+    sendRuntimeCommand({ action: "load_session", session_id: sessionId });
+  }
+
   async function openAgentConversation(job: ExecutionSnapshot) {
     const target = await loadSubAgentTranscript(sessionId!, job.execution_id, { jobId: job.execution_id, headId: job.display?.assistant_message_id })
       || job.display?.assistant_message_id;
@@ -386,9 +428,13 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   }
 
   // ---- rows ----------------------------------------------------------------
-  function mainRow(extra?: ReactNode): ReactNode {
-    const { label, tone } = mainStatus();
-    return <Row key="main" glyph={<AgentGlyph />} title={mainName} status={label} tone={tone} extra={extra} onOpen={() => open({ kind: "main", id: "main" })} />;
+  /** A main agent's row: its branch's colour and a tag on the checked-out one. */
+  function scopeRow(scope: Scope): ReactNode {
+    const facts = scopeFacts(scope);
+    const { label, tone } = scopeStatus(facts);
+    const current = scope.head && scope.active ? <span className={styles.current}>{text("Current", "当前")}</span> : null;
+    return <Row key={scope.key} glyph={<AgentGlyph color={scope.color} />} title={scope.name} badge={current} status={label} tone={tone}
+      extra={subAgentSummary(facts.tree)} onOpen={() => open({ kind: "main", id: scope.key })} />;
   }
   /** An agent's status line: what waits on the reader first, then what runs. */
   function agentLook(item: ExecutionSnapshot): { label: string; tone: Tone; at: number } {
@@ -556,30 +602,30 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   </div>;
   const toActivity = text("Activity", "运行记录");
   /** Where a branch came from: the agent that started it, or the main agent. */
-  const fromLink = (owner: string | null) => {
+  /** Who started a sub-agent: the agent above it, or the main agent of its branch. */
+  const fromLink = (owner: string | null, of?: ExecutionSnapshot) => {
     const agent = owner ? execution(owner) : null;
-    return <button type="button" className={styles.link} onClick={() => open(agent ? { kind: "run", id: agent.execution_id } : { kind: "main", id: "main" })}>
-      {agent ? agentName(agent) : mainName}</button>;
+    const main = (of && scopes.find(scope => inScope(scope, of))) || scopeOf("");
+    return <button type="button" className={styles.link} onClick={() => open(agent ? { kind: "run", id: agent.execution_id } : { kind: "main", id: main.key })}>
+      {agent ? agentName(agent) : main.name}</button>;
   };
 
   // ---- the sub-agent tree ------------------------------------------------------
   // Sub-agents the model starts live on the main agent's page, not in the
   // overview; a call that never started a sub-agent sits where that
   // sub-agent would.
-  const tree = branches.tree<AgentCall>(owner => failedSpawns(owner).map(leaf => ({ at: leaf.at, leaf })));
   const rowKey = (row: BranchRow<AgentCall>) => row.kind === "agent" ? row.item.execution_id : `spawn:${row.leaf.id}`;
-  const looks = new Map(tree.map(row => [rowKey(row), row.kind === "agent" ? agentLook(row.item) : { tone: (row.leaf.failed ? "err" : "muted") as Tone, at: row.leaf.at }]));
+  const looks = new Map(fullTree.map(row => [rowKey(row), row.kind === "agent" ? agentLook(row.item) : { tone: (row.leaf.failed ? "err" : "muted") as Tone, at: row.leaf.at }]));
   const lookOf = (row: BranchRow<AgentCall>) => looks.get(rowKey(row)) ?? { tone: "muted" as Tone, at: 0 };
   const shows = (tone: Tone) => listView.show === "all" || (listView.show === "attention" ? tone === "warn" : tone === "run");
-  // By structure the tree keeps the branches above a match; by time it is
-  // one list, latest first.
-  const rows = listView.arrange === "structure"
-    ? listView.show === "all" ? tree : pruneBranches(tree, row => shows(lookOf(row).tone))
-    : tree.filter(row => shows(lookOf(row).tone)).sort((a, b) => lookOf(b).at - lookOf(a).at);
-  const visible = rows.slice(0, shown);
   /** The tree on the main agent's page: its children are the page's own
-   *  list, so the lines begin one level down. */
-  function subAgentList(): ReactNode {
+   *  list, so the lines begin one level down. By structure a filter keeps
+   *  the branches above a match; by time it is one list, latest first. */
+  function subAgentList(tree: BranchRow<AgentCall>[]): ReactNode {
+    const rows = listView.arrange === "structure"
+      ? listView.show === "all" ? tree : pruneBranches(tree, row => shows(lookOf(row).tone))
+      : tree.filter(row => shows(lookOf(row).tone)).sort((a, b) => lookOf(b).at - lookOf(a).at);
+    const visible = rows.slice(0, shown);
     if (rows.length === 0) return <p className={styles.empty}>{tree.length === 0
       ? text("No sub-agents yet.", "还没有启动过子代理。")
       : text(...({
@@ -608,7 +654,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
 
   /** The main agent's sub-agents in one line: how many, how many run,
    *  how many need the reader. */
-  function subAgentSummary(): ReactNode {
+  function subAgentSummary(tree: BranchRow<AgentCall>[]): ReactNode {
     if (tree.length === 0) return null;
     const count = (tone: Tone) => tree.filter(row => lookOf(row).tone === tone).length;
     const running = count("run"), waiting = count("warn");
@@ -621,17 +667,23 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
 
   // ---- pages -------------------------------------------------------------------
   if (view?.kind === "main") {
-    const { label, tone } = mainStatus();
-    const runningHere = [...mainCalls.filter(entry => !agentOf(entry)).map(entry => callRow(entry)), ...mainPrograms.map(entry => programRow(entry))];
+    const scope = scopeOf(view.id);
+    const facts = scopeFacts(scope);
+    const { latestRun, tree } = facts;
+    const { label, tone } = scopeStatus(facts);
+    const runningHere = [...facts.running.filter(entry => !agentOf(entry)).map(entry => callRow(entry)), ...facts.programs.map(entry => programRow(entry))];
     return <div className={styles.panel}>
       {backBar(toActivity)}
       <div className={styles.scroll}>
         <div className={styles.head}>
-          <div className={styles.kind}>{mainName}</div>
-          <h3 className={styles.title}>{conversationTitle || mainName}</h3>
+          <div className={styles.kind}>{scope.head ? <>{text("Branch", "分支")}{scope.active && <> · {text("Current", "当前")}</>}</> : mainName}</div>
+          <h3 className={styles.title}>{scope.head ? scope.name : conversationTitle || mainName}</h3>
           <Status tone={tone}>{label}</Status>
         </div>
-        {mainIssues.map(issue => issueBlock(issue, "main"))}
+        {facts.issues.map(issue => issueBlock(issue, "main"))}
+        {scope.head && !scope.active && <div className={styles.actions} data-inline="1">
+          <Button variant="elevated" size="sm" onClick={() => switchTo(scope.head!)}>{text("Switch to this branch", "切换到这个分支")}</Button>
+        </div>}
         {actionError && <p role="alert" className={styles.error}>{actionError}</p>}
         {runningHere.length > 0 && <><h4 className={styles.section}>{text("Running now", "正在做")}</h4>{runningHere}</>}
         {latestRun && <><h4 className={styles.section}>{text("Latest run", "最近一次运行")}</h4>{runRow(latestRun)}</>}
@@ -639,7 +691,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
           <h4 className={styles.section}>{text("Sub-agents it started", "它启动的子代理")}</h4>
           {tree.length > 0 && <AgentsViewMenu />}
         </div>
-        {subAgentList()}
+        {subAgentList(tree)}
       </div>
     </div>;
   }
@@ -676,7 +728,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
         {actionError && <p role="alert" className={styles.error}>{actionError}</p>}
         {agent
           ? <dl className={styles.facts}>
-            <dt>{text("Started by", "由谁启动")}</dt><dd>{fromLink(branches.agentParentOf(item))}</dd>
+            <dt>{text("Started by", "由谁启动")}</dt><dd>{fromLink(branches.agentParentOf(item), item)}</dd>
             {!isRoot && <><dt>{text("From", "来自")}</dt>
               <dd><button type="button" className={styles.link} onClick={() => open({ kind: "run", id: run.root.execution_id })}>{runTitle(run.root)}</button></dd></>}
           </dl>
@@ -795,7 +847,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   // Messages live in the chat. Agents is the main agent alone: the
   // sub-agents it starts are summed up under it and listed on its page.
   // Programs and commands lists what they run in a shell.
-  const showMain = Boolean(latestRun) || tree.length > 0 || mainLive;
+  const showMain = scopes.length > 1 || fullTree.length > 0 || executions.some(item => !branches.parentOf(item)) || calls.some(entry => entry.status === "running");
   // Shell work: running and stopped calls that are not sub-agents, and
   // background programs, live first, then what needs the reader, then the rest.
   const shellCalls = calls.filter(entry => presentTool(entry.name, undefined, text).tone !== "agent" && !agentOf(entry)
@@ -816,7 +868,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       {!hasRead && !processes.stale && state.connection.state === "reconnecting" ? <SidebarNotice>{text("Loading…", "加载中…")}</SidebarNotice> : null}
       {showMain && <div className="group/sec">
         <SectionHeader name={text("Agents", "Agents")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} />
-        {mainRow(subAgentSummary())}
+        {scopes.map(scopeRow)}
       </div>}
       {work.length > 0 && <div className="group/sec">
         <SectionHeader name={text("Programs and commands", "程序和命令")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} />

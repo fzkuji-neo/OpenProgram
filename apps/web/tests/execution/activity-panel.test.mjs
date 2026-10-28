@@ -14,7 +14,7 @@ registerHooks({
     if (specifier === "./debugger-panel") return { url: "data:text/javascript,export const DebuggerPanel = () => 'DEBUGGER'", shortCircuit: true };
     if (specifier === "@/lib/chat/sub-agent-transcripts") return { url: "data:text/javascript,export const loadSubAgentTranscript = async () => globalThis.agentTip ?? null", shortCircuit: true };
     if (specifier === "@/lib/runtime-bridge/session-load") return { url: "data:text/javascript,export const sendRuntimeCommand = (p) => { (globalThis.sentCommands ||= []).push(p); }", shortCircuit: true };
-    if (specifier === "@/lib/runtime-bridge/state") return { url: "data:text/javascript,export const getSocket = () => globalThis.approvalSocket", shortCircuit: true };
+    if (specifier === "@/lib/runtime-bridge/state") return { url: "data:text/javascript,export const getSocket = () => globalThis.approvalSocket; export const runtimeState = globalThis.runtimeStateStub ||= { _branchesByConv: {}, _branchLaneColorMap: {} }", shortCircuit: true };
     if (specifier.endsWith(".module.css")) {
       return { url: "data:text/javascript,export default {}", shortCircuit: true };
     }
@@ -457,4 +457,35 @@ test("a program shows its description, progress and live output", async () => {
     id: "proc", command: "python eval.py", title: "Evaluate 100 samples", status: "running", started_at: now - 13, backend_id: "local",
     progress: { source: "marker", state: "normal", current: 45, total: 100, label: "samples", rate: 3.4, eta: 16, updated_at: now },
   }]);
+});
+
+test("each branch the reader made is a main agent of its own, with its runs and sub-agents", async () => {
+  globalThis.runtimeStateStub._branchesByConv.session = [
+    { head_msg_id: "h_main", name: "main", active: true },
+    { head_msg_id: "h_alt", name: "Try another wording", active: false },
+  ];
+  try {
+    await mounted([
+      run("turn", "completed", now - 600, { terminal_at: now - 500 }),
+      run("j_research", "completed", now - 580, { parent_execution_id: "turn", display: { kind: "job_agent", label: "Research" } }),
+      run("alt", "running", now - 60),
+    ], async (host, click) => {
+      // One row per branch, the checked-out one tagged; each sums up only its own sub-agents.
+      assert.match(host.textContent, /AgentsmainCurrentIdle · last .*1 sub-agentTry another wordingRunning · 1 min/s);
+      assert.doesNotMatch(host.textContent, /Main agent/);
+      await click("Try another wording");
+      let text = host.textContent;
+      assert.match(text, /Branch.*Try another wording.*Running.*Switch to this branch.*No sub-agents yet\./s);
+      await click("Switch to this branch");
+      assert.deepEqual(globalThis.sentCommands.map(c => [c.action, c.head_msg_id]), [["checkout_branch", "h_alt"], ["load_session", undefined]]);
+      await click("Activity");
+      await click("main");
+      text = host.textContent;
+      assert.match(text, /Branch · Current.*main.*Sub-agents it started.*Research/s);
+      assert.doesNotMatch(text, /Switch to this branch/);
+    }, [], { branches: [
+      { branch_id: "session:h_main", session_id: "session", head_msg_id: "h_main", name: "main", execution_ids: ["turn"] },
+      { branch_id: "session:h_alt", session_id: "session", head_msg_id: "h_alt", name: "Try another wording", execution_ids: ["alt"] },
+    ] });
+  } finally { delete globalThis.runtimeStateStub._branchesByConv.session; }
 });

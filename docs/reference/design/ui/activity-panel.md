@@ -66,6 +66,18 @@ and neither header carries a count.
    main agent's page, so the overview stays one row however many the
    model starts. Calls and programs whose execution is not listed count as
    the main agent's.
+
+   When the conversation has more than one branch (forks and edits the
+   reader made in the DAG), each branch is a main agent of its own, one
+   row each, all equal: the branch's name, a ghost in its lane colour, a
+   **Current** tag on the checked-out one, and the same status and
+   sub-agent line computed from the runs on that branch (the server's
+   `branches[].execution_ids`; a sub-agent belongs to the branch of its
+   top-level run). Unlisted calls and programs, and calls that started no
+   sub-agent, count as the checked-out branch's. A branch's page is the
+   main agent's page for that branch, titled **Branch**, with **Switch to
+   this branch** (the Branches panel's checkout) when it is not the
+   current one. Sub-agents' own conversations are not branches here.
 2. **Programs and commands**: shell calls still running, shell calls still
    out when their run stopped (warning tone), and every background
    program. Running rows first, then rows that need the reader, then the
