@@ -7,7 +7,7 @@ import { setShowBookmarksBar } from "@/lib/browser/browser-prefs";
 import * as bookmarks from "@/lib/tabs/browser/bookmarks";
 import { setLocale } from "@/lib/i18n";
 import { setUserProfile, getUserProfile } from "@/lib/prefs/user-profile";
-import { agentCanAccessWebTab } from "@/lib/browser/web-page-management";
+import { agentCanAccessWebTab } from "@/lib/browser/web-tab/web-page-management";
 import definitions from "../../../../openprogram/framework/interface_commands.json" with { type: "json" };
 
 export { definitions };

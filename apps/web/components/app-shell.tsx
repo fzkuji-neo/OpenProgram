@@ -17,7 +17,7 @@ import { canvasCssGeometry, canvasGeometry, canvasViewport, leaves, rowLayout } 
 import { WebTabPip } from "./center-tabs/pip/web-tab-pip";
 import { AppPreviewPip } from "./center-tabs/pip/app-preview-pip";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
-import { topLevelTabs } from "@/lib/browser/web-page-management";
+import { topLevelTabs } from "@/lib/browser/web-tab/web-page-management";
 import {
   findCenterTabGroup,
   resolveCenterTabPanes,

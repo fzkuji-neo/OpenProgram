@@ -1,6 +1,6 @@
 import { holdsLayout, mapNode, leaves, rowLayout } from "./canvas/canvas-layout";
 import { normalizeTabPageHistory } from "./navigation/page-history";
-import { topLevelTabs } from "../browser/web-page-management";
+import { topLevelTabs } from "../browser/web-tab/web-page-management";
 import { normalizeSessionHistory } from "./navigation/session-history";
 /**
  * Center-tab persistence + payload normalization.

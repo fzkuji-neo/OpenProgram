@@ -19,7 +19,7 @@ await build({
       recordOperationCue,
       revealPendingApproval,
       showActionsEnabled,
-    } from "./lib/browser/browser-control";
+    } from "./lib/browser/control/browser-control";
     export { useCenterTabs } from "./lib/tabs/center-tabs-store";
     export { useSessionStore } from "./lib/session-store";
     export {

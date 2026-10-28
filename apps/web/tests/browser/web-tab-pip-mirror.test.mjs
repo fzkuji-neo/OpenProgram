@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { startWebTabCaptureLoop } from "../../lib/browser/web-tab-capture-loop.ts";
-import { fittedImageRect, mapOperationPoint } from "../../lib/browser/browser-marker-geometry.ts";
+import { startWebTabCaptureLoop } from "../../lib/browser/web-tab/web-tab-capture-loop.ts";
+import { fittedImageRect, mapOperationPoint } from "../../lib/browser/control/browser-marker-geometry.ts";
 
 const pipSource = readFileSync(new URL("../../components/center-tabs/pip/web-tab-pip.tsx", import.meta.url), "utf8");
 const paneSource = readFileSync(new URL("../../components/center-tabs/browser/web-tab-pane.tsx", import.meta.url), "utf8");

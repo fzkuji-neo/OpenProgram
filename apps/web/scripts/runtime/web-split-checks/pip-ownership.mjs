@@ -713,7 +713,7 @@ testContext.assert.match(
 
 testContext.assert.match(
   await testContext.readFile(
-    new URL("../../lib/browser/web-tab-pip-store.ts", testContext.sourceUrl),
+    new URL("../../lib/browser/web-tab/web-tab-pip-store.ts", testContext.sourceUrl),
     "utf8",
   ),
   /export function collapseWebTabToPip\(tabId: string\): boolean/,
@@ -721,7 +721,7 @@ testContext.assert.match(
 
 testContext.assert.match(
   await testContext.readFile(
-    new URL("../../lib/browser/web-tab-pip-store.ts", testContext.sourceUrl),
+    new URL("../../lib/browser/web-tab/web-tab-pip-store.ts", testContext.sourceUrl),
     "utf8",
   ),
   /export const usePipSnapshots = create/,

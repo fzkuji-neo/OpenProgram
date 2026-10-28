@@ -8,7 +8,7 @@ import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import {
   pipCoversCenter,
   useWebTabPip,
-} from "@/lib/browser/web-tab-pip-store";
+} from "@/lib/browser/web-tab/web-tab-pip-store";
 import styles from "../environment-row.module.css";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";

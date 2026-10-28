@@ -36,9 +36,9 @@ import {
   showActionsEnabled,
   toggleShowActions,
   useBrowserControlStore,
-} from "@/lib/browser/browser-control";
-import { fittedImageRect, mapOperationPoint } from "@/lib/browser/browser-marker-geometry";
-import { cueCancelKey, prefersCueReducedMotion } from "@/lib/browser/browser-action-cue";
+} from "@/lib/browser/control/browser-control";
+import { fittedImageRect, mapOperationPoint } from "@/lib/browser/control/browser-marker-geometry";
+import { cueCancelKey, prefersCueReducedMotion } from "@/lib/browser/control/browser-action-cue";
 import {
   followCurrentBranch,
   getPreviewPreference,
@@ -51,7 +51,7 @@ import {
   viewedBranchFor,
   type SessionResource,
 } from "@/lib/chat/resources/session-resources";
-import { revealExistingWebTab } from "@/lib/browser/web-page-management";
+import { revealExistingWebTab } from "@/lib/browser/web-tab/web-page-management";
 import {
   clampPipRect,
   getSnapshot,
@@ -68,8 +68,8 @@ import {
   useWebTabPip,
   type PipResizeDir,
   type WebTabPipRect,
-} from "@/lib/browser/web-tab-pip-store";
-import type { WebTabCaptureLoop } from "@/lib/browser/web-tab-capture-loop";
+} from "@/lib/browser/web-tab/web-tab-pip-store";
+import type { WebTabCaptureLoop } from "@/lib/browser/web-tab/web-tab-capture-loop";
 
 import styles from "../strip/center-tabs.module.css";
 import { WebTabPipSurface } from "./web-tab-pip-surface";

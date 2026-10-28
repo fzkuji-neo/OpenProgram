@@ -19,13 +19,13 @@ await build({
     export {
       resetBrowserControl,
       recordOperationCue,
-    } from "./lib/browser/browser-control";
+    } from "./lib/browser/control/browser-control";
     export {
       ingestBrowserResource,
       resetBrowserResources,
       setBrowserConnection,
     } from "./lib/chat/resources/session-resources";
-    export { cueTravelDurationMs } from "./lib/browser/browser-action-cue";
+    export { cueTravelDurationMs } from "./lib/browser/control/browser-action-cue";
   `, resolveDir: webPath },
   bundle: true, format: "esm", jsx: "automatic", outfile: bundle,
   packages: "external", platform: "node", tsconfig: join(webPath, "tsconfig.json"),

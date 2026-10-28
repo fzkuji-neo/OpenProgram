@@ -9,11 +9,11 @@ const dir = await mkdtemp(join(root, '.preview-isolation-'));
 after(() => rm(dir, {recursive:true, force:true}));
 await build({absWorkingDir:root, stdin:{contents:`
 export {useCenterTabs} from './lib/tabs/center-tabs-store';
-export {useWebTabPip,pipHostMode,collapseWebTabToPip} from './lib/browser/web-tab-pip-store';
+export {useWebTabPip,pipHostMode,collapseWebTabToPip} from './lib/browser/web-tab/web-tab-pip-store';
 export {applyFollowPreview} from './lib/browser/browser-resource-projection';
 export {resetBrowserResources} from './lib/chat/resources/session-resources';
 export {browserPageInventory} from './lib/desktop/desktop-bridge';
-export {revealExistingWebTab} from './lib/browser/web-page-management';
+export {revealExistingWebTab} from './lib/browser/web-tab/web-page-management';
 `,resolveDir:root},bundle:true,format:'esm',platform:'node',packages:'external',tsconfig:join(root,'tsconfig.json'),outfile:join(dir,'probe.mjs')});
 const {useCenterTabs:c,useWebTabPip:p,pipHostMode,applyFollowPreview,resetBrowserResources,browserPageInventory,revealExistingWebTab,collapseWebTabToPip}=await import(pathToFileURL(join(dir,'probe.mjs')));
 const page = {id:'w:private-a',kind:'web',url:'https://a.example',title:'A page',agentOpened:true,agentSessionId:'A'};

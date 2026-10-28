@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Box, ExternalLink, Globe, Monitor, PictureInPicture2, Server, TerminalSquare, X } from "lucide-react";
 import { SectionHeader } from "@/components/sidebar/sessions/section-header";
-import { useWebTabPip } from "@/lib/browser/web-tab-pip-store";
+import { useWebTabPip } from "@/lib/browser/web-tab/web-tab-pip-store";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import {
   existingResourceTabId,
@@ -25,8 +25,8 @@ import {
 } from "@/lib/chat/resources/session-resources";
 import {
   pendingCloseRequest,
-} from "@/lib/browser/browser-control";
-import { revealExistingWebTab } from "@/lib/browser/web-page-management";
+} from "@/lib/browser/control/browser-control";
+import { revealExistingWebTab } from "@/lib/browser/web-tab/web-page-management";
 import { desktopBridge, retryRestoreWebTab } from "@/lib/desktop/desktop-bridge";
 import { useSessionResources } from "@/lib/chat/resources/use-session-resources";
 import { useTranslation } from "@/lib/i18n";

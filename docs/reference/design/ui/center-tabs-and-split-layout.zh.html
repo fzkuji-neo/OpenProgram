@@ -764,7 +764,7 @@
       <table>
         <thead><tr><th>规则 / 概念</th><th>落点</th></tr></thead>
         <tbody>
-          <tr><td>配对表、活跃绑定、background、<code>show/hide/end</code></td><td><code>apps/web/lib/browser/web-tab-pip-store.ts</code> · <code>pairedOwnerByTabId</code> / <code>pipPairedOwnerFor</code> / <code>useWebTabPip</code></td></tr>
+          <tr><td>配对表、活跃绑定、background、<code>show/hide/end</code></td><td><code>apps/web/lib/browser/web-tab/web-tab-pip-store.ts</code> · <code>pairedOwnerByTabId</code> / <code>pipPairedOwnerFor</code> / <code>useWebTabPip</code></td></tr>
           <tr><td>R1 切走消失 / 切回重现</td><td>同上 · <code>pipCoverBase</code> / <code>pipCoversCenter</code> / <code>peekLiveWebTabPipId</code></td></tr>
           <tr><td>R3 fork</td><td>同上 · <code>pipOpenMustFork</code>；创建叶子在 <code>center-tabs-store.ts</code> 的 <code>ensureWebTab</code> / <code>ensureExclusiveWebTab</code>；id 在 <code>center-tab-ids.ts</code> 的 <code>webTabId</code> / <code>nextPopupWebTabId</code></td></tr>
           <tr><td>R5 收起目标</td><td><code>pipCollapseTargetFor</code>（同组会话 → 配对表 → null）/ <code>collapseWebTabToPip</code>；无目标时 <code>CollapseToPipButton</code> 返回 null，BrowserMenu 不传 <code>collapseToPip</code></td></tr>

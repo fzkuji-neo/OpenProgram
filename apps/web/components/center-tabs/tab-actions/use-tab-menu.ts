@@ -19,7 +19,7 @@ import {
   findCenterTabGroup,
   splitCandidates,
 } from "@/lib/tabs/center-tab-groups";
-import { topLevelTabs } from "@/lib/browser/web-page-management";
+import { topLevelTabs } from "@/lib/browser/web-tab/web-page-management";
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
 import { buildTransferPayload, desktopBridge } from "@/lib/desktop/desktop-bridge";
 import { dragCoordinator } from "@/lib/tabs/transfer/tab-drag-coordinator";

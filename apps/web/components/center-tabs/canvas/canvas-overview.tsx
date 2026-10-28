@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { motion, type Transition } from "framer-motion";
 
-import { topLevelTabs } from "@/lib/browser/web-page-management";
+import { topLevelTabs } from "@/lib/browser/web-tab/web-page-management";
 import { canvasGeometry, canvasViewport, leaves, removePane, rowLayout, type LayoutNode } from "@/lib/tabs/canvas/canvas-layout";
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";
 import { canvasDragging, commitCanvasDrop, type CanvasDrop } from "@/lib/tabs/canvas/canvas-drag";

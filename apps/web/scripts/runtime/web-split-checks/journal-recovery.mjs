@@ -429,7 +429,7 @@ testContext.values.clear();
   waitForWebTabReady: testContext.waitForWebTabReady,
 } = await import("../../../lib/desktop/desktop-bridge.ts"));
 
-({ isWebTabOccluded: testContext.isWebTabOccluded, measureWebTabBounds: testContext.measureWebTabBounds } = await import("../../../lib/browser/web-tab-bounds.ts"));
+({ isWebTabOccluded: testContext.isWebTabOccluded, measureWebTabBounds: testContext.measureWebTabBounds } = await import("../../../lib/browser/web-tab/web-tab-bounds.ts"));
 
 ({
   focusCenterTabGroupMember: testContext.focusCenterTabGroupMember,

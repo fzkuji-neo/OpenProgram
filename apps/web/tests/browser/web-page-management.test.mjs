@@ -29,7 +29,7 @@ registerHooks({
 });
 
 const { useCenterTabs } = await import("../../lib/tabs/center-tabs-store.ts");
-const { topLevelTabs, groupWebPages, revealExistingWebTab } = await import("../../lib/browser/web-page-management.ts");
+const { topLevelTabs, groupWebPages, revealExistingWebTab } = await import("../../lib/browser/web-tab/web-page-management.ts");
 const { normalizeCenterTabsPayload } = await import("../../lib/tabs/center-tabs-persistence.ts");
 
 test("agent pages retain session ownership, pinning and popup provenance", () => {
@@ -212,7 +212,7 @@ test("human tab dismissal retains a session Page and reopens its exact navigated
 
 test("human tab dismissal retains manually associated Pages without changing their provenance", async () => {
   const { ingestBrowserResource, resetBrowserResources, sessionResourceRows, listedBrowserResources } = await import("../../lib/chat/resources/session-resources.ts");
-  const { agentCanAccessWebTab } = await import("../../lib/browser/web-page-management.ts");
+  const { agentCanAccessWebTab } = await import("../../lib/browser/web-tab/web-page-management.ts");
   resetBrowserResources();
   useCenterTabs.setState({ tabs: [], groups: [], activeId: null, splitWebTabId: null });
   const store = useCenterTabs.getState();

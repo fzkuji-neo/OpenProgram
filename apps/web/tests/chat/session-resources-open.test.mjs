@@ -15,10 +15,10 @@ await build({
   stdin: { contents: `
     export { SessionResourcesPanel } from "./components/session-resources/session-resources-panel";
     export { useCenterTabs } from "./lib/tabs/center-tabs-store";
-    export { useWebTabPip } from "./lib/browser/web-tab-pip-store";
-    export { topLevelTabs } from "./lib/browser/web-page-management";
+    export { useWebTabPip } from "./lib/browser/web-tab/web-tab-pip-store";
+    export { topLevelTabs } from "./lib/browser/web-tab/web-page-management";
     export { resetBrowserResources, getPreviewPreference, hideResourcePreview } from "./lib/chat/resources/session-resources";
-    export { useBrowserControlStore, resetBrowserControl } from "./lib/browser/browser-control";
+    export { useBrowserControlStore, resetBrowserControl } from "./lib/browser/control/browser-control";
     export { useTerminalResources } from "./lib/desktop/terminal-resources";
     export { setLocale } from "./lib/i18n";
     export { executeInterface } from "./lib/framework/commands";

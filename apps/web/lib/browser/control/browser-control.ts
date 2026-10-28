@@ -9,7 +9,7 @@ import {
   type BrowserControlState,
   type BrowserLastOperation,
   type SessionResource,
-} from "../chat/resources/session-resources.ts";
+} from "../../chat/resources/session-resources.ts";
 
 export type HumanYieldEvent = {
   type: string;
@@ -332,8 +332,8 @@ export function revealPendingApproval(
     return shown;
   }
   void Promise.all([
-    import("../session-store/index.ts"),
-    import("../tabs/center-tabs-store.ts"),
+    import("../../session-store/index.ts"),
+    import("../../tabs/center-tabs-store.ts"),
   ]).then(([{ useSessionStore }, { useCenterTabs }]) => {
     const title = useSessionStore.getState().conversations[sessionId]?.title || sessionId;
     const tabs = useCenterTabs.getState();

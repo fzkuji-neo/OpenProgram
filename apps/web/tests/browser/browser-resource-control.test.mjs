@@ -18,7 +18,7 @@ import {
   pendingCloseRequest,
   settlePendingClose,
   useBrowserControlStore,
-} from "../../lib/browser/browser-control.ts";
+} from "../../lib/browser/control/browser-control.ts";
 import { ingestBrowserResource, listedBrowserResources, resetBrowserResources, setBrowserConnection } from "../../lib/chat/resources/session-resources.ts";
 
 function ingestPage(overrides = {}) {

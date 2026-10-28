@@ -1,6 +1,6 @@
-import type { CenterTab } from "../tabs/center-tabs-store";
-import type { CenterTabGroup } from "../tabs/center-tab-groups";
-import { listedBrowserResources } from "../chat/resources/session-resources";
+import type { CenterTab } from "../../tabs/center-tabs-store";
+import type { CenterTabGroup } from "../../tabs/center-tab-groups";
+import { listedBrowserResources } from "../../chat/resources/session-resources";
 
 /** Explicit split layouts and user-revealed pages remain in the strip; other session-owned standalone pages live in their session resource panel. */
 export function topLevelTabs(tabs: readonly CenterTab[], groups: readonly CenterTabGroup[]) {

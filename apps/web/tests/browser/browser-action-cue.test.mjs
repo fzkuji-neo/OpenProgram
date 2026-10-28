@@ -8,7 +8,7 @@ import {
   isStaleCueIdentity,
   lerpCuePoint,
   nextCueTravel,
-} from "../../lib/browser/browser-action-cue.ts";
+} from "../../lib/browser/control/browser-action-cue.ts";
 
 test("idle and closed hide the floating control", () => {
   assert.equal(controlSurfaceVisible("idle"), false);

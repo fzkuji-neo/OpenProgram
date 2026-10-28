@@ -23,7 +23,7 @@ const {
   markScopeYielding,
   resetBrowserControl,
   useBrowserControlStore,
-} = await import("../../lib/browser/browser-control.ts");
+} = await import("../../lib/browser/control/browser-control.ts");
 const {
   ingestBrowserResource,
   resetBrowserResources,

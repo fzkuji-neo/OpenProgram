@@ -15,8 +15,8 @@ await build({
   stdin: { contents: `
     export { WebTabPip } from "./components/center-tabs/pip/web-tab-pip";
     export { useCenterTabs } from "./lib/tabs/center-tabs-store";
-    export { useWebTabPip, getSnapshot, setSnapshot, usePipSnapshots } from "./lib/browser/web-tab-pip-store";
-    export { topLevelTabs } from "./lib/browser/web-page-management";
+    export { useWebTabPip, getSnapshot, setSnapshot, usePipSnapshots } from "./lib/browser/web-tab/web-tab-pip-store";
+    export { topLevelTabs } from "./lib/browser/web-tab/web-page-management";
     export { resetBrowserResources, getPreviewPreference, selectResourcePreview } from "./lib/chat/resources/session-resources";
   `, resolveDir: webPath },
   bundle: true, format: "esm", jsx: "automatic", outfile: bundle,

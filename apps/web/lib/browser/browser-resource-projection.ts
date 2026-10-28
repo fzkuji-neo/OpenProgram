@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
-import { ownerOnCanvas, useWebTabPip } from "@/lib/browser/web-tab-pip-store";
+import { ownerOnCanvas, useWebTabPip } from "@/lib/browser/web-tab/web-tab-pip-store";
 import {
   followPreviewBinding,
   getPreviewPreference,
@@ -15,7 +15,7 @@ import {
   clearYieldingOnDisconnect,
   settlePendingClose,
   useBrowserControlStore,
-} from "@/lib/browser/browser-control";
+} from "@/lib/browser/control/browser-control";
 
 export { recoverSessionResources };
 

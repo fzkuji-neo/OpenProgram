@@ -21,7 +21,7 @@ import { createPortal } from "react-dom";
 import { CirclePlus, LayoutGrid, Plus } from "lucide-react";
 
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
-import { topLevelTabs } from "@/lib/browser/web-page-management";
+import { topLevelTabs } from "@/lib/browser/web-tab/web-page-management";
 import { PageNavigation } from "../browser/toolbar/page-navigation";
 import { centerTabStripEntries } from "@/lib/tabs/center-tab-groups";
 import { dragCoordinator } from "@/lib/tabs/transfer/tab-drag-coordinator";

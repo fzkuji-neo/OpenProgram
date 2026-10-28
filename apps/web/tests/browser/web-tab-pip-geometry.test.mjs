@@ -8,7 +8,7 @@ import {
   clampPipRectAspect,
   pipContentAspect,
   resizePipRect,
-} from "../../lib/browser/web-tab-pip-geometry.ts";
+} from "../../lib/browser/web-tab/web-tab-pip-geometry.ts";
 
 const HEADER = PIP_HEADER_HEIGHT;
 const MIN_W = 240;
@@ -93,7 +93,7 @@ function projectedWidth(origin, dx, dy) {
 }
 
 test("store clamp forwards the shared min constants into geometry", () => {
-  const store = readFileSync(new URL("../../lib/browser/web-tab-pip-store.ts", import.meta.url), "utf8");
+  const store = readFileSync(new URL("../../lib/browser/web-tab/web-tab-pip-store.ts", import.meta.url), "utf8");
   assert.match(store, /PIP_MIN_WIDTH = 240/);
   assert.match(store, /PIP_MIN_HEIGHT = 160/);
   assert.match(store, /clampPipRectAspect\(rect, box, PIP_MIN_WIDTH, PIP_MIN_HEIGHT\)/);

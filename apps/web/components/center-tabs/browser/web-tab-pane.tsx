@@ -40,8 +40,8 @@ import {
 import { useTranslation } from "@/lib/i18n";
 import { showToast } from "@/lib/format-utils/toast";
 import { appendToComposer } from "@/components/chat/messages/editing/quote-to-chat";
-import { pageCommentText, pickedElementName, type PickedElement } from "@/lib/browser/page-comment";
-import { regionFile } from "@/lib/browser/region-shot";
+import { pageCommentText, pickedElementName, type PickedElement } from "@/lib/browser/capture/page-comment";
+import { regionFile } from "@/lib/browser/capture/region-shot";
 import { queueComposerFiles } from "@/lib/composer-inbox";
 import { targetChat as targetChatFor } from "@/lib/chat/resources/target-chat";
 import { browserPageShortcut } from "@/lib/browser/browser-layout";
@@ -56,7 +56,7 @@ import {
   collapseWebTabToPip,
   pipCollapseTargetFor,
   useWebTabPip,
-} from "@/lib/browser/web-tab-pip-store";
+} from "@/lib/browser/web-tab/web-tab-pip-store";
 import {
   browserTakeoverKind,
   controlResourceFromSession,
@@ -64,13 +64,13 @@ import {
   revealPendingApproval,
   setControlNotice,
   toggleShowActions,
-} from "@/lib/browser/browser-control";
+} from "@/lib/browser/control/browser-control";
 import {
   listedBrowserResources,
   previewTabId,
   useBrowserResourceStore,
 } from "@/lib/chat/resources/session-resources";
-import { isMovedByAnimation, isWebTabOccluded, measureWebTabBounds } from "@/lib/browser/web-tab-bounds";
+import { isMovedByAnimation, isWebTabOccluded, measureWebTabBounds } from "@/lib/browser/web-tab/web-tab-bounds";
 import styles from "../strip/center-tabs.module.css";
 import { webToolbarButton } from "./toolbar/toolbar-button";
 import { BookmarksLibraryButton, BrowserMenu } from "./toolbar/browser-controls";
@@ -82,14 +82,14 @@ import {
   controlSurfaceVisible,
   cueCancelKey,
   prefersCueReducedMotion,
-} from "@/lib/browser/browser-action-cue";
+} from "@/lib/browser/control/browser-action-cue";
 import {
   liveOperationMarker,
   operationHistory,
   resumeErrorFor,
   showActionsEnabled,
   useBrowserControlStore,
-} from "@/lib/browser/browser-control";
+} from "@/lib/browser/control/browser-control";
 
 export const WebTabPane = memo(function WebTabPane({ tabId, url, suspended = false }: { tabId: string; url: string; suspended?: boolean }) {
   // Bridge presence is fixed for the lifetime of the page (preload

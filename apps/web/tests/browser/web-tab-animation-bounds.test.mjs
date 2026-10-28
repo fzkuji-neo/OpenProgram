@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { isMovedByAnimation } from "../../lib/browser/web-tab-bounds.ts";
+import { isMovedByAnimation } from "../../lib/browser/web-tab/web-tab-bounds.ts";
 
 const paneSource = readFileSync(new URL("../../components/center-tabs/browser/web-tab-pane.tsx", import.meta.url), "utf8");
 

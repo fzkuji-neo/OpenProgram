@@ -3,7 +3,7 @@ export async function run(testContext) {
 
 testContext.assert.match(
   await testContext.readFile(
-    new URL("../../lib/browser/web-tab-pip-store.ts", testContext.sourceUrl),
+    new URL("../../lib/browser/web-tab/web-tab-pip-store.ts", testContext.sourceUrl),
     "utf8",
   ),
   /export function setSnapshot\(tabId: string, dataUrl: string\)/,
@@ -11,7 +11,7 @@ testContext.assert.match(
 
 testContext.assert.match(
   await testContext.readFile(
-    new URL("../../lib/browser/web-tab-pip-store.ts", testContext.sourceUrl),
+    new URL("../../lib/browser/web-tab/web-tab-pip-store.ts", testContext.sourceUrl),
     "utf8",
   ),
   /export function pipOpenMustFork\(/,

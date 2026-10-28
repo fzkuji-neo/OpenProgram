@@ -1,6 +1,6 @@
 import type { ThemeId, ThemeMode, ThemeStyle } from "@/lib/prefs/theme-pref";
-import type { PickedElement } from "@/lib/browser/page-comment";
-import type { PickedRegion } from "@/lib/browser/region-shot";
+import type { PickedElement } from "@/lib/browser/capture/page-comment";
+import type { PickedRegion } from "@/lib/browser/capture/region-shot";
 import type { MenuGlyph, MenuKeys } from "@/components/ui/menu-parts";
 
 export interface DesktopThemeChrome {

@@ -1,5 +1,5 @@
 // Desktop bridge menu responsibilities.
-import { agentCanAccessWebTab } from "../browser/web-page-management";
+import { agentCanAccessWebTab } from "../browser/web-tab/web-page-management";
 /**
  * Desktop bridge — typed accessor for the Electron preload API
  * (`window.openprogramDesktop`) plus the renderer-side bookkeeping the
@@ -15,11 +15,11 @@ import { agentCanAccessWebTab } from "../browser/web-page-management";
  * desktopBridge() returns null; callers keep their web fallbacks.
  */
 import { useCenterTabs, webTabId } from "@/lib/tabs/center-tabs-store";
-import { pipOpenMustFork, registerPipPair, useWebTabPip } from "@/lib/browser/web-tab-pip-store";
+import { pipOpenMustFork, registerPipPair, useWebTabPip } from "@/lib/browser/web-tab/web-tab-pip-store";
 import { findCenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import "@/lib/net/ws/ws-events";
 import { getSocket } from "@/lib/runtime-bridge/state";
-import { showActionsEnabled } from "@/lib/browser/browser-control";
+import { showActionsEnabled } from "@/lib/browser/control/browser-control";
 import { desktopBridge } from "./bridge-api";
 import { receiveBrowserResource, showCenterSurface, subscribeBrowserHumanInput, subscribeWebTabPopups } from "./bridge-events";
 import { destroyStaleWebViews, persistNativeWebTabState, reregisterDesktopWindow, restorableResourceForTab, restoreRetainedWebViews, retryRestoreWebTab } from "./bridge-restoration";

@@ -5,7 +5,7 @@ import { builtinTabId, fileTabId, nextBrowserHomeId, nextNtpId } from "@/lib/tab
 import { replaceGroupTabId } from "@/lib/tabs/center-tabs-persistence";
 import { openReviewTabLayout } from "@/lib/tabs/panes/review-tab-layout";
 import type { StoreApi } from "zustand";
-import { topLevelTabs, webTabSessionIds } from "../../browser/web-page-management";
+import { topLevelTabs, webTabSessionIds } from "../../browser/web-tab/web-page-management";
 import { mapTabPages } from "../navigation/page-history";
 import { sessionHistory } from "../navigation/session-history";
 import { commitCenterTabsState, focusOrCreate, independentTab } from "./core";

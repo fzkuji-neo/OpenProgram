@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { commentChatKey, pageCommentText, pickedElementName } from "../../lib/browser/page-comment.ts";
+import { commentChatKey, pageCommentText, pickedElementName } from "../../lib/browser/capture/page-comment.ts";
 
 const pick = (fields) => ({
   id: "w:1", url: "https://example.com/a", title: "Example", tag: "button",

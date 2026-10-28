@@ -35,7 +35,7 @@ await build({
       PIP_RESIZE_DIRS,
       getSnapshot,
       setSnapshot,
-    } from "./lib/browser/web-tab-pip-store";
+    } from "./lib/browser/web-tab/web-tab-pip-store";
     export {
       ingestBrowserResource,
       resetBrowserResources,
@@ -45,7 +45,7 @@ await build({
       hideResourcePreview,
       followCurrentBranch,
     } from "./lib/chat/resources/session-resources";
-    export { recordOperationCue, resetBrowserControl, resumeErrorFor } from "./lib/browser/browser-control";
+    export { recordOperationCue, resetBrowserControl, resumeErrorFor } from "./lib/browser/control/browser-control";
   `, resolveDir: webPath },
   bundle: true, format: "esm", jsx: "automatic", outfile: bundle,
   packages: "external", platform: "node", tsconfig: join(webPath, "tsconfig.json"),

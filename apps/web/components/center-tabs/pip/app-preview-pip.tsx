@@ -15,9 +15,9 @@ import {
   useBrowserResourceStore,
   viewedBranchFor,
 } from "@/lib/chat/resources/session-resources";
-import { nativeWindowFrameUrl, useNativeWindows } from "@/lib/browser/native-window-store";
+import { nativeWindowFrameUrl, useNativeWindows } from "@/lib/browser/control/native-window-store";
 import { useTerminalResources } from "@/lib/desktop/terminal-resources";
-import { pipChatRect, useWebTabPip, type WebTabPipRect } from "@/lib/browser/web-tab-pip-store";
+import { pipChatRect, useWebTabPip, type WebTabPipRect } from "@/lib/browser/web-tab/web-tab-pip-store";
 import { TerminalMirror } from "@/components/session-resources/terminal-resources";
 
 import styles from "../strip/center-tabs.module.css";

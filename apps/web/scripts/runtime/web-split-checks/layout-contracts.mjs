@@ -556,5 +556,5 @@ testContext.assert.equal(
   pipPairedOwnerFor: testContext.pipPairedOwnerFor,
   registerPipPair: testContext.registerPipPair,
   revealAgentWebTab: testContext.revealAgentWebTab,
-} = await import("../../../lib/browser/web-tab-pip-store.ts"));
+} = await import("../../../lib/browser/web-tab/web-tab-pip-store.ts"));
 }

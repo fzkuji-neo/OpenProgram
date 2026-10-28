@@ -127,7 +127,7 @@ test("agent-attributed opening and popups retain background Pages without steali
 
 
 test("a selected image mirror supplies exact Page context without native visibility or focus", async () => {
-  const { useWebTabPip } = await import("../../lib/browser/web-tab-pip-store.ts");
+  const { useWebTabPip } = await import("../../lib/browser/web-tab/web-tab-pip-store.ts");
   const page = { id: "w:mirror", kind: "web", title: "Mirror", url: "https://mirror.test/" };
   useCenterTabs.setState({ tabs: [
     { id: "s:origin", kind: "session", sessionId: "origin", title: "Origin" },
@@ -272,7 +272,7 @@ test("private Page commands require their trusted conversation even when another
   const command = (session_id,req_id) => listeners.get("op:ws-message")({detail:{type:"webtab.command",data:{op:"resolve",session_id,tab_id:page.id,window_id:"main",req_id}}});
   command("owner","own"); await new Promise(resolve=>setImmediate(resolve));
   assert.equal(sent.find(message=>message.req_id==="own")?.ok,true);
-  const {revealExistingWebTab} = await import("../../lib/browser/web-page-management.ts");
+  const {revealExistingWebTab} = await import("../../lib/browser/web-tab/web-page-management.ts");
   revealExistingWebTab(page.id,useCenterTabs.getState());
   command("other","shared"); await new Promise(resolve=>setImmediate(resolve));
   assert.equal(sent.find(message=>message.req_id==="shared")?.ok,true);
@@ -318,7 +318,7 @@ test("restoration does not activate or reload a Page whose public access was rev
 });
 
 test("human tab close keeps its native Page alive until explicit resource close", async () => {
-  const { revealExistingWebTab, topLevelTabs } = await import("../../lib/browser/web-page-management.ts");
+  const { revealExistingWebTab, topLevelTabs } = await import("../../lib/browser/web-tab/web-page-management.ts");
   const sent = [], destroyed = [];
   setSocket({ readyState: WebSocket.OPEN, send: payload => sent.push(JSON.parse(payload)) });
   const bridge = window.openprogramDesktop;

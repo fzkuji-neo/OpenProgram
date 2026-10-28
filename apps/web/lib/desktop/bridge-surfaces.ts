@@ -1,5 +1,5 @@
 // Desktop bridge surfaces responsibilities.
-import { agentCanAccessWebTab } from "../browser/web-page-management";
+import { agentCanAccessWebTab } from "../browser/web-tab/web-page-management";
 /**
  * Desktop bridge — typed accessor for the Electron preload API
  * (`window.openprogramDesktop`) plus the renderer-side bookkeeping the
@@ -15,7 +15,7 @@ import { agentCanAccessWebTab } from "../browser/web-page-management";
  * desktopBridge() returns null; callers keep their web fallbacks.
  */
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
-import { peekLiveWebTabPipId, peekWebTabPipId, peekWebTabPipOwnerId } from "@/lib/browser/web-tab-pip-store";
+import { peekLiveWebTabPipId, peekWebTabPipId, peekWebTabPipOwnerId } from "@/lib/browser/web-tab/web-tab-pip-store";
 import { centerTabStripEntries, findCenterTabGroup, resolveCenterTabPanes, type CenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import "@/lib/net/ws/ws-events";
 import type { DesktopWebTabApi } from "@/lib/desktop/desktop-bridge-types";

@@ -29,7 +29,7 @@ import {
 import { pushPath } from "@/lib/shallow-nav";
 import { cancelTabRouteNavigation, navigateTabRoute } from "@/lib/tabs/navigation/route";
 import { useTranslation } from "@/lib/i18n";
-import { selectTabsReadyForHumanClose } from "@/lib/browser/browser-control";
+import { selectTabsReadyForHumanClose } from "@/lib/browser/control/browser-control";
 import { documentControllers } from "@/lib/files/document-controller";
 
 export function isChatRoute(pathname: string) {

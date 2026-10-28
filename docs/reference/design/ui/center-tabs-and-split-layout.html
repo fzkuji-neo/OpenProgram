@@ -764,7 +764,7 @@
       <table>
         <thead><tr><th>Rule / concept</th><th>Implementation location</th></tr></thead>
         <tbody>
-          <tr><td>Pairing table, active binding, background,<code>show/hide/end</code></td><td><code>apps/web/lib/browser/web-tab-pip-store.ts</code> · <code>pairedOwnerByTabId</code> / <code>pipPairedOwnerFor</code> / <code>useWebTabPip</code></td></tr>
+          <tr><td>Pairing table, active binding, background,<code>show/hide/end</code></td><td><code>apps/web/lib/browser/web-tab/web-tab-pip-store.ts</code> · <code>pairedOwnerByTabId</code> / <code>pipPairedOwnerFor</code> / <code>useWebTabPip</code></td></tr>
           <tr><td>R1 Disappear on leave / reappear on return</td><td>Same as above · <code>pipCoverBase</code> / <code>pipCoversCenter</code> / <code>peekLiveWebTabPipId</code></td></tr>
           <tr><td>R3 fork</td><td>Same as above · <code>pipOpenMustFork</code>; leaf creation is in <code>center-tabs-store.ts</code> 's <code>ensureWebTab</code> / <code>ensureExclusiveWebTab</code>; ids in <code>center-tab-ids.ts</code> 's <code>webTabId</code> / <code>nextPopupWebTabId</code></td></tr>
           <tr><td>R5 Collapse target</td><td><code>pipCollapseTargetFor</code>(same-group session → pairing table → null) / <code>collapseWebTabToPip</code>; without a target, <code>CollapseToPipButton</code>  returns null and BrowserMenu omits <code>collapseToPip</code></td></tr>

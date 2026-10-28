@@ -683,7 +683,7 @@ test("persistent terminals use the same scoped resource list and closed grouping
 
 test("the preview follows a desktop app the Agent operates, then the next Page", async () => {
   resetBrowserResources();
-  const { ingestNativeWindow, nativeWindowFrameUrl, useNativeWindows } = await import("../../lib/browser/native-window-store.ts");
+  const { ingestNativeWindow, nativeWindowFrameUrl, useNativeWindows } = await import("../../lib/browser/control/native-window-store.ts");
   const { nativeWindowPreview } = await import("../../lib/chat/resources/session-resources.ts");
   useNativeWindows.setState({ windows: {} });
   useBrowserResourceStore.setState({ viewedBranch: { a: "br-a" } });
@@ -716,7 +716,7 @@ test("the preview follows a desktop app the Agent operates, then the next Page",
 
 test("a pinned Page is not displaced by desktop app steps", async () => {
   resetBrowserResources();
-  const { ingestNativeWindow, useNativeWindows } = await import("../../lib/browser/native-window-store.ts");
+  const { ingestNativeWindow, useNativeWindows } = await import("../../lib/browser/control/native-window-store.ts");
   const { nativeWindowPreview } = await import("../../lib/chat/resources/session-resources.ts");
   useNativeWindows.setState({ windows: {} });
   useBrowserResourceStore.setState({ viewedBranch: { a: "br-a" } });

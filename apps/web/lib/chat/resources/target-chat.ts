@@ -1,4 +1,4 @@
-import { commentChatKey } from "@/lib/browser/page-comment";
+import { commentChatKey } from "@/lib/browser/capture/page-comment";
 import { getLastChatKey, useSessionStore } from "@/lib/session-store";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 
