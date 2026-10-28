@@ -43,7 +43,7 @@ test("Zoom, the whole graph, the legend and the minimap are one column on the ri
   assert.doesNotMatch(view, /Maximize2|createPortal|dagHudSlot/);
   const css = readFileSync(new URL("../../app/styles/dag/tools.css", import.meta.url), "utf8");
   assert.match(css, /\.dag-zoom-column \{[^}]*right: 12px;[^}]*bottom: 158px;/);
-  assert.match(css, /\.dag-minimap \{[^}]*right: 58px;[^}]*bottom: 158px;/);
+  assert.match(css, /\.dag-minimap \{[^}]*right: 56px;[^}]*bottom: 158px;/);
 });
 
 test("A mouse wheel zooms, two fingers pan, a right drag pans, a left drag draws a box", async () => {

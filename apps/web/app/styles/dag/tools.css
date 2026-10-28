@@ -58,8 +58,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  /* The send button's size and corner (composer sendBtn: size-7,
+     8px), so the canvas's controls and the composer's match. */
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: none;
   border-radius: 8px;
@@ -155,12 +157,12 @@
 }
 
 /* The minimap (interaction/minimap.ts): the rail's raised material,
-   left of the zoom column with their feet level (12px edge + 38px
+   left of the zoom column with their feet level (12px edge + 36px
    column + 8px gap). The column's map button and M show and hide it. */
 .dag-minimap {
   position: absolute;
   z-index: 3;
-  right: 58px;
+  right: 56px;
   bottom: 158px;
   border-radius: 10px;
   background: var(--bg-input);
@@ -178,7 +180,7 @@
 .dag-key-sheet {
   position: absolute;
   z-index: 4;
-  left: 60px;
+  left: 58px;
   top: 45%;
   transform: translateY(-50%);
 }

@@ -323,9 +323,9 @@ export function pipChatRect(
     ? { x: rect.x, y: rect.y }
     : {
       x: box.x + Math.max(0, box.width - size.width - 12),
-      // Under the pane's top-right controls (8px + a 70px strip) with
+      // Under the pane's top-right controls (8px + a 66px strip) with
       // a 12px gap (chat/center-pane.css .chat-view-controls).
-      y: box.y + 90,
+      y: box.y + 86,
     };
   return clampPipRect({ ...origin, ...size }, box);
 }
