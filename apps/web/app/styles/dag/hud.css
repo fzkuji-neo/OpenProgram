@@ -103,7 +103,7 @@
   background: var(--bg-input);
   box-shadow: var(--shadow-raised);
 }
-.dag-legend-tile.t-user svg { width: 13px; height: 13px; }
+.dag-legend-tile.t-user svg { width: 15px; height: 15px; }
 .dag-legend-tile[data-state="outline"] svg { opacity: 0.38; }
 /* Failed keeps its tone; the Activity panel's red badge with a ``!``
    sits on its corner (nodes.css ``dag-status-badge``). */

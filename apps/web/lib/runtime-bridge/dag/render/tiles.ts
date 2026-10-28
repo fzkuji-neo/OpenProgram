@@ -124,7 +124,7 @@ export function buildTile(tile: Tile): SVGElement {
     rx: raised ? plate : 5, ry: raised ? plate : 5, "data-node-shape": "1", "data-shape": "tile",
   }));
   const box = SOLAR_VIEWBOXES[tile.icon] ?? "0 0 24 24";
-  const size = raised ? ICON - 4 : ICON;
+  const size = raised ? ICON - 1 : ICON;
   const icon = _svg("svg", {
     x: -size / 2, y: -size / 2, width: size, height: size,
     viewBox: box, class: "dag-tile-icon", "aria-hidden": "true",

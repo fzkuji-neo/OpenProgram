@@ -199,7 +199,11 @@ export function drawNodes(
     });
     g.appendChild(hit);
     (g as SVGGraphicsElement).style.cursor = "pointer";
-    const tile = buildTile(tileFor(node));
+    const shown = tileFor(node);
+    const tile = buildTile(shown);
+    // Your message wears its branch's colour, so a branch reads by the
+    // messages that started it as well as by its line.
+    if (shown.tone === "user") (tile as SVGElement).style.setProperty("--tone", _branchColor(node));
     const el = tile.querySelector("[data-node-shape]") as SVGElement | null;
     // HEAD is said by a breathing glow around its own tile (§4), in the
     // tile's tone: light rides the shape at every zoom, where a fill

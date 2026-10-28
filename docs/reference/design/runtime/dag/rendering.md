@@ -367,7 +367,7 @@ npm test" looks alike in both places; tones are shared CSS variables
 | Node | Icon | Tone |
 |---|---|---|
 | ROOT | house | secondary ink |
-| user | person, on a round raised button | accent |
+| user | person, on a round raised button | its branch colour, so a branch reads by its messages as well as its line |
 | agent reply | ghost (agents are ghosts across the app) | timeline llm |
 | call | per tool (`presentTool`) | per tool (shell, edit, read, search, web, …) |
 | sub-agent spawn | ghost | agent — dispatching an agent IS a call; it expands into the agent's activity (§12) |
