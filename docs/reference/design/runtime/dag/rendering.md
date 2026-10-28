@@ -923,7 +923,7 @@ tools: Shift+1 fits the graph, Shift+0 returns to 100%, and + / − step the
 zoom, the same steps as the HUD's buttons (`interaction/keys.ts`).
 
 **Selection.** View state of the current session's canvas. Each selected node
-gets a dashed accent box just outside its glyph. The set is re-applied after
+gets the same dashed accent circle just outside its glyph, whatever the tile's shape (a rounded square beside a circle read as two kinds of selection). The set is re-applied after
 every repaint and pruned to the nodes the canvas still draws, so a node that is
 deleted or folded away leaves the selection. A session switch drops it.
 Selecting on the canvas takes keyboard focus from the composer, so Delete and

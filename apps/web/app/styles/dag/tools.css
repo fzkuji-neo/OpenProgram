@@ -106,7 +106,7 @@
 
 
 
-/* A selected node: a dashed box in the accent colour just outside its
+/* A selected node: a dashed circle in the accent colour just outside its
    glyph. Drawn in the node's own group, so it pans and zooms with it;
    the stroke width does not scale with the zoom. */
 .dag-select-ring {
