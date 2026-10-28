@@ -29,7 +29,7 @@ test("right-click menus are the Nova ContextMenu on the shared recipes", () => {
   assert.match(kit, /radix-nova/);
   assert.match(kit, /cn\(MENU_PANEL, MENU_MOTION/);
   assert.match(kit, /itemCls\(false, variant === "destructive"\),\n\s+MENU_ITEM_STATES/);
-  for (const user of ["components/functions/ctx-menu.tsx", "components/center-tabs/pages/terminal-context-menu.tsx"]) {
+  for (const user of ["components/functions/card/ctx-menu.tsx", "components/center-tabs/pages/terminal-context-menu.tsx"]) {
     assert.match(read(user), /from "@\/components\/ui\/context-menu"/, user);
   }
 });

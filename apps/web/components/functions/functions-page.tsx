@@ -14,15 +14,15 @@ import { useFunctions } from "@/lib/abilities/functions-store";
 import { setPendingRunFunction } from "@/lib/execution/use-pending-run-function";
 
 import { SimpleSelect } from "@/components/ui/select";
-import { CtxMenu, type CtxItem } from "./ctx-menu";
-import { FunctionCard, ToolCard, cardGridClass, cardListClass } from "./function-card";
-import { IconPicker, normalizeIcon } from "./icon-picker";
+import { CtxMenu, type CtxItem } from "./card/ctx-menu";
+import { FunctionCard, ToolCard, cardGridClass, cardListClass } from "./card/function-card";
+import { IconPicker, normalizeIcon } from "./card/icon-picker";
 import {
   matchesProgramSearch,
   programsForSelection,
   toolsForSelection,
-} from "./program-source-categories";
-import { groupTools, TOOL_GROUPS, type ToolInfo } from "./tool-groups";
+} from "./data/program-source-categories";
+import { groupTools, TOOL_GROUPS, type ToolInfo } from "./data/tool-groups";
 import { ProfileNavRow } from "./functions-page-parts";
 import styles from "./functions-page.module.css";
 import type { FunctionInfo, FunctionsMeta } from "./types";

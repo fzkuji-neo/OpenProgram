@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { groupTools } from "../../components/functions/tool-groups.ts";
+import { groupTools } from "../../components/functions/data/tool-groups.ts";
 
 const root = new URL("../../", import.meta.url);
 const read = (name) => readFileSync(new URL(name, root), "utf8");

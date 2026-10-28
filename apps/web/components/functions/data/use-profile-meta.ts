@@ -11,7 +11,7 @@
  */
 import { useCallback, useState } from "react";
 
-import type { FunctionsMeta } from "./types";
+import type { FunctionsMeta } from "../types";
 
 export interface UseProfileMetaResult {
   cloneMeta: () => FunctionsMeta;

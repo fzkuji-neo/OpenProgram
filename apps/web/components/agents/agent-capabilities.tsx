@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SearchIcon } from "@/components/animated-icons";
-import { groupTools, TOOL_GROUPS, type ToolInfo } from "@/components/functions/tool-groups";
+import { groupTools, TOOL_GROUPS, type ToolInfo } from "@/components/functions/data/tool-groups";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { jsonFetch } from "@/lib/net/fetch-client";
 import { AgentButton } from "./agent-controls";

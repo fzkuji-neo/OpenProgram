@@ -26,7 +26,7 @@ import { type AnimatedNavIconHandle } from "@/components/animated-icons";
 import {
   FUNCTION_ICONS,
   normalizeIcon,
-} from "@/components/functions/icon-picker";
+} from "@/components/functions/card/icon-picker";
 
 import { useWindowGlobals } from "../use-window-globals";
 import { runtimeState } from "@/lib/runtime-bridge/state";

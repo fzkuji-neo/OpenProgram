@@ -38,7 +38,7 @@ const MENUS = [
   "components/center-tabs/review/review-tab-pane.tsx",
   "components/files/explorer/tree-context-menu.tsx",
   "components/files/file-management.tsx",
-  "components/functions/ctx-menu.tsx",
+  "components/functions/card/ctx-menu.tsx",
   "components/agents/agents-page.tsx",
   "components/right-sidebar/agents-view-menu.tsx",
 ];
