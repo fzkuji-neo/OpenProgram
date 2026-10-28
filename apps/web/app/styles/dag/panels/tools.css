@@ -180,6 +180,7 @@
   z-index: 4;
   right: 56px;
   top: 12px;
+  width: 280px; /* the minimap's and the legend's width (minimap.ts W) */
   max-height: calc(100% - 24px);
   overflow-y: auto;
 }

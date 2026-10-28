@@ -15,9 +15,10 @@
 import { COMPOSER_STRIP } from "../../types";
 import { seatOf } from "../../render/seat";
 
-// As wide as the legend card that opens under it (dag/panels/legend.css
-// .dag-legend-body), so the two line up; 3:2.
-const W = 240;
+// As wide as the legend card and the controls sheet that open under it
+// (dag/panels/legend.css .dag-legend-body, tools.css .dag-key-sheet), so
+// the three line up; wide enough for the sheet's longest row.
+const W = 280;
 const H = 160;
 const PAD = 8;
 

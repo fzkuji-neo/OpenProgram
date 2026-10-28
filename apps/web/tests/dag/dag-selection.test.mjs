@@ -48,6 +48,12 @@ test("Every view control is one column of Solar glyphs in the top-right corner",
   assert.match(css, /canvas\.dag-minimap:not\(\.is-hidden\)\) \.dag-key-sheet \{[^}]*top: calc\(12px \+ 160px \+ 8px\)/);
   assert.match(view, /if \(sheetOpen\) setOpen\(false\)/);
   assert.match(view, /if \(!open\) setKeySheet\(false\)/);
+  // The map, the legend and the sheet are one width.
+  const map = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/view/minimap.ts", import.meta.url), "utf8");
+  const legend = readFileSync(new URL("../../app/styles/dag/panels/legend.css", import.meta.url), "utf8");
+  assert.match(map, /const W = 280;/);
+  assert.match(legend, /\.dag-legend-body \{[^}]*width: 280px;/);
+  assert.match(css, /\.dag-key-sheet \{[^}]*width: 280px;/);
   assert.doesNotMatch(css, /\.dag-view > \.dag-tool-rail/);
 });
 

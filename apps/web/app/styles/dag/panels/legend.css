@@ -27,7 +27,7 @@
   z-index: 30;
   /* The minimap's width (minimap.ts W), so the two stack as one
      column of panels; longer rows wrap. */
-  width: 240px;
+  width: 280px;
   gap: 2px;
   font-size: 12px;
   color: var(--text-secondary);
