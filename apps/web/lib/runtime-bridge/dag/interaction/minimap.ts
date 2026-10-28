@@ -11,8 +11,10 @@
  * list is read once per drawn graph.
  */
 
-const W = 168;
-const H = 112;
+// As wide as the legend card that opens under it (dag/hud.css
+// .dag-legend-body), so the two line up; 3:2.
+const W = 240;
+const H = 160;
 const PAD = 8;
 
 interface Dot { x: number; y: number; color: string; head: boolean }
