@@ -6,6 +6,8 @@
  *   H / V / L        switch tool (hand, select, lasso — any registered
  *                    tool's ``key``)
  *   F                camera to the next working agent (else HEAD)
+ *   Shift+1 / Shift+0  fit the graph / zoom back to 100%
+ *   + / −            zoom in / out one step
  *   Delete / ⌫       delete the selection
  *   Esc              clear the selection
  *   ⌘Z / Ctrl+Z      undo the last delete in this session
@@ -22,7 +24,7 @@ import {
   setSpaceHeld,
   setTool,
 } from "./selection";
-import { focusAgent } from "./canvas";
+import { fitCanvas, focusAgent, resetZoom, zoomStep } from "./canvas";
 import { canUndoDeletion, deleteSelection, undoDeletion } from "./node-delete";
 
 function onKeyDown(e: KeyboardEvent): void {
@@ -51,6 +53,18 @@ function onKeyDown(e: KeyboardEvent): void {
     // A focused button would also "click" on Space — the canvas owns it.
     e.preventDefault();
     if (!e.repeat) setSpaceHeld(true);
+    return;
+  }
+  // View keys, as design tools have them. By physical key, so Shift+1
+  // is Shift+1 on every layout ("!" on US, something else elsewhere).
+  const view = e.shiftKey && e.code === "Digit1" ? fitCanvas
+    : e.shiftKey && e.code === "Digit0" ? resetZoom
+    : e.key === "+" || e.key === "=" ? () => zoomStep(1)
+    : e.key === "-" || e.key === "_" ? () => zoomStep(-1)
+    : null;
+  if (view) {
+    e.preventDefault();
+    view();
     return;
   }
   if (e.shiftKey || e.repeat) return;

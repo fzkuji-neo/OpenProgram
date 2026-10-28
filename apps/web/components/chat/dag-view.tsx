@@ -175,7 +175,7 @@ function DagHud({ active }: { active: boolean }) {
         type="button"
         className={`${cn(buttonVariants({ variant: "elevated", size: "sm" }))} dag-hud-chip`}
         onClick={() => fitCanvas()}
-        title={text("Fit graph to view", "缩放到全图")}
+        title={text("Fit graph to view (⇧1)", "缩放到全图 (⇧1)")}
       >
         <Maximize2 size={14} strokeWidth={2} />
         <span>{text("Fit", "全图")}</span>
@@ -188,7 +188,7 @@ function DagHud({ active }: { active: boolean }) {
           type="button"
           className="dag-hud-zoombtn"
           onClick={() => zoomStep(-1)}
-          title={text("Zoom out", "缩小")}
+          title={text("Zoom out (−)", "缩小 (−)")}
           aria-label={text("Zoom out", "缩小")}
         >
           <Minus size={14} strokeWidth={2} />
@@ -197,7 +197,7 @@ function DagHud({ active }: { active: boolean }) {
           type="button"
           className="dag-hud-zoom"
           onClick={() => resetZoom()}
-          title={text("Reset zoom to 100%", "重置为 100%")}
+          title={text("Reset zoom to 100% (⇧0)", "重置为 100% (⇧0)")}
         >
           100%
         </button>
@@ -205,7 +205,7 @@ function DagHud({ active }: { active: boolean }) {
           type="button"
           className="dag-hud-zoombtn"
           onClick={() => zoomStep(1)}
-          title={text("Zoom in", "放大")}
+          title={text("Zoom in (+)", "放大 (+)")}
           aria-label={text("Zoom in", "放大")}
         >
           <Plus size={14} strokeWidth={2} />

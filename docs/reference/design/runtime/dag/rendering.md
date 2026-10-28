@@ -896,7 +896,9 @@ accent colour, and each key is in the button's tooltip. Below a hairline sits
 the camera: **Find the working
 agent** (F) glides the view to the tile a working agent stands on, keeping the
 zoom; pressed again it moves to the next working agent, and with none at work
-it goes to HEAD (`focusAgent` in `interaction/canvas.ts`).
+it goes to HEAD (`focusAgent` in `interaction/canvas.ts`). The view keys
+follow design tools: Shift+1 fits the graph, Shift+0 returns to 100%, and
++ / − step the zoom, the same steps as the HUD's buttons (`interaction/keys.ts`).
 
 **Selection.** View state of the current session's canvas. Each selected node
 gets a dashed accent box just outside its glyph. The set is re-applied after
