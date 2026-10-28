@@ -99,11 +99,11 @@
 .dag-legend-tile.t-user {
   width: 20px;
   height: 20px;
-  border-radius: 6px;
+  border-radius: 50%;
   background: var(--bg-input);
   box-shadow: var(--shadow-raised);
 }
-.dag-legend-tile.t-user svg { width: 14px; height: 14px; }
+.dag-legend-tile.t-user svg { width: 13px; height: 13px; }
 .dag-legend-tile[data-state="outline"] svg { opacity: 0.38; }
 .dag-legend-tile[data-state="error"] { --tone: var(--accent-red, #e5534b); }
 /* A running belt: the track with the goods riding it (dag/edges.css). */

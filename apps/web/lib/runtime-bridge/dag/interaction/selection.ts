@@ -162,7 +162,7 @@ export function paintSelection(): void {
   if (pruned) emit();
 }
 
-/** A dashed rounded box a few pixels outside the node's tile, sized
+/** A dashed rounded box (round for a round tile) a few pixels outside the node's tile, sized
  *  from the tile itself. */
 function selectionRing(g: SVGGElement): SVGElement {
   const glyph = g.querySelector<SVGGraphicsElement>("[data-node-shape]");
@@ -177,13 +177,15 @@ function selectionRing(g: SVGGElement): SVGElement {
     /* not laid out yet — the default box fits a plain node */
   }
   const pad = 4;
+  // A round tile (your message) gets a round ring.
+  const round = Number(glyph?.getAttribute("rx")) * 2 >= w;
   return _svg("rect", {
     class: "dag-select-ring",
     x: x - pad,
     y: y - pad,
     width: w + pad * 2,
     height: h + pad * 2,
-    rx: 10,
+    rx: round ? w / 2 + pad : 10,
     "pointer-events": "none",
   });
 }

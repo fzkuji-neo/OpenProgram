@@ -530,7 +530,7 @@ ink; an uncovered tile's icon is faint (38%), an aged one a step back (70%).
 A node is just its icon — no frame and no background (the plate under it is
 the canvas colour, there only to bury belt ends). The one exception is your
 own message, the node you press to fork or edit: it is the app's raised
-button, the input box's fill with the composer's shadow, so a first-time
+button, round, the input box's fill with the composer's shadow, so a first-time
 reader sees what can be clicked. Bubbles, captions and branch
 tags are words with no chip behind them, each with a canvas-colour halo so a
 line passing behind breaks around the letters. The same rule holds in both themes, and the
