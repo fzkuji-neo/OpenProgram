@@ -5,7 +5,7 @@ import {
   recentsConversationsEqual,
   runningIdSetEqual,
 } from "../../components/sidebar/sessions-list/recents-select.ts";
-import { messagePatchUnchanged } from "../../lib/session-store/message-patch.ts";
+import { messagePatchUnchanged } from "../../lib/session-store/messages/message-patch.ts";
 
 test("recents equality ignores non-list fields", () => {
   const a = {

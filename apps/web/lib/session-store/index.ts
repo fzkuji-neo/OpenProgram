@@ -17,7 +17,7 @@ import {
 } from "../runtime-bridge/actions/draft-channel-choice";
 import type { SessionTransferSnapshot } from "../tabs/transfer/tab-transfer-journal";
 import { forgetTakeLatestSession } from "@/lib/chat/history/chat-scroll";
-import { noteMessageArrival, rekeyMessageArrival } from "./message-arrivals";
+import { noteMessageArrival, rekeyMessageArrival } from "./messages/message-arrivals";
 import {
   dropSessionStore,
   installScopeWriteThrough,
@@ -57,12 +57,12 @@ import type {
   StatusBadgeInfo,
   TreeNode,
 } from "./types";
-import { messagePatchUnchanged } from "./message-patch";
+import { messagePatchUnchanged } from "./messages/message-patch";
 import {
   withMessageTimestamp,
-} from "./message-timestamp";
+} from "./messages/message-timestamp";
 
-import { reconcileMessageSnapshot } from './message-snapshot';
+import { reconcileMessageSnapshot } from './messages/message-snapshot';
 
 /** Every transcript row gets its time at first materialization. Persisted
  * rows keep their authoritative value; live/legacy rows missing one use the

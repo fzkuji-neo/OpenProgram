@@ -1,4 +1,4 @@
-import type { ChatMsg } from "./types";
+import type { ChatMsg } from "../types";
 
 /** Persisted rows keep their value; live/legacy rows missing one get a local time. */
 export function validMessageTimestamp(value: unknown): value is number {

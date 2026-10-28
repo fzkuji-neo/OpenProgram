@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { messageArrivedWithin, noteMessageArrival, rekeyMessageArrival } from "../../lib/session-store/message-arrivals.ts";
+import { messageArrivedWithin, noteMessageArrival, rekeyMessageArrival } from "../../lib/session-store/messages/message-arrivals.ts";
 
 test("Only a message that just arrived counts as new", () => {
   assert.equal(messageArrivedWithin("loaded-with-history", 1000), false);

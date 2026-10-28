@@ -1,4 +1,4 @@
-import type { ChatMsg } from './types';
+import type { ChatMsg } from '../types';
 import { validMessageTimestamp } from './message-timestamp';
 
 export function isLiveMessage(message: ChatMsg): boolean {

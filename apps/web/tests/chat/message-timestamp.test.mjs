@@ -4,8 +4,8 @@ import test from "node:test";
 import {
   validMessageTimestamp,
   withMessageTimestamp,
-} from "../../lib/session-store/message-timestamp.ts";
-import { messagePatchUnchanged } from "../../lib/session-store/message-patch.ts";
+} from "../../lib/session-store/messages/message-timestamp.ts";
+import { messagePatchUnchanged } from "../../lib/session-store/messages/message-patch.ts";
 
 test("already-stamped tree keeps identity", () => {
   const child = { id: "c", role: "assistant", content: "x", timestamp: 11 };

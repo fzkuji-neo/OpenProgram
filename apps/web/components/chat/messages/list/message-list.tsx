@@ -38,7 +38,7 @@ import {
   useSessionStore,
   type ChatMsg,
 } from "@/lib/session-store";
-import { messageArrivedWithin } from "@/lib/session-store/message-arrivals";
+import { messageArrivedWithin } from "@/lib/session-store/messages/message-arrivals";
 
 import { useTranslation } from "@/lib/i18n";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
