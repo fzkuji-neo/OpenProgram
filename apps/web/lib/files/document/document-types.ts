@@ -1,4 +1,4 @@
-import type { IndexedDbDocumentDraftStore } from "./file-draft-store";
+import type { IndexedDbDocumentDraftStore } from "../drafts/file-draft-store";
 export type DocumentIdentity =
   | { kind: "project"; projectId: string; path: string }
   | { kind: "attachment"; sessionId: string; path: string; readOnly: true };

@@ -1,6 +1,6 @@
 "use client";
 import type { Dispatch, SetStateAction } from "react";
-import { hasDocumentDraftsForPath } from "@/lib/files/file-drafts";
+import { hasDocumentDraftsForPath } from "@/lib/files/drafts/file-drafts";
 import { clearFileDraftsForPath, loadFileDraftsForPath, runServerRenameWithDrafts, type ServerRenameResult } from "@/lib/files/files-shared";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { treeClipboard } from "../explorer/tree-context-menu";

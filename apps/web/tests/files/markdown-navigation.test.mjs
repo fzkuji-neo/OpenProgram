@@ -52,10 +52,10 @@ const { useCenterTabs: tabs, snapshotCenterTabsPayload, replaceCenterTabsPayload
 const { MarkdownPreview } = await import("../../components/files/preview/markdown-preview.tsx");
 const { PersistentFilePanes } = await import("../../components/center-tabs/files/persistent-file-panes.tsx");
 const { DocumentWindow } = await import("../../components/files/surfaces/document-window.tsx");
-const { DocumentController } = await import("../../lib/files/document-controller.ts");
-const { documentControllers } = await import("../../lib/files/document-controller-registry.ts");
-const { MemoryDraftStore } = await import("../../lib/files/file-draft-store.ts");
-const { setDraftStoreAdapterForTests } = await import("../../lib/files/file-drafts.ts");
+const { DocumentController } = await import("../../lib/files/document/document-controller.ts");
+const { documentControllers } = await import("../../lib/files/document/document-controller-registry.ts");
+const { MemoryDraftStore } = await import("../../lib/files/drafts/file-draft-store.ts");
+const { setDraftStoreAdapterForTests } = await import("../../lib/files/drafts/file-drafts.ts");
 after(() => setDraftStoreAdapterForTests(null));
 const props = { projectId: "p", path: "docs/a.md" };
 function reset() { tabs.setState({ tabs: [], activeId: null, groups: [], splitWebTabId: null, fileSectionRequests: {} }); }

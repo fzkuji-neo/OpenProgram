@@ -20,7 +20,7 @@ import { openOverview } from "@/lib/tabs/canvas/canvas-overview";
 import { captureVisiblePanes } from "@/lib/tabs/canvas/window-snapshots";
 import { useSessionStore } from "@/lib/session-store";
 import { newSession } from "@/lib/runtime-bridge/session/conversations";
-import { flushFileDocumentsBeforeClose } from "@/lib/files/file-drafts";
+import { flushFileDocumentsBeforeClose } from "@/lib/files/drafts/file-drafts";
 import { deleteAttachments } from "@/components/chat/composer/attach/attach-idb";
 import {
   draftChannelChoiceHost,
@@ -30,7 +30,7 @@ import { pushPath } from "@/lib/shallow-nav";
 import { cancelTabRouteNavigation, navigateTabRoute } from "@/lib/tabs/navigation/route";
 import { useTranslation } from "@/lib/i18n";
 import { selectTabsReadyForHumanClose } from "@/lib/browser/control/browser-control";
-import { documentControllers } from "@/lib/files/document-controller";
+import { documentControllers } from "@/lib/files/document/document-controller";
 
 export function isChatRoute(pathname: string) {
   return pathname === "/chat" || pathname.startsWith("/s/");

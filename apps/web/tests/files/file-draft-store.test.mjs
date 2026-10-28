@@ -5,7 +5,7 @@ import {
   DraftStoreQuotaError,
   MemoryDraftStore,
   rebuildDraftIndexes,
-} from "../../lib/files/file-draft-store.ts";
+} from "../../lib/files/drafts/file-draft-store.ts";
 
 const encoder = new TextEncoder();
 const draftBytes = (key, draft, baseline) =>

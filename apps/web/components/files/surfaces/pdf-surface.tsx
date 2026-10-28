@@ -1,6 +1,6 @@
 "use client";
 import { lazy, Suspense, useEffect, useState } from "react";
-import type { DocumentController } from "@/lib/files/document-controller";
+import type { DocumentController } from "@/lib/files/document/document-controller";
 const PdfPreview = lazy(() => import("../preview/pdf-preview"));
 
 /** The owner remounts on editorRevision; autosaved draft bytes retain the editor. */

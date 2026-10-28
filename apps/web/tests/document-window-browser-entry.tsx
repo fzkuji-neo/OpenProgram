@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
-import * as documentDraftLifecycle from "../lib/files/file-drafts";
-import { closeDocumentController } from "../lib/files/document-controller";
+import * as documentDraftLifecycle from "../lib/files/drafts/file-drafts";
+import { closeDocumentController } from "../lib/files/document/document-controller";
 import { FileTabPane } from "../components/center-tabs/files/file-tab-pane";
 Object.assign(window, { documentDraftLifecycle });
 function Fixture() {

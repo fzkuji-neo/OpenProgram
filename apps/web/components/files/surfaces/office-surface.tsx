@@ -3,7 +3,7 @@
 import { LoaderCircle, FileText } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { useEffect, useRef, useState } from "react";
-import type { DocumentController } from "@/lib/files/document-controller";
+import type { DocumentController } from "@/lib/files/document/document-controller";
 import { createBoundOfficeEditor, officeHostAvailability, type OfficeEditorInstance } from "@/lib/documents/office-editor";
 import styles from "./document-window.module.css";
 import officeStyles from "./office-surface.module.css";

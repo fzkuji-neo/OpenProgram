@@ -14,7 +14,7 @@ import {
   subscribeDraftPersistenceErrors,
   type FileReadResult,
   type Project,
-} from "./file-state-shared";
+} from "./drafts/file-state-shared";
 
 export {
   DRAFT_MAX_BYTES,
@@ -26,8 +26,8 @@ export {
   notifyDraftErrorListeners,
   reportDraftPersistenceError,
   subscribeDraftPersistenceErrors,
-} from "./file-state-shared";
-export type { FileReadResult, Project } from "./file-state-shared";
+} from "./drafts/file-state-shared";
+export type { FileReadResult, Project } from "./drafts/file-state-shared";
 
 interface ProjectListResponse {
   projects: Project[] | null;
@@ -265,14 +265,14 @@ export {
   setDraftStoreAdapterForTests,
   snapshotFileDrafts,
   applyFileDraftSnapshot,
-} from "./file-drafts";
+} from "./drafts/file-drafts";
 export type {
   DraftPersistenceErrorCode,
   DraftPersistenceResult,
   FileDraft,
   FileDraftSnapshotEntry,
   ServerRenameResult,
-} from "./file-drafts";
+} from "./drafts/file-drafts";
 
 /* ---- Unsaved editor drafts ---------------------------------------- */
 

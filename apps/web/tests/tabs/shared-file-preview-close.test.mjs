@@ -30,9 +30,9 @@ const {createRoot}=await import('react-dom/client');
 const {useTabLifecycle}=await import(new URL('components/center-tabs/tab-actions/use-tab-lifecycle.ts',root));
 const {useCenterTabs}=await import(new URL('lib/tabs/center-tabs-store.ts',root));
 const {useSessionStore}=await import(new URL('lib/session-store/index.ts',root));
-const {getOrCreateDocumentController}=await import(new URL('lib/files/document-controller.ts',root));
-const {setDraftStoreAdapterForTests}=await import(new URL('lib/files/file-drafts.ts',root));
-const {MemoryDraftStore}=await import(new URL('lib/files/file-draft-store.ts',root));
+const {getOrCreateDocumentController}=await import(new URL('lib/files/document/document-controller.ts',root));
+const {setDraftStoreAdapterForTests}=await import(new URL('lib/files/drafts/file-drafts.ts',root));
+const {MemoryDraftStore}=await import(new URL('lib/files/drafts/file-draft-store.ts',root));
 setDraftStoreAdapterForTests(new MemoryDraftStore());
 test('closing one preview keeps the shared document editable until the last owner closes', async()=>{
 const noop=()=>{};let lifecycle;

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { PDFViewer, EventBus, PDFLinkService } from "pdfjs-dist/web/pdf_viewer.mjs";
-import type { DocumentController } from "@/lib/files/document-controller";
+import type { DocumentController } from "@/lib/files/document/document-controller";
 import { useTranslation } from "@/lib/i18n";
 import { SimpleSelect } from "@/components/ui/select";
 import { readPreviewBytes } from "@/lib/documents/read-preview-bytes";

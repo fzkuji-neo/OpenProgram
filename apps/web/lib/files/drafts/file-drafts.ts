@@ -290,7 +290,7 @@ type DocumentControllerLike = {
 
 /** Resolve lazily because document-controller imports this legacy module. */
 async function documentControllersForPath(projectId: string, path: string): Promise<DocumentControllerLike[]> {
-  const module = await import("./document-controller");
+  const module = await import("../document/document-controller");
   return [...module.documentControllers.values()].filter((controller: DocumentControllerLike) => {
     const identity = controller.identity;
     return identity.kind === "project" && identity.projectId === projectId
@@ -326,7 +326,7 @@ export async function flushFileDocumentsBeforeClose(
   tabs: readonly { projectId?: string; path?: string }[],
 ): Promise<boolean> {
   try {
-    const module = await import("./document-controller");
+    const module = await import("../document/document-controller");
     for (const tab of tabs) {
       if (!tab.projectId || !tab.path || !(await hasDirtyDraftsForPath(tab.projectId, tab.path))) continue;
       const identity = { kind: "project" as const, projectId: tab.projectId, path: tab.path };
@@ -612,7 +612,7 @@ export function runServerRenameWithDrafts(
   reverseRename: (serverResult: ServerRenameResult) => Promise<ServerRenameResult>,
 ): Promise<DraftPersistenceResult> {
   return enqueueDraft(async () => {
-    const { beginDocumentRename } = await import("./document-controller");
+    const { beginDocumentRename } = await import("../document/document-controller");
     const finishRename = await beginDocumentRename(projectId, oldPath, newPath);
     let renamed = false;
     try {

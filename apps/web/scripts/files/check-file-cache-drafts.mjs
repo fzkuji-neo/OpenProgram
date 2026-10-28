@@ -2,10 +2,10 @@ import { readFileTreeSource } from "../testing/feature-source.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const shared = readFileSync(new URL("../../lib/files/file-state-shared.ts", import.meta.url), "utf8")
+const shared = readFileSync(new URL("../../lib/files/drafts/file-state-shared.ts", import.meta.url), "utf8")
   + readFileSync(new URL("../../lib/files/files-shared.ts", import.meta.url), "utf8")
-  + readFileSync(new URL("../../lib/files/file-drafts.ts", import.meta.url), "utf8");
-const store = readFileSync(new URL("../../lib/files/file-draft-store.ts", import.meta.url), "utf8");
+  + readFileSync(new URL("../../lib/files/drafts/file-drafts.ts", import.meta.url), "utf8");
+const store = readFileSync(new URL("../../lib/files/drafts/file-draft-store.ts", import.meta.url), "utf8");
 const viewer = readFileSync(new URL("../../components/files/file-viewer.tsx", import.meta.url), "utf8");
 const pane = readFileSync(new URL("../../components/files/surfaces/document-window.tsx", import.meta.url), "utf8");
 const tree = readFileTreeSource();

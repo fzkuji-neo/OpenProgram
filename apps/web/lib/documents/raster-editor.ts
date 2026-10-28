@@ -1,5 +1,5 @@
 "use client";
-import type { DocumentController } from "@/lib/files/document-controller";
+import type { DocumentController } from "@/lib/files/document/document-controller";
 import { assertEncodedRaster, validateRasterDecoded } from "./raster-format";
 
 type Crop = { left: number; top: number; width: number; height: number };

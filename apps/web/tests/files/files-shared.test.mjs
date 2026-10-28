@@ -59,7 +59,7 @@ const {
   collectDirtyFileTabs,
   runServerRenameWithDrafts,
 } = await import("../../lib/files/files-shared.ts");
-const { MemoryDraftStore } = await import("../../lib/files/file-draft-store.ts");
+const { MemoryDraftStore } = await import("../../lib/files/drafts/file-draft-store.ts");
 
 test("read cache is project-scoped, mtime-scoped, and LRU bounded", () => {
   readCache.clear();

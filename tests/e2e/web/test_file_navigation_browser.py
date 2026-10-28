@@ -18,7 +18,7 @@ def test_file_history_restores_files_tree_and_branches_forward_history(tmp_path:
     script = r'''
 const {build}=require("esbuild");
 const mocks={
-  "@/lib/files/file-drafts":'export const hasDocumentDraftsForPath=()=>false;',
+  "@/lib/files/drafts/file-drafts":'export const hasDocumentDraftsForPath=()=>false;',
   "@/lib/i18n":'export const useTranslation=()=>({text:(en)=>en,t:(key)=>key});',
   "@/lib/net/ws/ws-request":`export const wsRequest=(action,payload)=>globalThis.__fileRequest(action,payload);
     export const wsMutationRequest=()=>Promise.resolve(null); export const reconcileWsMutation=()=>{};

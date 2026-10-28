@@ -13,9 +13,9 @@ registerHooks({ resolve(specifier, context, nextResolve) {
   }
   return nextResolve(specifier, context);
 } });
-const { DocumentController } = await import("../../lib/files/document-controller.ts");
-const { setDraftStoreAdapterForTests } = await import("../../lib/files/file-drafts.ts");
-const { MemoryDraftStore } = await import("../../lib/files/file-draft-store.ts");
+const { DocumentController } = await import("../../lib/files/document/document-controller.ts");
+const { setDraftStoreAdapterForTests } = await import("../../lib/files/drafts/file-drafts.ts");
+const { MemoryDraftStore } = await import("../../lib/files/drafts/file-draft-store.ts");
 setDraftStoreAdapterForTests(new MemoryDraftStore());
 const a="a".repeat(64), b="b".repeat(64), c="c".repeat(64);
 const committed = revision => new Response(JSON.stringify({ok:true,status:"committed",revision}));

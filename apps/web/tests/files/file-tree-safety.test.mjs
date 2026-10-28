@@ -19,7 +19,7 @@ const mocks = {
   '@/lib/navigate': 'export const navigate=()=>{};',
   '@/lib/tabs/center-tabs-store': `const state={tabs:[],activeId:null,openFileTab:()=>{},closeTab:()=>{}};
     export const useCenterTabs=Object.assign(fn=>fn(state),{getState:()=>state});`,
-  '@/lib/files/file-drafts': 'export const hasDocumentDraftsForPath=async()=>false;',
+  '@/lib/files/drafts/file-drafts': 'export const hasDocumentDraftsForPath=async()=>false;',
   '@/lib/files/files-shared': `export const hasDocumentDraftsForPath=async()=>false;
     export const loadFileDraftsForPath=async()=>globalThis.host.drafts;
     export const clearFileDraftsForPath=async()=>{globalThis.host.drafts=[];return {ok:true}};

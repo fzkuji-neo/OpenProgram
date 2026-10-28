@@ -1,6 +1,6 @@
-import { IndexedDbDocumentDraftStore, type DocumentDraftPending, type DocumentDraftRecord } from "./file-draft-store";
-import { discardFileDraft, loadFileDraft } from "./file-drafts";
-import { invalidateFileRead } from "./files-shared";
+import { IndexedDbDocumentDraftStore, type DocumentDraftPending, type DocumentDraftRecord } from "../drafts/file-draft-store";
+import { discardFileDraft, loadFileDraft } from "../drafts/file-drafts";
+import { invalidateFileRead } from "../files-shared";
 import type { DocumentControllerOptions, DocumentHistoryPage, DocumentIdentity, DocumentSnapshot, RichDocumentEditor } from "./document-types";
 import { documentControllers as controllers } from "./document-controller-registry";
 
