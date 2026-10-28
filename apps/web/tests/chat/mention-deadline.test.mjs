@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setImmediate as tick } from 'node:timers/promises';
-import { expandAtMentions } from '../../components/chat/composer/attach/at-mention.ts';
+import { expandAtMentions } from '../../components/chat/composer/attach/mention/at-mention.ts';
 test('ordinary lookup expands and failed lookup preserves raw path', async () => {
     const original = globalThis.fetch;
     globalThis.fetch = async (url) => url.includes('good') ? { ok: true, json: async () => ({ path: '/tmp/good.txt', size: 1024 }) } : { ok: false };

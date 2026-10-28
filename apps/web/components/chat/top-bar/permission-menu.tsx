@@ -42,7 +42,7 @@ import { cn } from "@/lib/utils";
 import {
   usePermissionMode,
   type PermissionMode,
-} from "../composer/controls/use-permission-mode";
+} from "../composer/controls/toggles/use-permission-mode";
 import {
   CHECK_SLOT_PAD,
   GROUP_LABEL,

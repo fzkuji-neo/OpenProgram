@@ -14,7 +14,7 @@ def effort_page(tmp_path):
     from playwright.sync_api import sync_playwright
 
     entry = '''import React,{useState}from'react';import{createRoot}from'react-dom/client';
-import{ThinkingEffortPill}from'./components/chat/composer/controls/thinking-effort-pill';
+import{ThinkingEffortPill}from'./components/chat/composer/controls/effort/thinking-effort-pill';
 function App(){const[open,setOpen]=useState(true),[value,setValue]=useState('medium'),[fast,setFast]=useState(false),[single,setSingle]=useState(false);return <><button onClick={()=>setOpen(!open)}>Panel</button><button onClick={()=>{setSingle(!single);setValue('high')}}>Model</button><ThinkingEffortPill expanded={open} onToggle={()=>setOpen(!open)} options={single?[{value:'high',recommended:true}]:[{value:'low'},{value:'medium',recommended:true},{value:'high'},{value:'xhigh'}]} value={value} onChange={setValue} fastEnabled={fast} fastSupported={true} fastHint="Fast" toggleFast={()=>setFast(!fast)}/><output>{value}</output></>};createRoot(document.getElementById('root')).render(<App/>);'''
     bundle = tmp_path / 'effort.js'
     subprocess.run(['node', '-e', "require('esbuild').buildSync({stdin:{contents:process.argv[3],resolveDir:process.argv[1],loader:'tsx'},bundle:true,format:'iife',platform:'browser',jsx:'automatic',loader:{'.css':'empty'},outfile:process.argv[2],tsconfig:process.argv[1]+'/tsconfig.json'});", str(WEB), str(bundle), entry], cwd=ROOT, check=True, capture_output=True)

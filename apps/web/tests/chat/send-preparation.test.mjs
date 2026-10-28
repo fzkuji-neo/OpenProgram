@@ -42,7 +42,7 @@ const mocks = {
     "@/lib/abilities/functions-store": "export const useFunctions = {getState: () => ({functions:[]})};",
     "@/lib/format-utils/toast": "export const showToast = (...args) => host.toasts.push(args);",
     "../attach/attachment-session-cache": "export const attachmentsBlockSend = () => null;",
-    "../attach/at-mention": "export const expandAtMentions = (text) => host.expandMentions(text);",
+    "../attach/mention/at-mention": "export const expandAtMentions = (text) => host.expandMentions(text);",
     "../modes/fn-form/session-target": "export const resolveFnFormSessionId = (current, active) => current ?? active;",
     "@/lib/chat/chat-scroll": `export const defaultScrollerKey = (sid, peer) => peer ? 'peer:' + sid : sid;
     export const noteTakeLatest = note => host.notes.push(note);`,
@@ -255,7 +255,7 @@ test("different draft submitted during preparation is observably distinct", asyn
     }
 });
 test("actual mention body timeout sends fallback without clearing an edited draft", async () => {
-    const { expandAtMentions } = await import("../../components/chat/composer/attach/at-mention.ts");
+    const { expandAtMentions } = await import("../../components/chat/composer/attach/mention/at-mention.ts");
     const originalFetch = globalThis.fetch;
     const originalTimeout = AbortSignal.timeout;
     let controller;

@@ -1,6 +1,6 @@
 /* composer 底行容器查询与 effort pill（含 Ultracode 态；窄行时也
    负责隐藏 .context-stats-label，容器由 .composer-bottom-row 声明）。
-   对应组件：components/chat/composer/controls/thinking-effort-pill.tsx、
+   对应组件：components/chat/composer/controls/effort/thinking-effort-pill.tsx、
    controls-cluster.tsx */
 
 /* Composer bottom-row container. Declared globally (not in the CSS

@@ -43,8 +43,8 @@ import {
   WebSearchIcon,
 } from "../icons";
 import { PlusMenuRow, ToolChip } from "./menu-pieces";
-import { ThinkingEffortPill } from "./thinking-effort-pill";
-import type { ThinkingOption } from "./use-thinking-effort";
+import { ThinkingEffortPill } from "./effort/thinking-effort-pill";
+import type { ThinkingOption } from "./effort/use-thinking-effort";
 import styles from "../composer.module.css";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";

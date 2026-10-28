@@ -19,7 +19,7 @@ import { useSessionStore } from "@/lib/session-store";
 import {
   collectImagesFromTransfer,
   type PendingImage,
-} from "../attach/image-attach";
+} from "../attach/image/image-attach";
 import {
   LONG_PASTE_THRESHOLD,
   missingPasteIds,

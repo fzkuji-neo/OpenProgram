@@ -7,11 +7,11 @@ import {
   formatAttachmentLabel,
   formatAttachmentSize,
   type PendingImage,
-} from "./image-attach";
+} from "../image/image-attach";
 import { FilePreviewModal, type PendingDoc } from "./file-tiles";
 import {
   orderedComposerAttachments,
-} from "./attachment-session-cache";
+} from "../attachment-session-cache";
 import styles from "./attachment-strip.module.css";
 
 interface AttachmentStripProps {

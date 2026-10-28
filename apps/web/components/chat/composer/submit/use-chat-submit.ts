@@ -27,7 +27,7 @@ import { steerQueuedMessage } from "@/lib/chat/steer-message";
 import { useFunctions } from "@/lib/abilities/functions-store";
 import { buildAttachmentEnvelope } from "@/lib/chat/attachment-marker";
 import { attachmentsBlockSend } from "../attach/attachment-session-cache";
-import { expandAtMentions } from "../attach/at-mention";
+import { expandAtMentions } from "../attach/mention/at-mention";
 import { expandPasteTokens, expandPasteTokensDelimited, missingPasteIds, takePastedSpans } from "../paste/paste-store";
 import { elementsForBody } from "@/lib/chat/paste-elements";
 import { sendChatMessage } from "./send-chat-message";

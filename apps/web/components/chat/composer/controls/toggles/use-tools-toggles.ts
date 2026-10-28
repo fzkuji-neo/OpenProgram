@@ -14,7 +14,7 @@ import { useCallback } from "react";
 import {
   useBoundComposerSettings,
   useBoundSetComposerSettings,
-} from "../state/use-composer-settings";
+} from "../../state/use-composer-settings";
 
 export interface ToolsTogglesHook {
   tools: boolean;

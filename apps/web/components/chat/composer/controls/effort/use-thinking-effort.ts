@@ -17,7 +17,7 @@ import { runtimeState } from "@/lib/runtime-bridge/state";
 import {
   useBoundComposerSettings,
   useBoundSetComposerSettings,
-} from "../state/use-composer-settings";
+} from "../../state/use-composer-settings";
 
 const DEFAULT_THINKING: ThinkingEffort = "medium";
 const FALLBACK_LEVELS = ["low", "medium", "high", "xhigh", "max"] as const;

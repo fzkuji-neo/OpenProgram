@@ -9,8 +9,8 @@ import { useTerminalResources } from "@/lib/desktop/terminal-resources";
 import { useTranslation } from "@/lib/i18n";
 
 import { OperationCode } from "./operation-code";
-import approvalStyles from "../approval/approval-mode.module.css";
-import questionStyles from "./question-mode.module.css";
+import approvalStyles from "../../approval/approval-mode.module.css";
+import questionStyles from "../question-mode.module.css";
 import styles from "./computer-use-approval.module.css";
 
 const AGENT_TERMINAL_PREFIX = "terminal-resource:";

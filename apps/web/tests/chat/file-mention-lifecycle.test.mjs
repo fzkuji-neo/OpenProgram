@@ -23,9 +23,9 @@ const hooks = registerHooks({
         return { format: 'module', shortCircuit: true, source: ts.transpileModule(readFileSync(new URL(url), 'utf8'), { compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.ESNext } }).outputText }; return next(url, c); }
 });
 after(() => hooks.deregister());
-const { useFileMention } = await import(new URL('components/chat/composer/attach/use-file-mention.ts', rootURL));
+const { useFileMention } = await import(new URL('components/chat/composer/attach/mention/use-file-mention.ts', rootURL));
 const { useComposerKeyDown } = await import(new URL('components/chat/composer/input/use-composer-keydown.ts', rootURL));
-const { FileMenu } = await import(new URL('components/chat/composer/attach/file-menu.tsx', rootURL));
+const { FileMenu } = await import(new URL('components/chat/composer/attach/mention/file-menu.tsx', rootURL));
 async function fixture(t, run) {
     t.mock.timers.enable({ apis: ['setTimeout'] });
     const keys = ['window', 'document', 'HTMLElement', 'fetch', 'requestAnimationFrame', 'IS_REACT_ACT_ENVIRONMENT', 'innerWidth', 'innerHeight'];

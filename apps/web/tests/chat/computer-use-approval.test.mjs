@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { computerUseStep, needsForeground, readsWhat, setArgs } from '../../components/chat/composer/modes/question/computer-use-step.ts';
+import { computerUseStep, needsForeground, readsWhat, setArgs } from '../../components/chat/composer/modes/question/approvals/computer-use-step.ts';
 import { computerUseRuleApp } from '../../lib/computer-use-rule.ts';
 import { appStepArgs } from '../../lib/computer-use-agent-call.ts';
 

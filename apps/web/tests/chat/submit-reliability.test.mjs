@@ -31,7 +31,7 @@ const mocks = {
   "@/lib/abilities/functions-store": "export const useFunctions = {getState: () => ({functions:[]})};",
   "@/lib/format-utils/toast": "export const showToast = (...args) => host.toasts.push(args);",
   "../attach/attachment-session-cache": "export const attachmentsBlockSend = () => null;",
-  "../attach/at-mention": "export const expandAtMentions = (text) => host.expandMentions(text);",
+  "../attach/mention/at-mention": "export const expandAtMentions = (text) => host.expandMentions(text);",
   "../modes/fn-form/session-target": "export const resolveFnFormSessionId = (current, active) => current ?? active;",
   "@/lib/chat/chat-scroll": `export const defaultScrollerKey = (sid, peer) => peer ? 'peer:' + sid : sid;
     export const noteTakeLatest = note => host.notes.push(note);`,

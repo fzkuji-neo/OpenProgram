@@ -437,7 +437,7 @@ testContext.assert.match(testContext.webTabPaneSource, /mo\.disconnect\(\);/);
 
 
 (testContext.fileTilesSource = await testContext.readFile(
-  new URL("../../components/chat/composer/attach/file-tiles.tsx", testContext.sourceUrl),
+  new URL("../../components/chat/composer/attach/strip/file-tiles.tsx", testContext.sourceUrl),
   "utf8",
 ));
 

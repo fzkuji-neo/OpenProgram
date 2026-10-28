@@ -26,8 +26,8 @@ import {
   readImageFile,
   planDroppedFiles,
   MAX_DOC_BYTES,
-} from "./image-attach";
-import type { PendingDoc } from "./file-tiles";
+} from "./image/image-attach";
+import type { PendingDoc } from "./strip/file-tiles";
 import { captureDropEntries, firstDirectoryLevel, type DroppedEntry } from "./folder-drop";
 import {
   attachmentOwnerIsClosed,

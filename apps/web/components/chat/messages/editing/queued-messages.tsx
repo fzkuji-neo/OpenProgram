@@ -20,7 +20,7 @@ import { queuedHasAttachments, snapshotQueuedAttachments } from "@/lib/chat/queu
 import { steerQueuedMessage } from "@/lib/chat/steer-message";
 import { CornerDownRight, Pencil, X, Paperclip, ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
 import { HoverTip } from "@/components/ui/tooltip";
-import { AttachmentStrip } from "../../composer/attach/attachment-strip";
+import { AttachmentStrip } from "../../composer/attach/strip/attachment-strip";
 import { useComposerAttachments } from "../../composer/attach/use-composer-attachments";
 import { attachmentsBlockSend } from "../../composer/attach/attachment-session-cache";
 import { AttachmentChips, parseAttachments } from "../attachments/user-attachments";

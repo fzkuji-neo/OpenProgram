@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { SolarIcon } from "@/components/solar-icons";
 import { useTranslation } from "@/lib/i18n";
-import styles from "../approval/approval-mode.module.css";
+import styles from "../../approval/approval-mode.module.css";
 
 /** Shared presentation for the command and its exact JSON arguments. */
 export function OperationCode({ value, language }: { value: string; language: string }) {

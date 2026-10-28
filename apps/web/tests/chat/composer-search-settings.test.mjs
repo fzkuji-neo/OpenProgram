@@ -39,9 +39,9 @@ const {window}=parseHTML('<!doctype html><html><body></body></html>');
 Object.assign(globalThis,{window,document:window.document,IS_REACT_ACT_ENVIRONMENT:true,WebSocket:{OPEN:1}});
 globalThis.fetch=async()=>Response.json({profiles:{research:['web_search']}});
 const {getSessionStore,dropSessionStore,DEFAULT_SCOPE_SETTINGS}=await import('../../lib/session-store/session-scope-registry.ts');
-const {useToolsToggles}=await import('../../components/chat/composer/controls/use-tools-toggles.ts');
-const {useToolProfiles}=await import('../../components/chat/composer/controls/use-tool-profiles.ts');
-const {useSandboxToggle}=await import('../../components/chat/composer/controls/use-sandbox-toggle.ts');
+const {useToolsToggles}=await import('../../components/chat/composer/controls/toggles/use-tools-toggles.ts');
+const {useToolProfiles}=await import('../../components/chat/composer/controls/toggles/use-tool-profiles.ts');
+const {useSandboxToggle}=await import('../../components/chat/composer/controls/toggles/use-sandbox-toggle.ts');
 async function fixture(fn) {
  const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
  const stores=Object.fromEntries(['A','B'].map(id=>[id,getSessionStore(id,{draft:'',settings:{...DEFAULT_SCOPE_SETTINGS,sandbox:id==='A'},running:null})]));

@@ -11,7 +11,7 @@
  * handling. The base64 + MIME conversion is the only piece we share.
  */
 
-import type { ChatAttachment } from "../submit/send-chat-message";
+import type { ChatAttachment } from "../../submit/send-chat-message";
 
 /** App attach cap for the original file (not a per-model discovery). */
 export const MAX_ORIGINAL_IMAGE_BYTES = 32 * 1024 * 1024;

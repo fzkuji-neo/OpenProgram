@@ -10,8 +10,8 @@ import { useTranslation } from "@/lib/i18n";
 
 import { OperationCode } from "./operation-code";
 import { AUDIO_ACTIONS, computerUseStep, needsForeground, readsWhat, setArgs, str, type Args } from "./computer-use-step";
-import approvalStyles from "../approval/approval-mode.module.css";
-import questionStyles from "./question-mode.module.css";
+import approvalStyles from "../../approval/approval-mode.module.css";
+import questionStyles from "../question-mode.module.css";
 import styles from "./computer-use-approval.module.css";
 
 export function ComputerUseApproval({ args, allowedScopes }: { args: Args; allowedScopes?: string[] }) {

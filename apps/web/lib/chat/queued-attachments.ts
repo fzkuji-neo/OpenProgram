@@ -1,5 +1,5 @@
-import type { PendingImage } from "@/components/chat/composer/attach/image-attach";
-import type { PendingDoc } from "@/components/chat/composer/attach/file-tiles";
+import type { PendingImage } from "@/components/chat/composer/attach/image/image-attach";
+import type { PendingDoc } from "@/components/chat/composer/attach/strip/file-tiles";
 import { buildAttachmentEnvelope } from "./attachment-marker";
 
 export interface QueuedAttachments {

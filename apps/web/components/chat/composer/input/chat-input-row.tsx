@@ -15,8 +15,8 @@
 import { Kbd } from "@/components/ui/kbd";
 import type React from "react";
 
-import { FileMenu, type FileMatch } from "../attach/file-menu";
-import { useFileMention } from "../attach/use-file-mention";
+import { FileMenu, type FileMatch } from "../attach/mention/file-menu";
+import { useFileMention } from "../attach/mention/use-file-mention";
 import { MarkdownEditor } from "./markdown-editor";
 import styles from "./chat-input-row.module.css";
 

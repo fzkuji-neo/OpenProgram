@@ -73,7 +73,7 @@ const {
   "../../components/chat/composer/attach/attachment-session-cache.ts"
 );
 const { planDroppedFiles, formatAttachmentLabel, formatAttachmentSize } =
-  await import("../../components/chat/composer/attach/image-attach.ts");
+  await import("../../components/chat/composer/attach/image/image-attach.ts");
 const { useChatSubmit } = await import(
   "../../components/chat/composer/submit/use-chat-submit.ts"
 );
@@ -210,7 +210,7 @@ test("compact strip renders mixed order, separate remove, loading and error", as
   const webPath = fileURLToPath(webRoot);
   const bundled = await build({
     absWorkingDir: webPath,
-    entryPoints: ["components/chat/composer/attach/attachment-strip.tsx"],
+    entryPoints: ["components/chat/composer/attach/strip/attachment-strip.tsx"],
     bundle: true,
     write: false,
     format: "esm",

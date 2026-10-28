@@ -1,6 +1,6 @@
 "use client";
 
-import { approvalDisplayText, readSandboxEscalation, type SandboxEscalation } from "./approval-display-text";
+import { approvalDisplayText, readSandboxEscalation, type SandboxEscalation } from "./approvals/approval-display-text";
 
 /** Questions use a current-question panel above the composer.
  * All answers are submitted together through the existing acknowledged wait
@@ -9,9 +9,9 @@ import { approvalDisplayText, readSandboxEscalation, type SandboxEscalation } fr
 
 import { useState } from "react";
 import { SolarIcon } from "@/components/solar-icons";
-import { OperationCode } from "./operation-code";
-import { ComputerUseApproval } from "./computer-use-approval";
-import { TerminalApproval } from "./terminal-approval";
+import { OperationCode } from "./approvals/operation-code";
+import { ComputerUseApproval } from "./approvals/computer-use-approval";
+import { TerminalApproval } from "./approvals/terminal-approval";
 import { appStepArgs } from "@/lib/computer-use-agent-call";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";

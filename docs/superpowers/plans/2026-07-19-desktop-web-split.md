@@ -102,7 +102,7 @@ git commit -m "feat(tabs): add persistent web split state"
 **Files:**
 - Modify: `apps/web/lib/desktop-bridge.ts`
 - Modify: `apps/web/components/center-tabs/browser/web-tab-pane.tsx`
-- Modify: `apps/web/components/chat/composer/attach/file-tiles.tsx`
+- Modify: `apps/web/components/chat/composer/attach/strip/file-tiles.tsx`
 - Modify: `apps/web/scripts/check-web-split.mjs`
 
 **Interfaces:**
@@ -149,7 +149,7 @@ Expected: pass with no unhandled timeout.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/web/lib/desktop-bridge.ts apps/web/components/center-tabs/browser/web-tab-pane.tsx apps/web/components/chat/composer/attach/file-tiles.tsx apps/web/scripts/check-web-split.mjs
+git add apps/web/lib/desktop-bridge.ts apps/web/components/center-tabs/browser/web-tab-pane.tsx apps/web/components/chat/composer/attach/strip/file-tiles.tsx apps/web/scripts/check-web-split.mjs
 git commit -m "fix(desktop): preserve and guard native web views"
 ```
 

@@ -12,7 +12,7 @@ def test_gauge_toggle_keeps_effort_and_panel(tmp_path):
     from playwright.sync_api import sync_playwright, expect
     bundle = tmp_path / 'panel.js'
     entry = '''import React,{useState} from 'react';import{createRoot}from'react-dom/client';
-import{ThinkingEffortPill}from'./components/chat/composer/controls/thinking-effort-pill';
+import{ThinkingEffortPill}from'./components/chat/composer/controls/effort/thinking-effort-pill';
 function App(){const[open,setOpen]=useState(false),[fast,setFast]=useState(false),[value,setValue]=useState('high'),[supported,setSupported]=useState(true);return <><button onClick={()=>setSupported(false)}>Unverified route</button><ThinkingEffortPill expanded={open} onToggle={()=>setOpen(!open)} options={[{value:'low'},{value:'high'}]} value={value} onChange={setValue} fastEnabled={fast&&supported} fastSupported={supported} fastHint="Fast may increase usage" toggleFast={()=>setFast(!fast)}/><output>{value}</output></>};createRoot(document.getElementById('root')).render(<App/>);'''
     subprocess.run(['node', '-e', "require('esbuild').buildSync({stdin:{contents:process.argv[3],resolveDir:process.argv[1],loader:'tsx'},bundle:true,format:'iife',platform:'browser',jsx:'automatic',loader:{'.css':'empty'},outfile:process.argv[2],tsconfig:process.argv[1]+'/tsconfig.json'});", str(ROOT / 'apps/web'), str(bundle), entry], cwd=ROOT, check=True, capture_output=True)
     with sync_playwright() as pw:

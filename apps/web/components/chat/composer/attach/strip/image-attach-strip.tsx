@@ -11,7 +11,7 @@
 
 import React from "react";
 
-import type { PendingImage } from "./image-attach";
+import type { PendingImage } from "../image/image-attach";
 import styles from "./image-attach-strip.module.css";
 import { useTranslation } from "@/lib/i18n";
 

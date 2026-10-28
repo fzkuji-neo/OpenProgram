@@ -14,7 +14,7 @@ import React from "react";
 import { FunctionForm } from "./fn-form/fn-form";
 import { ChatInputRow } from "../input/chat-input-row";
 import type { useFnFormState } from "./fn-form/use-fn-form-state";
-import type { useFileMention } from "../attach/use-file-mention";
+import type { useFileMention } from "../attach/mention/use-file-mention";
 import type { useSlashMenu } from "../slash/use-slash-menu";
 import type { usePasteTokens } from "../paste/use-paste-tokens";
 import styles from "../composer.module.css";

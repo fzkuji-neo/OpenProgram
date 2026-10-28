@@ -13,7 +13,7 @@ import {
   pickEncodedModelImage,
   planModelImageDelivery,
   readImageFile,
-} from "../../components/chat/composer/attach/image-attach.ts";
+} from "../../components/chat/composer/attach/image/image-attach.ts";
 
 test("small decoded images keep original bytes and skip resize", () => {
   const plan = planModelImageDelivery({

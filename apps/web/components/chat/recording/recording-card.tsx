@@ -14,7 +14,7 @@ import { ChevronRight } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useTranslation } from "@/lib/i18n";
 import { formatDuration } from "@/lib/recording/recording-store";
-import stripStyles from "../composer/attach/attachment-strip.module.css";
+import stripStyles from "../composer/attach/strip/attachment-strip.module.css";
 import { RecordingGlyph } from "./recording-glyph";
 import styles from "./recording.module.css";
 

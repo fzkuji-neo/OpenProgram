@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { matchApps, matchTabs, mentionInsert, mentionKey } from '../../components/chat/composer/attach/mention-sources.ts';
+import { matchApps, matchTabs, mentionInsert, mentionKey } from '../../components/chat/composer/attach/mention/mention-sources.ts';
 import { onComposerFiles, queueComposerFiles, takeComposerFiles } from '../../lib/composer-inbox.ts';
 import { regionFileName } from '../../lib/browser/region-shot.ts';
 

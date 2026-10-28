@@ -19,8 +19,8 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "@/lib/i18n";
 import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatAttachmentSize, imagePreviewDataUrl, type PendingImage } from "./image-attach";
-import { ImageAnnotator } from "./image-annotator";
+import { formatAttachmentSize, imagePreviewDataUrl, type PendingImage } from "../image/image-attach";
+import { ImageAnnotator } from "../image/image-annotator";
 
 export interface PendingDoc {
   id: string;

@@ -68,7 +68,7 @@ const composer = fs.readFileSync(
   "utf8",
 );
 const toolProfilesHook = fs.readFileSync(
-  path.join(webRoot, "components/chat/composer/controls/use-tool-profiles.ts"),
+  path.join(webRoot, "components/chat/composer/controls/toggles/use-tool-profiles.ts"),
   "utf8",
 );
 assert.match(toolProfilesHook, /const DEFAULT_PROFILE = "__agent__"/);

@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   useBoundComposerSettings,
   useBoundSetComposerSettings,
-} from "../state/use-composer-settings";
+} from "../../state/use-composer-settings";
 import { wsRequest } from "@/lib/net/ws-request";
 import { useSessionScope } from "@/lib/session-store/session-scope";
 import { permissionSnapshotPatch } from "@/lib/session-store/permission-state";

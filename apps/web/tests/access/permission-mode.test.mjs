@@ -7,7 +7,7 @@ import { parseHTML } from "linkedom";
 registerHooks({
   resolve(specifier, context, nextResolve) {
     const sources = {
-      "../state/use-composer-settings": `export const useBoundComposerSettings = () => globalThis.permissionHarness.settings;
+      "../../state/use-composer-settings": `export const useBoundComposerSettings = () => globalThis.permissionHarness.settings;
         export const useBoundSetComposerSettings = () => globalThis.permissionHarness.apply;`,
       "@/lib/session-store/session-scope": "export const useSessionScope = f => f({sid: globalThis.permissionHarness.sid});",
       "@/lib/net/ws-request": "export const wsRequest = (...args) => globalThis.permissionHarness.request(...args);",
@@ -26,7 +26,7 @@ globalThis.document = window.document;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const { act, createElement } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { usePermissionMode } = await import("../../components/chat/composer/controls/use-permission-mode.ts");
+const { usePermissionMode } = await import("../../components/chat/composer/controls/toggles/use-permission-mode.ts");
 
 async function mounted(check, initial = { mode: "ask", version: 4 }) {
   const requests = [];

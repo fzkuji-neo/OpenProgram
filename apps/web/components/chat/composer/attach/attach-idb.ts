@@ -15,8 +15,8 @@
  * payload is, and the preview is rebuilt from it on load.
  */
 
-import { originalImageBytes, type PendingImage } from "./image-attach";
-import type { PendingDoc } from "./file-tiles";
+import { originalImageBytes, type PendingImage } from "./image/image-attach";
+import type { PendingDoc } from "./strip/file-tiles";
 
 const DB_NAME = "openprogram-composer";
 const STORE = "attachments";
