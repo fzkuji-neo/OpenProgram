@@ -4,6 +4,7 @@
  * is not in a text field — typing "v" in the composer is a "v".
  *
  *   F                camera to the next working agent (else HEAD)
+ *   M                hide / show the minimap
  *   Shift+1 / Shift+0  fit the graph / zoom back to 100%
  *   + / −            zoom in / out one step
  *   Delete / ⌫       delete the selection
@@ -16,6 +17,7 @@ import { clearSelection, dagVisible, isEditableFocus, selectedIds } from "./sele
 import { fitCanvas, focusAgent, resetZoom, zoomStep } from "./canvas";
 import { canUndoDeletion, deleteSelection, undoDeletion } from "./node-delete";
 import { keySheetOpen, setKeySheet } from "./help";
+import { toggleMinimap } from "./minimap";
 
 function onKeyDown(e: KeyboardEvent): void {
   if (e.defaultPrevented || isEditableFocus() || !dagVisible()) return;
@@ -65,6 +67,11 @@ function onKeyDown(e: KeyboardEvent): void {
   if (e.key.toLowerCase() === "f") {
     e.preventDefault();
     focusAgent();
+    return;
+  }
+  if (e.key.toLowerCase() === "m") {
+    e.preventDefault();
+    toggleMinimap();
   }
 }
 

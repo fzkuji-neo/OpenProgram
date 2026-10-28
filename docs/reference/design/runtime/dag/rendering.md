@@ -951,7 +951,7 @@ press or a drag on the map moves the camera there at the same zoom. The map
 frames the graph and the view together, so the frame is never cut off, and it
 holds still while you drag. HEAD is a larger dot ringed in the accent colour,
 the "you are here" of the map, and a wheel over the map zooms the canvas about
-its middle. When the
+its middle. M hides the map and M again brings it back; the choice is kept in the browser. When the
 whole graph is already on screen, give or take a tile's width, the map fades out: there is nothing to find
 (`apps/web/lib/runtime-bridge/dag/interaction/minimap.ts`, repainted by
 `applyView` on every view change).

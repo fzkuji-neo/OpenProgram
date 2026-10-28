@@ -3,7 +3,8 @@
  * way a strategy game shows its map. Each node is a dot of its tone, the
  * part on screen is a frame in the accent colour, and a press or drag on
  * it moves the camera there. When the whole graph is already on screen
- * there is nothing to find, so the map steps away.
+ * there is nothing to find, so the map steps away. M hides it for good,
+ * and M again brings it back.
  *
  * It is a canvas beside the graph, outside the SVG, so it never pans or
  * zooms with it. ``canvas.ts`` repaints it on every view change; the dot
@@ -21,6 +22,19 @@ interface MapData { dots: Dot[]; x0: number; y0: number; x1: number; y1: number;
 export interface MapView { tx: number; ty: number; scale: number; w: number; h: number }
 
 const _data = new WeakMap<SVGGElement, MapData>();
+
+/** M turns the map off and on (keys.ts); the choice outlives the page. */
+const OFF_KEY = "dag-minimap-off";
+let _off = (() => {
+  try { return localStorage.getItem(OFF_KEY) === "1"; } catch { return false; }
+})();
+let _repaint: (() => void) | null = null;
+
+export function toggleMinimap(): void {
+  _off = !_off;
+  try { localStorage.setItem(OFF_KEY, _off ? "1" : "0"); } catch { /* private mode */ }
+  _repaint?.();
+}
 
 function readGraph(world: SVGGElement): MapData {
   // Tone colours are read once per graph and theme: a theme switch with
@@ -113,6 +127,7 @@ export function paintMinimap(
   jump: (x: number, y: number) => void,
 ): void {
   const c = mapCanvas(host, jump) as HTMLCanvasElement & { _fit?: { k: number; ox: number; oy: number } };
+  _repaint = () => paintMinimap(host, world, view, jump);
   const d = readGraph(world);
   // What the camera sees, in world units.
   const vx0 = -view.tx / view.scale;
@@ -124,7 +139,7 @@ export function paintMinimap(
   const slack = SLACK / view.scale;
   const allSeen = d.x0 >= vx0 - slack && d.x1 <= vx1 + slack
     && d.y0 >= vy0 - slack && d.y1 <= vy1 + slack;
-  const hidden = d.dots.length < 2 || allSeen;
+  const hidden = _off || d.dots.length < 2 || allSeen;
   c.classList.toggle("is-hidden", hidden);
   if (hidden) return;
   // Under a drag the scale stays put, else the map would slide under

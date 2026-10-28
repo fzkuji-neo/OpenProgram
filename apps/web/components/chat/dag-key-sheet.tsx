@@ -29,6 +29,7 @@ const GROUPS: [en: string, zh: string, rows: Row[]][] = [
     ["Show the whole graph", "显示整张图", [{ key: "1", shift: true }]],
     ["Back to 100%", "回到 100%", [{ key: "0", shift: true }]],
     ["Zoom in / out", "放大 / 缩小", [{ key: "+" }, { key: "−" }]],
+    ["Hide / show the minimap", "隐藏 / 显示小地图", [{ key: "M" }]],
   ]],
   ["Selection", "选择", [
     ["Delete", "删除", [{ key: "⌫" }]],
