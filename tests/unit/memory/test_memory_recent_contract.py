@@ -42,7 +42,7 @@ def _frontend_fields() -> set[str]:
     body = re.search(
         r"export interface RecentEvent \{(.*?)\n\}", TYPES_TS.read_text("utf-8"), re.S
     )
-    assert body, "RecentEvent interface not found in apps/web/components/memory/types.ts"
+    assert body, "RecentEvent interface not found in apps/web/components/memory/data/types.ts"
     fields = set(re.findall(r"^\s*(\w+)\??\s*:", body.group(1), re.M))
     assert fields, "RecentEvent declares no fields"
     return fields

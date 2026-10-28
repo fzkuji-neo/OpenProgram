@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import { EditorPanel } from "./parts";
-import { memoryDraft } from "./autosave";
+import { memoryDraft } from "./data/autosave";
 import { UnifiedDiff } from "@/components/chat/messages/turn-files/unified-diff";
 import { useTranslation } from "@/lib/i18n";
 import styles from "./memory-page.module.css";
-import { useMemoryUrl } from "./api";
+import { useMemoryUrl } from "./data/api";
 
 interface Revision { revision: string; timestamp: string; message: string }
 export function MemoryDocument({ path, url, title, badge, meta, onDelete, onPreviewClick, onSaved }: {

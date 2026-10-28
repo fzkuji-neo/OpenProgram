@@ -4,7 +4,7 @@ import test from "node:test";
 import { parseHTML } from "linkedom";
 import { marked } from "marked";
 
-import { renderObsidianMarkdown } from "../../components/memory/obsidian-markdown.ts";
+import { renderObsidianMarkdown } from "../../components/memory/markdown/obsidian-markdown.ts";
 
 const { window } = parseHTML("<!doctype html><html><body></body></html>");
 globalThis.window = window;

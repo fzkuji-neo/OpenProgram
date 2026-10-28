@@ -1,10 +1,10 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { renderMarkdown } from "./markdown";
+import { renderMarkdown } from "./markdown/markdown";
 import { useTranslation } from "@/lib/i18n";
 import styles from "./memory-page.module.css";
-import { useMemoryUrl } from "./api";
+import { useMemoryUrl } from "./data/api";
 
 type Turn = { message_id: string; role: string; speaker: string; at?: string | null; text: string; cited: boolean };
 type Cited = { turns?: Turn[]; error?: string; session_id?: string; message_id?: string };

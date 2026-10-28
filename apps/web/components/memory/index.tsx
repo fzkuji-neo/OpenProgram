@@ -19,8 +19,8 @@ import { Fragment, useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { Settings2 } from "lucide-react";
 
-import { renderMarkdown } from "./markdown";
-import { formatDate, formatSize, groupByFolder, groupTimelineDays } from "./format";
+import { renderMarkdown } from "./markdown/markdown";
+import { formatDate, formatSize, groupByFolder, groupTimelineDays } from "./markdown/format";
 import { ClockIcon, TypeBadge } from "./icons";
 import { useTranslation } from "@/lib/i18n";
 import {
@@ -44,13 +44,13 @@ import type {
   Tab,
   TimelineDay,
   TopicPage,
-} from "./types";
+} from "./data/types";
 import styles from "./memory-page.module.css";
 import { RailAction, RailCount, RailGroupLabel, RailItem, RailSearch, SecondaryRail } from "@/components/ui/secondary-rail";
 import { ManageEmptyState } from "@/components/ui/manage-page";
 import { MemorySourcePreview } from "./source-preview";
 import { MemoryDocument } from "./document";
-import { MemoryProjectContext, memoryUrl } from "./api";
+import { MemoryProjectContext, memoryUrl } from "./data/api";
 import { WriterHealthBanner } from "./writer-health";
 import { confirmAction } from "@/components/ui/confirm-dialog";
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { groupTimelineDays } from "../../components/memory/format.ts";
+import { groupTimelineDays } from "../../components/memory/markdown/format.ts";
 
 const normalizedText = (path) => readFileSync(path, "utf8").replace(/\r\n?/g, "\n");
 const memoryPage = normalizedText(
@@ -13,7 +13,7 @@ const memoryParts = normalizedText(
   new URL("../../components/memory/parts.tsx", import.meta.url),
 );
 const memoryMarkdown = normalizedText(
-  new URL("../../components/memory/markdown.ts", import.meta.url),
+  new URL("../../components/memory/markdown/markdown.ts", import.meta.url),
 );
 
 function cssRules(selector) {

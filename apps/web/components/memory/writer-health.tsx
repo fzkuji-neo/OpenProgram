@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import { CircleAlert } from "lucide-react";
 
 import { translateText, useTranslation } from "@/lib/i18n";
-import { formatDate } from "./format";
+import { formatDate } from "./markdown/format";
 import styles from "./memory-page.module.css";
 
 const REASONS: Record<string, [string, string]> = {

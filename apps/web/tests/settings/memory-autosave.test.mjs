@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { MemoryDraft } from "../../components/memory/autosave.ts";
+import { MemoryDraft } from "../../components/memory/data/autosave.ts";
 
 const storage = () => {
   const values = new Map();

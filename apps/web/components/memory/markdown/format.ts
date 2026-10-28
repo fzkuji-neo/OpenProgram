@@ -1,7 +1,7 @@
 /**
  * Small formatting + grouping helpers for the Memory page.
  */
-import type { TimelineDay, TimelineYearGroup, TopicPage } from "./types";
+import type { TimelineDay, TimelineYearGroup, TopicPage } from "../data/types";
 
 /** Human-readable byte size: 512 B / 12.3 KB / 1.4 MB. */
 export function formatSize(bytes: number): string {

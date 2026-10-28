@@ -8,13 +8,13 @@ import { useRef } from "react";
 
 import { SolarIcon } from "@/components/solar-icons";
 import { RailBadge, RailCount, RailItem } from "@/components/ui/secondary-rail";
-import { parseFrontmatter, renderMarkdown } from "./markdown";
-import { formatDate } from "./format";
+import { parseFrontmatter, renderMarkdown } from "./markdown/markdown";
+import { formatDate } from "./markdown/format";
 import { DocIcon } from "./icons";
 import { useTranslation } from "@/lib/i18n";
 import { type AnimatedNavIconHandle, ClockIcon, FileTextIcon, XIcon } from "@/components/animated-icons";
 import { ManageEmptyState } from "@/components/ui/manage-page";
-import type { EditorState, TopicPage } from "./types";
+import type { EditorState, TopicPage } from "./data/types";
 import styles from "./memory-page.module.css";
 
 /** One Memory section (Topics, Timeline, …) in the rail. */
