@@ -159,8 +159,9 @@ export function paintAgents(nodeG: Element, graph: GNode[]): void {
     layer.appendChild(token(at, k, name, color));
     layer.appendChild(bubble(at, k, `${name} · ${tileFor(w.node).doing}`, color));
   }
-  // A bubble speaks for its tile: the tile's own caption steps aside.
-  world.querySelectorAll(".dag-caption[data-for]").forEach((c) => {
+  // A bubble speaks for its tile: the tile's own caption and the branch
+  // name beside it step aside.
+  world.querySelectorAll(".dag-caption[data-for], .history-branch-tag[data-for]").forEach((c) => {
     c.classList.toggle("is-hidden", seated.has(c.getAttribute("data-for") || ""));
   });
   if (!latest.size) {

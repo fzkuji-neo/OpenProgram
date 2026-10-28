@@ -698,9 +698,7 @@ test("a branch's tag stays under its own tip, not a sibling's in the same lane",
   assert.equal(tags.length, 2);
   const x = (t) => Number(/translate\(([-\d.]+)/.exec(t)[1]);
   const y = (t) => Number(/,([-\d.]+)\)/.exec(t)[1]);
-  // The job branch's tag starts at its own tip's left edge, right under
-  // it (y 150 + 28): its long name runs right, clear of the main line.
-  assert.equal(x(tags[1]), 138);
-  assert.equal(y(tags[1]), 178);
-  assert.equal(x(tags[0]), 98);
+  // Each name sits on its own tip's row, just right of the tile.
+  assert.deepEqual([x(tags[1]), y(tags[1])], [170, 150]);
+  assert.deepEqual([x(tags[0]), y(tags[0])], [130, 190]);
 });

@@ -13,7 +13,7 @@ import type { GNode } from "../types";
 import { getSocket, runtimeState } from "../../state";
 import { translateText } from "@/lib/i18n";
 import { _branchColor, _svg, _textWidth } from "./shapes";
-import { taskLabel } from "./tiles";
+import { TILE_R, taskLabel } from "./tiles";
 import { isSpawnRoot, type ThreadModel } from "../passes/thread";
 import { _currentHead } from "../store/globals";
 
@@ -46,6 +46,8 @@ function _drawPill(
   /** "start": the pill begins at ``bx`` and runs right, a label for the
    *  tile above; "middle": centred on ``bx``. */
   align: "middle" | "start" = "middle",
+  /** The tile the name sits beside; an agent's bubble there hides it. */
+  anchorId = "",
 ): void {
   const ROW_STEP = 32;
   const font = small ? BADGE_FONT_SMALL : BADGE_FONT;
@@ -65,6 +67,7 @@ function _drawPill(
     class: "history-branch-tag" + (isActive ? " active" : ""),
     transform: "translate(" + bx + "," + by + ")",
     "data-head": headAttr,
+    ...(anchorId ? { "data-for": anchorId } : {}),
   });
   (tg as SVGGraphicsElement).style.cursor = onClick ? "pointer" : "default";
   const bh = small ? 17 : 22;
@@ -213,14 +216,13 @@ export function drawBadges(
       }
     }
     const p = pos(node);
-    // The name starts at the tile's left edge and runs right, a label
-    // for the tile above it. Centred, a long name reached left over the
-    // neighbouring lane and the collision loop pushed it down until it
-    // sat under a different tip. A line going on down the same column
-    // moves the name to its right, so the name never sits on a line.
-    const hasLineBelow = maxYByX[p.x] !== undefined && maxYByX[p.x] > p.y;
-    const bx = hasLineBelow ? p.x + 10 : p.x - 12;
-    const by = p.y + 28;
+    // The name sits on the tip's own row, just right of the tile, the
+    // way a message's caption sits beside it: "this tile's branch is X".
+    // Under the tile it landed on the next row's line, and centred, a long
+    // name reached over the neighbouring lane until the collision loop
+    // pushed it below another branch's tip.
+    const bx = p.x + TILE_R + 8;
+    const by = p.y;
     // The server names an unnamed branch by its head id; the canvas says
     // what you asked on it instead — your words, never a reply's.
     let asked: GNode | undefined;
@@ -242,6 +244,7 @@ export function drawBadges(
       hid,
       false,
       "start",
+      node.id,
     );
   });
 

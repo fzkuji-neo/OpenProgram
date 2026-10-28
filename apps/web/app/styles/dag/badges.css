@@ -31,3 +31,5 @@
 .history-branch-tag:not(.active):hover text {
   fill: var(--text-bright, #1a1a17);
 }
+/* An agent's bubble on the tile speaks for it (render/agents.ts). */
+.history-branch-tag.is-hidden { display: none; }
