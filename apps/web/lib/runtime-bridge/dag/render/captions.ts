@@ -91,9 +91,10 @@ export function drawCaptions(world: Element, nodeG: Element): void {
     const at = seat(t);
     const r = t.querySelector("rect");
     if (!at || !r) return;
-    const w = Number(r.getAttribute("width")) || 0;
+    // The rect's own x: a branch name starts beside its tile, an agent
+    // pill is centred (badges.ts).
     const h = Number(r.getAttribute("height")) || 0;
-    tags.push({ x1: at.x - w / 2, y1: at.y - h / 2, y2: at.y + h / 2 });
+    tags.push({ x1: at.x + (Number(r.getAttribute("x")) || 0), y1: at.y - h / 2, y2: at.y + h / 2 });
   });
   const runs = edgeRuns(world);
 
