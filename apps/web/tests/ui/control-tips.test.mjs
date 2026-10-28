@@ -159,3 +159,13 @@ test("a long address breaks inside the tip instead of running out of it", () => 
   assert.match(tabs, /tab\.kind === "web" \? readableUrl\(tab\.url\)/);
   assert.match(tabs, /const local = localPathFromUrl\(url\);\n\s+if \(local\) return local;\n\s+try \{\n\s+return decodeURI\(url\);/);
 });
+
+test("a control's keys show as key caps, not as text in its name", () => {
+  const tips = readFileSync(new URL("../../components/control-tips.tsx", import.meta.url), "utf8");
+  assert.match(tips, /el\.dataset\.tipKeys/);
+  assert.match(tips, /<Kbd /);
+  for (const file of ["../../components/chat/dag-tools.tsx", "../../components/chat/dag-view.tsx"]) {
+    const src = readFileSync(new URL(file, import.meta.url), "utf8");
+    assert.doesNotMatch(src, /data-tip=\{[^}]*(· [A-Z?+−⇧]|\((⌘|⇧|Esc|⌫))/, file);
+  }
+});

@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { Kbd } from "@/components/ui/kbd";
+
 /** Names a control on hover with the app's own tip, never the system's.
  *  - A collapsed rail shows icons only, so each row names itself, as the
  *    Dock does: its own label (hidden while collapsed), or `data-rail-tip`.
@@ -11,7 +13,9 @@ import { createPortal } from "react-dom";
  *    of the native tooltip: the title moves to `data-tip` on first hover,
  *    and becomes the aria-label when the control has none.
  *  A vertical strip puts `data-tip-side="right"` (or left) on its
- *  controls. Only controls and glyph-only marks get tips; text keeps no hover tip,
+ *  controls. A control with a key puts it in `data-tip-keys`
+ *  (space-separated, e.g. "⇧1" or "⌘ Z"): the keys show as key caps after
+ *  the tip's first line, never as text mixed into the name. Only controls and glyph-only marks get tips; text keeps no hover tip,
  *  and no element carries a native `title`. The first tip waits so
  *  a pointer passing over never flashes them; moving on to the next
  *  control swaps it at once. */
@@ -23,7 +27,7 @@ const CONTROL = ":is(button, a[href], [role=button], [role=tab], [role=menuitem]
 const DWELL_MS = 600, CARRY_MS = 400, MARGIN = 8;
 
 type Side = "left" | "right" | "top" | "bottom";
-type Tip = { label: string; x: number; y: number; side: Side };
+type Tip = { label: string; keys: string[]; x: number; y: number; side: Side };
 
 function labelOf(el: HTMLElement): string {
   if (el.matches(RAIL)) {
@@ -43,21 +47,26 @@ function labelOf(el: HTMLElement): string {
 }
 
 function placeTip(el: HTMLElement, label: string): Tip {
+  const keys = (el.dataset.tipKeys ?? "").split(/\s+/).filter(Boolean);
+  return { ...anchor(el), label, keys };
+}
+
+function anchor(el: HTMLElement): Omit<Tip, "label" | "keys"> {
   const r = el.getBoundingClientRect();
   if (el.closest(".sidebar")) {
     const right = !!el.closest(".right-sidebar");
-    return { label, y: r.top + r.height / 2, x: right ? r.left - 10 : r.right + 10, side: right ? "left" : "right" };
+    return { y: r.top + r.height / 2, x: right ? r.left - 10 : r.right + 10, side: right ? "left" : "right" };
   }
   // A vertical strip of controls names them beside it, where the tip
   // covers no neighbour: `data-tip-side`.
   const side = el.dataset.tipSide;
   if (side === "right" || side === "left") {
-    return { label, y: r.top + r.height / 2, x: side === "right" ? r.right + 10 : r.left - 10, side };
+    return { y: r.top + r.height / 2, x: side === "right" ? r.right + 10 : r.left - 10, side };
   }
   // Below a control near the top of the window (the tab strip), above
   // anything else.
   const below = r.top < 120;
-  return { label, x: r.left + r.width / 2, y: below ? r.bottom + 6 : r.top - 6, side: below ? "bottom" : "top" };
+  return { x: r.left + r.width / 2, y: below ? r.bottom + 6 : r.top - 6, side: below ? "bottom" : "top" };
 }
 
 export function ControlTips() {
@@ -126,8 +135,26 @@ export function ControlTips() {
       }}
       style={{ top: tip.y, left: tip.x, transform }}
     >
-      {tip.label}
+      {tip.keys.length ? <TipWithKeys label={tip.label} keys={tip.keys} /> : tip.label}
     </div>,
     document.body,
+  );
+}
+
+/** The name, its key caps on the first line, any further lines below. */
+function TipWithKeys({ label, keys }: { label: string; keys: string[] }) {
+  const [first, ...rest] = label.split("\n");
+  return (
+    <>
+      <span className="inline-flex items-center gap-2">
+        {first}
+        <span className="inline-flex items-center gap-1">
+          {keys.map((key) => (
+            <Kbd key={key} className="bg-[color-mix(in_srgb,var(--text-on-tooltip)_20%,transparent)] text-[var(--text-on-tooltip)]">{key}</Kbd>
+          ))}
+        </span>
+      </span>
+      {rest.length ? <span className="block">{rest.join("\n")}</span> : null}
+    </>
   );
 }

@@ -59,7 +59,8 @@ function DagToolRail() {
         className="dag-tool-btn"
         aria-label={text("Find the working agent", "找到正在工作的 agent")}
         aria-keyshortcuts="F"
-        data-tip={text("Find the agent · F\nAgain for the next one", "找到 agent · F\n再按换下一个")}
+        data-tip={text("Find the agent\nAgain for the next one", "找到 agent\n再按换下一个")}
+        data-tip-keys="F"
         data-tip-side="right"
         onClick={() => focusAgent()}
       >
@@ -73,7 +74,8 @@ function DagToolRail() {
         aria-pressed={sheetOpen}
         aria-label={text("Keyboard shortcuts", "快捷键")}
         aria-keyshortcuts="?"
-        data-tip={sheetOpen ? undefined : text("Keyboard shortcuts · ?", "快捷键 · ?")}
+        data-tip={sheetOpen ? undefined : text("Keyboard shortcuts", "快捷键")}
+        data-tip-keys="?"
         data-tip-side="right"
         onClick={() => setKeySheet(!keySheetOpen())}
       >
@@ -99,7 +101,7 @@ function DagSelectionBar() {
         </span>
         <span className="dag-select-sep" aria-hidden="true" />
         <button type="button" className="dag-select-act" disabled={pending}
-          onClick={() => undoDeletion()} data-tip={text("Undo (⌘Z)", "撤销 (⌘Z)")}>
+          onClick={() => undoDeletion()} data-tip={text("Undo", "撤销")} data-tip-keys="⌘ Z">
           <Undo2 size={14} strokeWidth={2} />
           <span>{text("Undo", "撤销")}</span>
         </button>
@@ -115,7 +117,7 @@ function DagSelectionBar() {
       <span className="dag-select-sep" aria-hidden="true" />
       <button type="button" className="dag-select-act dag-select-icon"
         aria-label={text("Fit the selection", "缩放到所选")}
-        data-tip={text("Fit the selection (⇧2)", "缩放到所选 (⇧2)")}
+        data-tip={text("Fit the selection", "缩放到所选")} data-tip-keys="⇧ 2"
         onClick={() => frameSelection(ids)}>
         <Scan size={14} strokeWidth={2} />
       </button>
@@ -127,14 +129,15 @@ function DagSelectionBar() {
       </button>
       <button type="button" className="dag-select-act dag-select-danger"
         disabled={pending}
-        data-tip={text("Delete (⌫) — what follows joins the node before", "删除 (⌫)，后续接到前一个节点")}
+        data-tip={text("Delete\nWhat follows joins the node before", "删除\n后续接到前一个节点")}
+        data-tip-keys="⌫"
         onClick={() => deleteSelection()}>
         <Trash2 size={14} strokeWidth={2} />
         <span>{text("Delete", "删除")}</span>
       </button>
       <button type="button" className="dag-select-act dag-select-icon"
         aria-label={text("Clear selection", "取消选择")}
-        data-tip={text("Clear selection (Esc)", "取消选择 (Esc)")}
+        data-tip={text("Clear selection", "取消选择")} data-tip-keys="Esc"
         onClick={() => clearSelection()}>
         <X size={14} strokeWidth={2} />
       </button>

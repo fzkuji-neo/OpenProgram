@@ -155,23 +155,23 @@ function DagZoomColumn() {
         aria-label={text("Zoom", "缩放")}>
         <button type="button" className="dag-tool-btn" onClick={() => zoomStep(1)}
           aria-label={text("Zoom in", "放大")} aria-keyshortcuts="+"
-          data-tip={text("Zoom in · +", "放大 · +")} data-tip-side="left">
+          data-tip={text("Zoom in", "放大")} data-tip-keys="+" data-tip-side="left">
           <Plus size={16} strokeWidth={2} />
         </button>
         <button type="button" className="dag-tool-btn dag-zoom-readout" onClick={() => resetZoom()}
           aria-keyshortcuts="Shift+0"
-          data-tip={text("Back to 100% · ⇧0", "回到 100% · ⇧0")} data-tip-side="left">
+          data-tip={text("Back to 100%", "回到 100%")} data-tip-keys="⇧ 0" data-tip-side="left">
           100%
         </button>
         <button type="button" className="dag-tool-btn" onClick={() => zoomStep(-1)}
           aria-label={text("Zoom out", "缩小")} aria-keyshortcuts="-"
-          data-tip={text("Zoom out · −", "缩小 · −")} data-tip-side="left">
+          data-tip={text("Zoom out", "缩小")} data-tip-keys="−" data-tip-side="left">
           <Minus size={16} strokeWidth={2} />
         </button>
         <span className="dag-tool-sep" aria-hidden="true" />
         <button type="button" className="dag-tool-btn" onClick={() => fitCanvas()}
           aria-label={text("Show the whole graph", "显示整张图")} aria-keyshortcuts="Shift+1"
-          data-tip={text("Show the whole graph · ⇧1", "显示整张图 · ⇧1")} data-tip-side="left">
+          data-tip={text("Show the whole graph", "显示整张图")} data-tip-keys="⇧ 1" data-tip-side="left">
           <Scan size={16} strokeWidth={2} />
         </button>
       </div>
@@ -180,7 +180,8 @@ function DagZoomColumn() {
         <DagLegend />
         <button type="button" className="dag-tool-btn" onClick={() => toggleMinimap()}
           aria-pressed={mapOn} aria-label={text("Minimap", "小地图")} aria-keyshortcuts="M"
-          data-tip={mapOn ? text("Hide the minimap · M", "隐藏小地图 · M") : text("Show the minimap · M", "显示小地图 · M")}
+          data-tip={mapOn ? text("Hide the minimap", "隐藏小地图") : text("Show the minimap", "显示小地图")}
+          data-tip-keys="M"
           data-tip-side="left">
           <MapIcon size={16} strokeWidth={2} />
         </button>
