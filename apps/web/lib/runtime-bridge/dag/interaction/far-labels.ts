@@ -1,11 +1,11 @@
 /**
  * Labels zoomed out (dag/rendering.md §2, semantic zoom): the way a map
  * keeps its place names readable and shows fewer of them as you pull
- * back. Below the far scale (canvas.ts ``is-far``) the names of branches
- * and the opening words of your messages keep their on-screen size
- * (app/styles/dag/badges.css, nodes.css); this pass hides the ones that
- * would land on a label already shown. Branch names go first, the
- * current one before the rest, then your messages nearest HEAD.
+ * back. Below 100% the names of branches and the captions keep their
+ * on-screen size (app/styles/dag/badges.css, nodes.css) instead of
+ * shrinking with the graph; this pass hides the ones that would land on
+ * a label already shown. Branch names go first, the current one before
+ * the rest, then your messages nearest HEAD, then calls.
  *
  * A hidden label keeps its box (``visibility``), so the next pass can
  * measure it again when the view moves.
@@ -30,8 +30,11 @@ function cull(world: SVGGElement): void {
   tags.sort((a, b) => Number(b.classList.contains("active")) - Number(a.classList.contains("active")));
   const head = world.querySelector("[data-head='1']")?.closest(".history-node");
   const headY = head ? seatY(head) : Infinity;
-  const turns = Array.from(world.querySelectorAll<SVGTextElement>(".dag-caption.is-turn:not(.is-hidden)"));
-  turns.sort((a, b) => Math.abs(Number(a.getAttribute("y")) - headY) - Math.abs(Number(b.getAttribute("y")) - headY));
+  // Your messages before calls, each nearest HEAD first.
+  const turns = Array.from(world.querySelectorAll<SVGTextElement>(".dag-caption:not(.is-hidden)"));
+  const rank = (el: Element): number => (el.classList.contains("is-turn") ? 0 : 1e9)
+    + Math.abs(Number(el.getAttribute("y")) - headY);
+  turns.sort((a, b) => rank(a) - rank(b));
   const placed: Box[] = [];
   for (const el of [...tags, ...turns]) {
     const box = (el.querySelector("text") ?? el).getBoundingClientRect();
@@ -42,9 +45,9 @@ function cull(world: SVGGElement): void {
   }
 }
 
-/** Re-cull after the view settles on this frame; zoomed in, show all. */
-export function paintFarLabels(world: SVGGElement, far: boolean): void {
-  if (!far) {
+/** Re-cull after the view settles on this frame; at 100% and up, show all. */
+export function paintFarLabels(world: SVGGElement, out: boolean): void {
+  if (!out) {
     world.querySelectorAll(`.${CULLED}`).forEach((el) => el.classList.remove(CULLED));
     return;
   }

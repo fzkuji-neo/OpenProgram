@@ -133,12 +133,12 @@ export function applyView(): void {
   host.style.backgroundImage =
     `radial-gradient(var(--border-light, rgba(255, 255, 255, 0.10)) `
     + `${dotR}px, transparent ${dotR}px)`;
-  // Semantic zoom (dag/rendering.md §4): zoomed out, the agents keep
-  // their on-screen size like markers on a map, and below FAR_SCALE the
+  // Semantic zoom (dag/rendering.md §4): zoomed out, the agents and the
+  // labels keep their on-screen size like markers on a map, and below FAR_SCALE the
   // tiles turn into solid blocks of their tone, too small for an icon.
   host.style.setProperty("--dag-marker-scale", String(Math.max(1, 1 / _viewScale)));
   host.classList.toggle("is-far", _viewScale < FAR_SCALE);
-  paintFarLabels(world, _viewScale < FAR_SCALE);
+  paintFarLabels(world, _viewScale < 1);
   const pct = document.querySelector<HTMLElement>(".dag-zoom-readout");
   if (pct) pct.textContent = Math.round(_viewScale * 100) + "%";
   const seen = { tx: _viewTx, ty: _viewTy, scale: _viewScale, w: host.clientWidth, h: host.clientHeight - COMPOSER_STRIP };

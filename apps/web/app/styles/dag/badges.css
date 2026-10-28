@@ -34,16 +34,19 @@
 /* An agent's bubble on the tile speaks for it (render/agents.ts). */
 .history-branch-tag.is-hidden { display: none; }
 
-/* Zoomed far out (interaction/canvas.ts ``is-far``), the way a map keeps
-   its place names readable: branch names keep their on-screen size,
-   pinned at their start; interaction/far-labels.ts hides any that would
-   land on one already shown. The fold count is detail, and goes. */
-.is-far .history-branch-tag text {
+/* Zoomed out (interaction/canvas.ts ``--dag-marker-scale``), the way a
+   map keeps its place names readable: branch names and fold counts keep
+   their on-screen size the whole way down, pinned at their start, with
+   no jump at the far scale; interaction/far-labels.ts hides any name that
+   would land on one already shown. Far out the fold count is detail, and
+   goes. */
+.history-branch-tag text,
+.history-thread-count {
   transform-box: fill-box;
   transform-origin: left center;
   transform: scale(var(--dag-marker-scale, 1));
 }
-.is-far .history-branch-tag text[text-anchor="middle"] { transform-origin: center; }
-.is-far .history-branch-tag.is-culled { visibility: hidden; }
+.history-branch-tag text[text-anchor="middle"] { transform-origin: center; }
+.history-branch-tag.is-culled { visibility: hidden; }
 .is-far .history-thread-count,
 .is-far [data-corner-mark] { display: none; }

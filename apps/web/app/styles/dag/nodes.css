@@ -221,13 +221,14 @@
 }
 .dag-caption.is-hidden,
 .is-far .dag-caption:not(.is-turn) { display: none; }
-/* Zoomed far out, the opening words of your messages stay readable, like
-   place names on a map; interaction/far-labels.ts hides the ones that
-   would collide, keeping those nearest HEAD. */
-.is-far .dag-caption.is-turn {
+/* Zoomed out, captions keep their on-screen size the whole way down,
+   like place names on a map, rather than shrinking with the graph and
+   jumping back at the far scale; interaction/far-labels.ts hides the
+   ones that would collide, keeping those nearest HEAD. Far out only the
+   opening words of your messages stay. */
+.dag-caption {
   transform-box: fill-box;
   transform-origin: left center;
-  /* 5px further out on screen, clear of a selected (larger) dot. */
-  transform: translateX(calc(5px * var(--dag-marker-scale, 1))) scale(var(--dag-marker-scale, 1));
+  transform: scale(var(--dag-marker-scale, 1));
 }
-.is-far .dag-caption.is-culled { visibility: hidden; }
+.dag-caption.is-culled { visibility: hidden; }
