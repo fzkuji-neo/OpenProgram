@@ -31,7 +31,7 @@ import { MenuRow } from "@/components/ui/menu-parts";
 import { HoverTip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";
-import { activeThemeId } from "@/lib/prefs/theme-pref";
+import { activeThemeId } from "@/lib/prefs/appearance/theme-pref";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { useTranslation } from "@/lib/i18n";
 import styles from "./center-tabs.module.css";

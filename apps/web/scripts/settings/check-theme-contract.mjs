@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const read = (path) => readFileSync(join(root, path), "utf8");
 
-const themeConfig = read("lib/prefs/theme-config.ts");
+const themeConfig = read("lib/prefs/appearance/theme-config.ts");
 const globals = read("app/globals.css");
 const base = read("app/styles/base.css");
 const settings = read("components/settings/sections/general-section.tsx");

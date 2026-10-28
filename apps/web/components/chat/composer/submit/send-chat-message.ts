@@ -1,7 +1,7 @@
 "use client";
 
 import type { PastedTextElement } from "@/lib/chat/send/paste-elements";
-import { traceThemeEvent } from "@/lib/prefs/theme-pref";
+import { traceThemeEvent } from "@/lib/prefs/appearance/theme-pref";
 import { surfaceOriginForChat } from "@/lib/desktop/desktop-bridge";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
 import { setWelcomeVisible } from "@/lib/runtime-bridge/helpers";

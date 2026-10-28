@@ -25,7 +25,7 @@ import { CHECK_SLOT_PAD, itemCls, MENU_PANEL, MENU_SEPARATOR } from "@/component
 import { SolarIcon, SOLAR_BODIES } from "@/components/solar-icons";
 import { MenuIcon, MenuKey, type MenuGlyph, type MenuKeys } from "@/components/ui/menu-parts";
 import { MenuOptionContent } from "@/components/ui/menu-option-content";
-import { isThemeId } from "@/lib/prefs/theme-pref";
+import { isThemeId } from "@/lib/prefs/appearance/theme-pref";
 import { MenuCheck } from "@/components/chat/top-bar/menu-check";
 
 interface ContextMenuItem {

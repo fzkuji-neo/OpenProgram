@@ -19,7 +19,7 @@
 import { useEffect } from "react";
 
 import { CODE_RAIN_FONT, codeRainPalette, drawMirrored, randomGlyph } from "@/lib/chat/code-rain";
-import { useWelcomeBackdropPref } from "@/lib/prefs/welcome-backdrop-pref";
+import { useWelcomeBackdropPref } from "@/lib/prefs/appearance/welcome-backdrop-pref";
 
 /** Seconds a decoded character takes to fade from green to its colour. */
 const FADE = 0.6;

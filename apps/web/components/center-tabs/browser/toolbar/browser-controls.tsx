@@ -17,7 +17,7 @@ import {
   MENU_SEPARATOR,
 } from "@/components/chat/top-bar/menu-styles";
 import { MenuRow, type MenuGlyph } from "@/components/ui/menu-parts";
-import { activeThemeId } from "@/lib/prefs/theme-pref";
+import { activeThemeId } from "@/lib/prefs/appearance/theme-pref";
 import {
   requestBrowserImport,
   setShowBookmarksBar,

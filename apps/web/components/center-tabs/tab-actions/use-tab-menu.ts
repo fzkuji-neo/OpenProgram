@@ -24,7 +24,7 @@ import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
 import { buildTransferPayload, desktopBridge } from "@/lib/desktop/desktop-bridge";
 import { dragCoordinator } from "@/lib/tabs/transfer/tab-drag-coordinator";
 import { useTranslation } from "@/lib/i18n";
-import { activeThemeId } from "@/lib/prefs/theme-pref";
+import { activeThemeId } from "@/lib/prefs/appearance/theme-pref";
 import {
   cancelCoordinator,
   menuDragSubject,

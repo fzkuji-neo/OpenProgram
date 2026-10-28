@@ -31,7 +31,7 @@ import { buildTransferPayload, desktopBridge } from "@/lib/desktop/desktop-bridg
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { dropWebTabResource, resourceDropTabId, resourceDropTarget } from "@/lib/tabs/transfer/tab-resource-drop";
 import { useTranslation } from "@/lib/i18n";
-import { DRAG_SURFACE_STYLE } from "@/lib/prefs/visual-effects-config";
+import { DRAG_SURFACE_STYLE } from "@/lib/prefs/appearance/visual-effects-config";
 import {
   cancelCoordinator,
   isSplitCapacityRejection,

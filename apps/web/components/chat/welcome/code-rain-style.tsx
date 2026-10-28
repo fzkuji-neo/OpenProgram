@@ -12,7 +12,7 @@
 import { useEffect, useRef } from "react";
 
 import { CODE_RAIN_FONT, codeRainPalette, drawMirrored, randomGlyph } from "@/lib/chat/code-rain";
-import { useWelcomeBackdropPref } from "@/lib/prefs/welcome-backdrop-pref";
+import { useWelcomeBackdropPref } from "@/lib/prefs/appearance/welcome-backdrop-pref";
 
 /** Whether the code rain style is on. */
 export function useCodeRainStyle(): boolean {

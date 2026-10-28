@@ -24,7 +24,7 @@ import {
 } from "@/components/chat/top-bar/menu-styles";
 import { MenuRow, type MenuGlyph, type MenuKeys } from "@/components/ui/menu-parts";
 import { useTranslation } from "@/lib/i18n";
-import { isThemeId } from "@/lib/prefs/theme-pref";
+import { isThemeId } from "@/lib/prefs/appearance/theme-pref";
 
 type ActionId = "new-tab" | "settings";
 

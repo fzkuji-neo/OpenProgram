@@ -7,7 +7,7 @@ import { desktopBridge } from "@/lib/desktop/desktop-bridge";
 import { ActionCueTravel } from "../browser/toolbar/browser-control-bar";
 import { useTranslation } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import { activeThemeId } from "@/lib/prefs/theme-pref";
+import { activeThemeId } from "@/lib/prefs/appearance/theme-pref";
 import { buttonVariants } from "@/components/ui/button";
 import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import { MenuOptionContent } from "@/components/ui/menu-option-content";

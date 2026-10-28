@@ -46,7 +46,7 @@ const mocks = {
     "../modes/fn-form/session-target": "export const resolveFnFormSessionId = (current, active) => current ?? active;",
     "@/lib/chat/history/chat-scroll": `export const defaultScrollerKey = (sid, peer) => peer ? 'peer:' + sid : sid;
     export const noteTakeLatest = note => host.notes.push(note);`,
-    "@/lib/prefs/theme-pref": "export const traceThemeEvent = () => {};",
+    "@/lib/prefs/appearance/theme-pref": "export const traceThemeEvent = () => {};",
     "@/lib/desktop/desktop-bridge": "export const surfaceOriginForChat = () => null;",
     "@/lib/runtime-bridge/actions/draft-channel-choice": "export const draftChannelChoiceHost = {}; export const draftChannelChoiceFor = () => null;",
     "@/lib/runtime-bridge/helpers": `export const setWelcomeVisible = value => {

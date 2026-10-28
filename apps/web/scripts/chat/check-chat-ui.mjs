@@ -13,7 +13,7 @@ const source = (path) => readFileSync(new URL(path, root), "utf8");
 const welcome = source("components/chat/welcome/welcome-screen.tsx");
 const welcomeCss = source("components/chat/welcome/welcome-screen.module.css");
 const welcomeBackdrop = source("components/chat/welcome/welcome-backdrop.tsx");
-const welcomeBackdropPref = source("lib/prefs/welcome-backdrop-pref.ts");
+const welcomeBackdropPref = source("lib/prefs/appearance/welcome-backdrop-pref.ts");
 const generalSettings = source("components/settings/sections/general-section.tsx");
 const messageList = source("components/chat/messages/list/use-chat-area-stick.ts") + source("components/chat/messages/list/message-list.tsx");
 const messageActions = source("components/chat/messages/bubbles/message-actions.tsx");

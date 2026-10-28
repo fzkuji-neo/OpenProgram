@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { CUSTOM_CSS_TEMPLATE, THEME_STYLES } from "../../lib/prefs/theme-config.ts";
+import { CUSTOM_CSS_TEMPLATE, THEME_STYLES } from "../../lib/prefs/appearance/theme-config.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const settings = readFileSync(join(root, "components/settings/sections/general-section.tsx"), "utf8");

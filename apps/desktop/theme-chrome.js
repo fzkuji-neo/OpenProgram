@@ -3,7 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 
-// Keep these literals aligned with apps/web/lib/prefs/theme-config.ts.
+// Keep these literals aligned with apps/web/lib/prefs/appearance/theme-config.ts.
 // check-theme-contract.mjs compares the two lists.
 const THEME_IDS = [
   "beige-dark",

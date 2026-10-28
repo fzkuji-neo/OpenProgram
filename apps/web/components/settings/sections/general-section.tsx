@@ -12,7 +12,7 @@ import {
   type DesktopBridge,
   type DesktopUpdateState,
 } from "@/lib/desktop/desktop-bridge";
-import { useFontPref, useTabularNumsPref, FONT_LABELS, fontStack, type FontKey } from "@/lib/prefs/font-pref";
+import { useFontPref, useTabularNumsPref, FONT_LABELS, fontStack, type FontKey } from "@/lib/prefs/appearance/font-pref";
 import { setUserProfile, useUserProfile, type UserProfilePrefs } from "@/lib/prefs/user-profile";
 import {
   Avatar,
@@ -30,10 +30,10 @@ import {
   THEME_STYLE_PAIRS,
   type ThemeMode,
   type ThemeStyle,
-} from "@/lib/prefs/theme-pref";
-import { useVisualEffectsPref } from "@/lib/prefs/visual-effects-pref";
-import { CODE_RAIN_DENSITY, useWelcomeBackdropPref } from "@/lib/prefs/welcome-backdrop-pref";
-import { DRAG_SURFACE_STYLE, VISUAL_EFFECTS_LIMITS, type VisualEffectKey } from "@/lib/prefs/visual-effects-config";
+} from "@/lib/prefs/appearance/theme-pref";
+import { useVisualEffectsPref } from "@/lib/prefs/appearance/visual-effects-pref";
+import { CODE_RAIN_DENSITY, useWelcomeBackdropPref } from "@/lib/prefs/appearance/welcome-backdrop-pref";
+import { DRAG_SURFACE_STYLE, VISUAL_EFFECTS_LIMITS, type VisualEffectKey } from "@/lib/prefs/appearance/visual-effects-config";
 import styles from "../settings-page.module.css";
 import { DesktopAttentionSection } from "./desktop-attention-section";
 import { SimpleSelect } from "@/components/ui/select";

@@ -3,7 +3,7 @@ import "./globals.css";
 import "@xterm/xterm/css/xterm.css";
 import "katex/dist/katex.min.css";
 import { Providers } from "./providers";
-import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/prefs/theme-bootstrap";
+import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/prefs/appearance/theme-bootstrap";
 import { interLatin } from "./fonts";
 
 // Fonts are bundled, never fetched from Google: Inter's Latin face comes

@@ -14,8 +14,8 @@ const OWNERS = new Set([
   "app/globals.css",
   "app/layout.tsx",
   "app/styles/base.css",
-  "lib/prefs/font-stacks.ts",
-  "lib/prefs/font-pref.ts",
+  "lib/prefs/appearance/font-stacks.ts",
+  "lib/prefs/appearance/font-pref.ts",
   "components/settings/sections/general-section.tsx",
 ]);
 

@@ -1,6 +1,6 @@
 /* Code rain style (Settings → General → Code rain style): the Matrix look
    in one place. <html data-code-rain="on"> while it is on
-   (lib/prefs/welcome-backdrop-pref.ts). Pieces:
+   (lib/prefs/appearance/welcome-backdrop-pref.ts). Pieces:
    - the empty-chat backdrop (components/chat/welcome/welcome-backdrop.tsx);
    - new messages raining in (components/chat/welcome/code-rain-arrivals.tsx);
    - anything in progress shown as code (components/chat/welcome/code-rain-style.tsx):
