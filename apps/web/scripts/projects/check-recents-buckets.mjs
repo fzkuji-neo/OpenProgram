@@ -8,7 +8,7 @@ import ts from "typescript";
 
 const helpersPath = new URL("../../components/sidebar/sessions-list/helpers.ts", import.meta.url);
 const chatsPagePath = new URL("../../components/chats/chats-page.tsx", import.meta.url);
-const sessionsListPath = new URL("../../components/sidebar/sessions-list.tsx", import.meta.url);
+const sessionsListPath = new URL("../../components/sidebar/sessions/sessions-list.tsx", import.meta.url);
 
 const helpersSrc = readFileSync(helpersPath, "utf8");
 const chatsSrc = readFileSync(chatsPagePath, "utf8");

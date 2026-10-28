@@ -18,7 +18,7 @@ const functionRunDialog = source("components/functions/function-run-dialog.tsx")
 const folderPicker = source("components/ui/folder-picker.tsx");
 const folderPickerClient = source("lib/projects/folder-picker.ts");
 const projectsCss = source("components/projects/projects-page.module.css");
-const sessionsList = source("components/sidebar/sessions-list.tsx");
+const sessionsList = source("components/sidebar/sessions/sessions-list.tsx");
 const functionDispatch = source(
   "components/chat/composer/modes/fn-form/use-function-dispatch.ts",
 );

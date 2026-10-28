@@ -28,7 +28,7 @@ import {
   normalizeIcon,
 } from "@/components/functions/icon-picker";
 
-import { useWindowGlobals } from "./use-window-globals";
+import { useWindowGlobals } from "../use-window-globals";
 import { runtimeState } from "@/lib/runtime-bridge/state";
 
 interface FunctionsMeta {

@@ -24,7 +24,7 @@ import { loadSubAgentTranscript } from "@/lib/chat/transcript/sub-agent-transcri
 import { sendRuntimeCommand } from "@/lib/runtime-bridge/session/session-load";
 import { SolarIcon, type SolarIconName } from "@/components/solar-icons";
 import { presentTool, type ToolTone } from "@/components/chat/messages/execution/tool-presentation";
-import { SectionHeader } from "@/components/sidebar/section-header";
+import { SectionHeader } from "@/components/sidebar/sessions/section-header";
 import { Button } from "@/components/ui/button";
 import { AgentsViewMenu } from "./agents-view-menu";
 import { DebuggerPanel } from "./debugger-panel";

@@ -24,8 +24,8 @@ assert.match(keyStyles, /export const MENU_KEY_TIP = "-mr-\[0\.5px\] block h-\[1
 assert.match(keyStyles, /export const MENU_KEY_PLATE =\s*"box-content h-\[18px\] min-w-\[8px\] rounded-none rounded-r-\[5px\] bg-\(--menu-key-bg\) py-0 pr-\[6px\] pl-\[1px\]/);
 
 const MENUS = [
-  "components/sidebar/conv-menu.tsx",
-  "components/sidebar/project-menu.tsx",
+  "components/sidebar/sessions/conv-menu.tsx",
+  "components/sidebar/projects/project-menu.tsx",
   "components/chat/pane/view-controls.tsx",
   "components/center-tabs/strip/main-menu.tsx",
   "app/menu-overlay/main-menu/page.tsx",
@@ -66,7 +66,7 @@ const option = read("components/ui/menu-option-content.tsx");
 assert.match(option, /\{glyph \? [\s\S]*?<span className="min-w-0 flex-1 text-left">[\s\S]*?\{typeof checked === "boolean" \?/);
 
 // The chat menus' letters work while the menu is open and show as badges.
-const conv = read("components/sidebar/conv-menu.tsx");
+const conv = read("components/sidebar/sessions/conv-menu.tsx");
 const view = read("components/chat/pane/view-controls.tsx");
 for (const [source, name] of [[conv, "conv-menu"], [view, "view-controls"]]) {
   for (const key of ["R", "P", "C", "A", "D"]) assert.match(source, new RegExp(`keys=\\{\\{ key: "${key}" \\}\\}`), `${name} shows ${key}`);

@@ -336,7 +336,7 @@ React context 提供键，让消费方读 `map[scopeKey]` 而不是读全局。`
   `apps/web/components/chat/composer/modes/resolve-mode.ts:18`、
   `apps/web/components/chat/composer/modes/fn-form/use-fn-form-state.ts`、
   `use-fn-form-wrapper.ts`、`apps/web/lib/execution/use-pending-run-function.ts`、
-  `apps/web/components/sidebar/favorites-list.tsx`、
+  `apps/web/components/sidebar/sessions/favorites-list.tsx`、
   `apps/web/components/sidebar/sidebar.tsx`、
   `apps/web/components/chat/messages/runtime/runtime-block.tsx`、
   `apps/web/lib/runtime-bridge/actions/functions-panel.ts`。

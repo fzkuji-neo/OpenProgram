@@ -65,7 +65,7 @@ test("no hand-rolled modal backdrops or dialog surface overrides remain", () => 
   }
   // Dialog classes in modules size the dialog; the surface stays Nova's.
   for (const [css, cls] of [
-    ["components/sidebar/project-settings.module.css", ".dialog {"],
+    ["components/sidebar/projects/project-settings.module.css", ".dialog {"],
     ["components/chat/badges/goal-chip.module.css", ".dialog {"],
     ["components/plugins/plugins.module.css", ".dialog {"],
     ["components/settings/channels/channels.module.css", ".modal {"],

@@ -34,7 +34,7 @@ Object.assign(globalThis,{window,document:window.document,IS_REACT_ACT_ENVIRONME
   ResizeObserver:class{observe(){}unobserve(){}disconnect(){}},
   Event:window.Event,CustomEvent:window.CustomEvent});
 const {autoRenameSession} = await import('../../lib/session-auto-rename.ts');
-const {ConvMenu} = await import('../../components/sidebar/conv-menu.tsx');
+const {ConvMenu} = await import('../../components/sidebar/sessions/conv-menu.tsx');
 const {DropdownMenu} = await import('@radix-ui/react-dropdown-menu').then(m=>({DropdownMenu:m.Root}));
 function socket() {
   messages.length=0;

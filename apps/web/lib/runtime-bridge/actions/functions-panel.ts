@@ -32,7 +32,7 @@ export async function loadProgramsMeta(): Promise<void> {
   }
 }
 
-// React owns favorites rendering (components/sidebar/favorites-list.tsx).
+// React owns favorites rendering (components/sidebar/sessions/favorites-list.tsx).
 // Kept as a no-op so the WS `functions_list` handler doesn't crash.
 export function renderFunctions(): void {}
 

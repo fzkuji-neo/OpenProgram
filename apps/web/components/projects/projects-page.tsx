@@ -21,7 +21,7 @@ import { useTranslation } from "@/lib/i18n";
 import { SolarIcon } from "@/components/solar-icons";
 import { wsRequest } from "@/lib/net/ws/ws-request";
 import { canConfirmInPlace, confirmProjectFolder, locationMessage, locationProblem, notifyProjectLocationChanged, relocateProject, type RelocateReply } from "@/lib/projects/project-location";
-import { ProjectEditor, type EditableProject } from "@/components/sidebar/project-editor";
+import { ProjectEditor, type EditableProject } from "@/components/sidebar/projects/project-editor";
 import { Button } from "@/components/ui/button";
 import { ChatsPage } from "@/components/chats/chats-page";
 import { MemoryPage } from "@/components/memory";

@@ -35,9 +35,9 @@ import { motion } from "framer-motion";
 import { useTranslation } from "@/lib/i18n";
 import { activateOnKey } from "@/lib/utils";
 import { UserMenuFooter } from "../user-menu-footer";
-import { SessionsList } from "./sessions-list";
-import { FavoritesList } from "./favorites-list";
-import { SectionHeader } from "./section-header";
+import { SessionsList } from "./sessions/sessions-list";
+import { FavoritesList } from "./sessions/favorites-list";
+import { SectionHeader } from "./sessions/section-header";
 import {
   sidebarNavItemClass,
   sidebarNavLabelClass,

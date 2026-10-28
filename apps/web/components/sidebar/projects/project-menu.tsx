@@ -9,10 +9,10 @@ import { useRecentsView, setRecentsView } from "@/lib/prefs/recents-view";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ProjectEditor, type EditableProject } from "./project-editor";
-import { useSidebarMenu } from "./use-sidebar-menu";
+import { useSidebarMenu } from "../use-sidebar-menu";
 
-import { SIDEBAR_ROW_ACTION_ICON, sidebarProjectActionClass } from "./nav-classes";
-import { SectionHeader } from "./section-header";
+import { SIDEBAR_ROW_ACTION_ICON, sidebarProjectActionClass } from "../nav-classes";
+import { SectionHeader } from "../sessions/section-header";
 import { Input } from "@/components/ui/input";
 import styles from "./project-settings.module.css";
 

@@ -30,7 +30,7 @@ import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { MoreHorizontal, Plus } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useCurrentSessionId } from "./use-window-globals";
+import { useCurrentSessionId } from "../use-window-globals";
 import { useSessionStore } from "@/lib/session-store";
 import { SolarIcon } from "@/components/solar-icons";
 import type { ConvSummary } from "@/lib/session-store";
@@ -44,7 +44,7 @@ import { projectGroups, moveProject, filterProjectItems } from "@/lib/projects/p
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { BulkConvMenu, ConvMenu } from "./conv-menu";
 import { EMPTY_SELECTION, pickChat, type ChatSelection } from "@/lib/sidebar/chat-selection";
-import { useSidebarMenu } from "./use-sidebar-menu";
+import { useSidebarMenu } from "../use-sidebar-menu";
 import { RecentsFilter } from "./recents-filter";
 import { SectionHeader } from "./section-header";
 import {
@@ -53,14 +53,14 @@ import {
   sidebarNavLabelClass,
   sidebarProjectActionClass,
   SIDEBAR_ROW_ACTION_ICON,
-} from "./nav-classes";
-import styles from "./sidebar.module.css";
+} from "../nav-classes";
+import styles from "../sidebar.module.css";
 
-import { ProjectMenu, ProjectSectionHeading } from "./project-menu";
-import type { EditableProject } from "./project-editor";
-import { useProjectDrag } from "./sessions-list/use-project-drag";
-import { useChatDrag } from "./sessions-list/use-chat-drag";
-import type { ChatRowProps } from "./sessions-list/use-chat-drag";
+import { ProjectMenu, ProjectSectionHeading } from "../projects/project-menu";
+import type { EditableProject } from "../projects/project-editor";
+import { useProjectDrag } from "../sessions-list/use-project-drag";
+import { useChatDrag } from "../sessions-list/use-chat-drag";
+import type { ChatRowProps } from "../sessions-list/use-chat-drag";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { pushPath } from "@/lib/shallow-nav";
 import { runtimeState } from "@/lib/runtime-bridge/state";
@@ -72,11 +72,11 @@ import {
   bucketSortKey,
   wsSend,
   labelFor,
-} from "./sessions-list/helpers";
+} from "../sessions-list/helpers";
 import {
   recentsConversationsEqual,
   runningIdSetEqual,
-} from "./sessions-list/recents-select";
+} from "../sessions-list/recents-select";
 
 /** One registry project as `projects_list` ships it (Group-by → Project
  *  mode only). `session_ids` is alive-filtered server-side (same filter

@@ -313,7 +313,7 @@ assert.match(chatHandlers, /takePendingProject\(sid\)/);
 for (const relativePath of [
   "../../components/chat/top-bar/menus/project-menu.tsx",
   "../../components/sidebar/sidebar.tsx",
-  "../../components/sidebar/sessions-list.tsx",
+  "../../components/sidebar/sessions/sessions-list.tsx",
   "../../lib/files/files-shared.ts",
 ]) {
   const source = readFileSync(new URL(relativePath, import.meta.url), "utf8");

@@ -43,7 +43,7 @@ globalThis.window=window;globalThis.document=window.document;document.oninput=nu
 globalThis.Event=window.Event;globalThis.IS_REACT_ACT_ENVIRONMENT=true;
 const {createElement:h,act}=await import('react');
 const {createRoot}=await import('react-dom/client');
-const {ProjectEditor}=await import('../../components/sidebar/project-editor.tsx');
+const {ProjectEditor}=await import('../../components/sidebar/projects/project-editor.tsx');
 
 test('project editor saves selected icon and folders, retains input after a failed save, and cancels without writing',async()=>{
   const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
@@ -70,7 +70,7 @@ test('project editor saves selected icon and folders, retains input after a fail
 
 test('project menus open, pin, edit, create and rename sections without altering project membership',async()=>{
   const values=new Map();window.localStorage={getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v)};
-  const {ProjectMenu,ProjectSectionHeading}=await import('../../components/sidebar/project-menu.tsx');
+  const {ProjectMenu,ProjectSectionHeading}=await import('../../components/sidebar/projects/project-menu.tsx');
   const {getRecentsView}=await import('../../lib/prefs/recents-view.ts');
   const host=document.createElement('div');document.body.append(host);const root=createRoot(host);let opened=0,newChats=0;
   const project={id:'p',name:'Project',path:'/main'};
@@ -152,7 +152,7 @@ test('acknowledged local-prefixed chats are real sessions for project directory 
 });
 
 test('project operations confirm requests, retain errors, and close only after success',async()=>{
-  const {ProjectOperationDialog}=await import('../../components/sidebar/project-operation-dialog.tsx');
+  const {ProjectOperationDialog}=await import('../../components/sidebar/projects/project-operation-dialog.tsx');
   const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
   let closed=0;const saved=[];const calls=[];let fail=true;
   globalThis.projectRequest=async(...args)=>{calls.push(args);return fail?{ok:false,error:'disk failure'}:{ok:true,project_id:'p',project:{id:'p',name:'P',path:'/main',hidden:true}};};
@@ -180,7 +180,7 @@ test('project operations confirm requests, retain errors, and close only after s
 });
 
 test('project menu reaches reveal, worktree, archive, and remove dialogs',async()=>{
-  const {ProjectMenu}=await import('../../components/sidebar/project-menu.tsx');
+  const {ProjectMenu}=await import('../../components/sidebar/projects/project-menu.tsx');
   const host=document.createElement('div');document.body.append(host);const root=createRoot(host);const calls=[];
   globalThis.projectRequest=async(...args)=>{calls.push(args);return {ok:true};};
   await act(async()=>root.render(h(ProjectMenu,{project:{id:'p',name:'P',path:'/main'},onOpen:()=>{},onNewSession:()=>{},onSaved:()=>{},children:trigger=>h('div',{'data-header':true},trigger)})));

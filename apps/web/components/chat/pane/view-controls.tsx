@@ -12,7 +12,7 @@ import { autoRenameSession } from "@/lib/session-auto-rename";
  *   2. a `…` overflow menu with the session-level actions.
  *
  * The overflow menu is a second entry point for the actions the Recents
- * row already offers (`components/sidebar/conv-menu.tsx`) — it invents
+ * row already offers (`components/sidebar/sessions/conv-menu.tsx`) — it invents
  * nothing. "Move to group" and "New group" are deliberately left out:
  * they need the cross-session group list, which is the sidebar's job.
  *

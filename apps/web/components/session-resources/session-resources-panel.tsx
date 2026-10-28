@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Box, ExternalLink, Globe, Monitor, PictureInPicture2, Server, TerminalSquare, X } from "lucide-react";
-import { SectionHeader } from "@/components/sidebar/section-header";
+import { SectionHeader } from "@/components/sidebar/sessions/section-header";
 import { useWebTabPip } from "@/lib/browser/web-tab-pip-store";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import {

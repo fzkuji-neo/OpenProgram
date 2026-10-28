@@ -22,7 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from "@/components/ui/input";
 import { SimpleSelect } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { SectionHeader } from "../sidebar/section-header";
+import { SectionHeader } from "../sidebar/sessions/section-header";
 import { useTranslation } from "@/lib/i18n";
 import { ExecutionStrip } from "../chat/messages/execution/execution-strip";
 import { executionTitle, executionRequest, executionGuidance, executionNeedsAttention, executionStatusLabel, activityRows, shortTime, updatedTime } from "./debugger-presentation";
