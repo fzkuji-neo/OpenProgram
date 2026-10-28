@@ -1093,7 +1093,10 @@ async def handle_load_session(ws, cmd: dict):
                 cur = head
                 hops = 0
                 while cur and cur not in agg_ids and hops < 100:
-                    parent = (raw_by_id.get(cur) or {}).get("predecessor")
+                    # A call row hangs off its reply by ``caller`` with an
+                    # empty predecessor, so the walk takes either edge.
+                    row = raw_by_id.get(cur) or {}
+                    parent = row.get("predecessor") or row.get("caller")
                     if not parent or parent == cur:
                         cur = None
                         break
