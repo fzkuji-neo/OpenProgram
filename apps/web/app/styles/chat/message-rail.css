@@ -13,7 +13,7 @@
   position: absolute;
   /* 锚点在 800px 消息列里；用容器宽(100cqw = chat-area)把自己推到
      聊天区左缘（滚动条留给右边）。 */
-  left: calc((100% - 100cqw) / 2 + 8px);
+  left: calc((100% - 100cqw) / 2 + 12px);
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;

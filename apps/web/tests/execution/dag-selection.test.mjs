@@ -71,7 +71,7 @@ test("A mouse wheel zooms, two fingers pan, a right drag pans, a left drag draws
 
 test("The selection bar sits top left, clear of the perspective controls", () => {
   const css = readFileSync(new URL("../../app/styles/dag/tools.css", import.meta.url), "utf8");
-  assert.match(css, /\.dag-select-bar \{[^}]*top: 8px;[^}]*left: 12px;/);
+  assert.match(css, /\.dag-select-bar \{[^}]*top: 12px;[^}]*left: 12px;/);
 });
 
 const box = { left: 10, top: 10, right: 20, bottom: 20 };

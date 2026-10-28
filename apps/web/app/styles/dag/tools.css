@@ -90,7 +90,7 @@
    top right is the pane's perspective controls
    (chat/center-pane.css .chat-view-controls). */
 .dag-select-bar {
-  top: 8px;
+  top: 12px;
   left: 12px;
   align-items: center;
   font-size: 12px;

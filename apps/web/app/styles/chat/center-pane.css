@@ -42,7 +42,8 @@
    deepening under the pointer as the composer's buttons do. */
 .chat-view-controls {
   position: absolute;
-  top: 8px;
+  /* 画布上的浮动控件到边缘一律 12px。 */
+  top: 12px;
   right: 12px;
   z-index: 20;
   display: flex;

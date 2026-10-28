@@ -4,8 +4,9 @@
    approved before this React migration. */
 
 .inputArea {
-  /* 底部留白实测 Claude = 13px（控件行到视口底），原 24 太空。 */
-  padding: 12px 24px 13px;
+  /* 底部留白 12px：和画布上所有浮动控件到边缘的距离一致
+     （dag/tools.css、chat/center-pane.css）。原 24 太空。 */
+  padding: 12px 24px 12px;
 }
 /* 层级（从上到下）：输入框各组件 ≈ 弹出菜单 > 聊天遮罩 > 聊天内容。
    inputArea 本身不建层叠上下文（z-index: auto），遮罩（::before/::after，
