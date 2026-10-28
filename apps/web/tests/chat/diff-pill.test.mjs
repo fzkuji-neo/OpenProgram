@@ -8,13 +8,13 @@ test("+N −N pills take the Claude app's DiffIndicator look", () => {
   const base = read("app/styles/base.css");
   assert.match(base, /--git-added: light-dark\(#1e9e3c, #32d74b\);/);
   assert.match(base, /--git-removed: light-dark\(#cd2054, #ff2c56\);/);
-  const card = read("app/styles/chat/turn-files-card.css");
+  const card = read("app/styles/chat/cards/turn-files-card.css");
   assert.match(card, /\.turn-files-diff\{display:inline-flex;height:18px;border-radius:4\.5px;overflow:hidden;[^}]*font-weight:500;font-size:11px;line-height:14px;font-family:var\(--font-sans\)\}/);
   assert.match(card, /\.turn-files-stat\{display:flex;align-items:center;gap:1px;padding:0 6px\}/);
   assert.match(card, /\.turn-files-stat\.is-add\{color:var\(--git-added\);background:color-mix\(in srgb,var\(--git-added\) 20%,transparent\)\}/);
   assert.match(card, /\.turn-files-diff\.is-plain\{[^}]*\}\.turn-files-diff\.is-plain \.turn-files-stat\{padding:0;background:none\}/);
   assert.match(read("components/chat/messages/turn-files-chips.tsx"), /className="turn-files-diff is-plain"/);
-  const bar = read("app/styles/chat/top-bar-chips.css");
+  const bar = read("app/styles/chat/composer/top-bar-chips.css");
   assert.match(bar, /\.diff-badge \{[^}]*height: 18px;[^}]*font-weight: 500;\s*font-size: 11px;\s*line-height: 14px;\s*font-family: var\(--font-sans\);/);
   assert.match(bar, /\.diff-badge \.is-del \{\s*color: var\(--git-removed\);/);
 });

@@ -1023,7 +1023,7 @@ assert.match(
   "the graph must overlay the pane so the composer keeps its anchor",
 );
 const viewControls = readFileSync(
-  new URL("../../components/chat/view-controls.tsx", import.meta.url),
+  new URL("../../components/chat/pane/view-controls.tsx", import.meta.url),
   "utf8",
 );
 // Tooltip names the CURRENT perspective and what the click does (Obsidian).

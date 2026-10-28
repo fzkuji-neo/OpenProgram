@@ -3,10 +3,10 @@
 /**
  * The "thinking…" status shown while a reply has not started: the spinner
  * and a grey label, or, with the code rain style on, falling glyphs and a
- * label that decodes from code (components/chat/code-rain-style.tsx).
+ * label that decodes from code (components/chat/welcome/code-rain-style.tsx).
  */
 import { useTranslation } from "@/lib/i18n";
-import { CodeRainIcon, CodeRainText, useCodeRainStyle } from "../code-rain-style";
+import { CodeRainIcon, CodeRainText, useCodeRainStyle } from "../welcome/code-rain-style";
 import { ActivityIndicator } from "./activity-indicator";
 
 export function ThinkingStatus() {

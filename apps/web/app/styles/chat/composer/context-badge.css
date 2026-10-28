@@ -1,8 +1,8 @@
 /* composer 右下 context 用量徽章与圆环。
-   对应组件：components/chat/context-badge.tsx、context-breakdown-panel.tsx */
+   对应组件：components/chat/badges/context-badge.tsx、context-breakdown-panel.tsx */
 
 /* Per-conversation token-usage pill in the composer's bottom-right slot.
-   Rendered by <ContextBadge> (apps/web/components/chat/context-badge.tsx) as a
+   Rendered by <ContextBadge> (apps/web/components/chat/badges/context-badge.tsx) as a
    global class. The rule lived in the old 05-chat.css and was dropped in
    58e7709 along with the rest of the legacy composer CSS; restore it here
    so the badge stops rendering as unstyled text. */

@@ -38,7 +38,7 @@ import { LlmNodeContent } from "./llm-node-content";
 import { renderMarkdown, useMarkdownReady } from "./markdown";
 import { MessageTimestamp } from "./message-actions";
 import { PluginSlot } from "@/components/plugins/plugin-slot";
-import { CodeRainIcon, CodeRainText, useCodeRainStyle } from "../code-rain-style";
+import { CodeRainIcon, CodeRainText, useCodeRainStyle } from "../welcome/code-rain-style";
 
 export { SPAWNING_TOOL_NAMES } from "./tool-group-summary";
 

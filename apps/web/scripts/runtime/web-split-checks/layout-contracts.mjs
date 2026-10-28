@@ -476,7 +476,7 @@ testContext.assert.match(
 );
 
 (testContext.contextBadgeSource = await testContext.readFile(
-  new URL("../../components/chat/context-badge.tsx", testContext.sourceUrl),
+  new URL("../../components/chat/badges/context-badge.tsx", testContext.sourceUrl),
   "utf8",
 ));
 

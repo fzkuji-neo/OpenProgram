@@ -41,7 +41,7 @@ import {
 import { MenuRow, type MenuGlyph } from "@/components/ui/menu-parts";
 import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { RenameDialog } from "@/components/chat/rename-dialog";
+import { RenameDialog } from "@/components/chat/pane/rename-dialog";
 import { SolarIcon } from "@/components/solar-icons";
 import { useTranslation } from "@/lib/i18n";
 import { useSessionStore } from "@/lib/session-store";

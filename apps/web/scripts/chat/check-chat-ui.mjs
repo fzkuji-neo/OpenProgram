@@ -10,9 +10,9 @@ import { readChatCss } from "../runtime/_chat-css.mjs";
 const root = new URL("../../", import.meta.url);
 const source = (path) => readFileSync(new URL(path, root), "utf8");
 
-const welcome = source("components/chat/welcome-screen.tsx");
-const welcomeCss = source("components/chat/welcome-screen.module.css");
-const welcomeBackdrop = source("components/chat/welcome-backdrop.tsx");
+const welcome = source("components/chat/welcome/welcome-screen.tsx");
+const welcomeCss = source("components/chat/welcome/welcome-screen.module.css");
+const welcomeBackdrop = source("components/chat/welcome/welcome-backdrop.tsx");
 const welcomeBackdropPref = source("lib/prefs/welcome-backdrop-pref.ts");
 const generalSettings = source("components/settings/general-section.tsx");
 const messageList = source("components/chat/messages/use-chat-area-stick.ts") + source("components/chat/messages/message-list.tsx");
@@ -31,14 +31,14 @@ const userBubble = source("components/chat/messages/user-bubble.tsx");
 const runtimeBlock = source("components/chat/messages/runtime-block.tsx");
 const attachCard = source("components/chat/messages/attach-card.tsx");
 const executionStrip = source("components/chat/messages/execution-strip.tsx");
-const executionCss = source("app/styles/chat/execution-strip.css");
+const executionCss = source("app/styles/chat/execution/execution-strip.css");
 const runtimeHelpers = source("lib/runtime-bridge/helpers.ts");
 const markdownRenderer = source("lib/runtime-bridge/markdown-render.ts");
 const chatMarkdown = source("components/chat/messages/markdown.ts");
 const chatVisualSpec = source("../../docs/reference/design/ui/chat-turn-visual-spec.zh.html");
 const controlsCluster = source("components/chat/composer/controls/controls-cluster.tsx");
-const contextBreakdownPanel = source("components/chat/context-breakdown-panel.tsx");
-const contextBadge = source("components/chat/context-badge.tsx");
+const contextBreakdownPanel = source("components/chat/badges/context-breakdown-panel.tsx");
+const contextBadge = source("components/chat/badges/context-badge.tsx");
 const composerCss = source("components/chat/composer/composer.module.css");
 const workingDirChips = source("components/chat/top-bar/working-dir-chips.tsx");
 const chatCss = readChatCss(root);
@@ -193,10 +193,10 @@ assert.match(contextBreakdownPanel, /message\.slot === "event"/);
 assert.match(contextBreakdownPanel, /!compacting && !recentlyCompacted/);
 assert.match(contextBreakdownPanel, /Recently compacted/);
 assert.match(contextBreakdownPanel, /Compacting…/);
-assert.match(source("components/chat/context-badge.tsx"), /warmContextBreakdown\(/);
+assert.match(source("components/chat/badges/context-badge.tsx"), /warmContextBreakdown\(/);
 assert.doesNotMatch(contextBadge, /is-recommended|Suggest compacting|compactRecommended/);
 assert.doesNotMatch(
-  source("app/styles/chat/context-badge.css"),
+  source("app/styles/chat/composer/context-badge.css"),
   /\.is-recommended/,
 );
 assert.doesNotMatch(

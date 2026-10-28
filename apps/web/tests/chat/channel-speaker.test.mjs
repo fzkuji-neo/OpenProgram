@@ -44,7 +44,7 @@ test('the user bubble names a channel sender above the bubble', () => {
   assert.match(bubble, /className="user-channel-speaker"/);
   assert.match(bubble, /stripLegacySpeakerLabel\(roomEvent\.rest, msg\.speaker\)/);
   assert.match(read('lib/chat/conv-mapper.ts'), /speaker: readSpeaker\(m\)/);
-  assert.match(read('app/styles/chat/bubbles.css'), /\.message\.user \.user-channel-speaker \{/);
+  assert.match(read('app/styles/chat/messages/bubbles.css'), /\.message\.user \.user-channel-speaker \{/);
 });
 
 test('earlier group messages split off ahead of the text', () => {

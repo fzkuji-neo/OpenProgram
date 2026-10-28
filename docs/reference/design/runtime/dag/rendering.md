@@ -32,7 +32,7 @@ lanes, tiers and branch badges that a 288px rail truncates.
 | Piece | Where |
 |---|---|
 | Perspective state | `CenterTab.dagView` (`apps/web/lib/tabs/center-tabs-store.ts`) — not persisted; a reload opens on the transcript |
-| Controls | `apps/web/components/chat/view-controls.tsx` |
+| Controls | `apps/web/components/chat/pane/view-controls.tsx` |
 | Graph host | `apps/web/components/chat/dag/dag-view.tsx` — renders `#historyPanel` + `.history-body`, the elements `apps/web/lib/runtime-bridge/dag/pipeline.ts` and `apps/web/lib/runtime-bridge/dag/render/visibility.ts` select |
 | Perspective swap | `.center-pane-chat[data-center-view]` in `apps/web/app/styles/dag/view-host.css` |
 
@@ -1078,7 +1078,7 @@ The whole spec is implemented. Where each part lives:
 | Scenes 8/10 attach pointer | backend filters it (display=runtime) + `graph_builder` stamps the ref onto the embed host (`attach_returns`); `edges.ts` draws the long-dash return line |
 | §4 cross-session ↗ | `graph_builder` stamps `spawn_remote` from target-root provenance and `spawn_out` from the source attach's target session; `nodes.ts` draws ↗ on both sides. Cross-session badge navigation is not implemented |
 | §1 spawn root tier | `graph_layout`: tier=1 / same-row depth / new lane; `task_followup` without an attach pointer re-parents onto the receiving turn (`filter.py` fallback) |
-| Composer shared by both perspectives | `apps/web/app/styles/chat/center-pane.css` hides `#chatArea`, not `#chatView`; asserted by `apps/web/scripts/tabs/check-center-tabs.mjs` |
+| Composer shared by both perspectives | `apps/web/app/styles/chat/pane/center-pane.css` hides `#chatArea`, not `#chatView`; asserted by `apps/web/scripts/tabs/check-center-tabs.mjs` |
 | In-graph branch tags (checkout buttons) | `apps/web/lib/runtime-bridge/dag/render/labels/badges.ts`; hover styles on `.history-branch-tag` in `apps/web/app/styles/dag/graph/badges.css` |
 | §8 coverage query | `routes/tree.py::_coverage_nodes` fills `/context-range`'s `nodes`; tested in `tests/unit/context/test_context_range_coverage.py` |
 | §8 aged / spilled drawing | `apps/web/lib/runtime-bridge/dag/render/nodes.ts` (fainter block + `▤`), fed by `_coverageSet` in `apps/web/lib/runtime-bridge/dag/store/globals.ts` |

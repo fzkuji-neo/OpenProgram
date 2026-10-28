@@ -15,7 +15,7 @@ const messageList = readFileSync(new URL("../../components/chat/messages/use-cha
   "utf8",
 );
 const jumpCss = readFileSync(
-  new URL("../../app/styles/chat/jump-latest.css", import.meta.url),
+  new URL("../../app/styles/chat/pane/jump-latest.css", import.meta.url),
   "utf8",
 );
 
@@ -114,7 +114,7 @@ test("long lists recycle measured offscreen rows; no virtual list library", () =
 
 test("remounted rows do not replay msgAppear", () => {
   const transcriptCss = readFileSync(
-    new URL("../../app/styles/chat/transcript.css", import.meta.url),
+    new URL("../../app/styles/chat/pane/transcript.css", import.meta.url),
     "utf8",
   );
   assert.match(transcriptCss, /\.msg-slot\[data-seen="1"\] \.message/);

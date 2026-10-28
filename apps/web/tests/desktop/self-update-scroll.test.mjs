@@ -55,7 +55,7 @@ test("perspective verification suppresses every center-tab persistence writer wh
 });
 
 test("native perspective target names the real session toggle and invokes its actual handler", () => {
-  const source = readFileSync(new URL("../../components/chat/view-controls.tsx", import.meta.url), "utf8");
+  const source = readFileSync(new URL("../../components/chat/pane/view-controls.tsx", import.meta.url), "utf8");
   const file = ts.createSourceFile("view-controls.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   let button;
   function visit(node) {

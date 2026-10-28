@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 
-import { GoalChip } from "../../goal-chip";
+import { GoalChip } from "../../badges/goal-chip";
 import { ProjectBadge, WorkingDirChips } from "../../top-bar";
 import { ChannelChip } from "./chips/channel-chip";
 import { EnvironmentChip } from "./chips/environment-chip";

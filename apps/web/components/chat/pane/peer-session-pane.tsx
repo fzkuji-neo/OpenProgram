@@ -1,6 +1,6 @@
 "use client";
 import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
-import { SelectionQuote } from "./messages/quote-to-chat";
+import { SelectionQuote } from "../messages/quote-to-chat";
 
 /**
  * One session pane in a split view.
@@ -34,16 +34,16 @@ import {
   decideLiveRows,
   heightsFor,
 } from "@/lib/chat/message-window";
-import { TranscriptReadStatus } from "./messages/transcript-read-status";
-import { Composer } from "./composer";
+import { TranscriptReadStatus } from "../messages/transcript-read-status";
+import { Composer } from "../composer";
 import { SessionScopeProvider } from "@/lib/session-store/session-scope";
 import { useTranslation } from "@/lib/i18n";
 
-import { useChatAreaStick } from "./messages/use-chat-area-stick";
-import { useMessageViewport } from "./messages/use-message-viewport";
-import { useHistoryWindow } from "./messages/use-history-window";
-import { DecisionOutputs } from "./messages/decision-output";
-import { PlainRow, RecyclableRow } from "./messages/message-list";
+import { useChatAreaStick } from "../messages/use-chat-area-stick";
+import { useMessageViewport } from "../messages/use-message-viewport";
+import { useHistoryWindow } from "../messages/use-history-window";
+import { DecisionOutputs } from "../messages/decision-output";
+import { PlainRow, RecyclableRow } from "../messages/message-list";
 
 export const PeerSessionPane = memo(function PeerSessionPane({
   tabId,

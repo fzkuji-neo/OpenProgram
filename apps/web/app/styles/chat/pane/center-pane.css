@@ -1,5 +1,5 @@
 /* 中央窗格宿主：.center-pane-chat、分支条、转录⇄DAG 视角切换按钮。
-   对应组件：components/app-shell.tsx、components/chat/view-controls.tsx */
+   对应组件：components/app-shell.tsx、components/chat/pane/view-controls.tsx */
 
 /* ═══ Center perspectives: transcript ⇄ session context DAG ═══════════
    The chat pane hosts BOTH surfaces at once and swaps them with

@@ -14,7 +14,7 @@ const reviewDiff = read("components/center-tabs/use-review-diff.ts");
 const reviewProtocol = review + reviewScope + reviewDiff;
 const store = read("lib/tabs/store/pages.ts");
 const reviewLayout = read("lib/tabs/review-tab-layout.ts");
-const cardCss = read("app/styles/chat/turn-files-card.css");
+const cardCss = read("app/styles/chat/cards/turn-files-card.css");
 const design = read("../../docs/reference/design/ui/chat-turn-visual-spec.html");
 
 assert.match(card, /if \(embedded\) \{\s*setFiles\(embedded\);/);

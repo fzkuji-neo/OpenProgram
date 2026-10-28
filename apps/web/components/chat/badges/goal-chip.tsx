@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Pause, Play, Square, Target } from "lucide-react";
 import { CheckIcon, HistoryIcon } from "@/components/animated-icons";
-import { useActionIconAnimation } from "./messages/use-action-icon-animation";
+import { useActionIconAnimation } from "../messages/use-action-icon-animation";
 
 import { Button } from "@/components/ui/button";
 import { HoverTip, TipBody } from "@/components/ui/tooltip";

@@ -177,13 +177,13 @@ pattern `data.session_id === W.currentSessionId` appears throughout
 is dropped or misrouted.
 
 **What has already routed around it.** The split-view pane does not go through
-the legacy shell at all. `apps/web/components/chat/peer-session-pane.tsx:1` explains
+the legacy shell at all. `apps/web/components/chat/pane/peer-session-pane.tsx:1` explains
 why: the legacy `#chatView` shell is a singleton keyed on hardcoded DOM ids
 (`#chatArea`, `#chatMessages`) read by roughly ten runtime-bridge modules, so
 it cannot be mounted twice. AppShell hides it entirely while split
 (`apps/web/components/app-shell.tsx:552`) and each pane renders pure React off the
 store instead. The pane even sends its own `load_session` request
-(`apps/web/components/chat/peer-session-pane.tsx:66`) because nothing in the legacy
+(`apps/web/components/chat/pane/peer-session-pane.tsx:66`) because nothing in the legacy
 path loads a session that is not focused.
 
 **What still uses it.** Message rendering for the non-split path, session
@@ -228,7 +228,7 @@ contextPanelFor: string | null;
 ```
 
 The consumer then compares against its own session id
-(`apps/web/components/chat/context-badge.tsx:44`):
+(`apps/web/components/chat/badges/context-badge.tsx:44`):
 
 ```ts
 const panelOpen = useSessionStore((s) => s.contextPanelFor != null && s.contextPanelFor === sid);
@@ -429,7 +429,7 @@ Every Group B field becomes a property of `SessionScopeState`, read through
   `apps/web/components/chat/messages/runtime-block.tsx`, and
   `apps/web/lib/runtime-bridge/functions-panel.ts`.
 - `welcomeVisible` and `transcriptLoadingId` are per-session booleans, read by
-  `apps/web/components/chat/welcome-screen.tsx` and
+  `apps/web/components/chat/welcome/welcome-screen.tsx` and
   `apps/web/components/chat/messages/message-list.tsx`.
 - `composerFocusTick` is a per-session counter, so focusing one pane's textarea
   does not yank the other.

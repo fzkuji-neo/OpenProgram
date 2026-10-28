@@ -186,7 +186,7 @@ for (const [name, source] of [
 ]) {
   assert.equal(tokenValue(source, "--user-msg-bg"), "var(--bg-input)", `${name} --user-msg-bg must be the input surface`);
 }
-const bubbles = read("app/styles/chat/bubbles.css");
+const bubbles = read("app/styles/chat/messages/bubbles.css");
 assert.match(
   bubbles,
   /\.message\.user \.message-content\s*\{[^}]*background:\s*var\(--user-msg-bg\);[^}]*box-shadow:\s*var\(--composer-shadow\);/s,

@@ -30,7 +30,7 @@ esbuild.buildSync({absWorkingDir:process.argv[1], stdin:{contents:
                 body='<div id="root"></div>', content_type="text/html"))
             page.goto("http://activity.test/")
             page.add_style_tag(path=str(WEB / "app/styles/base.css"))
-            page.add_style_tag(path=str(WEB / "app/styles/chat/thinking-spinner.css"))
+            page.add_style_tag(path=str(WEB / "app/styles/chat/execution/thinking-spinner.css"))
             page.add_style_tag(content=":root{--accent-blue:#4989ef;--accent-purple:#a36cef} #root{display:flex;gap:24px}")
             page.add_script_tag(path=str(bundle))
             page.evaluate("""() => {

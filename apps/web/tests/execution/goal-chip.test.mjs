@@ -61,7 +61,7 @@ window.location = { pathname: "/chat", hash: "" };
 window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
 const { act, createElement } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { GoalChip, GoalDetails } = await import("../../components/chat/goal-chip.tsx");
+const { GoalChip, GoalDetails } = await import("../../components/chat/badges/goal-chip.tsx");
 const { runtimeState, setSocket } = await import("../../lib/runtime-bridge/state.ts");
 const { updateStatus } = await import("../../lib/runtime-bridge/ui.ts");
 const { useSessionStore } = await import("../../lib/session-store/index.ts");

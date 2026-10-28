@@ -61,7 +61,7 @@ const JUMP_LATEST_FADE_MS = 280;
 const APPEAR_WINDOW_MS = 1000;
 
 import { AssistantBubble } from "./assistant-bubble";
-import { GoalDetails, useSessionGoal } from "../goal-chip";
+import { GoalDetails, useSessionGoal } from "../badges/goal-chip";
 import { AttachCard } from "./attach-card";
 import { DecisionOutputs } from "./decision-output";
 import { SystemAccessWaits } from "./system-access-waits";

@@ -54,7 +54,7 @@ test("footer and tab menus use the shared classes, not their own copies", () => 
 });
 
 test("folder and project pill segments space like the sm Button chips", () => {
-  const css = read("app/styles/chat/top-bar-chips.css");
+  const css = read("app/styles/chat/composer/top-bar-chips.css");
   const at = css.indexOf(".folder-pill-seg {");
   const body = css.slice(at, css.indexOf("}", at));
   assert.match(body, /gap: 0\.25rem/);

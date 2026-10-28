@@ -222,8 +222,8 @@ protection (OpenCode).
 ### Occupancy: one number, two readers
 
 Two widgets report how full the window is — the progress ring in the composer
-(`apps/web/components/chat/context-badge.tsx`) and the `/context` breakdown panel it
-opens (`apps/web/components/chat/context-breakdown-panel.tsx`). Both render the same
+(`apps/web/components/chat/badges/context-badge.tsx`) and the `/context` breakdown panel it
+opens (`apps/web/components/chat/badges/context-breakdown-panel.tsx`). Both render the same
 server-computed record, so they agree at every moment:
 
 ```python

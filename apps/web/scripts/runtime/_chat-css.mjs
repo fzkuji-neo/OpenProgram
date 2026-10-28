@@ -6,9 +6,10 @@
 // never on cascade precedence, so file order doesn't matter.
 import { readdirSync, readFileSync } from "node:fs";
 
+// Recursive: chat/ and dag/ group their files in one subfolder per area.
 function readDir(root, dir) {
   const url = new URL(dir, root);
-  return readdirSync(url)
+  return readdirSync(url, { recursive: true })
     .filter((f) => f.endsWith(".css"))
     .sort()
     .map((f) => readFileSync(new URL(f, url), "utf8"));

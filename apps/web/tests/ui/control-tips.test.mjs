@@ -17,7 +17,7 @@ test("collapsed rails name their icons on hover, with no native title", () => {
 });
 
 test("inline code in a table cell keeps whole words", () => {
-  assert.match(read("app/styles/chat/bubbles.css"), /\.message-content :is\(th, td\) code \{[^}]*overflow-wrap: normal;\n\}/);
+  assert.match(read("app/styles/chat/messages/bubbles.css"), /\.message-content :is\(th, td\) code \{[^}]*overflow-wrap: normal;\n\}/);
 });
 
 test("provider detail sections never share a React key", () => {
@@ -53,11 +53,11 @@ test("A tab on a management page wears that page's rail icon", () => {
 });
 
 test("The transcript has no fade at the pane's top edge", () => {
-  assert.doesNotMatch(read("app/styles/chat/transcript.css"), /\.chat-area \{[^}]*mask-image/);
+  assert.doesNotMatch(read("app/styles/chat/pane/transcript.css"), /\.chat-area \{[^}]*mask-image/);
 });
 
 test("A reply's first and last blocks bring no outer margin", () => {
-  const css = read("app/styles/chat/bubbles.css");
+  const css = read("app/styles/chat/messages/bubbles.css");
   assert.match(css, /\.message-content \.md-rendered > :first-child \{ margin-top: 0; \}/);
   assert.match(css, /\.message-content \.md-rendered > :last-child \{ margin-bottom: 0; \}/);
 });
@@ -105,7 +105,7 @@ test("No element outside a control carries a native title", async () => {
 });
 
 test("A reply keeps one block rhythm: a single gap between every block and every part", () => {
-  const bubbles = read("app/styles/chat/bubbles.css");
+  const bubbles = read("app/styles/chat/messages/bubbles.css");
   assert.match(bubbles, /\.message \{[^}]*--reply-gap: 12px;/);
   // The markdown is one grid column; its blocks carry no margins of their own.
   assert.match(bubbles, /\.message-content \.md-rendered \{[^}]*display: grid;[^}]*gap: var\(--reply-gap\);/);
@@ -117,19 +117,19 @@ test("A reply keeps one block rhythm: a single gap between every block and every
   assert.match(bubbles, /\.message\.assistant \{ --reply-gap: 22px; \}/);
   assert.match(bubbles, /> \.md-rendered > :is\(p, ul, ol, h1, h2, h3, h4, h5, h6\) \{\s*text-box: trim-both cap alphabetic;\s*padding-block: 1\.6px;/);
   assert.match(bubbles, /> \.md-rendered > p:has\(> code\) \{ padding-block: 3\.8px 6\.1px; \}/);
-  assert.match(read("app/styles/chat/execution-strip.css"), /\.chat-stream-body > \.tl\[data-open="0"\] \{ margin-bottom: -7\.5px; \}/);
+  assert.match(read("app/styles/chat/execution/execution-strip.css"), /\.chat-stream-body > \.tl\[data-open="0"\] \{ margin-bottom: -7\.5px; \}/);
   // No pairwise compensation is left anywhere.
-  for (const f of ["bubbles.css", "message-actions.css", "execution-strip.css", "stream-blocks.css"]) {
+  for (const f of ["messages/bubbles.css", "messages/message-actions.css", "execution/execution-strip.css", "messages/stream-blocks.css"]) {
     assert.doesNotMatch(read(`app/styles/chat/${f}`), /:has\(> \.md-rendered/);
   }
-  assert.match(read("app/styles/chat/stream-blocks.css"), /\.chat-stream-body \{[^}]*gap: var\(--reply-gap, 12px\);/);
-  assert.match(read("app/styles/chat/execution-strip.css"), /\.tl \{[^}]*margin: 0;/);
-  assert.match(read("app/styles/chat/message-actions.css"),
+  assert.match(read("app/styles/chat/messages/stream-blocks.css"), /\.chat-stream-body \{[^}]*gap: var\(--reply-gap, 12px\);/);
+  assert.match(read("app/styles/chat/execution/execution-strip.css"), /\.tl \{[^}]*margin: 0;/);
+  assert.match(read("app/styles/chat/messages/message-actions.css"),
     /\.message\.assistant \.message-actions-footer \{[^}]*margin-top: calc\(var\(--reply-gap, 12px\) - 3px\);/);
 });
 
 test("Reply markdown wears the Claude app's styles", () => {
-  const bubbles = read("app/styles/chat/bubbles.css");
+  const bubbles = read("app/styles/chat/messages/bubbles.css");
   // Headings: bold at 22 / 18 / 16px.
   assert.match(bubbles, /\.message-content :is\(h1, h2, h3, h4, h5, h6\) \{[^}]*font-weight: 700;/);
   assert.match(bubbles, /\.message-content h1 \{ font-size: 1\.375rem; \}/);

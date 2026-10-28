@@ -1,5 +1,5 @@
 /* 分屏伴读窗格（chat+chat split 的只读半屏）。
-   对应组件：components/chat/peer-session-pane.tsx */
+   对应组件：components/chat/pane/peer-session-pane.tsx */
 
 /* Peer pane (the read-along half of a chat+chat split view). It reuses
    .chat-area / .chat-messages for bubble styling, but sits in a much

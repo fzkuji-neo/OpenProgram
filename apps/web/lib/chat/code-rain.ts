@@ -1,7 +1,7 @@
 /**
  * What the code rain is drawn with, shared by the empty-chat backdrop
- * (components/chat/welcome-backdrop.tsx) and the rain that brings in new
- * messages (components/chat/code-rain-arrivals.tsx).
+ * (components/chat/welcome/welcome-backdrop.tsx) and the rain that brings in new
+ * messages (components/chat/welcome/code-rain-arrivals.tsx).
  */
 
 /** Katakana, Latin capitals, digits and symbols; always drawn mirrored. */

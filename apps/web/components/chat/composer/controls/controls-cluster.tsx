@@ -31,7 +31,7 @@ import { useTranslation } from "@/lib/i18n";
 import { effortLevelColor, formatEffortLabel } from "@/lib/effort-color";
 import { GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR } from "../../top-bar/menu-styles";
 import { AgentBadge, PermissionBadge } from "../../top-bar";
-import { ContextBadge } from "../../context-badge";
+import { ContextBadge } from "../../badges/context-badge";
 import {
   AttachIcon,
   OptionsIcon,

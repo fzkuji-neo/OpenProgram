@@ -33,7 +33,7 @@ td code{white-space:nowrap}
 .case{font-size:12px;color:var(--text-muted);margin:12px 0 0;font-weight:500}
 .tag{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted)}
 .tag.after{color:var(--accent-orange)}
-/* The collapsed row, as in app/styles/chat/execution-strip.css */
+/* The collapsed row, as in app/styles/chat/execution/execution-strip.css */
 .tl-toggle{display:inline-flex;align-items:center;gap:8px;height:28px;max-width:100%;min-width:0;
   color:var(--text-muted);font-size:var(--fs-chat);cursor:pointer;user-select:none;border:0;background:none;padding:0;font-family:inherit}
 .tl-toggle:hover{color:var(--text-secondary)}
@@ -168,7 +168,7 @@ td code{white-space:nowrap}
 <li><code>ExecutionStrip</code> 接收 <code>label: string | ToolGroupSummary</code>。工作流运行卡片和调试面板传的纯字符串照旧渲染，不带失败提示和徽标。这一行渲染带省略号的标题、红色失败提示、徽标（本轮文件卡片的 <code>.turn-files-diff</code> / <code>.turn-files-stat</code> 胶囊）、箭头和悬停提示。</li>
 <li><code>AssistantBubble</code> 给每一段传入该段的 blocks、整轮 blocks、<code>msg.turnFiles</code>、运行中调用 id，以及该段是否是正在进行的末段。</li>
 <li>旧记录走同一个函数。<code>LegacyRuntimeTrace</code>（没有有序 blocks 的 agent 调用）把每个调用转成以函数名命名的工具块，标题读作"使用了 extract_tables"而不是"调用 1 个函数"，调用进行中也会显示扫光。没有工具块的旧子代理条只传子代理名称。</li>
-<li><code>app/styles/chat/execution-strip.css</code>：<code>.tl-label</code> 省略号、<code>.tl-fail</code>，以及 <code>.tl-diff</code> 和 <code>.tl-chev</code> 的 <code>flex:none</code>。</li>
+<li><code>app/styles/chat/execution/execution-strip.css</code>：<code>.tl-label</code> 省略号、<code>.tl-fail</code>，以及 <code>.tl-diff</code> 和 <code>.tl-chev</code> 的 <code>flex:none</code>。</li>
 <li>测试：<code>apps/web/tests/chat/tool-group-summary.test.mjs</code> 覆盖每个桶的语法、中英文复数、顺序、进行时、失败、徽标来源和未知统计、apply_patch 解析和带上限的行级 diff。</li>
 </ul>
 

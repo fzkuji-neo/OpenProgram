@@ -26,7 +26,7 @@ function App(){const[open,setOpen]=useState(true),[value,setValue]=useState('med
         page.goto(shell.as_uri())
         # Layout utilities for the component fixture; installed-App acceptance uses the built stylesheet.
         page.add_style_tag(content='body{--accent-purple:#a895e9;--text-muted:#888;--text-bright:#eee;--effort-thumb:white} .effort-pill-host{position:absolute;left:300px;top:220px}.effort-track{position:relative;height:20px;margin-top:20px}.effort-track>span:not(.effort-field){position:relative;display:flex;align-items:center;height:20px;width:100%}.slider-track{position:relative;width:100%;height:20px;overflow:hidden}.slider-range{position:absolute;height:100%}[role=slider]{display:block;width:16px;height:20px;position:relative}.effort-thumb{position:absolute;width:16px;height:20px;top:0;background:white;border-radius:6px}.slider-tick{position:absolute;top:50%;width:3px;height:3px;border-radius:50%}.effort-card{padding:12px;background:#222}.effort-level{display:inline-block}')
-        page.add_style_tag(path=str(WEB / 'app/styles/chat/effort-pill.css'))
+        page.add_style_tag(path=str(WEB / 'app/styles/chat/composer/effort-pill.css'))
         page.evaluate("""() => {
           window.effortFrames = new WeakMap();
           const draw = WebGL2RenderingContext.prototype.drawArrays;

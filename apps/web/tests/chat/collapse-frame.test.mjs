@@ -5,7 +5,7 @@ import test from "node:test";
 import { afterTwoAnimationFrames } from "../../components/chat/messages/collapse-frame.ts";
 
 const bubblesCss = readFileSync(
-  new URL("../../app/styles/chat/bubbles.css", import.meta.url),
+  new URL("../../app/styles/chat/messages/bubbles.css", import.meta.url),
   "utf8",
 );
 const messageList = readFileSync(

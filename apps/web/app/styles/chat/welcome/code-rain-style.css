@@ -1,9 +1,9 @@
 /* Code rain style (Settings → General → Code rain style): the Matrix look
    in one place. <html data-code-rain="on"> while it is on
    (lib/prefs/welcome-backdrop-pref.ts). Pieces:
-   - the empty-chat backdrop (components/chat/welcome-backdrop.tsx);
-   - new messages raining in (components/chat/code-rain-arrivals.tsx);
-   - anything in progress shown as code (components/chat/code-rain-style.tsx):
+   - the empty-chat backdrop (components/chat/welcome/welcome-backdrop.tsx);
+   - new messages raining in (components/chat/welcome/code-rain-arrivals.tsx);
+   - anything in progress shown as code (components/chat/welcome/code-rain-style.tsx):
      the thinking status, a running tool group's label, running steps'
      icons and titles, and the cursor of a streaming sub-call. */
 :root { --code-rain-ink: #118a3a; --code-rain-head: #063d18; }

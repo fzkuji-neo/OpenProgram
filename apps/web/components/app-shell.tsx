@@ -31,11 +31,11 @@ import { ToastHost } from "./ui/toast-host";
 import { CommandPalette } from "./command-palette";
 import { Composer } from "./chat/composer";
 import { LegacyTopbarBridge } from "./chat/top-bar";
-import { WelcomeScreen } from "./chat/welcome-screen";
+import { WelcomeScreen } from "./chat/welcome/welcome-screen";
 import { MessageList } from "./chat/messages/message-list";
-import { PeerSessionPane } from "./chat/peer-session-pane";
+import { PeerSessionPane } from "./chat/pane/peer-session-pane";
 import { DagView } from "./chat/dag/dag-view";
-import { ViewControls } from "./chat/view-controls";
+import { ViewControls } from "./chat/pane/view-controls";
 import { useSessionStore } from "@/lib/session-store";
 import { SessionScopeProvider } from "@/lib/session-store/session-scope";
 import { useColResize } from "@/lib/hooks/use-col-resize";
@@ -103,7 +103,7 @@ const WebTabPane = dynamic(
 );
 
 import { PersistentFilePanes } from "./center-tabs/persistent-file-panes";
-import { CodeRainArrivals } from "./chat/code-rain-arrivals";
+import { CodeRainArrivals } from "./chat/welcome/code-rain-arrivals";
 
 const LONE_PANE = { left: "0px", top: "0px", width: "100%", height: "100%" };
 

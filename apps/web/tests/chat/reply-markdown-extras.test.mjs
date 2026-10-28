@@ -25,7 +25,7 @@ test("a footnote link moves within its own reply and leaves the URL alone", () =
 });
 
 test("task items, squeezed CJK headings and footnotes read as in the Claude app", () => {
-  const css = read("app/styles/chat/bubbles.css");
+  const css = read("app/styles/chat/messages/bubbles.css");
   assert.match(css, /\.message-content li:has\(> input\[type="checkbox"\]:first-child, > p:first-child > input\[type="checkbox"\]:first-child\) \{ list-style: none; \}/);
   assert.match(css, /\.message-content th \{[^}]*word-break: keep-all;/);
   assert.match(css, /\.message-content sup \{ position: relative; top: -0\.5em;[^}]*line-height: 0;/);

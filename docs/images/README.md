@@ -124,8 +124,8 @@ This is not an image file.
 
 Code references:
 
-- `apps/web/components/chat/welcome-screen.tsx`
-- `apps/web/components/chat/welcome-screen.module.css`
+- `apps/web/components/chat/welcome/welcome-screen.tsx`
+- `apps/web/components/chat/welcome/welcome-screen.module.css`
 
 Use:
 

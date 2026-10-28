@@ -148,11 +148,11 @@ web 前端的状态存放方式是：**每个会话一个 Zustand store 实例�
 536 行）。每一处都是一个"针对*非聚焦*会话的事件会被丢弃或错投"的地方。
 
 **哪些已经绕开了。** 分屏窗格完全不走遗留 shell。
-`apps/web/components/chat/peer-session-pane.tsx:1` 解释了原因：遗留的 `#chatView` shell 是
+`apps/web/components/chat/pane/peer-session-pane.tsx:1` 解释了原因：遗留的 `#chatView` shell 是
 单例，键在写死的 DOM id（`#chatArea`、`#chatMessages`）上，被大约十个 runtime-bridge
 模块读取，因此不可能挂载两次。分屏时 AppShell 把它整个隐藏
 （`apps/web/components/app-shell.tsx:552`），每个窗格改为直接从 store 渲染纯 React。窗格
-甚至自己发 `load_session` 请求（`apps/web/components/chat/peer-session-pane.tsx:66`），因为
+甚至自己发 `load_session` 请求（`apps/web/components/chat/pane/peer-session-pane.tsx:66`），因为
 遗留路径里没有任何东西会去加载非聚焦的会话。
 
 **哪些还在用。** 非分屏路径的消息渲染、会话切换、分支徽标刷新，以及大部分 WebSocket
@@ -187,7 +187,7 @@ web 前端的状态存放方式是：**每个会话一个 Zustand store 实例�
 contextPanelFor: string | null;
 ```
 
-消费方随即与自己的会话 id 比较（`apps/web/components/chat/context-badge.tsx:44`）：
+消费方随即与自己的会话 id 比较（`apps/web/components/chat/badges/context-badge.tsx:44`）：
 
 ```ts
 const panelOpen = useSessionStore((s) => s.contextPanelFor != null && s.contextPanelFor === sid);
@@ -341,7 +341,7 @@ React context 提供键，让消费方读 `map[scopeKey]` 而不是读全局。`
   `apps/web/components/chat/messages/runtime-block.tsx`、
   `apps/web/lib/runtime-bridge/functions-panel.ts`。
 - `welcomeVisible`、`transcriptLoadingId` 是每会话布尔值，消费方为
-  `apps/web/components/chat/welcome-screen.tsx` 和
+  `apps/web/components/chat/welcome/welcome-screen.tsx` 和
   `apps/web/components/chat/messages/message-list.tsx`。
 - `composerFocusTick` 是每会话计数器，这样聚焦一个窗格的输入框不会把另一个拽走。
 - `branchInfo`、`statusBadge`、`paused`、`providerInfo` 按会话分。它们喂给顶栏，而顶栏

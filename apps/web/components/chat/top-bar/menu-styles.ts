@@ -33,7 +33,7 @@
  *  A lit row (hover, keyboard highlight, open submenu, active) lights
  *    its parts with it: the muted icon, key badge and chevron turn
  *    bright and the icon pops to 1.12 like the composer's icons
- *    (`.menu-row` rules in app/styles/chat/top-bar-chips.css).
+ *    (`.menu-row` rules in app/styles/chat/composer/top-bar-chips.css).
  *
  *  The radix PopoverContent wrapper MUST be transparent
  *  (`border-0 bg-transparent p-0 shadow-none`) — the frame is always
@@ -67,7 +67,7 @@ export const SHORTCUT = "shrink-0 text-xs tracking-widest text-text-muted";
  *  system shortcut (⌘T / Ctrl+T). The tag is a fixed 10px tip — the
  *  right end of Solar's tag-horizontal outline, mirrored — joined to the
  *  shadcn Kbd as its plate. Both paint --menu-key-bg (set with the lit
- *  state in app/styles/chat/top-bar-chips.css), so one variable colours
+ *  state in app/styles/chat/composer/top-bar-chips.css), so one variable colours
  *  the whole tag. */
 export const MENU_KEY =
   "menu-row-key inline-flex h-[18px] shrink-0 items-center";
@@ -96,7 +96,7 @@ export const ITEM_DESC =
 
 /** Inline metadata tag after a row's title ("Recommended", a channel
  *  account alias, git's "current" / "worktree") — the `.menu-tag` class
- *  in app/styles/chat/top-bar-chips.css: Claude's xxs neutral badge,
+ *  in app/styles/chat/composer/top-bar-chips.css: Claude's xxs neutral badge,
  *  16px tall, 0 4px padding, 4px radius, 10px/500 secondary text on a
  *  5% foreground mix. One tag for every menu. */
 export const MENU_TAG = "menu-tag";

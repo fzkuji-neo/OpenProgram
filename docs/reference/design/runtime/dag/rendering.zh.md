@@ -26,7 +26,7 @@
 | 部件 | 位置 |
 |---|---|
 | 视角状态 | `CenterTab.dagView`（`apps/web/lib/tabs/center-tabs-store.ts`）——不持久化，刷新后回到会话记录 |
-| 控件 | `apps/web/components/chat/view-controls.tsx` |
+| 控件 | `apps/web/components/chat/pane/view-controls.tsx` |
 | 图的宿主 | `apps/web/components/chat/dag/dag-view.tsx`——渲染 `#historyPanel` + `.history-body`，即 `apps/web/lib/runtime-bridge/dag/pipeline.ts` 与 `apps/web/lib/runtime-bridge/dag/render/visibility.ts` 选取的元素 |
 | 视角切换 | `apps/web/app/styles/dag/view-host.css` 的 `.center-pane-chat[data-center-view]` |
 
@@ -829,7 +829,7 @@ checkout 成活动分支——接管这个 agent 的对话。徽章永不压住�
 | 场景 8/10 attach 指针 | 后端 display=runtime 过滤 + `graph_builder` 把 ref 戳到嵌入位置（`attach_returns`），`edges.ts` 画回流长虚线 |
 | 第四节 跨会话 ↗ | `graph_builder` 根据目标根 provenance 打 `spawn_remote`，根据源 attach 的目标 session 打 `spawn_out`；`nodes.ts` 在两侧画 ↗。跨会话徽标点击跳转尚未实现 |
 | 第一节 spawn 根 tier | `graph_layout`：tier=1 / depth 同行 / lane 开新分支；`task_followup` 无 attach 时挂回接收轮（`filter.py` 兜底） |
-| 两个视角共用输入框 | `apps/web/app/styles/chat/center-pane.css` 隐藏 `#chatArea` 而非 `#chatView`；由 `apps/web/scripts/tabs/check-center-tabs.mjs` 断言 |
+| 两个视角共用输入框 | `apps/web/app/styles/chat/pane/center-pane.css` 隐藏 `#chatArea` 而非 `#chatView`；由 `apps/web/scripts/tabs/check-center-tabs.mjs` 断言 |
 | 图内分支标签（checkout 按钮） | `apps/web/lib/runtime-bridge/dag/render/labels/badges.ts`；hover 样式在 `apps/web/app/styles/dag/graph/badges.css` 的 `.history-branch-tag` |
 | 第八节 覆盖查询 | `routes/tree.py::_coverage_nodes` 填 `/context-range` 的 `nodes`；测试见 `tests/unit/context/test_context_range_coverage.py` |
 | 第八节 aged / spilled 绘制 | `apps/web/lib/runtime-bridge/dag/render/nodes.ts`（淡一档的色块 + `▤`），数据来自 `apps/web/lib/runtime-bridge/dag/store/globals.ts` 的 `_coverageSet` |

@@ -15,7 +15,7 @@ def test_verifier_summary_streaming_and_history(tmp_path):
 import React from 'react';import {createRoot} from 'react-dom/client';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
 import {AssistantMessage} from './components/chat/messages/message-list';
-import {GoalDetails} from './components/chat/goal-chip';
+import {GoalDetails} from './components/chat/badges/goal-chip';
 import {useSessionStore} from './lib/session-store';
 import {convToChatMsgs} from './lib/chat/conv-mapper';
 import {DetailPanel} from './components/right-sidebar/detail-panel';

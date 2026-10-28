@@ -221,8 +221,8 @@ tool 保护(OpenCode)。
 ### 占用统计：一个数，两个读者
 
 报告窗口占用的有两处——composer 里的进度圆环
-（`apps/web/components/chat/context-badge.tsx`）和点开它弹出的 `/context` 分解面板
-（`apps/web/components/chat/context-breakdown-panel.tsx`）。两者渲染的是服务端算好的
+（`apps/web/components/chat/badges/context-badge.tsx`）和点开它弹出的 `/context` 分解面板
+（`apps/web/components/chat/badges/context-breakdown-panel.tsx`）。两者渲染的是服务端算好的
 同一份记录，因此任何时刻都一致：
 
 ```python

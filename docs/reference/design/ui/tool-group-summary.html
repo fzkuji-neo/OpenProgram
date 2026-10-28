@@ -33,7 +33,7 @@ td code{white-space:nowrap}
 .case{font-size:12px;color:var(--text-muted);margin:12px 0 0;font-weight:500}
 .tag{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted)}
 .tag.after{color:var(--accent-orange)}
-/* The collapsed row, as in app/styles/chat/execution-strip.css */
+/* The collapsed row, as in app/styles/chat/execution/execution-strip.css */
 .tl-toggle{display:inline-flex;align-items:center;gap:8px;height:28px;max-width:100%;min-width:0;
   color:var(--text-muted);font-size:var(--fs-chat);cursor:pointer;user-select:none;border:0;background:none;padding:0;font-family:inherit}
 .tl-toggle:hover{color:var(--text-secondary)}
@@ -167,7 +167,7 @@ td code{white-space:nowrap}
 <li><code>ExecutionStrip</code> takes <code>label: string | ToolGroupSummary</code>. A plain string, as the workflow runtime card and the debugger panel pass, renders as before with no note or badge. The row renders the ellipsis label, the red failure note, the badge (the <code>.turn-files-diff</code> / <code>.turn-files-stat</code> pill of the turn file card), the chevron, and the hover tip.</li>
 <li><code>AssistantBubble</code> passes each segment's blocks with the whole turn's blocks, <code>msg.turnFiles</code>, the running-call ids, and whether the segment is the live tail.</li>
 <li>Legacy records go through the same function. <code>LegacyRuntimeTrace</code> (agent calls stored without ordered blocks) turns each call into a tool block named after its function, so the header reads "Used extract_tables" rather than "Called 1 function", and it now shimmers while a call runs. Legacy sub-agent strips with no tool blocks pass only their spawn labels.</li>
-<li>CSS in <code>app/styles/chat/execution-strip.css</code>: <code>.tl-label</code> ellipsis, <code>.tl-fail</code>, and <code>flex:none</code> on <code>.tl-diff</code> and <code>.tl-chev</code>.</li>
+<li>CSS in <code>app/styles/chat/execution/execution-strip.css</code>: <code>.tl-label</code> ellipsis, <code>.tl-fail</code>, and <code>flex:none</code> on <code>.tl-diff</code> and <code>.tl-chev</code>.</li>
 <li>Tests: <code>apps/web/tests/chat/tool-group-summary.test.mjs</code> covers grammar per bucket, plurals in both languages, ordering, the running tense, failures, badge sources and unknown counts, apply_patch parsing, and the capped line diff.</li>
 </ul>
 

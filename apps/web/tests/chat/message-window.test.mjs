@@ -26,7 +26,7 @@ const listSrc = readFileSync(new URL("../../components/chat/messages/use-message
   "utf8",
 );
 const peerSrc = readFileSync(
-  new URL("../../components/chat/peer-session-pane.tsx", import.meta.url),
+  new URL("../../components/chat/pane/peer-session-pane.tsx", import.meta.url),
   "utf8",
 );
 const shellSrc = readFileSync(
