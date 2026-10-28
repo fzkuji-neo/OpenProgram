@@ -22,7 +22,6 @@ import { autoRenameSession } from "@/lib/session-auto-rename";
  */
 
 import { useState } from "react";
-import { MoreHorizontal } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -43,10 +42,7 @@ import { MenuRow, type MenuGlyph } from "@/components/ui/menu-parts";
 import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { RenameDialog } from "@/components/chat/rename-dialog";
-import {
-  GitGraphIcon,
-  MessageCircleIcon,
-} from "@/components/animated-icons";
+import { SolarIcon } from "@/components/solar-icons";
 import { useTranslation } from "@/lib/i18n";
 import { useSessionStore } from "@/lib/session-store";
 import type { ConvSummary } from "@/lib/session-store";
@@ -173,7 +169,7 @@ export function ViewControls() {
           aria-pressed={dagView}
           onClick={() => setTabDagView(activeId!, !dagView)}
         >
-          {dagView ? <GitGraphIcon size={16} /> : <MessageCircleIcon size={16} />}
+          <SolarIcon name={dagView ? "git-graph" : "chat-round-line"} size={16} />
         </button>
       </HoverTip>
 
@@ -186,7 +182,7 @@ export function ViewControls() {
                 className="chat-view-control-btn"
                 aria-label={text("Session actions", "会话操作")}
               >
-                <MoreHorizontal size={16} />
+                <SolarIcon name="menu-dots" size={16} />
               </button>
             </DropdownMenuTrigger>
           </HoverTip>

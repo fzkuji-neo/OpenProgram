@@ -2,8 +2,8 @@
 
 /**
  * The canvas's key sheet (dag/rendering.md §13): every key and mouse
- * gesture the graph answers to, in one panel beside the tool rail, the way a game lists
- * its controls. ``?`` or the rail's keyboard button opens it; Esc, ``?``
+ * gesture the graph answers to, in one panel left of the zoom column, the way a game lists
+ * its controls. ``?`` or the column's controls button opens it; Esc, ``?``
  * again or a press outside closes it. The frame and the key tags are the
  * app's menu parts, so it reads as one of its menus.
  */
@@ -54,7 +54,7 @@ export function DagKeySheet() {
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!open) return;
-    // A press outside closes it; the rail's own button toggles it itself.
+    // A press outside closes it; the column's button toggles it itself.
     const onDown = (e: PointerEvent) => {
       const t = e.target as Element;
       if (ref.current?.contains(t) || t.closest?.("[data-key-sheet-toggle]")) return;

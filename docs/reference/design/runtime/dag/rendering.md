@@ -106,18 +106,22 @@ for exactly that (`fitCanvas(opening)` in `apps/web/lib/runtime-bridge/dag/inter
 perspective strip, so every view control is one column in one corner: one
 raised strip holding + · readout · − and, under a hairline, **Show the whole
 graph** (Shift+1, a frame icon rather than the outward arrows that read as
-full screen); a second strip under it turns the legend and the minimap on and
-off. Both open to the column's left from the top, the map above the legend,
-and both stay open until their button is pressed again. The buttons step by exactly one wheel notch (`ZOOM_STEP`), and
+full screen) and **Find the working agent** (F); a second strip under it turns
+the legend and the minimap on and off and, under a hairline, opens the
+controls sheet. All open to the column's left from the top, the map above the
+legend; the legend and the map stay open until their button is pressed again.
+A toggle that is on holds the hover grey, never an accent colour. Every glyph
+in the column and in the pane's perspective strip is Solar Bold Duotone with
+the composer's hover pop (`docs/reference/design/ui/icons.md`). The buttons step by exactly one wheel notch (`ZOOM_STEP`), and
 clicking the readout resets to 100% — both anchored on the pane's centre,
 since a button has no cursor to anchor on. The readout is written
 imperatively by `apps/web/lib/runtime-bridge/dag/interaction/canvas.ts` on
 every view change, because routing a gesture's every wheel event through
 React state would repaint the tree sixty times a second. The controls used to
-sit in the composer's env-chip row and on the left rail as well; one column
+sit in the composer's env-chip row and on a left rail as well; one column
 on one edge replaced both.
 
-The strips are the left rail's material and buttons
+The strips share one material and button style
 (`apps/web/app/styles/dag/tools.css`). The legend panel wears `MENU_PANEL`
 (`components/chat/top-bar/menu-styles`), the one frame every popover menu in
 the app shares; `apps/web/app/styles/dag/legend.css` keeps only the legend's
@@ -943,7 +947,7 @@ switch, exactly as in §9. A spawn head is visible only while every thread
 above it is open; its items likewise — visibility is the whole ancestor
 chain's, not the node's own flag.
 
-## 13. The mouse, the rail, selection and deleting nodes
+## 13. The mouse, the controls sheet, selection and deleting nodes
 
 The canvas has one mouse and no tools to switch between. Splitting browsing,
 box-selecting and lasso-selecting into three tools made every first drag a
@@ -969,19 +973,19 @@ pointer did not move. These are fixed by design, not settings: touching
 selects (no enclose-only mode) (`apps/web/lib/runtime-bridge/dag/interaction/gestures.ts`,
 `interaction/nodes.ts`, `interaction/selection.ts`).
 
-The rail on the canvas's left edge is one raised strip of the app's button
-material (the input box's fill and the composer's shadow, which deepens under
-the pointer as the composer's buttons do; the zoom column, the action bar,
-the minimap and the pane's top-right controls behave the same). Its middle sits
-at 45% of the pane's height, the same height as the transcript's message rail,
-so swapping perspectives leaves the left-edge controls in place. **Find the working
-agent** (F) glides the view to the tile a working
+Every canvas control is one raised strip of the app's button material (the
+input box's fill and the composer's shadow, which deepens under the pointer as
+the composer's buttons do): the zoom column, the action bar, the minimap and
+the pane's top-right controls. There is no left rail. **Find the working
+agent** (F, in the zoom column) glides the view to the tile a working
 agent stands on, keeping the zoom. Pressed again it moves to the next working
 agent, and with none at work it goes to HEAD (`focusAgent` in
 `interaction/canvas.ts`). Zoom and the whole graph are the zoom column on the
-right edge (see "The canvas is infinite"). Under a hairline, the keyboard button opens the **key sheet**: every gesture
-and key the canvas answers to, grouped as mouse, camera and selection, in a
-menu panel beside the rail (`components/chat/dag-key-sheet.tsx`). `?` opens it
+right edge (see "The canvas is infinite"). The column's last button (a notes
+glyph, since half the sheet is mouse gestures, not keys) opens the **controls
+sheet**: every gesture and key the canvas answers to, grouped as mouse, camera
+and selection, in a menu panel left of the column, from the top
+(`components/chat/dag-key-sheet.tsx`). `?` opens it
 too. Esc, `?` again or a press outside closes it. The view keys follow design
 tools: Shift+1 fits the graph, Shift+0 returns to 100%, and + / − step the
 zoom, the same steps as the zoom column's buttons (`interaction/keys.ts`).
@@ -1001,8 +1005,8 @@ Esc reach the selection rather than the draft.
 left reads `N selected | ⌖ · Copy ID · Delete · ✕`, with Delete in the danger
 colour. ⌖ fits the view to the selection, as Shift+2 does in design tools
 (`frameSelection` in `interaction/canvas.ts`). After a delete it reads `Deleted N nodes | Undo` for a few seconds.
-It sits on the rail's left edge rather than at the top right, which belongs to
-the pane's perspective controls. It is the same raised material as the rail.
+It sits at the top left rather than at the top right, which belongs to
+the pane's perspective controls. It is the same raised material as the column.
 
 **Deleting.** Delete or ⌫ deletes the selection at once, with no
 confirmation, and ⌘Z undoes it. The store
@@ -1040,7 +1044,7 @@ both redraw. The undo stack is per session and lasts as long as the page.
 ### The minimap
 
 A long session runs off the screen, so the canvas has a minimap in its
-top-right corner, left of the zoom column, in the rail's raised material. Each node is a
+top-right corner, left of the zoom column, in the column's raised material. Each node is a
 dot of its tone on the graph's own lines (thin, faint, in their branch colours, so the
 trunk and its branches read at a glance), and the part on screen is a frame in the accent colour. A
 press or a drag on the map moves the camera there at the same zoom. The map
@@ -1084,4 +1088,4 @@ The whole spec is implemented. Where each part lives:
 | §11 legend | `DagLegend` in `apps/web/components/chat/dag-view.tsx` (in the zoom column), `.dag-legend` in `apps/web/app/styles/dag/legend.css` |
 | §12 call thread + agent spawn | `apps/web/lib/runtime-bridge/dag/render/shapes.ts` (spawn → square), `apps/web/lib/runtime-bridge/dag/passes/thread.ts` (model), `apps/web/lib/runtime-bridge/dag/layout/geometry.ts` (recursive placement), `apps/web/lib/runtime-bridge/dag/render/edges.ts` (dotted thread line, centre-to-centre chain edges, scene-3 bridge), `apps/web/lib/runtime-bridge/dag/render/nodes.ts` (`data-thread*`, shoulder count), `apps/web/lib/runtime-bridge/dag/interaction/nodes.ts` (`toggleThreadOpen`); executed by `apps/web/scripts/runtime/check-dag-subagent.mjs` |
 | §12 the name on the wire | `task/runner.py::_update_attach_card` stamps `attach.label` from the task; `ws_actions/session.py::_annotate_spawn_origin` carries it to the spawn root as `spawned_from.label`; tested in `tests/unit/test_task_attach_integration.py` |
-| §13 mouse, rail, selection, delete / undo | selection state, hit-testing and the selection box in `apps/web/lib/runtime-bridge/dag/interaction/selection.ts`; drags in `gestures.ts`, clicks in `nodes.ts`, keys in `keys.ts`; widening and the undo stack in `node-delete.ts`; rail and action bar in `apps/web/components/chat/dag-tools.tsx`, key sheet in `dag-key-sheet.tsx`, minimap in `interaction/minimap.ts`, + `apps/web/app/styles/dag/tools.css`; store splice and journal in `openprogram/store/session/session_store/node_deletion.py`; tested in `tests/component/store/test_node_deletion.py` and `apps/web/tests/execution/dag-selection.test.mjs` |
+| §13 mouse, controls sheet, selection, delete / undo | selection state, hit-testing and the selection box in `apps/web/lib/runtime-bridge/dag/interaction/selection.ts`; drags in `gestures.ts`, clicks in `nodes.ts`, keys in `keys.ts`; widening and the undo stack in `node-delete.ts`; action bar in `apps/web/components/chat/dag-tools.tsx`, zoom column in `dag-view.tsx`, controls sheet in `dag-key-sheet.tsx`, minimap in `interaction/minimap.ts`, + `apps/web/app/styles/dag/tools.css`; store splice and journal in `openprogram/store/session/session_store/node_deletion.py`; tested in `tests/component/store/test_node_deletion.py` and `apps/web/tests/execution/dag-selection.test.mjs` |

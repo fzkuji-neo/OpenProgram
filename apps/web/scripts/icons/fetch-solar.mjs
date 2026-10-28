@@ -139,6 +139,12 @@ const ICONS = {
   "square-share-line": "bold-duotone",
   "star": "bold-duotone",
   "palette": "bold-duotone",
+  // DAG canvas controls (dag-view.tsx) and the pane's perspective strip
+  "git-graph": "bold-duotone",
+  "menu-dots": "bold-duotone",
+  "full-screen-square": "bold-duotone",
+  "gps": "bold-duotone",
+  "notes": "bold-duotone",
 };
 
 // A few glyphs come from other Iconify sets where Solar has no good fit;

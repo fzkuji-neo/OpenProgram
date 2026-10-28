@@ -26,24 +26,25 @@ registerHooks({
 const sel = await import("../../lib/runtime-bridge/dag/interaction/selection.ts");
 const { deletionTargets } = await import("../../lib/runtime-bridge/dag/interaction/node-delete.ts");
 
-test("One mouse, no tools: the rail finds the agent and opens the key sheet", () => {
+test("One mouse, no tools, and no left rail", () => {
   assert.equal(sel.dagTools, undefined);
   assert.equal(sel.registerTool, undefined);
-  const rail = readFileSync(new URL("../../components/chat/dag-tools.tsx", import.meta.url), "utf8");
-  assert.doesNotMatch(rail, /Lasso|MousePointer2|setTool/);
-  assert.match(rail, /focusAgent\(\)[\s\S]*setKeySheet/);
-  assert.doesNotMatch(rail, /fitCanvas/);
+  const tools = readFileSync(new URL("../../components/chat/dag-tools.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(tools, /Lasso|MousePointer2|setTool|DagToolRail|focusAgent/);
 });
 
-test("Zoom, the whole graph, the legend and the minimap are one column in the top-right corner", () => {
+test("Every view control is one column of Solar glyphs in the top-right corner", () => {
   const view = readFileSync(new URL("../../components/chat/dag-view.tsx", import.meta.url), "utf8");
   const column = view.slice(view.indexOf("function DagZoomColumn"), view.indexOf("export function DagView"));
-  assert.match(column, /zoomStep\(1\)[\s\S]*dag-zoom-readout[\s\S]*zoomStep\(-1\)[\s\S]*fitCanvas\(\)[\s\S]*<DagLegend \/>[\s\S]*toggleMinimap\(\)/);
+  assert.match(column, /zoomStep\(1\)[\s\S]*dag-zoom-readout[\s\S]*zoomStep\(-1\)[\s\S]*fitCanvas\(\)[\s\S]*focusAgent\(\)[\s\S]*<DagLegend \/>[\s\S]*toggleMinimap\(\)[\s\S]*setKeySheet/);
+  assert.doesNotMatch(view, /lucide-react/);
   // A frame, not the outward arrows that read as full screen.
   assert.doesNotMatch(view, /Maximize2|createPortal|dagHudSlot/);
   const css = readFileSync(new URL("../../app/styles/dag/tools.css", import.meta.url), "utf8");
   assert.match(css, /\.dag-zoom-column \{[^}]*right: 12px;[^}]*top: 86px;/);
   assert.match(css, /\.dag-minimap \{[^}]*right: 56px;[^}]*top: 12px;/);
+  assert.match(css, /\.dag-key-sheet \{[^}]*right: 56px;[^}]*top: 12px;/);
+  assert.doesNotMatch(css, /\.dag-view > \.dag-tool-rail/);
 });
 
 test("A mouse wheel zooms, two fingers pan, a right drag pans, a left drag draws a box", async () => {

@@ -23,16 +23,7 @@
 .dag-minimap:hover { box-shadow: var(--shadow-raised-hover); }
 .dag-select-bar { padding: 3px; border-radius: 10px; }
 
-/* The rail — a vertical strip on the canvas's left edge, its middle at
-   45% of the pane's height: the same height as the transcript's message
-   rail (chat/message-rail.css .msg-rail-anchor), so swapping between
-   the two perspectives leaves the left-edge controls where they were. */
 .dag-tool-rail { flex-direction: column; }
-.dag-view > .dag-tool-rail {
-  left: 12px;
-  top: 45%;
-  transform: translateY(-50%);
-}
 
 /* The zoom column (dag-view.tsx DagZoomColumn): the same strips stacked
    in the canvas's top-right corner, right under the pane's perspective
@@ -76,11 +67,12 @@
   background: var(--bg-hover);
   color: var(--foreground);
 }
-/* A toggle that is on (the key sheet): a flat block of the accent colour. */
+/* A toggle that is on (legend, minimap, controls sheet): the hover
+   block held, in the same greys — no accent colour on the canvas. */
 .dag-tool-btn[aria-pressed="true"],
 .dag-tool-btn[aria-pressed="true"]:hover {
-  background: color-mix(in srgb, var(--accent-primary, #4a7dfc) 16%, transparent);
-  color: var(--accent-primary, #4a7dfc);
+  background: var(--bg-hover);
+  color: var(--foreground);
 }
 .dag-tool-sep {
   height: 1px;
@@ -88,7 +80,7 @@
   background: var(--border-light);
 }
 
-/* The selection action bar — top left, on the rail's left edge. The
+/* The selection action bar — top left. The
    top right is the pane's perspective controls
    (chat/center-pane.css .chat-view-controls). */
 .dag-select-bar {
@@ -158,7 +150,7 @@
   stroke-linejoin: round;
 }
 
-/* The minimap (interaction/minimap.ts): the rail's raised material in
+/* The minimap (interaction/minimap.ts): the column's raised material in
    the top-right corner, left of the right-hand column (12px edge + 36px
    column + 8px gap), its top level with the column's. The column's map
    button and M show and hide it. */
@@ -178,12 +170,14 @@
   pointer-events: none;
 }
 
-/* The key sheet (components/chat/dag-key-sheet.tsx): a menu panel just
-   right of the rail, centred on the same height. */
+/* The controls sheet (components/chat/dag-key-sheet.tsx): a menu panel
+   opening to the zoom column's left from the top, where the minimap and
+   the legend open; a short pane scrolls it. */
 .dag-key-sheet {
   position: absolute;
   z-index: 4;
-  left: 58px;
-  top: 45%;
-  transform: translateY(-50%);
+  right: 56px;
+  top: 12px;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
 }

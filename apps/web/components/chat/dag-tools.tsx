@@ -1,16 +1,14 @@
 "use client";
 
 /**
- * The DAG canvas's rail and selection action bar
+ * The DAG canvas's selection action bar and controls sheet
  * (dag/rendering.md §13).
  *
- * The rail runs down the canvas's left edge as one raised strip, the
- * app's button material. There are no tools to switch: one mouse pans,
- * clicks and (with Shift/⌘) selects, so the rail holds finding the
- * working agent and, under a hairline, the keyboard button that opens
- * the key sheet (dag-key-sheet.tsx). Zoom, the whole graph, the legend
- * and the minimap are the zoom column on the right edge (dag-view.tsx).
- * The action bar appears at the top left while something is selected,
+ * There are no tools to switch: one mouse pans, clicks and (with
+ * Shift/⌘) selects. Every view control — zoom, the whole graph, finding
+ * the working agent, the legend, the minimap and the button that opens
+ * the controls sheet (dag-key-sheet.tsx) — is the column in the top
+ * right (dag-view.tsx). The action bar appears at the top left while something is selected,
  * and for a few seconds after a delete, as the way back. The top right
  * belongs to the pane's perspective controls.
  */
@@ -18,8 +16,6 @@
 import { useSyncExternalStore } from "react";
 import {
   Copy,
-  Keyboard,
-  LocateFixed,
   Scan,
   Trash2,
   Undo2,
@@ -39,49 +35,11 @@ import {
   lastDeletion,
   undoDeletion,
 } from "@/lib/runtime-bridge/dag/interaction/node-delete";
-import { focusAgent, frameSelection } from "@/lib/runtime-bridge/dag/interaction/canvas";
-import { keySheetOpen, setKeySheet } from "@/lib/runtime-bridge/dag/interaction/help";
-import { DagKeySheet, useKeySheetOpen } from "./dag-key-sheet";
+import { frameSelection } from "@/lib/runtime-bridge/dag/interaction/canvas";
+import { DagKeySheet } from "./dag-key-sheet";
 
 function useSelectionVersion(): number {
   return useSyncExternalStore(subscribeSelection, selectionVersion, selectionVersion);
-}
-
-function DagToolRail() {
-  const { text } = useTranslation();
-  const sheetOpen = useKeySheetOpen();
-  return (
-    <div className="dag-tool-rail" role="toolbar" aria-orientation="vertical"
-      aria-label={text("Canvas", "画布")}>
-      <button
-        type="button"
-        className="dag-tool-btn"
-        aria-label={text("Find the working agent", "找到正在工作的 agent")}
-        aria-keyshortcuts="F"
-        data-tip={text("Find the agent\nAgain for the next one", "找到 agent\n再按换下一个")}
-        data-tip-keys="F"
-        data-tip-side="right"
-        onClick={() => focusAgent()}
-      >
-        <LocateFixed size={16} strokeWidth={2} />
-      </button>
-      <span className="dag-tool-sep" aria-hidden="true" />
-      <button
-        type="button"
-        className="dag-tool-btn"
-        data-key-sheet-toggle=""
-        aria-pressed={sheetOpen}
-        aria-label={text("Keyboard shortcuts", "快捷键")}
-        aria-keyshortcuts="?"
-        data-tip={sheetOpen ? undefined : text("Keyboard shortcuts", "快捷键")}
-        data-tip-keys="?"
-        data-tip-side="right"
-        onClick={() => setKeySheet(!keySheetOpen())}
-      >
-        <Keyboard size={16} strokeWidth={2} />
-      </button>
-    </div>
-  );
 }
 
 function DagSelectionBar() {
@@ -148,7 +106,6 @@ function DagSelectionBar() {
 export function DagCanvasTools() {
   return (
     <>
-      <DagToolRail />
       <DagKeySheet />
       <DagSelectionBar />
     </>

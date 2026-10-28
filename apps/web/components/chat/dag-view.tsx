@@ -35,7 +35,6 @@
  */
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { Map as MapIcon, Minus, Plus, Scan, Shapes } from "lucide-react";
 import { SolarIcon } from "@/components/solar-icons";
 import type { SolarIconName } from "@/components/solar-icons/bodies";
 
@@ -43,10 +42,12 @@ import { useTranslation } from "@/lib/i18n";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
 import { useSessionStore } from "@/lib/session-store";
 import { enterExclusiveCoverageMode, renderHistoryGraph } from "@/lib/runtime-bridge/dag";
-import { fitCanvas, resetZoom, zoomStep } from "@/lib/runtime-bridge/dag/interaction/canvas";
+import { fitCanvas, focusAgent, resetZoom, zoomStep } from "@/lib/runtime-bridge/dag/interaction/canvas";
 import { minimapOn, subscribeMinimap, toggleMinimap } from "@/lib/runtime-bridge/dag/interaction/minimap";
 import { MENU_PANEL } from "@/components/chat/top-bar/menu-styles";
 import { DagCanvasTools } from "@/components/chat/dag-tools";
+import { useKeySheetOpen } from "@/components/chat/dag-key-sheet";
+import { keySheetOpen, setKeySheet } from "@/lib/runtime-bridge/dag/interaction/help";
 
 /** A tile swatch: the same `dag-tile t-<tone>` classes the canvas tiles
  *  carry (render/tiles.ts, app/styles/dag/nodes.css), so the key and the
@@ -91,7 +92,7 @@ function DagLegend() {
         data-tip={open ? undefined : text("Legend", "图例")}
         data-tip-side="left"
       >
-        <Shapes size={16} strokeWidth={2} />
+        <SolarIcon name="widget-2" size={16} />
       </button>
       {open && (
         // 面板框架（圆角/描边/底色/阴影/内衬）来自 MENU_PANEL——全应用
@@ -121,15 +122,19 @@ function DagLegend() {
 /** The zoom column in the canvas's top-right corner, right under the
  *  pane's perspective strip (dag/rendering.md §13): one raised strip
  *  holding zoom in, the readout (click: back to 100%), zoom out and,
- *  under a hairline, show the whole graph; a second strip under it
- *  turns the legend and the minimap on and off. Both open to the
- *  column's left from the top, the map above the legend. The readout is written by
+ *  under a hairline, show the whole graph and find the working agent;
+ *  a second strip under it turns the legend and the minimap on and off
+ *  and, under a hairline, opens the controls sheet (dag-key-sheet.tsx).
+ *  All open to the column's left from the top, the map above the
+ *  legend. Every glyph is Solar Bold Duotone with its hover pop, like
+ *  the composer's buttons. The readout is written by
  *  `dag/interaction/canvas.ts` on every view change — it is the
  *  camera's number, and routing it through React state would repaint
  *  the tree on every wheel event of a gesture. */
 function DagZoomColumn() {
   const { text } = useTranslation();
   const mapOn = useSyncExternalStore(subscribeMinimap, minimapOn, minimapOn);
+  const sheetOpen = useKeySheetOpen();
   return (
     <div className="dag-zoom-column">
       <div className="dag-tool-rail" role="toolbar" aria-orientation="vertical"
@@ -137,7 +142,7 @@ function DagZoomColumn() {
         <button type="button" className="dag-tool-btn" onClick={() => zoomStep(1)}
           aria-label={text("Zoom in", "放大")} aria-keyshortcuts="+"
           data-tip={text("Zoom in", "放大")} data-tip-keys="+" data-tip-side="left">
-          <Plus size={16} strokeWidth={2} />
+          <SolarIcon name="magnifer-zoom-in" size={16} />
         </button>
         <button type="button" className="dag-tool-btn dag-zoom-readout" onClick={() => resetZoom()}
           aria-keyshortcuts="Shift+0"
@@ -147,13 +152,19 @@ function DagZoomColumn() {
         <button type="button" className="dag-tool-btn" onClick={() => zoomStep(-1)}
           aria-label={text("Zoom out", "缩小")} aria-keyshortcuts="-"
           data-tip={text("Zoom out", "缩小")} data-tip-keys="−" data-tip-side="left">
-          <Minus size={16} strokeWidth={2} />
+          <SolarIcon name="magnifer-zoom-out" size={16} />
         </button>
         <span className="dag-tool-sep" aria-hidden="true" />
         <button type="button" className="dag-tool-btn" onClick={() => fitCanvas()}
           aria-label={text("Show the whole graph", "显示整张图")} aria-keyshortcuts="Shift+1"
           data-tip={text("Show the whole graph", "显示整张图")} data-tip-keys="⇧ 1" data-tip-side="left">
-          <Scan size={16} strokeWidth={2} />
+          <SolarIcon name="full-screen-square" size={16} />
+        </button>
+        <button type="button" className="dag-tool-btn" onClick={() => focusAgent()}
+          aria-label={text("Find the working agent", "找到正在工作的 agent")} aria-keyshortcuts="F"
+          data-tip={text("Find the agent\nAgain for the next one", "找到 agent\n再按换下一个")}
+          data-tip-keys="F" data-tip-side="left">
+          <SolarIcon name="gps" size={16} />
         </button>
       </div>
       <div className="dag-tool-rail" role="toolbar" aria-orientation="vertical"
@@ -164,7 +175,15 @@ function DagZoomColumn() {
           data-tip={mapOn ? text("Hide the minimap", "隐藏小地图") : text("Show the minimap", "显示小地图")}
           data-tip-keys="M"
           data-tip-side="left">
-          <MapIcon size={16} strokeWidth={2} />
+          <SolarIcon name="map" size={16} />
+        </button>
+        <span className="dag-tool-sep" aria-hidden="true" />
+        <button type="button" className="dag-tool-btn" data-key-sheet-toggle=""
+          onClick={() => setKeySheet(!keySheetOpen())}
+          aria-pressed={sheetOpen} aria-label={text("Controls", "操作说明")} aria-keyshortcuts="?"
+          data-tip={sheetOpen ? undefined : text("Controls", "操作说明")} data-tip-keys="?"
+          data-tip-side="left">
+          <SolarIcon name="notes" size={16} />
         </button>
       </div>
     </div>

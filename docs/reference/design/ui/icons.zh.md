@@ -4,8 +4,8 @@ Web 端用三族图标。每一族有自己的地盘，一个界面里不会无�
 
 | 族 | 地盘 | 包 / 来源 | 许可 |
 |---|---|---|---|
-| **Solar**（Bold Duotone） | 输入框区域：环境条 chip、控制行及其 + 菜单、模型 / 权限徽章、思考力度 pill、提问 / 审批面板、发送箭头；以及聊天执行时间线每一行左侧的图标方块 | `apps/web/components/solar-icons`——图标主体由 `apps/web/scripts/icons/fetch-solar.mjs` 从 Iconify 的 `solar` 集合取回，落在 `bodies.ts` | CC BY 4.0，Solar Icons by 480 Design |
-| **pqoqubbw 动效线性图标** | 输入框以外的外壳：左侧 rail、中央标签页、侧栏、设置导航、功能卡片、DAG 视图 | `apps/web/components/animated-icons` | MIT |
+| **Solar**（Bold Duotone） | 输入框区域：环境条 chip、控制行及其 + 菜单、模型 / 权限徽章、思考力度 pill、提问 / 审批面板、发送箭头；以及聊天执行时间线每一行左侧的图标方块；还有 DAG 画布的看图控件和窗格右上角那一条（视图切换、会话操作） | `apps/web/components/solar-icons`——图标主体由 `apps/web/scripts/icons/fetch-solar.mjs` 从 Iconify 的 `solar` 集合取回，落在 `bodies.ts` | CC BY 4.0，Solar Icons by 480 Design |
+| **pqoqubbw 动效线性图标** | 输入框以外的外壳：左侧 rail、中央标签页、侧栏、设置导航、功能卡片 | `apps/web/components/animated-icons` | MIT |
 | **lucide-react** | 其余不需要动效的地方：设置正文、对话框、时间线行尾的展开箭头 | `lucide-react` | ISC |
 
 供应商 logo 来自 LobeHub（`components/settings/lobe-icons.ts`），头像来自 DiceBear identicon，二者不在本约定之内。

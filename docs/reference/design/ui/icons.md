@@ -5,8 +5,8 @@ screen never mixes a filled glyph next to a line glyph by accident.
 
 | Family | Territory | Package / source | License |
 |---|---|---|---|
-| **Solar** (Bold Duotone) | The composer area: environment-row chips, the control row and its plus menu, model / permission badges, the effort pill, the question / approval panel, the send arrow. Also the tiles of the chat execution timeline rows | `apps/web/components/solar-icons` — bodies vendored from the Iconify `solar` set into `bodies.ts` by `apps/web/scripts/icons/fetch-solar.mjs` | CC BY 4.0, Solar Icons by 480 Design |
-| **pqoqubbw animated line icons** | App chrome outside the composer: left rail, center tabs, sidebar, settings nav, function cards, DAG view | `apps/web/components/animated-icons` | MIT |
+| **Solar** (Bold Duotone) | The composer area: environment-row chips, the control row and its plus menu, model / permission badges, the effort pill, the question / approval panel, the send arrow. Also the tiles of the chat execution timeline rows, and the DAG canvas's view controls and the pane's perspective strip (view toggle, session actions) | `apps/web/components/solar-icons` — bodies vendored from the Iconify `solar` set into `bodies.ts` by `apps/web/scripts/icons/fetch-solar.mjs` | CC BY 4.0, Solar Icons by 480 Design |
+| **pqoqubbw animated line icons** | App chrome outside the composer: left rail, center tabs, sidebar, settings nav, function cards | `apps/web/components/animated-icons` | MIT |
 | **lucide-react** | Everything else that needs no motion: settings bodies, dialogs, the timeline's disclosure chevron | `lucide-react` | ISC |
 
 Provider logos come from LobeHub (`components/settings/lobe-icons.ts`) and
