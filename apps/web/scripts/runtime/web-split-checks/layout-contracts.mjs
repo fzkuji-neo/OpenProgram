@@ -6,7 +6,7 @@ export async function run(testContext) {
 (testContext.tabStripSource = testContext.readCenterTabStripSource());
 
 (testContext.tabsCssSource = await testContext.readFile(
-  new URL("../../components/center-tabs/center-tabs.module.css", testContext.sourceUrl),
+  new URL("../../components/center-tabs/strip/center-tabs.module.css", testContext.sourceUrl),
   "utf8",
 ));
 
@@ -273,7 +273,7 @@ testContext.assert.doesNotMatch(testContext.splitMeasureSource, /setInterval/);
 // Canvas dividers: one accessible separator per split boundary, oriented by
 // the split direction, pointer-draggable and nudged 2% by the arrow keys.
 (testContext.canvasControlsSource = await testContext.readFile(
-  new URL("../../components/center-tabs/canvas-controls.tsx", testContext.sourceUrl),
+  new URL("../../components/center-tabs/canvas/canvas-controls.tsx", testContext.sourceUrl),
   "utf8",
 ));
 

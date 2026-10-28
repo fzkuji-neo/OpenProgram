@@ -8,8 +8,8 @@ import { FileText, MessageCirclePlus, TerminalSquare } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { newSession } from "@/lib/runtime-bridge/conversations";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
-import styles from "./center-tabs.module.css";
-import { BrowserGlyph } from "./browser-glyph";
+import styles from "../strip/center-tabs.module.css";
+import { BrowserGlyph } from "../browser/toolbar/browser-glyph";
 import { ApplicationGlyph } from "@/components/applications/application-glyph";
 
 export function NewTabPage() {

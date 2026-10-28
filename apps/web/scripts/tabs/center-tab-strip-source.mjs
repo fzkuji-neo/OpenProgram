@@ -14,14 +14,14 @@ import { readFileSync } from "node:fs";
  * TabItem) keep their relative order under this concatenation.
  */
 const STRIP_PARTS = [
-  "center-tab-strip.tsx",
-  "tab-drag-subject.ts",
-  "use-tab-pointer-drag.ts",
-  "use-tab-drop-actions.ts",
-  "use-tab-menu.ts",
-  "tab-context-menu.tsx",
-  "use-tab-lifecycle.ts",
-  "tab-items.tsx",
+  "strip/center-tab-strip.tsx",
+  "tab-actions/tab-drag-subject.ts",
+  "tab-actions/use-tab-pointer-drag.ts",
+  "tab-actions/use-tab-drop-actions.ts",
+  "tab-actions/use-tab-menu.ts",
+  "tab-actions/tab-context-menu.tsx",
+  "tab-actions/use-tab-lifecycle.ts",
+  "strip/tab-items.tsx",
 ];
 
 export function readCenterTabStripSource() {

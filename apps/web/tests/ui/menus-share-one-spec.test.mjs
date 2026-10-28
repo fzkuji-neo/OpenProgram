@@ -29,7 +29,7 @@ test("right-click menus are the Nova ContextMenu on the shared recipes", () => {
   assert.match(kit, /radix-nova/);
   assert.match(kit, /cn\(MENU_PANEL, MENU_MOTION/);
   assert.match(kit, /itemCls\(false, variant === "destructive"\),\n\s+MENU_ITEM_STATES/);
-  for (const user of ["components/functions/ctx-menu.tsx", "components/center-tabs/terminal-context-menu.tsx"]) {
+  for (const user of ["components/functions/ctx-menu.tsx", "components/center-tabs/pages/terminal-context-menu.tsx"]) {
     assert.match(read(user), /from "@\/components\/ui\/context-menu"/, user);
   }
 });
@@ -37,7 +37,7 @@ test("right-click menus are the Nova ContextMenu on the shared recipes", () => {
 test("footer and tab menus use the shared classes, not their own copies", () => {
   for (const [tsx, css] of [
     ["components/user-menu-footer.tsx", "components/user-menu-footer.module.css"],
-    ["components/center-tabs/tab-context-menu.tsx", "components/center-tabs/center-tabs.module.css"],
+    ["components/center-tabs/tab-actions/tab-context-menu.tsx", "components/center-tabs/strip/center-tabs.module.css"],
   ]) {
     const source = read(tsx);
     assert.match(source, /MENU_PANEL/, tsx);

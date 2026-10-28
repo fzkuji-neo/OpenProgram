@@ -1,6 +1,6 @@
 import React from 'react';
 import {createRoot} from 'react-dom/client';
-import {PersistentFilePanes} from '../components/center-tabs/persistent-file-panes';
+import {PersistentFilePanes} from '../components/center-tabs/files/persistent-file-panes';
 import {useCenterTabs} from '../lib/tabs/center-tabs-store';
 localStorage.setItem('agentic_locale','en');
 const chats=[{id:'s:a',kind:'session' as const,sessionId:'a',title:'A'},{id:'s:b',kind:'session' as const,sessionId:'b',title:'B'}];

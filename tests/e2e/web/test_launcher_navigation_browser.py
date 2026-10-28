@@ -21,8 +21,8 @@ const {buildSync}=require("esbuild");
 buildSync({stdin:{contents:`
 import React from "react";
 import {createRoot} from "react-dom/client";
-import {NewTabPage} from "./components/center-tabs/new-tab-page";
-import {PageNavigation} from "./components/center-tabs/page-navigation";
+import {NewTabPage} from "./components/center-tabs/pages/new-tab-page";
+import {PageNavigation} from "./components/center-tabs/browser/toolbar/page-navigation";
 import {useCenterTabs} from "./lib/tabs/center-tabs-store";
 import {setNavigate} from "./lib/navigate";
 setNavigate(path=>window.history.pushState(null,"",path));

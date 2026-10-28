@@ -81,6 +81,6 @@ assert.match(main, /registerNativeTitleBarIpc\(\{ ipcMain, BrowserWindow,/);
 for (const event of ["did-finish-load", "leave-full-screen"]) {
   assert.ok(main.includes(`on("${event}", () => {\n    applyNativeTitleBarChrome(win, process.platform, currentChrome);`));
 }
-const css = fs.readFileSync(require.resolve("../../web/components/center-tabs/center-tabs.module.css"), "utf8");
+const css = fs.readFileSync(require.resolve("../../web/components/center-tabs/strip/center-tabs.module.css"), "utf8");
 assert.match(css, /\.strip\s*\{[^}]*height: 40px;/);
 console.log("macOS native window chrome: geometry, preload resize, sender ownership and lifecycle checks passed");

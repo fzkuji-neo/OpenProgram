@@ -19,14 +19,14 @@ testContext.assert.match(
 
 testContext.assert.match(
   await testContext.readFile(
-    new URL("../../components/center-tabs/browser-controls.tsx", testContext.sourceUrl),
+    new URL("../../components/center-tabs/browser/toolbar/browser-controls.tsx", testContext.sourceUrl),
     "utf8",
   ),
   /case "collapse-to-pip":/,
 );
 
 (testContext.pipCss = await testContext.readFile(
-  new URL("../../components/center-tabs/center-tabs.module.css", testContext.sourceUrl),
+  new URL("../../components/center-tabs/strip/center-tabs.module.css", testContext.sourceUrl),
   "utf8",
 ));
 

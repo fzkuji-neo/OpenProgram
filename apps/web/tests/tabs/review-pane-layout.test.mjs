@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { canPreview, hunkRange, lineCommentText, reviewHunks, reviewRows } from "../../components/center-tabs/review-diff-rows.ts";
+import { canPreview, hunkRange, lineCommentText, reviewHunks, reviewRows } from "../../components/center-tabs/review/review-diff-rows.ts";
 
 const newFile = [
   "--- a/A4_Promo/note.md",
@@ -49,7 +49,7 @@ test("Documents and images offer a rendered preview; deleted files do not", () =
 });
 
 test("Narrow panes fold the file list into the header switcher", () => {
-  const css = readFileSync(new URL("../../components/center-tabs/review-tab-pane.module.css", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../../components/center-tabs/review/review-tab-pane.module.css", import.meta.url), "utf8");
   assert.match(css, /\.page\{container:review\/inline-size/);
   assert.match(css, /\.files\{display:none/);
   assert.match(css, /@container review \(min-width: 900px\)\{[^}]*\.body\{grid-template-columns:260px minmax\(0,1fr\)\}\s*\.files\{display:block\}\s*\.switcher\{display:none\}/);
@@ -67,13 +67,13 @@ test("Pages in the centre card take the chat's warm white in beige-light", () =>
 });
 
 test("Review asks again when the socket reconnects and shows load states in narrow panes", () => {
-  const pane = readFileSync(new URL("../../components/center-tabs/review-tab-pane.tsx", import.meta.url), "utf8");
+  const pane = readFileSync(new URL("../../components/center-tabs/review/review-tab-pane.tsx", import.meta.url), "utf8");
   assert.match(pane, /addEventListener\("op:browser-connection", reconnect\)/);
   assert.match(pane, /\{!selected \? \([\s\S]*?scopeState\.loading[\s\S]*?scopeState\.error/);
 });
 
 test("a Review pane mounting again shows what it last loaded and refreshes quietly", async () => {
-  const pane = readFileSync(new URL("../../components/center-tabs/review-tab-pane.tsx", import.meta.url), "utf8");
+  const pane = readFileSync(new URL("../../components/center-tabs/review/review-tab-pane.tsx", import.meta.url), "utf8");
   assert.match(pane, /const \[memory\] = useState\(\(\) => remembered\.get\(memoryKey\)\);/);
   assert.match(pane, /useState<ScopeState>\(\(\) => memory\?\.scopeState \?\? \{/, "it starts from the remembered files");
   assert.match(pane, /if \(quiet\.current\.scope\) quiet\.current\.scope = false;\n    else setScopeState/, "the first reload keeps them on screen");

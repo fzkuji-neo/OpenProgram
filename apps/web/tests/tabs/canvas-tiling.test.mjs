@@ -99,11 +99,11 @@ test('the window overview takes drags while open; its cards keep their splits', 
   assert.doesNotMatch(drag, /canvasDropAt|PANE_SIDE|canvasEdgeBand/, 'the in-canvas drop zones are gone');
   assert.match(drag, /if \(useCanvasOverview\.getState\(\)\.mode === "drag" && !overviewHeld\(\)\) closeOverview\(\);/, 'every drag end closes it unless a merge is landing');
   assert.match(drag, /event\.preventDefault\(\);\s*const grip = event\.currentTarget/, 'a pane drag does not select text');
-  const tab = await read('components/center-tabs/use-tab-pointer-drag.ts');
+  const tab = await read('components/center-tabs/tab-actions/use-tab-pointer-drag.ts');
   assert.doesNotMatch(tab, /wantsOverview/, 'a tab leaving the strip no longer opens the overview');
   assert.match(tab, /if \(inOverview && pointerDragRef\.current === drag && overviewOpen\(\)\) openOverview\("drag", drag\.subject\.tabIds\);/, 'an overview already open takes the drag');
   assert.match(tab, /const canvasDrop = resourceTarget \? null : overviewDropAt\(e\.clientX, e\.clientY\) \?\? liveCanvasDropAt\(e\.clientX, e\.clientY, prepared\.subject\.tabIds\);/);
-  const view = await read('components/center-tabs/canvas-overview.tsx');
+  const view = await read('components/center-tabs/canvas/canvas-overview.tsx');
   assert.match(view, /for \(const p of leaves\(root\)\) if \(p\.content && leaving\.has\(p\.content\)\) root = removePane\(root, p\.id\);/, 'the dragged tab leaves its card');
   assert.match(view, /const geometry = canvasGeometry\(card\.root, viewport\);/, 'a split window stays split in its card');
   assert.match(view, /data-native-view-occluder="true"/, 'native web views hide under it');
@@ -115,9 +115,9 @@ test('the window overview takes drags while open; its cards keep their splits', 
   const webViews = await read('../desktop/main/web-views.js');
   assert.match(webViews, /setVisualZoomLevelLimits\?\.\(1, 3\)/, 'a pinch out magnifies a web page');
   assert.doesNotMatch(view, /\stitle=\{/, 'no native tooltips');
-  const strip = await read('components/center-tabs/center-tab-strip.tsx');
+  const strip = await read('components/center-tabs/strip/center-tab-strip.tsx');
   assert.match(strip, /className=\{styles\.overviewBtn\}\s*data-overview-toggle=""\s*aria-label=\{text\("Show all windows", "显示所有窗口"\)\}/, 'the strip button opens it, labelled without a native tooltip');
-  const lifecycle = await read('components/center-tabs/use-tab-lifecycle.ts');
+  const lifecycle = await read('components/center-tabs/tab-actions/use-tab-lifecycle.ts');
   assert.match(lifecycle, /window\.addEventListener\("op-activate-center-tab", onActivateTab\)/, 'a card click activates like a tab click');
   assert.match(lifecycle, /void captureVisiblePanes\(\)\.then\(\(\) => openOverview\("browse"\)\)/, 'the panes are pictured before the overview covers them');
   assert.match(drag, /void captureVisiblePanes\(\[tabId\]\)\.then\(\(\) => \{ if \(!finished\) openOverview\("drag", \[tabId\]\); \}\);/);
@@ -132,7 +132,7 @@ test('the window overview takes drags while open; its cards keep their splits', 
   assert.match(view, /borderRadius: split \? 0 : radius \* k \}/, 'a lone window keeps the center card corners, scaled');
   assert.match(shots, /indexedDB\.open\(DB, 1\)/, 'pictures survive a restart');
   assert.match(shots, /root\.setAttribute\("data-capturing-panes", ""\)/, 'the pane grips stay out of the pictures');
-  const overviewCss = await read('components/center-tabs/canvas-overview.module.css');
+  const overviewCss = await read('components/center-tabs/canvas/canvas-overview.module.css');
   assert.doesNotMatch(overviewCss, /\.card\[data-current\] \.mini/, 'nothing marks the current window: it zooms into its card');
   assert.match(view, /import \{ motion, type Transition \} from "framer-motion";/, 'the zoom is framer-motion layout animation, not hand-written transforms');
   assert.doesNotMatch(view, /mini\.animate\(|function lay\(/, 'no hand-written zoom transforms remain');
@@ -151,7 +151,7 @@ test('the window overview takes drags while open; its cards keep their splits', 
 test('a merge drop zooms the window out of its card, then both sides of the split move together', async () => {
   const overview = await read('lib/tabs/canvas-overview.ts');
   assert.match(overview, /if \(drop\.action === "fill"\) \{ useCanvasOverview\.setState\(\{ mode: "browse", hover: null, label: "" \}\); return; \}\n  if \(drop\.action !== "dock"\) return;/, 'a drop on empty space browses on; only a merge lands');
-  const strip = await read('components/center-tabs/use-tab-pointer-drag.ts');
+  const strip = await read('components/center-tabs/tab-actions/use-tab-pointer-drag.ts');
   assert.ok(strip.indexOf('holdOverviewLanding(canvasDrop, prepared.subject.tabIds)') < strip.indexOf('const committed = dragCoordinator.commit();'), 'the strip holds it before the drag state clears');
   assert.match(overview, /if \(landingFrom\) useCanvasOverview\.setState\(\{ hover: null, landing: drop\.targetId, landed: false \}\);/, 'the landing starts at the release, before the merge commits');
   assert.match(overview, /landingFrom\.apply = apply;\n  useCanvasOverview\.setState\(\{ landed: true \}\);/, 'a ready merge is held, not committed');
@@ -160,13 +160,13 @@ test('a merge drop zooms the window out of its card, then both sides of the spli
   assert.match(drag, /if \(!landOverview\(dock\)\) dock\(\);/, 'a drop outside a landing commits at once');
   assert.match(drag, /cleanup\(target\?\.drop\);/, 'a pane drop holds it too');
   assert.match(drag, /if \(drop\) holdOverviewLanding\(drop, \[tabId\]\);/);
-  const view = await read('components/center-tabs/canvas-overview.tsx');
+  const view = await read('components/center-tabs/canvas/canvas-overview.tsx');
   assert.doesNotMatch(view, /dockLayout/, 'the card shows the window as it is, not a merge drawn ahead');
   assert.match(view, /growFrom\.current = mini\.getBoundingClientRect\(\);\s*if \(!zoomAt\(card\.key, "closing"\)\) \{ closeOverview\(\); return; \}/, 'and zooms straight away');
   assert.match(view, /window\.dispatchEvent\(new CustomEvent\("op-activate-center-tab", \{ detail: \{ tabId: card\.activateId \} \}\)\);\n  \}, \[landing\]\);/, 'with the window coming up underneath, so its panes are loaded when they make room');
   assert.match(view, /const k = from\.width \/ to\.width;[\s\S]*?scale\(\$\{k\}\)/, 'with one uniform scale');
   assert.match(view, /if \(!growing \|\| !landed\) return;[\s\S]*?rects\.set\(pane\.dataset\.overviewPane!, new DOMRect\(frame\.left \+ \(r\.left - box\.left\) \/ s,[\s\S]*?const startTime = grow\.current\?\.startTime;\n      captureCanvasLanding\(rects, Object\.fromEntries\(held\.sourceIds\.map\(id => \[id, side\]\)\), \{ from: growFrom\.current, startTime: typeof startTime === "number" \? startTime : null, duration: ZOOM_MS, easing: ZOOM_EASING \}\);\n    \}[\s\S]*?closeOverview\(\);/, 'once the merge is ready the live canvas takes the zoom over mid-way, panes starting where the card has them');
-  const css = await read('components/center-tabs/canvas-overview.module.css');
+  const css = await read('components/center-tabs/canvas/canvas-overview.module.css');
   assert.match(css, /\.overview\[data-landing\] \.card:not\(\[data-zooming\]\),\n\.overview\[data-landing\] \.hint \{\n  transition-duration: 80ms;/, 'the other cards are gone before the hand-over');
   const transition = await read('lib/tabs/canvas-transition.ts');
   assert.match(transition, /if \(!from && side\) \{ entries\.push\(\{ el, side \}\);/, 'the docked tab comes in from its side');
@@ -182,7 +182,7 @@ test('a merge drop zooms the window out of its card, then both sides of the spli
 });
 
 test('the pane menu offers Move and resize, Arrange and the ⌃⌥ shortcuts', async () => {
-  const controls = await read('components/center-tabs/canvas-controls.tsx');
+  const controls = await read('components/center-tabs/canvas/canvas-controls.tsx');
   for (const id of ['left', 'right', 'top', 'bottom', 'fill', 'top-left', 'top-right', 'bottom-left', 'bottom-right']) {
     assert.match(controls, new RegExp(`\\{ id: "${id}", en:`));
   }
@@ -194,7 +194,7 @@ test('the pane menu offers Move and resize, Arrange and the ⌃⌥ shortcuts', a
   assert.match(controls, /centerCanvasPresets/, 'saved layouts are kept');
   assert.doesNotMatch(controls, /\stitle=\{/, 'no native tooltips on canvas controls');
   assert.match(controls, /<span className=\{styles\.sheet\} aria-hidden="true" \/>/, 'the grip has a sheet that drops in under the pointer');
-  const gripCss = await read('components/center-tabs/canvas-controls.module.css');
+  const gripCss = await read('components/center-tabs/canvas/canvas-controls.module.css');
   assert.match(gripCss, /\.light \{\n  --light: var\(--text-muted\);[\s\S]*?width: 4px;\n  height: 4px;/, 'at rest the window buttons are the three grey dots of the grip');
   assert.match(gripCss, /\.handle\[data-open\] \.light,\n\.handle\[data-folding\] \.light \{\n  width: 12px;\n  height: 12px;\n  opacity: 1;\n  background: var\(--light\);/, 'under the pointer the dots grow into the coloured buttons');
   assert.match(gripCss, /\.sheet \{[\s\S]*?transform-origin: 50% 0;\n  transform: scale\(\.5, 0\);/, 'the grey sheet drops from the top edge');
@@ -207,15 +207,15 @@ test('drags cannot hang: missed releases, errors and drag regions all end them',
   assert.match(drag, /window\.addEventListener\("pointerdown", \(\) => owner\?\.cancel\(\), true\)/);
   assert.match(drag, /function resolveDrop[\s\S]*?catch \(error\)[\s\S]*?return \{ resource: null, drop: null, strip: null \}/, 'a failed drop lookup cannot skip cleanup');
   assert.doesNotMatch(drag, /style\.visibility/, 'the grip is hidden by a pane attribute, never inline style');
-  const strip = await read('components/center-tabs/use-tab-pointer-drag.ts');
+  const strip = await read('components/center-tabs/tab-actions/use-tab-pointer-drag.ts');
   assert.match(strip, /setCanvasDragging\(true, \{ cancel: cancelPointerDrag, release: onPointerDragUp \}\)/);
   const css = await read('app/styles/base.css');
   assert.match(css, /html\[data-canvas-dragging\] \* \{ -webkit-app-region: no-drag !important; \}/);
   assert.doesNotMatch(css.slice(css.indexOf('.canvas-drop-preview {'), css.indexOf('.canvas-drop-preview[data-drop-target="tab-strip"]')), /backdrop-filter|1\.15\)/);
-  const controls = await read('components/center-tabs/canvas-controls.tsx');
+  const controls = await read('components/center-tabs/canvas/canvas-controls.tsx');
   assert.match(controls, /requestAnimationFrame\(\(\) => \{ frame = 0; if \(latest && !done\) useCenterTabs\.getState\(\)\.previewCanvas\(targetId, latest\); \}\)/, 'divider drags paint per frame without persisting');
   assert.doesNotMatch(controls, /gripStart\.current = \{ x: e\.clientX, y: e\.clientY \}; focus\(/, 'pressing a grip does not refocus and reroute before a drag');
-  const web = await read('components/center-tabs/web-tab-pane.tsx');
+  const web = await read('components/center-tabs/browser/web-tab-pane.tsx');
   assert.match(web, /const timer = window\.setTimeout\(hide, 160\);/, 'a native page stays visible until its snapshot is ready');
 });
 
@@ -232,7 +232,7 @@ test('a divider stops at the panes\' minimum size and never squeezes a small pan
 });
 
 test('the grip turns into macOS window buttons and unfolds the tiling menu from itself', async () => {
-  const controls = await read('components/center-tabs/canvas-controls.tsx');
+  const controls = await read('components/center-tabs/canvas/canvas-controls.tsx');
   for (const light of ['close', 'minimize', 'zoom']) assert.match(controls, new RegExp(`data-pane-light="${light}"`));
   assert.match(controls, /new CustomEvent\("op-close-center-tabs", \{ detail: \{ tabIds: \[tabId\] \} \}\)/, 'red closes the tab through the strip');
   assert.match(controls, /onClick=\{pressed\(\(\) => \{ closeMenu\(\); close\(p\.id\); \}\)\}/, 'yellow folds the pane back into the strip');
@@ -243,20 +243,20 @@ test('the grip turns into macOS window buttons and unfolds the tiling menu from 
   assert.match(controls, /\{\(menu\?\.paneId === p\.id \|\| folding === p\.id\) && drawer\(p\.id, menu\?\.paneId !== p\.id\)\}/, 'the menu is attached to its grip and folds back into it when it closes');
   assert.match(controls, /\(quarters \? QUARTERS : MOVE\)/, 'Option shows the quarters');
   assert.doesNotMatch(controls, /Close pane", "关闭格子"\)\}<span/, 'closing moved to the red and yellow buttons');
-  const lifecycle = await read('components/center-tabs/use-tab-lifecycle.ts');
+  const lifecycle = await read('components/center-tabs/tab-actions/use-tab-lifecycle.ts');
   assert.match(lifecycle, /window\.addEventListener\("op-close-center-tabs", onCloseTabs\)/);
   const drag = await read('lib/tabs/canvas-drag.ts');
   assert.match(drag, /closest\("button:not\(\[data-pane-light\]\)"\)/, 'the window buttons drag like the grip');
   assert.match(drag, /started = true;[\s\S]{0,200}grip\.setPointerCapture\(pointerId\)/, 'capture waits for a real drag so a press still clicks');
-  const css = await read('components/center-tabs/canvas-controls.module.css');
+  const css = await read('components/center-tabs/canvas/canvas-controls.module.css');
   assert.match(css, /\.divider\[aria-orientation="vertical"\]::after \{\s*width: 4px;\s*height: 36px;/, 'dividers are a short pill, not a full line');
   const base = await read('app/styles/base.css');
   assert.match(base, /\.app:has\(> \.center-col\[data-split\]\) \.sidebar\.collapsed \{\s*position: relative;/, 'narrow windows keep the rails beside a split');
 });
 
 test('a split window is one tab: its focused pane, a split mark and one close', async () => {
-  const items = await read('components/center-tabs/tab-items.tsx');
-  const css = await read('components/center-tabs/center-tabs.module.css');
+  const items = await read('components/center-tabs/strip/tab-items.tsx');
+  const css = await read('components/center-tabs/strip/center-tabs.module.css');
   assert.match(items, /<SplitGlyph root=\{group\.canvas\?\.root \?\? rowLayout\(group\.memberIds\)\.root\} current=\{canonicalTab\.id\} \/>/, 'the split in miniature marks the focused pane');
   assert.match(items, /if \(!closing\) onClose\(event, memberTabs\.filter\(\(tab\) => !closingIds\.has\(tab\.id\)\)\);/, 'its close closes the whole window');
   assert.doesNotMatch(items, /memberTabs\.slice\(0, 2\)|canvasPaneCount/, 'no first-two titles and +N count');
@@ -265,12 +265,12 @@ test('a split window is one tab: its focused pane, a split mark and one close', 
 });
 
 test('browsing the overview: empty space is inert and there is no hint', async () => {
-  const view = await read('components/center-tabs/canvas-overview.tsx');
+  const view = await read('components/center-tabs/canvas/canvas-overview.tsx');
   assert.doesNotMatch(view, /dataset\.overviewGrid !== undefined\) dismissOverview\(\)/, 'a click between cards does not open a window');
   assert.match(view, /const hint = mode === "drag"\n    \? label \|\| text\([\s\S]*?\)\n    : "";/, 'only a drag shows a hint');
   assert.match(view, /data-idle=\{!hint \|\| undefined\}/, 'browsing keeps the hint\'s room, hidden');
   assert.match(view, /height: el\.clientHeight - 112,/, 'both modes lay cards out in the same area');
-  const css = await read('components/center-tabs/canvas-overview.module.css');
+  const css = await read('components/center-tabs/canvas/canvas-overview.module.css');
   assert.doesNotMatch(css, /\.overview\[data-alone\]/, 'empty space tints the hint, not the whole overview');
   assert.match(css, /\.overview\[data-opened-as="browse"\] \{\n  animation: none;/, 'switching modes never fades the overview in again');
 });
@@ -280,13 +280,13 @@ test('a picked window zooms from its own place even as the cards reflow', async 
   // as the zoom starts. A transform on the zooming card would make it the
   // picture's containing block, and the picture would grow from the
   // card's corner, off to the side.
-  const view = await read('components/center-tabs/canvas-overview.tsx');
+  const view = await read('components/center-tabs/canvas/canvas-overview.tsx');
   assert.match(view, /layout=\{!landing && zoom\?\.key !== card\.key\}/);
   assert.match(view, /style=\{zoomed \? \{ position: "absolute", zIndex: 3, \.\.\.\(area\.canvasWidth > 0 \? \{ left: 0, top: 0,/);
 });
 
 test('browsing, a card can be picked up and dropped like a dragged tab', async () => {
-  const view = await read('components/center-tabs/canvas-overview.tsx');
+  const view = await read('components/center-tabs/canvas/canvas-overview.tsx');
   assert.match(view, /onPointerDown=\{e => pickUp\(e, card\)\}/);
   assert.match(view, /<motion\.button key=\{card\.key\}[\s\S]*?layout=\{!landing && zoom\?\.key !== card\.key\}/, 'cards move to new places on a spring when the grid changes');
   assert.match(view, /const REFLOW: Transition = \{ type: "spring"/);
@@ -303,7 +303,7 @@ test('browsing, a card can be picked up and dropped like a dragged tab', async (
   assert.match(overview, /before = slot === null \? undefined : next\?\.dataset\.overviewFirst \?\? null/);
   const drag = await read('lib/tabs/canvas-drag.ts');
   assert.match(drag, /if \(group && whole\) useCenterTabs\.getState\(\)\.moveGroup\(group\.id, drop\.before\);\n\s+else useCenterTabs\.getState\(\)\.moveTab\(sourceId, drop\.before\);/);
-  const css = await read('components/center-tabs/canvas-overview.module.css');
+  const css = await read('components/center-tabs/canvas/canvas-overview.module.css');
   assert.doesNotMatch(css, /cardIn/, 'no CSS entrance: a mode switch would replay it');
   assert.doesNotMatch(css, /\[data-overview-slot\]/, 'the gap never wears a frame, as in Mission Control');
   assert.match(css, /\.ghost \{[^}]*transition: opacity 120ms ease !important;/, 'the picked-up copy follows the pointer without easing');
@@ -324,6 +324,6 @@ test('a tab dragged over the window on screen docks beside it, by the half under
   assert.match(drag, /const side = px < OVERVIEW_SIDE \? "left" : px > 1 - OVERVIEW_SIDE \? "right" : py < 0\.5 \? "top" : "bottom";/, 'the same zones as an overview card');
   assert.match(drag, /return \{ targetId, paneId: "root", side, rect, action: "dock", label \};/);
   assert.match(drag, /const live = !overviewOpen\(\);\s*const dock = \(\) => \{\s*if \(live\) captureCanvasTransition\(\{\}, \{ \[sourceId\]: drop\.side/, 'the docked tab slides in from its side');
-  const tab = await read('components/center-tabs/use-tab-pointer-drag.ts');
+  const tab = await read('components/center-tabs/tab-actions/use-tab-pointer-drag.ts');
   assert.match(tab, /if \(canvasDrop && !overviewOpen\(\)\) showLiveCanvasDrop\(canvasDrop\);\s*else clearDropPreview\(\);/, 'the cue shows the half it will take');
 });

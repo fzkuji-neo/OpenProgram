@@ -8,7 +8,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { HoverTip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { addressDisplayParts, shortcutHint } from "@/lib/browser/browser-layout";
-import styles from "./center-tabs.module.css";
+import styles from "../../strip/center-tabs.module.css";
 
 /** Toolbar control tip. It opens above the control: the page below is a
  *  native view in the desktop App and would cover a tip drawn there. So it

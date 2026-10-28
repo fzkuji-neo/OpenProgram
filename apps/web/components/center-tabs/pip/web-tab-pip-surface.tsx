@@ -5,7 +5,7 @@ import * as desktop from "@/lib/desktop/desktop-bridge";
 import { isWebTabOccluded, measureWebTabBounds } from "@/lib/browser/web-tab-bounds";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { useTranslation } from "@/lib/i18n";
-import styles from "./center-tabs.module.css";
+import styles from "../strip/center-tabs.module.css";
 
 /** Hosts the existing Page; gesture-only bitmaps keep chrome and content in one compositor. */
 export function WebTabPipSurface({ tabId, url, native }: {

@@ -54,8 +54,8 @@
 - Modify `apps/web/lib/runtime-bridge/draft-channel-choice.ts`.
 - Modify `apps/web/lib/state/files-shared.ts`.
 - Modify `apps/web/components/app-shell.tsx`.
-- Modify `apps/web/components/center-tabs/center-tab-strip.tsx`.
-- Modify `apps/web/components/center-tabs/center-tabs.module.css`.
+- Modify `apps/web/components/center-tabs/strip/center-tab-strip.tsx`.
+- Modify `apps/web/components/center-tabs/strip/center-tabs.module.css`.
 - Modify `apps/web/scripts/check-web-split.mjs`.
 - Modify `apps/web/scripts/check-center-tabs.mjs`.
 - Create `apps/web/public/desktop-transfer-acceptance.html`.
@@ -473,9 +473,9 @@ const acceptedTransfers = new Map<string, AcceptedTransfer>();
 
 **Files:**
 
-- Modify `apps/web/components/center-tabs/center-tab-strip.tsx`
+- Modify `apps/web/components/center-tabs/strip/center-tab-strip.tsx`
 - Modify `apps/web/lib/tab-drag-coordinator.ts`
-- Modify `apps/web/components/center-tabs/center-tabs.module.css`
+- Modify `apps/web/components/center-tabs/strip/center-tabs.module.css`
 - Modify `apps/web/scripts/check-center-tabs.mjs`
 - Modify `apps/web/scripts/check-compound-tabs.mjs`
 

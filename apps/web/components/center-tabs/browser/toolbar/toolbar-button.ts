@@ -1,7 +1,7 @@
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-import styles from "./center-tabs.module.css";
+import styles from "../../strip/center-tabs.module.css";
 
 /** The browser toolbar's icon button: the official shadcn ghost icon Button
  *  (components/ui/button.tsx, `icon-sm` so its svg rule gives the toolbar's

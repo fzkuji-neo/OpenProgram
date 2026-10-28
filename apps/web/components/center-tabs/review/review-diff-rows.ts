@@ -1,7 +1,7 @@
 /** What the Review pane shows of a file's diff, as plain data so tests
  *  can load it without the React renderer. */
-import { parseUnifiedDiff, type DiffLine } from "../chat/messages/unified-diff-parse.ts";
-import { fileCapabilities, fileExtension } from "../../lib/documents/file-formats.ts";
+import { parseUnifiedDiff, type DiffLine } from "../../chat/messages/unified-diff-parse.ts";
+import { fileCapabilities, fileExtension } from "../../../lib/documents/file-formats.ts";
 
 export type { DiffLine };
 

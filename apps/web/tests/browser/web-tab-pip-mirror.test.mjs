@@ -4,8 +4,8 @@ import { readFileSync } from "node:fs";
 import { startWebTabCaptureLoop } from "../../lib/browser/web-tab-capture-loop.ts";
 import { fittedImageRect, mapOperationPoint } from "../../lib/browser/browser-marker-geometry.ts";
 
-const pipSource = readFileSync(new URL("../../components/center-tabs/web-tab-pip.tsx", import.meta.url), "utf8");
-const paneSource = readFileSync(new URL("../../components/center-tabs/web-tab-pane.tsx", import.meta.url), "utf8");
+const pipSource = readFileSync(new URL("../../components/center-tabs/pip/web-tab-pip.tsx", import.meta.url), "utf8");
+const paneSource = readFileSync(new URL("../../components/center-tabs/browser/web-tab-pane.tsx", import.meta.url), "utf8");
 
 test("legacy capture fallback remains available beside the live surface", () => {
   assert.match(pipSource, /WebTabPipSurface/);
@@ -30,7 +30,7 @@ test("live tab stays usable and is not replaced by a bound mask", () => {
 });
 
 test("PiP screenshot maps pixel points onto a letterboxed contain fit", () => {
-  const css = readFileSync(new URL("../../components/center-tabs/center-tabs.module.css", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../../components/center-tabs/strip/center-tabs.module.css", import.meta.url), "utf8");
   assert.match(css, /\.webPipShot \{[\s\S]*?object-fit: contain/);
   assert.match(css, /\.webPip\[data-state="active"\]/);
   assert.match(css, /\.webPane\[data-state="yielding"\]/);

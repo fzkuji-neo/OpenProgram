@@ -232,9 +232,9 @@ link         primary 字                           下划线
 
 ## 网页预览与浏览器工具栏
 
-聊天上方的网页预览小窗（`components/center-tabs/web-tab-pip.tsx`）是一张 popover 卡片：`bg-popover`，用 `ring-1 ring-foreground/10` 代替边框，`shadow-lg`，四角 10px 圆角，标题栏下方的舞台用同样的底部圆角裁切网页。圆角跟原生网页视图的圆角（`apps/desktop/main/web-views.js`）绑定——原生表面不受 DOM 裁切，外框圆角更大就会在底部两角漏出网页像素，所以两者要一起改，或者都不改。32px 标题栏放标题（`text-sm font-medium text-foreground`）、状态（`text-xs text-muted-foreground`）和 `ghost` `icon-xs` 图标按钮（图标 14px），悬停提示用 `HoverTip` + `TipBody`（见 [hover-tips.zh.md](hover-tips.zh.md)）；恢复失败的提示是一行 `text-xs text-destructive`，不加框。CSS module 只管几何（位置、尺寸、拖动光标、调整把手），因为不分层的 module 规则会压过工具类。
+聊天上方的网页预览小窗（`components/center-tabs/pip/web-tab-pip.tsx`）是一张 popover 卡片：`bg-popover`，用 `ring-1 ring-foreground/10` 代替边框，`shadow-lg`，四角 10px 圆角，标题栏下方的舞台用同样的底部圆角裁切网页。圆角跟原生网页视图的圆角（`apps/desktop/main/web-views.js`）绑定——原生表面不受 DOM 裁切，外框圆角更大就会在底部两角漏出网页像素，所以两者要一起改，或者都不改。32px 标题栏放标题（`text-sm font-medium text-foreground`）、状态（`text-xs text-muted-foreground`）和 `ghost` `icon-xs` 图标按钮（图标 14px），悬停提示用 `HoverTip` + `TipBody`（见 [hover-tips.zh.md](hover-tips.zh.md)）；恢复失败的提示是一行 `text-xs text-destructive`，不加框。CSS module 只管几何（位置、尺寸、拖动光标、调整把手），因为不分层的 module 规则会压过工具类。
 
-浏览器工具栏的图标按钮（后退 / 前进 / 重新加载 / 主页 / 书签 / 书签库 / 在浏览器中打开 / 菜单，以及控制条）通过 `webToolbarButton()`（`components/center-tabs/toolbar-button.ts`）用同一个 `ghost` Button：取 `icon-sm` 是为了它的 14px 图标规则，由只剩几何的 `.webToolbarBtn` 固定在工具栏自己的 26px，保住 40px 一行的节奏。
+浏览器工具栏的图标按钮（后退 / 前进 / 重新加载 / 主页 / 书签 / 书签库 / 在浏览器中打开 / 菜单，以及控制条）通过 `webToolbarButton()`（`components/center-tabs/browser/toolbar/toolbar-button.ts`）用同一个 `ghost` Button：取 `icon-sm` 是为了它的 14px 图标规则，由只剩几何的 `.webToolbarBtn` 固定在工具栏自己的 26px，保住 40px 一行的节奏。
 
 ## 禁止事项
 

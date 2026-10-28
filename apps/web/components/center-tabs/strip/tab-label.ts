@@ -1,6 +1,6 @@
 import type { CenterTab } from "@/lib/tabs/center-tabs-store";
 import type { useTranslation } from "@/lib/i18n";
-import { builtinPageLabel } from "./builtin-page-label";
+import { builtinPageLabel } from "../pages/builtin-page-label";
 
 const pageLabels: Record<string, [string, string]> = {
   agents: ["Agents", "Agents"], programs: ["Abilities", "能力"],

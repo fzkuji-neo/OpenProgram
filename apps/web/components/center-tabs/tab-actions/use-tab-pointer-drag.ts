@@ -45,7 +45,7 @@ import {
   slotOverlapRatio,
   pickPointerDropTarget,
   type PointerDropTarget,
-} from "./tab-strip-geometry";
+} from "../strip/tab-strip-geometry";
 
 /** One in-flight pointer drag. Lives in a ref — pointermove writes the
  *  dragged element's transform directly (no re-render per frame); only

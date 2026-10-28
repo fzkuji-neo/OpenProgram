@@ -27,7 +27,7 @@ globalThis.requestAnimationFrame=fn=>setTimeout(fn,0);globalThis.cancelAnimation
 globalThis.fetch=async()=>Response.json({});window.alert=message=>{throw new Error(message)};
 const {act,createElement}=await import('react');
 const {createRoot}=await import('react-dom/client');
-const {useTabLifecycle}=await import(new URL('components/center-tabs/use-tab-lifecycle.ts',root));
+const {useTabLifecycle}=await import(new URL('components/center-tabs/tab-actions/use-tab-lifecycle.ts',root));
 const {useCenterTabs}=await import(new URL('lib/tabs/center-tabs-store.ts',root));
 const {useSessionStore}=await import(new URL('lib/session-store/index.ts',root));
 const {getOrCreateDocumentController}=await import(new URL('lib/files/document-controller.ts',root));

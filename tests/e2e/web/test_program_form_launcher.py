@@ -17,7 +17,7 @@ import {createRoot} from 'react-dom/client';
 import {AppRouterContext} from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import {PathnameContext} from 'next/dist/shared/lib/hooks-client-context.shared-runtime';
 import {FavoritesList} from './components/sidebar/favorites-list';
-import {NewTabPage} from './components/center-tabs/new-tab-page';
+import {NewTabPage} from './components/center-tabs/pages/new-tab-page';
 import {FunctionForm} from './components/chat/composer/modes/fn-form/fn-form';
 import {useFnFormState} from './components/chat/composer/modes/fn-form/use-fn-form-state';
 import {useFunctions} from './lib/abilities/functions-store';

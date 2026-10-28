@@ -8,9 +8,9 @@
  * uses (router.push("/s/<id>")); the chat DOM itself never remounts.
  * The session↔tab sync (activation upserts a tab, /chat with no session
  * focuses the draft tab, title changes rename tabs) plus the open/close
- * animation bookkeeping live in `./use-tab-lifecycle`; the pointer drag
- * engine in `./use-tab-pointer-drag`; the context menu and its actions in
- * `./use-tab-menu` + `./tab-context-menu`; the tab/segment rendering in
+ * animation bookkeeping live in `../tab-actions/use-tab-lifecycle`; the pointer drag
+ * engine in `../tab-actions/use-tab-pointer-drag`; the context menu and its actions in
+ * `../tab-actions/use-tab-menu` + `../tab-actions/tab-context-menu`; the tab/segment rendering in
  * `./tab-items`. This file wires them together and owns the strip layout.
  *
  * Closing a tab with unsaved edits (dirty=true, set by the file
@@ -22,13 +22,13 @@ import { CirclePlus, LayoutGrid, Plus } from "lucide-react";
 
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
 import { topLevelTabs } from "@/lib/browser/web-page-management";
-import { PageNavigation } from "./page-navigation";
+import { PageNavigation } from "../browser/toolbar/page-navigation";
 import { centerTabStripEntries } from "@/lib/tabs/center-tab-groups";
 import { dragCoordinator } from "@/lib/tabs/tab-drag-coordinator";
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";
 import { MainMenu } from "./main-menu";
 import { dismissOverview, useCanvasOverview } from "@/lib/tabs/canvas-overview";
-import { SplitViewPicker } from "./split-view-picker";
+import { SplitViewPicker } from "../canvas/split-view-picker";
 import { useTranslation } from "@/lib/i18n";
 import styles from "./center-tabs.module.css";
 import {
@@ -36,14 +36,14 @@ import {
   freezeStripWidths,
   releaseStripWidths,
 } from "./tab-strip-geometry";
-import { cancelCoordinator, removeReleaseListener } from "./tab-drag-subject";
+import { cancelCoordinator, removeReleaseListener } from "../tab-actions/tab-drag-subject";
 import { CompoundTabItem, TabItem, labelOf } from "./tab-items";
-import { TabContextMenu } from "./tab-context-menu";
-import { useTabDropActions } from "./use-tab-drop-actions";
-import { useTabLifecycle } from "./use-tab-lifecycle";
-import { useTabMenu } from "./use-tab-menu";
-import { useTabPointerDrag } from "./use-tab-pointer-drag";
-import { PluginSlot } from "../plugins/plugin-slot";
+import { TabContextMenu } from "../tab-actions/tab-context-menu";
+import { useTabDropActions } from "../tab-actions/use-tab-drop-actions";
+import { useTabLifecycle } from "../tab-actions/use-tab-lifecycle";
+import { useTabMenu } from "../tab-actions/use-tab-menu";
+import { useTabPointerDrag } from "../tab-actions/use-tab-pointer-drag";
+import { PluginSlot } from "../../plugins/plugin-slot";
 
 /** Stable empty shift map — used while detaching, when neighbours must not
  *  move to fill the leaving tab's slot. A shared frozen instance avoids a new

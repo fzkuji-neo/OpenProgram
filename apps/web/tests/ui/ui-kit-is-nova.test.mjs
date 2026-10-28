@@ -37,6 +37,6 @@ test("popups, tips and tabs carry Nova's recipes", () => {
 test("the rails, the centre card and split panes share Nova's floating corner", () => {
   assert.match(read("components/ui/sidebar.tsx"), /overflow-hidden rounded-lg bg-sidebar shadow-raised/);
   assert.match(read("app/styles/base.css"), /\.app \.center-col \{[^}]*border-radius: var\(--radius-lg\);/);
-  assert.match(read("components/center-tabs/canvas-controls.module.css"), /\.pane \{[^}]*border-radius: var\(--radius-lg\);/);
-  assert.match(read("components/center-tabs/canvas-overview.tsx"), /PANE_RADIUS = 12;/);
+  assert.match(read("components/center-tabs/canvas/canvas-controls.module.css"), /\.pane \{[^}]*border-radius: var\(--radius-lg\);/);
+  assert.match(read("components/center-tabs/canvas/canvas-overview.tsx"), /PANE_RADIUS = 12;/);
 });

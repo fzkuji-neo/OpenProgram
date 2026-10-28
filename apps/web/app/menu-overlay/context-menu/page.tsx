@@ -20,7 +20,7 @@ import { useSearchParams } from "next/navigation";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { ChevronRight } from "lucide-react";
 
-import { TabFavicon } from "@/components/center-tabs/tab-favicon";
+import { TabFavicon } from "@/components/center-tabs/strip/tab-favicon";
 import { CHECK_SLOT_PAD, itemCls, MENU_PANEL, MENU_SEPARATOR } from "@/components/chat/top-bar/menu-styles";
 import { SolarIcon, SOLAR_BODIES } from "@/components/solar-icons";
 import { MenuIcon, MenuKey, type MenuGlyph, type MenuKeys } from "@/components/ui/menu-parts";

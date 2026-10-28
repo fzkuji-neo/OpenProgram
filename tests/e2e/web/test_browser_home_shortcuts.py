@@ -32,7 +32,7 @@ const web = process.argv[1];
 import React from "react";
 import {createRoot} from "react-dom/client";
 import {AppRouterContext} from "next/dist/shared/lib/app-router-context.shared-runtime";
-import {BrowserHomePage} from "./components/center-tabs/browser-home-page";
+import {BrowserHomePage} from "./components/center-tabs/browser/browser-home-page";
 import "./app/globals.css";
 const paired = new URLSearchParams(location.search).has("paired");
 createRoot(document.getElementById("root")).render(

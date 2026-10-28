@@ -37,7 +37,7 @@ background) with an arrow, 12px text.
 
 ## Web page preview header
 
-The floating page preview over chat (`components/center-tabs/web-tab-pip.tsx`)
+The floating page preview over chat (`components/center-tabs/pip/web-tab-pip.tsx`)
 uses the same `HoverTip` + `TipBody` on its header buttons. The eight
 resize handles keep their `aria-label`s but show no tip: a bubble popping
 up over the page while the pointer skims the edge is noise. The title and

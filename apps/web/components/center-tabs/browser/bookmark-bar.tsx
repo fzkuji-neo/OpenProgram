@@ -12,9 +12,9 @@ import type { DesktopContextMenuItem } from "@/lib/desktop/desktop-bridge-types"
 import { bookmarkFolderActionPrefix, ownedActionId } from "@/lib/browser/browser-layout";
 import { useTranslation } from "@/lib/i18n";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
-import { TabFavicon } from "./tab-favicon";
-import { ToolbarTip } from "./browser-chrome";
-import styles from "./center-tabs.module.css";
+import { TabFavicon } from "../strip/tab-favicon";
+import { ToolbarTip } from "./toolbar/browser-chrome";
+import styles from "../strip/center-tabs.module.css";
 
 export function useBookmarksBarPreference() {
   const [visible, setVisible] = useState(showBookmarksBar);

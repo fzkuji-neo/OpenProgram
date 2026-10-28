@@ -143,9 +143,9 @@ th{color:var(--text-muted);font-weight:500}
 <tr><th>目标</th><th>画什么</th><th>代码位置</th></tr>
 <tr><td>macOS 原生窗口（<code>computer_use</code> 窗口动作）</td><td>状态胶囊和 agent 指针，画在一个无边框、不激活、点击穿透的 <code>NSPanel</code> 里；每个受控窗口由一个 helper 进程负责。</td><td><a href="https://github.com/Fzkuji/GUI-Agent-Harness/blob/main/gui_harness/adapters/mac_indicator.py">gui_harness/adapters/mac_indicator.py</a>，由 <code>mac_window.py</code> 的 <code>_WindowControlIndicator</code> 启动。OpenProgram 在固定的 Harness 提交之上通过 <a href="https://github.com/Fzkuji/OpenProgram/blob/main/scripts/release/program-patches/gui_harness.patch">program-patches/gui_harness.patch</a> 交付它。</td></tr>
 <tr><td>桌面 App 中的网页标签页</td><td>agent 指针，画在网页上方一个透明、不可聚焦、点击穿透的窗口里。</td><td><a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/desktop/main/action-cues.js">apps/desktop/main/action-cues.js</a> 负责摆放窗口；<a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/app/menu-overlay/action-cue/page.tsx">menu-overlay/action-cue</a> 负责渲染。</td></tr>
-<tr><td>对话预览（PiP）和 Web 版</td><td>agent 指针，画在预览图上方一个 <code>pointer-events: none</code> 的图层里。</td><td><a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/center-tabs/browser-control-bar.tsx">browser-control-bar.tsx</a> 中的 <code>ActionCueTravel</code>。</td></tr>
+<tr><td>对话预览（PiP）和 Web 版</td><td>agent 指针，画在预览图上方一个 <code>pointer-events: none</code> 的图层里。</td><td><a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/center-tabs/browser/toolbar/browser-control-bar.tsx">browser-control-bar.tsx</a> 中的 <code>ActionCueTravel</code>。</td></tr>
 </table></div>
-<p>三处 Web 界面使用同一个组件 <a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/center-tabs/agent-cursor.tsx">AgentCursor</a>。网页的控制状态（Active、Pausing…、Paused）仍显示在网页工具栏和浮动控制条上，见 <a href="resource-preview.zh.html">资源与操作预览</a>。网页不再另加状态胶囊。</p>
+<p>三处 Web 界面使用同一个组件 <a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/center-tabs/pip/agent-cursor.tsx">AgentCursor</a>。网页的控制状态（Active、Pausing…、Paused）仍显示在网页工具栏和浮动控制条上，见 <a href="resource-preview.zh.html">资源与操作预览</a>。网页不再另加状态胶囊。</p>
 
 <h2>状态胶囊</h2>
 <ul>

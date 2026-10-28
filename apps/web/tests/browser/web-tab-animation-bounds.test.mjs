@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { isMovedByAnimation } from "../../lib/browser/web-tab-bounds.ts";
 
-const paneSource = readFileSync(new URL("../../components/center-tabs/web-tab-pane.tsx", import.meta.url), "utf8");
+const paneSource = readFileSync(new URL("../../components/center-tabs/browser/web-tab-pane.tsx", import.meta.url), "utf8");
 
 function node(parent = null) {
   return { parent, contains(other) { for (let n = other; n; n = n.parent) if (n === this) return true; return false; } };

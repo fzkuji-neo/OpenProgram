@@ -20,7 +20,7 @@ const messageActions = source("components/chat/messages/message-actions.tsx");
 // The strip is split across center-tab-strip.tsx and its submodules;
 // read them as one text so the assertions below are unchanged.
 const tabs = readCenterTabStripSource();
-const tabsCss = source("components/center-tabs/center-tabs.module.css");
+const tabsCss = source("components/center-tabs/strip/center-tabs.module.css");
 const conversations = source("lib/runtime-bridge/conversations.ts");
 const chatHandlers = source("lib/runtime-bridge/chat-handlers.ts");
 const sessionStore = source("lib/session-store/index.ts");

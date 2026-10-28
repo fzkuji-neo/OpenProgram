@@ -28,7 +28,7 @@ import {
 
 import { bookmarkFaviconSources } from "@/lib/tabs/bookmarks";
 import { MenuRow } from "@/components/ui/menu-parts";
-import { TabFavicon } from "./tab-favicon";
+import { TabFavicon } from "../strip/tab-favicon";
 import { ChromeIcon } from "@/components/animated-icons";
 import {
   DropdownMenu,
@@ -63,7 +63,7 @@ import { useCenterTabs, type BuiltinPage } from "@/lib/tabs/center-tabs-store";
 import { useTranslation } from "@/lib/i18n";
 import { groupHistoryByLocalDate } from "@/lib/chat/history-groups";
 import { SearchInput } from "@/components/ui/search-input";
-import styles from "./center-tabs.module.css";
+import styles from "../strip/center-tabs.module.css";
 
 const HISTORY_PAGE_SIZE = 250;
 const HISTORY_LIST_LIMIT = 5_000;

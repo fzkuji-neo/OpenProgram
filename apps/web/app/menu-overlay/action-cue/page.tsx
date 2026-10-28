@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 
-import { AgentCursor } from "@/components/center-tabs/agent-cursor";
+import { AgentCursor } from "@/components/center-tabs/pip/agent-cursor";
 
 interface CuePayload {
   play: "once" | "never";

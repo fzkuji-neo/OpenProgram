@@ -7,14 +7,14 @@ const root = path.resolve(import.meta.dirname, "../..");
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
 
 const ids = read("lib/tabs/center-tab-ids.ts");
-const launcher = read("components/center-tabs/new-tab-page.tsx");
+const launcher = read("components/center-tabs/pages/new-tab-page.tsx");
 const shell = read("components/app-shell.tsx");
-const page = read("components/center-tabs/terminal-page.tsx");
+const page = read("components/center-tabs/pages/terminal-page.tsx");
 const bridge = readDesktopBridgeSource();
 const bridgeTypes = read("lib/desktop/desktop-bridge-types.ts");
 const preload = read("../desktop/preload.js");
 const layout = read("app/layout.tsx");
-const css = read("components/center-tabs/center-tabs.module.css");
+const css = read("components/center-tabs/strip/center-tabs.module.css");
 const base = read("app/styles/base.css");
 const pkg = JSON.parse(read("package.json"));
 

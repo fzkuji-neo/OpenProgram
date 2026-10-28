@@ -11,7 +11,7 @@ import type { TabMenuState } from "./use-tab-menu";
 import { cn } from "@/lib/utils";
 import { MENU_PANEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
 import { MenuRow } from "@/components/ui/menu-parts";
-import styles from "./center-tabs.module.css";
+import styles from "../strip/center-tabs.module.css";
 
 export interface TabContextMenuProps {
   tabMenu: TabMenuState;

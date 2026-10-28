@@ -16,7 +16,7 @@ test("page shortcuts map Cmd+L, Cmd+[ and Cmd+] like a browser", () => {
 
 test("Cmd+R is left to the App menu, which reloads the active page", () => {
   assert.equal(browserPageShortcut(key("r")), null);
-  const lifecycle = readFileSync(new URL("../../components/center-tabs/use-tab-lifecycle.ts", import.meta.url), "utf8");
+  const lifecycle = readFileSync(new URL("../../components/center-tabs/tab-actions/use-tab-lifecycle.ts", import.meta.url), "utf8");
   assert.match(lifecycle, /op-desktop-reload/);
   assert.match(lifecycle, /active\?\.kind === "web" && bridge\) bridge\.webTab\.reload\(active\.id, \{ hard \}\)/);
   const main = readFileSync(new URL("../../../desktop/main.js", import.meta.url), "utf8");

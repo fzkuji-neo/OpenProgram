@@ -32,10 +32,10 @@ import {
 } from "@/lib/browser/browser-layout";
 import { useTranslation } from "@/lib/i18n";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
-import styles from "./center-tabs.module.css";
+import styles from "../../strip/center-tabs.module.css";
 import { webToolbarButton } from "./toolbar-button";
 import { ToolbarTip } from "./browser-chrome";
-import { useBookmarksBarPreference } from "./bookmark-bar";
+import { useBookmarksBarPreference } from "../bookmark-bar";
 
 type BrowserMenuActions = {
   home(): void;

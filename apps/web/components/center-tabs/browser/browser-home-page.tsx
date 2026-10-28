@@ -38,12 +38,12 @@ import {
 } from "@/lib/desktop/desktop-bridge";
 import { LANE_COLORS } from "@/lib/format-utils/lane-colors";
 import { normalizeWebUrl, useCenterTabs } from "@/lib/tabs/center-tabs-store";
-import { BrowserGlyph } from "./browser-glyph";
-import { BookmarksLibraryButton, BrowserMenu } from "./browser-controls";
+import { BrowserGlyph } from "./toolbar/browser-glyph";
+import { BookmarksLibraryButton, BrowserMenu } from "./toolbar/browser-controls";
 import { BookmarkBar } from "./bookmark-bar";
-import styles from "./center-tabs.module.css";
-import { webToolbarButton } from "./toolbar-button";
-import { AddressField, addressStarButton, ToolbarTip } from "./browser-chrome";
+import styles from "../strip/center-tabs.module.css";
+import { webToolbarButton } from "./toolbar/toolbar-button";
+import { AddressField, addressStarButton, ToolbarTip } from "./toolbar/browser-chrome";
 import { cachedFavicon, loadFavicon } from "@/lib/browser/favicon-cache";
 
 function hostColor(host: string): string {

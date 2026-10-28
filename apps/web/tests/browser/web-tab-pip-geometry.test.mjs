@@ -101,8 +101,8 @@ test("store clamp forwards the shared min constants into geometry", () => {
 });
 
 test("css keeps a flush frameless page and eight outward transparent handles", () => {
-  const css = readFileSync(new URL("../../components/center-tabs/center-tabs.module.css", import.meta.url), "utf8");
-  const pipSource = readFileSync(new URL("../../components/center-tabs/web-tab-pip.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../../components/center-tabs/strip/center-tabs.module.css", import.meta.url), "utf8");
+  const pipSource = readFileSync(new URL("../../components/center-tabs/pip/web-tab-pip.tsx", import.meta.url), "utf8");
   // Header height must equal PIP_HEADER_HEIGHT or the 16:9 page view
   // letterboxes and leaves a strip down the right edge.
   assert.match(css, /\.webPipChrome \{[\s\S]*?height: 30px/);

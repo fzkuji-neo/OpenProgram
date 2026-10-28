@@ -46,9 +46,9 @@ test("a control's native title becomes the app's tip", () => {
 });
 
 test("A tab on a management page wears that page's rail icon", () => {
-  const items = readFileSync(new URL("../../components/center-tabs/tab-items.tsx", import.meta.url), "utf8");
+  const items = readFileSync(new URL("../../components/center-tabs/strip/tab-items.tsx", import.meta.url), "utf8");
   assert.equal(items.match(/routePageIcon\(tab\.navigationRoute, 13\) \?\?/g)?.length, 2);
-  const icons = readFileSync(new URL("../../components/center-tabs/route-page-icon.tsx", import.meta.url), "utf8");
+  const icons = readFileSync(new URL("../../components/center-tabs/pages/route-page-icon.tsx", import.meta.url), "utf8");
   for (const root of ["agents", "programs", "applications", "chats", "scheduler", "settings"]) assert.match(icons, new RegExp(`\\b${root}: \\w+`));
 });
 
@@ -65,10 +65,10 @@ test("A reply's first and last blocks bring no outer margin", () => {
 test("Applications wear the glyph their manifest names", () => {
   const glyphs = read("components/applications/application-glyph.tsx");
   for (const name of ["calculator", "book-open", "file-search"]) assert.match(glyphs, new RegExp(`"?${name}"?: \\w+`));
-  assert.equal(read("components/center-tabs/tab-items.tsx").match(/<ApplicationTabGlyph appId=\{tab\.applicationId\} size=\{14\} \/>/g)?.length, 2);
-  assert.match(read("components/center-tabs/new-tab-page.tsx"), /<ApplicationGlyph icon=\{application\.icon\}/);
+  assert.equal(read("components/center-tabs/strip/tab-items.tsx").match(/<ApplicationTabGlyph appId=\{tab\.applicationId\} size=\{14\} \/>/g)?.length, 2);
+  assert.match(read("components/center-tabs/pages/new-tab-page.tsx"), /<ApplicationGlyph icon=\{application\.icon\}/);
   assert.match(read("components/applications/applications-page.tsx"), /<ApplicationGlyph icon=\{application\.icon\} size=\{18\} \/>/);
-  const picker = read("components/center-tabs/split-view-picker.tsx");
+  const picker = read("components/center-tabs/canvas/split-view-picker.tsx");
   assert.match(picker, /tab\.kind === "application"\) return <ApplicationTabGlyph/);
   assert.match(picker, /tab\.kind === "application"\) return text\("Application", "应用"\)/);
 });
@@ -155,7 +155,7 @@ test("a long address breaks inside the tip instead of running out of it", () => 
   const tips = read("components/control-tips.tsx");
   assert.match(tips, /max-w-\[min\(360px,calc\(100vw-16px\)\)\] whitespace-pre-line \[overflow-wrap:anywhere\]/);
   // A web tab names a local page by its path and decodes escapes elsewhere.
-  const tabs = read("components/center-tabs/tab-items.tsx");
+  const tabs = read("components/center-tabs/strip/tab-items.tsx");
   assert.match(tabs, /tab\.kind === "web" \? readableUrl\(tab\.url\)/);
   assert.match(tabs, /const local = localPathFromUrl\(url\);\n\s+if \(local\) return local;\n\s+try \{\n\s+return decodeURI\(url\);/);
 });

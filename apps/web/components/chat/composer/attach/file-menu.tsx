@@ -16,7 +16,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "@/lib/i18n";
 import { FileTypeIcon } from "@/components/files/file-type-icon";
 import { SolarIcon } from "@/components/solar-icons";
-import { TabFavicon } from "@/components/center-tabs/tab-favicon";
+import { TabFavicon } from "@/components/center-tabs/strip/tab-favicon";
 
 import { mentionHost, mentionKey, type Mention } from "./mention-sources";
 

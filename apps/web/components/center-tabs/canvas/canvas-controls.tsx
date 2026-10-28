@@ -8,8 +8,8 @@ import { canvasCssGeometry, canvasGeometry, canvasViewport, leaves, presetLayout
 import { rememberCanvas, takePreviousCanvas } from "@/lib/tabs/canvas-history";
 import { setCanvasDragging, startPaneDrag } from "@/lib/tabs/canvas-drag";
 import { useTranslation } from "@/lib/i18n";
-import { PaneDragLabel } from "./tab-items";
-import { labelOf } from "./tab-label";
+import { PaneDragLabel } from "../strip/tab-items";
+import { labelOf } from "../strip/tab-label";
 import styles from "./canvas-controls.module.css";
 
 /** Glyph cells as [left, top, width, height] fractions of the canvas. */

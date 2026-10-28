@@ -27,15 +27,15 @@ const MENUS = [
   "components/sidebar/conv-menu.tsx",
   "components/sidebar/project-menu.tsx",
   "components/chat/pane/view-controls.tsx",
-  "components/center-tabs/main-menu.tsx",
+  "components/center-tabs/strip/main-menu.tsx",
   "app/menu-overlay/main-menu/page.tsx",
-  "components/center-tabs/tab-context-menu.tsx",
-  "components/center-tabs/browser-controls.tsx",
-  "components/center-tabs/terminal-context-menu.tsx",
-  "components/center-tabs/web-tab-pip.tsx",
-  "components/center-tabs/browser-control-bar.tsx",
-  "components/center-tabs/builtin-tab-pane.tsx",
-  "components/center-tabs/review-tab-pane.tsx",
+  "components/center-tabs/tab-actions/tab-context-menu.tsx",
+  "components/center-tabs/browser/toolbar/browser-controls.tsx",
+  "components/center-tabs/pages/terminal-context-menu.tsx",
+  "components/center-tabs/pip/web-tab-pip.tsx",
+  "components/center-tabs/browser/toolbar/browser-control-bar.tsx",
+  "components/center-tabs/pages/builtin-tab-pane.tsx",
+  "components/center-tabs/review/review-tab-pane.tsx",
   "components/files/tree-context-menu.tsx",
   "components/files/file-management.tsx",
   "components/functions/ctx-menu.tsx",
@@ -57,7 +57,7 @@ assert.match(bridge, /keys\?: MenuKeys;/);
 const overlay = read("app/menu-overlay/context-menu/page.tsx");
 assert.match(overlay, /if \(isMenuGlyph\(item\.glyph\)\) return <MenuIcon glyph=\{item\.glyph\} \/>;/);
 assert.equal(overlay.match(/<ItemKeys item=\{item\} \/>\s*<ItemCheck item=\{item\} \/>/g)?.length, 2, "flat and nested rows end with key then check");
-const tabMenu = read("components/center-tabs/use-tab-menu.ts");
+const tabMenu = read("components/center-tabs/tab-actions/use-tab-menu.ts");
 assert.equal(tabMenu.match(/glyph: "/g)?.length, 8, "every tab menu row has its icon");
 assert.match(tabMenu, /id: "tabmenu:close",\s*glyph: "close-square",\s*keys: \{ key: "W", mod: true \}/);
 
@@ -75,11 +75,11 @@ assert.match(conv, /\{ r: onRename, p: onTogglePin, c: onCopyLink, a: onToggleAr
 assert.match(view, /onKeyDown=\{onMenuKey\}/);
 assert.match(view, /if \(e\.metaKey \|\| e\.ctrlKey \|\| e\.altKey\) return;/);
 // The window menu's shortcuts are the shell's own accelerators.
-const mainMenu = read("components/center-tabs/main-menu.tsx");
+const mainMenu = read("components/center-tabs/strip/main-menu.tsx");
 assert.match(mainMenu, /keys=\{\{ key: "T", mod: true \}\}/);
 assert.match(mainMenu, /keys=\{\{ key: ",", mod: true \}\}/);
 // Terminal copy/paste follow the terminal's keys: Ctrl+Shift off macOS.
-assert.match(read("components/center-tabs/terminal-context-menu.tsx"), /keys=\{\{ key: "C", mod: true, shift: !isMacPlatform\(\) \}\}/);
+assert.match(read("components/center-tabs/pages/terminal-context-menu.tsx"), /keys=\{\{ key: "C", mod: true, shift: !isMacPlatform\(\) \}\}/);
 // A lit row lights its parts: muted icon, key badge and chevron turn
 // bright, and the icon pops like the composer's icons.
 const styles = read("components/chat/top-bar/menu-styles.ts");

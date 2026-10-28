@@ -4,7 +4,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { CircleHelp, ExternalLink, MoreVertical, Pause, Play, X } from "lucide-react";
 
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";
-import { ActionCueTravel } from "./browser-control-bar";
+import { ActionCueTravel } from "../browser/toolbar/browser-control-bar";
 import { useTranslation } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { activeThemeId } from "@/lib/prefs/theme-pref";
@@ -71,7 +71,7 @@ import {
 } from "@/lib/browser/web-tab-pip-store";
 import type { WebTabCaptureLoop } from "@/lib/browser/web-tab-capture-loop";
 
-import styles from "./center-tabs.module.css";
+import styles from "../strip/center-tabs.module.css";
 import { WebTabPipSurface } from "./web-tab-pip-surface";
 
 /** The floating frame is a popover-coloured card: hairline ring, shadow,

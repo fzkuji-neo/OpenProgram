@@ -462,7 +462,7 @@ The chat composer is built from the same parts:
 ## Web page preview and browser toolbar
 
 The floating page preview over chat
-(`components/center-tabs/web-tab-pip.tsx`) is a popover card:
+(`components/center-tabs/pip/web-tab-pip.tsx`) is a popover card:
 `bg-popover`, `ring-1 ring-foreground/10` in place of a border,
 `shadow-lg`, 10px corners on all four sides, and the stage below the
 header clips the page at the same bottom radius. The radius is pinned
@@ -481,7 +481,7 @@ module rules would beat the utilities.
 The browser toolbar's icon buttons (back / forward / reload / home /
 bookmark / library / open in browser / menu, and the control bar) are
 the same `ghost` Button through `webToolbarButton()`
-(`components/center-tabs/toolbar-button.ts`): `icon-sm` for its 14px
+(`components/center-tabs/browser/toolbar/toolbar-button.ts`): `icon-sm` for its 14px
 icon rule, held at the toolbar's 26px by `.webToolbarBtn`, which
 carries geometry only, so the 40px row keeps its rhythm.
 

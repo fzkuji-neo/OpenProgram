@@ -37,8 +37,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CursorClickIcon } from "@/components/animated-icons";
-import { AgentCursor } from "./agent-cursor";
-import styles from "./center-tabs.module.css";
+import { AgentCursor } from "../../pip/agent-cursor";
+import styles from "../../strip/center-tabs.module.css";
 import { webToolbarButton } from "./toolbar-button";
 
 function statusLabel(

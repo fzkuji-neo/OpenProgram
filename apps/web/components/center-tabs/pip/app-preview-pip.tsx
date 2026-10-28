@@ -20,7 +20,7 @@ import { useTerminalResources } from "@/lib/desktop/terminal-resources";
 import { pipChatRect, useWebTabPip, type WebTabPipRect } from "@/lib/browser/web-tab-pip-store";
 import { TerminalMirror } from "@/components/session-resources/terminal-resources";
 
-import styles from "./center-tabs.module.css";
+import styles from "../strip/center-tabs.module.css";
 import { containerBox, PIP_FRAME, PIP_ICON, PIP_ICON_BUTTON, PIP_STAGE } from "./web-tab-pip";
 
 /** The chat preview of a desktop app window or terminal the Agent operates.

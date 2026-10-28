@@ -33,7 +33,7 @@ globalThis.window = { addEventListener() {}, dispatchEvent() {} };
 globalThis.localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) };
 const { useCenterTabs, sessionAckIsActive } = await import("../../lib/tabs/center-tabs-store.ts");
 const { normalizeCenterTabsPayload, readCenterTabsPayload } = await import("../../lib/tabs/center-tabs-persistence.ts");
-const { labelOf } = await import("../../components/center-tabs/tab-label.ts");
+const { labelOf } = await import("../../components/center-tabs/strip/tab-label.ts");
 const label = tab => labelOf(tab, key => key, (english) => english);
 const state = () => useCenterTabs.getState();
 const active = () => state().tabs.find(t => t.id === state().activeId);

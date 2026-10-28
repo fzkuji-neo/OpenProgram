@@ -13,7 +13,7 @@ import { centerTabStripEntries } from "@/lib/tabs/center-tab-groups";
 import { captureCanvasLanding, type CanvasEnter } from "@/lib/tabs/canvas-transition";
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
 import { useTranslation } from "@/lib/i18n";
-import { CompoundMemberIcon, labelOf } from "./tab-items";
+import { CompoundMemberIcon, labelOf } from "../strip/tab-items";
 import styles from "./canvas-overview.module.css";
 
 /** `first`: the card's first tab in the strip, which a window moved in

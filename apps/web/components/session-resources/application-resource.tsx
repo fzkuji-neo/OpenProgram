@@ -1,5 +1,5 @@
 "use client";
-import { ApplicationTabPane } from "@/components/center-tabs/application-tab-pane";
+import { ApplicationTabPane } from "@/components/center-tabs/pages/application-tab-pane";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import type { SessionResource } from "@/lib/chat/session-resources";
 import { useTranslation } from "@/lib/i18n";

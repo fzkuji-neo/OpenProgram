@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ITheme, Terminal } from "@xterm/xterm";
 import { TerminalSquare, X } from "lucide-react";
-import { TerminalContextMenu } from "@/components/center-tabs/terminal-context-menu";
+import { TerminalContextMenu } from "@/components/center-tabs/pages/terminal-context-menu";
 import { useTranslation } from "@/lib/i18n";
 import { terminalResourceApi,
   type TerminalResource, type TerminalReply } from "@/lib/desktop/terminal-resources";

@@ -71,13 +71,13 @@ import {
   useBrowserResourceStore,
 } from "@/lib/chat/session-resources";
 import { isMovedByAnimation, isWebTabOccluded, measureWebTabBounds } from "@/lib/browser/web-tab-bounds";
-import styles from "./center-tabs.module.css";
-import { webToolbarButton } from "./toolbar-button";
-import { BookmarksLibraryButton, BrowserMenu } from "./browser-controls";
-import { ViewSourceButton } from "./view-source-button";
+import styles from "../strip/center-tabs.module.css";
+import { webToolbarButton } from "./toolbar/toolbar-button";
+import { BookmarksLibraryButton, BrowserMenu } from "./toolbar/browser-controls";
+import { ViewSourceButton } from "./toolbar/view-source-button";
 import { BookmarkBar } from "./bookmark-bar";
-import { AddressField, addressStarButton, ToolbarTip } from "./browser-chrome";
-import { ActionCueTravel, BrowserControlBar } from "./browser-control-bar";
+import { AddressField, addressStarButton, ToolbarTip } from "./toolbar/browser-chrome";
+import { ActionCueTravel, BrowserControlBar } from "./toolbar/browser-control-bar";
 import {
   controlSurfaceVisible,
   cueCancelKey,

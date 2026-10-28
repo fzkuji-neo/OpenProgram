@@ -54,7 +54,7 @@
   <p>Do not forcibly reset user zoom or change split ratios, DOM layout, preload APIs, site zoom, Browser Agent, dependencies or configuration. Electron <code>WebContentsView.setBounds</code> takes DIP while renderer DOM measurements use CSS px. The renderer retains measurement precision; the main process converts units and performs final rounding.</p>
 
   <h2>Task files and acceptance</h2>
-  <p>Production code: <code>apps/desktop/main.js</code>, <code>apps/web/components/center-tabs/web-tab-pane.tsx</code> and <code>apps/web/lib/browser/web-tab-bounds.ts</code>. Public gates: <code>apps/desktop/scripts/check-webtab-zoom-bounds.js</code> and existing web split gates.</p>
+  <p>Production code: <code>apps/desktop/main.js</code>, <code>apps/web/components/center-tabs/browser/web-tab-pane.tsx</code> and <code>apps/web/lib/browser/web-tab-bounds.ts</code>. Public gates: <code>apps/desktop/scripts/check-webtab-zoom-bounds.js</code> and existing web split gates.</p>
   <ul>
     <li>Automation covers 100% zoom, approximately 109.5% zoom, invalid zoom factors, both IPC entry points and existing desktop regressions.</li>
     <li>The installed App uses the default worker on 18100. At non-100% shell zoom, verify matching width and height between the DOM body and native viewport; check splits, split-ratio changes and window resizing.</li>

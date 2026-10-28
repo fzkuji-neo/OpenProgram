@@ -19,7 +19,7 @@ import {
   chatOwnsFind, clearHighlights, locate, messageRow, normalizeMatches, paintHighlights, step, textRanges,
   totalOccurrences, type FindMatch,
 } from "@/lib/chat/conversation-find";
-import pill from "@/components/center-tabs/center-tabs.module.css";
+import pill from "@/components/center-tabs/strip/center-tabs.module.css";
 import styles from "./conversation-find.module.css";
 
 type SearchReply = { id?: string; query?: string; matches?: unknown; error_code?: string };

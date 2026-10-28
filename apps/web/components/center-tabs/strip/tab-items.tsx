@@ -27,7 +27,7 @@ import { useTranslation } from "@/lib/i18n";
 import { localPathFromUrl } from "@/lib/files/local-file-url";
 import { labelOf } from "./tab-label";
 export { labelOf } from "./tab-label";
-import { routePageIcon } from "./route-page-icon";
+import { routePageIcon } from "../pages/route-page-icon";
 import { shiftStyle } from "./tab-strip-geometry";
 import { TabFavicon } from "./tab-favicon";
 import styles from "./center-tabs.module.css";

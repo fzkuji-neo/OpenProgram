@@ -27,7 +27,7 @@
 
 ## 网页预览标题栏
 
-聊天上方的网页预览小窗（`components/center-tabs/web-tab-pip.tsx`）标题栏按钮用同一套 `HoverTip` + `TipBody`。四边四角的八个调整大小把手保留 `aria-label`，但不再冒提示：指针扫过边缘时在网页上方弹气泡只是干扰。标题和状态文字是标签不是控件，保留原生 `title` 以便截断时看到全文。
+聊天上方的网页预览小窗（`components/center-tabs/pip/web-tab-pip.tsx`）标题栏按钮用同一套 `HoverTip` + `TipBody`。四边四角的八个调整大小把手保留 `aria-label`，但不再冒提示：指针扫过边缘时在网页上方弹气泡只是干扰。标题和状态文字是标签不是控件，保留原生 `title` 以便截断时看到全文。
 
 | 控件 | 标题 | 细节 |
 |---|---|---|
