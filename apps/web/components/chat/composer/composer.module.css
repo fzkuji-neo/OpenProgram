@@ -23,6 +23,14 @@
 .inputArea[data-tucked] > .composerStack {
   z-index: 6;
 }
+/* The box's own surface is the tuck switch: a hand over it, the text
+   cursor over the text. */
+.inputWrapper[data-tuckable] {
+  cursor: pointer;
+}
+.inputWrapper[data-tuckable] :global([data-composer-text]) {
+  cursor: text;
+}
 .inputArea:has([data-environment-row] [aria-expanded="true"]) > *,
 .inputArea:has([data-effort-expanded="true"]) > * {
   z-index: 51;

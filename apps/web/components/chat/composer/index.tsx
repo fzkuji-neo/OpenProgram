@@ -583,7 +583,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
       ref={inputAreaRef}
       className={styles.inputArea}
       data-composer-input-area
-      data-tucked={tuck.tucked ? "" : undefined}
+      data-tucked={tuck.covering ? "" : undefined}
     >
       {/* Drop overlay scoped to the chat main column (#chatArea) —
           covers the conversation surface but lets the sidebars stay
@@ -599,7 +599,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
           )
         : null}
       <div className={styles.decisionColumn}><PendingDecisionPanels sessionId={activeChatKey ?? currentSessionId} /></div>
-      <TuckRow tucked={tuck.tucked} side="above">
+      <TuckRow tucked={tuck.tucked} side="above" onSettled={tuck.onSettled}>
         <EnvironmentRow
           sessionId={currentSessionId}
           toolsEnabled={toolsEnabled}
@@ -635,6 +635,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
         }}
         className={`${styles.inputWrapper} ${morphed ? styles.morphed : ""}`}
         onPointerDown={tuck.onBoxPointerDown}
+        data-tuckable={tuck.enabled ? "" : undefined}
         data-voice={voice.state !== "idle" ? voice.state : undefined}
       >
         {pendingRecording ? (
@@ -734,7 +735,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
         )}
       </div>
       </div>{/* /.composerStack */}
-      <TuckRow tucked={tuck.tucked} side="below">
+      <TuckRow tucked={tuck.tucked} side="below" onSettled={tuck.onSettled}>
         <div ref={controlsRowRef} className={`${styles.controlsRow} composer-bottom-row`}>
           {controlsCluster}
         </div>

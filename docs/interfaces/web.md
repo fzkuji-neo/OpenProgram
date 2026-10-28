@@ -82,7 +82,7 @@ Sessions are matched on their title, latest message preview and project name, th
 
 ### Tucking the composer's rows
 
-Click the input box anywhere outside its text, such as the band above or below the line or the space beside the microphone and send buttons. The box gives a small bounce, and the rows of chips above and below it slide in behind it. Click there again to bring them back. The choice is remembered in this browser. Clicking the text itself only places the cursor. The function form ignores these clicks.
+Click the input box anywhere outside its text, such as the band above or below the line or the space beside the microphone and send buttons. The pointer turns into a hand over these spots. A click makes the box give a small bounce, and the rows of chips above and below it slide into it from either side and disappear behind it. The box itself does not move. Click there again to bring the rows back. The choice is remembered in this browser. Clicking the text itself only places the cursor. The function form ignores these clicks.
 
 ### Message streaming
 
