@@ -46,12 +46,25 @@ export function _branchColor(
 // 注意 canvas 的 ctx.font 不认 CSS 变量——含 var() 的整串会被拒收，
 // 静默退回默认 "10px sans-serif"，所以调用方必须写死字体栈。
 let _measureCtx: CanvasRenderingContext2D | null = null;
+let _measureFont = "";
+const _widths = new Map<string, number>();
+
 export function _textWidth(s: string, font: string): number {
   if (typeof document === "undefined") return s.length * 8;
   if (!_measureCtx) {
     _measureCtx = document.createElement("canvas").getContext("2d");
   }
   if (!_measureCtx) return s.length * 8; // 拿不到 canvas 时保守按 8px/字
-  _measureCtx.font = font;
-  return _measureCtx.measureText(s).width;
+  // Every capture re-measures every label (and a truncation measures
+  // each shorter prefix), so widths are kept; setting ``font`` parses
+  // it, so it is set only when it changes.
+  const key = font + "\0" + s;
+  let w = _widths.get(key);
+  if (w === undefined) {
+    if (_measureFont !== font) _measureCtx.font = _measureFont = font;
+    w = _measureCtx.measureText(s).width;
+    if (_widths.size >= 20000) _widths.clear();
+    _widths.set(key, w);
+  }
+  return w;
 }

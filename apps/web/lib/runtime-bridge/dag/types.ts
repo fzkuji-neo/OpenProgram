@@ -42,6 +42,12 @@ export const COL_W = 40;
 export const PAD_X = 30;
 export const PAD_Y = 30;
 
+/** Height the floating composer occupies at the bottom of the DAG pane,
+ *  in screen pixels. The canvas runs underneath it; a fit, a jump or a
+ *  wheel forwarded from the minimap centres in the strip above it, or
+ *  the graph lands where it has to be dragged out by hand. */
+export const COMPOSER_STRIP = 150;
+
 // Categorical branch palette — 唯一定义在 lib/format-utils/lane-colors.ts。
 export { LANE_COLORS } from "@/lib/format-utils/lane-colors";
 

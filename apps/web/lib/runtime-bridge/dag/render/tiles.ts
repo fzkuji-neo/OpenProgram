@@ -15,7 +15,7 @@
 
 import { presentTool, type ToolTone } from "@/components/chat/messages/tool-presentation";
 import { SOLAR_BODIES, SOLAR_VIEWBOXES, type SolarIconName } from "@/components/solar-icons/bodies";
-import { translateText } from "@/lib/i18n";
+import { getLocale, translateText } from "@/lib/i18n";
 import { type GNode } from "../types";
 import { isSpawnRoot } from "../passes/thread";
 import { _svg } from "./shapes";
@@ -56,6 +56,23 @@ function toolName(node: GNode): string {
   return String(node.name || node.function || "");
 }
 
+/** ``presentTool`` parses the call's JSON arguments, and every capture
+ *  repaints every tile — three times over (nodes, captions, agents) —
+ *  so its answers are kept per name, arguments and language. Bounded:
+ *  a long session's worth, then it starts over. */
+const _presented = new Map<string, ReturnType<typeof presentTool>>();
+
+function presented(name: string, input: string | undefined): ReturnType<typeof presentTool> {
+  const key = `${getLocale()}\0${name}\0${input ?? ""}`;
+  let shown = _presented.get(key);
+  if (!shown) {
+    if (_presented.size >= 4000) _presented.clear();
+    shown = presentTool(name, input, translateText);
+    _presented.set(key, shown);
+  }
+  return shown;
+}
+
 export function tileFor(node: GNode): Tile {
   const record = node as Record<string, unknown>;
   if (node.display === "root") {
@@ -77,7 +94,7 @@ export function tileFor(node: GNode): Tile {
     || (node.role === "assistant" && !!node.function);
   if (isCall) {
     const input = typeof node.input === "string" ? node.input : undefined;
-    const shown = presentTool(toolName(node), input, translateText);
+    const shown = presented(toolName(node), input);
     const title = NOW[shown.title] ?? shown.title;
     const doing = shown.target ? `${title} ${shown.target}` : title;
     const did = shown.target ? `${shown.title} ${shown.target}` : shown.title;
@@ -117,12 +134,23 @@ export function taskLabel(root: GNode | undefined): string {
 export function buildTile(tile: Tile): SVGElement {
   const g = _svg("g", { class: `dag-tile t-${tile.tone}`, "pointer-events": "none" });
   g.appendChild(_svg("circle", { r: TILE_R, "data-node-shape": "1", "data-shape": "tile" }));
-  const box = SOLAR_VIEWBOXES[tile.icon] ?? "0 0 24 24";
-  const icon = _svg("svg", {
-    x: -ICON / 2, y: -ICON / 2, width: ICON, height: ICON,
-    viewBox: box, class: "dag-tile-icon", "aria-hidden": "true",
-  });
-  icon.innerHTML = SOLAR_BODIES[tile.icon];
-  g.appendChild(icon);
+  g.appendChild(iconFor(tile.icon).cloneNode(true));
   return g;
+}
+
+/** One parsed icon per name, cloned into each tile: parsing the body's
+ *  markup for every tile on every capture was most of a tile's cost. */
+const _icons = new Map<string, SVGElement>();
+
+function iconFor(name: SolarIconName): SVGElement {
+  let icon = _icons.get(name);
+  if (!icon) {
+    icon = _svg("svg", {
+      x: -ICON / 2, y: -ICON / 2, width: ICON, height: ICON,
+      viewBox: SOLAR_VIEWBOXES[name] ?? "0 0 24 24", class: "dag-tile-icon", "aria-hidden": "true",
+    });
+    icon.innerHTML = SOLAR_BODIES[name];
+    _icons.set(name, icon);
+  }
+  return icon;
 }

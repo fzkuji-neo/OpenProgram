@@ -11,6 +11,10 @@
  * and lines are read once per drawn graph.
  */
 
+
+import { COMPOSER_STRIP } from "../types";
+import { seatOf } from "../render/seat";
+
 // As wide as the legend card that opens under it (dag/hud.css
 // .dag-legend-body), so the two line up; 3:2.
 const W = 240;
@@ -19,7 +23,7 @@ const PAD = 8;
 
 interface Dot { x: number; y: number; color: string; head: boolean }
 interface Line { path: Path2D; color: string }
-interface MapData { dots: Dot[]; lines: Line[]; x0: number; y0: number; x1: number; y1: number; theme: string }
+interface MapData { dots: Dot[]; lines: Line[]; x0: number; y0: number; x1: number; y1: number; accent: string; look: string }
 export interface MapView { tx: number; ty: number; scale: number; w: number; h: number }
 
 const _data = new WeakMap<SVGGElement, MapData>();
@@ -56,20 +60,21 @@ export function toggleMinimap(): void {
 }
 
 function readGraph(world: SVGGElement): MapData {
-  // Tone colours are read once per graph and theme: a theme switch with
-  // no repaint must not leave the old palette on the map.
-  const theme = document.documentElement.getAttribute("data-theme") || "";
+  // Colours are read once per graph and look: a theme or accent switch
+  // with no repaint must not leave the old palette on the map. The
+  // accent lives in the root's inline style, the theme in its attribute.
+  const root = document.documentElement;
+  const look = (root.getAttribute("data-theme") || "") + "|" + (root.getAttribute("style") || "");
   const cached = _data.get(world);
-  if (cached && cached.theme === theme) return cached;
+  if (cached && cached.look === look) return cached;
   // One computed-style read per tone, not per node.
   const toneColor = new Map<string, string>();
   const dots: Dot[] = [];
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   world.querySelectorAll<SVGGElement>(".history-node").forEach((g) => {
-    const m = /translate\(([-\d.]+),([-\d.]+)\)/.exec(g.getAttribute("transform") || "");
-    if (!m) return;
-    const x = Number(m[1]);
-    const y = Number(m[2]);
+    const at = seatOf(g);
+    if (!at) return;
+    const { x, y } = at;
     const tile = g.querySelector<SVGGElement>(".dag-tile");
     const tone = (tile?.getAttribute("class") || "").match(/\bt-[\w-]+/)?.[0] || "";
     if (!toneColor.has(tone)) {
@@ -95,7 +100,8 @@ function readGraph(world: SVGGElement): MapData {
       }
     });
   }
-  const data = { dots, lines, x0, y0, x1, y1, theme };
+  const accent = getComputedStyle(world).getPropertyValue("--accent-primary").trim() || "#4a7dfc";
+  const data = { dots, lines, x0, y0, x1, y1, accent, look };
   _data.set(world, data);
   return data;
 }
@@ -147,7 +153,7 @@ function mapCanvas(host: HTMLElement, jump: (x: number, y: number) => void): HTM
     host.dispatchEvent(new WheelEvent("wheel", {
       deltaX: e.deltaX, deltaY: e.deltaY, deltaMode: e.deltaMode,
       ctrlKey: e.ctrlKey, metaKey: e.metaKey, cancelable: true,
-      clientX: r.left + r.width / 2, clientY: r.top + (r.height - 150) / 2, // above the composer (canvas.ts COMPOSER_STRIP)
+      clientX: r.left + r.width / 2, clientY: r.top + (r.height - COMPOSER_STRIP) / 2, // above the composer
     }));
   }, { passive: false });
   panel.appendChild(c);
@@ -204,7 +210,7 @@ export function paintMinimap(
     ctx.arc(fit.ox + dot.x * fit.k, fit.oy + dot.y * fit.k, r, 0, Math.PI * 2);
     ctx.fill();
   }
-  const accent = getComputedStyle(c).getPropertyValue("--accent-primary").trim() || "#4a7dfc";
+  const { accent } = d;
   // HEAD is where you are: a larger dot ringed in the accent colour.
   const head = d.dots.find((dot) => dot.head);
   if (head) {
@@ -219,10 +225,10 @@ export function paintMinimap(
   // What you selected, larger and in the accent colour (the colour of a
   // box selection), so a selection far off screen still shows here.
   world.querySelectorAll<SVGGElement>(".history-node.is-selected").forEach((g) => {
-    const m = /translate\(([-\d.]+),([-\d.]+)\)/.exec(g.getAttribute("transform") || "");
-    if (!m) return;
+    const at = seatOf(g);
+    if (!at) return;
     ctx.beginPath();
-    ctx.arc(fit.ox + Number(m[1]) * fit.k, fit.oy + Number(m[2]) * fit.k, r + 2, 0, Math.PI * 2);
+    ctx.arc(fit.ox + at.x * fit.k, fit.oy + at.y * fit.k, r + 2, 0, Math.PI * 2);
     ctx.fillStyle = accent;
     ctx.fill();
   });

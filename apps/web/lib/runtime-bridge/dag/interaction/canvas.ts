@@ -24,7 +24,7 @@
  */
 
 import { animate, type AnimationPlaybackControls } from "framer-motion";
-import { COL_W, PAD_X, PAD_Y } from "../types";
+import { COL_W, COMPOSER_STRIP, PAD_X, PAD_Y } from "../types";
 import { TILE_R } from "../render/tiles";
 import { seatOf } from "../render/seat";
 import { closeNodeLayers } from "../render/inspector";
@@ -63,11 +63,6 @@ const ZOOM_STEP = Math.exp(100 * WHEEL_ZOOM_RATE);
 /** Padding around the graph when fitting, in screen pixels. */
 const FIT_PAD = 72;
 
-/** Height the floating composer and the HUD occupy at the bottom of the
- *  pane. The canvas runs underneath them; only ``fitCanvas`` cares,
- *  because a fit that centres behind the composer is a fit you have to
- *  undo by hand. */
-export const COMPOSER_STRIP = 150;
 
 interface CanvasHandle {
   world: SVGGElement;
@@ -109,6 +104,10 @@ export function applyView(): void {
   });
 }
 
+function placeWorld(world: SVGGElement): void {
+  world.setAttribute("transform", `translate(${_viewTx},${_viewTy}) scale(${_viewScale})`);
+}
+
 /** Push the current view onto the world group, the backdrop lattice,
  *  the semantic-zoom variables, the zoom readout and the minimap — in
  *  one function, in one frame, so they can never disagree. Sizes are
@@ -119,10 +118,7 @@ function paintView(): void {
   const w = host.clientWidth;
   const h = host.clientHeight;
   const rescaled = _painted.scale !== _viewScale || _painted.world !== world;
-  world.setAttribute(
-    "transform",
-    `translate(${_viewTx},${_viewTy}) scale(${_viewScale})`,
-  );
+  placeWorld(world);
   // The lattice pitch is the layout's own column width, and the offset
   // puts a dot's CENTRE under every node anchor: nodes sit at
   // ``PAD + k * COL_W`` in world space, while a background tile paints
@@ -209,37 +205,43 @@ export function fitCanvas(opening = false, only?: DOMRect): void {
   if (!_handle) return;
   dismissOverlays();
   const { world, host } = _handle;
-  let bb: DOMRect;
-  try {
-    bb = only ?? (world as SVGGraphicsElement).getBBox();
-  } catch {
-    return;
-  }
-  if (!bb.width || !bb.height) return;
   const w = host.clientWidth;
   // The composer floats over the bottom of the pane. The canvas runs
   // under it — panning there is one gesture — but a FIT should land the
   // graph where it can be read, so it centres in the strip above.
   const h = host.clientHeight - COMPOSER_STRIP;
   if (!w || h <= 0) return;
-  const fit = Math.min(
-    (w - FIT_PAD * 2) / bb.width,
-    (h - FIT_PAD * 2) / bb.height,
-  );
-  // A few selected nodes may come closer than the whole graph would.
-  const scale = Math.min(
-    only ? 2 : 1.3, Math.max(opening ? OPEN_MIN_SCALE : MIN_SCALE, fit),
-  );
-  let tx = (w - bb.width * scale) / 2 - bb.x * scale;
-  let ty = (h - bb.height * scale) / 2 - bb.y * scale;
-  const head = opening && scale > fit ? headPoint(world) : null;
-  if (head) {
-    // Whichever axis overflows follows HEAD; the other stays centred.
-    if (bb.width * scale > w - FIT_PAD * 2) tx = w / 2 - head.x * scale;
-    if (bb.height * scale > h - FIT_PAD * 2) ty = h - FIT_PAD - head.y * scale;
+  // The graph's box depends on the scale it is seen at: zoomed out, the
+  // labels keep most of their screen size (``--dag-label-scale``) and so
+  // grow in world units. So a whole-graph fit measures twice — once to
+  // find the scale, then again with the labels sized for it.
+  for (let pass = 0; pass < (only ? 1 : 2); pass++) {
+    let bb: DOMRect;
+    try {
+      bb = only ?? (world as SVGGraphicsElement).getBBox();
+    } catch {
+      return;
+    }
+    if (!bb.width || !bb.height) return;
+    const fit = Math.min(
+      (w - FIT_PAD * 2) / bb.width,
+      (h - FIT_PAD * 2) / bb.height,
+    );
+    // A few selected nodes may come closer than the whole graph would.
+    const scale = Math.min(
+      only ? 2 : 1.3, Math.max(opening ? OPEN_MIN_SCALE : MIN_SCALE, fit),
+    );
+    let tx = (w - bb.width * scale) / 2 - bb.x * scale;
+    let ty = (h - bb.height * scale) / 2 - bb.y * scale;
+    const head = opening && scale > fit ? headPoint(world) : null;
+    if (head) {
+      // Whichever axis overflows follows HEAD; the other stays centred.
+      if (bb.width * scale > w - FIT_PAD * 2) tx = w / 2 - head.x * scale;
+      if (bb.height * scale > h - FIT_PAD * 2) ty = h - FIT_PAD - head.y * scale;
+    }
+    setView(Math.round(tx), Math.round(ty), scale);
+    paintView();
   }
-  setView(Math.round(tx), Math.round(ty), scale);
-  applyView();
   _fitPending = false;
 }
 
@@ -365,9 +367,12 @@ export function attachCanvas(
   const fresh = _viewSession !== sessionId;
   setViewSession(sessionId);
   if (fresh) _fitPending = true;
-  // A new graph is painted now, not next frame: until it carries the
-  // view's transform it would flash at the origin.
-  paintView();
+  // The new graph takes the view's transform now — without it, it would
+  // flash at the origin for a frame. The rest (labels, minimap) waits
+  // for the frame: reading the pane's size here, straight after the
+  // swap, would force a layout of the whole new SVG on every capture.
+  placeWorld(world);
+  applyView();
   if (_fitPending) {
     // getBBox needs the element laid out; a frame later it is. If the
     // pane still has no size (hidden tab, mid-layout), the fit stays
