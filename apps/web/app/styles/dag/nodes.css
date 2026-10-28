@@ -54,14 +54,6 @@
 }
 .history-node:hover .dag-tile .dag-tile-icon { opacity: 1; }
 
-/* Zoomed far out (interaction/canvas.ts ``is-far``): an icon at a few
-   pixels is noise, so a chip becomes a dot of its colour — the map reads
-   by colour, and the agents' markers keep their size above it. */
-.is-far .dag-tile-icon { display: none; }
-.is-far .dag-tile > [data-node-shape] { fill: var(--tone); }
-.is-far .history-node:not(.is-covered) .dag-tile > [data-node-shape] {
-  fill: color-mix(in srgb, var(--tone) 40%, var(--bg-primary, #191918));
-}
 
 /* HEAD — "you are here": the chip glows in its colour on a slow breath
    (§4), so it stands out without changing shape. */
@@ -84,6 +76,35 @@
   opacity: 1;
   color: var(--bg-primary, #191918);
 }
+
+/* Zoomed far out (interaction/canvas.ts ``is-far``): an icon at a few
+   pixels is noise, so a chip becomes a dot of its colour — the map reads
+   by colour. Like a marker on a map the dot never shrinks below about
+   10px on screen, and the lines keep 1.5px. A selected dot grows to
+   about 20px and turns to the ink colour with a glow of its own, so it
+   stands out among the coloured dots at any zoom. */
+.is-far .dag-tile-icon { display: none; }
+.is-far .dag-tile {
+  transform: scale(max(1, calc(var(--dag-marker-scale, 1) * 0.35)));
+  transition: none; /* it follows the zoom, frame by frame */
+}
+.is-far .dag-tile > [data-node-shape] { fill: var(--tone); }
+.is-far .history-node:not(.is-covered) .dag-tile > [data-node-shape] {
+  fill: color-mix(in srgb, var(--tone) 40%, var(--bg-primary, #191918));
+}
+.is-far .history-node.is-head .dag-tile > [data-node-shape] { fill: var(--tone); }
+/* The press target grows with the dot, so a dot is as easy to hit as it looks. */
+.is-far .history-node > .dag-hit {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(max(1, calc(var(--dag-marker-scale, 1) * 0.35)));
+}
+.is-far .history-node.is-selected .dag-tile { transform: scale(max(1.08, calc(var(--dag-marker-scale, 1) * 0.72))); }
+.is-far .history-node.is-selected .dag-tile > [data-node-shape] {
+  fill: var(--text-bright, #fff);
+  filter: drop-shadow(0 0 3px var(--tone)) drop-shadow(0 0 1px var(--tone));
+}
+.is-far .history-edge { stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
 
 /* Running: the icon breathes. */
 .history-node.is-running .dag-tile-icon {
@@ -197,4 +218,13 @@
   paint-order: stroke;
 }
 .dag-caption.is-hidden,
-.is-far .dag-caption { display: none; }
+.is-far .dag-caption:not(.is-turn) { display: none; }
+/* Zoomed far out, the opening words of your messages stay readable, like
+   place names on a map; interaction/far-labels.ts hides the ones that
+   would collide, keeping those nearest HEAD. */
+.is-far .dag-caption.is-turn {
+  transform-box: fill-box;
+  transform-origin: left center;
+  transform: scale(var(--dag-marker-scale, 1));
+}
+.is-far .dag-caption.is-culled { visibility: hidden; }

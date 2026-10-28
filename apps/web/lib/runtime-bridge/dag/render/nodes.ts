@@ -194,7 +194,7 @@ export function drawNodes(
     });
     const hit = _svg("rect", {
       x: -TILE_R - 3, y: -TILE_R - 3, width: TILE_R * 2 + 6, height: TILE_R * 2 + 6,
-      fill: "transparent",
+      fill: "transparent", class: "dag-hit",
       "pointer-events": "all",
     });
     g.appendChild(hit);

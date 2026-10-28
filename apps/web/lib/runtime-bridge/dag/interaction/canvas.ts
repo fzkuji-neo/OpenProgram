@@ -36,6 +36,7 @@ import { closeNodeLayers } from "../render/inspector";
 import { hideTooltip } from "./tooltip";
 import { wheelKind } from "./wheel";
 import { hideMinimap, paintMinimap } from "./minimap";
+import { paintFarLabels } from "./far-labels";
 import { SelectionBand, clearSelection, releaseEditableFocus, select } from "./selection";
 import {
   _viewSession,
@@ -137,6 +138,7 @@ export function applyView(): void {
   // tiles turn into solid blocks of their tone, too small for an icon.
   host.style.setProperty("--dag-marker-scale", String(Math.max(1, 1 / _viewScale)));
   host.classList.toggle("is-far", _viewScale < FAR_SCALE);
+  paintFarLabels(world, _viewScale < FAR_SCALE);
   const pct = document.querySelector<HTMLElement>(".dag-hud-zoom");
   if (pct) pct.textContent = Math.round(_viewScale * 100) + "%";
   const seen = { tx: _viewTx, ty: _viewTy, scale: _viewScale, w: host.clientWidth, h: host.clientHeight - COMPOSER_STRIP };

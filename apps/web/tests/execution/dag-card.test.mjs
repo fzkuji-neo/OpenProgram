@@ -76,3 +76,21 @@ test("The fold count steps past an error or cross-session mark on the shoulder",
   assert.match(nodes, /String\(TILE_R \+ \(marked \? 10 : 3\)\)/);
   assert.match(nodes, /"data-corner-mark": "1"/);
 });
+
+test("Zoomed far out, a selection stays obvious and labels read like a map", () => {
+  const css = readFileSync(new URL("../../app/styles/dag/nodes.css", import.meta.url), "utf8");
+  // A selected dot grows and turns to the ink colour.
+  assert.match(css, /\.is-far \.history-node\.is-selected \.dag-tile \{ transform: scale\(max\(1\.08, calc\(var\(--dag-marker-scale, 1\) \* 0\.72\)\)\); \}/);
+  assert.match(css, /\.is-far \.history-node\.is-selected \.dag-tile > \[data-node-shape\] \{\s*fill: var\(--text-bright/);
+  // Your messages' words keep their size; call captions hide.
+  assert.match(css, /\.is-far \.dag-caption:not\(\.is-turn\) \{ display: none; \}/);
+  assert.match(css, /\.is-far \.dag-caption\.is-turn \{[^}]*scale\(var\(--dag-marker-scale/);
+  const captions = readFileSync(new URL("../../lib/runtime-bridge/dag/render/captions.ts", import.meta.url), "utf8");
+  assert.match(captions, /tile\.tone === "user" \? "dag-caption is-turn"/);
+  const canvas = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/canvas.ts", import.meta.url), "utf8");
+  assert.match(canvas, /paintFarLabels\(world, _viewScale < FAR_SCALE\)/);
+  const map = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/minimap.ts", import.meta.url), "utf8");
+  assert.match(map, /\.history-node\.is-selected/);
+  const sel = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/selection.ts", import.meta.url), "utf8");
+  assert.match(sel, /repaintMinimap\(\);/);
+});

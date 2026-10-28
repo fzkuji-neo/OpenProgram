@@ -101,7 +101,8 @@ export function drawCaptions(world: Element, nodeG: Element): void {
   for (const { g, at } of nodes) {
     const node = g._nodeData;
     if (!node) continue;
-    const text = tileFor(node).did;
+    const tile = tileFor(node);
+    const text = tile.did;
     if (!text) continue;
     // Room to the right: up to the next tile on this row.
     let free = 0;
@@ -120,7 +121,9 @@ export function drawCaptions(world: Element, nodeG: Element): void {
     const shown = fit(text, Math.min(MAX_W, right - x));
     if (!shown || right - x < MIN_W) continue;
     const label = _svg("text", {
-      x, y: at.y, class: "dag-caption", "dominant-baseline": "central",
+      // Your messages' words stay readable zoomed out (interaction/far-labels.ts).
+      x, y: at.y, class: tile.tone === "user" ? "dag-caption is-turn" : "dag-caption",
+      "dominant-baseline": "central",
       "data-for": g.getAttribute("data-msg-id") || "",
     });
     label.textContent = shown;

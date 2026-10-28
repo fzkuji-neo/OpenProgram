@@ -430,7 +430,26 @@ like unit markers on a map (`--dag-marker-scale`, set by
 `interaction/canvas.ts`; the marker is pinned to its tile in world units and
 only its body scales). Below 55% an icon is a few pixels of noise, so every
 tile becomes a solid block of its tone (`is-far`): the map reads by colour,
-and covered tiles stay brighter than the rest. With nothing
+and covered tiles stay brighter than the rest.
+
+Zoomed that far out the canvas reads like a map, which keeps its place names
+readable and shows fewer of them as you pull back; before this, every label
+shrank with the graph into specks of grey. So below 55%:
+
+- a dot never shrinks below about 10px on screen and a line below 1.5px;
+- **a selected node stays obvious**: its dot grows to about 20px and turns to
+  the ink colour (`--text-bright`) with a glow of its own colour, and the
+  minimap draws selected nodes in the same ink, so a selection off screen
+  still shows there. The press target grows with the dot;
+- branch names and the opening words of your messages keep their on-screen
+  size (`is-turn` captions, `render/captions.ts`), and
+  `interaction/far-labels.ts` hides any that would land on a label already
+  shown — branch names first, the current branch before the rest, then your
+  messages nearest HEAD;
+- call captions, fold counts and corner marks are detail and hide; zoom back
+  in for them.
+
+With nothing
 running, the main agent's dot rests on HEAD, steady, without a bubble. The layer is
 rebuilt from the node DOM, so the in-place status patch repaints it.
 

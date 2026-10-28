@@ -18,6 +18,7 @@
  */
 
 import { runtimeState } from "../../state";
+import { repaintMinimap } from "./minimap";
 import { _svg } from "../render/shapes";
 
 let _selected: string[] = [];
@@ -101,6 +102,7 @@ export function paintSelection(): void {
     // Selected, the chip itself lights up (dag/nodes.css): no frame.
     g.classList.toggle("is-selected", on);
   });
+  repaintMinimap();
   if (drawn.size !== want.size) {
     _selected = _selected.filter((id) => drawn.has(id));
     pruned = true;
