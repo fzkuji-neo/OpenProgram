@@ -104,13 +104,14 @@ export const MENU_TAG = "menu-tag";
 /** The states a radix DropdownMenu / ContextMenu row exposes as data
  *  attributes, mapped onto the itemCls hover rule: keyboard highlight
  *  (radix sets `data-highlighted` on the focused item) and an open
- *  sub-trigger tint the same as hover; a disabled row dims and keeps
- *  pointer events so its `title` can still explain why. */
+ *  sub-trigger tint the same as hover; a disabled row dims, keeps
+ *  pointer events so its `title` can still explain why, and shows the
+ *  arrow like every disabled control (globals.css cursor rule). */
 export const MENU_ITEM_STATES =
   "select-none outline-none " +
   "data-[highlighted]:bg-accent data-[highlighted]:text-text-bright " +
   "data-[state=open]:bg-accent data-[state=open]:text-text-bright " +
-  "data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50";
+  "data-[disabled]:cursor-default data-[disabled]:opacity-50";
 
 /** A selectable menu row — `active` swaps the resting / hover colours;
  *  `danger` makes it a destructive (red) action. */

@@ -96,3 +96,16 @@ test("Zoomed far out, a selection stays obvious and labels read like a map", () 
   assert.match(sel, /repaintMinimap\(\);/);
   assert.match(sel, /host\.classList\.toggle\("has-selection", drawn\.size > 0\)/);
 });
+
+test("Everything clickable on the canvas takes the hand, all of it", () => {
+  // A fold count is part of its node: its whole box hits the node (the
+  // hand, and a click folds / unfolds), not just the strokes of the digits.
+  const nodes = readFileSync(new URL("../../lib/runtime-bridge/dag/render/nodes.ts", import.meta.url), "utf8");
+  const counts = nodes.match(/class: "history-thread-count",[\s\S]*?"pointer-events": "[^"]+"/g) || [];
+  assert.equal(counts.length, 2);
+  for (const c of counts) assert.match(c, /"pointer-events": "bounding-box"/);
+  // A disabled menu row shows the arrow like every disabled control.
+  const menu = readFileSync(new URL("../../components/chat/top-bar/menu-styles.ts", import.meta.url), "utf8");
+  assert.match(menu, /data-\[disabled\]:cursor-default/);
+  assert.doesNotMatch(menu, /cursor-not-allowed/);
+});

@@ -218,7 +218,9 @@ export function drawNodes(
         x: String(TILE_R + 3),
         y: String(-TILE_R + 2),
         class: "history-thread-count",
-        "pointer-events": "none",
+        // Part of its node: the whole box takes the hand and the click
+        // (fold / unfold), not just the strokes of the digits.
+        "pointer-events": "bounding-box",
       });
       cnt.textContent = `+${covered.length}`;
       g.appendChild(cnt);
@@ -266,7 +268,9 @@ export function drawNodes(
         x: String(TILE_R + 3),
         y: String(-TILE_R + 2),
         class: "history-thread-count",
-        "pointer-events": "none",
+        // Part of its node: the whole box takes the hand and the click
+        // (fold / unfold), not just the strokes of the digits.
+        "pointer-events": "bounding-box",
       });
       cnt.textContent = `+${threadCount}`;
       g.appendChild(cnt);
