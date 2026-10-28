@@ -6,7 +6,7 @@ import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 
 import { cn } from "@/lib/utils";
 
-import type { AnimatedNavIconHandle, AnimatedNavIconProps } from "./_shared";
+import type { AnimatedNavIconHandle, AnimatedNavIconProps } from "../_shared";
 
 // ─── flame (function-card icon choice) ───────────────────────────────
 const FLAME_PATH_VARIANTS: Variants = {

@@ -6,7 +6,7 @@ import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 
 import { cn } from "@/lib/utils";
 
-import type { AnimatedNavIconHandle, AnimatedNavIconProps } from "./_shared";
+import type { AnimatedNavIconHandle, AnimatedNavIconProps } from "../_shared";
 
 // ─── hammer (function-card icon choice) ────────────────────────────────────────────
 const HAMMER_HAMMER_VARIANTS: Variants = {

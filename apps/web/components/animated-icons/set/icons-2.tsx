@@ -6,7 +6,7 @@ import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 
 import { cn } from "@/lib/utils";
 
-import type { AnimatedNavIconHandle, AnimatedNavIconProps } from "./_shared";
+import type { AnimatedNavIconHandle, AnimatedNavIconProps } from "../_shared";
 
 // ─── chrome (Composer: Web Search) ───────────────────────────────────
 const CHROME_TRANSITION: Transition = { duration: 0.3, opacity: { delay: 0.15 } };
