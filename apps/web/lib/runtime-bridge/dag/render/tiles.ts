@@ -86,14 +86,25 @@ export function tileFor(node: GNode): Tile {
   if (node.role === "assistant" || node.role === "llm") {
     return { icon: "stars", tone: "llm", doing: translateText("Thinking…", "思考中…") };
   }
-  const said = String(node.preview || "").replace(/\s+/g, " ").trim();
   return { icon: "user-rounded", tone: "user",
-    doing: translateText("Reading your message", "读取你的消息"), did: said };
+    doing: translateText("Reading your message", "读取你的消息"), did: saidIn(node) };
+}
+
+/** What a message of yours says, in words: an attachment's raw marker
+ *  ("[attachment: a.png (png, 12 KB) @json …]") gives way to the text
+ *  after it, or to the file's name when there is none. */
+function saidIn(node: GNode): string {
+  const said = String(node.preview || "").replace(/\s+/g, " ").trim();
+  const m = /^\[attachment: ([^\]]*?)(?: \([^)]*\))?(?: @json[^\]]*)?(?:\]\s*(.*))?$/.exec(said);
+  if (!m) return said;
+  if (m[2]) return m[2];
+  const name = m[1].replace(/…$/, "");
+  return translateText(`Attached ${name}`, `附件 ${name}`);
 }
 
 /** A short name for an agent that has none: the start of its task. */
 export function taskLabel(root: GNode | undefined): string {
-  const text = String(root?.preview || "").replace(/\s+/g, " ").trim();
+  const text = root ? saidIn(root) : "";
   if (!text || text.startsWith("[")) return "";
   const chars = Array.from(text);
   return chars.length > 14 ? chars.slice(0, 13).join("") + "…" : text;

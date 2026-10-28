@@ -610,3 +610,11 @@ test("a caption steps past a fork line running down where it would start", async
   // Below the line's end the caption keeps its place beside the tile.
   assert.equal(x("t2"), 90);
 });
+
+test("a message's caption reads an attachment as words, not its raw marker", async () => {
+  const { tileFor } = await import("../../lib/runtime-bridge/dag/render/tiles.ts");
+  const said = (preview) => tileFor({ id: "u", role: "user", preview }).did;
+  assert.equal(said('[attachment: a.png (png, 12 KB) @json "/x/a.png"] look at this'), "look at this");
+  assert.equal(said('[attachment: Screenshot 1.png (png, 467 KB) @json "/User…'), "Attached Screenshot 1.png");
+  assert.equal(said("plain words"), "plain words");
+});
