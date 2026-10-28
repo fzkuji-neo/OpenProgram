@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { api, type GoalControls } from "@/lib/net/api";
-import { SessionDebugger } from "@/components/right-sidebar/session-debugger";
+import { SessionDebugger } from "@/components/right-sidebar/debugger/session-debugger";
 import { HttpError } from "@/lib/net/fetch-client";
 import { runtimeState } from "@/lib/runtime-bridge/state";
 import { updateSessionGoal } from "@/lib/runtime-bridge/actions/goal-state";

@@ -4,7 +4,7 @@
  *  that progressively reveals the rest. */
 import { useEffect, useState } from "react";
 import { ItemRow } from "./item-row";
-import type { CommitItem } from "./types";
+import type { CommitItem } from "../types";
 import { activateOnKey } from "@/lib/utils";
 
 const ITEM_PAGE = 100;

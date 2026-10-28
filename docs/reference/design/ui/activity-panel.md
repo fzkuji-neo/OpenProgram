@@ -11,7 +11,7 @@ Messages are never rows; they stay in the chat.
 
 Related: [`indicator-dots.md`](indicator-dots.md) (status dots),
 [`sub-agents-card.md`](sub-agents-card.md) (a sub-agent's own conversation).
-Code: `apps/web/components/right-sidebar/running-panel.tsx`,
+Code: `apps/web/components/right-sidebar/running/running-panel.tsx`,
 `apps/web/components/right-sidebar/agents-view-menu.tsx`,
 `apps/web/lib/execution/activity-model.ts`, `apps/web/lib/prefs/activity-view.ts`,
 `openprogram/execution/activity_calls.py`.

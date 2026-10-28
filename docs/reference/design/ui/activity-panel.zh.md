@@ -4,7 +4,7 @@
 
 相关：[`indicator-dots.md`](indicator-dots.zh.md)（状态圆点），
 [`sub-agents-card.md`](sub-agents-card.zh.md)（子代理自己的对话）。
-代码：`apps/web/components/right-sidebar/running-panel.tsx`、
+代码：`apps/web/components/right-sidebar/running/running-panel.tsx`、
 `apps/web/lib/execution/activity-model.ts`、
 `openprogram/execution/activity_calls.py`。
 

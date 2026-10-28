@@ -2,7 +2,7 @@
 
 import type { DetailNode } from "@/lib/session-store";
 import { useTranslation } from "@/lib/i18n";
-import { guiCapabilityLabel, guiStatusLabel, type GuiToolView } from "../chat/messages/execution/gui-tool-view";
+import { guiCapabilityLabel, guiStatusLabel, type GuiToolView } from "../../chat/messages/execution/gui-tool-view";
 import styles from "./gui-tool-detail.module.css";
 
 export function GuiToolDetail({ node, view }: { node: DetailNode; view: GuiToolView }) {

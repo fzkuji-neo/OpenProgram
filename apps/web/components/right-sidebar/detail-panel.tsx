@@ -6,7 +6,7 @@ import { useTranslation } from "@/lib/i18n";
 import { renderMarkdown, useMarkdownReady } from "../chat/messages/bubbles/markdown";
 import { LlmNodeContent } from "../chat/messages/execution/llm-node-content";
 import type { TNode } from "../chat/messages/execution/tree-types";
-import { GuiToolDetail } from "./gui-tool-detail";
+import { GuiToolDetail } from "./running/gui-tool-detail";
 import { guiToolView } from "../chat/messages/execution/gui-tool-view";
 
 export const VIEW_DETAIL = "detail";

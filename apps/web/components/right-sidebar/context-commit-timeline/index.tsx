@@ -23,7 +23,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSessionStore } from "@/lib/session-store";
 import { getSocket } from "@/lib/runtime-bridge/state";
 
-import { CommitGroupRow } from "./commit-group-row";
+import { CommitGroupRow } from "./rows/commit-group-row";
 import type { CommitDetail, CommitMeta } from "./types";
 import { groupCommits, wsSend } from "./utils";
 import { activateOnKey } from "@/lib/utils";

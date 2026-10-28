@@ -50,7 +50,7 @@ import {
   PanelLeftOpenIcon,
 } from "../animated-icons";
 import { FileTree } from "../files/tree/file-tree";
-import { RunningPanel } from "./running-panel";
+import { RunningPanel } from "./running/running-panel";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { resourceSessionId } from "@/lib/chat/resources/session-resources";
 import { useCurrentProject } from "@/lib/files/files-shared";

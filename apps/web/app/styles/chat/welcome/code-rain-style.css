@@ -67,7 +67,7 @@
 ::highlight(code-rain-fade-4) { color: color-mix(in srgb, var(--code-rain-ink) 22%, var(--code-rain-text, var(--text-primary))); }
 ::highlight(code-rain-fade-5) { color: color-mix(in srgb, var(--code-rain-ink) 8%, var(--code-rain-text, var(--text-primary))); }
 
-/* ---- Programs in Activity (components/right-sidebar/program-progress.tsx) ---- */
+/* ---- Programs in Activity (components/right-sidebar/running/program-progress.tsx) ---- */
 /* A running program's bar fills with green blocks, and its output reads
    as a green terminal. Errors keep their red. */
 :root[data-code-rain="on"] [data-program-bar][data-tone="run"] > span {

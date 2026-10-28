@@ -38,7 +38,7 @@ export type ExecutionDebuggerController = {
   unresolvedEffects: UnresolvedEffect[];
   fetchedAt: number | null;
   selectedExecutionId: string | null;
-  checkpoints: import("@/components/right-sidebar/debugger-panel").CheckpointInspector[];
+  checkpoints: import("@/components/right-sidebar/debugger/debugger-panel").CheckpointInspector[];
   waits: import("@/lib/execution/execution-debugger").DurableWait[];
   drafts: RevisionDraft[];
   connection: DebuggerConnection;
@@ -85,7 +85,7 @@ export function useExecutionDebugger(active: boolean, sessionId: string | null, 
   const [events, setEvents] = useState<PersistedExecutionEvent[]>([]);
   const [fetchedAt, setFetchedAt] = useState<number | null>(null);
   const [debuggerData, setDebuggerData] = useState<Record<string, {
-    checkpoints: import("@/components/right-sidebar/debugger-panel").CheckpointInspector[];
+    checkpoints: import("@/components/right-sidebar/debugger/debugger-panel").CheckpointInspector[];
     waits: import("@/lib/execution/execution-debugger").DurableWait[];
     drafts: RevisionDraft[];
     unresolvedEffects?: UnresolvedEffect[];
@@ -361,7 +361,7 @@ export function useExecutionDebugger(active: boolean, sessionId: string | null, 
     unresolvedEffects: selectedKey ? debuggerData[selectedKey]?.unresolvedEffects || [] : [],
     fetchedAt,
     selectedExecutionId: selectedKey,
-    checkpoints: (selectedData?.checkpoints || []) as import("@/components/right-sidebar/debugger-panel").CheckpointInspector[],
+    checkpoints: (selectedData?.checkpoints || []) as import("@/components/right-sidebar/debugger/debugger-panel").CheckpointInspector[],
     waits: selectedData?.waits || [],
     drafts: selectedData?.drafts || [],
     connection,

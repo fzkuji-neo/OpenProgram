@@ -5,7 +5,7 @@
  *  is the newest attempt. */
 import { useState } from "react";
 import { CommitRow } from "./commit-row";
-import type { CommitDetail, CommitMeta } from "./types";
+import type { CommitDetail, CommitMeta } from "../types";
 
 export function CommitGroupRow(props: {
   attempts: CommitMeta[];

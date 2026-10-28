@@ -1,10 +1,10 @@
 /** One row per commit. Closed = plain bordered strip; open = same
  *  strip in bg-hover tint, with a roll-down popout below (grid-rows
  *  0fr↔1fr transition smoothly pushes following rows). */
-import styles from "./styles.module.css";
-import { CommitMetaContent } from "./commit-meta";
+import styles from "../styles.module.css";
+import { CommitMetaContent } from "../commit-meta";
 import { ItemList } from "./item-list";
-import type { CommitDetail, CommitMeta } from "./types";
+import type { CommitDetail, CommitMeta } from "../types";
 import { activateOnKey } from "@/lib/utils";
 
 export function CommitRow(props: {

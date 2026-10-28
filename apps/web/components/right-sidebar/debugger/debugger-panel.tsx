@@ -16,15 +16,15 @@ import {
 } from "@/lib/execution/execution-debugger";
 import { buildWaitAnswer } from "@/lib/execution/execution-wait";
 import type { PersistedExecutionEvent, UnresolvedEffect } from "@/lib/net/execution/execution-client";
-import { SidebarNotice } from "./sidebar-notice";
+import { SidebarNotice } from "../sidebar-notice";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { SimpleSelect } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { SectionHeader } from "../sidebar/sessions/section-header";
+import { SectionHeader } from "../../sidebar/sessions/section-header";
 import { useTranslation } from "@/lib/i18n";
-import { ExecutionStrip } from "../chat/messages/execution/execution-strip";
+import { ExecutionStrip } from "../../chat/messages/execution/execution-strip";
 import { executionTitle, executionRequest, executionGuidance, executionNeedsAttention, executionStatusLabel, activityRows, shortTime, updatedTime } from "./debugger-presentation";
 import styles from "./debugger-panel.module.css";
 

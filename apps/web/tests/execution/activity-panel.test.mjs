@@ -11,7 +11,7 @@ registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier === "@/lib/execution/use-execution-debugger") return { url: "data:text/javascript,export const useExecutionDebugger = () => globalThis.activityController", shortCircuit: true };
     if (specifier === "@/lib/execution/use-managed-processes") return { url: "data:text/javascript,export const useManagedProcesses = () => globalThis.activityProcesses", shortCircuit: true };
-    if (specifier === "./debugger-panel") return { url: "data:text/javascript,export const DebuggerPanel = () => 'DEBUGGER'", shortCircuit: true };
+    if (specifier === "../debugger/debugger-panel") return { url: "data:text/javascript,export const DebuggerPanel = () => 'DEBUGGER'", shortCircuit: true };
     if (specifier === "@/lib/chat/transcript/sub-agent-transcripts") return { url: "data:text/javascript,export const loadSubAgentTranscript = async () => globalThis.agentTip ?? null", shortCircuit: true };
     if (specifier === "@/lib/runtime-bridge/session/session-load") return { url: "data:text/javascript,export const sendRuntimeCommand = (p) => { (globalThis.sentCommands ||= []).push(p); }", shortCircuit: true };
     if (specifier === "@/lib/runtime-bridge/state") return { url: "data:text/javascript,export const getSocket = () => globalThis.approvalSocket; export const runtimeState = globalThis.runtimeStateStub ||= { _branchesByConv: {}, _branchLaneColorMap: {} }", shortCircuit: true };
@@ -58,7 +58,7 @@ window.history = { replaceState() {}, pushState() {} };
 window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
 const { act, createElement } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { RunningPanel } = await import("../../components/right-sidebar/running-panel.tsx");
+const { RunningPanel } = await import("../../components/right-sidebar/running/running-panel.tsx");
 const { useSessionStore } = await import("../../lib/session-store/index.ts");
 const { setActivityView, DEFAULT_ACTIVITY_VIEW } = await import("../../lib/prefs/activity-view.ts");
 useSessionStore.setState({ conversations: { session: { id: "session", title: "NeurIPS trip" } } });
@@ -299,8 +299,8 @@ test("Activity reports continuing read failures without replacing saved records"
 });
 
 test("Activity rows use a bare coloured glyph and a status dot, and lift on hover", async () => {
-  const css = readFileSync(new URL("../../components/right-sidebar/running-panel.module.css", import.meta.url), "utf8");
-  const panel = readFileSync(new URL("../../components/right-sidebar/running-panel.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../../components/right-sidebar/running/running-panel.module.css", import.meta.url), "utf8");
+  const panel = readFileSync(new URL("../../components/right-sidebar/running/running-panel.tsx", import.meta.url), "utf8");
   const rule = (name) => (new RegExp(`\\.${name} \\{([^}]*)\\}`).exec(css) || [])[1] || "";
   for (const name of ["glyph", "prose", "code"]) {
     assert.doesNotMatch(rule(name), /background|border:|box-shadow/, `${name} draws no surface`);

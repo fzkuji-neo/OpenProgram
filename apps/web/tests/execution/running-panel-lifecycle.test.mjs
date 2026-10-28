@@ -54,7 +54,7 @@ let respond;
 globalThis.fetch = (...args) => respond(...args);
 const { act, createElement } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { RunningPanel } = await import("../../components/right-sidebar/running-panel.tsx");
+const { RunningPanel } = await import("../../components/right-sidebar/running/running-panel.tsx");
 const { MessageList } = await import("../../components/chat/messages/list/message-list.tsx");
 const { useSessionStore } = await import("../../lib/session-store/index.ts");
 

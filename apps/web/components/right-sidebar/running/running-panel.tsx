@@ -26,11 +26,11 @@ import { SolarIcon, type SolarIconName } from "@/components/solar-icons";
 import { presentTool, type ToolTone } from "@/components/chat/messages/execution/tool-presentation";
 import { SectionHeader } from "@/components/sidebar/sessions/section-header";
 import { Button } from "@/components/ui/button";
-import { AgentsViewMenu } from "./agents-view-menu";
-import { DebuggerPanel } from "./debugger-panel";
-import { SidebarNotice } from "./sidebar-notice";
-import { useConversationBranches } from "./use-conversation-branches";
-import { executionTitle, shortTime, updatedTime } from "./debugger-presentation";
+import { AgentsViewMenu } from "../agents-view-menu";
+import { DebuggerPanel } from "../debugger/debugger-panel";
+import { SidebarNotice } from "../sidebar-notice";
+import { useConversationBranches } from "../use-conversation-branches";
+import { executionTitle, shortTime, updatedTime } from "../debugger/debugger-presentation";
 import { clock, ProgramOutput, ProgressBar, progressLook, seconds, type ProgressLook } from "./program-progress";
 import styles from "./running-panel.module.css";
 
