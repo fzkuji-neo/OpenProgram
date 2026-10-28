@@ -104,7 +104,8 @@
   background: color-mix(in srgb, var(--destructive) 10%, transparent);
 }
 
-.history-body.is-panning { cursor: grabbing; }
+/* Shift or ⌘ held: a drag on empty canvas draws a box (keys.ts). */
+.history-body.is-boxing { cursor: crosshair; }
 
 /* A selected node: a dashed box in the accent colour just outside its
    glyph. Drawn in the node's own group, so it pans and zooms with it;
