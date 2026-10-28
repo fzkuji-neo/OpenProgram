@@ -26,7 +26,7 @@ import { ManageEmptyState } from "@/components/ui/manage-page";
 import { PlusIcon } from "@/components/animated-icons";
 import styles from "@/components/settings/settings-page.module.css";
 import { useTranslation } from "@/lib/i18n";
-import { subscribeProviderAuthEvents as subscribeAuthEvents } from "@/lib/net/provider-auth-events";
+import { subscribeProviderAuthEvents as subscribeAuthEvents } from "@/lib/net/auth/provider-auth-events";
 import type {
   AuthAccount,
   CredentialView,

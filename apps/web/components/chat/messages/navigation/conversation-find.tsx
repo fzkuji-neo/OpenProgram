@@ -10,7 +10,7 @@ import { createPortal } from "react-dom";
 import { ChevronDown, ChevronUp, Search, X } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { useTranslation } from "@/lib/i18n";
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 import { useSessionStore } from "@/lib/session-store";
 import { useSessionHistory } from "@/lib/chat/history/session-history";
 import { captureHistoryAnchor } from "@/lib/chat/history/history-viewport";

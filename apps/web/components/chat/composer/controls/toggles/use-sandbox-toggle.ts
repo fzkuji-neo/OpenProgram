@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 import { useSessionScope } from "@/lib/session-store/session-scope";
 
 interface SandboxState {

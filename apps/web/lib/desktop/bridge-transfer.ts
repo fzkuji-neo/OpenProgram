@@ -19,7 +19,7 @@ import { applySessionTransfer, snapshotSessionTransfer } from "@/lib/session-sto
 import { applyFileDraftSnapshot, snapshotFileDrafts } from "@/lib/files/files-shared";
 import { registerPendingTransfer, unregisterPendingTransfer } from "@/lib/tabs/transfer/pending-transfer-projection";
 import { deleteTransferJournal, finalizeTransferJournal, readTransferJournal, rebaseSessionSnapshot, recoverTransferJournalEntry, transferJournalStorageKey, writeTransferJournal } from "@/lib/tabs/transfer/tab-transfer-journal";
-import "@/lib/net/ws-events";
+import "@/lib/net/ws/ws-events";
 import { sessionDraftStorageKey } from "@/lib/chat/send/session-draft-persistence";
 import type { ChatTransferState, DesktopTransferPayload, SerializedWebViewBookkeeping, SessionTransferSnapshot, TabDropPlacement, TransferJournalEntry, TransferMainStatus, TransferRecoveryHandlers } from "@/lib/tabs/transfer/tab-transfer-journal";
 import { dragCoordinator } from "@/lib/tabs/transfer/tab-drag-coordinator";

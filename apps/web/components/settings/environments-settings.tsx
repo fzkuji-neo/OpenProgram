@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SolarIcon } from "@/components/solar-icons";
 import { useTranslation } from "@/lib/i18n";
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 import {
   ensureEnvironments,
   environmentIconName,

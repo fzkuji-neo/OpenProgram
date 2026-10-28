@@ -18,7 +18,7 @@ import {useSessionHistory,registerSessionHistory} from './lib/chat/history/sessi
 import {seedHistoryWindow,loadSessionHistoryWindow,registerHistoryViewport} from './lib/runtime-bridge/session-history-loader';
 import {runtimeState,setSocket} from './lib/runtime-bridge/state';
 import {noteTakeLatest,defaultScrollerKey,peekTakeLatest,writeChatScroll} from './lib/chat/history/chat-scroll';
-import {appendLocalUserTurn} from './lib/net/chat-stream';
+import {appendLocalUserTurn} from './lib/net/ws/chat-stream';
 import {sendChatMessage} from './components/chat/composer/submit/send-chat-message';
 function page(id,start=200){let end=start+50;return {messages:Array.from({length:50},(_,i)=>({id:`${id}-${start+i}`,role:'user',content:`Message ${start+i}`,status:'completed'})),history:{snapshot:id,head_id:`${id}-499`,before:`${id}-${start}`,after:end<500?`${id}-${end-1}`:null,start,end,total:500}};}
 class Socket extends EventTarget{static OPEN=1;readyState=1;send(wire){let req=JSON.parse(wire);if(req.action==='load_session')window.requests.push(req);}}

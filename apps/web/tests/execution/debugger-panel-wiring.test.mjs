@@ -6,8 +6,8 @@ const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const running = read("../../components/right-sidebar/running-panel.tsx");
 const panel = read("../../components/right-sidebar/debugger-panel.tsx");
 const hook = read("../../lib/execution/use-execution-debugger.ts");
-const client = read("../../lib/net/execution-client.ts");
-const ws = read("../../lib/net/use-ws.ts");
+const client = read("../../lib/net/execution/execution-client.ts");
+const ws = read("../../lib/net/ws/use-ws.ts");
 
 test("conversation activity inspects the selected Agent through the canonical debugger", () => {
   // A run's page selects its execution and embeds the inspector; the

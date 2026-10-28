@@ -59,11 +59,11 @@ const mocks = {
       host.sessions.setRunningTaskFor(sid, {session_id:sid,msg_id:''});
     }
   };`,
-    "@/lib/net/chat-stream": `export const appendLocalUserTurn = (sid, id, text, display, timestamp, status) => {
+    "@/lib/net/ws/chat-stream": `export const appendLocalUserTurn = (sid, id, text, display, timestamp, status) => {
     host.sessions.messagesById[id] = {id, role:'user', content:text, status};
     (host.sessions.messageOrder[sid] ??= []).push(id);
   };`,
-    "@/lib/net/execution-client": `export class ExecutionApiError extends Error {}
+    "@/lib/net/execution/execution-client": `export class ExecutionApiError extends Error {}
     export const getExecutionSnapshot = async (eid, signal, sid) => host.snapshot ? host.snapshot(eid, sid) : ({
       session_id:sid, execution_id:eid, status_version:7, status:'running', capabilities:{steer:true}
     });

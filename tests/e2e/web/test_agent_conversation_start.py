@@ -14,7 +14,7 @@ import {startAgentConversation} from './lib/agents/start-conversation';
 import {useSessionStore} from './lib/session-store';
 import {useCenterTabs} from './lib/tabs/center-tabs-store';
 import {sendChatMessage} from './components/chat/composer/submit/send-chat-message';
-import {applyChatWsMessage} from './lib/net/chat-stream';
+import {applyChatWsMessage} from './lib/net/ws/chat-stream';
 import {setSocket} from './lib/runtime-bridge/state';
 import {setNavigate} from './lib/navigate';
 import {readSessionDraftState} from './lib/chat/send/session-draft-persistence';

@@ -36,7 +36,7 @@ export interface ProgramsMeta {
 }
 
 export interface RuntimeState {
-  /** Shared app WebSocket, owned by `lib/net/use-ws.ts`. */
+  /** Shared app WebSocket, owned by `lib/net/ws/use-ws.ts`. */
   ws: WebSocket | null;
   /** File trees for the active session. */
   trees: TreeEntry[];

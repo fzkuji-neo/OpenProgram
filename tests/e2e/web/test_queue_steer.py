@@ -15,7 +15,7 @@ import {createRoot} from 'react-dom/client';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
 import {MessageRow} from './components/chat/messages/list/message-list';
 import {useSessionStore} from './lib/session-store';
-import {applyChatWsMessage} from './lib/net/chat-stream';
+import {applyChatWsMessage} from './lib/net/ws/chat-stream';
 import {convToChatMsgs} from './lib/chat/transcript/conv-mapper';
 window.fetch=async()=>new Response('{}',{headers:{'content-type':'application/json'}});
 const sid='steer-test',uid='turn',rid='turn_reply';

@@ -22,7 +22,7 @@
 - Modify: `apps/web/scripts/check-send-queue.mjs`
 - Modify: `apps/web/lib/session-store/index.ts`
 - Modify: `apps/web/components/chat/composer/legacy-send.ts`
-- Modify: `apps/web/lib/net/use-ws.ts`
+- Modify: `apps/web/lib/net/ws/use-ws.ts`
 - Modify: `apps/web/lib/state/send-queue.ts`
 
 **Interfaces:**

@@ -1,4 +1,4 @@
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 import type { ReviewCategory, ReviewScope, ReviewSort, ScopeState } from "./review-tab-types";
 
 const TIMEOUT_MS = 10_000;

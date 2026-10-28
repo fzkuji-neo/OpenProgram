@@ -7,7 +7,7 @@
 > Related code: `apps/server/openprogram_server/_webui/owner_auth.py`,
 > `openprogram/backend_endpoint.py`,
 > `apps/server/openprogram_server/server.py`, `apps/cli/python/openprogram_cli/_impl/commands/web.py`,
-> `apps/web/lib/net/owner-auth-bootstrap.ts`, and
+> `apps/web/lib/net/auth/owner-auth-bootstrap.ts`, and
 > `openprogram/agent/authority.py`.
 > Related designs: [speaker identity](../memory/speaker-identity.md),
 > [permission model](../runtime/sandbox-architecture.html), and
@@ -100,7 +100,7 @@ single `X-Forwarded-Proto` supplied by an immediate loopback peer.
 
 The public `POST /api/auth/bootstrap` exchanges the fragment token for the
 derived cookie. The frontend coordinator in
-`apps/web/lib/net/owner-auth-bootstrap.ts` removes the fragment synchronously,
+`apps/web/lib/net/auth/owner-auth-bootstrap.ts` removes the fragment synchronously,
 performs that exchange before mounting the application subtree, and does not
 use Web Storage. `openprogram web auth-url --base-url ...` first verifies the
 active listener through the nonce/HMAC ownership challenge, then prints a
@@ -761,7 +761,7 @@ production paths and tests.
 | Owner process credential | `OwnerAuthState` in `apps/server/openprogram_server/_webui/owner_auth.py` generates the 32-byte token, holds `<state-dir>/web.lock`, atomically writes the owner-only `<state-dir>/web/token`, derives the profile-specific cookie, compares decoded tokens with `hmac.compare_digest`, and removes only its owned state; `test_process_token_is_owner_only_locked_and_replaced_after_release` covers lock, mode, replacement, redacted representation, and rotation after release |
 | Canonical effective origins | `canonicalize_origin()` and `resolve_effective_origins()` validate exact origins, enforce the explicit HTTP network set, add narrow loopback defaults, and fail a non-loopback bind without an origin; parameterized owner-auth tests cover accepted and rejected forms |
 | Common owner-auth boundary | `OwnerAuthMiddleware` is installed by `create_app()` before routing, protects HTTP and WebSocket ASGI scopes, applies cookie/Bearer selection, Host/Origin/CSRF checks, generic `401`/`403` responses, no-store headers, and owner-authority attachment; owner-auth tests cover HTTP mutation and pre-accept WebSocket cases |
-| Fragment bootstrap backend and frontend coordinator | `POST /api/auth/bootstrap`, `apps/web/lib/net/owner-auth-bootstrap.ts`, and `OwnerAuthBoundary` implement body-token exchange, synchronous fragment removal, no Web Storage, and application gating; `apps/web/scripts/settings/check-owner-auth-bootstrap.mjs`, TypeScript checking, and the production Web build exercise the frontend contract |
+| Fragment bootstrap backend and frontend coordinator | `POST /api/auth/bootstrap`, `apps/web/lib/net/auth/owner-auth-bootstrap.ts`, and `OwnerAuthBoundary` implement body-token exchange, synchronous fragment removal, no Web Storage, and application gating; `apps/web/scripts/settings/check-owner-auth-bootstrap.mjs`, TypeScript checking, and the production Web build exercise the frontend contract |
 | Authenticated URL command | `openprogram web auth-url --base-url ...`, `build_owner_auth_url()`, and `tests/unit/providers/adapters/test_web_auth_url.py` cover active-server lookup and effective-origin validation; normal CLI browser launch uses the same fragment URL |
 | Minimal public liveness | `/healthz` returns only `{"status":"ok"}` with `no-store`; operational fields are on protected `/api/diagnostics`; integration and owner-auth tests cover both routes |
 | Raw-peer proxy boundary | Uvicorn is configured with `proxy_headers=False`; `OwnerAuthMiddleware` accepts a single forwarded scheme only from the immediate loopback peer and tests the HTTPS-origin match |

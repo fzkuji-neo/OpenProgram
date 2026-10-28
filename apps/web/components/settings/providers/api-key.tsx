@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTranslation } from "@/lib/i18n";
-import { normalizeSecretReplacement } from "@/lib/net/secret-replacement";
+import { normalizeSecretReplacement } from "@/lib/net/auth/secret-replacement";
 
 import styles from "../settings-page.module.css";
 

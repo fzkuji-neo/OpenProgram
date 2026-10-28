@@ -12,8 +12,8 @@
  * agent it continues through its `parent_msg_id`.
  */
 import { convToChatMsgs } from "@/lib/chat/transcript/conv-mapper";
-import type { JobStatusDetail } from "@/lib/net/ws-events";
-import { wsRequest } from "@/lib/net/ws-request";
+import type { JobStatusDetail } from "@/lib/net/ws/ws-events";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 import { useSessionStore } from "@/lib/session-store";
 
 const JOB_REPLY_SUFFIX = "_user_reply";

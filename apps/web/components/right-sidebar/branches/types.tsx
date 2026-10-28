@@ -35,7 +35,7 @@ export const DEL_SVG = <XIcon size={16} />;
 
 // Per-session map of job_id → {target_head, status} mirrored from
 // the ``op:job-status`` window event (payload type: JobStatusDetail
-// in @/lib/net/ws-events). We keep jobs in non-terminal state
+// in @/lib/net/ws/ws-events). We keep jobs in non-terminal state
 // ('queued' / 'running') in the map so the panel renders a branch as
 // 'running'; when a terminal status arrives we flip the branch to
 // 'finishing' for ~1.2s (matches the convFinishingWipe keyframe)

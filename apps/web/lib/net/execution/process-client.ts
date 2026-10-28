@@ -1,4 +1,4 @@
-import { jsonFetch } from "./fetch-client";
+import { jsonFetch } from "../fetch-client";
 
 export type ActiveToolCall = {
   id: string; execution_id: string; session_id: string; tool_call_id?: string | null;

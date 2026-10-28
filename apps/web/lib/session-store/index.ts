@@ -5,7 +5,7 @@ import {
   decideExecutionUpdateOrder,
   removeExecutionUpdateOrders,
   type ExecutionUpdateOrder,
-} from "@/lib/net/execution-update-order";
+} from "@/lib/net/execution/execution-update-order";
 import {
   readSessionDraftState,
   replaceSessionDraftState,

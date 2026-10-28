@@ -9,7 +9,7 @@
  * unconfirmed action, a program whose state is unknown.
  */
 import type { ExecutionSnapshot } from "./execution-debugger";
-import { processIsActive, type ActiveToolCall, type ManagedProcess } from "@/lib/net/process-client";
+import { processIsActive, type ActiveToolCall, type ManagedProcess } from "@/lib/net/execution/process-client";
 
 const LIVE = new Set(["queued", "running", "pausing", "cancelling"]);
 

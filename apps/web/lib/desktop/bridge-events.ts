@@ -14,7 +14,7 @@
  * desktopBridge() returns null; callers keep their web fallbacks.
  */
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
-import "@/lib/net/ws-events";
+import "@/lib/net/ws/ws-events";
 import { ingestBrowserResource, type BackendResource } from "@/lib/chat/resources/session-resources";
 import { recordOperationCue, showActionsEnabled } from "@/lib/browser/browser-control";
 import { hasNavigate, navigate } from "@/lib/navigate";

@@ -17,7 +17,7 @@ import type { ChatMsg } from "@/lib/session-store";
 
 import { useSessionStore } from "@/lib/session-store";
 import { useTranslation } from "@/lib/i18n";
-import type { JobResourceView } from "@/lib/net/ws-events";
+import type { JobResourceView } from "@/lib/net/ws/ws-events";
 import { navigate } from "@/lib/navigate";
 import { runtimeState } from "@/lib/runtime-bridge/state";
 import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";

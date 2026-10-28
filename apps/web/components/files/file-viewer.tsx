@@ -14,7 +14,7 @@ import { MediaPreview } from "./preview/media-preview";
 import { Download } from "lucide-react";
 
 import { useTranslation } from "@/lib/i18n";
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 import { MarkdownPreview } from "./preview/markdown-preview";
 import {
   absFileReadUrl,

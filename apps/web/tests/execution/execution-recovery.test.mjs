@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createExecutionRecovery } from '../../lib/net/execution-recovery.ts';
+import { createExecutionRecovery } from '../../lib/net/execution/execution-recovery.ts';
 
 function harness() {
   const sent = [], jobs = new Map(); let id = 0;

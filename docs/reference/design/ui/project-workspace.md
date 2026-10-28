@@ -17,7 +17,7 @@ file tree right, with the project list as an expandable table.
 | Chat component tree (composer, messages, top-bar) | `apps/web/components/chat/` | workspace left pane |
 | Right sidebar shell (history/detail/context views) | `apps/web/components/right-sidebar/` | chat overview panel |
 | Memory page editor (edit/preview mode, save) | `apps/web/components/memory/` | file editing (slice 5) |
-| `wsRequest` helper + ws action registry | `apps/web/lib/net/ws-request.ts`, `apps/server/openprogram_server/server.py` | all new APIs |
+| `wsRequest` helper + ws action registry | `apps/web/lib/net/ws/ws-request.ts`, `apps/server/openprogram_server/server.py` | all new APIs |
 | `/api/pick-folder` native folder picker | `apps/server/openprogram_server/_webui/routes/files/workdir.py` | add-project flow |
 
 The project file WS API, file tree, file viewer, and center file tabs are now

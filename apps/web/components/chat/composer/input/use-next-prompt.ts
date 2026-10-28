@@ -9,7 +9,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 import { useComposerPredictions } from "@/lib/prefs/composer-predictions";
 
 export function useNextPrompt(sessionId: string | null, isRunning: boolean, input: string) {

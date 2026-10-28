@@ -1,5 +1,5 @@
 // Desktop bridge state responsibilities.
-import "@/lib/net/ws-events";
+import "@/lib/net/ws/ws-events";
 import type { DesktopWebTabBounds } from "@/lib/desktop/desktop-bridge-types";
 import { type DesktopBridge } from "./bridge-api";
 

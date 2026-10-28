@@ -17,7 +17,7 @@ import { agentCanAccessWebTab } from "../browser/web-page-management";
 import { useCenterTabs, webTabId } from "@/lib/tabs/center-tabs-store";
 import { pipOpenMustFork, registerPipPair, useWebTabPip } from "@/lib/browser/web-tab-pip-store";
 import { findCenterTabGroup } from "@/lib/tabs/center-tab-groups";
-import "@/lib/net/ws-events";
+import "@/lib/net/ws/ws-events";
 import { getSocket } from "@/lib/runtime-bridge/state";
 import { showActionsEnabled } from "@/lib/browser/browser-control";
 import { desktopBridge } from "./bridge-api";

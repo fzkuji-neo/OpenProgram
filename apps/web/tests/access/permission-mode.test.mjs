@@ -10,7 +10,7 @@ registerHooks({
       "../../state/use-composer-settings": `export const useBoundComposerSettings = () => globalThis.permissionHarness.settings;
         export const useBoundSetComposerSettings = () => globalThis.permissionHarness.apply;`,
       "@/lib/session-store/session-scope": "export const useSessionScope = f => f({sid: globalThis.permissionHarness.sid});",
-      "@/lib/net/ws-request": "export const wsRequest = (...args) => globalThis.permissionHarness.request(...args);",
+      "@/lib/net/ws/ws-request": "export const wsRequest = (...args) => globalThis.permissionHarness.request(...args);",
       "@/lib/i18n": "export const useTranslation = () => ({text: en => en});",
     };
     if (specifier in sources) return { url: `data:text/javascript,${encodeURIComponent(sources[specifier])}`, shortCircuit: true };

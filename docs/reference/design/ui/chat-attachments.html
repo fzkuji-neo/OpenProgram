@@ -265,7 +265,7 @@
 </div>
 <div class="legend">
   <b>Three sources, one component.</b><code>parseAttachments</code> extracts markers from text; <code>AttachmentChips</code> renders chips; <code>AttachmentPreview</code> opens them using <code>FileViewer</code> the absolute-path mode. User messages, assistant messages, and the message rail share this implementation.
-  <span class="src">apps/web/components/chat/messages/attachments/user-attachments.tsx · attachment-preview.tsx · apps/web/components/files/file-viewer.tsx · apps/web/lib/net/chat-stream.ts</span>
+  <span class="src">apps/web/components/chat/messages/attachments/user-attachments.tsx · attachment-preview.tsx · apps/web/components/files/file-viewer.tsx · apps/web/lib/net/ws/chat-stream.ts</span>
 </div>
 
 <h3 id="now-out">1.3 Outbound: one tool, two delivery paths</h3>
@@ -737,7 +737,7 @@
 <tr><td>Channel attachments use web grammar (previously chip regexes failed and markers appeared as text)</td><td class="y">Implemented</td><td class="src">channels/_attachments.py:attachment_notes</td></tr>
 <tr><td>Byte endpoints /api/file-raw and absolute-path /api/file-read</td><td class="y">Implemented</td><td class="src">apps/server/openprogram_server/_webui/routes/files/file_search.py</td></tr>
 <tr><td>Capture chip paths, image thumbnails, and overlay opening</td><td class="y">Implemented</td><td class="src">apps/web/components/chat/messages/attachments/user-attachments.tsx · attachment-preview.tsx</td></tr>
-<tr><td>chat_ack echoes stored text; newly sent attachments are immediately clickable</td><td class="y">Implemented</td><td class="src">apps/server/openprogram_server/_webui/ws_actions/chat.py · apps/web/lib/net/chat-stream.ts</td></tr>
+<tr><td>chat_ack echoes stored text; newly sent attachments are immediately clickable</td><td class="y">Implemented</td><td class="src">apps/server/openprogram_server/_webui/ws_actions/chat.py · apps/web/lib/net/ws/chat-stream.ts</td></tr>
 <tr><td>send_file tool and dispatcher insertion into final_text</td><td class="y">Implemented</td><td class="src">programs/tools/send_file/ · agent/dispatcher/__init__.py</td></tr>
 <tr><td>Channel return delivery: extract markers, call post_file, rewrite failures as readable messages</td><td class="y">Implemented</td><td class="src">channels/_conversation.py:_deliver_outbound_files</td></tr>
 <tr><td>Capabilities declared per channel (tool absent in cli / tui / wechat / plan)</td><td class="y">Implemented</td><td class="src">programs/tools/send_file/send_file.py unsafe_in</td></tr>

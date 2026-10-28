@@ -17,7 +17,7 @@ import { agentCanAccessWebTab } from "../browser/web-page-management";
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
 import { peekLiveWebTabPipId, peekWebTabPipId, peekWebTabPipOwnerId } from "@/lib/browser/web-tab-pip-store";
 import { centerTabStripEntries, findCenterTabGroup, resolveCenterTabPanes, type CenterTabGroup } from "@/lib/tabs/center-tab-groups";
-import "@/lib/net/ws-events";
+import "@/lib/net/ws/ws-events";
 import type { DesktopWebTabApi } from "@/lib/desktop/desktop-bridge-types";
 import { isWebTabReady, visibleWebBounds, webTabGeometryRevisions } from "./bridge-state";
 import { desktopBridge } from "./bridge-api";

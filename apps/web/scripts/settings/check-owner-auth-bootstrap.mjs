@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 let auth;
 try {
-  auth = await import("../../lib/net/owner-auth-bootstrap.ts");
+  auth = await import("../../lib/net/auth/owner-auth-bootstrap.ts");
 } catch (error) {
   assert.fail(`owner auth bootstrap module is missing: ${error}`);
 }
@@ -151,7 +151,7 @@ Object.defineProperty(globalThis, "sessionStorage", {
 }
 
 {
-  const useWs = readFileSync(new URL("../../lib/net/use-ws.ts", import.meta.url), "utf8");
+  const useWs = readFileSync(new URL("../../lib/net/ws/use-ws.ts", import.meta.url), "utf8");
   assert.match(useWs, /\/api\/auth\/session/, "WebSocket reconnect must probe owner session before retrying");
   assert.match(useWs, /recoverOwnerAuth/, "401 reconnect must refresh owner auth instead of looping");
 }

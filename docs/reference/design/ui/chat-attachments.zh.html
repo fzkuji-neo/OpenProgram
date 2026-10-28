@@ -263,7 +263,7 @@
 </div>
 <div class="legend">
   <b>三种来源，一个组件。</b><code>parseAttachments</code> 从正文里摘出标记，<code>AttachmentChips</code> 画 chip，<code>AttachmentPreview</code> 用 <code>FileViewer</code> 的绝对路径模式打开。用户气泡、助手气泡、消息导轨走的是同一份。
-  <span class="src">apps/web/components/chat/messages/attachments/user-attachments.tsx · attachment-preview.tsx · apps/web/components/files/file-viewer.tsx · apps/web/lib/net/chat-stream.ts</span>
+  <span class="src">apps/web/components/chat/messages/attachments/user-attachments.tsx · attachment-preview.tsx · apps/web/components/files/file-viewer.tsx · apps/web/lib/net/ws/chat-stream.ts</span>
 </div>
 
 <h3 id="now-out">1.3 出站：一个工具，两条投递路</h3>
@@ -732,7 +732,7 @@
 <tr><td>渠道附件改用网页词法（原来 chip 正则不认，标记当正文露出）</td><td class="y">已实现</td><td class="src">channels/_attachments.py:attachment_notes</td></tr>
 <tr><td>字节出口 /api/file-raw，以及绝对路径版 /api/file-read</td><td class="y">已实现</td><td class="src">apps/server/openprogram_server/_webui/routes/files/file_search.py</td></tr>
 <tr><td>chip 捕获路径、图片缩略图、点开浮层</td><td class="y">已实现</td><td class="src">apps/web/components/chat/messages/attachments/user-attachments.tsx · attachment-preview.tsx</td></tr>
-<tr><td>chat_ack 回显存储后正文，刚发出去的附件当轮可点</td><td class="y">已实现</td><td class="src">apps/server/openprogram_server/_webui/ws_actions/chat.py · apps/web/lib/net/chat-stream.ts</td></tr>
+<tr><td>chat_ack 回显存储后正文，刚发出去的附件当轮可点</td><td class="y">已实现</td><td class="src">apps/server/openprogram_server/_webui/ws_actions/chat.py · apps/web/lib/net/ws/chat-stream.ts</td></tr>
 <tr><td>send_file 工具与 dispatcher 折入 final_text</td><td class="y">已实现</td><td class="src">programs/tools/send_file/ · agent/dispatcher/__init__.py</td></tr>
 <tr><td>渠道回发接线：抽标记、调 post_file、失败改写成人话</td><td class="y">已实现</td><td class="src">channels/_conversation.py:_deliver_outbound_files</td></tr>
 <tr><td>按渠道声明能力（cli / tui / wechat / plan 下工具不出现）</td><td class="y">已实现</td><td class="src">programs/tools/send_file/send_file.py unsafe_in</td></tr>

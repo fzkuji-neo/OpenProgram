@@ -15,7 +15,7 @@ web 端不只是"带项目 chip 的聊天"，而是一个工作区：项目文�
 | 聊天组件群（composer、messages、top-bar） | `apps/web/components/chat/` | 工作区左栏 |
 | 右侧栏骨架（history/detail/context 视图） | `apps/web/components/right-sidebar/` | 聊天概览面板 |
 | Memory 页编辑器（edit/preview 模式、保存） | `apps/web/components/memory/` | 文件编辑（第 5 档） |
-| `wsRequest` + ws action 注册机制 | `apps/web/lib/net/ws-request.ts`、`apps/server/openprogram_server/server.py` | 全部新 API |
+| `wsRequest` + ws action 注册机制 | `apps/web/lib/net/ws/ws-request.ts`、`apps/server/openprogram_server/server.py` | 全部新 API |
 | `/api/pick-folder` 原生目录选择 | `apps/server/openprogram_server/_webui/routes/files/workdir.py` | 添加项目 |
 
 项目文件 WS API、文件树、文件查看器和中心文件 Tab 已经实现。剩余工作是：(a) 组合

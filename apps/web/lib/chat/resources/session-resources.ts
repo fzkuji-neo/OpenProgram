@@ -1,5 +1,5 @@
 import type { TerminalResource } from "../../desktop/terminal-resources";
-import type { ManagedProcess } from "../../net/process-client";
+import type { ManagedProcess } from "../../net/execution/process-client";
 import { create } from "zustand";
 import type { CenterTab } from "../../tabs/center-tabs-store";
 

@@ -27,8 +27,8 @@ import {
   postExecutionCommand,
   postExecutionWait,
   postRevisionDraftCommand,
-} from "@/lib/net/execution-client";
-import "@/lib/net/ws-events";
+} from "@/lib/net/execution/execution-client";
+import "@/lib/net/ws/ws-events";
 import { useSessionStore } from "@/lib/session-store";
 
 export type ExecutionDebuggerController = {

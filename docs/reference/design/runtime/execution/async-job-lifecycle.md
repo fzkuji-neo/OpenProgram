@@ -373,7 +373,7 @@ The design is partially implemented. Current code has durable job records, an ex
 | Worker admission and execution | openprogram/agent/job/runner.py: JobRunner, spawn_job, OPENPROGRAM_JOB_WORKERS | Implemented, with end-to-end execution/resource acceptance still required |
 | Query and waiting | JobRunner get/list/await methods; programs/tools/agents/agent/list_jobs and job_output | Implemented |
 | Cancellation | JobRunner.cancel_execution and runner terminal-state finalization | Implemented at JobRunner level; UI/tool coverage is entry-point specific |
-| WebSocket status | apps/server/openprogram_server/_webui/ws_actions/job.py (spawn/list/get); apps/web/lib/net/use-ws.ts (job_status, spawn_job_result) | Implemented for these actions |
+| WebSocket status | apps/server/openprogram_server/_webui/ws_actions/job.py (spawn/list/get); apps/web/lib/net/ws/use-ws.ts (job_status, spawn_job_result) | Implemented for these actions |
 | Branch-side status view | apps/web/components/right-sidebar/branches/index.tsx subscribes to job status broadcasts | Implemented; this is not a separate Tasks panel |
 | Attach-card lifecycle | Job.attach_pointer_id and runner/dispatcher integration | Partially implemented; verify each attach state and recovery path before treating it as complete |
 | Resource governance | JobRunner constructs and uses ResourceGovernor and exposes resource projections | Partially integrated; token/cost/runtime/idle enforcement is a separate contract |

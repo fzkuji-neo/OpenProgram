@@ -12,7 +12,7 @@ globalThis.window = {
 const {
   loadExecutionCursors,
   recordExecutionCursor,
-} = await import("../../lib/net/execution-cursor.ts");
+} = await import("../../lib/net/execution/execution-cursor.ts");
 
 test("execution cursor persists and requests replay only for a gap", () => {
   assert.deepEqual(recordExecutionCursor({

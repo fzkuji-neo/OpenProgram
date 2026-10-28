@@ -11,7 +11,7 @@ import {
   useBoundComposerSettings,
   useBoundSetComposerSettings,
 } from "../../state/use-composer-settings";
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 import { useSessionScope } from "@/lib/session-store/session-scope";
 import { permissionSnapshotPatch } from "@/lib/session-store/permission-state";
 import { useTranslation } from "@/lib/i18n";

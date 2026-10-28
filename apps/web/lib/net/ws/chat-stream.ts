@@ -34,9 +34,9 @@
  *   and are left to their own handlers.
  */
 
-import { readPastedElements, type PastedTextElement } from "../chat/send/paste-elements.ts";
-import { rememberSystemAccessFromTree } from "../access/system-access-result";
-import { verificationForMessage } from "../runtime-bridge/goal-state";
+import { readPastedElements, type PastedTextElement } from "../../chat/send/paste-elements.ts";
+import { rememberSystemAccessFromTree } from "../../access/system-access-result";
+import { verificationForMessage } from "../../runtime-bridge/goal-state";
 import {
   applyExecutionStreamFromChat,
   useExecutionStreamStore,
@@ -123,7 +123,7 @@ interface StreamEvent {
 }
 
 interface ChatResponseData {
-  goal_verification?: import("../chat/decisions/goal-verification").GoalVerification;
+  goal_verification?: import("../../chat/decisions/goal-verification").GoalVerification;
   type: string;
   msg_id?: string;
   session_id?: string;

@@ -10,7 +10,7 @@ const runtimeFiles = [
   "components/chat/messages/bubbles/markdown.ts",
   "components/settings/provider-icon.tsx",
   "lib/format-utils/markdown.tsx",
-  "lib/net/use-ws.ts",
+  "lib/net/ws/use-ws.ts",
   "lib/runtime-bridge/conversations.ts",
   "lib/runtime-bridge/markdown-render.ts",
   "public/html/index.html",

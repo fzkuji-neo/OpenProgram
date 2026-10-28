@@ -15,7 +15,7 @@ import {
   type RevisionDraft,
 } from "@/lib/execution/execution-debugger";
 import { buildWaitAnswer } from "@/lib/execution/execution-wait";
-import type { PersistedExecutionEvent, UnresolvedEffect } from "@/lib/net/execution-client";
+import type { PersistedExecutionEvent, UnresolvedEffect } from "@/lib/net/execution/execution-client";
 import { SidebarNotice } from "./sidebar-notice";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";

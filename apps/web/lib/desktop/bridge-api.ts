@@ -1,5 +1,5 @@
 // Desktop bridge api responsibilities.
-import "@/lib/net/ws-events";
+import "@/lib/net/ws/ws-events";
 import type { DesktopAttentionApi, DesktopBrowserDataApi, DesktopBrowserImportApi, DesktopDownloadsApi, DesktopHistoryApi, DesktopMainMenuApi, DesktopNativeMenuApi, DesktopTerminalApi, DesktopThemeApi, DesktopUpdateApi, DesktopWebTabApi } from "@/lib/desktop/desktop-bridge-types";
 import type { DesktopTabTransferApi } from "@/lib/desktop/desktop-transfer-types";
 

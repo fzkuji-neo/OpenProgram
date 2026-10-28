@@ -1,4 +1,4 @@
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 import { showToast } from "@/lib/format-utils/toast";
 import { translateText } from "@/lib/i18n";
 

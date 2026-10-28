@@ -27,7 +27,7 @@ import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import {
   reconcileWsMutation,
   wsRequest,
-} from "@/lib/net/ws-request";
+} from "@/lib/net/ws/ws-request";
 import { navigate } from "@/lib/navigate";
 import { useSessionStore } from "@/lib/session-store";
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";

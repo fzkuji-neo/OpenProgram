@@ -24,7 +24,7 @@ registerHooks({
     if(url.endsWith('/components/ui/popover.tsx')) source='export const Popover=({children})=>children;export const PopoverTrigger=Popover;export const PopoverContent=()=>null;';
     if(url.endsWith('/components/ui/tooltip.tsx')) source='export const HoverTip=({children})=>children; export const TipBody=()=>null;';
     if(url.endsWith('/lib/session-store/index.ts')) source='import {useSyncExternalStore} from "react"; export const useSessionStore=selector=>useSyncExternalStore(fn=>{globalThis.projectStoreListeners.add(fn);return()=>globalThis.projectStoreListeners.delete(fn);},()=>selector(globalThis.projectStore));useSessionStore.getState=()=>globalThis.projectStore;';
-    if(url.endsWith('/lib/net/ws-request.ts')) source='export const wsRequest=(...args)=>globalThis.projectRequest(...args);export const wsListen=()=>()=>{};export const wsFire=()=>true;';
+    if(url.endsWith('/lib/net/ws/ws-request.ts')) source='export const wsRequest=(...args)=>globalThis.projectRequest(...args);export const wsListen=()=>()=>{};export const wsFire=()=>true;';
     if(url.includes('/@radix-ui/react-dropdown-menu/')) source=`import {createElement as h,createContext,useContext,useState,cloneElement} from "react";
       const C=createContext(null);
       export const Root=({children,open,onOpenChange})=>{const [own,setOwn]=useState(false);return h(C.Provider,{value:{open:open??own,set:onOpenChange??setOwn}},children);};

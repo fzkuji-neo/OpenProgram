@@ -10,7 +10,7 @@ import { SolarIcon } from "@/components/solar-icons";
 import { Button } from "@/components/ui/button";
 import { useFolderPicker } from "@/components/ui/folder-picker";
 import { useTranslation } from "@/lib/i18n";
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 import { useSessionStore } from "@/lib/session-store";
 import {
   canConfirmInPlace, confirmProjectFolder, locationMessage, locationProblem,

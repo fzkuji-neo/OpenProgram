@@ -21,8 +21,8 @@
 import { useEffect, useRef, useState } from "react";
 
 import { useTranslation } from "@/lib/i18n";
-import "@/lib/net/ws-events";
-import type { JobResourceView } from "@/lib/net/ws-events";
+import "@/lib/net/ws/ws-events";
+import type { JobResourceView } from "@/lib/net/ws/ws-events";
 import { useSessionStore } from "@/lib/session-store";
 
 import { BranchItem } from "./branch-item";

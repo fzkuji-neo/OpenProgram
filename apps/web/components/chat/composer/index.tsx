@@ -88,7 +88,7 @@ import {
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-/* Single shared WebSocket, owned by `lib/net/use-ws.ts` and reached
+/* Single shared WebSocket, owned by `lib/net/ws/use-ws.ts` and reached
    through `runtime-bridge/state`'s `getSocket()`. When the WS layer is
    migrated (next slice), this helper is replaced by ``useWS().send``
    and the call sites stay identical. */

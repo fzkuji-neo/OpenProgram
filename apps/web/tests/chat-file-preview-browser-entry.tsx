@@ -4,7 +4,7 @@ import {AssistantBubble} from '../components/chat/messages/bubbles/assistant-bub
 import {PersistentFilePanes} from '../components/center-tabs/files/persistent-file-panes';
 import {useCenterTabs} from '../lib/tabs/center-tabs-store';
 import {useSessionStore} from '../lib/session-store';
-import {applyChatWsMessage} from '../lib/net/chat-stream';
+import {applyChatWsMessage} from '../lib/net/ws/chat-stream';
 import {setSocket} from '../lib/runtime-bridge/state';
 import {normalizeCenterTabLayout} from '../lib/tabs/center-tab-groups';
 localStorage.setItem('agentic_locale','en');

@@ -5,7 +5,7 @@ import { HistoryWindow, type HistoryDirection, type HistoryRow } from '@/lib/cha
 import { captureHistoryAnchor, captureAreaRestoreState, historyAreaStillOwned, restoreAreaWindow } from '@/lib/chat/history/history-viewport';
 import { clearHeights, retainRowHeights } from '@/lib/chat/history/message-window';
 import { useSessionStore } from '@/lib/session-store';
-import { wsRequest } from '@/lib/net/ws-request';
+import { wsRequest } from '@/lib/net/ws/ws-request';
 import { getSocket, runtimeState } from './state';
 
 const windows = new Map<string, HistoryWindow>();

@@ -11,7 +11,7 @@ after(() => rm(dir, { recursive: true, force: true }));
 const stubs = {
   'next/navigation': 'export const usePathname=()=>"/s/a";',
   '@/lib/i18n': 'export const useTranslation=()=>({t:x=>x,text:x=>x});',
-  '@/lib/net/ws-request': 'export const wsRequest=(...args)=>globalThis.sidebarRequest(...args);',
+  '@/lib/net/ws/ws-request': 'export const wsRequest=(...args)=>globalThis.sidebarRequest(...args);',
   '../session-resources/session-resources-panel': 'import React from "react"; export const SessionResourcesPanel=({sessionId})=>React.createElement("output",{"data-resources":sessionId},sessionId);',
   '../../net/fetch-client.ts': 'export const jsonFetch=(...args)=>globalThis.sidebarResourceFetch(...args);',
   './context-commit-timeline': 'export const ContextCommitTimeline=()=>null;',

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createSessionLoads, retainChangedRows } from '../../lib/net/session-load.ts';
+import { createSessionLoads, retainChangedRows } from '../../lib/net/ws/session-load.ts';
 function fixture(t) {
   t.mock.timers.enable({apis:['setTimeout']});
   const sent=[], states=[]; let sequence=0;

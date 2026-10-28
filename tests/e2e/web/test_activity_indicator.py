@@ -95,7 +95,7 @@ import {SOLAR_BODIES} from './components/solar-icons';
 // gui_agent rows carry their tool glyph from tool-presentation, not a brand logo.
 window.expectedFunctionGlyph=SOLAR_BODIES.monitor;
 import {useSessionStore} from './lib/session-store';
-import {applyChatWsMessage} from './lib/net/chat-stream';
+import {applyChatWsMessage} from './lib/net/ws/chat-stream';
 import {setPendingUserText} from './lib/chat/send/pending-user-text';
 window.fetch=async()=>new Response('{}',{headers:{'content-type':'application/json'}});
 useSessionStore.setState({currentSessionId:'activity-layout',activeChatKey:'activity-layout'});

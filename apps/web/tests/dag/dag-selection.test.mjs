@@ -126,6 +126,6 @@ test("A click selects the node, then runs its own action; Shift/⌘ only toggles
 });
 
 test("The delete and undo replies reach the canvas", () => {
-  const ws = readFileSync(new URL("../../lib/net/use-ws.ts", import.meta.url), "utf8");
+  const ws = readFileSync(new URL("../../lib/net/ws/use-ws.ts", import.meta.url), "utf8");
   assert.match(ws, /case "nodes_deleted":\s*case "nodes_restored":[\s\S]{0,400}"op:dag-nodes"/);
 });

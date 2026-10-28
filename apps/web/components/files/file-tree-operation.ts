@@ -1,4 +1,4 @@
-import { idempotencyKeyFor, MutationRegistryCapacityError, wsMutationRequest } from "@/lib/net/ws-request";
+import { idempotencyKeyFor, MutationRegistryCapacityError, wsMutationRequest } from "@/lib/net/ws/ws-request";
 /** Structured result helpers for FileTree mutations. */
 import { invalidateFileRead, type ServerRenameResult } from "@/lib/files/files-shared";
 

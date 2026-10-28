@@ -39,7 +39,7 @@ import { useTranslation } from "@/lib/i18n";
 import { activateOnKey } from "@/lib/utils";
 import { useRecentsView, setRecentsView } from "@/lib/prefs/recents-view";
 import { autoRenameSession } from "@/lib/session-auto-rename";
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 import { projectGroups, moveProject, filterProjectItems } from "@/lib/projects/project-groups";
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { BulkConvMenu, ConvMenu } from "./conv-menu";

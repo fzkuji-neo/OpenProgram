@@ -42,7 +42,7 @@ def _normalize_in_browser_code(cases: list[tuple[str, str]]) -> list[str | None]
     )
     script.write_text(
         "import { normalizeSecretReplacement } from "
-        '"../lib/net/secret-replacement.ts";\n'
+        '"../lib/net/auth/secret-replacement.ts";\n'
         "const cases = JSON.parse(process.argv[2]);\n"
         "console.log(JSON.stringify(cases.map(([input, mask]) =>\n"
         "  normalizeSecretReplacement(input, mask))));\n",

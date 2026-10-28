@@ -18,7 +18,7 @@ const bundle = await build({
     builder.onLoad({ filter: /\.css$/ }, () => ({ contents: "export default {};", loader: "js" }));
     builder.onResolve({ filter: /^react(?:-dom)?(?:\/.*)?$/ }, ({ path }) => ({ path: require.resolve(path), external: true }));
     builder.onResolve({ filter: /^@\/lib\/i18n$/ }, () => ({ path: "i18n", namespace: "fake" }));
-    builder.onResolve({ filter: /^@\/lib\/net\/ws-request$/ }, () => ({ path: "ws", namespace: "fake" }));
+    builder.onResolve({ filter: /^@\/lib\/net\/ws\/ws-request$/ }, () => ({ path: "ws", namespace: "fake" }));
     builder.onResolve({ filter: /^@\/lib\/(state\/center-tabs-store|session-store|navigate)$/ }, ({ path }) => ({ path, namespace: "state" }));
     builder.onLoad({ filter: /.*/, namespace: "state" }, ({ path }) => ({ contents: path.endsWith("center-tabs-store") ? 'const state={tabs:[],activeId:null,openFileTab:()=>{}}; export const useCenterTabs=Object.assign(fn=>fn(state),{getState:()=>state});' : path.endsWith("session-store") ? 'export const useSessionStore={getState:()=>({currentSessionId:null})};' : 'export const navigate=()=>{};', loader: "js" }));
     builder.onLoad({ filter: /.*/, namespace: "fake" }, ({ path }) => ({ contents: path === "i18n" ? 'export const useTranslation=()=>({text:(en)=>en});' : 'export const wsRequest=(action,payload)=>globalThis.__fileManagementQuery?.(action,payload) ?? Promise.resolve(null); export const idempotencyKeyFor=()=>"test"; export class MutationRegistryCapacityError extends Error {} export const reconcileWsMutation=()=>{}; export const wsMutationRequest=()=>{};', loader: "js" }));

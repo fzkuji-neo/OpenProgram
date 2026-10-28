@@ -2,7 +2,7 @@
  * Pending user text / first-ACK reservations, keyed by chat key.
  *
  * The composer stashes the text of a turn here right before writing it
- * to the socket; `lib/net/chat-stream.ts` reads it back on `chat_ack`
+ * to the socket; `lib/net/ws/chat-stream.ts` reads it back on `chat_ack`
  * to build the user bubble (the server does not echo web-originated
  * user turns), and `lib/runtime-bridge/chat-handlers.ts` reads it for
  * the sidebar preview and then clears both maps.

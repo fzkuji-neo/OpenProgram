@@ -17,7 +17,7 @@ import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {AssistantBubble} from './components/chat/messages/bubbles/assistant-bubble';
 import {useSessionStore} from './lib/session-store';
-import {applyChatWsMessage} from './lib/net/chat-stream';
+import {applyChatWsMessage} from './lib/net/ws/chat-stream';
 import {convToChatMsgs} from './lib/chat/transcript/conv-mapper';
 import {wsHandleChatResponse} from './lib/runtime-bridge/chat-handlers';
 import {runtimeState,setSocket} from './lib/runtime-bridge/state';

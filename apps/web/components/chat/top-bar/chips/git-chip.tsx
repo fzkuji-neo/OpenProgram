@@ -34,7 +34,7 @@ import { SolarIcon } from "@/components/solar-icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import { useTranslation } from "@/lib/i18n";
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 import { closeAllPopovers } from "@/lib/runtime-bridge/ui";
 import { useSessionStore } from "@/lib/session-store";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";

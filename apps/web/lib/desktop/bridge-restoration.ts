@@ -14,7 +14,7 @@
  * desktopBridge() returns null; callers keep their web fallbacks.
  */
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
-import "@/lib/net/ws-events";
+import "@/lib/net/ws/ws-events";
 import { getSocket } from "@/lib/runtime-bridge/state";
 import { isPlaceholderPageTitle, listedBrowserResources, recoverSessionResources } from "@/lib/chat/resources/session-resources";
 import { type DesktopBridge } from "./bridge-api";

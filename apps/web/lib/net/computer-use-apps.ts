@@ -6,7 +6,7 @@
  *  do not change while it runs. */
 import { useEffect, useState } from "react";
 
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 
 export interface ComputerUseApp {
   query: string;

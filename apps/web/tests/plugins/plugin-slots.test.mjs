@@ -13,7 +13,7 @@ after(()=>rm(dir,{recursive:true,force:true}));
 const file=join(dir,'entry.mjs');
 const mocks={
   '@/lib/net/fetch-client': 'export const jsonFetch=(url)=>globalThis.pluginFetch(url);',
-  '@/lib/net/owner-auth-bootstrap': 'export const waitForOwnerAuthBootstrap=async()=>{};',
+  '@/lib/net/auth/owner-auth-bootstrap': 'export const waitForOwnerAuthBootstrap=async()=>{};',
   '@/lib/navigate': 'export const navigate=()=>{};',
   '@/lib/i18n': 'export const translateText=(en)=>en,useTranslation=()=>({text:(en)=>en});',
 };

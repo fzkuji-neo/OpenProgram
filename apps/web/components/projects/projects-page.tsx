@@ -19,7 +19,7 @@ import { ManageEmptyState, managePageStyles as shared } from "@/components/ui/ma
 import { RailBadge, RailItem, RailSeparator, RailSplit, SecondaryRail } from "@/components/ui/secondary-rail";
 import { useTranslation } from "@/lib/i18n";
 import { SolarIcon } from "@/components/solar-icons";
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 import { canConfirmInPlace, confirmProjectFolder, locationMessage, locationProblem, notifyProjectLocationChanged, relocateProject, type RelocateReply } from "@/lib/projects/project-location";
 import { ProjectEditor, type EditableProject } from "@/components/sidebar/project-editor";
 import { Button } from "@/components/ui/button";

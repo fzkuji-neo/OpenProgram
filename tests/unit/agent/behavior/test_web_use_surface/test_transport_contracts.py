@@ -80,7 +80,7 @@ def test_frontend_and_electron_expose_turn_surface_preview_contract():
     bridge = read_desktop_bridge_source(REPO_ROOT)
     preload = (REPO_ROOT / "apps/desktop/preload.js").read_text(encoding="utf-8")
     main = read_desktop_source(REPO_ROOT)
-    use_ws = (REPO_ROOT / "apps/web/lib/net/use-ws.ts").read_text(encoding="utf-8")
+    use_ws = (REPO_ROOT / "apps/web/lib/net/ws/use-ws.ts").read_text(encoding="utf-8")
     chip = (
         REPO_ROOT
         / "apps/web/components/chat/composer/environment-row/chips/web-surface-chip.tsx"

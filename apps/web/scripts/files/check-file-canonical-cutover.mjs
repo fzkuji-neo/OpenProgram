@@ -10,7 +10,7 @@ const pane = read("components/center-tabs/files/file-tab-pane.tsx");
 const review = read("components/center-tabs/review/review-tab-pane.tsx");
 const draftState = read("lib/files/file-state-shared.ts");
 const drafts = read("lib/files/file-drafts.ts");
-const ws = read("lib/net/ws-request.ts");
+const ws = read("lib/net/ws/ws-request.ts");
 const turnFiles = readFileSync(new URL("../../../server/openprogram_server/_webui/ws_actions/turn_files/__init__.py", import.meta.url), "utf8");
 const server = readFileSync(new URL("../../../server/openprogram_server/server.py", import.meta.url), "utf8");
 

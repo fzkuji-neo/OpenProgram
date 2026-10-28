@@ -1,6 +1,6 @@
 "use client";
 
-import { ExecutionApiError, getExecutionSnapshot, postExecutionCommand } from "@/lib/net/execution-client";
+import { ExecutionApiError, getExecutionSnapshot, postExecutionCommand } from "@/lib/net/execution/execution-client";
 import { useSessionStore } from "@/lib/session-store";
 import { queuedHasAttachments } from "@/lib/chat/send/queued-attachments";
 import { queueFor, useSendQueue } from "@/lib/chat/send/send-queue";

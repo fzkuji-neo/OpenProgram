@@ -16,7 +16,7 @@ import { SectionHeader } from "./section-header";
 import { Input } from "@/components/ui/input";
 import styles from "./project-settings.module.css";
 
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 import { ProjectOperationDialog, type ProjectOperation } from "./project-operation-dialog";
 
 const item = itemCls(false) + " " + MENU_ITEM_STATES;

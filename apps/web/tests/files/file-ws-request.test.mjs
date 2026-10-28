@@ -63,7 +63,7 @@ const {
   resetWsMutationReconciliation,
   wsMutationRequest,
   wsRequest,
-} = await import("../../lib/net/ws-request.ts");
+} = await import("../../lib/net/ws/ws-request.ts");
 const { fileResponseMatchesOwner } = await import("../../lib/files/files-shared.ts");
 
 after(() => resetWsMutationReconciliation());

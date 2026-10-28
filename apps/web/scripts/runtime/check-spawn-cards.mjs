@@ -48,7 +48,7 @@ globalThis.localStorage = {
 };
 
 const { useSessionStore } = await import("../../lib/session-store/index.ts");
-const { applyChatWsMessage } = await import("../../lib/net/chat-stream.ts");
+const { applyChatWsMessage } = await import("../../lib/net/ws/chat-stream.ts");
 
 const SID = "s1";
 // Envelopes key off the USER turn id; the assistant reply bubble the

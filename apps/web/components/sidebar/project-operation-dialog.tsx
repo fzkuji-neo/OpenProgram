@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import styles from "./project-settings.module.css";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { wsFire, wsListen, wsRequest } from "@/lib/net/ws-request";
+import { wsFire, wsListen, wsRequest } from "@/lib/net/ws/ws-request";
 import { useTranslation } from "@/lib/i18n";
 import type { EditableProject } from "./project-editor";
 export type ProjectOperation = "remove_project" | "archive_project_chats" | "create_project_worktree";

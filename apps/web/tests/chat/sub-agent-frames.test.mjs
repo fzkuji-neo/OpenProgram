@@ -41,7 +41,7 @@ globalThis.localStorage = {
 globalThis.requestAnimationFrame = undefined;
 
 const { useSessionStore } = await import("../../lib/session-store/index.ts");
-const { applyChatWsMessage } = await import("../../lib/net/chat-stream.ts");
+const { applyChatWsMessage } = await import("../../lib/net/ws/chat-stream.ts");
 const { noteJobStatus, promptBody, subAgentChatKey } = await import(
   "../../lib/chat/transcript/sub-agent-transcripts.ts"
 );
@@ -100,7 +100,7 @@ test("a later message to an agent joins that agent's transcript", () => {
 test("the conversation's bookkeeping ignores sub-agent frames", () => {
   const handlers = read("lib/runtime-bridge/chat-handlers.ts");
   assert.match(handlers, /export function wsHandleChatResponse\(data: ChatResponseData\): void \{\n(\s*\/\/.*\n)+\s*if \(data\.job_id\) return;/);
-  const ws = read("lib/net/use-ws.ts");
+  const ws = read("lib/net/ws/use-ws.ts");
   assert.match(ws, /case "job_status": \{\n\s*noteJobStatus\(/);
 });
 

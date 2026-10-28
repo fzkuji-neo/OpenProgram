@@ -1,5 +1,5 @@
 // Desktop bridge terminals responsibilities.
-import "@/lib/net/ws-events";
+import "@/lib/net/ws/ws-events";
 import { type DesktopBridge } from "./bridge-api";
 import { installTerminalResourceBridge } from "./terminal-resources";
 

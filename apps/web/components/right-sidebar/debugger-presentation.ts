@@ -1,5 +1,5 @@
 import type { ExecutionSnapshot } from "@/lib/execution/execution-debugger";
-import type { PersistedExecutionEvent } from "@/lib/net/execution-client";
+import type { PersistedExecutionEvent } from "@/lib/net/execution/execution-client";
 
 type Text = (en: string, zh: string) => string;
 const STATUS: Record<string, [string, string]> = {

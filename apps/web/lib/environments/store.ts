@@ -13,7 +13,7 @@
  */
 import { create } from "zustand";
 
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 
 export type EnvironmentKind = "local" | "ssh" | "docker";
 

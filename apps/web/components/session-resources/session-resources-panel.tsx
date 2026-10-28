@@ -33,7 +33,7 @@ import { useTranslation } from "@/lib/i18n";
 import { useTerminalResources } from "@/lib/desktop/terminal-resources";
 import { BackgroundTerminalView, TerminalResourceView } from "./terminal-resources";
 import { useManagedProcesses } from "@/lib/execution/use-managed-processes";
-import { stopProcess } from "@/lib/net/process-client";
+import { stopProcess } from "@/lib/net/execution/process-client";
 import { ApplicationResourceView } from "./application-resource";
 import { useResourceSelection } from "@/lib/framework/resource-selection";
 import styles from "./session-resources.module.css";

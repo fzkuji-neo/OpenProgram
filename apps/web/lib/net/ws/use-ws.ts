@@ -12,10 +12,10 @@ import { requestSessionLoad, acceptSessionLoad, failSessionLoad, disposeSessionL
  */
 import { useEffect } from "react";
 import { interfaceWindowId, receiveInterface } from "@/lib/framework/connection";
-import { createExecutionRecovery, shouldReloadAfterExecution } from "./execution-recovery";
+import { createExecutionRecovery, shouldReloadAfterExecution } from "../execution/execution-recovery";
 import { createHistoryFragmentDecoder } from "./history-fragments";
 import { noteFrontendBuild } from "./frontend-reload";
-import { executionMessageIds, pendingExecutionReplayRequests } from "./execution-message-recovery";
+import { executionMessageIds, pendingExecutionReplayRequests } from "../execution/execution-message-recovery";
 import { useFunctions } from "@/lib/abilities/functions-store";
 
 import { permissionSnapshotPatch } from "@/lib/session-store/permission-state";
@@ -23,7 +23,7 @@ import { consumeCommandErrorFrame } from "@/lib/net/action-error";
 import type {
   PermissionRulesDetail,
   JobStatusDetail,
-} from "@/lib/net/ws-events";
+} from "@/lib/net/ws/ws-events";
 import { useSessionStore, type PendingDecision } from "@/lib/session-store";
 import {
   loadSessionData,
@@ -48,10 +48,10 @@ import {
 } from "@/lib/runtime-bridge/chat-handlers";
 import { mirrorUpsertConv } from "@/lib/runtime-bridge/conv-store-mirror";
 import { runtimeState, setSocket } from "@/lib/runtime-bridge/state";
-import { applyChatWsMessage, clearSessionByMsgId, flushPendingChatDeltas } from "@/lib/net/chat-stream";
+import { applyChatWsMessage, clearSessionByMsgId, flushPendingChatDeltas } from "@/lib/net/ws/chat-stream";
 import { noteJobStatus } from "@/lib/chat/transcript/sub-agent-transcripts";
-import { waitForOwnerAuthBootstrap } from "@/lib/net/owner-auth-bootstrap";
-import { recoverOwnerAuth } from "@/lib/net/owner-auth-recovery";
+import { waitForOwnerAuthBootstrap } from "@/lib/net/auth/owner-auth-bootstrap";
+import { recoverOwnerAuth } from "@/lib/net/auth/owner-auth-recovery";
 import { showToast } from "@/lib/format-utils/toast";
 import { notifyDesktopSessionLoaded } from "@/lib/desktop/self-update-reopen";
 import { translateText } from "@/lib/i18n";
@@ -70,7 +70,7 @@ import {
 import { refreshStatusSource, setRunning, updateStatus } from "@/lib/runtime-bridge/ui";
 import { refreshChannelBadge } from "@/lib/runtime-bridge/conversations";
 import { onEnvironmentsMessage } from "@/lib/environments/store";
-import { loadExecutionCursors, recordExecutionCursor } from "@/lib/net/execution-cursor";
+import { loadExecutionCursors, recordExecutionCursor } from "@/lib/net/execution/execution-cursor";
 import { pushStatusBadge } from "@/lib/tabs/top-bar-sync";
 import {
   forgetSystemAccessWait,

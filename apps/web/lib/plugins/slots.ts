@@ -14,7 +14,7 @@ import * as React from "react";
 import { create } from "zustand";
 
 import { jsonFetch } from "@/lib/net/fetch-client";
-import { waitForOwnerAuthBootstrap } from "@/lib/net/owner-auth-bootstrap";
+import { waitForOwnerAuthBootstrap } from "@/lib/net/auth/owner-auth-bootstrap";
 import { navigate } from "@/lib/navigate";
 import { translateText, useTranslation } from "@/lib/i18n";
 

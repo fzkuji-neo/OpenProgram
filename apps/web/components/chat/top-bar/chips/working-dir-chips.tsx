@@ -26,7 +26,7 @@ import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import { useFolderPicker } from "@/components/ui/folder-picker";
 import { useSessionStore } from "@/lib/session-store";
 import { useTranslation } from "@/lib/i18n";
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 import { closeAllPopovers } from "@/lib/runtime-bridge/ui";
 import { useBoundChat } from "../bound-chat";
 import { GROUP_LABEL, MENU_NOTE, MENU_NOTE_ERROR, MENU_PANEL, MENU_SEPARATOR, itemCls } from "../menu-styles";

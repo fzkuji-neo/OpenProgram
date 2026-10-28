@@ -43,7 +43,7 @@ globalThis.requestAnimationFrame = () => 1;
 globalThis.cancelAnimationFrame = () => {};
 
 const { useSessionStore } = await import("../../lib/session-store/index.ts");
-const { applyChatWsMessage } = await import("../../lib/net/chat-stream.ts");
+const { applyChatWsMessage } = await import("../../lib/net/ws/chat-stream.ts");
 const { convToChatMsgs } = await import("../../lib/chat/transcript/conv-mapper.ts");
 const {
   hasSystemAccessRequest,

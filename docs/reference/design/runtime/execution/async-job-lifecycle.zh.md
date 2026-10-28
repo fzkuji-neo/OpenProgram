@@ -357,7 +357,7 @@ agent 自己想撤。
 | Worker admission 与执行 | openprogram/agent/job/runner.py：JobRunner、spawn_job、OPENPROGRAM_JOB_WORKERS | 已实现，但仍需完整执行链和资源链验收 |
 | 查询与等待 | JobRunner 的 get/list/await 方法；programs/tools/agents/agent/list_jobs 和 job_output | 已实现 |
 | 取消 | JobRunner.cancel_execution 与 runner 的终态收敛 | JobRunner 层已实现；UI/工具覆盖取决于具体入口 |
-| WebSocket 状态 | apps/server/openprogram_server/_webui/ws_actions/job.py（spawn/list/get）；apps/web/lib/net/use-ws.ts（job_status、spawn_job_result） | 这些 action 已实现 |
+| WebSocket 状态 | apps/server/openprogram_server/_webui/ws_actions/job.py（spawn/list/get）；apps/web/lib/net/ws/use-ws.ts（job_status、spawn_job_result） | 这些 action 已实现 |
 | 分支侧状态视图 | apps/web/components/right-sidebar/branches/index.tsx 订阅 job 状态广播 | 已实现；不是独立 Tasks panel |
 | Attach card 生命周期 | Job.attach_pointer_id 与 runner/dispatcher 接线 | 部分实现；各状态和恢复路径仍需逐项验收 |
 | 资源治理 | JobRunner 构造并使用 ResourceGovernor，并提供资源投影 | 部分接入；token/cost/runtime/idle 强制是独立契约 |

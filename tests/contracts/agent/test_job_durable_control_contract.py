@@ -86,7 +86,7 @@ def test_job_surface_sources_use_execution_envelope_and_cursor() -> None:
         "apps/cli/src/screens/repl/pickerRouter.tsx",
         "apps/cli/src/screens/repl/useWsEvents.ts",
         "apps/web/lib/execution/job-resource.ts",
-        "apps/web/lib/net/ws-events.ts",
+        "apps/web/lib/net/ws/ws-events.ts",
         "apps/web/components/right-sidebar/branches/branch-item.tsx",
     ):
         source = _source(path)

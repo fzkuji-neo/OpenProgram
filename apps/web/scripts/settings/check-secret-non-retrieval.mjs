@@ -217,7 +217,7 @@ for (const required of ["has_token", "masked_token", "has_client_secret"]) {
 
 let replacement;
 try {
-  replacement = await import("../../lib/net/secret-replacement.ts");
+  replacement = await import("../../lib/net/auth/secret-replacement.ts");
 } catch (error) {
   assert.fail(`secret replacement guard is missing: ${error}`);
 }

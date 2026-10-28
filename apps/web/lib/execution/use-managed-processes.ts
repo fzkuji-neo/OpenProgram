@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSessionStore } from "@/lib/session-store";
-import "@/lib/net/ws-events";
-import { getProcess, getSessionProcesses, type AgentCall, type ManagedProcess, type ActiveToolCall } from "../net/process-client";
+import "@/lib/net/ws/ws-events";
+import { getProcess, getSessionProcesses, type AgentCall, type ManagedProcess, type ActiveToolCall } from "../net/execution/process-client";
 
 /** Reads persisted records; selection never consumes the process tool's log cursor. */
 export function useManagedProcesses(active: boolean, sessionId: string | null, selectedId: string | null) {

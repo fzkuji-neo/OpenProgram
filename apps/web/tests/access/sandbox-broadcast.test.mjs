@@ -6,7 +6,7 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 const repo=fileURLToPath(new URL('../../../../',import.meta.url));
 const require=createRequire(repo+'/apps/web/package.json');
 const ts=require('typescript');
-const target=repo+'/apps/web/lib/net/use-ws.ts';
+const target=repo+'/apps/web/lib/net/ws/use-ws.ts';
 const code=ts.transpileModule(readFileSync(target,'utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText;
 const mocks=new Map();
 for(const m of code.matchAll(/import\s*\{([^}]+)\}\s*from\s*["']([^"']+)["']/g)) {

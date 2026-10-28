@@ -13,7 +13,7 @@ Review error handling for corrupt `provider.json` data in `providers/_provider_m
 
 The state-layer proposal retains follow-up work to remove legacy `window.*` state entries, including `W.currentSessionId`, `window.conversations`, `W.isRunning` and `window.__sessionStore`. Audit current usage rather than relying on old occurrence counts. Untyped `window.dispatchEvent` events are part of the same review.
 
-The WebSocket layer in `apps/web/lib/net/use-ws.ts` also rebroadcasts store frames through untyped CustomEvents. Evaluate this together with legacy state retirement, since it creates a second state propagation path alongside the store.
+The WebSocket layer in `apps/web/lib/net/ws/use-ws.ts` also rebroadcasts store frames through untyped CustomEvents. Evaluate this together with legacy state retirement, since it creates a second state propagation path alongside the store.
 
 <span id="模块规模1400-行且多职责重构窗口另排"></span>
 ## Modules with multiple responsibilities

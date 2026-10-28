@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const client = readFileSync(new URL("../../lib/net/execution-client.ts", import.meta.url), "utf8");
+const client = readFileSync(new URL("../../lib/net/execution/execution-client.ts", import.meta.url), "utf8");
 const hook = readFileSync(new URL("../../lib/execution/use-execution-debugger.ts", import.meta.url), "utf8");
 
 test("revision client uses the single canonical REST route family", () => {

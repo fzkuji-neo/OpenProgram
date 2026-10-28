@@ -20,7 +20,7 @@ import {loadSessionHistoryWindow,seedHistoryWindow} from './lib/runtime-bridge/s
 import {runtimeState,setSocket} from './lib/runtime-bridge/state';
 import {saveHistoryAnchor,readHistoryAnchor} from './lib/chat/history/history-viewport';
 import {PeerSessionPane} from './components/chat/pane/peer-session-pane';
-import {applyChatWsMessage} from './lib/net/chat-stream';
+import {applyChatWsMessage} from './lib/net/ws/chat-stream';
 import {loadSessionData,renderSessionMessages} from './lib/runtime-bridge/conversations';
 import {requestSessionLoad,acceptSessionLoad,failSessionLoad,preserveSessionReadRows} from './lib/runtime-bridge/session-load';
 import {TranscriptReadStatus} from './components/chat/messages/list/transcript-read-status';

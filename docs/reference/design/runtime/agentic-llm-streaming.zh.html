@@ -133,7 +133,7 @@ a{color:#9db8ff}
       <tr><td>Runtime 流</td><td><code>Runtime.on_stream</code> 已转发 provider <code>text</code>/<code>thinking</code> delta</td><td>嵌套路径未带 <code>node_id</code> 上浮到 WS；subprocess 仅经 queue 转发现有 envelope</td></tr>
       <tr><td>前端 TreeStep</td><td>note = params 摘要 + duration + <code>→ short(output|raw_reply)</code>；详情面板 Prompt(<code>params._content</code>) / LLM Reply(<code>raw_reply</code>)</td><td>无 <code>Map&lt;nodeId, PartialStream&gt;</code>，无法在 running 时把 delta 画进卡片</td></tr>
     </table></div>
-    <div class="callout">证据锚点：<code>_event_parsing.agent_event_to_envelope</code>、<code>_exec_dag._poll</code> / <code>live_progress</code>、<code>runtime/history._open_model_call_node</code>、<code>apps/web/lib/net/chat-stream.ts</code>、<code>execution-strip.tsx#TreeStep</code>、<code>process_runner.run_agentic_in_subprocess</code>。</div>
+    <div class="callout">证据锚点：<code>_event_parsing.agent_event_to_envelope</code>、<code>_exec_dag._poll</code> / <code>live_progress</code>、<code>runtime/history._open_model_call_node</code>、<code>apps/web/lib/net/ws/chat-stream.ts</code>、<code>execution-strip.tsx#TreeStep</code>、<code>process_runner.run_agentic_in_subprocess</code>。</div>
   </section>
 
   <!-- 1 -->

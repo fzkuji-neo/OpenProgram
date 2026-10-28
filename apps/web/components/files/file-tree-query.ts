@@ -1,4 +1,4 @@
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 import { useSessionStore } from "@/lib/session-store";
 import type { Project } from "@/lib/files/files-shared";
 /** Pure project-relative path helpers used by FileTree queries and rows. */

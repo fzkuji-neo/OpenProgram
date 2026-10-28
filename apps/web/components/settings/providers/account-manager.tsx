@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useTranslation } from "@/lib/i18n";
-import { normalizeSecretReplacement } from "@/lib/net/secret-replacement";
+import { normalizeSecretReplacement } from "@/lib/net/auth/secret-replacement";
 
 import { ProviderLogin } from "./provider-login";
 import { SimpleSelect } from "@/components/ui/select";

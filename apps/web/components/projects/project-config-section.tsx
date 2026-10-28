@@ -9,7 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "@/lib/i18n";
 import { SimpleSelect } from "@/components/ui/select";
 import { SettingsRow, SettingsSection } from "@/components/settings/settings-ui";
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 import { getSocket } from "@/lib/runtime-bridge/state";
 
 type Config = {

@@ -14,7 +14,7 @@ import {
   MutationRegistryCapacityError,
   wsMutationRequest,
   wsRequest,
-} from "@/lib/net/ws-request";
+} from "@/lib/net/ws/ws-request";
 import { useSessionStore } from "@/lib/session-store";
 import type {
   AssistantBlock,

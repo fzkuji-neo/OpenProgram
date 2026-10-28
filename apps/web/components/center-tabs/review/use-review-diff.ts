@@ -1,4 +1,4 @@
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 import type { DiffState, ReviewCategory, ReviewScope, ReviewSort } from "./review-tab-types";
 import type { ReviewHunk } from "./review-diff-rows.ts";
 

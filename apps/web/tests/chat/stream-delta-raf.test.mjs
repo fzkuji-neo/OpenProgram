@@ -53,7 +53,7 @@ globalThis.cancelAnimationFrame = (id) => {
 
 const { useSessionStore } = await import("../../lib/session-store/index.ts");
 const { applyChatWsMessage, clearSessionByMsgId, flushPendingChatDeltas } = await import(
-  "../../lib/net/chat-stream.ts"
+  "../../lib/net/ws/chat-stream.ts"
 );
 const {
   clearPendingUserText,

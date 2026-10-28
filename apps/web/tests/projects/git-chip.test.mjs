@@ -28,7 +28,7 @@ registerHooks({
     if (url.endsWith('/components/ui/popover.tsx')) source = 'export const Popover=({children})=>children;export const PopoverTrigger=Popover;export const PopoverContent=Popover;';
     if (url.endsWith('/components/ui/tooltip.tsx')) source = 'export const HoverTip=({children})=>children; export const TipBody=()=>null;';
     if (url.endsWith('/lib/session-store/index.ts')) source = 'export const useSessionStore=sel=>sel(globalThis.gitStore);useSessionStore.getState=()=>globalThis.gitStore;';
-    if (url.endsWith('/lib/net/ws-request.ts')) source = 'export const wsRequest=(...args)=>globalThis.gitRequest(...args);';
+    if (url.endsWith('/lib/net/ws/ws-request.ts')) source = 'export const wsRequest=(...args)=>globalThis.gitRequest(...args);';
     if (source) return { format: 'module', source, shortCircuit: true };
     if (url.endsWith('.tsx')) {
       return { format: 'module', shortCircuit: true, source: ts.transpileModule(readFileSync(fileURLToPath(url), 'utf8'), { compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText };

@@ -7,7 +7,7 @@ import { TerminalContextMenu } from "@/components/center-tabs/pages/terminal-con
 import { useTranslation } from "@/lib/i18n";
 import { terminalResourceApi,
   type TerminalResource, type TerminalReply } from "@/lib/desktop/terminal-resources";
-import { processIsActive, type ManagedProcess } from "@/lib/net/process-client";
+import { processIsActive, type ManagedProcess } from "@/lib/net/execution/process-client";
 import styles from "./terminal-resources.module.css";
 
 export function terminalTheme(): ITheme {

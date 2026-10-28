@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { useFolderPicker } from "@/components/ui/folder-picker";
 import { useTranslation } from "@/lib/i18n";
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 
 export interface EditableProject {
   hidden?: boolean; is_default?: boolean; id: string; name: string; path: string; icon?: string; description?: string; source_folders?: string[];

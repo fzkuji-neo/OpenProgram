@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { applicationRequest, type ApplicationDefinition } from "@/lib/net/applications";
 import { useFolderPicker } from "@/components/ui/folder-picker";
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 import { useCurrentProject } from "@/lib/files/files-shared";
 import { useTranslation } from "@/lib/i18n";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";

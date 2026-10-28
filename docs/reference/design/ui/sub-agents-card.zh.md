@@ -9,7 +9,7 @@
 [`indicator-dots.md`](indicator-dots.zh.md)（标签状态点）。
 代码：`apps/web/components/chat/messages/cards/sub-agents-card.tsx`、
 `apps/web/lib/chat/transcript/sub-agent-transcripts.ts`、
-`apps/web/lib/net/chat-stream.ts`（`handleSubAgentResponse`）、
+`apps/web/lib/net/ws/chat-stream.ts`（`handleSubAgentResponse`）、
 `openprogram/agent/production_driver/execution.py`（`_turn_event_sink`）、
 `apps/server/openprogram_server/_webui/ws_actions/sub_agent.py`
 （`load_sub_agent_transcript`）。

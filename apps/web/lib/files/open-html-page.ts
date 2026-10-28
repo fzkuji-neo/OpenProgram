@@ -1,4 +1,4 @@
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { fileUrlFromPath } from "./local-file-url";
 

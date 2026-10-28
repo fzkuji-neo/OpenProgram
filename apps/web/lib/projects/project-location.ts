@@ -7,7 +7,7 @@
  * repair it: point the project at its new folder, or confirm that the
  * folder now at its recorded place is the project's own.
  */
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 
 export interface ProjectLocation {
   id: string;

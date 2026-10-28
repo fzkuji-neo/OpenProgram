@@ -8,7 +8,7 @@ import { notifyDesktopSessionLoaded } from "../../lib/desktop/self-update-reopen
 // Execute the actual direct statements in the WS session_loaded case. Other
 // cases and asynchronous branch/settings refreshes do not acknowledge loading.
 function sessionLoadedEntry(notify, loadSessionData) {
-  const source = readFileSync(new URL("../../lib/net/use-ws.ts", import.meta.url), "utf8");
+  const source = readFileSync(new URL("../../lib/net/ws/use-ws.ts", import.meta.url), "utf8");
   const file = ts.createSourceFile("use-ws.ts", source, ts.ScriptTarget.Latest, true);
   let clause;
   function visit(node) {

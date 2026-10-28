@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import { usePendingRunFunction } from "@/lib/execution/use-pending-run-function";
-import { useWS } from "@/lib/net/use-ws";
+import { useWS } from "@/lib/net/ws/use-ws";
 import { runtimeState, getSocket } from "@/lib/runtime-bridge/state";
 import { useSessionStore } from "@/lib/session-store";
 import {

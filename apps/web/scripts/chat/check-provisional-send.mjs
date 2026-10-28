@@ -128,8 +128,8 @@ assert.ok(
   "a successful send must capture the user-message timestamp immediately",
 );
 
-const { applyChatWsMessage } = await import("../../lib/net/chat-stream.ts");
-const { releaseChatOperationError } = await import("../../lib/net/use-ws.ts");
+const { applyChatWsMessage } = await import("../../lib/net/ws/chat-stream.ts");
+const { releaseChatOperationError } = await import("../../lib/net/ws/use-ws.ts");
 
 // The backend reports chat admission/save failures as operation_error. This
 // is consumed before chat_response dispatch, so exercise the real release
@@ -894,7 +894,7 @@ const chatHandlers = readFileSync(
   "utf8",
 );
 const useWsSource = readFileSync(
-  new URL("../../lib/net/use-ws.ts", import.meta.url),
+  new URL("../../lib/net/ws/use-ws.ts", import.meta.url),
   "utf8",
 );
 assert.match(
@@ -903,7 +903,7 @@ assert.match(
   "operation_error chat frames must release only the pending chat send before generic consumption",
 );
 const useWs = readFileSync(
-  new URL("../../lib/net/use-ws.ts", import.meta.url),
+  new URL("../../lib/net/ws/use-ws.ts", import.meta.url),
   "utf8",
 );
 // Exact execution commands are acknowledged on the canonical WebSocket

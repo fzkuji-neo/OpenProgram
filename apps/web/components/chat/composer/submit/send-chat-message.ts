@@ -11,7 +11,7 @@ import {
   registerChatSender,
   rememberSendSettings,
 } from "@/lib/chat/send/send-queue";
-import { appendLocalUserTurn } from "@/lib/net/chat-stream";
+import { appendLocalUserTurn } from "@/lib/net/ws/chat-stream";
 import { defaultScrollerKey, noteTakeLatest } from "@/lib/chat/history/chat-scroll";
 import {
   draftChannelChoiceFor,
@@ -48,7 +48,7 @@ import {
  *   - `setRunning(true)` — legacy run flag (runtime-bridge/ui.ts).
  *
  * The ack-pairing reservations live in `lib/chat/send/pending-user-text` (also
- * read by `lib/net/chat-stream.ts` and `lib/runtime-bridge/chat-handlers.ts`),
+ * read by `lib/net/ws/chat-stream.ts` and `lib/runtime-bridge/chat-handlers.ts`),
  * and the first-message channel attach reads `draftChannelChoiceHost`
  * (lib/runtime-bridge/draft-channel-choice) — neither rides `window`.
  */

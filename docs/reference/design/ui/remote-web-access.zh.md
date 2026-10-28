@@ -5,7 +5,7 @@
 > HTML 页面表达同一设计。关联代码：`apps/server/openprogram_server/_webui/owner_auth.py`、
 > `openprogram/backend_endpoint.py`、
 > `apps/server/openprogram_server/server.py`、`apps/cli/python/openprogram_cli/_impl/commands/web.py`、
-> `apps/web/lib/net/owner-auth-bootstrap.ts`、`openprogram/agent/authority.py`。
+> `apps/web/lib/net/auth/owner-auth-bootstrap.ts`、`openprogram/agent/authority.py`。
 > 关联设计：[说话人身份](../memory/speaker-identity.md)、
 > [权限模型](../runtime/sandbox-architecture.zh.html)、[MCP 服务端](../integrations/mcp-server.zh.html)。
 
@@ -79,7 +79,7 @@ loopback 默认值，并拒绝没有配置 Origin 的非 loopback bind。Uvicorn
 loopback 时提供的单一 `X-Forwarded-Proto`。
 
 公共 `POST /api/auth/bootstrap` 把 fragment token 交换为派生 cookie。前端
-`apps/web/lib/net/owner-auth-bootstrap.ts` 中的 coordinator 同步清除 fragment，在挂载应用子树
+`apps/web/lib/net/auth/owner-auth-bootstrap.ts` 中的 coordinator 同步清除 fragment，在挂载应用子树
 之前完成交换，并且不使用 Web Storage。`openprogram web auth-url --base-url ...` 先通过
 nonce/HMAC ownership challenge 验证 active listener，再只为 effective Origin 输出 fragment
 URL。`/healthz` 现在只返回 `{"status":"ok"}`；需要认证的
@@ -639,7 +639,7 @@ Ownership-challenge route 只执行有界 nonce/revision proof 契约，不授�
 | Owner 进程 credential | `apps/server/openprogram_server/_webui/owner_auth.py` 中的 `OwnerAuthState` 生成 32 字节 token、持有 `<state-dir>/web.lock`、原子写入 owner-only `<state-dir>/web/token`、派生 profile-specific cookie、使用 `hmac.compare_digest` 比较解码后的 token，并且只清理自己拥有的状态；`test_process_token_is_owner_only_locked_and_replaced_after_release` 覆盖 lock、mode、替换、repr 隐去 token 和 release 后轮换 |
 | Canonical effective Origin | `canonicalize_origin()` 与 `resolve_effective_origins()` 验证精确 Origin、执行显式 HTTP 网段限制、加入有限 loopback 默认值，并在非 loopback bind 没有 Origin 时失败；参数化 owner-auth 测试覆盖接受与拒绝的输入 |
 | 共同 owner-auth 边界 | `create_app()` 在 route 前安装 `OwnerAuthMiddleware`，保护 HTTP 和 WebSocket ASGI scope，并执行 cookie/Bearer 选择、Host/Origin/CSRF 校验、通用 `401`/`403`、no-store 与 owner-authority 附加；owner-auth 测试覆盖 HTTP mutation 与 accept 前 WebSocket |
-| Fragment bootstrap backend 与 frontend coordinator | `POST /api/auth/bootstrap`、`apps/web/lib/net/owner-auth-bootstrap.ts` 和 `OwnerAuthBoundary` 已实现 body-token 交换、同步清除 fragment、禁止 Web Storage 与应用挂载 gate；`apps/web/scripts/settings/check-owner-auth-bootstrap.mjs`、TypeScript 检查和 production Web build 验证 frontend 契约 |
+| Fragment bootstrap backend 与 frontend coordinator | `POST /api/auth/bootstrap`、`apps/web/lib/net/auth/owner-auth-bootstrap.ts` 和 `OwnerAuthBoundary` 已实现 body-token 交换、同步清除 fragment、禁止 Web Storage 与应用挂载 gate；`apps/web/scripts/settings/check-owner-auth-bootstrap.mjs`、TypeScript 检查和 production Web build 验证 frontend 契约 |
 | 认证 URL 命令 | `openprogram web auth-url --base-url ...`、`build_owner_auth_url()` 与 `tests/unit/providers/adapters/test_web_auth_url.py` 覆盖 active-server 查找和 effective-Origin 校验；正常 CLI browser launch 使用同一 fragment URL |
 | 最小公共 liveness | `/healthz` 只返回 `{"status":"ok"}` 并带 `no-store`；运维字段位于受保护的 `/api/diagnostics`；integration 与 owner-auth 测试覆盖两条 route |
 | Raw-peer proxy 边界 | Uvicorn 使用 `proxy_headers=False`；`OwnerAuthMiddleware` 只接受 immediate loopback peer 的单一 forwarded scheme，并测试 HTTPS Origin 匹配 |

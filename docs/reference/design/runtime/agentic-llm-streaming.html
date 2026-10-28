@@ -133,7 +133,7 @@ a{color:#9db8ff}
       <tr><td>Runtime stream</td><td><code>Runtime.on_stream</code> already forwards provider <code>text</code>/<code>thinking</code> delta</td><td>The nested path does not propagate <code>node_id</code> to WS; subprocesses forward only existing envelopes through the queue.</td></tr>
       <tr><td>FE TreeStep</td><td>note = parameter summary + duration + <code>→ short(output|raw_reply)</code>; detail-panel Prompt(<code>params._content</code>) / LLM Reply(<code>raw_reply</code>)</td><td>No <code>Map&lt;nodeId, PartialStream&gt;</code>, so running cards cannot display deltas.</td></tr>
     </table></div>
-    <div class="callout">Evidence references: <code>_event_parsing.agent_event_to_envelope</code>, <code>_exec_dag._poll</code> / <code>live_progress</code>, <code>runtime/history._open_model_call_node</code>, <code>apps/web/lib/net/chat-stream.ts</code>, <code>execution-strip.tsx#TreeStep</code>, <code>process_runner.run_agentic_in_subprocess</code>.</div>
+    <div class="callout">Evidence references: <code>_event_parsing.agent_event_to_envelope</code>, <code>_exec_dag._poll</code> / <code>live_progress</code>, <code>runtime/history._open_model_call_node</code>, <code>apps/web/lib/net/ws/chat-stream.ts</code>, <code>execution-strip.tsx#TreeStep</code>, <code>process_runner.run_agentic_in_subprocess</code>.</div>
   </section>
 
   <!-- 1 -->

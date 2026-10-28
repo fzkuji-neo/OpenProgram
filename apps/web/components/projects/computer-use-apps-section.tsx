@@ -12,7 +12,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { SolarIcon } from "@/components/solar-icons";
 import { useComputerUseApps } from "@/lib/net/computer-use-apps";
 import { useTranslation } from "@/lib/i18n";
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 
 import { computerUseRuleApp } from "@/lib/computer-use-rule";
 import { XIcon } from "lucide-react";

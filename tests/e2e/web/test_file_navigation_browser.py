@@ -20,7 +20,7 @@ const {build}=require("esbuild");
 const mocks={
   "@/lib/files/file-drafts":'export const hasDocumentDraftsForPath=()=>false;',
   "@/lib/i18n":'export const useTranslation=()=>({text:(en)=>en,t:(key)=>key});',
-  "@/lib/net/ws-request":`export const wsRequest=(action,payload)=>globalThis.__fileRequest(action,payload);
+  "@/lib/net/ws/ws-request":`export const wsRequest=(action,payload)=>globalThis.__fileRequest(action,payload);
     export const wsMutationRequest=()=>Promise.resolve(null); export const reconcileWsMutation=()=>{};
     export const idempotencyKeyFor=()=>"test"; export class MutationRegistryCapacityError extends Error {}`,
   "@/lib/tabs/session-store":'export const useSessionStore=Object.assign((selector)=>selector({currentSessionId:null,activeChatKey:null,pendingProjectsByChat:{}}),{getState:()=>({currentSessionId:null})});',

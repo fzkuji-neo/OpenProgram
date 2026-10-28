@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/command";
 import { SolarIcon, type SolarIconName } from "@/components/solar-icons";
 import { useTranslation } from "@/lib/i18n";
-import { wsRequest } from "@/lib/net/ws-request";
+import { wsRequest } from "@/lib/net/ws/ws-request";
 import { fileResponseMatchesOwner } from "@/lib/files/file-state-shared";
 import { baseOf, joinPath, parentOf } from "./file-tree-query";
 import { canMoveInto, matchFolders, recentMoveTargets, splitFolderInput, typedFolder } from "./move-targets";

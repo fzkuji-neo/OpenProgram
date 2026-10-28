@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { PendingDecision } from "@/lib/session-store/types";
-import type { WaitCommand } from "@/lib/net/execution-client";
+import type { WaitCommand } from "@/lib/net/execution/execution-client";
 
 export interface DecisionSubmission {
   decision: PendingDecision;

@@ -1,4 +1,4 @@
-import type { JobResourceView } from "@/lib/net/ws-events";
+import type { JobResourceView } from "@/lib/net/ws/ws-events";
 
 export interface JobResourceEntry {
   targetHead?: string | null;

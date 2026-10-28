@@ -6,7 +6,7 @@
  * them out of the program's output (openprogram/processes/progress.py).
  */
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
-import type { ProcessProgress } from "@/lib/net/process-client";
+import type { ProcessProgress } from "@/lib/net/execution/process-client";
 import styles from "./program-progress.module.css";
 
 type Text = (en: string, zh: string) => string;

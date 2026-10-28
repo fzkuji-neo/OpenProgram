@@ -12,7 +12,7 @@ import { parseHTML } from 'linkedom';
 const require = createRequire(import.meta.url);
 const mocks = {
   '@/lib/i18n': 'export const useTranslation=()=>({text:en=>en});',
-  '@/lib/net/ws-request': `export const wsRequest=(action,payload)=>globalThis.host.query(action,payload);
+  '@/lib/net/ws/ws-request': `export const wsRequest=(action,payload)=>globalThis.host.query(action,payload);
     export const idempotencyKeyFor=()=>"key"; export class MutationRegistryCapacityError extends Error {}
     export const reconcileWsMutation=()=>{}; export const wsMutationRequest=(_key,run)=>run();`,
   '@/lib/session-store': 'export const useSessionStore={getState:()=>({currentSessionId:null})};',
