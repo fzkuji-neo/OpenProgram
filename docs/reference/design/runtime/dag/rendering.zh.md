@@ -708,7 +708,7 @@ checkout 成活动分支——接管这个 agent 的对话。徽章永不压住�
 竖条是一整条应用按钮材质的凸起条（输入框底色加 composer 阴影）；手里的工具是一块强调色
 的扁平色块，换工具时滑到新工具上，快捷键写在按钮的 tooltip 里。一道发丝线下面是镜头按钮：**找到正在工作的 agent**（F）
 保持缩放，把视图平滑移到正在工作的 agent 站着的图块；再按换到下一个正在工作的 agent，
-没人工作时移到 HEAD（`interaction/canvas.ts` 的 `focusAgent`）。它下面是**显示整张图**（Shift+1）。HUD 的 Fit 可能随输入框一起收起，竖条却一直在。视图快捷键沿用设计
+没人工作时移到 HEAD（`interaction/canvas.ts` 的 `focusAgent`）。它下面是**显示整张图**（Shift+1）。HUD 的 Fit 可能随输入框一起收起，竖条却一直在。再隔一道发丝线，最后一个按钮打开**快捷键面板**：画布认的所有按键，按工具、镜头、选择分组，显示在竖条旁的菜单面板里（`components/chat/dag-key-sheet.tsx`）。按 `?` 也能打开；按 Esc、再按 `?` 或点面板外即关闭。视图快捷键沿用设计
 工具的习惯：Shift+1 缩放到全图，Shift+0 回到 100%，+ / − 按一档放大缩小，和 HUD 按钮
 同一步长（`interaction/keys.ts`）。
 

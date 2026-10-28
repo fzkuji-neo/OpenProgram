@@ -896,7 +896,7 @@ accent colour that glides to the tool you pick, and each key is in the button's 
 the camera: **Find the working
 agent** (F) glides the view to the tile a working agent stands on, keeping the
 zoom; pressed again it moves to the next working agent, and with none at work
-it goes to HEAD (`focusAgent` in `interaction/canvas.ts`). **Show the whole graph** (Shift+1) sits under it. The HUD's Fit can be tucked behind the composer, but the rail is always there. The view keys
+it goes to HEAD (`focusAgent` in `interaction/canvas.ts`). **Show the whole graph** (Shift+1) sits under it. The HUD's Fit can be tucked behind the composer, but the rail is always there. The last button, under a second hairline, opens the **key sheet**: every key the canvas answers to, grouped as tools, camera and selection, in a menu panel beside the rail (`components/chat/dag-key-sheet.tsx`). `?` opens it too. Esc, `?` again or a press outside closes it. The view keys
 follow design tools: Shift+1 fits the graph, Shift+0 returns to 100%, and
 + / − step the zoom, the same steps as the HUD's buttons (`interaction/keys.ts`).
 

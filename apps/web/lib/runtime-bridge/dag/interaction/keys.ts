@@ -12,6 +12,7 @@
  *   Esc              clear the selection
  *   ⌘Z / Ctrl+Z      undo the last delete in this session
  *   Space (held)     pan with a drag under any tool
+ *   ?                open / close the key sheet
  */
 
 import {
@@ -26,6 +27,7 @@ import {
 } from "./selection";
 import { fitCanvas, focusAgent, resetZoom, zoomStep } from "./canvas";
 import { canUndoDeletion, deleteSelection, undoDeletion } from "./node-delete";
+import { keySheetOpen, setKeySheet } from "./help";
 
 function onKeyDown(e: KeyboardEvent): void {
   if (e.defaultPrevented || isEditableFocus() || !dagVisible()) return;
@@ -43,7 +45,17 @@ function onKeyDown(e: KeyboardEvent): void {
     deleteSelection();
     return;
   }
+  if (e.key === "?") {
+    e.preventDefault();
+    setKeySheet(!keySheetOpen());
+    return;
+  }
   if (e.key === "Escape") {
+    if (keySheetOpen()) {
+      e.preventDefault();
+      setKeySheet(false);
+      return;
+    }
     if (!selectedIds().length) return;
     e.preventDefault();
     clearSelection();

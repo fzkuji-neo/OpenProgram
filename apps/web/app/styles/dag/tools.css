@@ -53,6 +53,11 @@
   color: var(--accent-primary, #4a7dfc);
 }
 .dag-tool-btn[aria-pressed="true"]:hover { background: transparent; }
+/* A toggle that is no tool (the key sheet) wears the block itself. */
+.dag-tool-btn[data-key-sheet-toggle][aria-pressed="true"],
+.dag-tool-btn[data-key-sheet-toggle][aria-pressed="true"]:hover {
+  background: color-mix(in srgb, var(--accent-primary, #4a7dfc) 16%, transparent);
+}
 .dag-tool-pill {
   position: absolute;
   inset: 0;
@@ -168,4 +173,14 @@
 .dag-minimap.is-hidden {
   opacity: 0;
   pointer-events: none;
+}
+
+/* The key sheet (components/chat/dag-key-sheet.tsx): a menu panel just
+   right of the rail, centred on the same strip. */
+.dag-key-sheet {
+  position: absolute;
+  z-index: 4;
+  left: 60px;
+  top: calc((100% - 150px) / 2);
+  transform: translateY(-50%);
 }

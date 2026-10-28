@@ -8,7 +8,8 @@
  * app's button material: one icon per registered tool
  * (lib/runtime-bridge/dag/interaction/selection.ts owns what each tool
  * DOES; this file only gives it a face), then the camera buttons: find
- * the working agent, show the whole graph. The action bar appears at
+ * the working agent, show the whole graph; last the keyboard button
+ * that opens the key sheet (dag-key-sheet.tsx). The action bar appears at
  * the top left, above the rail, while something is selected — and for a
  * few seconds after a delete, as the way back. The top right belongs to
  * the pane's perspective controls.
@@ -19,6 +20,7 @@ import { motion } from "framer-motion";
 import {
   Copy,
   Hand,
+  Keyboard,
   Lasso,
   LocateFixed,
   Maximize2,
@@ -46,6 +48,8 @@ import {
   undoDeletion,
 } from "@/lib/runtime-bridge/dag/interaction/node-delete";
 import { fitCanvas, focusAgent } from "@/lib/runtime-bridge/dag/interaction/canvas";
+import { keySheetOpen, setKeySheet } from "@/lib/runtime-bridge/dag/interaction/help";
+import { DagKeySheet, useKeySheetOpen } from "./dag-key-sheet";
 
 /** Each tool's face. A tool registered without one shows its id. */
 const FACES: Record<string, { Icon: LucideIcon; en: string; zh: string; hintEn: string; hintZh: string }> = {
@@ -62,6 +66,7 @@ function DagToolRail() {
   const { text } = useTranslation();
   useCanvasTools();
   const current = activeTool().id;
+  const sheetOpen = useKeySheetOpen();
   return (
     <div className="dag-tool-rail" role="toolbar" aria-orientation="vertical"
       aria-label={text("Canvas tools", "画布工具")}>
@@ -116,6 +121,20 @@ function DagToolRail() {
         onClick={() => fitCanvas()}
       >
         <Maximize2 size={16} strokeWidth={2} />
+      </button>
+      <span className="dag-tool-sep" aria-hidden="true" />
+      <button
+        type="button"
+        className="dag-tool-btn"
+        data-key-sheet-toggle=""
+        aria-pressed={sheetOpen}
+        aria-label={text("Keyboard shortcuts", "快捷键")}
+        aria-keyshortcuts="?"
+        data-tip={sheetOpen ? undefined : text("Keyboard shortcuts · ?", "快捷键 · ?")}
+        data-tip-side="right"
+        onClick={() => setKeySheet(!keySheetOpen())}
+      >
+        <Keyboard size={16} strokeWidth={2} />
       </button>
     </div>
   );
@@ -179,6 +198,7 @@ export function DagCanvasTools() {
   return (
     <>
       <DagToolRail />
+      <DagKeySheet />
       <DagSelectionBar />
     </>
   );
