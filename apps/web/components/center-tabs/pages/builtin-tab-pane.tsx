@@ -61,7 +61,7 @@ import {
 } from "@/lib/desktop/desktop-bridge";
 import { useCenterTabs, type BuiltinPage } from "@/lib/tabs/center-tabs-store";
 import { useTranslation } from "@/lib/i18n";
-import { groupHistoryByLocalDate } from "@/lib/chat/history-groups";
+import { groupHistoryByLocalDate } from "@/lib/chat/history/history-groups";
 import { SearchInput } from "@/components/ui/search-input";
 import styles from "../strip/center-tabs.module.css";
 

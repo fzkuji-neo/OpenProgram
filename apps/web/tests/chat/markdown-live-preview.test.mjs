@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { EditorSelection, EditorState } from '@codemirror/state';
-import { composerMarkdown, livePreviewRanges } from '../../lib/chat/markdown-live-preview.ts';
+import { composerMarkdown, livePreviewRanges } from '../../lib/chat/markdown/markdown-live-preview.ts';
 
 const text = '# Title\nsay **bold** and `code` ~~gone~~\n- item\n> quote\n```py\nx=1\n```';
 const at = (caret) => livePreviewRanges(EditorState.create({
@@ -33,7 +33,7 @@ test('markers reappear while the caret is inside the construct', () => {
 });
 
 test('paste tokens and finished @file mentions become chips', async () => {
-  const { inlineChips } = await import('../../lib/chat/markdown-live-preview.ts');
+  const { inlineChips } = await import('../../lib/chat/markdown/markdown-live-preview.ts');
   const src = 'see @src/app/page.tsx and [Pasted #2 +401 lines] then @still-typing';
   const chips = inlineChips(src);
   assert.deepEqual(chips.map((c) => [c.kind, src.slice(c.from, c.to), c.label]), [

@@ -52,7 +52,7 @@ import {
   noteChatWidth,
   setRowHeight,
   type WindowNode,
-} from "@/lib/chat/message-window";
+} from "@/lib/chat/history/message-window";
 import { showToast } from "@/lib/format-utils/toast";
 import { renderMarkdown, useMarkdownReady } from "../bubbles/markdown";
 
@@ -74,7 +74,7 @@ import { SpawnedFromCard } from "../cards/spawned-from-card";
 import { SelectionQuote } from "../editing/quote-to-chat";
 import { UserBubble } from "../bubbles/user-bubble";
 import { MessageTimestamp } from "../bubbles/message-actions";
-import { formatMessageTime } from "@/lib/chat/message-time";
+import { formatMessageTime } from "@/lib/chat/transcript/message-time";
 
 /** goal 循环的内部 spawn 轮 label（openprogram/programs/workflow/goal/
  *  __init__.py 的 run_agent_turn(label=...)，经 spawnedFrom.label 到达）。

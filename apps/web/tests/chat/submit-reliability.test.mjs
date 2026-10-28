@@ -33,7 +33,7 @@ const mocks = {
   "../attach/attachment-session-cache": "export const attachmentsBlockSend = () => null;",
   "../attach/mention/at-mention": "export const expandAtMentions = (text) => host.expandMentions(text);",
   "../modes/fn-form/session-target": "export const resolveFnFormSessionId = (current, active) => current ?? active;",
-  "@/lib/chat/chat-scroll": `export const defaultScrollerKey = (sid, peer) => peer ? 'peer:' + sid : sid;
+  "@/lib/chat/history/chat-scroll": `export const defaultScrollerKey = (sid, peer) => peer ? 'peer:' + sid : sid;
     export const noteTakeLatest = note => host.notes.push(note);`,
   "@/lib/prefs/theme-pref": "export const traceThemeEvent = () => {};",
   "@/lib/desktop/desktop-bridge": "export const surfaceOriginForChat = () => null;",
@@ -90,9 +90,9 @@ globalThis.localStorage = { getItem: () => null, setItem() {} };
 globalThis.WebSocket = { OPEN: 1 };
 const { useChatSubmit, stopSession } = await import("../../components/chat/composer/submit/use-chat-submit.ts");
 const { sendChatMessage } = await import("../../components/chat/composer/submit/send-chat-message.ts");
-const { useSendQueue, queueFor, reconcileAfterSessionLoad, recheckRunState } = await import("../../lib/chat/send-queue.ts");
+const { useSendQueue, queueFor, reconcileAfterSessionLoad, recheckRunState } = await import("../../lib/chat/send/send-queue.ts");
 const { pasteStore, placeholderToken } = await import("../../components/chat/composer/paste/paste-store.ts");
-const pending = await import("../../lib/chat/pending-user-text.ts");
+const pending = await import("../../lib/chat/send/pending-user-text.ts");
 
 function focus(sid) {
   host.sessions.activeChatKey = sid;
@@ -436,7 +436,7 @@ test("unconfirmed steering backs off with one timer and preserves its command", 
   }
   // A manual confirmation replaces the pending timer, never creates a second loop.
   host.postCommand = command => ({command_id:command.command_id,status:'applied'});
-  const {steerQueuedMessage}=await import('../../lib/chat/steer-message.ts');
+  const {steerQueuedMessage}=await import('../../lib/chat/send/steer-message.ts');
   await steerQueuedMessage('A',queueFor('A')[0].id);
   assert.equal(timers.size,0);
   assert.equal(queueFor('A').length,0);

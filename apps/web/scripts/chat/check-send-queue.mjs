@@ -76,7 +76,7 @@ const {
   requeueRejected,
   reconcileAfterSessionLoad,
 } =
-  await import("../../lib/chat/send-queue.ts");
+  await import("../../lib/chat/send/send-queue.ts");
 const { useSessionStore } = await import("../../lib/session-store/index.ts");
 const { stopSession } = await import(
   "../../components/chat/composer/submit/use-chat-submit.ts"
@@ -349,7 +349,7 @@ globalThis.fetch = async (url, init) => {
     status: "running", capabilities: { steer: true },
   } });
 };
-const { steerQueuedMessage } = await import("../../lib/chat/steer-message.ts");
+const { steerQueuedMessage } = await import("../../lib/chat/send/steer-message.ts");
 sent.length = 0;
 useSendQueue.setState({ queues: {} });
 store.setRunningTaskFor(A, { session_id: A, msg_id: "m", execution_id: "active-execution" });

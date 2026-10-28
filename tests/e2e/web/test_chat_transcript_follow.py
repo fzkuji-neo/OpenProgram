@@ -14,10 +14,10 @@ import React,{useRef} from 'react';import {createRoot} from 'react-dom/client';
 import {useChatAreaStick} from './components/chat/messages/list/use-chat-area-stick';
 import {useHistoryWindow} from './components/chat/messages/list/use-history-window';
 import {useSessionStore} from './lib/session-store';
-import {useSessionHistory,registerSessionHistory} from './lib/chat/session-history';
+import {useSessionHistory,registerSessionHistory} from './lib/chat/history/session-history';
 import {seedHistoryWindow,loadSessionHistoryWindow,registerHistoryViewport} from './lib/runtime-bridge/session-history-loader';
 import {runtimeState,setSocket} from './lib/runtime-bridge/state';
-import {noteTakeLatest,defaultScrollerKey,peekTakeLatest,writeChatScroll} from './lib/chat/chat-scroll';
+import {noteTakeLatest,defaultScrollerKey,peekTakeLatest,writeChatScroll} from './lib/chat/history/chat-scroll';
 import {appendLocalUserTurn} from './lib/net/chat-stream';
 import {sendChatMessage} from './components/chat/composer/submit/send-chat-message';
 function page(id,start=200){let end=start+50;return {messages:Array.from({length:50},(_,i)=>({id:`${id}-${start+i}`,role:'user',content:`Message ${start+i}`,status:'completed'})),history:{snapshot:id,head_id:`${id}-499`,before:`${id}-${start}`,after:end<500?`${id}-${end-1}`:null,start,end,total:500}};}
@@ -101,10 +101,10 @@ def test_public_send_on_latest_window(tmp_path):
 import React from 'react';import {createRoot} from 'react-dom/client';
 import {useChatAreaStick} from './components/chat/messages/list/use-chat-area-stick';
 import {useSessionStore} from './lib/session-store';
-import {registerSessionHistory} from './lib/chat/session-history';
+import {registerSessionHistory} from './lib/chat/history/session-history';
 import {seedHistoryWindow} from './lib/runtime-bridge/session-history-loader';
 import {runtimeState,setSocket} from './lib/runtime-bridge/state';
-import {peekTakeLatest,noteTakeLatest} from './lib/chat/chat-scroll';
+import {peekTakeLatest,noteTakeLatest} from './lib/chat/history/chat-scroll';
 import {sendChatMessage} from './components/chat/composer/submit/send-chat-message';
 function page(id){return {messages:Array.from({length:40},(_,i)=>({id:`${id}-${450+i}`,role:'user',content:`Message ${450+i}`,status:'completed'})),history:{snapshot:id,head_id:`${id}-489`,before:`${id}-450`,after:null,start:450,end:490,total:500}};}
 class Socket extends EventTarget{static OPEN=1;readyState=1;send(){}}
@@ -240,11 +240,11 @@ def test_send_during_older_load_then_fetches_latest(tmp_path):
 import React from 'react';import {createRoot} from 'react-dom/client';
 import {useChatAreaStick} from './components/chat/messages/list/use-chat-area-stick';
 import {useSessionStore} from './lib/session-store';
-import {useSessionHistory,registerSessionHistory,updateSessionHistory} from './lib/chat/session-history';
+import {useSessionHistory,registerSessionHistory,updateSessionHistory} from './lib/chat/history/session-history';
 import {seedHistoryWindow,loadSessionHistoryWindow} from './lib/runtime-bridge/session-history-loader';
 import {runtimeState,setSocket} from './lib/runtime-bridge/state';
 import {sendChatMessage} from './components/chat/composer/submit/send-chat-message';
-import {isFollowLocked} from './lib/chat/history-viewport';
+import {isFollowLocked} from './lib/chat/history/history-viewport';
 function page(id,start){let end=start+50;return {messages:Array.from({length:50},(_,i)=>({id:`${id}-${start+i}`,role:'user',content:`m${start+i}`,status:'completed'})),history:{snapshot:id,head_id:`${id}-499`,before:start>0?`${id}-${start}`:null,after:end<500?`${id}-${end-1}`:null,start,end,total:500}};}
 class Socket extends EventTarget{static OPEN=1;readyState=1;send(wire){let req=JSON.parse(wire);if(req.action==='load_session')window.requests.push(req);}}
 window.requests=[];window.WebSocket=Socket;const socket=new Socket();setSocket(socket);
@@ -303,12 +303,12 @@ def test_jump_during_older_send_wait_still_fetches_latest(tmp_path):
 import React from 'react';import {createRoot} from 'react-dom/client';
 import {useChatAreaStick} from './components/chat/messages/list/use-chat-area-stick';
 import {useSessionStore} from './lib/session-store';
-import {useSessionHistory,registerSessionHistory} from './lib/chat/session-history';
+import {useSessionHistory,registerSessionHistory} from './lib/chat/history/session-history';
 import {seedHistoryWindow,loadOlderSessionHistory} from './lib/runtime-bridge/session-history-loader';
 import {runtimeState,setSocket} from './lib/runtime-bridge/state';
 import {sendChatMessage} from './components/chat/composer/submit/send-chat-message';
-import {isFollowLocked} from './lib/chat/history-viewport';
-import {lastSettledTakeLatest,peekTakeLatest} from './lib/chat/chat-scroll';
+import {isFollowLocked} from './lib/chat/history/history-viewport';
+import {lastSettledTakeLatest,peekTakeLatest} from './lib/chat/history/chat-scroll';
 function page(id,start){let end=start+50;return {messages:Array.from({length:50},(_,i)=>({id:`${id}-${start+i}`,role:'user',content:`m${start+i}`,status:'completed'})),history:{snapshot:id,head_id:`${id}-499`,before:start>0?`${id}-${start}`:null,after:end<500?`${id}-${end-1}`:null,start,end,total:500}};}
 class Socket extends EventTarget{static OPEN=1;readyState=1;send(wire){let req=JSON.parse(wire);if(req.action==='load_session')window.requests.push(req);}}
 window.requests=[];window.WebSocket=Socket;const socket=new Socket();setSocket(socket);
@@ -379,12 +379,12 @@ def test_cancelled_or_failed_jump_releases_lock_and_does_not_retry(tmp_path):
 import React from 'react';import {createRoot} from 'react-dom/client';
 import {useChatAreaStick} from './components/chat/messages/list/use-chat-area-stick';
 import {useSessionStore} from './lib/session-store';
-import {useSessionHistory,registerSessionHistory} from './lib/chat/session-history';
+import {useSessionHistory,registerSessionHistory} from './lib/chat/history/session-history';
 import {seedHistoryWindow,loadOlderSessionHistory} from './lib/runtime-bridge/session-history-loader';
 import {runtimeState,setSocket} from './lib/runtime-bridge/state';
 import {sendChatMessage} from './components/chat/composer/submit/send-chat-message';
-import {isFollowLocked} from './lib/chat/history-viewport';
-import {lastSettledTakeLatest,peekTakeLatest} from './lib/chat/chat-scroll';
+import {isFollowLocked} from './lib/chat/history/history-viewport';
+import {lastSettledTakeLatest,peekTakeLatest} from './lib/chat/history/chat-scroll';
 function page(id,start){let end=start+50;return {messages:Array.from({length:50},(_,i)=>({id:`${id}-${start+i}`,role:'user',content:`m${start+i}`,status:'completed'})),history:{snapshot:id,head_id:`${id}-499`,before:start>0?`${id}-${start}`:null,after:end<500?`${id}-${end-1}`:null,start,end,total:500}};}
 class Socket extends EventTarget{static OPEN=1;readyState=1;send(wire){let req=JSON.parse(wire);if(req.action==='load_session')window.requests.push(req);}}
 window.requests=[];window.WebSocket=Socket;const socket=new Socket();setSocket(socket);
@@ -533,7 +533,7 @@ import React from 'react';import {createRoot} from 'react-dom/client';
 import {useChatAreaStick} from './components/chat/messages/list/use-chat-area-stick';
 import {useHistoryWindow} from './components/chat/messages/list/use-history-window';
 import {useSessionStore} from './lib/session-store';
-import {registerSessionHistory} from './lib/chat/session-history';
+import {registerSessionHistory} from './lib/chat/history/session-history';
 import {seedHistoryWindow} from './lib/runtime-bridge/session-history-loader';
 import {loadSessionData} from './lib/runtime-bridge/conversations';
 import {runtimeState} from './lib/runtime-bridge/state';

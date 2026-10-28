@@ -62,7 +62,7 @@ def test_actual_tier_survives_save_reload_and_assistant_render(tmp_path):
     bundle = tmp_path / 'assistant.js'
     entry = '''import React from 'react';import{createRoot}from'react-dom/client';
 import{AssistantBubble}from'./components/chat/messages/bubbles/assistant-bubble';
-import{convToChatMsgs}from'./lib/chat/conv-mapper';
+import{convToChatMsgs}from'./lib/chat/transcript/conv-mapper';
 const messages=convToChatMsgs(SAVED_MESSAGES);createRoot(document.getElementById('root')).render(<AssistantBubble msg={messages[0]}/>);'''.replace('SAVED_MESSAGES', json.dumps(messages))
     subprocess.run(['node', '-e', "require('esbuild').buildSync({stdin:{contents:process.argv[3],resolveDir:process.argv[1],loader:'tsx'},bundle:true,format:'iife',platform:'browser',jsx:'automatic',loader:{'.css':'empty'},outfile:process.argv[2],tsconfig:process.argv[1]+'/tsconfig.json'});", str(ROOT / 'apps/web'), str(bundle), entry], cwd=ROOT, check=True, capture_output=True)
     shell = tmp_path / 'assistant.html'

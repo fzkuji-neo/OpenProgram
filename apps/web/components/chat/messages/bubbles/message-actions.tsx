@@ -33,7 +33,7 @@ import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { HoverTip, TipBody } from "@/components/ui/tooltip";
-import { formatMessageTime } from "@/lib/chat/message-time";
+import { formatMessageTime } from "@/lib/chat/transcript/message-time";
 import {
   CheckIcon,
   CopyIcon,

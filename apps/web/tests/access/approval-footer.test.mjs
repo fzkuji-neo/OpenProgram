@@ -59,8 +59,8 @@ const { flushSync } = await import("react-dom");
 const { QuestionMode } = await import("../../components/chat/composer/modes/question/question-mode.tsx");
 globalThis.WebSocket = { OPEN: 1 };
 const decision = { id: "wait-one", kind: "approval", prompt: "Allow this command?", detail: "echo test", options: [], allowedScopes: ["once", "always"], multi: false, allow_custom: false, executionId: "exec-one", expectedVersion: 3, waitGeneration: 0 };
-const { useDecisionSubmissions } = await import("../../lib/chat/decision-submissions.ts");
-const { useDecisionDrafts } = await import("../../lib/chat/decision-drafts.ts");
+const { useDecisionSubmissions } = await import("../../lib/chat/decisions/decision-submissions.ts");
+const { useDecisionDrafts } = await import("../../lib/chat/decisions/decision-drafts.ts");
 async function mounted(q, check) {
   useDecisionSubmissions.setState({submissions: {}});
   useDecisionDrafts.setState({drafts: {}});

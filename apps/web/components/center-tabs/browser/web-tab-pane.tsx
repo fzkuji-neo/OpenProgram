@@ -43,7 +43,7 @@ import { appendToComposer } from "@/components/chat/messages/editing/quote-to-ch
 import { pageCommentText, pickedElementName, type PickedElement } from "@/lib/browser/page-comment";
 import { regionFile } from "@/lib/browser/region-shot";
 import { queueComposerFiles } from "@/lib/composer-inbox";
-import { targetChat as targetChatFor } from "@/lib/chat/target-chat";
+import { targetChat as targetChatFor } from "@/lib/chat/resources/target-chat";
 import { browserPageShortcut } from "@/lib/browser/browser-layout";
 import {
   isBookmarked,
@@ -69,7 +69,7 @@ import {
   listedBrowserResources,
   previewTabId,
   useBrowserResourceStore,
-} from "@/lib/chat/session-resources";
+} from "@/lib/chat/resources/session-resources";
 import { isMovedByAnimation, isWebTabOccluded, measureWebTabBounds } from "@/lib/browser/web-tab-bounds";
 import styles from "../strip/center-tabs.module.css";
 import { webToolbarButton } from "./toolbar/toolbar-button";

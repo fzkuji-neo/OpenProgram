@@ -9,7 +9,7 @@ registerHooks({resolve(specifier,context,next){
   if(base)for(const suffix of ['.ts','/index.ts'])if(existsSync(fileURLToPath(base.href+suffix)))return {url:base.href+suffix,shortCircuit:true};
   return next(specifier,context);
 }});
-const { collectFileOutputs, previewTarget }=await import('../../lib/chat/file-outputs.ts');
+const { collectFileOutputs, previewTarget }=await import('../../lib/chat/transcript/file-outputs.ts');
 const { filePreviewLayout }=await import('../../lib/tabs/file-preview-layout.ts');
 const { normalizeCenterTabLayout }=await import('../../lib/tabs/center-tab-groups.ts');
 const chat={id:'s:a',kind:'session',sessionId:'a',title:'Chat'};

@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { followNativeWindow } from "../chat/session-resources.ts";
+import { followNativeWindow } from "../chat/resources/session-resources.ts";
 import type { NativeActionCue } from "../desktop/bridge-api.ts";
 import { showActionsEnabled } from "./browser-control.ts";
 

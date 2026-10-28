@@ -1,9 +1,9 @@
 import { flushSync } from 'react-dom';
-import { convToChatMsgs } from '@/lib/chat/conv-mapper';
-import { useSessionHistory, updateSessionHistory, type HistoryPage } from '@/lib/chat/session-history';
-import { HistoryWindow, type HistoryDirection, type HistoryRow } from '@/lib/chat/history-window';
-import { captureHistoryAnchor, captureAreaRestoreState, historyAreaStillOwned, restoreAreaWindow } from '@/lib/chat/history-viewport';
-import { clearHeights, retainRowHeights } from '@/lib/chat/message-window';
+import { convToChatMsgs } from '@/lib/chat/transcript/conv-mapper';
+import { useSessionHistory, updateSessionHistory, type HistoryPage } from '@/lib/chat/history/session-history';
+import { HistoryWindow, type HistoryDirection, type HistoryRow } from '@/lib/chat/history/history-window';
+import { captureHistoryAnchor, captureAreaRestoreState, historyAreaStillOwned, restoreAreaWindow } from '@/lib/chat/history/history-viewport';
+import { clearHeights, retainRowHeights } from '@/lib/chat/history/message-window';
 import { useSessionStore } from '@/lib/session-store';
 import { wsRequest } from '@/lib/net/ws-request';
 import { getSocket, runtimeState } from './state';

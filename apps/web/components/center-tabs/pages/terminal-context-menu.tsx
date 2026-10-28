@@ -18,8 +18,8 @@ import { isMacPlatform, MenuRow } from "@/components/ui/menu-parts";
 import type { Terminal } from "@xterm/xterm";
 
 import { appendToComposer } from "@/components/chat/messages/editing/quote-to-chat";
-import { targetChat } from "@/lib/chat/target-chat";
-import { terminalSelectionText } from "@/lib/chat/terminal-selection";
+import { targetChat } from "@/lib/chat/resources/target-chat";
+import { terminalSelectionText } from "@/lib/chat/resources/terminal-selection";
 import { showToast } from "@/lib/format-utils/toast";
 import { useTranslation } from "@/lib/i18n";
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { isSettled, showsReceipt } from "../../lib/chat/decision-receipts.ts";
+import { isSettled, showsReceipt } from "../../lib/chat/decisions/decision-receipts.ts";
 
 test("a granted or refused permission leaves no card behind", () => {
   assert.equal(showsReceipt({ kind: "approval" }, { status: "answered" }), false);

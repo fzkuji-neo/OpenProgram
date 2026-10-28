@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
-import { noteChatWidth } from "@/lib/chat/message-window";
+import { noteChatWidth } from "@/lib/chat/history/message-window";
 import { canvasDragging, onCanvasDragChange } from "@/lib/tabs/canvas-drag";
 
 const WIDTH_SETTLE_MS = 120;

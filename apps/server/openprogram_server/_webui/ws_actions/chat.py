@@ -526,7 +526,7 @@ def _pasted_text_elements(raw, text_length: int) -> list[dict]:
 
     The model still receives the full text; these only let the web bubble
     show each span collapsed. Offsets count from the end of the message
-    (see apps/web/lib/chat/paste-elements.ts). Malformed records are
+    (see apps/web/lib/chat/send/paste-elements.ts). Malformed records are
     dropped rather than rejecting the turn.
     """
     if not isinstance(raw, list):

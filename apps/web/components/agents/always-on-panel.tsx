@@ -12,7 +12,7 @@ import {
   toggleChannelTarget, wakeAlwaysOn, wakeMinutesValid, WAKE_MINUTES_MAX, WAKE_MINUTES_MIN,
   type AlwaysOnChannelTarget, type AlwaysOnConfig, type AlwaysOnDelivery, type AlwaysOnStatus, type AlwaysOnWakeOutcome,
 } from "@/lib/agents/always-on";
-import { channelName } from "@/lib/chat/channel-speaker";
+import { channelName } from "@/lib/chat/transcript/channel-speaker";
 import { AgentButton } from "./agent-controls";
 import type { Agent, Text } from "./agent-types";
 import styles from "./agents-page.module.css";

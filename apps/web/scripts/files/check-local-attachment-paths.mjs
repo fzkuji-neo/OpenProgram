@@ -7,7 +7,7 @@ import {
   extractAttachmentMentions,
   localAttachmentMention,
   localSourcePath,
-} from "../../lib/chat/attachment-marker.ts";
+} from "../../lib/chat/send/attachment-marker.ts";
 
 const root = new URL("../../", import.meta.url);
 const attachmentHook = readFileSync(

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { convToChatMsgs } from "../../lib/chat/conv-mapper.ts";
+import { convToChatMsgs } from "../../lib/chat/transcript/conv-mapper.ts";
 import { runtimeAnswer, runtimeSummaryLabel } from "../../components/chat/messages/runtime/runtime-summary.ts";
 
 test("system access wait is displayed as paused without elapsed runtime", () => {

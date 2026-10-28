@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { startHistoryAutoload } from '../../lib/chat/history-autoload.ts';
+import { startHistoryAutoload } from '../../lib/chat/history/history-autoload.ts';
 
 function fixture(t, metrics = {}) {
   t.mock.timers.enable({ apis: ['setTimeout'] });

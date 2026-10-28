@@ -13,7 +13,7 @@ const stubs = {
   '@/lib/i18n': 'export const useTranslation=()=>({t:x=>x,text:x=>x});',
   '@/lib/net/ws-request': 'export const wsRequest=(...args)=>globalThis.sidebarRequest(...args);',
   '../session-resources/session-resources-panel': 'import React from "react"; export const SessionResourcesPanel=({sessionId})=>React.createElement("output",{"data-resources":sessionId},sessionId);',
-  '../net/fetch-client.ts': 'export const jsonFetch=(...args)=>globalThis.sidebarResourceFetch(...args);',
+  '../../net/fetch-client.ts': 'export const jsonFetch=(...args)=>globalThis.sidebarResourceFetch(...args);',
   './context-commit-timeline': 'export const ContextCommitTimeline=()=>null;',
   '../animated-icons': 'import {forwardRef} from "react"; const Icon=forwardRef(()=>null); export const ActivityIcon=Icon,BoxIcon=Icon,FolderOpenIcon=Icon,PanelLeftCloseIcon=Icon,PanelLeftOpenIcon=Icon;',
   '../files/file-tree': 'import React from "react"; export const FileTree=({projectId})=>React.createElement("output",{"data-project":projectId},projectId);',

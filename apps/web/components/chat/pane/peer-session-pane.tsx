@@ -26,14 +26,14 @@ import { ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { useMessageIds, useSessionStore } from "@/lib/session-store";
-import { useSessionHistory } from "@/lib/chat/session-history";
+import { useSessionHistory } from "@/lib/chat/history/session-history";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import {
   RECYCLE_MIN_ROWS,
   collectAlwaysLive,
   decideLiveRows,
   heightsFor,
-} from "@/lib/chat/message-window";
+} from "@/lib/chat/history/message-window";
 import { TranscriptReadStatus } from "../messages/list/transcript-read-status";
 import { Composer } from "../composer";
 import { SessionScopeProvider } from "@/lib/session-store/session-scope";

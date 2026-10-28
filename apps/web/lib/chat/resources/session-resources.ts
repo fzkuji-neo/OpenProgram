@@ -1,7 +1,7 @@
-import type { TerminalResource } from "../desktop/terminal-resources";
-import type { ManagedProcess } from "../net/process-client";
+import type { TerminalResource } from "../../desktop/terminal-resources";
+import type { ManagedProcess } from "../../net/process-client";
 import { create } from "zustand";
-import type { CenterTab } from "../tabs/center-tabs-store";
+import type { CenterTab } from "../../tabs/center-tabs-store";
 
 export type BrowserControlState =
   | "active"
@@ -640,7 +640,7 @@ export async function requestCloseBrowserResource(
   post?: (url: string, init: RequestInit) => Promise<unknown>,
 ): Promise<boolean> {
   try {
-    const send = post ?? (await import("../net/fetch-client.ts")).jsonFetch;
+    const send = post ?? (await import("../../net/fetch-client.ts")).jsonFetch;
     const data = await send(
       `/api/session/${encodeURIComponent(input.conversationSessionId)}/resources/${encodeURIComponent(input.resourceId)}/close`,
       { method: "POST", body: "{}" },
@@ -702,7 +702,7 @@ export async function recoverSessionResources(
 ): Promise<void> {
   const begunClock = beginResourceSnapshotClock();
   try {
-    const send = get ?? (await import("../net/fetch-client.ts")).jsonFetch;
+    const send = get ?? (await import("../../net/fetch-client.ts")).jsonFetch;
     const data = await send(
       `/api/session/${encodeURIComponent(sessionId)}/resources`,
       { cache: "no-store" },
@@ -871,7 +871,7 @@ export async function requestResourceControl(
   input: ResourceControlRequest,
   post?: (url: string, init: RequestInit) => Promise<unknown>,
 ): Promise<BackendResource> {
-  const send = post ?? (await import("../net/fetch-client.ts")).jsonFetch;
+  const send = post ?? (await import("../../net/fetch-client.ts")).jsonFetch;
   const body = {
     action: input.action,
     command_id: input.commandId,

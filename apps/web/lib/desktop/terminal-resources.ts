@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { followAppTarget, TERMINAL_TARGET } from "../chat/session-resources.ts";
+import { followAppTarget, TERMINAL_TARGET } from "../chat/resources/session-resources.ts";
 
 // Advisory shell reports; command exit never proves an external effect or task success.
 export type TerminalShellIntegration = {

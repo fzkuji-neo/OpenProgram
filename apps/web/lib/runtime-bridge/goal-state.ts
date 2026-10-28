@@ -1,6 +1,6 @@
 import { runtimeState } from "./state";
 import { useSessionStore } from "../session-store";
-import type { GoalVerification } from "../chat/goal-verification";
+import type { GoalVerification } from "../chat/decisions/goal-verification";
 
 /** Replay a snapshot that may have arrived before its assistant row. */
 export function verificationForMessage(

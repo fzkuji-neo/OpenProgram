@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { captureDropEntries, firstDirectoryLevel } from '../../components/chat/composer/attach/folder-drop.ts';
-import { buildAttachmentEnvelope, extractAttachmentMentions } from '../../lib/chat/attachment-marker.ts';
+import { buildAttachmentEnvelope, extractAttachmentMentions } from '../../lib/chat/send/attachment-marker.ts';
 
 function directory(batches) {
   return { name: 'project', isDirectory: true, createReader: () => ({readEntries(resolve) { resolve(batches.shift() || []); }}) };

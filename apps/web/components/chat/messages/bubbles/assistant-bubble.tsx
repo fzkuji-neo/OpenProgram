@@ -30,7 +30,7 @@ import {
 import type { TNode } from "../execution/tree-types";
 import { MessageActions, MessageTimestamp } from "./message-actions";
 import { typesetMath } from "@/lib/runtime-bridge/markdown-render";
-import { renderMermaidLazily } from "@/lib/chat/mermaid-lazy";
+import { renderMermaidLazily } from "@/lib/chat/markdown/mermaid-lazy";
 import { renderMarkdown, useMarkdownReady } from "./markdown";
 import { TurnFilesChips } from "../turn-files/turn-files-chips";
 import { summarizeToolGroup } from "../execution/tool-group-summary";

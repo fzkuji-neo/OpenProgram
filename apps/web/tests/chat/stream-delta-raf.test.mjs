@@ -58,7 +58,7 @@ const { applyChatWsMessage, clearSessionByMsgId, flushPendingChatDeltas } = awai
 const {
   clearPendingUserText,
   setPendingUserText,
-} = await import("../../lib/chat/pending-user-text.ts");
+} = await import("../../lib/chat/send/pending-user-text.ts");
 const realUpdateMessage = useSessionStore.getState().updateMessage;
 
 const SID = "s_raf";
@@ -82,7 +82,7 @@ test("verifier identity survives streaming, accepted verdict and history mapping
   assert.deepEqual(useSessionStore.getState().messagesById[rid].goalVerification, accepted);
   updateSessionGoal(sid,{version:4,verification_message:{message_id:rid,presentation:mark}});
   assert.deepEqual(useSessionStore.getState().messagesById[rid].goalVerification, accepted);
-  const { convToChatMsgs } = await import("../../lib/chat/conv-mapper.ts");
+  const { convToChatMsgs } = await import("../../lib/chat/transcript/conv-mapper.ts");
   const raw = '{"requirements":[],"reason":"internal"}';
   const mapped = convToChatMsgs([{id:rid,role:"assistant",content:raw,goal_verification:accepted}]);
   assert.deepEqual(mapped[0].goalVerification, accepted);
@@ -360,7 +360,7 @@ test("host execution outcome survives live stream and history mapping", async ()
   send({ type: "tool_use", tool: "bash", tool_call_id: "denied", input: "{}" });
   send({ type: "tool_result", tool: "bash", tool_call_id: "denied", result: "refused", is_error: true, outcome: "not_started" });
   assert.equal(reply().blocks.find(b => b.tool_call_id === "denied").outcome, "not_started");
-  const { convToChatMsgs } = await import("../../lib/chat/conv-mapper.ts");
+  const { convToChatMsgs } = await import("../../lib/chat/transcript/conv-mapper.ts");
   const mapped = convToChatMsgs([{role: "assistant", id: RID, content: "", blocks: reply().blocks}]);
   assert.equal(mapped.flatMap(m => m.blocks ?? []).find(b => b.tool_call_id === "denied")?.outcome, "not_started");
 });
@@ -382,7 +382,7 @@ test('only a new foreground successful reply requests automatic file presentatio
 });
 
 test("partial history cannot remove streamed tools or reopen a completed reply", async () => {
-  const { convToChatMsgs } = await import('../../lib/chat/conv-mapper.ts');
+  const { convToChatMsgs } = await import('../../lib/chat/transcript/conv-mapper.ts');
   const sid='trace-reload', uid='trace-turn', rid=uid+'_reply';
   const send=event=>applyChatWsMessage({type:'chat_response',data:{type:'stream_event',session_id:sid,msg_id:uid,event}});
   applyChatWsMessage({type:'chat_ack',data:{session_id:sid,msg_id:uid}});
@@ -404,7 +404,7 @@ test("partial history cannot remove streamed tools or reopen a completed reply",
 });
 
 test("two same-name live call roots keep their distinct node identities", async () => {
-  const {convToChatMsgs}=await import('../../lib/chat/conv-mapper.ts');
+  const {convToChatMsgs}=await import('../../lib/chat/transcript/conv-mapper.ts');
   const sid='call-identities',uid='call-owner',rid=uid+'_reply';
   applyChatWsMessage({type:'chat_ack',data:{session_id:sid,msg_id:uid}});
   applyChatWsMessage({type:'chat_response',data:{type:'stream_event',session_id:sid,msg_id:uid,event:{type:'tool_use',tool:'web_use',tool_call_id:'a',input:'{}'}}});
@@ -415,7 +415,7 @@ test("two same-name live call roots keep their distinct node identities", async 
 });
 
 test('newer persisted results and terminal metadata are accepted without losing omitted trace', async () => {
-  const {convToChatMsgs}=await import('../../lib/chat/conv-mapper.ts');
+  const {convToChatMsgs}=await import('../../lib/chat/transcript/conv-mapper.ts');
   const sid='new-history', rid='history-reply';
   const block={type:'tool',tool:'list',tool_call_id:'one',input:'{}'};
   const load=(status,blocks,content='')=>useSessionStore.getState().setMessages(sid,convToChatMsgs([{id:rid,role:'assistant',content,status,blocks}]));
@@ -432,7 +432,7 @@ test('newer persisted results and terminal metadata are accepted without losing 
 });
 
 test('partial history preserves nested calls, call trees and legacy text progress', async () => {
-  const {convToChatMsgs}=await import('../../lib/chat/conv-mapper.ts');
+  const {convToChatMsgs}=await import('../../lib/chat/transcript/conv-mapper.ts');
   const sid='nested-history',id='nested-reply';
   const store=useSessionStore.getState();
   const rows=[{id,role:'assistant',status:'running',content:'Observed full narration'},
@@ -535,7 +535,7 @@ test('text buffered before a history request cannot override its completed snaps
 });
 
 test("cold error history restores failure details independently from partial text", async () => {
-  const {convToChatMsgs}=await import("../../lib/chat/conv-mapper.ts");
+  const {convToChatMsgs}=await import("../../lib/chat/transcript/conv-mapper.ts");
   const [row]=convToChatMsgs([{id:"failed-history",role:"assistant",status:"error",content:"Partial answer",error_detail:"connection lost",error_reason:"transport",error_retryable:true,error_retry_after_s:4}]);
   assert.equal(row.content,"Partial answer");
   assert.equal(row.errorDetail,"connection lost");
@@ -549,7 +549,7 @@ test("cold error history restores failure details independently from partial tex
 
 
 test("persisted compatibility error output does not replace partial answer in the UI", async () => {
-  const {convToChatMsgs}=await import("../../lib/chat/conv-mapper.ts");
+  const {convToChatMsgs}=await import("../../lib/chat/transcript/conv-mapper.ts");
   const [row]=convToChatMsgs([{id:"persisted-error",role:"assistant",status:"error",content:"[error] disconnected",error_detail:"[error] disconnected",blocks:[{type:"text",text:"Partial answer"}]}]);
   assert.equal(row.content,"Partial answer");
   assert.equal(row.errorDetail,"[error] disconnected");

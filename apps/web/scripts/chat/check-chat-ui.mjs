@@ -251,7 +251,7 @@ assert.match(generalSettings, /useWelcomeBackdropPref\(\)[\s\S]*id="welcome-code
 assert.match(welcomeBackdrop, /prefers-reduced-motion: reduce/);
 assert.match(welcomeCss, /\.backdrop\s*\{[^}]*position:\s*absolute;[^}]*pointer-events:\s*none;/s);
 
-const scroll = await import("../../lib/chat/chat-scroll.ts");
+const scroll = await import("../../lib/chat/history/chat-scroll.ts");
 class MemoryStorage {
   values = new Map();
   getItem(key) { return this.values.get(key) ?? null; }
@@ -600,7 +600,7 @@ assert.match(controlsCluster, /styles\.effortText\}`\}\s*aria-expanded=\{thinkin
 const { runtimeSummaryLabel } = await import(
   "../../components/chat/messages/runtime/runtime-summary.ts"
 );
-const { convToChatMsgs } = await import("../../lib/chat/conv-mapper.ts");
+const { convToChatMsgs } = await import("../../lib/chat/transcript/conv-mapper.ts");
 const directRunAfterAssistant = convToChatMsgs([
   { id: "assistant-1", role: "assistant", content: "parent reply" },
   {

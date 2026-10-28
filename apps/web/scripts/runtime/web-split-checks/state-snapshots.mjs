@@ -116,7 +116,7 @@ globalThis.localStorage = {
   writeTransferJournal: testContext.writeTransferJournal,
 } = await import("../../../lib/tabs/tab-transfer-journal.ts"));
 
-(testContext.sessionDraftPersistence = await import("../../../lib/chat/session-draft-persistence.ts"));
+(testContext.sessionDraftPersistence = await import("../../../lib/chat/send/session-draft-persistence.ts"));
 
 (testContext.pendingProjection = await import("../../../lib/tabs/pending-transfer-projection.ts"));
 

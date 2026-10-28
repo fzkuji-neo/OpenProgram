@@ -29,7 +29,7 @@ Object.defineProperty(globalThis, "navigator", { configurable: true, value: { lo
   async query() { return { held: [...held].map(name => ({ name })) }; },
 } } });
 
-const { saveQueues, parseQueues, adoptOrphanedQueues } = await import("../../lib/chat/queue-storage.ts");
+const { saveQueues, parseQueues, adoptOrphanedQueues } = await import("../../lib/chat/send/queue-storage.ts");
 const KEY = "openprogram.send-queue.v2";
 const row = (id, text, extra = {}) => ({ id, text, queuedAt: 1, thinking: "medium", toolsEnabled: true,
   webSearchEnabled: false, background: false, ...extra });

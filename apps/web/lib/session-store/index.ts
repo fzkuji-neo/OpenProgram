@@ -10,13 +10,13 @@ import {
   readSessionDraftState,
   replaceSessionDraftState,
   updateSessionDraftState,
-} from "@/lib/chat/session-draft-persistence";
+} from "@/lib/chat/send/session-draft-persistence";
 import {
   draftChannelChoiceHost,
   type DraftChannelChoiceHost,
 } from "../runtime-bridge/draft-channel-choice";
 import type { SessionTransferSnapshot } from "../tabs/tab-transfer-journal";
-import { forgetTakeLatestSession } from "@/lib/chat/chat-scroll";
+import { forgetTakeLatestSession } from "@/lib/chat/history/chat-scroll";
 import { noteMessageArrival, rekeyMessageArrival } from "./message-arrivals";
 import {
   dropSessionStore,
@@ -905,13 +905,13 @@ export const useSessionStore = createWithEqualityFn<ConvState>((set) => ({
       // drain writes cannot re-enter this `set`.
       if (!t && drain !== "never" && (wasRunning || drain === "always")) {
         queueMicrotask(() => {
-          void import("@/lib/chat/send-queue").then((m) =>
+          void import("@/lib/chat/send/send-queue").then((m) =>
             m.useSendQueue.getState().drain(sessionId),
           );
         });
       }
       if (t && !t.msg_id && !t.execution_id) {
-        void import("@/lib/chat/send-queue").then((m) => m.recheckRunState(sessionId));
+        void import("@/lib/chat/send/send-queue").then((m) => m.recheckRunState(sessionId));
       }
       return { runningTasks: next };
     }),

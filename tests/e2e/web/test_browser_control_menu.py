@@ -30,7 +30,7 @@ esbuild.build({
       'export { BrowserControlBar } from "./components/center-tabs/browser/toolbar/browser-control-bar.tsx";',
       'export { FileBreadcrumb } from "./components/files/file-management.tsx";',
       'export { recordOperationCue, resetBrowserControl } from "./lib/browser/browser-control.ts";',
-      'export { ingestBrowserResource, resetBrowserResources, setBrowserConnection } from "./lib/chat/session-resources.ts";',
+      'export { ingestBrowserResource, resetBrowserResources, setBrowserConnection } from "./lib/chat/resources/session-resources.ts";',
     ].join("\n"),
     resolveDir: web,
     loader: "tsx",

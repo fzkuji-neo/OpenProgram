@@ -10,7 +10,7 @@ import {
   resourceSessionId,
   setBrowserConnection,
   useBrowserResourceStore,
-} from "@/lib/chat/session-resources";
+} from "@/lib/chat/resources/session-resources";
 import {
   clearYieldingOnDisconnect,
   settlePendingClose,

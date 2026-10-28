@@ -29,7 +29,7 @@ import {
   optimisticallyCloseBrowserResource,
   requestCloseBrowserResource,
   useBrowserResourceStore,
-} from "../../lib/chat/session-resources.ts";
+} from "../../lib/chat/resources/session-resources.ts";
 
 const tabs = [
   { id: "s:a", kind: "session", title: "A", sessionId: "a" },
@@ -490,7 +490,7 @@ test("a Page listed only from its tab can still be previewed", () => {
 });
 
 test("a pin is not stored: a reload follows the Agent again", () => {
-  const source = readFileSync(new URL("../../lib/chat/session-resources.ts", import.meta.url), "utf8");
+  const source = readFileSync(new URL("../../lib/chat/resources/session-resources.ts", import.meta.url), "utf8");
   const persist = source.slice(source.indexOf("function persistPreferences"), source.indexOf("function writePref"));
   assert.match(persist, /mode: "follow" as const/);
   assert.match(persist, /isAppTarget\(pref\.targetId\) \? null/, "app window and terminal targets are not stored");
@@ -658,9 +658,9 @@ test("conversation switch isolates first-load completion", async () => {
 });
 
 test("the Resources hook and projection use per-conversation snapshot completion", () => {
-  const hook = readFileSync(new URL("../../lib/chat/use-session-resources.ts", import.meta.url), "utf8");
+  const hook = readFileSync(new URL("../../lib/chat/resources/use-session-resources.ts", import.meta.url), "utf8");
   const projection = readFileSync(new URL("../../lib/browser/browser-resource-projection.ts", import.meta.url), "utf8");
-  const store = readFileSync(new URL("../../lib/chat/session-resources.ts", import.meta.url), "utf8");
+  const store = readFileSync(new URL("../../lib/chat/resources/session-resources.ts", import.meta.url), "utf8");
   assert.doesNotMatch(hook, /rowClock\)\.length\s*>=\s*0/);
   assert.match(hook, /sessionResourceView\(sessionId\)/);
   assert.match(projection, /recoverSessionResources\(sessionId/);
@@ -668,7 +668,7 @@ test("the Resources hook and projection use per-conversation snapshot completion
 });
 
 test("persistent terminals use the same scoped resource list and closed grouping", async () => {
-  const { terminalResourceRows } = await import("../../lib/chat/session-resources.ts");
+  const { terminalResourceRows } = await import("../../lib/chat/resources/session-resources.ts");
   const records = [{ terminal_id: "t", generation: "g", preset: "shell", status: "running",
     start_cwd: "/project", session_ids: ["a"], shared: true, in_use: true }];
   const terminalRows = terminalResourceRows(records, "a");
@@ -684,7 +684,7 @@ test("persistent terminals use the same scoped resource list and closed grouping
 test("the preview follows a desktop app the Agent operates, then the next Page", async () => {
   resetBrowserResources();
   const { ingestNativeWindow, nativeWindowFrameUrl, useNativeWindows } = await import("../../lib/browser/native-window-store.ts");
-  const { nativeWindowPreview } = await import("../../lib/chat/session-resources.ts");
+  const { nativeWindowPreview } = await import("../../lib/chat/resources/session-resources.ts");
   useNativeWindows.setState({ windows: {} });
   useBrowserResourceStore.setState({ viewedBranch: { a: "br-a" } });
   const sessionTabs = [{ id: "s:a", kind: "session", sessionId: "a" }, { id: "w:a", kind: "web" }];
@@ -717,7 +717,7 @@ test("the preview follows a desktop app the Agent operates, then the next Page",
 test("a pinned Page is not displaced by desktop app steps", async () => {
   resetBrowserResources();
   const { ingestNativeWindow, useNativeWindows } = await import("../../lib/browser/native-window-store.ts");
-  const { nativeWindowPreview } = await import("../../lib/chat/session-resources.ts");
+  const { nativeWindowPreview } = await import("../../lib/chat/resources/session-resources.ts");
   useNativeWindows.setState({ windows: {} });
   useBrowserResourceStore.setState({ viewedBranch: { a: "br-a" } });
   ingestBrowserResource(browserItem(), "a");

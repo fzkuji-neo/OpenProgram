@@ -44,7 +44,7 @@ await build({
       togglePreviewExpanded,
       hideResourcePreview,
       followCurrentBranch,
-    } from "./lib/chat/session-resources";
+    } from "./lib/chat/resources/session-resources";
     export { recordOperationCue, resetBrowserControl, resumeErrorFor } from "./lib/browser/browser-control";
   `, resolveDir: webPath },
   bundle: true, format: "esm", jsx: "automatic", outfile: bundle,

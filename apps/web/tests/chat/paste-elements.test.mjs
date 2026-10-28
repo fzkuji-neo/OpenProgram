@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   collapsePastedSpans, elementsForBody, pasteSentinel, readPastedElements,
-} from '../../lib/chat/paste-elements.ts';
+} from '../../lib/chat/send/paste-elements.ts';
 
 const pasted = 'line\n'.repeat(400);
 const body = `compare this:\n${pasted}\nthanks`;

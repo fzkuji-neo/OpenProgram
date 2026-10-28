@@ -26,7 +26,7 @@ await build({
       ingestBrowserResource,
       resetBrowserResources,
       setBrowserConnection,
-    } from "./lib/chat/session-resources";
+    } from "./lib/chat/resources/session-resources";
   `, resolveDir: webPath },
   bundle: true, format: "esm", jsx: "automatic", outfile: bundle,
   packages: "external", platform: "node", tsconfig: join(webPath, "tsconfig.json"),

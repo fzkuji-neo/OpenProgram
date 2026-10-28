@@ -19,7 +19,7 @@ import {
   noteChatWidth,
   offsetOf,
   setRowHeight,
-} from "../../lib/chat/message-window.ts";
+} from "../../lib/chat/history/message-window.ts";
 
 const listSrc = readFileSync(new URL("../../components/chat/messages/list/use-message-viewport.ts", import.meta.url), "utf8") + readFileSync(
   new URL("../../components/chat/messages/list/message-list.tsx", import.meta.url),

@@ -17,7 +17,7 @@ await build({
     export { useCenterTabs } from "./lib/tabs/center-tabs-store";
     export { useWebTabPip } from "./lib/browser/web-tab-pip-store";
     export { topLevelTabs } from "./lib/browser/web-page-management";
-    export { resetBrowserResources, getPreviewPreference, hideResourcePreview } from "./lib/chat/session-resources";
+    export { resetBrowserResources, getPreviewPreference, hideResourcePreview } from "./lib/chat/resources/session-resources";
     export { useBrowserControlStore, resetBrowserControl } from "./lib/browser/browser-control";
     export { useTerminalResources } from "./lib/desktop/terminal-resources";
     export { setLocale } from "./lib/i18n";
@@ -27,7 +27,7 @@ await build({
   packages: "external", platform: "node", tsconfig: join(webPath, "tsconfig.json"),
   loader: { ".css": "empty" },
   plugins: [{ name: "panel-services", setup(b) {
-    b.onResolve({ filter: /^(next\/navigation|@\/lib\/chat\/use-session-resources|@\/lib\/execution\/use-managed-processes)$/ }, a => ({ path: a.path, namespace: "test-services" }));
+    b.onResolve({ filter: /^(next\/navigation|@\/lib\/chat\/resources\/use-session-resources|@\/lib\/execution\/use-managed-processes)$/ }, a => ({ path: a.path, namespace: "test-services" }));
     b.onResolve({ filter: /desktop-bridge/ }, () => ({ path: "desktop-bridge", namespace: "test-services" }));
     b.onLoad({ filter: /.*/, namespace: "test-services" }, a => {
       if (a.path === "next/navigation") {

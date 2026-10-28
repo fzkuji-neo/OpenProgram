@@ -6,7 +6,7 @@ import { useTranslation } from "@/lib/i18n";
 import { useSessionStore, type ChatMsg } from "@/lib/session-store";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { useCurrentProject } from "@/lib/files/files-shared";
-import { collectFileOutputs, previewTarget, type FileOutput } from "@/lib/chat/file-outputs";
+import { collectFileOutputs, previewTarget, type FileOutput } from "@/lib/chat/transcript/file-outputs";
 import { fileCapabilities } from "@/lib/documents/file-formats";
 import { canBrowseLocalFiles, isHtmlPath } from "@/lib/files/local-file-url";
 import { openHtmlPage } from "@/lib/files/open-html-page";

@@ -2,8 +2,8 @@
 
 import { ExecutionApiError, getExecutionSnapshot, postExecutionCommand } from "@/lib/net/execution-client";
 import { useSessionStore } from "@/lib/session-store";
-import { queuedHasAttachments } from "@/lib/chat/queued-attachments";
-import { queueFor, useSendQueue } from "@/lib/chat/send-queue";
+import { queuedHasAttachments } from "@/lib/chat/send/queued-attachments";
+import { queueFor, useSendQueue } from "@/lib/chat/send/send-queue";
 import type { CommandResult, ExecutionCommand } from "@/lib/execution/execution-debugger";
 
 type Confirmation = { timer?: ReturnType<typeof setTimeout>; delay: number };

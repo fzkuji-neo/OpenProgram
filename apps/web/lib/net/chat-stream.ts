@@ -34,7 +34,7 @@
  *   and are left to their own handlers.
  */
 
-import { readPastedElements, type PastedTextElement } from "../chat/paste-elements.ts";
+import { readPastedElements, type PastedTextElement } from "../chat/send/paste-elements.ts";
 import { rememberSystemAccessFromTree } from "../access/system-access-result";
 import { verificationForMessage } from "../runtime-bridge/goal-state";
 import {
@@ -57,13 +57,13 @@ import {
   getPendingUserText,
   pendingUserHasAttachments,
   rejectPendingUserText,
-} from "@/lib/chat/pending-user-text";
+} from "@/lib/chat/send/pending-user-text";
 import {
   agentJobFor,
   ensureSubAgentPrompt,
   rememberJobPrompt,
   subAgentChatKey,
-} from "@/lib/chat/sub-agent-transcripts";
+} from "@/lib/chat/transcript/sub-agent-transcripts";
 
 
 function requestExecutionStreamSnapshot(event: {
@@ -123,7 +123,7 @@ interface StreamEvent {
 }
 
 interface ChatResponseData {
-  goal_verification?: import("../chat/goal-verification").GoalVerification;
+  goal_verification?: import("../chat/decisions/goal-verification").GoalVerification;
   type: string;
   msg_id?: string;
   session_id?: string;
@@ -168,7 +168,7 @@ interface ChatResponseData {
   assistant_msg_id?: string;
   command_id?: string;
   /** Set on every frame of a Job's turn: a sub-agent working in this
-   *  session. See lib/chat/sub-agent-transcripts.ts. */
+   *  session. See lib/chat/transcript/sub-agent-transcripts.ts. */
   job_id?: string;
 }
 
@@ -317,7 +317,7 @@ function handleAck(
   // The server does NOT echo a web-originated user turn back as a
   // `user_message` broadcast (only channel/peer turns get that). So the
   // user bubble is created here, from the text the composer stashed on
-  // `lib/chat/pending-user-text` just before sending. `chat_ack.msg_id`
+  // `lib/chat/send/pending-user-text` just before sending. `chat_ack.msg_id`
   // IS the user turn's id — keying it here lets the reply (`_reply`
   // suffix) and the later result anchor to the same turn.
   const text = getPendingUserText(sid);
@@ -432,7 +432,7 @@ function handleResponse(d: ChatResponseData | undefined): void {
     // Leave their original composer draft and files in place for an explicit
     // retry instead of silently converting the turn to plain text.
     if (rejected && !hasAttachments) {
-      void import("@/lib/chat/send-queue").then((m) =>
+      void import("@/lib/chat/send/send-queue").then((m) =>
         m.requeueRejected(sid, rejected),
       );
     }

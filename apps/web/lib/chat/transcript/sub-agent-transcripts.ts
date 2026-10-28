@@ -11,7 +11,7 @@
  * (openprogram/agent/job/runner/admission.py), so a follow-up Job names the
  * agent it continues through its `parent_msg_id`.
  */
-import { convToChatMsgs } from "@/lib/chat/conv-mapper";
+import { convToChatMsgs } from "@/lib/chat/transcript/conv-mapper";
 import type { JobStatusDetail } from "@/lib/net/ws-events";
 import { wsRequest } from "@/lib/net/ws-request";
 import { useSessionStore } from "@/lib/session-store";

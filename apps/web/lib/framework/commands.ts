@@ -53,7 +53,7 @@ export async function executeInterface(operation: string, args: unknown[], page?
   if (group === "resources") {
     const { useResourceSelection } = await import("./resource-selection");
     const { useSessionStore } = await import("@/lib/session-store");
-    const { sessionResourceView, resourceSessionId, terminalResourceRows, hideResourcePreview } = await import("@/lib/chat/session-resources");
+    const { sessionResourceView, resourceSessionId, terminalResourceRows, hideResourcePreview } = await import("@/lib/chat/resources/session-resources");
     const { useTerminalResources } = await import("@/lib/desktop/terminal-resources");
     const tabs = useCenterTabs.getState();
     const sessionId = resourceSessionId(tabs.tabs.find(tab => tab.id === tabs.activeId));

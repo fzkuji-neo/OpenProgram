@@ -1,6 +1,6 @@
 "use client";
 
-import type { PastedTextElement } from "@/lib/chat/paste-elements";
+import type { PastedTextElement } from "@/lib/chat/send/paste-elements";
 import { traceThemeEvent } from "@/lib/prefs/theme-pref";
 import { surfaceOriginForChat } from "@/lib/desktop/desktop-bridge";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
@@ -10,9 +10,9 @@ import { useSessionStore } from "@/lib/session-store";
 import {
   registerChatSender,
   rememberSendSettings,
-} from "@/lib/chat/send-queue";
+} from "@/lib/chat/send/send-queue";
 import { appendLocalUserTurn } from "@/lib/net/chat-stream";
-import { defaultScrollerKey, noteTakeLatest } from "@/lib/chat/chat-scroll";
+import { defaultScrollerKey, noteTakeLatest } from "@/lib/chat/history/chat-scroll";
 import {
   draftChannelChoiceFor,
   draftChannelChoiceHost,
@@ -30,7 +30,7 @@ import {
   pendingUserHasAttachments,
   setPendingFirstAck,
   setPendingUserText,
-} from "@/lib/chat/pending-user-text";
+} from "@/lib/chat/send/pending-user-text";
 
 /**
  * Chat send path — owned by the React composer.
@@ -47,7 +47,7 @@ import {
  *     immediately (before the ack round-trip).
  *   - `setRunning(true)` — legacy run flag (runtime-bridge/ui.ts).
  *
- * The ack-pairing reservations live in `lib/chat/pending-user-text` (also
+ * The ack-pairing reservations live in `lib/chat/send/pending-user-text` (also
  * read by `lib/net/chat-stream.ts` and `lib/runtime-bridge/chat-handlers.ts`),
  * and the first-message channel attach reads `draftChannelChoiceHost`
  * (lib/runtime-bridge/draft-channel-choice) — neither rides `window`.
@@ -75,7 +75,7 @@ export interface ChatAttachment {
 
 interface SendMessageBridgeArgs {
   text: string;
-  /** Pasted spans to show collapsed (lib/chat/paste-elements.ts). */
+  /** Pasted spans to show collapsed (lib/chat/send/paste-elements.ts). */
   textElements?: PastedTextElement[];
   /** Real or provisional chat key. Drafts send their local_* key so the
    *  existing server protocol can acknowledge the correct tab. */

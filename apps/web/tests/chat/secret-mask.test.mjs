@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   collapseSecrets, findSecrets, maskSecret, maskSecrets, secretSentinel,
-} from '../../lib/chat/secret-mask.ts';
+} from '../../lib/chat/transcript/secret-mask.ts';
 
 const pat = 'github_pat_' + 'A1b2C3d4E5'.repeat(8);
 const classic = 'ghp_' + 'x'.repeat(36);

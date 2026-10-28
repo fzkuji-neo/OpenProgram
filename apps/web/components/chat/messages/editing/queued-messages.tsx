@@ -15,16 +15,16 @@
 import { useEffect, useRef, useState } from "react";
 import { Reorder, useDragControls } from "framer-motion";
 import { useTranslation } from "@/lib/i18n";
-import { useSendQueue, type QueuedMessage } from "@/lib/chat/send-queue";
-import { queuedHasAttachments, snapshotQueuedAttachments } from "@/lib/chat/queued-attachments";
-import { steerQueuedMessage } from "@/lib/chat/steer-message";
+import { useSendQueue, type QueuedMessage } from "@/lib/chat/send/send-queue";
+import { queuedHasAttachments, snapshotQueuedAttachments } from "@/lib/chat/send/queued-attachments";
+import { steerQueuedMessage } from "@/lib/chat/send/steer-message";
 import { CornerDownRight, Pencil, X, Paperclip, ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
 import { HoverTip } from "@/components/ui/tooltip";
 import { AttachmentStrip } from "../../composer/attach/strip/attachment-strip";
 import { useComposerAttachments } from "../../composer/attach/use-composer-attachments";
 import { attachmentsBlockSend } from "../../composer/attach/attachment-session-cache";
 import { AttachmentChips, parseAttachments } from "../attachments/user-attachments";
-import { maskSecrets } from "@/lib/chat/secret-mask";
+import { maskSecrets } from "@/lib/chat/transcript/secret-mask";
 import styles from "./queued-messages.module.css";
 
 const EMPTY: QueuedMessage[] = [];

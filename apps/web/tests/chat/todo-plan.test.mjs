@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-const { currentPlan, normalizeTodos, planVisible, useTodoStore } = await import("../../lib/chat/todo-plan.ts");
+const { currentPlan, normalizeTodos, planVisible, useTodoStore } = await import("../../lib/chat/transcript/todo-plan.ts");
 
 const todo = (id, status, created, updated = created) => ({
   id, subject: `task ${id}`, status, created_at: created, updated_at: updated,

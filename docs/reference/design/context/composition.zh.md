@@ -272,7 +272,7 @@ Also writable: {dirs}                  # 额外工作目录
 </environment>
 ```
 
-渠道就是本轮的 `source`：loop runner 把 `req.source` 传给 `build_system_prompt(channel=...)`。没有规则的 source（tui、acp、agent_spawn 等）不加这一行。web 规则写的是 A2UI 说明文件的路径；那份说明列出 `apps/web/lib/chat/a2ui.ts` 渲染的展示类组件（Card、Column、Row、List、Tabs、Text、Divider、Icon、Image、只读 CheckBox），附一个示例，说明里点名的组件必须能渲染。
+渠道就是本轮的 `source`：loop runner 把 `req.source` 传给 `build_system_prompt(channel=...)`。没有规则的 source（tui、acp、agent_spawn 等）不加这一行。web 规则写的是 A2UI 说明文件的路径；那份说明列出 `apps/web/lib/chat/markdown/a2ui.ts` 渲染的展示类组件（Card、Column、Row、List、Tabs、Text、Divider、Icon、Image、只读 CheckBox），附一个示例，说明里点名的组件必须能渲染。
 
 ### 5. 当前日期（L1 · order 85 · condition: 恒）
 

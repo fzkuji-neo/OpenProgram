@@ -20,7 +20,7 @@ import { processIsActive, stopProcess, type ActiveToolCall, type AgentCall, type
 import { type ExecutionSnapshot } from "@/lib/execution/execution-debugger";
 import { activityModel, agentBranches, executionPending, pruneBranches, spawnedBy, startedAt, type ActivityIssue, type BranchRow } from "@/lib/execution/activity-model";
 import { useActivityView } from "@/lib/prefs/activity-view";
-import { loadSubAgentTranscript } from "@/lib/chat/sub-agent-transcripts";
+import { loadSubAgentTranscript } from "@/lib/chat/transcript/sub-agent-transcripts";
 import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
 import { SolarIcon, type SolarIconName } from "@/components/solar-icons";
 import { presentTool, type ToolTone } from "@/components/chat/messages/execution/tool-presentation";

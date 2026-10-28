@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { verificationSummary } from "../../lib/chat/goal-verification.ts";
+import { verificationSummary } from "../../lib/chat/decisions/goal-verification.ts";
 
 const text = (_en, zh) => zh;
 test("only the accepted backend verdict produces a completion summary", () => {

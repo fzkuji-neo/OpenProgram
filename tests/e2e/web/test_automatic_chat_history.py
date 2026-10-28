@@ -16,7 +16,7 @@ import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {MessageList} from './components/chat/messages/list/message-list';
 import {useSessionStore} from './lib/session-store';
-import {registerSessionHistory} from './lib/chat/session-history';
+import {registerSessionHistory} from './lib/chat/history/session-history';
 import {runtimeState,setSocket} from './lib/runtime-bridge/state';
 class Socket extends EventTarget {
   static OPEN=1; readyState=1;

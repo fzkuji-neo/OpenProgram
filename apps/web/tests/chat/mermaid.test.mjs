@@ -30,7 +30,7 @@ const { window } = parseHTML("<html><body></body></html>");
 Object.assign(globalThis, { window, document: window.document });
 globalThis.getComputedStyle = () => ({ color: "", colorScheme: "light", fontFamily: "Inter" });
 
-const { renderMermaidIn } = await import("../../lib/chat/mermaid.ts");
+const { renderMermaidIn } = await import("../../lib/chat/markdown/mermaid.ts");
 
 const card = (lang, body) => `<div class="md-code"><div class="md-code-head"><span class="md-code-lang">${lang}</span><button type="button" class="md-code-copy"></button></div><pre><code class="language-${lang}">${body}</code></pre></div>`;
 const settle = () => new Promise((resolve) => setTimeout(resolve, 10));

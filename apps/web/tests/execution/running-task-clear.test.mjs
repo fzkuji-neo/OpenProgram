@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   executionKey,
   shouldHonorRunningTaskClear,
-} from "../../lib/chat/running-task-clear.ts";
+} from "../../lib/chat/decisions/running-task-clear.ts";
 
 test("same execution is honored", () => {
   const current = { msg_id: "b", execution_id: "b_reply" };

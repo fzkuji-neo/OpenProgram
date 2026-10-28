@@ -21,7 +21,7 @@
  * (``references/claude-code-leaked/src/components/PromptInput/inputPaste.ts``).
  */
 
-import { pastedSpanLabel } from "../../../../lib/chat/paste-elements.ts";
+import { pastedSpanLabel } from "../../../../lib/chat/send/paste-elements.ts";
 
 export interface PastedEntry {
   /** Monotonic per-tab id. Matches the ``#N`` in the token. */
@@ -225,7 +225,7 @@ export function expandPasteTokensDelimited(text: string): string {
 }
 
 /** Strip the delimiters and report each span (Codex-style
- *  ``text_elements``; see lib/chat/paste-elements.ts). */
+ *  ``text_elements``; see lib/chat/send/paste-elements.ts). */
 export function takePastedSpans(text: string): {
   text: string;
   spans: { start: number; end: number; label: string }[];

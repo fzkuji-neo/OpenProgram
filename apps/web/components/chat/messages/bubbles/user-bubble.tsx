@@ -19,9 +19,9 @@ import { AttachmentChips, parseAttachments } from "../attachments/user-attachmen
 import { MessageEditor } from "../editing/message-editor";
 import { RecordingCard } from "../../recording/recording-card";
 import { renderUserMarkdown } from "./markdown";
-import { collapsePastedSpans, pasteSentinel } from "@/lib/chat/paste-elements";
-import { collapseSecrets, maskSecrets, secretParts, secretSentinel } from "@/lib/chat/secret-mask";
-import { channelName, isChannelSource, speakerName, splitRoomEvent, splitRoomHistory, stripLegacySpeakerLabel } from "@/lib/chat/channel-speaker";
+import { collapsePastedSpans, pasteSentinel } from "@/lib/chat/send/paste-elements";
+import { collapseSecrets, maskSecrets, secretParts, secretSentinel } from "@/lib/chat/transcript/secret-mask";
+import { channelName, isChannelSource, speakerName, splitRoomEvent, splitRoomHistory, stripLegacySpeakerLabel } from "@/lib/chat/transcript/channel-speaker";
 
 function escapeAttr(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");

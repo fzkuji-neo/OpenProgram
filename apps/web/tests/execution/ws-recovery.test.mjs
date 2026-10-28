@@ -12,10 +12,10 @@ const source = readFileSync(new URL(hookURL), 'utf8');
 for (const match of source.matchAll(/import\s+(?!type\b)\{([^}]+)\}\s+from\s+["']([^"']+)["']/g)) {
   exportsByModule.set(match[2], [...(exportsByModule.get(match[2])??[]), ...match[1].split(',').map(s=>s.trim()).filter(s=>s && !s.startsWith('type '))]);
 }
-exportsByModule.set('@/lib/chat/send-queue', ['useSendQueue','reconcileAfterSessionLoad']);
+exportsByModule.set('@/lib/chat/send/send-queue', ['useSendQueue','reconcileAfterSessionLoad']);
 // Lazily imported by frame handlers; stubbed like the static imports.
 exportsByModule.set('@/lib/desktop/attention', ['reportExecutionStatus','reportAttention']);
-exportsByModule.set('@/lib/chat/todo-plan', ['useTodoStore']);
+exportsByModule.set('@/lib/chat/transcript/todo-plan', ['useTodoStore']);
 const real = new Set(['@/lib/runtime-bridge/session-load','./execution-recovery','./history-fragments','./execution-message-recovery','@/lib/net/execution-cursor']);
 const hooks=registerHooks({resolve(specifier, context, next) {
   if(context.parentURL?.endsWith('/runtime-bridge/session-load.ts') && specifier==='@/lib/net/chat-stream') return {url:'data:text/javascript,export const flushPendingChatDeltas=()=>{};',shortCircuit:true};

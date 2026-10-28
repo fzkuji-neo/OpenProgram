@@ -1,7 +1,7 @@
 import {
   readSessionDraftState,
   updateSessionDraftState,
-} from "@/lib/chat/session-draft-persistence";
+} from "@/lib/chat/send/session-draft-persistence";
 import { runtimeState } from "./state";
 
 export interface PendingChannelChoice {

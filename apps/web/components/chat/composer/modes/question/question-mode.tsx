@@ -28,7 +28,7 @@ import { useTranslation } from "@/lib/i18n";
 import styles from "./question-mode.module.css";
 import { useWaitAnswer } from "./use-wait-answer";
 import { AnswerSummary } from "./answer-summary";
-import { useDecisionDrafts, type DecisionDraft, type DecisionAnswer } from "@/lib/chat/decision-drafts";
+import { useDecisionDrafts, type DecisionDraft, type DecisionAnswer } from "@/lib/chat/decisions/decision-drafts";
 import approvalStyles from "../approval/approval-mode.module.css";
 import formStyles from "./form-mode.module.css";
 

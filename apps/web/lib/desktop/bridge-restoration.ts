@@ -16,7 +16,7 @@
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import "@/lib/net/ws-events";
 import { getSocket } from "@/lib/runtime-bridge/state";
-import { isPlaceholderPageTitle, listedBrowserResources, recoverSessionResources } from "@/lib/chat/session-resources";
+import { isPlaceholderPageTitle, listedBrowserResources, recoverSessionResources } from "@/lib/chat/resources/session-resources";
 import { type DesktopBridge } from "./bridge-api";
 import { destroyInFlight, ensureWebView, liveViewIds, nativeCueOperations, removeVisibleWebTabBounds, transferLockedIds, unreportedClosedWebTabs, webTabGeometryRevisions } from "./bridge-state";
 

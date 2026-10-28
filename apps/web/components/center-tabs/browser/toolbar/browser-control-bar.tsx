@@ -25,7 +25,7 @@ import {
   prefersCueReducedMotion,
   type CuePoint,
 } from "@/lib/browser/browser-action-cue";
-import { browserConnectionOpen, useBrowserResourceStore } from "@/lib/chat/session-resources";
+import { browserConnectionOpen, useBrowserResourceStore } from "@/lib/chat/resources/session-resources";
 import { useTranslation } from "@/lib/i18n";
 import { MENU_PANEL } from "@/components/chat/top-bar/menu-styles";
 import { itemCls } from "@/components/chat/top-bar/menu-styles";

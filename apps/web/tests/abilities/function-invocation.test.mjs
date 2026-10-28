@@ -139,7 +139,7 @@ const {
   parseFunctionInvocation,
   userFunctionParams,
 } = await import("../../lib/execution/function-invocation.ts");
-const pendingUserText = await import("../../lib/chat/pending-user-text.ts");
+const pendingUserText = await import("../../lib/chat/send/pending-user-text.ts");
 const { useSessionStore } = await import("../../lib/session-store/index.ts");
 const {
   handleRunningTaskClear,

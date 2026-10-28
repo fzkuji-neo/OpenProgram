@@ -235,7 +235,7 @@ Also writable: {dirs}                  # additional working directories
 </environment>
 ```
 
-The channel is the turn's `source`: the loop runner passes `req.source` to `build_system_prompt(channel=...)`. Sources without a rule (tui, acp, agent_spawn, …) add no line. The web rule names the A2UI guide's path; the guide lists the display components `apps/web/lib/chat/a2ui.ts` renders (Card, Column, Row, List, Tabs, Text, Divider, Icon, Image, read-only CheckBox) with one example, and a component the guide names must render.
+The channel is the turn's `source`: the loop runner passes `req.source` to `build_system_prompt(channel=...)`. Sources without a rule (tui, acp, agent_spawn, …) add no line. The web rule names the A2UI guide's path; the guide lists the display components `apps/web/lib/chat/markdown/a2ui.ts` renders (Card, Column, Row, List, Tabs, Text, Divider, Icon, Image, read-only CheckBox) with one example, and a component the guide names must render.
 
 ### 5. current date (L1 · order 85 · condition: always)
 

@@ -13,7 +13,7 @@ export {seedHistoryWindow,loadSessionHistoryWindow} from './lib/runtime-bridge/s
 export {runtimeState,setSocket} from './lib/runtime-bridge/state';
 export {useSessionStore} from './lib/session-store';
 export {createHistoryFragmentDecoder} from './lib/net/history-fragments';
-export {registerSessionHistory,updateSessionHistory,useSessionHistory} from './lib/chat/session-history';
+export {registerSessionHistory,updateSessionHistory,useSessionHistory} from './lib/chat/history/session-history';
 `,resolveDir:root},bundle:true,format:'esm',platform:'node',packages:'external',tsconfig:join(root,'tsconfig.json'),outfile:join(dir,'test.mjs')});
 const fragment=(decoder,data)=>decoder.receive(JSON.stringify({type:'history_fragment',data}));
 const {seedHistoryWindow,loadSessionHistoryWindow,loadOlderSessionHistory,loadSessionData,runtimeState,setSocket,useSessionStore,createHistoryFragmentDecoder,registerSessionHistory,updateSessionHistory,useSessionHistory}=await import(pathToFileURL(join(dir,'test.mjs')));

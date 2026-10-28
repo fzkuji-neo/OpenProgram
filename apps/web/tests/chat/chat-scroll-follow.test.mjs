@@ -26,13 +26,13 @@ import {
   subscribeTakeLatest,
   animateJumpToLatest,
   scrolledAwayFromLatest,
-} from "../../lib/chat/chat-scroll.ts";
+} from "../../lib/chat/history/chat-scroll.ts";
 import {
   historyAreaStillOwned,
   restoreAreaWindow,
   setFollowLock,
   isFollowLocked,
-} from "../../lib/chat/history-viewport.ts";
+} from "../../lib/chat/history/history-viewport.ts";
 
 test("draft-to-existing switch is not a provisional bind", () => {
   assert.equal(
@@ -442,7 +442,7 @@ test("reading checkpoints expire at one hour and cannot cross App runtimes", () 
 test("reading restoration remains available without secure-context UUID support", async () => {
   const vm = await import("node:vm");
   const ts = await import("typescript");
-  const source = readFileSync(new URL("../../lib/chat/chat-scroll.ts", import.meta.url), "utf8");
+  const source = readFileSync(new URL("../../lib/chat/history/chat-scroll.ts", import.meta.url), "utf8");
   const context = { exports: {}, crypto: {} };
   vm.runInNewContext(ts.default.transpileModule(source, {
     compilerOptions: { target: ts.default.ScriptTarget.ES2022, module: ts.default.ModuleKind.CommonJS },

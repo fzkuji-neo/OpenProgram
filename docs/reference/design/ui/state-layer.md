@@ -132,9 +132,9 @@ lives where prevents duplicating state later.
   its session ids from.
 - **`apps/web/lib/tabs/center-tab-groups.ts`** — pure functions over the tab
   layout (grouping, reordering, split panes). No state of its own.
-- **`apps/web/lib/chat/chat-scroll.ts`** — scroll position helpers keyed by chat
+- **`apps/web/lib/chat/history/chat-scroll.ts`** — scroll position helpers keyed by chat
   key, persisted through a storage interface
-  (`apps/web/lib/chat/chat-scroll.ts:37`). Already per-session by construction,
+  (`apps/web/lib/chat/history/chat-scroll.ts:37`). Already per-session by construction,
   just not inside the store.
 - **`apps/web/lib/abilities/functions-store.ts`**, **`skills-store.ts`**,
   **`plugins-store.ts`** — page-level catalogues and their filter/sort/search

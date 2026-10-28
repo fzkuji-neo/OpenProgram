@@ -17,7 +17,7 @@ import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
 import {AssistantBubble} from './components/chat/messages/bubbles/assistant-bubble';
 import {useSessionStore} from './lib/session-store';
 import {applyChatWsMessage} from './lib/net/chat-stream';
-import {convToChatMsgs} from './lib/chat/conv-mapper';
+import {convToChatMsgs} from './lib/chat/transcript/conv-mapper';
 window.fetch=async()=>new Response('{}',{headers:{'content-type':'application/json'}});
 const sid='error-test',uid='turn',rid='turn_reply';
 useSessionStore.setState({currentSessionId:sid,activeChatKey:sid});

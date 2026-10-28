@@ -1,11 +1,11 @@
 'use client';
 import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
-import { useSessionHistory } from '@/lib/chat/session-history';
-import { startHistoryAutoload } from '@/lib/chat/history-autoload';
-import { captureHistoryAnchor, readHistoryAnchor, restoreHistoryAnchor, saveHistoryAnchor } from '@/lib/chat/history-viewport';
+import { useSessionHistory } from '@/lib/chat/history/session-history';
+import { startHistoryAutoload } from '@/lib/chat/history/history-autoload';
+import { captureHistoryAnchor, readHistoryAnchor, restoreHistoryAnchor, saveHistoryAnchor } from '@/lib/chat/history/history-viewport';
 import { loadSessionHistoryWindow, registerHistoryViewport } from '@/lib/runtime-bridge/session-history-loader';
 import { useSessionStore } from '@/lib/session-store';
-import { readChatScroll, readChatFollowLatest } from '@/lib/chat/chat-scroll';
+import { readChatScroll, readChatFollowLatest } from '@/lib/chat/history/chat-scroll';
 
 /** Owns the visible pane's history lifecycle, not message rendering. */
 export function useHistoryWindow(sessionId: string | null, enabled: boolean, areaRef?: RefObject<HTMLElement>, chatKey?: string | null): void {

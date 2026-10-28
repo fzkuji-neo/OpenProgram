@@ -12,11 +12,11 @@ def test_large_history_fast_scroll_eviction_restore_and_latest(tmp_path):
 import React from 'react';import {createRoot} from 'react-dom/client';
 import {MessageList} from './components/chat/messages/list/message-list';
 import {useSessionStore} from './lib/session-store';
-import {registerSessionHistory,useSessionHistory} from './lib/chat/session-history';
+import {registerSessionHistory,useSessionHistory} from './lib/chat/history/session-history';
 import {seedHistoryWindow,loadSessionHistoryWindow} from './lib/runtime-bridge/session-history-loader';
 import {runtimeState,setSocket} from './lib/runtime-bridge/state';
-import {heightsFor} from './lib/chat/message-window';
-import {readHistoryAnchor} from './lib/chat/history-viewport';
+import {heightsFor} from './lib/chat/history/message-window';
+import {readHistoryAnchor} from './lib/chat/history/history-viewport';
 const total=300000;
 const rows=(start,end)=>Array.from({length:end-start},(_,i)=>({id:`m${start+i}`,role:'user',content:`Message ${start+i}`,status:'completed'}));
 function result(start){const end=Math.min(total,start+50);return {messages:rows(start,end),history:{snapshot:'snapshot',head_id:'m299999',start,end,total,before:start?`m${start}`:null,after:end<total?`m${end-1}`:null}};}

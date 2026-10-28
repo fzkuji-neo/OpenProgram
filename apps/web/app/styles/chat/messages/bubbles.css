@@ -396,7 +396,7 @@
 .md-code-copy.copied { color: var(--accent-green); }
 .md-code-copy.copied .md-code-icon-copy { display: none; }
 .md-code-copy.copied .md-code-icon-done { display: inline; }
-/* ```mermaid cards (lib/chat/mermaid.ts): the diagram takes the code's place
+/* ```mermaid cards (lib/chat/markdown/mermaid.ts): the diagram takes the code's place
    in the same card; the header button switches back to the source. */
 .md-mermaid {
   display: flex;
@@ -704,7 +704,7 @@
   line-height: 1.6;
 }
 
-/* Syntax tokens (highlight.js classes, lib/chat/code-highlight.ts). One
+/* Syntax tokens (highlight.js classes, lib/chat/markdown/code-highlight.ts). One
    restrained palette per scheme so code reads as code, not a rainbow. */
 .message-content .md-code {
   --hl-keyword: light-dark(#a626a4, #c792ea);

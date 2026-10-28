@@ -6,7 +6,7 @@
 
 import { CircleCheck, CircleDashed, LoaderCircle } from "lucide-react";
 import { useSessionStore } from "@/lib/session-store";
-import { currentPlan, planVisible, useTodoStore, type TodoStatus } from "@/lib/chat/todo-plan";
+import { currentPlan, planVisible, useTodoStore, type TodoStatus } from "@/lib/chat/transcript/todo-plan";
 import { useTranslation } from "@/lib/i18n";
 import styles from "./todo-plan-card.module.css";
 

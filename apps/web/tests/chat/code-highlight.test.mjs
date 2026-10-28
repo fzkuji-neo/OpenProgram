@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { highlightEscapedCode } from '../../lib/chat/code-highlight.ts';
+import { highlightEscapedCode } from '../../lib/chat/markdown/code-highlight.ts';
 
 test('known languages gain hljs spans and keep text escaped', () => {
   const out = highlightEscapedCode('if a &lt; b:\n    print(&quot;&lt;x&gt;&quot;)', 'python');

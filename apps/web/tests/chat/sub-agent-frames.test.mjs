@@ -43,10 +43,10 @@ globalThis.requestAnimationFrame = undefined;
 const { useSessionStore } = await import("../../lib/session-store/index.ts");
 const { applyChatWsMessage } = await import("../../lib/net/chat-stream.ts");
 const { noteJobStatus, promptBody, subAgentChatKey } = await import(
-  "../../lib/chat/sub-agent-transcripts.ts"
+  "../../lib/chat/transcript/sub-agent-transcripts.ts"
 );
 const { setPendingUserText, getPendingUserText, clearPendingUserText } = await import(
-  "../../lib/chat/pending-user-text.ts"
+  "../../lib/chat/send/pending-user-text.ts"
 );
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
 

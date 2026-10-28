@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { formatMessageTime } from '../../lib/chat/message-time.ts';
+import { formatMessageTime } from '../../lib/chat/transcript/message-time.ts';
 
 const now = new Date(2026, 9, 19, 16, 30);
 const clock = (date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

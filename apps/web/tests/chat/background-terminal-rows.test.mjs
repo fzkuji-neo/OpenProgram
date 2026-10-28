@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { backgroundTerminalRows, groupSessionResources } from "../../lib/chat/session-resources.ts";
+import { backgroundTerminalRows, groupSessionResources } from "../../lib/chat/resources/session-resources.ts";
 
 const command = (id, status, extra = {}) => ({
   id, session_id: "s", execution_id: "e", command: `npm run ${id}`, display: { name: `npm run ${id}`, kind: "script" },

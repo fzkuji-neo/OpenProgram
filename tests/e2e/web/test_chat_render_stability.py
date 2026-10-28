@@ -18,7 +18,7 @@ import {createRoot} from 'react-dom/client';
 import {AssistantBubble} from './components/chat/messages/bubbles/assistant-bubble';
 import {useSessionStore} from './lib/session-store';
 import {applyChatWsMessage} from './lib/net/chat-stream';
-import {convToChatMsgs} from './lib/chat/conv-mapper';
+import {convToChatMsgs} from './lib/chat/transcript/conv-mapper';
 import {wsHandleChatResponse} from './lib/runtime-bridge/chat-handlers';
 import {runtimeState,setSocket} from './lib/runtime-bridge/state';
 const sid='fixture-chat',uid='turn',rid='turn_reply';

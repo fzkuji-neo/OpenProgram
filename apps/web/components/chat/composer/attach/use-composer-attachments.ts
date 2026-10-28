@@ -18,7 +18,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useSessionStore } from "@/lib/session-store";
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";
-import { localSourcePath } from "@/lib/chat/attachment-marker";
+import { localSourcePath } from "@/lib/chat/send/attachment-marker";
 import {
   type PendingImage,
   readDroppedTextFile,

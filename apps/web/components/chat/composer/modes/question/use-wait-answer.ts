@@ -4,7 +4,7 @@ import { showToast } from "@/lib/format-utils/toast";
 import { useTranslation } from "@/lib/i18n";
 import type { PendingDecision } from "@/lib/session-store/types";
 import { ExecutionApiError, postExecutionCommand, type WaitCommand } from "@/lib/net/execution-client";
-import { useDecisionSubmissions, type DecisionSubmission } from "@/lib/chat/decision-submissions";
+import { useDecisionSubmissions, type DecisionSubmission } from "@/lib/chat/decisions/decision-submissions";
 
 export function useWaitAnswer(q: PendingDecision | null, onResolve: (id: string) => void) {
   const { text } = useTranslation();

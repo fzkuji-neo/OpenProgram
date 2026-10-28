@@ -80,8 +80,8 @@ runtimeState.currentSessionId = null;
 const { sendChatMessage } = await import(
   "../../components/chat/composer/submit/send-chat-message.ts"
 );
-// The ack-pairing reservations live in lib/chat/pending-user-text now.
-const pendingUserText = await import("../../lib/chat/pending-user-text.ts");
+// The ack-pairing reservations live in lib/chat/send/pending-user-text now.
+const pendingUserText = await import("../../lib/chat/send/pending-user-text.ts");
 const { useSessionStore } = await import("../../lib/session-store/index.ts");
 if (process.argv.includes("--project-dir-intent")) {
 const projectDirectoryFrames = [];
@@ -277,7 +277,7 @@ applyChatWsMessage({
   },
 });
 await Promise.resolve();
-const { useSendQueue } = await import("../../lib/chat/send-queue.ts");
+const { useSendQueue } = await import("../../lib/chat/send/send-queue.ts");
 assert.equal(runActiveCleanupCount, 0, "run_active is not durable ACK");
 assert.equal(
   useSendQueue.getState().queues[runActiveAttachmentSession],

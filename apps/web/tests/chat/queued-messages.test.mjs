@@ -8,7 +8,7 @@ import { parseHTML } from 'linkedom';
 const web = dirname(fileURLToPath(new URL('../../package.json', import.meta.url)));
 const dir = await mkdtemp(join(web, '.queue-ui-test-'));
 after(() => rm(dir, {recursive:true, force:true}));
-await build({absWorkingDir:web, stdin:{contents:`export { QueuedMessages } from './components/chat/messages/editing/queued-messages'; export { useSendQueue, registerChatSender } from './lib/chat/send-queue'; export { queuedMessagePayload } from './lib/chat/queued-attachments';`,resolveDir:web},bundle:true,format:'esm',platform:'node',packages:'external',outfile:join(dir,'test.mjs'),jsx:'automatic',tsconfig:join(web,'tsconfig.json'),plugins:[{name:'ports',setup(b){
+await build({absWorkingDir:web, stdin:{contents:`export { QueuedMessages } from './components/chat/messages/editing/queued-messages'; export { useSendQueue, registerChatSender } from './lib/chat/send/send-queue'; export { queuedMessagePayload } from './lib/chat/send/queued-attachments';`,resolveDir:web},bundle:true,format:'esm',platform:'node',packages:'external',outfile:join(dir,'test.mjs'),jsx:'automatic',tsconfig:join(web,'tsconfig.json'),plugins:[{name:'ports',setup(b){
  b.onResolve({filter:/^react$/},()=>({path:'react',external:true}));
  b.onResolve({filter:/\.module\.css$/},()=>({path:'css',namespace:'stub'}));
  b.onResolve({filter:/desktop-bridge$/},()=>({path:'bridge',namespace:'stub'}));

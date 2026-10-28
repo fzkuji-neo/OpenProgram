@@ -7,7 +7,7 @@
  * where `renderMd` would touch `window`.
  */
 import { copyText } from "@/lib/clipboard";
-import { highlightEscapedCode } from "@/lib/chat/code-highlight";
+import { highlightEscapedCode } from "@/lib/chat/markdown/code-highlight";
 import { Marked } from "marked";
 import { renderMd, sanitizeHtml } from "@/lib/runtime-bridge/markdown-render";
 import { cjkEmphasis } from "@/lib/markdown/cjk-emphasis";
@@ -18,7 +18,7 @@ import {
   markOpenA2uiFence,
   renderA2ui,
   unescapeHtml,
-} from "@/lib/chat/a2ui";
+} from "@/lib/chat/markdown/a2ui";
 
 export function renderMarkdown(src: string): string {
   if (typeof window === "undefined") return escapeHtml(src);
@@ -52,7 +52,7 @@ const A2UI_BLOCK = new RegExp(
   "g",
 );
 
-/** Swap ```a2ui fences for the surface they describe (lib/chat/a2ui.ts).
+/** Swap ```a2ui fences for the surface they describe (lib/chat/markdown/a2ui.ts).
  *  A finished block that does not parse stays a code block; one still
  *  streaming shows a skeleton until its JSON is complete. */
 function withA2ui(html: string): string {

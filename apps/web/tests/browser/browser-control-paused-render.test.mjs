@@ -29,7 +29,7 @@ const {
   resetBrowserResources,
   setBrowserConnection,
   useBrowserResourceStore,
-} = await import("../../lib/chat/session-resources.ts");
+} = await import("../../lib/chat/resources/session-resources.ts");
 
 after(() => {
   resetBrowserControl();

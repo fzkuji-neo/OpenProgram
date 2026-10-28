@@ -1,4 +1,4 @@
-/* A2UI surfaces in chat replies (lib/chat/a2ui.ts). The basic catalog
+/* A2UI surfaces in chat replies (lib/chat/markdown/a2ui.ts). The basic catalog
    names layout and text roles; the look comes from the chat theme so a
    surface reads as part of the reply. */
 .a2ui {

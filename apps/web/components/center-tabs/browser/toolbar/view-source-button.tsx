@@ -5,7 +5,7 @@ import { useTranslation } from "@/lib/i18n";
 import { useSessionStore } from "@/lib/session-store";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { useCurrentProject } from "@/lib/files/files-shared";
-import { previewTarget } from "@/lib/chat/file-outputs";
+import { previewTarget } from "@/lib/chat/transcript/file-outputs";
 import { fileCapabilities } from "@/lib/documents/file-formats";
 import { localPathFromUrl } from "@/lib/files/local-file-url";
 import { ToolbarTip } from "./browser-chrome";

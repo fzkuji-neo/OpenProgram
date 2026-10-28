@@ -26,7 +26,7 @@ import {
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, insertNewline } from "@codemirror/commands";
 
-import { composerMarkdown, inlineChips, livePreviewRanges, type PreviewChip } from "@/lib/chat/markdown-live-preview";
+import { composerMarkdown, inlineChips, livePreviewRanges, type PreviewChip } from "@/lib/chat/markdown/markdown-live-preview";
 import { pasteStore } from "../paste/paste-store";
 
 /** Marks a dispatch that mirrors the `value` prop, so it isn't echoed back. */

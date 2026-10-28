@@ -1,5 +1,5 @@
 import { marked } from "marked";
-import { fileCapabilities } from "../documents/file-formats.ts";
+import { fileCapabilities } from "../../documents/file-formats.ts";
 
 export interface FileOutput { path: string; name: string; }
 /** Only explicit local links/attachments, never paths inferred from prose or code. */

@@ -55,7 +55,7 @@ import { openSession } from "@/lib/tabs/open-session";
 import { setLastChatPath } from "@/lib/tabs/last-chat-path";
 import { enterExclusiveCoverageMode, renderHistoryGraph } from "@/lib/runtime-bridge/dag";
 import { initOverlayScrollbars } from "@/lib/runtime-bridge/scrollbar";
-import { hostPaintsRows } from "@/lib/chat/message-window";
+import { hostPaintsRows } from "@/lib/chat/history/message-window";
 
 function DeferredPaneLoading() {
   return (

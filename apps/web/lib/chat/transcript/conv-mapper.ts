@@ -6,13 +6,13 @@
  * `renderSessionMessages` in `runtime-bridge/conversations.ts` feeds the
  * result into the store so it mirrors the loaded conversation.
  */
-import { readPastedElements } from "./paste-elements.ts";
+import { readPastedElements } from "../send/paste-elements.ts";
 import type {
   AssistantBlock,
   ChatMsg,
   ChatToolCall,
-} from "../session-store";
-import type { TurnFileSummary } from "../session-store/types";
+} from "../../session-store";
+import type { TurnFileSummary } from "../../session-store/types";
 
 /** Same allowlist as the one in ``chat-stream.ts``. Hides any persisted
  *  agentic tool block on history reload so we don't show both the
@@ -83,7 +83,7 @@ interface LegacyMsg {
    *  both user and assistant rows. Same-session multi-agent uses
    *  this to colour / label each row by author. */
   agent_id?: string;
-  goal_verification?: import("./goal-verification").GoalVerification;
+  goal_verification?: import("../decisions/goal-verification").GoalVerification;
   /** streaming-resume: lifecycle status persisted on the node.
    *  ``running`` means a producer is still writing this msg — render
    *  the runtime block in its in-progress state and (if the worker

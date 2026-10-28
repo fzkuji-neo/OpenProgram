@@ -50,7 +50,7 @@ import {
   useBrowserResourceStore,
   viewedBranchFor,
   type SessionResource,
-} from "@/lib/chat/session-resources";
+} from "@/lib/chat/resources/session-resources";
 import { revealExistingWebTab } from "@/lib/browser/web-page-management";
 import {
   clampPipRect,

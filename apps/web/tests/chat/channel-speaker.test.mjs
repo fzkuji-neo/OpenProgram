@@ -4,7 +4,7 @@ import test from 'node:test';
 import {
   channelName, isChannelSource, shortSpeakerId, speakerName, splitRoomEvent, splitRoomHistory,
   stripLegacySpeakerLabel,
-} from '../../lib/chat/channel-speaker.ts';
+} from '../../lib/chat/transcript/channel-speaker.ts';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const zh = (_en, cn) => cn;
@@ -43,7 +43,7 @@ test('the user bubble names a channel sender above the bubble', () => {
   const bubble = read('components/chat/messages/bubbles/user-bubble.tsx');
   assert.match(bubble, /className="user-channel-speaker"/);
   assert.match(bubble, /stripLegacySpeakerLabel\(roomEvent\.rest, msg\.speaker\)/);
-  assert.match(read('lib/chat/conv-mapper.ts'), /speaker: readSpeaker\(m\)/);
+  assert.match(read('lib/chat/transcript/conv-mapper.ts'), /speaker: readSpeaker\(m\)/);
   assert.match(read('app/styles/chat/messages/bubbles.css'), /\.message\.user \.user-channel-speaker \{/);
 });
 

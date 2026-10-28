@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { markOpenA2uiFence, renderA2ui } from "../../lib/chat/a2ui.ts";
+import { markOpenA2uiFence, renderA2ui } from "../../lib/chat/markdown/a2ui.ts";
 
 const text = (md, inline) => (inline ? `[i:${md}]` : `[b:${md}]`);
 const surface = (components) => JSON.stringify({ components });

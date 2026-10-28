@@ -17,7 +17,7 @@ import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
 import {AssistantMessage} from './components/chat/messages/list/message-list';
 import {GoalDetails} from './components/chat/badges/goal-chip';
 import {useSessionStore} from './lib/session-store';
-import {convToChatMsgs} from './lib/chat/conv-mapper';
+import {convToChatMsgs} from './lib/chat/transcript/conv-mapper';
 import {DetailPanel} from './components/right-sidebar/detail-panel';
 localStorage.setItem('agentic_locale','zh');
 const root=createRoot(document.getElementById('mount'));

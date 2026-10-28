@@ -22,13 +22,13 @@ import {
   backgroundTerminalRows,
   useBrowserResourceStore,
   type SessionResource,
-} from "@/lib/chat/session-resources";
+} from "@/lib/chat/resources/session-resources";
 import {
   pendingCloseRequest,
 } from "@/lib/browser/browser-control";
 import { revealExistingWebTab } from "@/lib/browser/web-page-management";
 import { desktopBridge, retryRestoreWebTab } from "@/lib/desktop/desktop-bridge";
-import { useSessionResources } from "@/lib/chat/use-session-resources";
+import { useSessionResources } from "@/lib/chat/resources/use-session-resources";
 import { useTranslation } from "@/lib/i18n";
 import { useTerminalResources } from "@/lib/desktop/terminal-resources";
 import { BackgroundTerminalView, TerminalResourceView } from "./terminal-resources";

@@ -1,6 +1,6 @@
 "use client";
 import { useSessionStore } from '@/lib/session-store';
-import { useSessionHistory } from '@/lib/chat/session-history';
+import { useSessionHistory } from '@/lib/chat/history/session-history';
 import { retrySessionHistory, loadSessionHistoryWindow } from '@/lib/runtime-bridge/session-history-loader';
 import { useTranslation } from '@/lib/i18n';
 import { requestSessionLoad } from '@/lib/runtime-bridge/session-load';

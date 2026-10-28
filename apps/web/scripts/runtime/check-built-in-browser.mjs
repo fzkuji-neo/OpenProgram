@@ -32,7 +32,7 @@ const bridge = readDesktopBridgeSource();
 const bridgeTypes = read("../../lib/desktop/desktop-bridge-types.ts");
 const preload = read("../../../desktop/preload.js");
 const main = readDesktopMainSource();
-const historyGroupsSource = read("../../lib/chat/history-groups.ts");
+const historyGroupsSource = read("../../lib/chat/history/history-groups.ts");
 
 for (const label of ["Files", "Browser", "Terminal"]) {
   assert.match(launcher, new RegExp(`text\\(\\"${label}\\"`));

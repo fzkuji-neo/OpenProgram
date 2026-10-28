@@ -21,12 +21,12 @@ import {
   subscribeTakeLatest,
   writeChatScroll,
   scrolledAwayFromLatest,
-} from "@/lib/chat/chat-scroll";
+} from "@/lib/chat/history/chat-scroll";
 import { typesetMath } from "@/lib/runtime-bridge/markdown-render";
-import { useSessionHistory } from "@/lib/chat/session-history";
+import { useSessionHistory } from "@/lib/chat/history/session-history";
 import { loadSessionHistoryWindow } from "@/lib/runtime-bridge/session-history-loader";
 import { useSessionStore } from "@/lib/session-store";
-import { saveHistoryAnchor, setFollowLock } from "@/lib/chat/history-viewport";
+import { saveHistoryAnchor, setFollowLock } from "@/lib/chat/history/history-viewport";
 
 const GROWTH_SUPPRESS_MS = 600;
 const SCROLL_KEYS = new Set([

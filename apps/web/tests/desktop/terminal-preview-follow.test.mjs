@@ -16,7 +16,7 @@ window.openprogramTerminals = {
 
 const { installTerminalResourceBridge } = await import("../../lib/desktop/terminal-resources.ts");
 const { appPreviewTarget, previewResource, resetBrowserResources, useBrowserResourceStore } =
-  await import("../../lib/chat/session-resources.ts");
+  await import("../../lib/chat/resources/session-resources.ts");
 
 const terminal = (patch = {}) => ({
   terminal_id: "t1", generation: "g1", preset: "shell", status: "running", start_cwd: "/tmp",

@@ -211,7 +211,7 @@ test("human tab dismissal retains a session Page and reopens its exact navigated
 });
 
 test("human tab dismissal retains manually associated Pages without changing their provenance", async () => {
-  const { ingestBrowserResource, resetBrowserResources, sessionResourceRows, listedBrowserResources } = await import("../../lib/chat/session-resources.ts");
+  const { ingestBrowserResource, resetBrowserResources, sessionResourceRows, listedBrowserResources } = await import("../../lib/chat/resources/session-resources.ts");
   const { agentCanAccessWebTab } = await import("../../lib/browser/web-page-management.ts");
   resetBrowserResources();
   useCenterTabs.setState({ tabs: [], groups: [], activeId: null, splitWebTabId: null });

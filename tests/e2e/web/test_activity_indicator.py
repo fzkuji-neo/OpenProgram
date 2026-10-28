@@ -96,7 +96,7 @@ import {SOLAR_BODIES} from './components/solar-icons';
 window.expectedFunctionGlyph=SOLAR_BODIES.monitor;
 import {useSessionStore} from './lib/session-store';
 import {applyChatWsMessage} from './lib/net/chat-stream';
-import {setPendingUserText} from './lib/chat/pending-user-text';
+import {setPendingUserText} from './lib/chat/send/pending-user-text';
 window.fetch=async()=>new Response('{}',{headers:{'content-type':'application/json'}});
 useSessionStore.setState({currentSessionId:'activity-layout',activeChatKey:'activity-layout'});
 const sid='activity-layout';let uid='turn',rid=uid+'_reply';

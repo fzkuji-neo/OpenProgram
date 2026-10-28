@@ -51,7 +51,7 @@ import {
 } from "./providers";
 import { refreshHistoryContextRange } from "./dag";
 import { sessionAckIsActive, useCenterTabs } from "@/lib/tabs/center-tabs-store";
-import { writeChatScroll } from "@/lib/chat/chat-scroll";
+import { writeChatScroll } from "@/lib/chat/history/chat-scroll";
 import { useSessionStore } from "@/lib/session-store";
 import {
   warmContextBreakdown,
@@ -62,12 +62,12 @@ import {
   clearPendingFirstAck,
   clearPendingUserText,
   getPendingUserText,
-} from "@/lib/chat/pending-user-text";
+} from "@/lib/chat/send/pending-user-text";
 import { shouldHydrateTranscriptForTreeUpdate } from "./transcript-hydration";
 import {
   shouldHonorRunningTaskClear,
   type ClearedTaskIdentity,
-} from "@/lib/chat/running-task-clear";
+} from "@/lib/chat/decisions/running-task-clear";
 import { translateText } from "@/lib/i18n";
 
 /** The app's single draft-channel-choice host (module-level, backed by

@@ -14,7 +14,7 @@ import {
   TERMINAL_TARGET,
   useBrowserResourceStore,
   viewedBranchFor,
-} from "@/lib/chat/session-resources";
+} from "@/lib/chat/resources/session-resources";
 import { nativeWindowFrameUrl, useNativeWindows } from "@/lib/browser/native-window-store";
 import { useTerminalResources } from "@/lib/desktop/terminal-resources";
 import { pipChatRect, useWebTabPip, type WebTabPipRect } from "@/lib/browser/web-tab-pip-store";

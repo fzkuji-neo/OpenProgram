@@ -16,7 +16,7 @@ import {
   loadSubAgentTranscript,
   promptBody,
   subAgentChatKey,
-} from "@/lib/chat/sub-agent-transcripts";
+} from "@/lib/chat/transcript/sub-agent-transcripts";
 import type { ExecutionCommand } from "@/lib/execution/execution-debugger";
 import { useTranslation } from "@/lib/i18n";
 import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";

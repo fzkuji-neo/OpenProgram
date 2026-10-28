@@ -42,9 +42,9 @@ globalThis.WebSocket = { OPEN: 1 };
 
 const { runtimeState, setSocket } = await import("../../lib/runtime-bridge/state.ts");
 const { useSessionStore } = await import("../../lib/session-store/index.ts");
-const pending = await import("../../lib/chat/pending-user-text.ts");
+const pending = await import("../../lib/chat/send/pending-user-text.ts");
 const { sendChatMessage } = await import("../../components/chat/composer/submit/send-chat-message.ts");
-const follow = await import("../../lib/chat/chat-scroll.ts");
+const follow = await import("../../lib/chat/history/chat-scroll.ts");
 
 function reset(sid) {
   pending.clearPendingUserText(sid);

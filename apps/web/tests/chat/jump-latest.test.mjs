@@ -8,7 +8,7 @@ import {
   isChatAtBottom,
   CHAT_SMOOTH_SCROLL_FALLBACK_MS,
   remainingScroll,
-} from "../../lib/chat/chat-scroll.ts";
+} from "../../lib/chat/history/chat-scroll.ts";
 
 const messageList = readFileSync(new URL("../../components/chat/messages/list/use-chat-area-stick.ts", import.meta.url), "utf8") + readFileSync(
   new URL("../../components/chat/messages/list/message-list.tsx", import.meta.url),
@@ -69,7 +69,7 @@ test("jump button fades out instead of unmounting immediately", () => {
 
 test("jump uses the same native smooth scroll as the left rail", () => {
   const scroll = readFileSync(
-    new URL("../../lib/chat/chat-scroll.ts", import.meta.url),
+    new URL("../../lib/chat/history/chat-scroll.ts", import.meta.url),
     "utf8",
   );
   const rail = readFileSync(

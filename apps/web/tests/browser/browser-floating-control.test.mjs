@@ -24,7 +24,7 @@ await build({
       ingestBrowserResource,
       resetBrowserResources,
       setBrowserConnection,
-    } from "./lib/chat/session-resources";
+    } from "./lib/chat/resources/session-resources";
     export { cueTravelDurationMs } from "./lib/browser/browser-action-cue";
   `, resolveDir: webPath },
   bundle: true, format: "esm", jsx: "automatic", outfile: bundle,

@@ -426,7 +426,7 @@ _PLATFORM_RULES: dict[str, str] = {
 }
 
 # The OpenProgram web/desktop chat renders A2UI (https://a2ui.org) surfaces
-# from ```a2ui fences; apps/web/lib/chat/a2ui.ts is the renderer. The format
+# from ```a2ui fences; apps/web/lib/chat/markdown/a2ui.ts is the renderer. The format
 # lives in guides/a2ui.md, read when a reply needs a surface.
 _WEB_RULES = (
     "Replies render as Markdown, including tables, code fences and LaTeX. For a laid-out "

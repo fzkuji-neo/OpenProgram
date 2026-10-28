@@ -12,13 +12,13 @@ def test_history_jump_failure_cancellation_and_restore(tmp_path):
     entry = r'''
 import React from 'react';import {createRoot} from 'react-dom/client';
 import {useChatAreaStick} from './components/chat/messages/list/use-chat-area-stick';
-import {writeChatScroll} from './lib/chat/chat-scroll';
+import {writeChatScroll} from './lib/chat/history/chat-scroll';
 import {useHistoryWindow} from './components/chat/messages/list/use-history-window';
 import {useSessionStore} from './lib/session-store';
-import {useSessionHistory,registerSessionHistory} from './lib/chat/session-history';
+import {useSessionHistory,registerSessionHistory} from './lib/chat/history/session-history';
 import {loadSessionHistoryWindow,seedHistoryWindow} from './lib/runtime-bridge/session-history-loader';
 import {runtimeState,setSocket} from './lib/runtime-bridge/state';
-import {saveHistoryAnchor,readHistoryAnchor} from './lib/chat/history-viewport';
+import {saveHistoryAnchor,readHistoryAnchor} from './lib/chat/history/history-viewport';
 import {PeerSessionPane} from './components/chat/pane/peer-session-pane';
 import {applyChatWsMessage} from './lib/net/chat-stream';
 import {loadSessionData,renderSessionMessages} from './lib/runtime-bridge/conversations';

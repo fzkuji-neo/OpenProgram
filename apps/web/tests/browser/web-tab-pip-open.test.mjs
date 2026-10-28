@@ -17,7 +17,7 @@ await build({
     export { useCenterTabs } from "./lib/tabs/center-tabs-store";
     export { useWebTabPip, getSnapshot, setSnapshot, usePipSnapshots } from "./lib/browser/web-tab-pip-store";
     export { topLevelTabs } from "./lib/browser/web-page-management";
-    export { resetBrowserResources, getPreviewPreference, selectResourcePreview } from "./lib/chat/session-resources";
+    export { resetBrowserResources, getPreviewPreference, selectResourcePreview } from "./lib/chat/resources/session-resources";
   `, resolveDir: webPath },
   bundle: true, format: "esm", jsx: "automatic", outfile: bundle,
   packages: "external", platform: "node", tsconfig: join(webPath, "tsconfig.json"),

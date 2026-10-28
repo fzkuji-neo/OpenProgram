@@ -1,5 +1,5 @@
 import { preserveSessionReadRows } from "./session-load";
-import { registerSessionHistory, type HistoryPage } from "@/lib/chat/session-history";
+import { registerSessionHistory, type HistoryPage } from "@/lib/chat/history/session-history";
 import { seedHistoryWindow } from "./session-history-loader";
 export { loadOlderSessionHistory } from "./session-history-loader";
 /**
@@ -16,7 +16,7 @@ import {
 } from "./draft-channel-choice";
 import { runtimeState, getSocket, type TreeEntry } from "./state";
 import { updateSessionGoal } from "./goal-state";
-import { useTodoStore } from "@/lib/chat/todo-plan";
+import { useTodoStore } from "@/lib/chat/transcript/todo-plan";
 import {
   formatProgramResultContent,
   setWelcomeVisible,
@@ -32,7 +32,7 @@ import {
   renderHistoryGraph,
   repaintBranchTags,
 } from "./dag";
-import { convToChatMsgs } from "@/lib/chat/conv-mapper";
+import { convToChatMsgs } from "@/lib/chat/transcript/conv-mapper";
 import { navigate } from "@/lib/navigate";
 import { useSessionStore } from "@/lib/session-store";
 import {

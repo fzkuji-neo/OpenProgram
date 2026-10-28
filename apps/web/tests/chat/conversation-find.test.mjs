@@ -4,7 +4,7 @@ import test from "node:test";
 
 const require = createRequire(import.meta.url);
 const { parseHTML } = require("linkedom");
-const find = await import("../../lib/chat/conversation-find.ts");
+const find = await import("../../lib/chat/transcript/conversation-find.ts");
 
 const matches = find.normalizeMatches([
   { id: "u1", message_id: "u1", role: "user", count: 1, snippet: "a" },

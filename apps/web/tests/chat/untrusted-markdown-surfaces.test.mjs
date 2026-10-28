@@ -14,7 +14,7 @@ const mocks = {
     '@/lib/i18n': 'export const useTranslation=()=>({t:x=>x,text:x=>x});',
     '@/components/ui/button': 'export const Button=()=>null;',
     '@/lib/session-store': 'export const useSessionStore=selector=>selector(globalThis.auditState);',
-    '@/lib/chat/chat-scroll': 'export const whenAreaScrollSettles=()=>{};',
+    '@/lib/chat/history/chat-scroll': 'export const whenAreaScrollSettles=()=>{};',
     '@/lib/files/files-shared': 'export const absRawFileUrl=()=>{throw Error("No file access expected")};',
     '@/lib/shallow-nav': 'export const pushPath=()=>{};',
     'next/navigation': 'export const useRouter=()=>({push(){}});',

@@ -26,7 +26,7 @@ import { useState } from "react";
 import { useTranslation } from "@/lib/i18n";
 import { useSessionStore } from "@/lib/session-store";
 import { absRawFileUrl } from "@/lib/files/files-shared";
-import { extractAttachmentMentions } from "@/lib/chat/attachment-marker";
+import { extractAttachmentMentions } from "@/lib/chat/send/attachment-marker";
 import { AttachmentPreview } from "./attachment-preview";
 import type { RecordingInfo } from "../../recording/recording-card";
 

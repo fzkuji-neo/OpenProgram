@@ -52,7 +52,7 @@ const {
   showResourcePreview,
   getPreviewPreference,
   followPreviewBinding,
-} = await import("../../lib/chat/session-resources.ts");
+} = await import("../../lib/chat/resources/session-resources.ts");
 const {
   reconcileRestoredWebUrl,
   restoreRetainedWebViews,

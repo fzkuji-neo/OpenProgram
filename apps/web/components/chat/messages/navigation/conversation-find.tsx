@@ -12,13 +12,13 @@ import { buttonVariants } from "@/components/ui/button";
 import { useTranslation } from "@/lib/i18n";
 import { wsRequest } from "@/lib/net/ws-request";
 import { useSessionStore } from "@/lib/session-store";
-import { useSessionHistory } from "@/lib/chat/session-history";
-import { captureHistoryAnchor } from "@/lib/chat/history-viewport";
+import { useSessionHistory } from "@/lib/chat/history/session-history";
+import { captureHistoryAnchor } from "@/lib/chat/history/history-viewport";
 import { loadSessionHistoryWindow, retrySessionHistory } from "@/lib/runtime-bridge/session-history-loader";
 import {
   chatOwnsFind, clearHighlights, locate, messageRow, normalizeMatches, paintHighlights, step, textRanges,
   totalOccurrences, type FindMatch,
-} from "@/lib/chat/conversation-find";
+} from "@/lib/chat/transcript/conversation-find";
 import pill from "@/components/center-tabs/strip/center-tabs.module.css";
 import styles from "./conversation-find.module.css";
 

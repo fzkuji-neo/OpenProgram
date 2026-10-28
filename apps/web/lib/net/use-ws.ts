@@ -49,7 +49,7 @@ import {
 import { mirrorUpsertConv } from "@/lib/runtime-bridge/conv-store-mirror";
 import { runtimeState, setSocket } from "@/lib/runtime-bridge/state";
 import { applyChatWsMessage, clearSessionByMsgId, flushPendingChatDeltas } from "@/lib/net/chat-stream";
-import { noteJobStatus } from "@/lib/chat/sub-agent-transcripts";
+import { noteJobStatus } from "@/lib/chat/transcript/sub-agent-transcripts";
 import { waitForOwnerAuthBootstrap } from "@/lib/net/owner-auth-bootstrap";
 import { recoverOwnerAuth } from "@/lib/net/owner-auth-recovery";
 import { showToast } from "@/lib/format-utils/toast";
@@ -81,7 +81,7 @@ import {
   clearPendingUserText,
   hasPendingFirstAck,
   hasPendingUserText,
-} from "@/lib/chat/pending-user-text";
+} from "@/lib/chat/send/pending-user-text";
 
 /** Release only a chat turn rejected before chat_ack. The composer owns the
  * draft and attachments, so this intentionally never invokes ACK cleanup. */
@@ -771,7 +771,7 @@ export function useWS(): void {
                 dd.id,
                 head?.status,
               );
-              void import("@/lib/chat/send-queue").then((m) =>
+              void import("@/lib/chat/send/send-queue").then((m) =>
                 m.reconcileAfterSessionLoad(dd.id as string, dd.run_active === true, dd.run_task),
               );
             }
@@ -884,7 +884,7 @@ export function useWS(): void {
             }
             | undefined;
           if (typeof dd?.session_id === "string" && dd.session_id) {
-            void import("@/lib/chat/send-queue").then((m) =>
+            void import("@/lib/chat/send/send-queue").then((m) =>
               m.reconcileAfterSessionLoad(
                 dd.session_id as string,
                 dd.run_active === true,
@@ -956,7 +956,7 @@ export function useWS(): void {
           const sid = d?.session_id;
           if (typeof sid === "string" && sid) {
             const todos = d?.todos;
-            void import("@/lib/chat/todo-plan").then(({ useTodoStore }) => {
+            void import("@/lib/chat/transcript/todo-plan").then(({ useTodoStore }) => {
               useTodoStore.getState().setTodos(sid, todos);
             });
           }
@@ -1130,7 +1130,7 @@ export function useWS(): void {
         // A queue item whose socket write failed is retained in renderer
         // memory. Query background sessions without load_session: loading a
         // transcript also changes this socket's focused-session marker.
-        void import("@/lib/chat/send-queue").then((m) => {
+        void import("@/lib/chat/send/send-queue").then((m) => {
           const queued = Object.keys(m.useSendQueue.getState().queues);
           const focused = runtimeState.currentSessionId;
           for (const sid of new Set(queued.filter((id) => id !== focused))) {

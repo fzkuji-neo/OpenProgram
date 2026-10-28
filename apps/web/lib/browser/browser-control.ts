@@ -9,7 +9,7 @@ import {
   type BrowserControlState,
   type BrowserLastOperation,
   type SessionResource,
-} from "../chat/session-resources.ts";
+} from "../chat/resources/session-resources.ts";
 
 export type HumanYieldEvent = {
   type: string;

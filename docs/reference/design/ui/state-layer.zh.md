@@ -111,8 +111,8 @@ web 前端的状态存放方式是：**每个会话一个 Zustand store 实例�
   窗口，不描述会话。它也是唯一知道"当前存在分屏"的 store，所以作用域树的会话 id 从这里来。
 - **`apps/web/lib/tabs/center-tab-groups.ts`** —— 对标签布局的纯函数（分组、重排、分屏窗格）。
   自身无状态。
-- **`apps/web/lib/chat/chat-scroll.ts`** —— 按 chat key 存的滚动位置助手，通过一个存储接口
-  持久化（`apps/web/lib/chat/chat-scroll.ts:37`）。天然按会话分，只是不在 store 里。
+- **`apps/web/lib/chat/history/chat-scroll.ts`** —— 按 chat key 存的滚动位置助手，通过一个存储接口
+  持久化（`apps/web/lib/chat/history/chat-scroll.ts:37`）。天然按会话分，只是不在 store 里。
 - **`apps/web/lib/abilities/functions-store.ts`**、**`skills-store.ts`**、
   **`plugins-store.ts`** —— 页面级清单及其筛选/排序/搜索的 UI 状态。确实是全局的；
   这些是设置页，不是会话。

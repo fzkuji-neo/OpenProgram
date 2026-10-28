@@ -19,7 +19,7 @@ import {
   settlePendingClose,
   useBrowserControlStore,
 } from "../../lib/browser/browser-control.ts";
-import { ingestBrowserResource, listedBrowserResources, resetBrowserResources, setBrowserConnection } from "../../lib/chat/session-resources.ts";
+import { ingestBrowserResource, listedBrowserResources, resetBrowserResources, setBrowserConnection } from "../../lib/chat/resources/session-resources.ts";
 
 function ingestPage(overrides = {}) {
   const raw = {

@@ -212,8 +212,8 @@ globalThis.WebSocket = { OPEN: 1 };
 const { runtimeState, setSocket } = await import(
   "../../lib/runtime-bridge/state.ts"
 );
-// The ack-pairing reservations live in lib/chat/pending-user-text now.
-const pendingUserText = await import("../../lib/chat/pending-user-text.ts");
+// The ack-pairing reservations live in lib/chat/send/pending-user-text now.
+const pendingUserText = await import("../../lib/chat/send/pending-user-text.ts");
 setSocket({ readyState: 1, send: (payload) => sent.push(JSON.parse(payload)) });
 runtimeState.currentSessionId = null;
 

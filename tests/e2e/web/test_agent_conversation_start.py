@@ -17,7 +17,7 @@ import {sendChatMessage} from './components/chat/composer/submit/send-chat-messa
 import {applyChatWsMessage} from './lib/net/chat-stream';
 import {setSocket} from './lib/runtime-bridge/state';
 import {setNavigate} from './lib/navigate';
-import {readSessionDraftState} from './lib/chat/session-draft-persistence';
+import {readSessionDraftState} from './lib/chat/send/session-draft-persistence';
 const makeAgent=(id,model,effort)=>({id,name:id+' agent',description:'Saved',default:false,
   model:{provider:'test',id:model},thinking_effort:effort,system_prompt:'saved '+id,
   tools:{mode:'automatic'},skills:{allowed:[],disabled:[],categories:[]},

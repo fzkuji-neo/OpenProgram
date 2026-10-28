@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {HistoryWindow,HISTORY_WINDOW_PAGES,HISTORY_WINDOW_BYTES} from '../../lib/chat/history-window.ts';
+import {HistoryWindow,HISTORY_WINDOW_PAGES,HISTORY_WINDOW_BYTES} from '../../lib/chat/history/history-window.ts';
 const total=300000;
 function page(start, size=50, text='content') {
  const end=Math.min(total,start+size);

@@ -9,7 +9,7 @@ import { SolarIcon } from "@/components/solar-icons";
 import { useSessionStore, type ChatMsg } from "@/lib/session-store";
 import { useTranslation } from "@/lib/i18n";
 import { absRawFileUrl } from "@/lib/files/files-shared";
-import { buildAttachmentEnvelope } from "@/lib/chat/attachment-marker";
+import { buildAttachmentEnvelope } from "@/lib/chat/send/attachment-marker";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
 import { setRunActive } from "@/lib/runtime-bridge/chat-handlers";
 import { ChatInputRow } from "../../composer/input/chat-input-row";

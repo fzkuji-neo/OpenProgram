@@ -1,8 +1,8 @@
 "use client";
 
 import { useSessionStore, type PendingDecision } from "@/lib/session-store";
-import { useDecisionSubmissions, type DecisionSubmission } from "@/lib/chat/decision-submissions";
-import { isSettled, showsReceipt } from "@/lib/chat/decision-receipts";
+import { useDecisionSubmissions, type DecisionSubmission } from "@/lib/chat/decisions/decision-submissions";
+import { isSettled, showsReceipt } from "@/lib/chat/decisions/decision-receipts";
 import { useTranslation } from "@/lib/i18n";
 import { AnswerSummary } from "../../composer/modes/question/answer-summary";
 import { QuestionMode } from "../../composer/modes/question/question-mode";
