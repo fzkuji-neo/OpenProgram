@@ -742,7 +742,7 @@
 .message-content .hljs-emphasis { font-style: italic; }
 .message-content .hljs-strong { font-weight: 600; }
 
-/* User bubbles render their markdown (messages/markdown.ts
+/* User bubbles render their markdown (messages/bubbles/markdown.ts
    renderUserMarkdown). Keep spacing bubble-tight and give code a surface
    that stands apart from the bubble's own surface. */
 .message.user .user-md p { margin: 0 0 8px; }
