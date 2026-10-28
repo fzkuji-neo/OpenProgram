@@ -46,12 +46,13 @@ function readGraph(world: SVGGElement): MapData {
   return data;
 }
 
-/** World → map: one scale for both axes, the graph centred. */
-function fitter(d: MapData): { k: number; ox: number; oy: number } {
-  const gw = Math.max(1, d.x1 - d.x0);
-  const gh = Math.max(1, d.y1 - d.y0);
-  const k = Math.min((W - PAD * 2) / gw, (H - PAD * 2) / gh, 1);
-  return { k, ox: (W - gw * k) / 2 - d.x0 * k, oy: (H - gh * k) / 2 - d.y0 * k };
+/** World → map: one scale for both axes, the box centred. The box is
+ *  the graph and the view together, so the frame is never cut off. */
+function fitter(b: { x0: number; y0: number; x1: number; y1: number }): { k: number; ox: number; oy: number } {
+  const gw = Math.max(1, b.x1 - b.x0);
+  const gh = Math.max(1, b.y1 - b.y0);
+  const k = Math.min((W - PAD * 2) / gw, (H - PAD * 2) / gh);
+  return { k, ox: (W - gw * k) / 2 - b.x0 * k, oy: (H - gh * k) / 2 - b.y0 * k };
 }
 
 function mapCanvas(host: HTMLElement, jump: (x: number, y: number) => void): HTMLCanvasElement {
@@ -81,6 +82,9 @@ function mapCanvas(host: HTMLElement, jump: (x: number, y: number) => void): HTM
   c.addEventListener("pointermove", (e) => {
     if (c!.hasPointerCapture(e.pointerId)) toWorld(e);
   });
+  // The map holds still under a drag (``paintMinimap``); let go, it
+  // refits around where the view ended up.
+  c.addEventListener("lostpointercapture", (e) => toWorld(e));
   panel.appendChild(c);
   return c;
 }
@@ -103,7 +107,12 @@ export function paintMinimap(
   const hidden = d.dots.length < 2 || allSeen;
   c.classList.toggle("is-hidden", hidden);
   if (hidden) return;
-  const fit = fitter(d);
+  // Under a drag the scale stays put, else the map would slide under
+  // the pointer as the frame moves.
+  const fit = c.matches(":active") && c._fit ? c._fit : fitter({
+    x0: Math.min(d.x0, vx0), y0: Math.min(d.y0, vy0),
+    x1: Math.max(d.x1, vx1), y1: Math.max(d.y1, vy1),
+  });
   c._fit = fit;
   const ctx = c.getContext("2d");
   if (!ctx) return;
