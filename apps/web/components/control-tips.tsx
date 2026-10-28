@@ -14,8 +14,8 @@ import { Kbd } from "@/components/ui/kbd";
  *    and becomes the aria-label when the control has none.
  *  A vertical strip puts `data-tip-side="right"` (or left) on its
  *  controls. A control with a key puts it in `data-tip-keys`
- *  (space-separated, e.g. "⇧1" or "⌘ Z"): the keys show as key caps after
- *  the tip's first line, never as text mixed into the name. Only controls and glyph-only marks get tips; text keeps no hover tip,
+ *  (space-separated, e.g. "⇧1" or "⌘ Z"): the keys show as key caps at the
+ *  end of the tip, after all of its text, never as text mixed into it. Only controls and glyph-only marks get tips; text keeps no hover tip,
  *  and no element carries a native `title`. The first tip waits so
  *  a pointer passing over never flashes them; moving on to the next
  *  control swaps it at once. */
@@ -141,20 +141,16 @@ export function ControlTips() {
   );
 }
 
-/** The name, its key caps on the first line, any further lines below. */
+/** The whole text first, then the key caps at the end of its last line. */
 function TipWithKeys({ label, keys }: { label: string; keys: string[] }) {
-  const [first, ...rest] = label.split("\n");
   return (
     <>
-      <span className="inline-flex items-center gap-2">
-        {first}
-        <span className="inline-flex items-center gap-1">
-          {keys.map((key) => (
-            <Kbd key={key} className="bg-[color-mix(in_srgb,var(--text-on-tooltip)_20%,transparent)] text-[var(--text-on-tooltip)]">{key}</Kbd>
-          ))}
-        </span>
+      {label}
+      <span className="ml-2 inline-flex translate-y-[-1px] items-center gap-1 align-middle">
+        {keys.map((key) => (
+          <Kbd key={key} className="bg-[color-mix(in_srgb,var(--text-on-tooltip)_20%,transparent)] text-[var(--text-on-tooltip)]">{key}</Kbd>
+        ))}
       </span>
-      {rest.length ? <span className="block">{rest.join("\n")}</span> : null}
     </>
   );
 }
