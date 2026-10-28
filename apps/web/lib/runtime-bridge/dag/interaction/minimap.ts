@@ -1,14 +1,14 @@
 /**
  * The minimap (dag/rendering.md §13): the whole graph in a corner, the
- * way a strategy game shows its map. Each node is a dot of its tone, the
- * part on screen is a frame in the accent colour, and a press or drag on
- * it moves the camera there. It stays on screen whatever the view (a
- * map that came and went with the zoom read as a glitch); M hides it,
- * and M again brings it back. Selected nodes show in the accent colour.
+ * way a strategy game shows its map. Each node is a dot of its tone on
+ * the graph's own lines, thin and faint in their branch colours, so the
+ * trunk and its branches read at a glance; the part on screen is a frame
+ * in the accent colour, and a press or drag on it moves the camera there.
+ * Selected nodes show in the accent colour.
  *
  * It is a canvas beside the graph, outside the SVG, so it never pans or
- * zooms with it. ``canvas.ts`` repaints it on every view change; the dot
- * list is read once per drawn graph.
+ * zooms with it. ``canvas.ts`` repaints it on every view change; the dots
+ * and lines are read once per drawn graph.
  */
 
 // As wide as the legend card that opens under it (dag/hud.css
@@ -18,7 +18,8 @@ const H = 160;
 const PAD = 8;
 
 interface Dot { x: number; y: number; color: string; head: boolean }
-interface MapData { dots: Dot[]; x0: number; y0: number; x1: number; y1: number; theme: string }
+interface Line { path: Path2D; color: string }
+interface MapData { dots: Dot[]; lines: Line[]; x0: number; y0: number; x1: number; y1: number; theme: string }
 export interface MapView { tx: number; ty: number; scale: number; w: number; h: number }
 
 const _data = new WeakMap<SVGGElement, MapData>();
@@ -78,7 +79,23 @@ function readGraph(world: SVGGElement): MapData {
     x0 = Math.min(x0, x); y0 = Math.min(y0, y);
     x1 = Math.max(x1, x); y1 = Math.max(y1, y);
   });
-  const data = { dots, x0, y0, x1, y1, theme };
+  // The edges in world units, as the SVG draws them (render/edges.ts):
+  // straight ``line``s and the fork / attach ``path``s.
+  const lines: Line[] = [];
+  if (typeof Path2D !== "undefined") {
+    world.querySelectorAll<SVGElement>(".history-edges .history-edge").forEach((el) => {
+      const color = el.getAttribute("stroke") || "#888";
+      if (el.tagName.toLowerCase() === "line") {
+        const path = new Path2D();
+        path.moveTo(Number(el.getAttribute("x1")), Number(el.getAttribute("y1")));
+        path.lineTo(Number(el.getAttribute("x2")), Number(el.getAttribute("y2")));
+        lines.push({ path, color });
+      } else if (el.getAttribute("d")) {
+        lines.push({ path: new Path2D(el.getAttribute("d")!), color });
+      }
+    });
+  }
+  const data = { dots, lines, x0, y0, x1, y1, theme };
   _data.set(world, data);
   return data;
 }
@@ -169,6 +186,18 @@ export function paintMinimap(
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, W, H);
   const r = Math.max(1.5, Math.min(3, 24 * fit.k / 2));
+  // Lines under the dots, in world units: 1.2px on the map at any scale.
+  ctx.save();
+  ctx.setTransform(dpr * fit.k, 0, 0, dpr * fit.k, dpr * fit.ox, dpr * fit.oy);
+  ctx.lineWidth = 1.2 / fit.k;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.globalAlpha = 0.6;
+  for (const line of d.lines) {
+    ctx.strokeStyle = line.color;
+    ctx.stroke(line.path);
+  }
+  ctx.restore();
   for (const dot of d.dots) {
     ctx.fillStyle = dot.color;
     ctx.beginPath();

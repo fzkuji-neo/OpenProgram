@@ -1026,7 +1026,8 @@ both redraw. The undo stack is per session and lasts as long as the page.
 
 A long session runs off the screen, so the canvas has a minimap in its
 top-right corner, left of the zoom column, in the rail's raised material. Each node is a
-dot of its tone, and the part on screen is a frame in the accent colour. A
+dot of its tone on the graph's own lines (thin, faint, in their branch colours, so the
+trunk and its branches read at a glance), and the part on screen is a frame in the accent colour. A
 press or a drag on the map moves the camera there at the same zoom. The map
 frames the graph and the view together, so the frame is never cut off, and it
 holds still while you drag. HEAD is a larger dot ringed in the accent colour,
