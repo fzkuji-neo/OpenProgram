@@ -69,8 +69,8 @@ picks its icon and tone:
 | node kind                      | role            | function field   | icon / tone          |
 |--------------------------------|-----------------|------------------|----------------------|
 | ROOT                           | `user`          | —                | house / root         |
-| `user_msg`                     | `user`          | —                | chat bubble / user   |
-| `llm_reply`                    | `assistant`/`llm` | —              | sparkles / llm       |
+| `user_msg`                     | `user`          | —                | user-rounded / user  |
+| `llm_reply`                    | `assistant`/`llm` | —              | ghost / llm          |
 | `function_call` (code)         | `tool`          | `bash`, `gui_agent`, …| `presentTool` |
 | sub-agent spawn                | `tool`          | spawn            | ghost / agent          |
 | branch-referencing             | `tool`          | `attach`, `merge` | link, pull request / plan |

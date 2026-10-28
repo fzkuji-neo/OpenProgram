@@ -298,10 +298,10 @@ lane 色；**绝不给某类线固定颜色**。类型只靠线型：
 | 节点 | 图标 | 色调 |
 |---|---|---|
 | ROOT | 房子 | 次级墨色 |
-| user | 对话气泡 | 主题强调色 |
-| llm 回复 | 星光 | 时间线 llm 色 |
+| user | 人像，圆形凸起按钮 | 主题强调色 |
+| agent 回复 | 小幽灵（全应用 agent 都是幽灵） | 时间线 llm 色 |
 | 调用 | 按工具（`presentTool`） | 按工具（shell、edit、read、search、web……） |
-| 子 agent spawn | 机器人 | agent——派发 agent 就是一次调用；展开进入 agent 的活动（第十二节） |
+| 子 agent spawn | 小幽灵 | agent——派发 agent 就是一次调用；展开进入 agent 的活动（第十二节） |
 | 压缩摘要 | 归档盒 | memory（第九节） |
 | merge / attach | 合并请求 / 链接 | plan |
 

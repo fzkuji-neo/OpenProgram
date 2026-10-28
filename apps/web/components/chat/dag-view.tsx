@@ -117,12 +117,12 @@ function DagLegend() {
         // （向上弹）和行的排版。
         <div className={`dag-legend-body ${MENU_PANEL}`}>
           <LegendRow swatch={<LegendTile icon="user-rounded" tone="user" />} label={text("your message", "你的消息")} />
-          <LegendRow swatch={<LegendTile icon="stars" tone="llm" />} label={text("model reply", "模型回复")} />
+          <LegendRow swatch={<LegendTile icon="ghost" tone="llm" />} label={text("agent reply", "agent 回复")} />
           <LegendRow swatch={<LegendTile icon="programming" tone="shell" />}
             label={text("tool call — same icon as in the chat", "工具调用，图标与对话里一致")} />
-          <LegendRow swatch={<LegendTile icon="ghost" tone="agent" />} label={text("sub-agent", "子 agent")} />
+          <LegendRow swatch={<LegendTile icon="ghost" tone="agent" />} label={text("a sub-agent starts", "子 agent 起点")} />
           <LegendRow swatch={<LegendTile icon="archive" tone="memory" />} label={text("compaction summary", "压缩摘要")} />
-          <LegendRow swatch={<LegendTile icon="stars" tone="llm" state="outline" />}
+          <LegendRow swatch={<LegendTile icon="ghost" tone="llm" state="outline" />}
             label={text("faint: not in the next request", "浅色：不在下次请求里")} />
           <LegendRow swatch={<LegendTile icon="programming" tone="shell" state="error" />}
             label={text("failed", "失败")} />

@@ -371,10 +371,10 @@ npm test" looks alike in both places; tones are shared CSS variables
 | Node | Icon | Tone |
 |---|---|---|
 | ROOT | house | secondary ink |
-| user | speech bubble | accent |
-| llm reply | sparkles | timeline llm |
+| user | person, on a round raised button | accent |
+| agent reply | ghost (agents are ghosts across the app) | timeline llm |
 | call | per tool (`presentTool`) | per tool (shell, edit, read, search, web, …) |
-| sub-agent spawn | bot | agent — dispatching an agent IS a call; it expands into the agent's activity (§12) |
+| sub-agent spawn | ghost | agent — dispatching an agent IS a call; it expands into the agent's activity (§12) |
 | compaction summary | archive | memory (§9) |
 | merge / attach | pull request / link | plan |
 

@@ -5,8 +5,8 @@
  * timeline draws beside each step: a call gets the icon and tone
  * `presentTool` gives it there, so "ran npm test" looks alike in the
  * transcript and on the graph. Conversation nodes get their own icons:
- * your message, a model reply, the session start, a sub-agent, a
- * compaction summary, a merge.
+ * your message, the agent's reply (a ghost: agents are ghosts across the
+ * app), the session start, a sub-agent, a compaction summary, a merge.
  *
  * The tile's colour comes from `--tone` (app/styles/tool-tones.css), set
  * by a `t-<tone>` class, so status, coverage and theme are CSS states of
@@ -84,7 +84,7 @@ export function tileFor(node: GNode): Tile {
     return { icon: shown.icon, tone: shown.tone, doing, did };
   }
   if (node.role === "assistant" || node.role === "llm") {
-    return { icon: "stars", tone: "llm", doing: translateText("Thinking…", "思考中…") };
+    return { icon: "ghost", tone: "llm", doing: translateText("Thinking…", "思考中…") };
   }
   return { icon: "user-rounded", tone: "user",
     doing: translateText("Reading your message", "读取你的消息"), did: saidIn(node) };
