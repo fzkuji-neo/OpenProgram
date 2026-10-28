@@ -140,3 +140,22 @@
   stroke-dasharray: 4 3;
   stroke-linejoin: round;
 }
+
+/* The minimap (interaction/minimap.ts): the rail's raised material in
+   the canvas's lower right, just above the composer. It fades out when
+   the whole graph is on screen. */
+.dag-minimap {
+  position: absolute;
+  z-index: 3;
+  right: 12px;
+  bottom: 158px;
+  border-radius: 10px;
+  background: var(--bg-input);
+  box-shadow: var(--shadow-raised);
+  cursor: pointer;
+  transition: opacity 0.18s ease;
+}
+.dag-minimap.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}

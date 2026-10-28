@@ -946,6 +946,16 @@ The wire format is `delete_nodes {session_id, node_ids}` → `nodes_deleted
 A success also broadcasts `session_reload`, so the transcript and the graph
 both redraw. The undo stack is per session and lasts as long as the page.
 
+### The minimap
+
+A long session runs off the screen, so the canvas keeps a minimap in its
+lower right, above the composer, in the rail's raised material. Each node is a
+dot of its tone, and the part on screen is a frame in the accent colour. A
+press or a drag on the map moves the camera there at the same zoom. When the
+whole graph is already on screen the map fades out: there is nothing to find
+(`apps/web/lib/runtime-bridge/dag/interaction/minimap.ts`, repainted by
+`applyView` on every view change).
+
 ## Appendix: Implementation Status
 
 The whole spec is implemented. Where each part lives:

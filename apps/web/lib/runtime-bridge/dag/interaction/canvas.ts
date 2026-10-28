@@ -35,6 +35,7 @@ import { COL_W, PAD_X, PAD_Y } from "../types";
 import { TILE_R } from "../render/tiles";
 import { closeNodeLayers } from "../render/inspector";
 import { hideTooltip } from "./tooltip";
+import { hideMinimap, paintMinimap } from "./minimap";
 import {
   SelectionBand,
   activeTool,
@@ -145,6 +146,18 @@ export function applyView(): void {
   host.classList.toggle("is-far", _viewScale < FAR_SCALE);
   const pct = document.querySelector<HTMLElement>(".dag-hud-zoom");
   if (pct) pct.textContent = Math.round(_viewScale * 100) + "%";
+  const seen = { tx: _viewTx, ty: _viewTy, scale: _viewScale, w: host.clientWidth, h: host.clientHeight - COMPOSER_STRIP };
+  paintMinimap(host, world, seen, jumpTo);
+}
+
+/** Centre the view on world point (x, y), keeping the zoom (the minimap). */
+function jumpTo(x: number, y: number): void {
+  if (!_handle) return;
+  _glide?.stop();
+  const { host } = _handle;
+  setView(Math.round(host.clientWidth / 2 - x * _viewScale),
+    Math.round((host.clientHeight - COMPOSER_STRIP) / 2 - y * _viewScale), _viewScale);
+  applyView();
 }
 
 /** The smallest scale a session OPENS at. A long session fitted whole
@@ -476,5 +489,6 @@ function wireFitRetryOnResize(host: HTMLElement): void {
 /** The canvas is gone (empty session, skeleton): forget the handle so a
  *  stale group never receives a transform. */
 export function detachCanvas(): void {
+  if (_handle) hideMinimap(_handle.host);
   _handle = null;
 }
