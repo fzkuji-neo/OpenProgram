@@ -904,8 +904,9 @@ Selecting on the canvas takes keyboard focus from the composer, so Delete and
 Esc reach the selection rather than the draft.
 
 **The action bar.** While something is selected, a bar at the canvas's top
-left reads `N selected | Copy ID · Delete · ✕`, with Delete in the danger
-colour. After a delete it reads `Deleted N nodes | Undo` for a few seconds.
+left reads `N selected | ⌖ · Copy ID · Delete · ✕`, with Delete in the danger
+colour. ⌖ fits the view to the selection, as Shift+2 does in design tools
+(`frameSelection` in `interaction/canvas.ts`). After a delete it reads `Deleted N nodes | Undo` for a few seconds.
 It sits on the rail's left edge rather than at the top right, which belongs to
 the pane's perspective controls. It is the same raised material as the rail.
 

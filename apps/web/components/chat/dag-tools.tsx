@@ -20,6 +20,7 @@ import {
   Keyboard,
   LocateFixed,
   Maximize2,
+  Scan,
   Trash2,
   Undo2,
   X,
@@ -39,7 +40,7 @@ import {
   lastDeletion,
   undoDeletion,
 } from "@/lib/runtime-bridge/dag/interaction/node-delete";
-import { fitCanvas, focusAgent } from "@/lib/runtime-bridge/dag/interaction/canvas";
+import { fitCanvas, focusAgent, frameSelection } from "@/lib/runtime-bridge/dag/interaction/canvas";
 import { keySheetOpen, setKeySheet } from "@/lib/runtime-bridge/dag/interaction/help";
 import { DagKeySheet, useKeySheetOpen } from "./dag-key-sheet";
 
@@ -125,6 +126,12 @@ function DagSelectionBar() {
         {text(`${ids.length} selected`, `已选 ${ids.length}`)}
       </span>
       <span className="dag-select-sep" aria-hidden="true" />
+      <button type="button" className="dag-select-act dag-select-icon"
+        aria-label={text("Fit the selection", "缩放到所选")}
+        data-tip={text("Fit the selection (⇧2)", "缩放到所选 (⇧2)")}
+        onClick={() => frameSelection(ids)}>
+        <Scan size={14} strokeWidth={2} />
+      </button>
       <button type="button" className="dag-select-act"
         data-tip={text("Copy node IDs", "复制节点 ID")}
         onClick={() => { void navigator.clipboard?.writeText(ids.join("\n")); }}>

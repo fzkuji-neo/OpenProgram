@@ -157,7 +157,8 @@ function jumpTo(x: number, y: number): void {
  *  readable, and leave "everything at once" to the Fit button. */
 const OPEN_MIN_SCALE = 0.8;
 
-/** Centre the graph in the pane at a scale that shows all of it.
+/** Centre the graph in the pane at a scale that shows all of it (or
+ *  ``only`` that box of it, the selection's — ``frameSelection``).
  *
  *  ``opening`` is a session's first view: the same fit, but never below
  *  ``OPEN_MIN_SCALE``. When the graph does not fit at that scale the
@@ -167,13 +168,13 @@ const OPEN_MIN_SCALE = 0.8;
  *  The translation is rounded to whole pixels: at a fractional offset
  *  every node sits a fraction of a pixel off its background dot, and the
  *  lattice stops reading as the coordinate system it is. */
-export function fitCanvas(opening = false): void {
+export function fitCanvas(opening = false, only?: DOMRect): void {
   if (!_handle) return;
   dismissOverlays();
   const { world, host } = _handle;
   let bb: DOMRect;
   try {
-    bb = (world as SVGGraphicsElement).getBBox();
+    bb = only ?? (world as SVGGraphicsElement).getBBox();
   } catch {
     return;
   }
@@ -261,6 +262,22 @@ function agentSpots(world: SVGGElement): { x: number; y: number }[] {
     if (head) spots.push(head);
   }
   return spots;
+}
+
+/** Fit the view to the selected nodes, as design tools' Shift+2 does. */
+export function frameSelection(ids: readonly string[]): void {
+  if (!_handle || !ids.length) return;
+  const want = new Set(ids);
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  _handle.world.querySelectorAll(".history-node").forEach((g) => {
+    if (!want.has(g.getAttribute("data-msg-id") || "")) return;
+    const m = /translate\(([-\d.]+),([-\d.]+)\)/.exec(g.getAttribute("transform") || "");
+    if (!m) return;
+    x0 = Math.min(x0, +m[1] - TILE_R); y0 = Math.min(y0, +m[2] - TILE_R);
+    x1 = Math.max(x1, +m[1] + TILE_R); y1 = Math.max(y1, +m[2] + TILE_R);
+  });
+  if (x0 > x1) return;
+  fitCanvas(false, new DOMRect(x0, y0, x1 - x0, y1 - y0));
 }
 
 let _focusTurn = 0;

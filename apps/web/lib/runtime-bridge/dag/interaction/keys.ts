@@ -6,6 +6,7 @@
  *   F                camera to the next working agent (else HEAD)
  *   M                hide / show the minimap
  *   Shift+1 / Shift+0  fit the graph / zoom back to 100%
+ *   Shift+2          fit the selection
  *   + / −            zoom in / out one step
  *   Delete / ⌫       delete the selection
  *   Esc              clear the selection
@@ -14,7 +15,7 @@
  */
 
 import { clearSelection, dagVisible, isEditableFocus, selectedIds } from "./selection";
-import { fitCanvas, focusAgent, resetZoom, zoomStep } from "./canvas";
+import { fitCanvas, focusAgent, frameSelection, resetZoom, zoomStep } from "./canvas";
 import { canUndoDeletion, deleteSelection, undoDeletion } from "./node-delete";
 import { keySheetOpen, setKeySheet } from "./help";
 import { toggleMinimap } from "./minimap";
@@ -55,6 +56,7 @@ function onKeyDown(e: KeyboardEvent): void {
   // is Shift+1 on every layout ("!" on US, something else elsewhere).
   const view = e.shiftKey && e.code === "Digit1" ? fitCanvas
     : e.shiftKey && e.code === "Digit0" ? resetZoom
+    : e.shiftKey && e.code === "Digit2" && selectedIds().length ? () => frameSelection(selectedIds())
     : e.key === "+" || e.key === "=" ? () => zoomStep(1)
     : e.key === "-" || e.key === "_" ? () => zoomStep(-1)
     : null;

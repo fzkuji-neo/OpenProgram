@@ -32,6 +32,7 @@ const GROUPS: [en: string, zh: string, rows: Row[]][] = [
     ["Hide / show the minimap", "隐藏 / 显示小地图", [{ key: "M" }]],
   ]],
   ["Selection", "选择", [
+    ["Fit the selection", "缩放到所选", [{ key: "2", shift: true }]],
     ["Delete", "删除", [{ key: "⌫" }]],
     ["Clear", "取消选择", [{ key: "Esc" }]],
     ["Undo the delete", "撤销删除", [{ key: "Z", mod: true }]],
