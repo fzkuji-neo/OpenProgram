@@ -386,9 +386,9 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   }
 
   // ---- rows ----------------------------------------------------------------
-  function mainRow(): ReactNode {
+  function mainRow(extra?: ReactNode): ReactNode {
     const { label, tone } = mainStatus();
-    return <Row key="main" glyph={<AgentGlyph />} title={mainName} status={label} tone={tone} onOpen={() => open({ kind: "main", id: "main" })} />;
+    return <Row key="main" glyph={<AgentGlyph />} title={mainName} status={label} tone={tone} extra={extra} onOpen={() => open({ kind: "main", id: "main" })} />;
   }
   /** An agent's status line: what waits on the reader first, then what runs. */
   function agentLook(item: ExecutionSnapshot): { label: string; tone: Tone; at: number } {
@@ -562,11 +562,66 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       {agent ? agentName(agent) : mainName}</button>;
   };
 
+  // ---- the sub-agent tree ------------------------------------------------------
+  // Sub-agents the model starts live on the main agent's page, not in the
+  // overview; a call that never started a sub-agent sits where that
+  // sub-agent would.
+  const tree = branches.tree<AgentCall>(owner => failedSpawns(owner).map(leaf => ({ at: leaf.at, leaf })));
+  const rowKey = (row: BranchRow<AgentCall>) => row.kind === "agent" ? row.item.execution_id : `spawn:${row.leaf.id}`;
+  const looks = new Map(tree.map(row => [rowKey(row), row.kind === "agent" ? agentLook(row.item) : { tone: (row.leaf.failed ? "err" : "muted") as Tone, at: row.leaf.at }]));
+  const lookOf = (row: BranchRow<AgentCall>) => looks.get(rowKey(row)) ?? { tone: "muted" as Tone, at: 0 };
+  const shows = (tone: Tone) => listView.show === "all" || (listView.show === "attention" ? tone === "warn" : tone === "run");
+  // By structure the tree keeps the branches above a match; by time it is
+  // one list, latest first.
+  const rows = listView.arrange === "structure"
+    ? listView.show === "all" ? tree : pruneBranches(tree, row => shows(lookOf(row).tone))
+    : tree.filter(row => shows(lookOf(row).tone)).sort((a, b) => lookOf(b).at - lookOf(a).at);
+  const visible = rows.slice(0, shown);
+  /** The tree on the main agent's page: its children are the page's own
+   *  list, so the lines begin one level down. */
+  function subAgentList(): ReactNode {
+    if (rows.length === 0) return <p className={styles.empty}>{tree.length === 0
+      ? text("No sub-agents yet.", "还没有启动过子代理。")
+      : text(...({
+        attention: ["No sub-agent needs you.", "没有需要处理的子代理。"],
+        running: ["No sub-agent is running.", "没有正在运行的子代理。"],
+        all: ["", ""],
+      }[listView.show] as [string, string]))}</p>;
+    const cut = rows.length > shown;
+    return <>
+      {listView.arrange === "structure"
+        ? visible.map((entry, index) => {
+          // A cut-off page keeps the line running to the paging button.
+          const line = entry.depth === 1 ? undefined : {
+            depth: entry.depth - 1, guides: entry.guides.filter(level => level > 1).map(level => level - 1),
+            first: index === 0 || visible[index - 1].depth < entry.depth,
+            last: entry.last && !(index === visible.length - 1 && cut),
+          };
+          return entry.kind === "agent" ? agentRow(entry.item, line) : spawnRow(entry.leaf, line);
+        })
+        : visible.map(row => row.kind === "agent" ? agentRow(row.item, undefined, true) : spawnRow(row.leaf, undefined, true))}
+      {cut && <button type="button" className={styles.more} onClick={() => setShown(value => value + 50)}>
+        {text(`Show ${Math.min(50, rows.length - shown)} earlier`, `显示更早的 ${Math.min(50, rows.length - shown)} 个`)}
+      </button>}
+    </>;
+  }
+
+  /** The main agent's sub-agents in one line: how many, how many run,
+   *  how many need the reader. */
+  function subAgentSummary(): ReactNode {
+    if (tree.length === 0) return null;
+    const count = (tone: Tone) => tree.filter(row => lookOf(row).tone === tone).length;
+    const running = count("run"), waiting = count("warn");
+    return <span className={styles.subSummary}>
+      {text(`${tree.length} sub-agent${tree.length === 1 ? "" : "s"}`, `${tree.length} 个子代理`)}
+      {running > 0 && <span data-tone="run">{text(` · ${running} running`, ` · ${running} 个运行中`)}</span>}
+      {waiting > 0 && <span data-tone="warn">{text(` · ${waiting} need${waiting === 1 ? "s" : ""} you`, ` · ${waiting} 个要你处理`)}</span>}
+    </span>;
+  }
+
   // ---- pages -------------------------------------------------------------------
   if (view?.kind === "main") {
     const { label, tone } = mainStatus();
-    const agents = branches.agentsUnder(null);
-    const failed = failedSpawns(null);
     const runningHere = [...mainCalls.filter(entry => !agentOf(entry)).map(entry => callRow(entry)), ...mainPrograms.map(entry => programRow(entry))];
     return <div className={styles.panel}>
       {backBar(toActivity)}
@@ -580,10 +635,11 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
         {actionError && <p role="alert" className={styles.error}>{actionError}</p>}
         {runningHere.length > 0 && <><h4 className={styles.section}>{text("Running now", "正在做")}</h4>{runningHere}</>}
         {latestRun && <><h4 className={styles.section}>{text("Latest run", "最近一次运行")}</h4>{runRow(latestRun)}</>}
-        <h4 className={styles.section}>{text("Sub-agents it started", "它启动的子代理")}</h4>
-        {agents.length + failed.length === 0
-          ? <p className={styles.empty}>{text("No sub-agents yet.", "还没有启动过子代理。")}</p>
-          : startedNewestFirst(agents, failed)}
+        <div className={styles.sectionRow}>
+          <h4 className={styles.section}>{text("Sub-agents it started", "它启动的子代理")}</h4>
+          {tree.length > 0 && <AgentsViewMenu />}
+        </div>
+        {subAgentList()}
       </div>
     </div>;
   }
@@ -736,30 +792,10 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   }
 
   // ---- overview ----------------------------------------------------------------
-  // Messages live in the chat. Agents lists the main agent and its
-  // sub-agents; a call that never started a sub-agent sits where that
-  // sub-agent would. Programs and commands lists what they run in a shell.
-  const tree = branches.tree<AgentCall>(owner => failedSpawns(owner).map(leaf => ({ at: leaf.at, leaf })));
+  // Messages live in the chat. Agents is the main agent alone: the
+  // sub-agents it starts are summed up under it and listed on its page.
+  // Programs and commands lists what they run in a shell.
   const showMain = Boolean(latestRun) || tree.length > 0 || mainLive;
-  const main = mainStatus();
-  const mainAt = mainLive ? now : latestRun ? latestRun.terminal_at ?? latestRun.updated_at ?? startedAt(latestRun) : 0;
-  const rowKey = (row: BranchRow<AgentCall>) => row.kind === "agent" ? row.item.execution_id : `spawn:${row.leaf.id}`;
-  const looks = new Map(tree.map(row => [rowKey(row), row.kind === "agent" ? agentLook(row.item) : { tone: (row.leaf.failed ? "err" : "muted") as Tone, at: row.leaf.at }]));
-  const lookOf = (row: BranchRow<AgentCall>) => looks.get(rowKey(row)) ?? { tone: "muted" as Tone, at: 0 };
-  const shows = (tone: Tone) => listView.show === "all" || (listView.show === "attention" ? tone === "warn" : tone === "run");
-  const mainShown = shows(main.tone);
-  // By structure the tree keeps the branches above a match, and the main
-  // agent stays as its root; by time it is one list, latest first.
-  const rows = listView.arrange === "structure"
-    ? listView.show === "all" ? tree : pruneBranches(tree, row => shows(lookOf(row).tone))
-    : tree.filter(row => shows(lookOf(row).tone)).sort((a, b) => lookOf(b).at - lookOf(a).at);
-  const mainFirst = listView.arrange === "structure" ? mainShown || rows.length > 0 : mainShown && (rows.length === 0 || mainAt >= lookOf(rows[0]).at);
-  const visible = rows.slice(0, shown);
-  const flatRows: ReactNode[] = visible.map(row => row.kind === "agent" ? agentRow(row.item, undefined, true) : spawnRow(row.leaf, undefined, true));
-  if (listView.arrange === "time" && mainShown && !mainFirst) {
-    const at = visible.findIndex(row => lookOf(row).at < mainAt);
-    flatRows.splice(at < 0 ? flatRows.length : at, 0, mainRow());
-  }
   // Shell work: running and stopped calls that are not sub-agents, and
   // background programs, live first, then what needs the reader, then the rest.
   const shellCalls = calls.filter(entry => presentTool(entry.name, undefined, text).tone !== "agent" && !agentOf(entry)
@@ -770,11 +806,6 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     ...processes.items.map(entry => ({ tone: programTone(entry), at: entry.started_at, node: programRow(entry) })),
   ].sort((a, b) => rank(a.tone) - rank(b.tone) || b.at - a.at);
   const empty = state.fetchedAt && processes.loaded && !model.issues.length && !showMain && !work.length;
-  const filteredOut = text(...({
-    attention: ["No agent needs you.", "没有需要处理的 agent。"],
-    running: ["No agent is running.", "没有正在运行的 agent。"],
-    all: ["", ""],
-  }[listView.show] as [string, string]));
   return <section className={styles.panel} aria-label={text("Conversation activity", "会话运行记录")}>
     {readFailed && readNotice?.sessionId === sessionId && <p role="status" className={`${styles.notice} ${readNotice.persistent && !hasRead ? styles.error : ""}`}>{hasRead
       ? text("Updating status… Showing saved records.", "正在更新状态，当前显示上次记录。")
@@ -784,19 +815,8 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     <div className={styles.scroll}>
       {!hasRead && !processes.stale && state.connection.state === "reconnecting" ? <SidebarNotice>{text("Loading…", "加载中…")}</SidebarNotice> : null}
       {showMain && <div className="group/sec">
-        <SectionHeader name={text("Agents", "Agents")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} actions={<AgentsViewMenu />} />
-        {!mainShown && rows.length === 0 && <p className={styles.empty}>{filteredOut}</p>}
-        {listView.arrange === "structure"
-          ? <>{mainFirst && mainRow()}{visible.map((entry, index) => {
-            // A cut-off page keeps the line running to the paging button.
-            const line = { depth: entry.depth, guides: entry.guides, first: index === 0 || visible[index - 1].depth < entry.depth,
-              last: entry.last && !(index === visible.length - 1 && rows.length > shown) };
-            return entry.kind === "agent" ? agentRow(entry.item, line) : spawnRow(entry.leaf, line);
-          })}</>
-          : <>{mainFirst && mainRow()}{flatRows}</>}
-        {rows.length > shown && <button type="button" className={styles.more} data-depth={listView.arrange === "structure" ? "1" : undefined} onClick={() => setShown(value => value + 50)}>
-          {text(`Show ${Math.min(50, rows.length - shown)} earlier`, `显示更早的 ${Math.min(50, rows.length - shown)} 个`)}
-        </button>}
+        <SectionHeader name={text("Agents", "Agents")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} />
+        {mainRow(subAgentSummary())}
       </div>}
       {work.length > 0 && <div className="group/sec">
         <SectionHeader name={text("Programs and commands", "程序和命令")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} />

@@ -1,7 +1,7 @@
 # Activity panel
 
-The right sidebar's **Activity** lists one conversation's agents (the
-main agent and the sub-agents under it) and, separately, the programs and
+The right sidebar's **Activity** lists one conversation's main agent
+(the sub-agents it starts are on its page) and, separately, the programs and
 commands they run in a shell. What needs the reader is never a group of
 its own: it is the row it concerns, with a warning status.
 Messages are never rows; they stay in the chat.
@@ -55,37 +55,17 @@ An execution whose only missing records are model responses
 Two groups in a fixed order; an empty group is not shown, no group folds
 and neither header carries a count.
 
-1. **Agents**: the main agent (the conversation's own agent, named like
-   the sub-agents and drawn with the same glyph), then every sub-agent
-   under it, depth first and newest first. Each is indented under the
-   agent that started it; a hairline elbow runs from under that agent's
-   glyph into its own, the line carries on to its later siblings, and the
-   lines of rows above with siblings still to come run past it.
-   The main agent reads as running (with the call it is on, or "Waiting for
-   a sub-agent", and the time so far), waiting on the reader (paused, or
-   holding issues of its own), idle since its last run, or that its last
-   run failed. A sub-agent reads as running with its call, stopped (a
-   stopped `agent` call shows as the sub-agent it started), or its final
-   state with the time. An agent that needs the reader is listed once, in
-   place, with the warning tone. An `agent` call that started no sub-agent
-   sits in the tree where that sub-agent would, as **Failed to start** or
-   **Not started**. The list shows 20 rows at a time with **Show
-   earlier**. Calls and programs whose execution is not listed count as
+1. **Agents**: the main agent alone (the conversation's own agent, named
+   and drawn like the sub-agents). It reads as running (with the call it
+   is on, or "Waiting for a sub-agent", and the time so far), waiting on
+   the reader (paused, or holding issues of its own), idle since its last
+   run, or that its last run failed. Under its status, one line sums up
+   the sub-agents the model started: how many, how many run (running
+   tone) and how many need the reader (warning tone), as in "5 sub-agents
+   · 1 running · 1 needs you". The sub-agents themselves are listed on the
+   main agent's page, so the overview stays one row however many the
+   model starts. Calls and programs whose execution is not listed count as
    the main agent's.
-
-   The header's button opens the view menu, built from the composer
-   options menu's pieces: the same radix wrapper and `MENU_PANEL` frame, a
-   value row per setting that opens a submenu, and check rows in it.
-   **Show** is All, Needs you (rows in the warning tone) or Running (rows
-   in the running tone). By structure, a filter keeps each match and the
-   agents above it (`pruneBranches`), redraws the lines for what is left,
-   and the main agent stays as the root while anything under it shows.
-   **Arrange** is By structure (the tree) or By time: one flat list, live
-   rows first, then by the time each row shows, every sub-agent's status
-   ending with who started it ("· by Research"). A filter that leaves
-   nothing says so under the header, so the menu stays reachable. The
-   button stays lit while the view differs from the default; the view is
-   a per-browser preference in local storage.
 2. **Programs and commands**: shell calls still running, shell calls still
    out when their run stopped (warning tone), and every background
    program. Running rows first, then rows that need the reader, then the
@@ -109,8 +89,32 @@ Every row opens a page; a stack of pages backs the panel, and the back
 arrow names the page it returns to. Nothing expands in place.
 
 - **Main agent**: the conversation title and its state. Its own issues
-  come first, each naming its run, then what it is running now, its **Latest run**, and **Sub-agents it started**, including the calls that
-  failed to start one; the **Latest run** row opens that run's page.
+  come first, each naming its run, then what it is running now, its
+  **Latest run** (the row opens that run's page), and **Sub-agents it
+  started**: every sub-agent, depth first and newest first. The first
+  level is the page's own list; a deeper sub-agent is indented under the
+  one that started it, a hairline elbow runs from under that agent's
+  glyph into its own, the line carries on to its later siblings, and the
+  lines of rows above with siblings still to come run past it. A
+  sub-agent reads as running with its call, stopped (a stopped `agent`
+  call shows as the sub-agent it started), or its final state with the
+  time; one that needs the reader is listed once, in place, with the
+  warning tone. An `agent` call that started no sub-agent sits in the
+  tree where that sub-agent would, as **Failed to start** or **Not
+  started**. The list shows 20 rows at a time with **Show earlier**.
+
+  The section heading's button opens the view menu, built from the
+  composer options menu's pieces: the same radix wrapper and
+  `MENU_PANEL` frame, a value row per setting that opens a submenu, and
+  check rows in it. **Show** is All, Needs you (rows in the warning tone)
+  or Running (rows in the running tone). By structure, a filter keeps
+  each match and the agents above it (`pruneBranches`) and redraws the
+  lines for what is left. **Arrange** is By structure (the tree) or By
+  time: one flat list, live rows first, then by the time each row shows,
+  every sub-agent's status ending with who started it ("· by Research").
+  A filter that leaves nothing says so under the heading, so the menu
+  stays reachable. The button stays lit while the view differs from the
+  default; the view is a per-browser preference in local storage.
 - **Sub-agent / run**: kind, start and duration, the name or message, its
   state. Its issues come first, each with its actions as raised pills:
   **Mark as ended** (cancel) when the execution allows it. A pause with a

@@ -89,26 +89,28 @@ const agentCall = { id: "c1", execution_id: "turn", name: "agent", description: 
 const spawned = run("j_fix", "reconciliation_required", now - 3 * DAY + 2, { parent_execution_id: "turn",
   display: { kind: "job_agent", label: "Fix_page_close", assistant_message_id: "j_fix_user_reply" }, effect_summary: { provider_response_incomplete: true } });
 
-test("the overview lists every agent once, the one that needs you in place, never plain messages", async () => {
+test("the overview sums the sub-agents up under the main agent, whose page lists each once", async () => {
   await mounted([
     run("turn", "reconciliation_required", now - 3 * DAY, { task_label: "check and fix it" }), spawned,
     run("live", "running", now - 120, { task_label: "fill the form" }),
     run("j_live", "running", now - 100, { parent_execution_id: "live", display: { kind: "job_agent", label: "Form_filler" } }),
     run("done", "completed", now - 60, { task_label: "what happened" }),
     run("j_done", "completed", now - 50, { parent_execution_id: "done", display: { kind: "job_agent", label: "Research" } }),
-  ], async host => {
-    const text = host.textContent;
-    // The main agent first, then every sub-agent under it, newest first; the
-    // stopped one is listed once, where it sits, with a warning status.
-    assert.match(text, /AgentsMain agentRunning · 2 minResearchCompleted.*Form fillerRunning.*Fix page closeStopped/s);
-    assert.doesNotMatch(text, /Needs you|Sub-agent stopped|Agents\d/);
-    assert.equal(text.match(/Fix page close/g).length, 1);
-    assert.deepEqual([...host.querySelectorAll("[data-last]")].map(node => node.getAttribute("data-last")), ["0", "0", "1"]);
-    // Only the first sibling reaches up into the main agent's row; the rest
-    // continue the run from the row above, so no two pieces of line overlap.
-    assert.deepEqual([...host.querySelectorAll("[data-first]")].map(node => node.getAttribute("data-first")), ["1", "0", "0"]);
+  ], async (host, click) => {
+    let text = host.textContent;
+    // The overview is the main agent alone, with its sub-agents summed up.
+    assert.match(text, /AgentsMain agentRunning · 2 min3 sub-agents · 1 running · 1 needs you/);
+    assert.doesNotMatch(text, /Research|Form filler|Fix page close/);
     // The messages themselves stay in the chat.
     assert.doesNotMatch(text, /check and fix it|fill the form|what happened/);
+    // Its page lists every sub-agent, newest first; the stopped one once,
+    // where it sits, with a warning status.
+    await click("Main agent");
+    text = host.textContent;
+    assert.match(text, /Sub-agents it started.*ResearchCompleted.*Form fillerRunning.*Fix page closeStopped/s);
+    assert.equal(text.match(/Fix page close/g).length, 1);
+    // They are the page's own list, so the first level draws no lines.
+    assert.equal(host.querySelectorAll("[data-last]").length, 0);
     // Only the view menu opens; no row expands in place.
     assert.equal(host.querySelectorAll("[aria-expanded]:not([aria-haspopup])").length, 0);
   }, [], {}, { calls: [agentCall] });
@@ -117,6 +119,7 @@ test("the overview lists every agent once, the one that needs you in place, neve
 test("a stopped agent call opens a page with its task and what can be done", async () => {
   globalThis.agentTip = "j_fix_tip";
   await mounted([run("turn", "reconciliation_required", now - 3 * DAY, { task_label: "check and fix it" }), spawned], async (host, click) => {
+    await click("Main agent");
     await click("Fix page close");
     const text = host.textContent;
     assert.match(text, /Sub-agent ·/);
@@ -130,7 +133,9 @@ test("a stopped agent call opens a page with its task and what can be done", asy
     await click("Mark as ended");
     assert.equal(globalThis.commands[0].action, "execution.cancel");
     assert.equal(globalThis.commands[0].execution_id, "turn");
-    // Back goes up one level, to the overview.
+    // Back goes up one level, to the main agent's page, then the overview.
+    await click("← Main agent");
+    assert.match(host.textContent, /Sub-agents it started/);
     await click("Activity");
     assert.match(host.textContent, /AgentsMain agent/);
   }, [], {}, { calls: [agentCall] });
@@ -141,6 +146,7 @@ test("an agent page leads with its issue, then where it came from and what it di
   await mounted([run("turn", "reconciliation_required", now - 3 * DAY, { task_label: "check and fix it" }), spawned,
     run("j_other", "completed", now - 3 * DAY + 50, { parent_execution_id: "turn", display: { kind: "job_agent", label: "Write_docs" } })],
   async (host, click, selected) => {
+    await click("Main agent");
     await click("Fix page close");
     let text = host.textContent;
     assert.match(text, /Sub-agent ·.*Fix page close.*Stopped/s);
@@ -160,15 +166,17 @@ test("an agent page leads with its issue, then where it came from and what it di
   }, [], {}, { calls: [agentCall] });
 });
 
-test("sub-agents are paged under the main conversation", async () => {
+test("sub-agents are paged on the main agent's page", async () => {
   const runs = Array.from({ length: 25 }, (_, i) => run(`j${i}`, "completed", now - i * 60 - (i > 2 ? 2 * DAY : 0),
     { parent_execution_id: "turn", display: { kind: "job_agent", label: `agent_${i}` } }));
   await mounted([run("turn", "completed", now - 3 * DAY), ...runs], async (host, click) => {
-    assert.match(host.textContent, /AgentsMain agentIdle · last.*agent 0/s);
-    assert.equal(host.querySelectorAll("button").length, 23, "the view menu, the main agent, 20 agents and the paging button");
+    assert.match(host.textContent, /AgentsMain agentIdle · last.*25 sub-agents/s);
+    await click("Main agent");
+    const listed = () => [...host.querySelectorAll("button")].filter(button => /^agent \d+/.test(button.textContent)).length;
+    assert.equal(listed(), 20);
     await click("Show 5 earlier");
     assert.doesNotMatch(host.textContent, /Show \d+ earlier/);
-    assert.equal(host.querySelectorAll("button").length, 27);
+    assert.equal(listed(), 25);
   });
 });
 
@@ -193,8 +201,8 @@ test("the main conversation page shows its latest run, the sub-agents it started
   await mounted([run("turn", "reconciliation_required", now - 3 * DAY, { task_label: "check and fix it" }), spawned,
     run("latest", "completed", now - 600, { task_label: "prepare the visa form", terminal_at: now - 480 })],
   async (host, click, selected) => {
-    // A call that never started a sub-agent sits in the tree where it would have.
-    assert.match(host.textContent, /AgentsMain agentIdle · last.*Fix page closeStopped.*Upload fixFailed to start/s);
+    // A call that never started a sub-agent counts with the sub-agents.
+    assert.match(host.textContent, /AgentsMain agentIdle · last.*2 sub-agents · 1 needs you/s);
     await click("Main agent");
     let text = host.textContent;
     assert.match(text, /Main agentNeurIPS trip.*Idle · last/s);
@@ -230,13 +238,15 @@ test("a sub-agent another one started sits under it and names it", async () => {
   await mounted([run("turn", "completed", now - 600), run("j_parent", "completed", now - 500, { parent_execution_id: "turn", display: { kind: "job_agent", label: "Research" } }),
     run("j_child", "completed", now - 400, { parent_execution_id: "j_parent", display: { kind: "job_agent", label: "Read_pages" } })],
   async (host, click) => {
-    assert.match(host.textContent, /AgentsMain agent.*Research.*Read pages/s);
+    await click("Main agent");
+    assert.match(host.textContent, /Sub-agents it started.*Research.*Read pages/s);
+    // Research is the page's own list; Read pages hangs under it.
     const depths = [...host.querySelectorAll("[style*='--depth']")].map(node => node.getAttribute("style"));
-    assert.deepEqual(depths.map(style => style.match(/--depth:\s*(\d)/)[1]), ["1", "2"]);
-    // Each is the last row under its parent, so no line runs on past it,
-    // and the first under its parent, so its elbow reaches up to the parent.
-    assert.deepEqual([...host.querySelectorAll("[data-last]")].map(node => node.getAttribute("data-last")), ["1", "1"]);
-    assert.deepEqual([...host.querySelectorAll("[data-first]")].map(node => node.getAttribute("data-first")), ["1", "1"]);
+    assert.deepEqual(depths.map(style => style.match(/--depth:\s*(\d)/)[1]), ["1"]);
+    // It is the last and the first row under its parent: no line runs on
+    // past it, and its elbow reaches up to the parent.
+    assert.deepEqual([...host.querySelectorAll("[data-last]")].map(node => node.getAttribute("data-last")), ["1"]);
+    assert.deepEqual([...host.querySelectorAll("[data-first]")].map(node => node.getAttribute("data-first")), ["1"]);
     await click("Read pages");
     assert.match(host.textContent, /Started by.*Research/s);
     assert.match(host.textContent, /Task given to it.*Read the pages/s);
@@ -332,26 +342,29 @@ async function withView(view, body) {
 }
 
 test("showing what needs you keeps the branches above it and lights the menu button", async () => {
-  await withView({ show: "attention" }, () => mounted(viewSessions, async host => {
+  await withView({ show: "attention" }, () => mounted(viewSessions, async (host, click) => {
+    await click("Main agent");
     const text = host.textContent;
-    assert.match(text, /AgentsMain agent.*Fix page closeStopped/s);
+    assert.match(text, /Sub-agents it started.*Fix page closeStopped/s);
     assert.doesNotMatch(text, /Research|Read pages/);
-    assert.deepEqual([...host.querySelectorAll("[data-last]")].map(node => node.getAttribute("data-last")), ["1"]);
+    assert.equal(host.querySelectorAll("[data-last]").length, 0);
     assert.equal(host.querySelector("[data-view-changed]").getAttribute("data-view-changed"), "1");
   }, [], {}, { calls: [agentCall] }));
 });
 
 test("arranged by time the agents are one list, latest first, each naming who started it", async () => {
-  await withView({ arrange: "time" }, () => mounted(viewSessions, async host => {
+  await withView({ arrange: "time" }, () => mounted(viewSessions, async (host, click) => {
+    await click("Main agent");
     const text = host.textContent;
-    assert.match(text, /AgentsMain agent.*Read pagesCompleted · .* · by Research.*ResearchCompleted · .* · by Main agent.*Fix page closeStopped · .* · by Main agent/s);
+    assert.match(text, /Sub-agents it started.*Read pagesCompleted · .* · by Research.*ResearchCompleted · .* · by Main agent.*Fix page closeStopped · .* · by Main agent/s);
     assert.equal(host.querySelectorAll("[data-last]").length, 0, "no tree lines");
   }, [], {}, { calls: [agentCall] }));
 });
 
 test("a filter with nothing to show says so and keeps the menu reachable", async () => {
-  await withView({ show: "running" }, () => mounted(viewSessions, async host => {
-    assert.match(host.textContent, /AgentsNo agent is running\./);
+  await withView({ show: "running" }, () => mounted(viewSessions, async (host, click) => {
+    await click("Main agent");
+    assert.match(host.textContent, /Sub-agents it startedNo sub-agent is running\./);
     assert.ok(host.querySelector("[aria-label='Show and arrange agents']"));
   }, [], {}, { calls: [agentCall] }));
 });
@@ -389,6 +402,8 @@ test("a sub-agent waiting on a question shows it and goes to the chat's card to 
   try {
     await mounted([run("turn", "completed", now - 600), run("j_ask", "paused", now - 300, { parent_execution_id: "turn", display: { kind: "job_agent", label: "Book_hotel" } })],
     async (host, click) => {
+      assert.match(host.textContent, /1 sub-agent · 1 needs you/);
+      await click("Main agent");
       assert.match(host.textContent, /Book hotelWaiting for your answer · /);
       await click("Book hotel");
       assert.match(host.textContent, /Book hotelWaiting for your answerWaiting for your answerWhich venue should I book\?Choices: Hotel A · Hotel BAnswer in chat/);
