@@ -15,6 +15,7 @@
  */
 
 import { useSyncExternalStore } from "react";
+import { motion } from "framer-motion";
 import {
   Copy,
   Hand,
@@ -80,7 +81,13 @@ function DagToolRail() {
             data-tip-side="right"
             onClick={() => setTool(tool.id)}
           >
-            {Icon ? <Icon size={16} strokeWidth={2} /> : tool.id.slice(0, 1)}
+            {/* The block under the tool in hand glides to the new one, the
+                way a hotbar's cursor moves between slots. */}
+            {tool.id === current && (
+              <motion.span layoutId="dag-tool-pill" className="dag-tool-pill" aria-hidden="true"
+                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }} />
+            )}
+            {Icon ? <Icon size={16} strokeWidth={2} /> : <span>{tool.id.slice(0, 1)}</span>}
           </button>
         );
       })}

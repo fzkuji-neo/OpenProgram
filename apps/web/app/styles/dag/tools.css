@@ -44,10 +44,20 @@
   background: var(--bg-hover);
   color: var(--foreground);
 }
-/* The tool in hand: a flat block of the accent colour. */
+/* The tool in hand: a flat block of the accent colour, drawn by the
+   pill under the icon so it can glide between tools (dag-tools.tsx). */
+.dag-tool-btn { position: relative; }
+.dag-tool-btn > svg,
+.dag-tool-btn > span:not(.dag-tool-pill) { position: relative; z-index: 1; }
 .dag-tool-btn[aria-pressed="true"] {
-  background: color-mix(in srgb, var(--accent-primary, #4a7dfc) 16%, transparent);
   color: var(--accent-primary, #4a7dfc);
+}
+.dag-tool-btn[aria-pressed="true"]:hover { background: transparent; }
+.dag-tool-pill {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent-primary, #4a7dfc) 16%, transparent);
 }
 .dag-tool-sep {
   height: 1px;
