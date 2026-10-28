@@ -105,17 +105,24 @@
 }
 .dag-legend-tile.t-user svg { width: 13px; height: 13px; }
 .dag-legend-tile[data-state="outline"] svg { opacity: 0.38; }
-/* Failed keeps its tone; the red ``!`` at its shoulder says so (nodes.ts). */
+/* Failed keeps its tone; the Activity panel's red badge with a ``!``
+   sits on its corner (nodes.css ``dag-status-badge``). */
 .dag-legend-tile[data-state="error"] { position: relative; }
 .dag-legend-tile[data-state="error"]::after {
   content: "!";
   position: absolute;
-  top: -5px;
-  right: -4px;
-  font-size: 10px;
+  top: -4px;
+  right: -5px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--accent-red, #e5534b);
+  box-shadow: 0 0 0 2px var(--bg-primary, #191918);
+  color: #fff;
+  font-size: 9px;
   font-weight: 700;
-  line-height: 1;
-  color: var(--accent-red, #e5534b);
+  line-height: 13px;
+  text-align: center;
 }
 /* A running belt: the track with the goods riding it (dag/edges.css). */
 .dag-legend-belt {
@@ -127,11 +134,18 @@
     radial-gradient(circle, color-mix(in srgb, var(--accent-primary, #4a7dfc) 70%, transparent) 1.8px, transparent 2.2px) 0 50% / 6px 6px repeat-x,
     color-mix(in srgb, var(--text-muted, #8a887f) 22%, var(--bg-primary, #191918));
 }
-/* An agent: the ring of its colour round the tile it stands on
+/* An agent: its status dot on the corner of the tile it stands on
    (render/agents.ts). */
-.dag-legend-ring {
-  flex: 0 0 auto;
-  display: inline-flex;
+.dag-legend-agent { position: relative; display: inline-flex; flex: 0 0 auto; }
+.dag-legend-agent::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  box-shadow: 0 0 0 2px var(--accent-primary, #4a7dfc);
+  background: var(--accent-primary, #4a7dfc);
+  box-shadow: 0 0 0 2px var(--bg-primary, #191918);
+  z-index: 1;
 }

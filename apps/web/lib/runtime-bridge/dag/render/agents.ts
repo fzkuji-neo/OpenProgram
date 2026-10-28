@@ -2,10 +2,10 @@
  * Renderer: agent tokens (dag/rendering.md §4).
  *
  * Every agent that is working stands on the step it is working on: a
- * ring of its branch colour round the tile, and beside the tile a bubble
- * saying who and what ("Main agent · Ran npm test"). A letter on a disc
- * read as a cryptic badge; the bubble already names the agent. With
- * nothing running, the main agent's ring rests on HEAD without a bubble.
+ * status dot of its branch colour on the tile's upper-left corner,
+ * breathing like the Activity panel's running dot, and beside the tile a
+ * bubble saying who and what ("Main agent · Ran npm test"). With nothing
+ * running, the main agent's dot rests on HEAD, steady, without a bubble.
  *
  * Agents are read from the whole graph, not from the tiles on screen: a
  * running call folded into its turn's count still names what the agent
@@ -95,11 +95,11 @@ function marker(at: { x: number; y: number }, cls: string, dx: number, dy: numbe
   return { outer, inner };
 }
 
-/** A ring round the tile the agent stands on; a second agent on the
- *  same tile gets the next ring out. */
+/** The agent's dot on its tile's upper-left corner (the app's
+ *  ``indicator-dot``); a second agent on the same tile sits beside it. */
 function token(at: { x: number; y: number }, k: number, color: string): SVGElement {
-  const { outer, inner } = marker(at, "dag-agent-token", 0, 0);
-  inner.appendChild(_svg("circle", { r: TILE_R + 4 + k * 4, stroke: color, class: "dag-agent-ring" }));
+  const { outer, inner } = marker(at, "dag-agent-token", -TILE_R + 3 - k * 9, -TILE_R + 5);
+  inner.appendChild(_svg("circle", { r: 3.5, fill: color, class: "dag-agent-dot" }));
   return outer;
 }
 

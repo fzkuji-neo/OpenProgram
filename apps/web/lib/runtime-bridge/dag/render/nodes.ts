@@ -67,16 +67,18 @@ function applyStatusPaint(
   const wantBang = !!(el && isErr);
   let bang = g.querySelector("[data-status-bang]");
   if (wantBang && !bang) {
-    bang = _svg("text", {
-      x: String(TILE_R + 2),
-      y: String(-TILE_R + 2),
-      fill: "var(--accent-red, #e5534b)",
-      "font-size": "11",
-      "font-weight": "700",
+    // The Activity panel's red badge, ``!`` in place of a count, on the
+    // icon's upper-right corner (app/styles/dag/nodes.css).
+    bang = _svg("g", {
+      class: "dag-status-badge",
+      transform: `translate(${TILE_R - 3},${-TILE_R + 5})`,
       "pointer-events": "none",
       "data-status-bang": "1",
     });
-    bang.textContent = "!";
+    bang.appendChild(_svg("circle", { r: 6.5 }));
+    const mark = _svg("text", { "text-anchor": "middle", "dominant-baseline": "central", y: "0.5" });
+    mark.textContent = "!";
+    bang.appendChild(mark);
     g.appendChild(bang);
   } else if (!wantBang && bang) {
     bang.remove();

@@ -255,7 +255,7 @@ function agentSpots(world: SVGGElement): { x: number; y: number }[] {
   const spots: { x: number; y: number }[] = [];
   world.querySelectorAll(".dag-agents > .dag-agent-token:not(.is-idle)").forEach((t) => {
     const m = /translate\(([-\d.]+),([-\d.]+)\)/.exec(t.getAttribute("transform") || "");
-    // A ring is pinned to its tile's centre (render/agents.ts).
+    // A dot is pinned to its tile's centre (render/agents.ts).
     if (m) spots.push({ x: Number(m[1]), y: Number(m[2]) });
   });
   if (!spots.length) {

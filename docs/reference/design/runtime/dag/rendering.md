@@ -375,26 +375,28 @@ npm test" looks alike in both places; tones are shared CSS variables
 | merge / attach | pull request / link | plan |
 
 **Agents stand on their step** (`render/agents.ts`). Every agent that is
-working draws a ring of its branch colour round the tile it is on (pulsing
-while it works; a second agent on the same tile gets the next ring out), and
+working puts a status dot of its branch colour on the upper-left corner of
+the tile it is on — the Activity panel's `indicator-dot`, breathing the same
+way while it works; a second agent on the same tile sits beside it — and
 a bubble beside the tile says "name · what it is doing" (the tile's activity text in the present tense:
 "Thinking…", "Running npm test"). Agents are read from the whole graph: a
 node belongs to the sub-agent whose spawn root its chain leads back to, else
 to the main agent, and each agent shows its latest running node. When that
-node is folded into a count, the ring goes round the nearest drawn tile and
+node is folded into a count, the dot sits on the nearest drawn tile and
 the bubble still names the call; agents sharing a tile stack their bubbles.
 
 An earlier version put a round token with the agent's initial ("M") on the
 tile's corner; nobody could tell what the letter meant, and the bubble already
-names the agent, so the ring marks *where* and the bubble says *who*.
+names the agent; a ring round the tile came next and was too loud. Now the
+dot marks *where* and the bubble says *who*.
 
-**Semantic zoom.** Zoomed out, rings and bubbles keep their on-screen size,
+**Semantic zoom.** Zoomed out, dots and bubbles keep their on-screen size,
 like unit markers on a map (`--dag-marker-scale`, set by
 `interaction/canvas.ts`; the marker is pinned to its tile in world units and
 only its body scales). Below 55% an icon is a few pixels of noise, so every
 tile becomes a solid block of its tone (`is-far`): the map reads by colour,
 and covered tiles stay brighter than the rest. With nothing
-running, the main agent's ring rests on HEAD, steady and dimmer, without a bubble. The layer is
+running, the main agent's dot rests on HEAD, steady, without a bubble. The layer is
 rebuilt from the node DOM, so the in-place status patch repaints it.
 
 **HEAD is a breathing glow on its own glyph**: a `drop-shadow` in the branch
@@ -413,8 +415,8 @@ placeholder box:
 | status | Drawing |
 |---|---|
 | success | the plain block |
-| running | `is-running`: the icon breathes, and its agent's ring and bubble appear |
-| error | `is-error`: a red `!` badge at the upper right; the tone stays, so an agent reply that failed is still a ghost of its own colour |
+| running | `is-running`: the icon breathes, and its agent's dot and bubble appear |
+| error | `is-error`: the Activity panel's red badge, `!` in place of a count, on the upper-right corner; the tone stays, so an agent reply that failed is still a ghost of its own colour |
 | cancelled | `is-faded`: the tone turns ghost grey |
 
 **Badges** (attached to the node, no grid cell of their own):

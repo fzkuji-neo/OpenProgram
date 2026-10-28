@@ -92,15 +92,25 @@
   50% { opacity: 0.45; }
 }
 
-/* Agent rings (render/agents.ts): a ring of the agent's branch colour
-   round the tile it works on, pulsing while it works, steady at rest. */
-.dag-agent-ring { fill: none; stroke-width: 2; }
+/* Agent dots (render/agents.ts): the Activity panel's status dot
+   (chat/indicator-dot.css) in the agent's branch colour, on the corner of
+   the tile it works on. It breathes while the agent works, rests steady. */
+.dag-agent-dot { stroke: var(--bg-primary, #191918); stroke-width: 2; paint-order: stroke; }
 .dag-agent-mark { transform: scale(var(--dag-marker-scale, 1)); }
-.dag-agent-token.is-idle .dag-agent-ring { opacity: 0.55; }
-.dag-agent-token:not(.is-idle) .dag-agent-ring { animation: dag-agent-pulse 1.4s ease-in-out infinite; }
-@keyframes dag-agent-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+.dag-agent-token:not(.is-idle) .dag-agent-dot { animation: indicatorPulseOpacity 1.5s ease-in-out infinite; }
+/* An error: the Activity panel's red badge (running-panel.module.css
+   ``countBadge``) with a ``!``, on the tile's upper-right corner. */
+.dag-status-badge circle {
+  fill: var(--accent-red, #e5534b);
+  stroke: var(--bg-primary, #191918);
+  stroke-width: 2;
+  paint-order: stroke;
+}
+.dag-status-badge text {
+  fill: #fff;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
 }
 /* The bubble is words, no chip: brighter than a caption, with the same
    canvas-colour halo. */
@@ -118,7 +128,7 @@
 @media (prefers-reduced-motion: reduce) {
   .history-node.is-head .dag-tile-icon,
   .history-node.is-running .dag-tile-icon,
-  .dag-agent-token .dag-agent-ring { animation: none; }
+  .dag-agent-token .dag-agent-dot { animation: none; }
   .history-node.is-head .dag-tile-icon { filter: drop-shadow(0 0 4px var(--tone)); }
 }
 

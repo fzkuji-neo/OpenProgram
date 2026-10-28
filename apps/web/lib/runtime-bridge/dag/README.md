@@ -45,7 +45,7 @@ dag/
 ├── render/
 │   ├── nodes.ts                         node tiles, status and coverage marks
 │   ├── tiles.ts                         icon tile per node kind (presentTool for calls)
-│   ├── agents.ts                        agent rings and activity bubbles
+│   ├── agents.ts                        agent dots and activity bubbles
 │   ├── edges.ts                         conv / fork / attach / spawn edges, belts
 │   ├── badges.ts                        branch-name badges
 │   ├── visibility.ts                    coverage fill + chat-scroll/mutation sync
