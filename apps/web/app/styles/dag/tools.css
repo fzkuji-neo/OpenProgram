@@ -106,14 +106,16 @@
 
 
 
-/* A selected node: a dashed circle in the accent colour just outside its
-   glyph. Drawn in the node's own group, so it pans and zooms with it;
-   the stroke width does not scale with the zoom. */
+/* A selected node, and the box that selects: one look — the app's focus
+   ring (``--focus-ring``, the ink at half strength) over a faint ink
+   wash. Neutral on purpose: an accent ring vanished into the blue main
+   line, and no branch colour can swallow it. The ring is a disc behind
+   the tile, so the wash lights the margin round it; drawn in the node's
+   group, it pans and zooms with it, and its stroke does not scale. */
 .dag-select-ring {
-  fill: none;
-  stroke: var(--accent-primary, #4a7dfc);
-  stroke-width: 1.4;
-  stroke-dasharray: 3 2.5;
+  fill: color-mix(in srgb, var(--text-bright, #fff) 10%, transparent);
+  stroke: var(--focus-ring, rgb(255 255 255 / 0.5));
+  stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
 }
 
@@ -129,16 +131,14 @@
   z-index: 2;
 }
 .dag-select-band rect {
-  fill: color-mix(in srgb, var(--accent-primary, #4a7dfc) 8%, transparent);
-  stroke: var(--accent-primary, #4a7dfc);
+  fill: color-mix(in srgb, var(--text-bright, #fff) 6%, transparent);
+  stroke: var(--focus-ring, rgb(255 255 255 / 0.5));
   stroke-width: 1;
-  stroke-dasharray: 4 3;
   stroke-linejoin: round;
 }
 
 /* The minimap (interaction/minimap.ts): the rail's raised material in
-   the canvas's lower right, just above the composer. It fades out when
-   the whole graph is on screen. */
+   the canvas's lower right, just above the composer. M hides it. */
 .dag-minimap {
   position: absolute;
   z-index: 3;

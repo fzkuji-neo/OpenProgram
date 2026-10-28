@@ -99,7 +99,9 @@ export function paintSelection(): void {
     const on = want.has(id);
     if (on) drawn.add(id);
     const ring = g.querySelector(":scope > .dag-select-ring");
-    if (on && !ring) g.appendChild(selectionRing(g));
+    // Behind the tile: its fill lights the margin round the plate, not
+    // the icon.
+    if (on && !ring) g.insertBefore(selectionRing(g), g.querySelector(":scope > .dag-tile"));
     else if (!on && ring) ring.remove();
   });
   if (drawn.size !== want.size) {
@@ -109,7 +111,7 @@ export function paintSelection(): void {
   if (pruned) emit();
 }
 
-/** A dashed circle a few pixels outside the node's tile, centred on it. */
+/** A lit disc a few pixels wider than the node's tile, centred on it. */
 function selectionRing(g: SVGGElement): SVGElement {
   const glyph = g.querySelector<SVGGraphicsElement>("[data-node-shape]");
   let x = -12;
