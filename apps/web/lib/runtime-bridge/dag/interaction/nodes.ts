@@ -294,6 +294,8 @@ export function _installInteractionHandlers(rerender: () => void): void {
 
   document.addEventListener("dblclick", (e) => {
     const tgt = e.target as HTMLElement;
+    // With Shift/⌘ held both clicks were the selection's; no fork & edit.
+    if ((e.shiftKey || e.metaKey) && tgt.closest && tgt.closest(".history-body")) return;
     const node = tgt.closest && tgt.closest(".history-node");
     const edgeHit = node
       ? null

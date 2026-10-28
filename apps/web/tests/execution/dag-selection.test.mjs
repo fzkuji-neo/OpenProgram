@@ -83,6 +83,7 @@ test("Shift/⌘ + click selects; a plain click stays the node's own", () => {
   const click = nodes.indexOf("if (e.shiftKey || e.metaKey) {");
   assert.ok(click > 0 && click < nodes.indexOf("showNodeMenu(gn, g)"));
   assert.doesNotMatch(nodes, /activeTool/);
+  assert.match(nodes, /addEventListener\("dblclick"[\s\S]{0,200}e\.shiftKey \|\| e\.metaKey/);
 });
 
 test("The delete and undo replies reach the canvas", () => {
