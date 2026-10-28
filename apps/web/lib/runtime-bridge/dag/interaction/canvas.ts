@@ -189,8 +189,9 @@ export function fitCanvas(opening = false, only?: DOMRect): void {
     (w - FIT_PAD * 2) / bb.width,
     (h - FIT_PAD * 2) / bb.height,
   );
+  // A few selected nodes may come closer than the whole graph would.
   const scale = Math.min(
-    1.3, Math.max(opening ? OPEN_MIN_SCALE : MIN_SCALE, fit),
+    only ? 2 : 1.3, Math.max(opening ? OPEN_MIN_SCALE : MIN_SCALE, fit),
   );
   let tx = (w - bb.width * scale) / 2 - bb.x * scale;
   let ty = (h - bb.height * scale) / 2 - bb.y * scale;
