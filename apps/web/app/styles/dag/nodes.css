@@ -80,9 +80,10 @@
 /* Zoomed far out (interaction/canvas.ts ``is-far``): an icon at a few
    pixels is noise, so a chip becomes a dot of its colour — the map reads
    by colour. Like a marker on a map the dot never shrinks below about
-   10px on screen, and the lines keep 1.5px. A selected dot grows to
-   about 20px and turns to the ink colour with a glow of its own, so it
-   stands out among the coloured dots at any zoom. */
+   10px on screen, and the lines keep 1.5px. A selected dot does what a
+   selected chip does up close — it fills with its full colour — and
+   grows to about 14px with a glow of that colour, so it stands out among
+   the paler dots at any zoom, in either theme. */
 .is-far .dag-tile-icon { display: none; }
 .is-far .dag-tile {
   transform: scale(max(1, calc(var(--dag-marker-scale, 1) * 0.35)));
@@ -99,10 +100,15 @@
   transform-origin: center;
   transform: scale(max(1, calc(var(--dag-marker-scale, 1) * 0.35)));
 }
-.is-far .history-node.is-selected .dag-tile { transform: scale(max(1.08, calc(var(--dag-marker-scale, 1) * 0.72))); }
+.is-far .history-node.is-selected .dag-tile { transform: scale(max(1.08, calc(var(--dag-marker-scale, 1) * 0.5))); }
 .is-far .history-node.is-selected .dag-tile > [data-node-shape] {
-  fill: var(--text-bright, #fff);
-  filter: drop-shadow(0 0 3px var(--tone)) drop-shadow(0 0 1px var(--tone));
+  fill: var(--tone);
+  /* A hairline of canvas between neighbours, so a run of selected dots
+     stays a row of dots rather than one bar. */
+  stroke: var(--bg-primary, #191918);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 4px var(--tone));
 }
 .is-far .history-edge { stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
 
@@ -225,6 +231,7 @@
 .is-far .dag-caption.is-turn {
   transform-box: fill-box;
   transform-origin: left center;
-  transform: scale(var(--dag-marker-scale, 1));
+  /* 5px further out on screen, clear of a selected (larger) dot. */
+  transform: translateX(calc(5px * var(--dag-marker-scale, 1))) scale(var(--dag-marker-scale, 1));
 }
 .is-far .dag-caption.is-culled { visibility: hidden; }

@@ -4,7 +4,7 @@
  * part on screen is a frame in the accent colour, and a press or drag on
  * it moves the camera there. It stays on screen whatever the view (a
  * map that came and went with the zoom read as a glitch); M hides it,
- * and M again brings it back. Selected nodes show in the ink colour.
+ * and M again brings it back. Selected nodes show in the accent colour.
  *
  * It is a canvas beside the graph, outside the SVG, so it never pans or
  * zooms with it. ``canvas.ts`` repaints it on every view change; the dot
@@ -172,15 +172,14 @@ export function paintMinimap(
     ctx.strokeStyle = accent;
     ctx.stroke();
   }
-  // What you selected, in the ink colour like on the canvas zoomed out
-  // (dag/nodes.css), so a selection far off screen still shows here.
-  const ink = getComputedStyle(c).getPropertyValue("--text-bright").trim() || "#fff";
+  // What you selected, larger and in the accent colour (the colour of a
+  // box selection), so a selection far off screen still shows here.
   world.querySelectorAll<SVGGElement>(".history-node.is-selected").forEach((g) => {
     const m = /translate\(([-\d.]+),([-\d.]+)\)/.exec(g.getAttribute("transform") || "");
     if (!m) return;
     ctx.beginPath();
-    ctx.arc(fit.ox + Number(m[1]) * fit.k, fit.oy + Number(m[2]) * fit.k, r + 1.5, 0, Math.PI * 2);
-    ctx.fillStyle = ink;
+    ctx.arc(fit.ox + Number(m[1]) * fit.k, fit.oy + Number(m[2]) * fit.k, r + 2, 0, Math.PI * 2);
+    ctx.fillStyle = accent;
     ctx.fill();
   });
   const frame: [number, number, number, number] = [

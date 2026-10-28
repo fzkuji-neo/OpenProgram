@@ -437,12 +437,15 @@ readable and shows fewer of them as you pull back; before this, every label
 shrank with the graph into specks of grey. So below 55%:
 
 - a dot never shrinks below about 10px on screen and a line below 1.5px;
-- **a selected node stays obvious**: its dot grows to about 20px and turns to
-  the ink colour (`--text-bright`) with a glow of its own colour, and the
-  minimap draws selected nodes in the same ink, so a selection off screen
+- **a selected node stays obvious**: like a selected chip up close, its dot
+  fills with its full colour (unselected dots are a paler mix), grows to
+  about 14px and glows in that colour. Never the ink colour: that is black
+  in the light theme and turned a selection into a blot. The minimap draws
+  selected nodes larger in the accent colour, so a selection off screen
   still shows there. The press target grows with the dot;
 - branch names and the opening words of your messages keep their on-screen
   size (`is-turn` captions, `render/captions.ts`), and
+  sit a little further out so a larger dot never covers them;
   `interaction/far-labels.ts` hides any that would land on a label already
   shown — branch names first, the current branch before the rest, then your
   messages nearest HEAD;
