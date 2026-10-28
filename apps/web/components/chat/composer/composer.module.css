@@ -19,6 +19,10 @@
   position: relative;
   z-index: 5;
 }
+/* Tucked rows (use-tucked-controls.ts) slide behind the box. */
+.inputArea[data-tucked] > .composerStack {
+  z-index: 6;
+}
 .inputArea:has([data-environment-row] [aria-expanded="true"]) > *,
 .inputArea:has([data-effort-expanded="true"]) > * {
   z-index: 51;

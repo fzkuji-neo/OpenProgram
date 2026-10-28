@@ -298,7 +298,7 @@ test("Activity rows use a bare coloured glyph and a status dot, and lift on hove
   // its overlapping pieces never darken at a joint.
   assert.match(css, /\.panel \.row \{ position: relative; z-index: 1; \}/);
   assert.match(css, /--branch-line: color-mix\(in srgb, var\(--text-muted\) \d+%, var\(--color-sidebar\)\)/);
-  assert.match(panel, /<SolarIcon name=\{name\} size=\{16\} motionPreset="none" \/>/);
+  assert.match(panel, /<SolarIcon name=\{name\} size=\{large \? 22 : 16\} motionPreset="none" \/>/);
   assert.match(panel, /className=\{`indicator-dot sm \$\{DOT\[tone\]\}`\}/);
   assert.doesNotMatch(panel, /<details|collapsible=\{true\}|collapsible\b(?!=\{false\})/, "nothing expands in place or folds");
 });

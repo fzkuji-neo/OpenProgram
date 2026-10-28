@@ -74,7 +74,7 @@ export function ChatInputRow({
   return (
     <>
       <div key="top-half" className={styles.inputTopRow}>
-        <div className={styles.inputField}>
+        <div className={styles.inputField} data-composer-text>
           {input.length === 0 && (suggestion ? (
             <span className={`${styles.chatPlaceholder} ${styles.chatSuggestion}`} aria-hidden="true">
               <span className={styles.chatSuggestionText}>{suggestion}</span>

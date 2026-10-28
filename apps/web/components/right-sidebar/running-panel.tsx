@@ -41,9 +41,9 @@ const DOT: Record<Tone, string> = {
   warn: "--warn", run: "--neutral pulse-opacity", ok: "--ok", err: "--err", muted: "is-muted",
 };
 
-function Glyph({ name, tone }: { name: SolarIconName; tone: ToolTone | "run" }) {
-  return <span className={styles.glyph} data-tone={tone} aria-hidden="true">
-    <SolarIcon name={name} size={16} motionPreset="none" />
+function Glyph({ name, tone, large }: { name: SolarIconName; tone: ToolTone | "run"; large?: boolean }) {
+  return <span className={styles.glyph} data-tone={tone} data-large={large ? "1" : undefined} aria-hidden="true">
+    <SolarIcon name={name} size={large ? 22 : 16} motionPreset="none" />
   </span>;
 }
 
@@ -451,7 +451,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       ? <span className={styles.rowBar}><ProgressBar fraction={look?.fraction ?? null} tone={programBarTone(item, look)}
         note={active ? look?.eta && text(`${look.eta} left`, `剩 ${look.eta}`) : item.ended_at != null ? clock(item.ended_at - item.started_at) : null} /></span>
       : null;
-    return <Row key={`program:${item.id}`} glyph={<Glyph name="code-square" tone="shell" />} title={programTitle(item, text)}
+    return <Row key={`program:${item.id}`} glyph={<Glyph name="code-square" tone="shell" large />} title={programTitle(item, text)}
       sub={commandLine(item)} status={programStatus(item, look, now, text)} tone={programTone(item)} extra={bar}
       onOpen={() => open({ kind: "program", id: item.id })} />;
   }

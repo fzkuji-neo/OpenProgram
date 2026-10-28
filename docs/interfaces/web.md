@@ -80,6 +80,10 @@ Sessions are matched on their title, latest message preview and project name, th
 
 `/chat` is the main chat interface; `/s/<session-id>` is a direct link to a single session. Switching sessions does not reload the page, and the WebSocket connection stays open.
 
+### Tucking the composer's rows
+
+Click the input box anywhere outside its text, such as the band above or below the line or the space beside the microphone and send buttons. The box gives a small bounce, and the rows of chips above and below it slide in behind it. Click there again to bring them back. The choice is remembered in this browser. Clicking the text itself only places the cursor. The function form ignores these clicks.
+
 ### Message streaming
 
 After a message is written to the connection, its text appears in the conversation and the submitted composer text clears immediately. The message remains pending until the server confirms receipt; confirmation updates the same message. A reply placeholder then appears, and text, thinking, and tool-call blocks stream over WebSocket in arrival order. When several agents write into one session, each reply from an agent other than the default carries that agent's name above it.

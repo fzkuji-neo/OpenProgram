@@ -65,6 +65,8 @@ import { useToolProfiles } from "./controls/use-tool-profiles";
 import { useUnattendedMode } from "./controls/use-unattended-mode";
 import { useSandboxToggle } from "./controls/use-sandbox-toggle";
 import { ControlsCluster } from "./controls/controls-cluster";
+import { useTuckedControls } from "./controls/use-tucked-controls";
+import { TuckRow } from "./controls/tuck-row";
 import { usePasteTokens } from "./paste/use-paste-tokens";
 import { useHistoryRecall } from "./input/use-history-recall";
 import { useChatSubmit } from "./submit/use-chat-submit";
@@ -288,6 +290,8 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
   const setFnFormClosingLocal = fnForm.setClosing;
 
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  // Chat mode only: the function form keeps its own layout.
+  const tuck = useTuckedControls(wrapperRef, !fnFormActive);
   const controlsRowRef = useRef<HTMLDivElement | null>(null);
   useCompactControlsRow(controlsRowRef);
   // Voice input dictates into this chat's draft (chat mode only).
@@ -579,6 +583,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
       ref={inputAreaRef}
       className={styles.inputArea}
       data-composer-input-area
+      data-tucked={tuck.tucked ? "" : undefined}
     >
       {/* Drop overlay scoped to the chat main column (#chatArea) —
           covers the conversation surface but lets the sidebars stay
@@ -594,12 +599,14 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
           )
         : null}
       <div className={styles.decisionColumn}><PendingDecisionPanels sessionId={activeChatKey ?? currentSessionId} /></div>
-      <EnvironmentRow
-        sessionId={currentSessionId}
-        toolsEnabled={toolsEnabled}
-        onToggleAccess={toggleTools}
-        trailingControls={<div id="dagHudSlot" />}
-      />
+      <TuckRow tucked={tuck.tucked} side="above">
+        <EnvironmentRow
+          sessionId={currentSessionId}
+          toolsEnabled={toolsEnabled}
+          onToggleAccess={toggleTools}
+          trailingControls={<div id="dagHudSlot" />}
+        />
+      </TuckRow>
       {/* Messages typed during the run dock directly above the input box. */}
       <QueuedMessages key={activeChatKey ?? currentSessionId ?? "new"} sessionId={activeChatKey ?? currentSessionId} />
       {/* composerStack wraps {slashClip, inputWrapper} so the slash
@@ -627,6 +634,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
           composerRootRef.current = el;
         }}
         className={`${styles.inputWrapper} ${morphed ? styles.morphed : ""}`}
+        onPointerDown={tuck.onBoxPointerDown}
         data-voice={voice.state !== "idle" ? voice.state : undefined}
       >
         {pendingRecording ? (
@@ -726,9 +734,11 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
         )}
       </div>
       </div>{/* /.composerStack */}
-      <div ref={controlsRowRef} className={`${styles.controlsRow} composer-bottom-row`}>
-        {controlsCluster}
-      </div>
+      <TuckRow tucked={tuck.tucked} side="below">
+        <div ref={controlsRowRef} className={`${styles.controlsRow} composer-bottom-row`}>
+          {controlsCluster}
+        </div>
+      </TuckRow>
       {recordDialogOpen ? (
         <RecordDialog composer={recordingComposer} onClose={() => setRecordDialogOpen(false)} />
       ) : null}
