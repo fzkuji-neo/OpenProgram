@@ -16,7 +16,7 @@ def test_file_tree_restores_anchor_without_refocusing_first_row(tmp_path: Path) 
 const {build}=require('esbuild');
 build({stdin:{contents:`
 import React from 'react';import{createRoot}from'react-dom/client';
-import{PierreFileTree}from'./components/files/pierre-file-tree';
+import{PierreFileTree}from'./components/files/explorer/pierre-file-tree';
 function App(){
  const ref=React.useRef(null),saved=React.useRef(null);
  const[revision,setRevision]=React.useState(0),[selected,setSelected]=React.useState(null);

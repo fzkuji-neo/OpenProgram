@@ -56,7 +56,7 @@ for (const file of ["components/projects/projects-page.tsx", "components/memory/
 }
 
 // The Files panel's tree (Pierre) draws the same Solar folder through its sprite.
-const pierreTheme = read("components/files/pierre-tree-theme.ts");
+const pierreTheme = read("components/files/explorer/pierre-tree-theme.ts");
 assert.ok(pierreTheme.includes("${SOLAR_BODIES.folder}") && pierreTheme.includes('${SOLAR_BODIES["folder-open"]}'), "the Files tree must use the Solar folder");
 assert.ok(/svg \{ transform: none !important; color: var\(--folder-color\); \}/.test(pierreTheme), "Files tree folders use --folder-color");
 

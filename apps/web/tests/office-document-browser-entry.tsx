@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { closeDocumentController } from "../lib/files/document-controller";
-import { DocumentWindow } from "../components/files/lazy-document-window";
+import { DocumentWindow } from "../components/files/surfaces/lazy-document-window";
 import { PersistentFilePanes } from "../components/center-tabs/files/persistent-file-panes";
 
 function Fixture() {

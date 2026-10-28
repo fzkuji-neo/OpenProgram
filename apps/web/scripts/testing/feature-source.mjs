@@ -8,7 +8,7 @@ export function readDesktopBridgeSource() {
   return [read("lib/desktop/desktop-bridge.ts"), ...names.map((name) => read(`lib/desktop/${name}`))].join("\n");
 }
 export function readFileTreeSource() {
-  return ["file-tree.tsx", "file-tree-actions.ts", "file-tree-operation.ts", "file-tree-query.ts"]
+  return ["tree/file-tree.tsx", "tree/file-tree-actions.ts", "tree/file-tree-operation.ts", "tree/file-tree-query.ts"]
     .map((name) => read(`components/files/${name}`)).join("\n");
 }
 export function readDesktopMainSource() {

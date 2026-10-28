@@ -16,7 +16,7 @@ def test_file_columns_align_and_scroll_with_real_virtual_rows(tmp_path: Path) ->
 const {build}=require('esbuild');
 build({stdin:{contents:`
 import React from 'react';import{createRoot}from'react-dom/client';
-import{PierreFileTree,PierreSearchTree}from'./components/files/pierre-file-tree';
+import{PierreFileTree,PierreSearchTree}from'./components/files/explorer/pierre-file-tree';
 function App(){
  const[sort,setSort]=React.useState('name:asc:folders:visible:tracked');
  const[selected,setSelected]=React.useState(null),[expanded,setExpanded]=React.useState(new Set(['parent']));

@@ -23,11 +23,11 @@ import {
   ExplorerHeader,
   ExplorerMatchText,
   type ExplorerSearchMode,
-} from "@/components/files/explorer-header";
+} from "@/components/files/explorer/explorer-header";
 import {
   matchingIndexes,
   visibleSearchPaths,
-} from "@/components/files/explorer-search";
+} from "@/components/files/explorer/explorer-search";
 import { useTranslation } from "@/lib/i18n";
 import { createProgramsCache } from "./programs-cache";
 import { jsonFetch } from "@/lib/net/fetch-client";

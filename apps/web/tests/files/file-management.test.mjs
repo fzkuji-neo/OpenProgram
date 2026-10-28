@@ -12,7 +12,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { parseHTML } from "linkedom";
 const require = createRequire(import.meta.url);
 const bundle = await build({
-  stdin: { contents: 'export * from "./components/files/explorer-header"; export * from "./components/files/file-management"; export * from "./components/files/file-tree"; export * from "./components/files/pierre-file-tree";', resolveDir: fileURLToPath(new URL("../../", import.meta.url)), loader: "tsx" },
+  stdin: { contents: 'export * from "./components/files/explorer/explorer-header"; export * from "./components/files/file-management"; export * from "./components/files/tree/file-tree"; export * from "./components/files/explorer/pierre-file-tree";', resolveDir: fileURLToPath(new URL("../../", import.meta.url)), loader: "tsx" },
   bundle: true, write: false, format: "cjs", platform: "node", jsx: "automatic", loader: { ".css": "empty" },
   plugins: [{ name: "host", setup(builder) {
     builder.onLoad({ filter: /\.css$/ }, () => ({ contents: "export default {};", loader: "js" }));

@@ -32,27 +32,27 @@ import { navigate } from "@/lib/navigate";
 import { useSessionStore } from "@/lib/session-store";
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { TreeContextMenu, treeClipboard } from "./tree-context-menu";
-import { MoveToDialog } from "./move-to-dialog";
-import { rememberMoveTarget } from "./move-targets";
+import { TreeContextMenu, treeClipboard } from "../explorer/tree-context-menu";
+import { MoveToDialog } from "../explorer/move-to-dialog";
+import { rememberMoveTarget } from "../explorer/move-targets";
 import {
   ExplorerHeader,
   copyText,
   type ExplorerSearchMode,
-} from "./explorer-header";
+} from "../explorer/explorer-header";
 import {
   matchingIndexes,
   visibleSearchPaths,
-} from "./explorer-search";
+} from "../explorer/explorer-search";
 import { baseOf, joinPath, parentOf, projectAbsPath, projectPathCache } from "./file-tree-query";
 import { runFileOperation, type FileOperation, type FileOperationResult } from "./file-tree-operation";
 import { createFileTreeActions } from "./file-tree-actions";
-import { FileBreadcrumb, FileDetails, FileSortMenu, useFileSort, invalidateFolderSizes } from "./file-management";
+import { FileBreadcrumb, FileDetails, FileSortMenu, useFileSort, invalidateFolderSizes } from "../file-management";
 import { HoverTip } from "@/components/ui/tooltip";
-import styles from "./files-panel.module.css";
-import { PierreFileTree, PierreSearchTree, type PierreTreeEntry, type PierreTreeHandle } from "./pierre-file-tree";
+import styles from "../files-panel.module.css";
+import { PierreFileTree, PierreSearchTree, type PierreTreeEntry, type PierreTreeHandle } from "../explorer/pierre-file-tree";
 import { collectDroppedFiles, uploadDroppedFiles } from "./file-tree-drop";
-import { ProjectLocationNotice } from "./project-location-notice";
+import { ProjectLocationNotice } from "../project-location-notice";
 import { showToast } from "@/lib/format-utils/toast";
 
 export interface TreeEntry {

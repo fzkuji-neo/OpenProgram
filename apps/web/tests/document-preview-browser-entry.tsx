@@ -1,6 +1,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { DocumentWindow } from "../components/files/document-window";
+import { DocumentWindow } from "../components/files/surfaces/document-window";
 import { FileViewer } from "../components/files/file-viewer";
 import { ConfirmDialogHost } from "../components/ui/confirm-dialog";
 const root = createRoot(document.getElementById("root")!);

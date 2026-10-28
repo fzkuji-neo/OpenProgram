@@ -36,7 +36,7 @@ const MENUS = [
   "components/center-tabs/browser/toolbar/browser-control-bar.tsx",
   "components/center-tabs/pages/builtin-tab-pane.tsx",
   "components/center-tabs/review/review-tab-pane.tsx",
-  "components/files/tree-context-menu.tsx",
+  "components/files/explorer/tree-context-menu.tsx",
   "components/files/file-management.tsx",
   "components/functions/ctx-menu.tsx",
   "components/agents/agents-page.tsx",

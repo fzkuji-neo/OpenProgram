@@ -33,19 +33,19 @@ const mocks = {
     export const ContextMenuItem=({children,disabled,onSelect})=><button data-menu-item disabled={disabled} onClick={onSelect}>{children}</button>;`,
   '@/components/ui/confirm-dialog': `import React from 'react';
     export const ConfirmDialog=({onConfirm})=><button data-confirm onClick={onConfirm}>Confirm</button>;`,
-  './pierre-file-tree': `import React,{forwardRef,useImperativeHandle} from 'react';
+  '../explorer/pierre-file-tree': `import React,{forwardRef,useImperativeHandle} from 'react';
     const Tree=forwardRef(({entries=[],matches=[],onContextMenu},ref)=>{
       useImperativeHandle(ref,()=>({getScrollState:()=>null,scrollToTop:()=>{},reveal:()=>true}));
       return <div>{(entries.length?entries:matches).map(e=><button key={e.path} data-entry={e.path}
         onContextMenu={event=>onContextMenu(event,e.path,e.type)}>{e.path}</button>)}</div>;
     }); export const PierreFileTree=Tree; export const PierreSearchTree=Tree;`,
-  './explorer-header': `import React from 'react'; export const copyText=async()=>true;
+  '../explorer/explorer-header': `import React from 'react'; export const copyText=async()=>true;
     export const ExplorerHeader=({actions,onQueryChange})=><div>{actions}<button data-search onClick={()=>onQueryChange('apple')}>Search apple</button></div>;`,
-  './file-management': `import React from 'react'; export const FileBreadcrumb=()=>null; export const FileDetails=()=>null;
+  '../file-management': `import React from 'react'; export const FileBreadcrumb=()=>null; export const FileDetails=()=>null;
     export const FileSortMenu=()=>null; export const useFileSort=()=>['name:asc:folders:hidden:ignored',()=>{}];
     export const invalidateFolderSizes=()=>{};`,
 };
-const bundle=await build({stdin:{contents:'export {FileTree} from "./components/files/file-tree";',resolveDir:fileURLToPath(new URL('../../',import.meta.url)),loader:'tsx'},bundle:true,write:false,format:'cjs',platform:'node',jsx:'automatic',plugins:[{name:'host',setup(b){
+const bundle=await build({stdin:{contents:'export {FileTree} from "./components/files/tree/file-tree";',resolveDir:fileURLToPath(new URL('../../',import.meta.url)),loader:'tsx'},bundle:true,write:false,format:'cjs',platform:'node',jsx:'automatic',plugins:[{name:'host',setup(b){
   b.onResolve({filter:/.*/},({path})=>path in mocks?{path,namespace:'mock'}:undefined);
   b.onLoad({filter:/.*/,namespace:'mock'},({path})=>({contents:mocks[path],loader:'tsx'}));
   b.onResolve({filter:/^react(?:-dom)?(?:\/.*)?$/},({path})=>({path:require.resolve(path),external:true}));

@@ -17,7 +17,7 @@
 import { createPortal } from "react-dom";
 import { useState } from "react";
 
-import { DocumentWindow } from "@/components/files/lazy-document-window";
+import { DocumentWindow } from "@/components/files/surfaces/lazy-document-window";
 import { useTranslation } from "@/lib/i18n";
 import { useModalA11y } from "@/lib/hooks/use-modal-a11y";
 import { useSessionStore } from "@/lib/session-store";

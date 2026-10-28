@@ -3,12 +3,12 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { FileTree, useFileTree } from "@pierre/trees/react";
 import { pierreTreeIcons as icons, pierreTreeCSS as css, fileColumnWidths } from "./pierre-tree-theme";
-import { formatFileBytes, useFolderSize } from "./file-management";
+import { formatFileBytes, useFolderSize } from "../file-management";
 import { useTranslation } from "@/lib/i18n";
-import { FileColumnsHeader, fileKind } from "./file-tree-columns";
-import { carriesFiles } from "./file-tree-drop";
+import { FileColumnsHeader, fileKind } from "../tree/file-tree-columns";
+import { carriesFiles } from "../tree/file-tree-drop";
 import { attachOverlayScrollbar } from "@/lib/runtime-bridge/dom/scrollbar";
-import styles from "./files-panel.module.css";
+import styles from "../files-panel.module.css";
 
 export interface PierreTreeEntry { path: string; type: "file" | "dir"; size: number; mtime?: number }
 export interface PierreScrollState { path: string; offset: number }

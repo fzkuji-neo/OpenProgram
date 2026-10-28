@@ -16,7 +16,7 @@ import {
   canConfirmInPlace, confirmProjectFolder, locationMessage, locationProblem,
   notifyProjectLocationChanged, relocateProject, type ProjectLocation, type RelocateReply,
 } from "@/lib/projects/project-location";
-import { projectPathCache } from "./file-tree-query";
+import { projectPathCache } from "./tree/file-tree-query";
 import styles from "./files-panel.module.css";
 
 export function ProjectLocationNotice({ projectId, onRepaired }: { projectId: string; onRepaired(): void }) {

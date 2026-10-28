@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FileTextIcon, RefreshCwIcon } from "@/components/animated-icons";
 import { useActionIconAnimation } from "@/components/chat/messages/bubbles/use-action-icon-animation";
 import { useTranslation } from "@/lib/i18n";
-import { EditorArea, FileViewer } from "./file-viewer";
+import { EditorArea, FileViewer } from "../file-viewer";
 import { getOrCreateDocumentController } from "@/lib/files/document-controller";
 import type { DocumentHistoryEntry, DocumentHistoryPage } from "@/lib/files/document-types";
 import styles from "./document-window.module.css";

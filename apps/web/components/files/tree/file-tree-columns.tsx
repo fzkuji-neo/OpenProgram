@@ -3,7 +3,7 @@
 import { forwardRef } from "react";
 import { useTranslation } from "@/lib/i18n";
 
-import { fileColumnGrid, fileColumnsWidth } from "./pierre-tree-theme";
+import { fileColumnGrid, fileColumnsWidth } from "../explorer/pierre-tree-theme";
 
 const nameAndSizeGrid = "var(--op-files-name-width, 220px) 100px";
 

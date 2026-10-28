@@ -2,7 +2,7 @@
 
 import { FileText } from "lucide-react";
 
-import { FileTree } from "@/components/files/file-tree";
+import { FileTree } from "@/components/files/tree/file-tree";
 import { useTranslation } from "@/lib/i18n";
 import { useCurrentProject } from "@/lib/files/files-shared";
 import styles from "../strip/center-tabs.module.css";

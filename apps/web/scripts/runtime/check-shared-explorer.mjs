@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const root = new URL("../../", import.meta.url);
-const header = readFileSync(new URL("components/files/explorer-header.tsx", root), "utf8");
+const header = readFileSync(new URL("components/files/explorer/explorer-header.tsx", root), "utf8");
 const files = readFileTreeSource();
 const programs = readFileSync(new URL("components/programs/programs-page.tsx", root), "utf8");
 const css = readFileSync(new URL("components/files/files-panel.module.css", root), "utf8");

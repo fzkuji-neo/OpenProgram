@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   matchingIndexes,
   visibleSearchPaths,
-} from "../../components/files/explorer-search.ts";
+} from "../../components/files/explorer/explorer-search.ts";
 
 test("fuzzy and exact matching return only matched character positions", () => {
   assert.deepEqual(matchingIndexes("paper_search", "pa", true), [0, 1]);

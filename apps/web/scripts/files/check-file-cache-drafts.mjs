@@ -7,9 +7,9 @@ const shared = readFileSync(new URL("../../lib/files/file-state-shared.ts", impo
   + readFileSync(new URL("../../lib/files/file-drafts.ts", import.meta.url), "utf8");
 const store = readFileSync(new URL("../../lib/files/file-draft-store.ts", import.meta.url), "utf8");
 const viewer = readFileSync(new URL("../../components/files/file-viewer.tsx", import.meta.url), "utf8");
-const pane = readFileSync(new URL("../../components/files/document-window.tsx", import.meta.url), "utf8");
+const pane = readFileSync(new URL("../../components/files/surfaces/document-window.tsx", import.meta.url), "utf8");
 const tree = readFileTreeSource();
-const treeOperation = readFileSync(new URL("../../components/files/file-tree-operation.ts", import.meta.url), "utf8");
+const treeOperation = readFileSync(new URL("../../components/files/tree/file-tree-operation.ts", import.meta.url), "utf8");
 const ws = readFileSync(new URL("../../lib/net/ws/ws-request.ts", import.meta.url), "utf8");
 const turnFiles = readFileSync(new URL("../../../server/openprogram_server/_webui/ws_actions/turn_files/__init__.py", import.meta.url), "utf8");
 const lifecycle = readFileSync(new URL("../../components/center-tabs/tab-actions/use-tab-lifecycle.ts", import.meta.url), "utf8");

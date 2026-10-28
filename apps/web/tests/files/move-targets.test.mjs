@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { canMoveInto, matchFolders, recentMoveTargets, rememberMoveTarget, splitFolderInput, typedFolder } from "../../components/files/move-targets.ts";
+import { canMoveInto, matchFolders, recentMoveTargets, rememberMoveTarget, splitFolderInput, typedFolder } from "../../components/files/explorer/move-targets.ts";
 
 test("a typed folder path is cleaned and stays inside the project", () => {
   assert.equal(typedFolder("  docs/notes/ "), "docs/notes");

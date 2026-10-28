@@ -18,7 +18,7 @@ import { copyText } from "@/lib/clipboard";
 import { useTranslation } from "@/lib/i18n";
 import { matchingIndexes } from "./explorer-search";
 import { HoverTip } from "@/components/ui/tooltip";
-import styles from "./files-panel.module.css";
+import styles from "../files-panel.module.css";
 
 export type ExplorerSearchMode = "filter" | "highlight";
 

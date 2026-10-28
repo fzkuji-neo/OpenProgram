@@ -49,7 +49,7 @@ import {
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
 } from "../animated-icons";
-import { FileTree } from "../files/file-tree";
+import { FileTree } from "../files/tree/file-tree";
 import { RunningPanel } from "./running-panel";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { resourceSessionId } from "@/lib/chat/resources/session-resources";

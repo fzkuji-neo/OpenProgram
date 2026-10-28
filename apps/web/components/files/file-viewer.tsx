@@ -9,7 +9,7 @@ import type { FileSectionNavigation } from "@/lib/tabs/panes/file-section-reques
 import { useEffect, useMemo, useRef, useState } from "react";
 import { lazy, Suspense } from "react";
 import { fileCapabilities, fileExtension, IMAGE_EXTENSIONS } from "@/lib/documents/file-formats";
-import { ImagePreview } from "./preview/image-preview";
+import { ImagePreview } from "./preview/image/image-preview";
 import { MediaPreview } from "./preview/media-preview";
 import { Download } from "lucide-react";
 
@@ -31,7 +31,7 @@ import previewStyles from "./preview/preview.module.css";
 
 export const IMAGE_EXTS = IMAGE_EXTENSIONS;
 const PdfPreview = lazy(() => import("./preview/pdf-preview").then((module) => ({ default: module.PdfPreview })));
-const LayeredImagePreview = lazy(() => import("./preview/layered-image-preview").then((module) => ({ default: module.LayeredImagePreview })));
+const LayeredImagePreview = lazy(() => import("./preview/image/layered-image-preview").then((module) => ({ default: module.LayeredImagePreview })));
 
 function fmtSize(bytes: number): string {
   if (!Number.isFinite(bytes)) return "";

@@ -11,7 +11,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { MENU_ITEM_STATES, MENU_PANEL, GROUP_LABEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { MenuRow, type MenuGlyph } from "@/components/ui/menu-parts";
-import { copyText } from "./explorer-header";
+import { copyText } from "./explorer/explorer-header";
 import styles from "./files-panel.module.css";
 
 const DEFAULT_SORT = "name:asc:folders:hidden:ignored";

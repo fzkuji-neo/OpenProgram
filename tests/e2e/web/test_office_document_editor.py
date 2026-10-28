@@ -72,7 +72,7 @@ def office_window(tmp_path, monkeypatch, office_window_bundle):
 
     @app.get("/")
     async def index():
-        return HTMLResponse('<style>:root{--bg-primary:#1e1e20;--text-secondary:#a1a1aa;--text-tertiary:#71717a;--border-subtle:#333}</style><style>' + Path('apps/web/components/files/office-surface.module.css').read_text() + '</style>' + '''<style>html,body,#root{height:100%;margin:0}.fixture-pane{height:100%;min-height:0}.window{flex:1;min-width:0;width:100%;height:100%;display:flex;flex-direction:column}.body{flex:1;min-height:0;overflow:auto}.toolbar{min-height:40px;display:flex;gap:8px}.history{max-height:150px;overflow:auto}</style><div id="root"></div><script src="/_next/static/office-window.js"></script>''')
+        return HTMLResponse('<style>:root{--bg-primary:#1e1e20;--text-secondary:#a1a1aa;--text-tertiary:#71717a;--border-subtle:#333}</style><style>' + Path('apps/web/components/files/surfaces/office-surface.module.css').read_text() + '</style>' + '''<style>html,body,#root{height:100%;margin:0}.fixture-pane{height:100%;min-height:0}.window{flex:1;min-width:0;width:100%;height:100%;display:flex;flex-direction:column}.body{flex:1;min-height:0;overflow:auto}.toolbar{min-height:40px;display:flex;gap:8px}.history{max-height:150px;overflow:auto}</style><div id="root"></div><script src="/_next/static/office-window.js"></script>''')
 
     @app.get("/_next/static/office-window.js")
     async def bundle():

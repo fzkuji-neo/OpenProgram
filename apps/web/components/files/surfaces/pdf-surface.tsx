@@ -1,7 +1,7 @@
 "use client";
 import { lazy, Suspense, useEffect, useState } from "react";
 import type { DocumentController } from "@/lib/files/document-controller";
-const PdfPreview = lazy(() => import("./preview/pdf-preview"));
+const PdfPreview = lazy(() => import("../preview/pdf-preview"));
 
 /** The owner remounts on editorRevision; autosaved draft bytes retain the editor. */
 export function PdfSurface({ bytes, path, controller, readOnly, saveStatus }: { bytes: Blob; path: string; controller: DocumentController; readOnly: boolean; saveStatus: string }) {

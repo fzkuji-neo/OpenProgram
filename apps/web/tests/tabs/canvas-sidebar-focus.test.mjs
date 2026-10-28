@@ -16,7 +16,7 @@ const stubs = {
   '../../net/fetch-client.ts': 'export const jsonFetch=(...args)=>globalThis.sidebarResourceFetch(...args);',
   './context-commit-timeline': 'export const ContextCommitTimeline=()=>null;',
   '../animated-icons': 'import {forwardRef} from "react"; const Icon=forwardRef(()=>null); export const ActivityIcon=Icon,BoxIcon=Icon,FolderOpenIcon=Icon,PanelLeftCloseIcon=Icon,PanelLeftOpenIcon=Icon;',
-  '../files/file-tree': 'import React from "react"; export const FileTree=({projectId})=>React.createElement("output",{"data-project":projectId},projectId);',
+  '../files/tree/file-tree': 'import React from "react"; export const FileTree=({projectId})=>React.createElement("output",{"data-project":projectId},projectId);',
   './running-panel': 'import React from "react"; export const RunningPanel=({sessionId})=>React.createElement("output",{"data-activity":sessionId},sessionId);',
   '../layout/use-resizable-rail': 'export const useResizableRail=()=>({style:{},resizeHandleProps:{}});',
   './detail-panel': 'export const DetailPanel=()=>null,SessionViewSwitch=()=>null,VIEW_CONTEXT="context",VIEW_DETAIL="detail";',

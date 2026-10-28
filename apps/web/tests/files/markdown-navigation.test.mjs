@@ -51,7 +51,7 @@ globalThis.fetch = async () => { throw new Error("Unexpected network request in 
 const { useCenterTabs: tabs, snapshotCenterTabsPayload, replaceCenterTabsPayload } = await import("../../lib/tabs/center-tabs-store.ts");
 const { MarkdownPreview } = await import("../../components/files/preview/markdown-preview.tsx");
 const { PersistentFilePanes } = await import("../../components/center-tabs/files/persistent-file-panes.tsx");
-const { DocumentWindow } = await import("../../components/files/document-window.tsx");
+const { DocumentWindow } = await import("../../components/files/surfaces/document-window.tsx");
 const { DocumentController } = await import("../../lib/files/document-controller.ts");
 const { documentControllers } = await import("../../lib/files/document-controller-registry.ts");
 const { MemoryDraftStore } = await import("../../lib/files/file-draft-store.ts");

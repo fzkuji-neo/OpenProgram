@@ -18,7 +18,7 @@ def test_long_names_preserve_visible_size_lane(tmp_path: Path) -> None:
 const {build}=require('esbuild');
 build({stdin:{contents:`
 import React from 'react';import{createRoot}from'react-dom/client';
-import{PierreFileTree}from'./components/files/pierre-file-tree';
+import{PierreFileTree}from'./components/files/explorer/pierre-file-tree';
 function App(){
  const[selected,setSelected]=React.useState(null);
  const[expanded,setExpanded]=React.useState(new Set(['parent']));

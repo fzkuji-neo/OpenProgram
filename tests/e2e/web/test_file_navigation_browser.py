@@ -40,7 +40,7 @@ import {setNavigate} from "./lib/navigate";
 setNavigate(path=>window.history.pushState(null,"",path));
 import React,{useEffect} from "react";import{createRoot}from"react-dom/client";
 import{PageNavigation}from"./components/center-tabs/browser/toolbar/page-navigation";
-import{FileTree}from"./components/files/file-tree";import{useCenterTabs}from"./lib/tabs/center-tabs-store";
+import{FileTree}from"./components/files/tree/file-tree";import{useCenterTabs}from"./lib/tabs/center-tabs-store";
 function App(){
  const active=useCenterTabs(s=>s.tabs.find(t=>t.id===s.activeId));
  useEffect(()=>{useCenterTabs.getState().openBuiltinTab("files")},[]);
