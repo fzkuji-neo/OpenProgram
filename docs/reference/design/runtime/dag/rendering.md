@@ -59,7 +59,7 @@ the user drives directly.
 | left drag on empty canvas | a selection box (§13) |
 | left press on a node | the node's — click and double-click still work |
 
-**Wheel** (`apps/web/lib/runtime-bridge/dag/interaction/canvas.ts`,
+**Wheel** (`apps/web/lib/runtime-bridge/dag/interaction/gestures.ts`,
 `interaction/wheel.ts`): a mouse wheel zooms, the way a map does; two fingers
 on a trackpad pan, the way a design canvas does; a pinch zooms. All three are
 `wheel` events, so the kind is read from the event: a pinch carries `ctrlKey`
@@ -557,8 +557,11 @@ historical multi-generation delegation chains remain drawable.
 ```
 apps/web/lib/runtime-bridge/dag/
   pipeline.ts        orchestration: passes → layout → edges → nodes → badges → canvas
-  interaction/canvas.ts  the infinite canvas: pan / zoom / fit, and the dot lattice
-                     that makes the grid visible
+  interaction/canvas.ts    the infinite canvas: the view (pan / zoom / fit), and
+                           the dot lattice that makes the grid visible
+  interaction/gestures.ts  wheel, pinch and drags, which move the view
+  render/seat.ts           reads a drawn group's translate(x,y) back, for the
+                           passes that run after drawing
   passes/            data transforms, applied in order:
     merge-runs.ts               merge consecutive runs of the same node
     collapse-runtime-pairs.ts   fold a legacy display=runtime user/assistant
@@ -589,6 +592,18 @@ apps/web/lib/runtime-bridge/dag/
   apps/web/lib/runtime-bridge/dag/render/badges.ts   the branch-name badge of section 5
   apps/web/lib/runtime-bridge/dag/store/globals.ts   expansion state, lastGraph, signatures
 ```
+
+**What a paint costs.** A capture redraws the whole SVG, so the drawers keep
+what does not change between captures: each icon is parsed once and cloned
+into its tiles, a tool's presentation is kept per name, arguments and
+language, and text widths per font and string. Attaching the new SVG sets
+its transform at once and leaves everything that needs the pane's size to
+the next frame, so a capture never forces a layout of its own. Gestures only
+move the view in the store; `applyView` paints it once a frame. A pan
+rewrites the two translations and the lattice offset; the work bound to the
+scale — the semantic-zoom variables, label culling, the lattice pitch — runs
+only when the scale or the drawn graph changes. On a 150-node session one
+repaint takes about 5ms of main-thread time.
 
 The backend `apps/server/openprogram_server/_webui/graph_builder.py` produces the node array (including the
 `branch_name` stamp, caller/predecessor), and `graph_layout/` does the lane/tier/depth
@@ -951,7 +966,7 @@ The mouse wheel zooms like a map's; two fingers on a trackpad pan; a pinch
 zooms at its own, faster rate. macOS fires the right-click menu on the press, before a
 drag can start, so the canvas holds it and opens it on release when the
 pointer did not move. These are fixed by design, not settings: touching
-selects (no enclose-only mode) (`apps/web/lib/runtime-bridge/dag/interaction/canvas.ts`,
+selects (no enclose-only mode) (`apps/web/lib/runtime-bridge/dag/interaction/gestures.ts`,
 `interaction/nodes.ts`, `interaction/selection.ts`).
 
 The rail on the canvas's left edge is one raised strip of the app's button
@@ -1036,8 +1051,8 @@ its middle. It starts hidden; the column's map button or M shows it and hides
 it again, and the choice is kept in the browser. Once shown it stays on
 screen whatever the view: a map that faded out whenever the whole graph fitted
 came and went with the zoom and read as a glitch
-(`apps/web/lib/runtime-bridge/dag/interaction/minimap.ts`, repainted by
-`applyView` on every view change).
+(`apps/web/lib/runtime-bridge/dag/interaction/minimap.ts`, repainted with the
+view, once a frame; the dots, lines and colours are read once per drawn graph).
 
 ## Appendix: Implementation Status
 
@@ -1069,4 +1084,4 @@ The whole spec is implemented. Where each part lives:
 | §11 legend | `DagLegend` in `apps/web/components/chat/dag-view.tsx` (in the zoom column), `.dag-legend` in `apps/web/app/styles/dag/hud.css` |
 | §12 call thread + agent spawn | `apps/web/lib/runtime-bridge/dag/render/shapes.ts` (spawn → square), `apps/web/lib/runtime-bridge/dag/passes/thread.ts` (model), `apps/web/lib/runtime-bridge/dag/layout/geometry.ts` (recursive placement), `apps/web/lib/runtime-bridge/dag/render/edges.ts` (dotted thread line, centre-to-centre chain edges, scene-3 bridge), `apps/web/lib/runtime-bridge/dag/render/nodes.ts` (`data-thread*`, shoulder count), `apps/web/lib/runtime-bridge/dag/interaction/nodes.ts` (`toggleThreadOpen`); executed by `apps/web/scripts/runtime/check-dag-subagent.mjs` |
 | §12 the name on the wire | `task/runner.py::_update_attach_card` stamps `attach.label` from the task; `ws_actions/session.py::_annotate_spawn_origin` carries it to the spawn root as `spawned_from.label`; tested in `tests/unit/test_task_attach_integration.py` |
-| §13 mouse, rail, selection, delete / undo | selection state, hit-testing and the selection box in `apps/web/lib/runtime-bridge/dag/interaction/selection.ts`; drags in `canvas.ts`, clicks in `nodes.ts`, keys in `keys.ts`; widening and the undo stack in `node-delete.ts`; rail and action bar in `apps/web/components/chat/dag-tools.tsx`, key sheet in `dag-key-sheet.tsx`, minimap in `interaction/minimap.ts`, + `apps/web/app/styles/dag/tools.css`; store splice and journal in `openprogram/store/session/session_store/node_deletion.py`; tested in `tests/component/store/test_node_deletion.py` and `apps/web/tests/execution/dag-selection.test.mjs` |
+| §13 mouse, rail, selection, delete / undo | selection state, hit-testing and the selection box in `apps/web/lib/runtime-bridge/dag/interaction/selection.ts`; drags in `gestures.ts`, clicks in `nodes.ts`, keys in `keys.ts`; widening and the undo stack in `node-delete.ts`; rail and action bar in `apps/web/components/chat/dag-tools.tsx`, key sheet in `dag-key-sheet.tsx`, minimap in `interaction/minimap.ts`, + `apps/web/app/styles/dag/tools.css`; store splice and journal in `openprogram/store/session/session_store/node_deletion.py`; tested in `tests/component/store/test_node_deletion.py` and `apps/web/tests/execution/dag-selection.test.mjs` |

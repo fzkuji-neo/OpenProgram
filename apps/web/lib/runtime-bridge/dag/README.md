@@ -5,11 +5,11 @@ conversation history view). It paints into `#historyPanel .history-body`,
 hosted by the chat pane's graph perspective
 (`apps/web/components/chat/dag-view.tsx`) — see
 `docs/reference/design/runtime/dag/rendering.md`. Imported for side
-effects by `apps/web/components/app-shell.tsx` via `./index`; exposes
-`renderHistoryGraph` / `repaintBranchTags` / `setHistoryContextRange`
-/ `refreshHistoryContextRange` / `recomputeHistoryVisibility` /
-`setHistoryHighlightMode` / `getHistoryHighlightMode` on `window.*`
-(consumed by `../conversations.ts` and the WebSocket handlers).
+effects by `apps/web/components/app-shell.tsx` via `./index`, which
+exports `renderHistoryGraph` / `repaintBranchTags` /
+`setHistoryContextRange` / `refreshHistoryContextRange` /
+`enterExclusiveCoverageMode` (imported by `../conversations.ts`,
+`../chat-handlers.ts`, `app-shell.tsx` and `components/chat/dag-view.tsx`).
 
 This module replaced and removed the pre-split monolithic
 `apps/web/lib/runtime-bridge/history-graph.ts` (~1700 lines). Current code
@@ -20,8 +20,8 @@ imports from `./dag` directly.
 ```
 dag/
 ├── README.md                  (this file)
-├── index.ts                   public entry + window bridges
-├── types.ts                   GNode / HighlightMode / constants
+├── index.ts                   public entry
+├── types.ts                   GNode / layout constants
 ├── paint-gate.ts              cheap signatures and render gating
 ├── pipeline.ts                main render() pass + layout + emit loop
 ├── passes/
@@ -38,7 +38,14 @@ dag/
 │   ├── assign-lanes.ts                  column index (prefers backend _lane)
 │   └── geometry.ts                      coordinates and graph bounds
 ├── interaction/
-│   ├── canvas.ts                        pan / zoom / fit and view persistence
+│   ├── canvas.ts                        the view: pan / zoom / fit, lattice, one paint a frame
+│   ├── gestures.ts                      wheel, pinch, pan drag, selection-box drag
+│   ├── wheel.ts                         mouse wheel vs trackpad vs pinch
+│   ├── far-labels.ts                    zoomed-out label culling
+│   ├── minimap.ts                       the corner map
+│   ├── selection.ts                     selection state, hit-testing, the box
+│   ├── node-delete.ts                   delete, widening, undo
+│   ├── keys.ts / help.ts                shortcuts and their sheet
 │   ├── nodes.ts                         click / dblclick / contextmenu wiring
 │   ├── tooltip-content.ts               pure tooltip content model
 │   └── tooltip.ts                       tooltip DOM lifecycle and positioning
@@ -46,10 +53,12 @@ dag/
 │   ├── nodes.ts                         node tiles, status and coverage marks
 │   ├── tiles.ts                         icon tile per node kind (presentTool for calls)
 │   ├── agents.ts                        agent dots and activity bubbles
+│   ├── captions.ts                      the text beside each node
 │   ├── edges.ts                         conv / fork / attach / spawn edges, belts
 │   ├── badges.ts                        branch-name badges
-│   ├── visibility.ts                    coverage fill + chat-scroll/mutation sync
+│   ├── visibility.ts                    the coverage fill (is-covered)
 │   ├── inspector.ts                     node inspector popover + context menu
+│   ├── seat.ts                          reads a drawn group's translate(x,y) back
 │   └── shapes.ts                        SVG primitives, branch colour, text width
 └── store/
     └── globals.ts                       module-level state (HEAD, collapsed set, ...)
@@ -105,13 +114,30 @@ flat GNode[]
   → buildTree + assignDepth + assignLanes
   → emit SVG
        conv-edges → attach-refs → spawn-edges → nodes → branch-tags
-  → wire chat-scroll / mutation / resize sync
-  → first _recomputeVisibility (+ rAF / 250ms / 700ms catch-up)
+  → attachCanvas (transform now, the rest on the next frame)
+  → _recomputeVisibility (the coverage fill)
 ```
 
 State that survives across calls (`_threadOpen`, `_summaryExpanded`,
-`_lastSignature`, `_lastGraph`, the per-session canvas view, and the various
-"wired?" latches) lives in `store/globals.ts`.
+`_lastSignature`, `_lastGraph`, the per-session canvas view) lives in
+`store/globals.ts`.
+
+## Keeping a paint cheap
+
+A capture redraws the whole SVG, and gestures fire faster than the
+screen refreshes. The rules that keep both cheap
+(`docs/reference/design/runtime/dag/rendering.md` §7):
+
+* Gestures move the view in the store; `applyView` paints once a frame.
+  Work bound to the scale runs only when the scale or the graph changes.
+* Never read a size (`clientWidth`, `getBoundingClientRect`, `getBBox`)
+  straight after swapping DOM in: read first, write after, or wait a
+  frame. `attachCanvas` sets the transform and defers the rest.
+* Whatever is a pure function of its inputs is kept: icons
+  (`render/tiles.ts`), tool presentations, text widths
+  (`render/shapes.ts`), the minimap's dots and colours.
+* Positions of drawn groups come from `render/seat.ts`, not ad-hoc
+  regexes.
 
 ## Known corner cases (locked in by tests + manual checks)
 
@@ -129,11 +155,9 @@ adding a new pass, check that you don't regress any of these:
   ROOT diamond on the trunk (lane 0, one tier in), same colour as the
   trunk.
 
-* **Sub-calls don't dim** (issue #129). The "out-of-context"
-  override forces `task` / `attach` / `merge` to read as in-context
-  regardless of what the context engine says, and `_recomputeVisibility`
-  propagates visibility through `_internalOwner` so a visible owner
-  lights up its whole sub-call subtree.
+* **Sub-calls don't dim** (issue #129). A node outside the context
+  range keeps its solid tile (`.history-node.out-of-context` in
+  `app/styles/dag/nodes.css`); only edges fade.
 
 * **Top-level `gui_agent` square auto-collapses** (issue #136).
   `applyCollapse` always starts `role=tool` clusters with ≥1

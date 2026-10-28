@@ -50,7 +50,7 @@
 | 在空白处左键拖动 | 选择框（第十三节） |
 | 在节点上左键按下 | 归节点——单击、双击照常生效 |
 
-**滚轮**（`apps/web/lib/runtime-bridge/dag/interaction/canvas.ts`、
+**滚轮**（`apps/web/lib/runtime-bridge/dag/interaction/gestures.ts`、
 `interaction/wheel.ts`）：鼠标滚轮缩放，和地图一样；触控板双指滑动平移，和设计画布
 一样；捏合缩放。三者都是 `wheel` 事件，所以从事件本身判断：捏合带 `ctrlKey`（⌘ + 滚轮
 也缩放）；有横向 delta 的是双指；App 所用的 Chromium 把触控板的旧字段 `wheelDeltaY`
@@ -441,6 +441,9 @@ agent_spawn 那样的隔离，隔离规则见 `ui/invariants.md` 规则 7）。
 ```
 apps/web/lib/runtime-bridge/dag/
   pipeline.ts        调度：passes → layout → edges → nodes → badges → visibility
+  interaction/canvas.ts    无限画布：视角（平移 / 缩放 / fit）和显出网格的点阵
+  interaction/gestures.ts  滚轮、捏合与拖动，它们移动视角
+  render/seat.ts           读回已画元素的 translate(x,y)，给画完之后才跑的步骤用
   passes/            数据变换，按顺序：
     merge-runs.ts               合并同一节点的连续 run
     collapse-runtime-pairs.ts   把老式 display=runtime 的 user/assistant 包装对折成
@@ -464,6 +467,13 @@ apps/web/lib/runtime-bridge/dag/
   apps/web/lib/runtime-bridge/dag/render/badges.ts   第五节的分支名 badge
   apps/web/lib/runtime-bridge/dag/store/globals.ts   展开状态、lastGraph、签名
 ```
+
+**一次绘制的开销。** 每次 capture 都整张重画 SVG，所以绘制器把两次 capture 之间不变的
+东西留着：每个图标只解析一次、克隆进各个图块；工具的展示按名字、参数和语言缓存；文字宽度
+按字体和字符串缓存。挂上新 SVG 时立刻设好它的 transform，需要面板尺寸的事都留到下一帧，
+所以一次 capture 不会自己强制一次布局。手势只改 store 里的视角，`applyView` 每帧画一次。
+平移只改两个平移量和点阵偏移；跟缩放比例绑定的工作——语义缩放变量、标签剔除、点阵间距——
+只在比例或画出的图变化时才做。150 个节点的会话，一次重绘约占主线程 5ms。
 
 后端 `apps/server/openprogram_server/_webui/graph_builder.py` 产出节点数组（含 `branch_name` stamp、
 caller/predecessor），`graph_layout/` 做 lane/tier/depth 标注——**tier 具体在
@@ -747,7 +757,7 @@ checkout 成活动分支——接管这个 agent 的对话。徽章永不压住�
 
 鼠标滚轮像地图一样缩放；触控板双指滑动平移；捏合用自己的、更快的速率缩放。macOS 在右键按下时
 就触发菜单事件，那时还不知道会不会拖动，所以画布先拦下它，松开时指针没动才打开菜单。
-这些是设计定死的，不是设置项：碰到即选（没有"必须全包住"模式）（`apps/web/lib/runtime-bridge/dag/interaction/canvas.ts`、
+这些是设计定死的，不是设置项：碰到即选（没有"必须全包住"模式）（`apps/web/lib/runtime-bridge/dag/interaction/gestures.ts`、
 `interaction/nodes.ts`、`interaction/selection.ts`）。
 
 画布左缘的竖条是一整条应用按钮材质的凸起条（输入框底色加 composer 阴影，鼠标放上去阴影变深，和输入框那些按钮一样；缩放竖列、操作条、小地图和窗格右上角的按钮也是如此）。它的中点在窗格高度的 45%，和对话视图里那排消息刻度一样高，切换视角时左缘的控件不挪位置。
@@ -797,8 +807,8 @@ checkout 成活动分支——接管这个 agent 的对话。徽章永不压住�
 节点是一个其色调的点，点下面画着图里原有的连线（细、淡、用分支颜色，主干和分支一眼可辨），屏幕上看到的部分是一个强调色的框。在地图上按下或拖动，镜头就以当前
 缩放移到那里。地图框住的是整张图加上当前视野，所以视野框不会被裁掉；拖动期间地图保持不动。HEAD 画成带强调色描边的大点，就是地图上的"你在这里"；在地图上滚动滚轮，画布以视野中心缩放。默认隐藏，点竖列里的小地图按钮或按 M 显示、再按一次隐藏，选择保存在浏览器里。显示之后它一直在屏幕上：以前整张图装得下时地图会淡出，
 随着缩放时有时无，看起来像出错
-（`apps/web/lib/runtime-bridge/dag/interaction/minimap.ts`，每次视图变化由 `applyView`
-重绘）。
+（`apps/web/lib/runtime-bridge/dag/interaction/minimap.ts`，随视图每帧重绘一次；点、线和
+颜色每张图只读一次）。
 
 ## 附录：实现状态
 
@@ -830,4 +840,4 @@ checkout 成活动分支——接管这个 agent 的对话。徽章永不压住�
 | 第十一节 图例 | `apps/web/components/chat/dag-view.tsx` 的 `DagLegend`（挂在缩放竖列里），`apps/web/app/styles/dag/hud.css` 的 `.dag-legend` |
 | 第十二节 调用线程 + agent spawn | `apps/web/lib/runtime-bridge/dag/render/shapes.ts`（spawn → 方块）、`apps/web/lib/runtime-bridge/dag/passes/thread.ts`（模型）、`apps/web/lib/runtime-bridge/dag/layout/geometry.ts`（递归安放）、`apps/web/lib/runtime-bridge/dag/render/edges.ts`（线程点线、中心连线、场景3横桥）、`apps/web/lib/runtime-bridge/dag/render/nodes.ts`（`data-thread*`、肩上折叠数）、`apps/web/lib/runtime-bridge/dag/interaction/nodes.ts`（`toggleThreadOpen`）；由 `apps/web/scripts/runtime/check-dag-subagent.mjs` 实跑 |
 | 第十二节 名字上线 | `task/runner.py::_update_attach_card` 从 task 戳出 `attach.label`；`ws_actions/session.py::_annotate_spawn_origin` 把它带到 spawn 根的 `spawned_from.label`；测试见 `tests/unit/test_task_attach_integration.py` |
-| 第十三节 鼠标、竖条、选择、删除 / 撤销 | 选择状态、命中判定和选择框在 `apps/web/lib/runtime-bridge/dag/interaction/selection.ts`；拖动在 `canvas.ts`，单击在 `nodes.ts`，快捷键在 `keys.ts`；扩展选择与撤销栈在 `node-delete.ts`；竖条与操作条在 `apps/web/components/chat/dag-tools.tsx`，快捷键面板在 `dag-key-sheet.tsx`，小地图在 `interaction/minimap.ts`，+ `apps/web/app/styles/dag/tools.css`；store 拼接与日志在 `openprogram/store/session/session_store/node_deletion.py`；测试见 `tests/component/store/test_node_deletion.py` 与 `apps/web/tests/execution/dag-selection.test.mjs` |
+| 第十三节 鼠标、竖条、选择、删除 / 撤销 | 选择状态、命中判定和选择框在 `apps/web/lib/runtime-bridge/dag/interaction/selection.ts`；拖动在 `gestures.ts`，单击在 `nodes.ts`，快捷键在 `keys.ts`；扩展选择与撤销栈在 `node-delete.ts`；竖条与操作条在 `apps/web/components/chat/dag-tools.tsx`，快捷键面板在 `dag-key-sheet.tsx`，小地图在 `interaction/minimap.ts`，+ `apps/web/app/styles/dag/tools.css`；store 拼接与日志在 `openprogram/store/session/session_store/node_deletion.py`；测试见 `tests/component/store/test_node_deletion.py` 与 `apps/web/tests/execution/dag-selection.test.mjs` |
