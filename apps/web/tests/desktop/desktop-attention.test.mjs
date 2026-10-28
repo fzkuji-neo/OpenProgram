@@ -20,7 +20,7 @@ registerHooks({
     if (specifier === "@/components/sidebar/sessions-list/helpers") {
       return { url: stub(`export const displayTitle = (c) => (c.title || "").trim();`), shortCircuit: true };
     }
-    if (specifier === "@/lib/desktop/bridge-api") {
+    if (specifier === "@/lib/desktop/bridge/bridge-api") {
       return { url: stub(`export const desktopBridge = () => globalThis.window?.openprogramDesktop ?? null;`), shortCircuit: true };
     }
     if (specifier === "@/lib/i18n") {

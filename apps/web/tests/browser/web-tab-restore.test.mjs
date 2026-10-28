@@ -58,7 +58,7 @@ const {
   restoreRetainedWebViews,
   retryRestoreWebTab,
 } = await import("../../lib/desktop/desktop-bridge.ts");
-const { persistNativeWebTabState } = await import("../../lib/desktop/bridge-restoration.ts");
+const { persistNativeWebTabState } = await import("../../lib/desktop/bridge/bridge-restoration.ts");
 
 test("native-confirmed tab URL wins over older SQLite display target", () => {
   assert.equal(

@@ -14,7 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
-import { desktopBridge } from "@/lib/desktop/bridge-api";
+import { desktopBridge } from "@/lib/desktop/bridge/bridge-api";
 import { findCenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import { openOverview } from "@/lib/tabs/canvas/canvas-overview";
 import { captureVisiblePanes } from "@/lib/tabs/canvas/window-snapshots";

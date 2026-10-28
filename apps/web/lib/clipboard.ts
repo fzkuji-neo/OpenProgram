@@ -1,4 +1,4 @@
-import { desktopBridge } from "./desktop/bridge-api";
+import { desktopBridge } from "./desktop/bridge/bridge-api";
 
 /** Native menu callbacks may run after browser clipboard activation expires. */
 export async function copyText(value: string): Promise<boolean> {

@@ -1,6 +1,6 @@
 /** Explicit product commands: never arbitrary JavaScript or an IPC channel. */
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
-import { desktopBridge } from "@/lib/desktop/bridge-api";
+import { desktopBridge } from "@/lib/desktop/bridge/bridge-api";
 import * as appearance from "@/lib/prefs/appearance/theme-pref";
 import { setFont } from "@/lib/prefs/appearance/font-pref";
 import { setShowBookmarksBar } from "@/lib/browser/browser-prefs";

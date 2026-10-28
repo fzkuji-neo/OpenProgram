@@ -1,5 +1,5 @@
 // Desktop bridge menu responsibilities.
-import { agentCanAccessWebTab } from "../browser/web-tab/web-page-management";
+import { agentCanAccessWebTab } from "../../browser/web-tab/web-page-management";
 /**
  * Desktop bridge — typed accessor for the Electron preload API
  * (`window.openprogramDesktop`) plus the renderer-side bookkeeping the

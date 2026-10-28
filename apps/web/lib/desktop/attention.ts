@@ -7,7 +7,7 @@
 // a notification (once per key, only while no app window has focus) and
 // holds the system awake (desktop/attention-service.js). Outside the
 // desktop shell every call is a no-op.
-import { desktopBridge } from "@/lib/desktop/bridge-api";
+import { desktopBridge } from "@/lib/desktop/bridge/bridge-api";
 import { translateText } from "@/lib/i18n";
 import { useSessionStore } from "@/lib/session-store";
 import { displayTitle } from "@/components/sidebar/sessions-list/helpers";

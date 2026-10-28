@@ -1,7 +1,7 @@
 // Desktop bridge terminals responsibilities.
 import "@/lib/net/ws/ws-events";
 import { type DesktopBridge } from "./bridge-api";
-import { installTerminalResourceBridge } from "./terminal-resources";
+import { installTerminalResourceBridge } from "../terminal-resources";
 
 // Loaded by the normal Desktop bridge even before Resources is opened.
 installTerminalResourceBridge();

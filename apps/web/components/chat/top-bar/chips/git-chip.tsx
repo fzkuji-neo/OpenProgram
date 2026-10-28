@@ -38,7 +38,7 @@ import { wsRequest } from "@/lib/net/ws/ws-request";
 import { closeAllPopovers } from "@/lib/runtime-bridge/ui";
 import { useSessionStore } from "@/lib/session-store";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
-import { desktopBridge } from "@/lib/desktop/bridge-api";
+import { desktopBridge } from "@/lib/desktop/bridge/bridge-api";
 import { cn } from "@/lib/utils";
 import { useBoundChat } from "../bound-chat";
 import { notifyGitChanged, useGitRepoClaim } from "./git-chip-registry";

@@ -3,9 +3,9 @@ import { createRequire } from "node:module";
 const webRoot = new URL("../../", import.meta.url);
 function read(path) { return readFileSync(new URL(path, webRoot), "utf8"); }
 export function readDesktopBridgeSource() {
-  const names = readdirSync(new URL("lib/desktop/", webRoot))
+  const names = readdirSync(new URL("lib/desktop/bridge/", webRoot))
     .filter((name) => /^bridge-.*\.ts$/.test(name)).sort();
-  return [read("lib/desktop/desktop-bridge.ts"), ...names.map((name) => read(`lib/desktop/${name}`))].join("\n");
+  return [read("lib/desktop/desktop-bridge.ts"), ...names.map((name) => read(`lib/desktop/bridge/${name}`))].join("\n");
 }
 export function readFileTreeSource() {
   return ["tree/file-tree.tsx", "tree/file-tree-actions.ts", "tree/file-tree-operation.ts", "tree/file-tree-query.ts"]

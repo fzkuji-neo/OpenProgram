@@ -48,7 +48,7 @@ globalThis.WebSocket = { OPEN: 1 };
 
 const { setSocket } = await import("../../lib/runtime-bridge/state.ts");
 const { useCenterTabs } = await import("../../lib/tabs/center-tabs-store.ts");
-const { subscribeWebTabPopups } = await import("../../lib/desktop/bridge-events.ts");
+const { subscribeWebTabPopups } = await import("../../lib/desktop/bridge/bridge-events.ts");
 
 function popupBridge() {
   let emit = () => {};

@@ -12,7 +12,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Check, Mic, MicOff, Trash2 } from "lucide-react";
 
-import { desktopBridge } from "@/lib/desktop/bridge-api";
+import { desktopBridge } from "@/lib/desktop/bridge/bridge-api";
 import { useTranslation } from "@/lib/i18n";
 import { VoiceRecorder } from "@/lib/voice/recorder";
 import styles from "./recording-bar.module.css";

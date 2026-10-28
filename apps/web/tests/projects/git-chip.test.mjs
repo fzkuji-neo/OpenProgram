@@ -23,7 +23,7 @@ registerHooks({
     if (url.endsWith('/components/solar-icons/index.ts')) source = 'export const SolarIcon=()=>null;';
     if (url.endsWith('/lib/session-store/session-scope.tsx')) source = 'export const useOptionalScopedSessionId=()=>"s1";';
     if (url.endsWith('/lib/runtime-bridge/ui.ts')) source = 'export const closeAllPopovers=()=>{};';
-    if (url.endsWith('/lib/desktop/bridge-api.ts')) source = 'export const desktopBridge=()=>({openExternal:u=>globalThis.gitOpened.push(u)});';
+    if (url.endsWith('/lib/desktop/bridge/bridge-api.ts')) source = 'export const desktopBridge=()=>({openExternal:u=>globalThis.gitOpened.push(u)});';
     if (url.endsWith('/lib/tabs/center-tabs-store.ts')) source = 'export const useCenterTabs=sel=>sel({openReviewTab:(...a)=>globalThis.gitReviews.push(a)});';
     if (url.endsWith('/components/ui/popover.tsx')) source = 'export const Popover=({children})=>children;export const PopoverTrigger=Popover;export const PopoverContent=Popover;';
     if (url.endsWith('/components/ui/tooltip.tsx')) source = 'export const HoverTip=({children})=>children; export const TipBody=()=>null;';

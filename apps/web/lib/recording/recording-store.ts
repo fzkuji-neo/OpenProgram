@@ -9,7 +9,7 @@
  */
 import { create } from "zustand";
 
-import { desktopBridge, type RecordingSummary } from "@/lib/desktop/bridge-api";
+import { desktopBridge, type RecordingSummary } from "@/lib/desktop/bridge/bridge-api";
 
 export const RECORDING_TAG = "recorded-demonstration";
 

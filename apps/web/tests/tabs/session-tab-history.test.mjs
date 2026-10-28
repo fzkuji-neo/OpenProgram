@@ -397,7 +397,7 @@ test("renaming a file preserves its launcher history and another same-target tab
 
 test("transfers include historical file drafts and preserve keys still used by another tab", async () => {
   window.location = { pathname: "/chat" };
-  const { buildTransferPayload, handleRemoveSource } = await import("../../lib/desktop/bridge-transfer.ts");
+  const { buildTransferPayload, handleRemoveSource } = await import("../../lib/desktop/bridge/bridge-transfer.ts");
   const { fileDrafts, fileDraftKey } = await import("../../lib/files/files-shared.ts");
   const { createRequire } = await import("node:module");
   const { validateTransferPayload } = createRequire(import.meta.url)("../../../desktop/tab-transfer-validation.js");

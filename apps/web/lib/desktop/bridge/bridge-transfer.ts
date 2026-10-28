@@ -1,5 +1,5 @@
 // Desktop bridge transfer responsibilities.
-import { pageHistory } from "../tabs/navigation/page-history";
+import { pageHistory } from "../../tabs/navigation/page-history";
 /**
  * Desktop bridge — typed accessor for the Electron preload API
  * (`window.openprogramDesktop`) plus the renderer-side bookkeeping the
