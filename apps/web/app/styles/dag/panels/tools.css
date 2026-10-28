@@ -171,8 +171,10 @@
 }
 
 /* The controls sheet (components/chat/dag/dag-key-sheet.tsx): a menu panel
-   opening to the zoom column's left from the top, where the minimap and
-   the legend open; a short pane scrolls it. */
+   in the legend's spot — the zoom column's left, from the top, or 8px
+   under the minimap while the map is shown — so it never covers the map.
+   It and the legend take turns (dag-view.tsx DagLegend); a short pane
+   scrolls it. */
 .dag-key-sheet {
   position: absolute;
   z-index: 4;
@@ -180,4 +182,8 @@
   top: 12px;
   max-height: calc(100% - 24px);
   overflow-y: auto;
+}
+.dag-view:has(> canvas.dag-minimap:not(.is-hidden)) .dag-key-sheet {
+  top: calc(12px + 160px + 8px); /* the map is 160px tall (minimap.ts H) */
+  max-height: calc(100% - 12px - 160px - 8px - 12px);
 }

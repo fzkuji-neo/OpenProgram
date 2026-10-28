@@ -75,17 +75,22 @@ function LegendRow({ swatch, label }: { swatch: React.ReactNode; label: string }
 
 /** Key for shape and coverage. A switch in the zoom column, like the
  *  minimap's: it stays open until its button is pressed again — a
- *  click on the canvas or on the map button leaves it open. Starts
- *  closed: the vocabulary is small and learnable. */
+ *  click on the canvas or on the map button leaves it open. It shares
+ *  its spot with the controls sheet, so opening either closes the
+ *  other. Starts closed: the vocabulary is small and learnable. */
 function DagLegend() {
   const { text } = useTranslation();
   const [open, setOpen] = useState(false);
+  // The legend and the controls sheet open in the same spot, so they
+  // take turns: either one opening closes the other.
+  const sheetOpen = useKeySheetOpen();
+  useEffect(() => { if (sheetOpen) setOpen(false); }, [sheetOpen]);
   return (
     <div className="dag-legend">
       <button
         type="button"
         className="dag-tool-btn"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => { if (!open) setKeySheet(false); setOpen(!open); }}
         aria-expanded={open}
         aria-pressed={open}
         aria-label={text("Legend", "图例")}

@@ -110,6 +110,8 @@ full screen) and **Find the working agent** (F); a second strip under it turns
 the legend and the minimap on and off and, under a hairline, opens the
 controls sheet. All open to the column's left from the top, the map above the
 legend; the legend and the map stay open until their button is pressed again.
+The controls sheet opens in the legend's spot, under the map while it is
+shown, so the two take turns: opening either closes the other.
 A toggle that is on holds the hover grey, never an accent colour. Every glyph
 in the column and in the pane's perspective strip is Solar Bold Duotone with
 the composer's hover pop (`docs/reference/design/ui/icons.md`). The buttons step by exactly one wheel notch (`ZOOM_STEP`), and

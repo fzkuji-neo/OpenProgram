@@ -44,6 +44,10 @@ test("Every view control is one column of Solar glyphs in the top-right corner",
   assert.match(css, /\.dag-zoom-column \{[^}]*right: 12px;[^}]*top: 86px;/);
   assert.match(css, /\.dag-minimap \{[^}]*right: 56px;[^}]*top: 12px;/);
   assert.match(css, /\.dag-key-sheet \{[^}]*right: 56px;[^}]*top: 12px;/);
+  // The sheet takes the legend's spot under a shown minimap, and the two take turns.
+  assert.match(css, /canvas\.dag-minimap:not\(\.is-hidden\)\) \.dag-key-sheet \{[^}]*top: calc\(12px \+ 160px \+ 8px\)/);
+  assert.match(view, /if \(sheetOpen\) setOpen\(false\)/);
+  assert.match(view, /if \(!open\) setKeySheet\(false\)/);
   assert.doesNotMatch(css, /\.dag-view > \.dag-tool-rail/);
 });
 
