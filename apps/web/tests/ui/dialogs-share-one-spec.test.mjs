@@ -48,7 +48,7 @@ test("confirmations go through the shared ConfirmDialog, never the native confir
     assert.doesNotMatch(source, /window\.confirm\(|[(!\s]confirm\(/, file);
     assert.doesNotMatch(source, /sessions-list\/confirm-dialog/, file);
   }
-  const permission = read("components/chat/top-bar/permission-menu.tsx");
+  const permission = read("components/chat/top-bar/menus/permission-menu.tsx");
   assert.match(permission, /<ConfirmDialog/);
   assert.doesNotMatch(permission, /rgba\(0,0,0,0\.45\)/);
 });

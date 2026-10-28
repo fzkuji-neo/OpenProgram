@@ -20,7 +20,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
 
-import { useBoundChat } from "./bound-chat";
+import { useBoundChat } from "../bound-chat";
 import { api } from "@/lib/net/api";
 import { updatePendingAgentModel } from "@/lib/agents/start-conversation";
 import { useTranslation } from "@/lib/i18n";
@@ -31,8 +31,8 @@ import {
   MENU_NOTE,
   MENU_PANEL,
   itemCls,
-} from "./menu-styles";
-import { MenuCheck } from "./menu-check";
+} from "../menu-styles";
+import { MenuCheck } from "../menu-check";
 import { SolarIcon } from "@/components/solar-icons";
 import {
   DropdownMenuItem,

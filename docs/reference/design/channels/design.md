@@ -412,7 +412,7 @@ openprogram channels bindings
 
 | Entry point | Implementation |
 |---|---|
-| Composer channel chip (always shown) | `apps/web/components/chat/composer/environment-row/chips/channel-chip.tsx`; reads `apps/web/components/chat/top-bar/channel-choices.ts` |
+| Composer channel chip (always shown) | `apps/web/components/chat/composer/environment-row/chips/channel-chip.tsx`; reads `apps/web/components/chat/top-bar/menus/channel-choices.ts` |
 | Health badge status API | `/api/channels/{platform}/{account_id}/status` returns alive/stale/unknown |
 | Local access management | `apps/web/components/settings/channels/access-list.tsx` calls the loopback-only `/api/channels/access` list/approve/revoke routes |
 

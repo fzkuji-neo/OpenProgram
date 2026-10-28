@@ -38,12 +38,12 @@ import { useTranslation } from "@/lib/i18n";
 import { wsRequest } from "@/lib/net/ws-request";
 import { duplicateNamePrefixes } from "@/lib/projects/duplicate-names";
 import { canConfirmInPlace, confirmProjectFolder, locationMessage, locationProblem, relocateProject, type RelocateReply } from "@/lib/projects/project-location";
-import { useBoundChat } from "./bound-chat";
-import { CHECK_SLOT, CHECK_SLOT_PAD, GROUP_LABEL, MENU_NOTE, MENU_NOTE_ERROR, MENU_PANEL, MENU_SEPARATOR, itemCls } from "./menu-styles";
+import { useBoundChat } from "../bound-chat";
+import { CHECK_SLOT, CHECK_SLOT_PAD, GROUP_LABEL, MENU_NOTE, MENU_NOTE_ERROR, MENU_PANEL, MENU_SEPARATOR, itemCls } from "../menu-styles";
 import { cn } from "@/lib/utils";
-import { MenuCheck } from "./menu-check";
-import { GitChip } from "./git-chip";
-import { FOLDER_PILL } from "./folder-pill";
+import { MenuCheck } from "../menu-check";
+import { GitChip } from "../chips/git-chip";
+import { FOLDER_PILL } from "../chips/folder-pill";
 
 /** Fired whenever the conversation's project changes so the topbar chip
  * re-fetches its label without a store round-trip. */

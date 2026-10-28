@@ -20,9 +20,9 @@ test("MENU_NOTE shares the section label's inset and text size", () => {
 test("menu notes use MENU_NOTE, never hand-written insets or sizes", () => {
   for (const file of [
     "components/chat/composer/environment-row/chips/environment-chip.tsx",
-    "components/chat/top-bar/project-menu.tsx",
-    "components/chat/top-bar/working-dir-chips.tsx",
-    "components/chat/top-bar/agent-selector.tsx",
+    "components/chat/top-bar/menus/project-menu.tsx",
+    "components/chat/top-bar/chips/working-dir-chips.tsx",
+    "components/chat/top-bar/menus/agent-selector.tsx",
   ]) {
     const source = read(file);
     assert.match(source, /MENU_NOTE/, file);

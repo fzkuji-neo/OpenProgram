@@ -23,7 +23,7 @@ test("each sign sits 1px from its count in every pill", () => {
   for (const path of [
     "components/chat/messages/turn-files/turn-files-chips.tsx",
     "components/chat/messages/execution/execution-strip.tsx",
-    "components/chat/top-bar/git-chip.tsx",
+    "components/chat/top-bar/chips/git-chip.tsx",
   ]) {
     const source = read(path);
     assert.doesNotMatch(source, /is-add">\+\{/, path);

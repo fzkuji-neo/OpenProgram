@@ -150,7 +150,7 @@
    (shadcn <Popover> + Tailwind) now — the `.agent-selector` and
    `.model-dropdown` chrome rules were removed. */
 
-/* Folder pill (components/chat/top-bar/folder-pill.ts): one raised pill,
+/* Folder pill (components/chat/top-bar/chips/folder-pill.ts): one raised pill,
    a folder segment and — inside a Git checkout — the git segment. Each
    segment is its own hover target; a hairline element separates them. */
 /* .runtime-badge centres its content; a folder pill's segments must

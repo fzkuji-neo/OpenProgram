@@ -455,7 +455,7 @@ testContext.assert.match(
 );
 
 (testContext.permissionMenuSource = await testContext.readFile(
-  new URL("../../components/chat/top-bar/permission-menu.tsx", testContext.sourceUrl),
+  new URL("../../components/chat/top-bar/menus/permission-menu.tsx", testContext.sourceUrl),
   "utf8",
 ));
 

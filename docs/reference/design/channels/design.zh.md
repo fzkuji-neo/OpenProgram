@@ -394,7 +394,7 @@ openprogram channels bindings
 
 | 入口 | 实现 |
 |---|---|
-| 输入框渠道 chip（始终显示） | `apps/web/components/chat/composer/environment-row/chips/channel-chip.tsx`；读 `apps/web/components/chat/top-bar/channel-choices.ts` |
+| 输入框渠道 chip（始终显示） | `apps/web/components/chat/composer/environment-row/chips/channel-chip.tsx`；读 `apps/web/components/chat/top-bar/menus/channel-choices.ts` |
 | Health badge status API | `/api/channels/{platform}/{account_id}/status` 返回 alive/stale/unknown |
 | 本地 access 管理 | `apps/web/components/settings/channels/access-list.tsx` 调用仅限 loopback 的 `/api/channels/access` 查询、批准和撤销路由 |
 

@@ -109,7 +109,7 @@ test('draft source chips follow the selected project until the user sets an over
   const state={currentSessionId:null,activeChatKey:'draft',conversations:{},pendingProjectsByChat:{draft:'a'},additionalWorkingDirsBySession:{},setAdditionalWorkingDirs:(key,dirs)=>{state.additionalWorkingDirsBySession={...state.additionalWorkingDirsBySession,[key]:dirs};for(const fn of listeners)fn();}};
   globalThis.projectStore=state;
   globalThis.projectRequest=async()=>({projects:[{id:'a',name:'A',path:'/a',source_folders:['/a-extra']},{id:'b',name:'B',path:'/b',source_folders:['/b-extra']},{id:'none',name:'None',path:'/none',source_folders:[]}],current_project_id:null,session_id:null});
-  const {WorkingDirChips}=await import('../../components/chat/top-bar/working-dir-chips.tsx');
+  const {WorkingDirChips}=await import('../../components/chat/top-bar/chips/working-dir-chips.tsx');
   const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
   await act(async()=>root.render(h(WorkingDirChips)));
   const dirs=()=>[...host.querySelectorAll('.workdir-badge[data-path]')].map(el=>el.getAttribute('data-path'));
@@ -144,7 +144,7 @@ test('acknowledged local-prefixed chats are real sessions for project directory 
   globalThis.projectStore.pendingProjectsByChat={};
   globalThis.projectStore.setAdditionalWorkingDirs=(key,dirs)=>{globalThis.projectStore.additionalWorkingDirsBySession={...globalThis.projectStore.additionalWorkingDirsBySession,[key]:dirs};for(const fn of globalThis.projectStoreListeners)fn();};
   globalThis.projectRequest=async(action,payload)=>{writes.push([action,payload]);return action==='list_projects'?{projects:[],current_project_id:null,session_id:'local_chat'}:{session_id:'local_chat',dirs:[]};};
-  const {WorkingDirChips}=await import('../../components/chat/top-bar/working-dir-chips.tsx');
+  const {WorkingDirChips}=await import('../../components/chat/top-bar/chips/working-dir-chips.tsx');
   await act(async()=>root.render(h(WorkingDirChips)));
   await act(async()=>host.querySelector('[aria-label="Remove folder"]').dispatchEvent(new Event('click',{bubbles:true})));
   assert.ok(writes.some(([action,payload])=>action==='set_working_dirs'&&payload.session_id==='local_chat'&&payload.dirs.length===0));

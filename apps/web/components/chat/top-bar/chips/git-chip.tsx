@@ -40,9 +40,9 @@ import { useSessionStore } from "@/lib/session-store";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { desktopBridge } from "@/lib/desktop/bridge-api";
 import { cn } from "@/lib/utils";
-import { useBoundChat } from "./bound-chat";
+import { useBoundChat } from "../bound-chat";
 import { notifyGitChanged, useGitRepoClaim } from "./git-chip-registry";
-import { GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR, MENU_TAG, itemCls } from "./menu-styles";
+import { GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR, MENU_TAG, itemCls } from "../menu-styles";
 import { checksLabel, fixChecksPrompt, type PrChecks } from "@/lib/git/pr-checks";
 
 /** A refusal from the worker, with the structured bits the menu acts on. */

@@ -7,8 +7,8 @@ import { readFileSync } from "node:fs";
 const root = new URL("../../", import.meta.url);
 const source = (path) => readFileSync(new URL(path, root), "utf8");
 
-const projectMenu = source("components/chat/top-bar/project-menu.tsx");
-const workingDirs = source("components/chat/top-bar/working-dir-chips.tsx");
+const projectMenu = source("components/chat/top-bar/menus/project-menu.tsx");
+const workingDirs = source("components/chat/top-bar/chips/working-dir-chips.tsx");
 const fileTree = readFileTreeSource();
 const explorerHeader = source("components/files/explorer-header.tsx");
 const explorerSearch = source("components/files/explorer-search.ts");

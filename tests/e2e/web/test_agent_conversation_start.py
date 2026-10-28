@@ -67,7 +67,7 @@ import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
 import {SessionScopeProvider} from './lib/session-store/session-scope';
-import {AgentSelector} from './components/chat/top-bar/agent-selector';
+import {AgentSelector} from './components/chat/top-bar/menus/agent-selector';
 import {useThinkingEffort} from './components/chat/composer/controls/effort/use-thinking-effort';
 window.modelPicksFinished=0;window.delayedModels=[];window.modelWrites=[];window.delayModels=false;
 const baseFetch=window.fetch;

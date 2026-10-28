@@ -15,7 +15,7 @@
 import { useEffect, useState } from "react";
 import { create } from "zustand";
 
-import { useBoundChat } from "./bound-chat";
+import { useBoundChat } from "../bound-chat";
 import { mirrorUpsertConv } from "@/lib/runtime-bridge/conv-store-mirror";
 import {
   draftChannelChoiceFor,

@@ -14,8 +14,8 @@ import { useSessionStore } from "@/lib/session-store";
 import { closeAllPopovers } from "@/lib/runtime-bridge/ui";
 import { useTranslation } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import { channelBrand, useCurrentChannel } from "../../../top-bar/channel-choices";
-import { ChannelMenu } from "../../../top-bar/channel-menu";
+import { channelBrand, useCurrentChannel } from "../../../top-bar/menus/channel-choices";
+import { ChannelMenu } from "../../../top-bar/menus/channel-menu";
 
 /** Channel chip — which chat channel account this conversation's
  *  messages are mirrored to, beside the environment chip. Always shown:

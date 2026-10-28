@@ -18,13 +18,13 @@ Two folders inside the **same checkout** (the project root and one of
 its subfolders, say) share one branch, one change set and one PR, so
 only one git half shows. Each mounted git half claims its checkout root with an
 order, project first and then working folders in list order, and the
-lowest order wins (`components/chat/top-bar/git-chip-registry.ts`).
+lowest order wins (`components/chat/top-bar/chips/git-chip-registry.ts`).
 Separate worktrees of one repository have separate roots, so each keeps
 its own git half.
 
 ## The pill
 
-One raised pill per folder (`components/chat/top-bar/folder-pill.ts`)
+One raised pill per folder (`components/chat/top-bar/chips/folder-pill.ts`)
 with two segments separated by a full-height hairline, each its own hover and
 click target. The hairline takes no width, so both hover fills meet on
 the same edge, and it fades while either segment is hovered or open. The left segment is the folder: icon, name, and for a working

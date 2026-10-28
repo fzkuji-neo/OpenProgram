@@ -23,8 +23,8 @@ import {
   MENU_SEPARATOR,
   MENU_TAG,
   itemCls,
-} from "./menu-styles";
-import { MenuCheck } from "./menu-check";
+} from "../menu-styles";
+import { MenuCheck } from "../menu-check";
 
 export function ChannelMenu({ onClose }: { onClose: () => void }) {
   const { text } = useTranslation();

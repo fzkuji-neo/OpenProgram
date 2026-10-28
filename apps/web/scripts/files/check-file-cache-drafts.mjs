@@ -13,7 +13,7 @@ const treeOperation = readFileSync(new URL("../../components/files/file-tree-ope
 const ws = readFileSync(new URL("../../lib/net/ws-request.ts", import.meta.url), "utf8");
 const turnFiles = readFileSync(new URL("../../../server/openprogram_server/_webui/ws_actions/turn_files/__init__.py", import.meta.url), "utf8");
 const lifecycle = readFileSync(new URL("../../components/center-tabs/tab-actions/use-tab-lifecycle.ts", import.meta.url), "utf8");
-const projectMenu = readFileSync(new URL("../../components/chat/top-bar/project-menu.tsx", import.meta.url), "utf8");
+const projectMenu = readFileSync(new URL("../../components/chat/top-bar/menus/project-menu.tsx", import.meta.url), "utf8");
 const browserTest = readFileSync(new URL("../../../../tests/e2e/web/test_file_draft_store_browser.py", import.meta.url), "utf8");
 
 assert.match(shared, /READ_CACHE_MAX_ENTRIES\s*=\s*64/);

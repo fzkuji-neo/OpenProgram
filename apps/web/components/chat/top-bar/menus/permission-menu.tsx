@@ -42,7 +42,7 @@ import { cn } from "@/lib/utils";
 import {
   usePermissionMode,
   type PermissionMode,
-} from "../composer/controls/toggles/use-permission-mode";
+} from "../../composer/controls/toggles/use-permission-mode";
 import {
   CHECK_SLOT_PAD,
   GROUP_LABEL,
@@ -54,8 +54,8 @@ import {
   MENU_TRAILING,
   SHORTCUT,
   itemCls,
-} from "./menu-styles";
-import { MenuCheck } from "./menu-check";
+} from "../menu-styles";
+import { MenuCheck } from "../menu-check";
 
 export function PermissionBadge() {
   const { text } = useTranslation();

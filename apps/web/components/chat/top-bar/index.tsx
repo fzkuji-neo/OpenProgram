@@ -36,16 +36,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { HoverTip, TipBody } from "@/components/ui/tooltip";
 
-import { AgentSelector } from "./agent-selector";
+import { AgentSelector } from "./menus/agent-selector";
 import { MENU_PANEL } from "./menu-styles";
 import { useBoundChat } from "./bound-chat";
 import { pushAgentSettings, pushBranchInfo, pushStatusBadge } from "@/lib/tabs/top-bar-sync";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export { ProjectBadge } from "./project-menu";
-export { WorkingDirChips } from "./working-dir-chips";
-export { PermissionBadge } from "./permission-menu";
+export { ProjectBadge } from "./menus/project-menu";
+export { WorkingDirChips } from "./chips/working-dir-chips";
+export { PermissionBadge } from "./menus/permission-menu";
 
 /**
  * Headless bridge — seeds the store from the current runtime state on

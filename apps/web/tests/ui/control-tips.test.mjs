@@ -33,7 +33,7 @@ test("the user menu names full screen in the interface language", () => {
 });
 
 test("the model menu names providers as Settings does", () => {
-  const menu = read("components/chat/top-bar/agent-selector.tsx");
+  const menu = read("components/chat/top-bar/menus/agent-selector.tsx");
   assert.match(menu, /<span>\{providerName\(group\.provider\)\}<\/span>/);
   assert.match(menu, /<div className=\{GROUP_LABEL\}>\{providerName\(byProvider\[0\]\.provider\)\}<\/div>/);
   assert.match(menu, /href="\/settings\/providers"/, "enabling models opens the providers page");

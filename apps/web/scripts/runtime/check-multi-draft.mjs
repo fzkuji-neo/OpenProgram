@@ -311,7 +311,7 @@ assert.match(chatHandlers, /action:\s*"set_session_project"/);
 assert.match(chatHandlers, /takePendingProject\(sid\)/);
 
 for (const relativePath of [
-  "../../components/chat/top-bar/project-menu.tsx",
+  "../../components/chat/top-bar/menus/project-menu.tsx",
   "../../components/sidebar/sidebar.tsx",
   "../../components/sidebar/sessions-list.tsx",
   "../../lib/files/files-shared.ts",

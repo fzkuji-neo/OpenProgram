@@ -42,7 +42,7 @@ globalThis.window = window; globalThis.document = window.document;
 globalThis.Event = window.Event; globalThis.CustomEvent = window.CustomEvent; globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const { createElement: h, act } = await import('react');
 const { createRoot } = await import('react-dom/client');
-const { GitChip } = await import('../../components/chat/top-bar/git-chip.tsx');
+const { GitChip } = await import('../../components/chat/top-bar/chips/git-chip.tsx');
 
 const STATUS = {
   is_repo: true, root: '/repo', repo_name: 'repo', branch: 'feature', head: 'abc', upstream: null,
