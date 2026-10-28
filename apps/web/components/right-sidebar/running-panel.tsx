@@ -469,7 +469,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     const phase = item.status === "running"
       ? `${text("Running", "正在运行")} · ${duration(now - item.started_at, text)}`
       : `${text("Interrupted", "已中断")} · ${when(item.started_at, text)}`;
-    return <Row key={`call:${item.id}`} glyph={<Glyph name={look.icon} tone={look.tone} />} title={item.description || item.name}
+    return <Row key={`call:${item.id}`} glyph={<Glyph name={look.icon} tone={look.tone} large />} title={item.description || item.name}
       status={withKind ? `${callKind(item, text)} · ${phase}` : phase} tone={item.status === "running" ? "run" : "muted"}
       onOpen={() => open({ kind: "call", id: item.id })} />;
   }
