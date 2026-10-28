@@ -78,9 +78,9 @@
   background: var(--bg-hover);
   color: var(--text-bright);
 }
-.chat-view-control-btn[aria-pressed="true"] {
-  color: var(--text-bright);
-}
+/* No pressed colour: the toggle's icon already names the view (chat
+   bubble ⇄ graph), and a dark icon among the grey ones read as a
+   different set. */
 
 /* Every center tab closed (components/app-shell.tsx EmptyCenter). */
 .center-empty {
