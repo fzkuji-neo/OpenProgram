@@ -7,8 +7,8 @@
  * The rail runs down the canvas's left edge as one raised strip, the
  * app's button material: one icon per registered tool
  * (lib/runtime-bridge/dag/interaction/selection.ts owns what each tool
- * DOES; this file only gives it a face), then the camera button that
- * finds the working agent. The action bar appears at
+ * DOES; this file only gives it a face), then the camera buttons: find
+ * the working agent, show the whole graph. The action bar appears at
  * the top left, above the rail, while something is selected — and for a
  * few seconds after a delete, as the way back. The top right belongs to
  * the pane's perspective controls.
@@ -21,6 +21,7 @@ import {
   Hand,
   Lasso,
   LocateFixed,
+  Maximize2,
   MousePointer2,
   Trash2,
   Undo2,
@@ -44,7 +45,7 @@ import {
   lastDeletion,
   undoDeletion,
 } from "@/lib/runtime-bridge/dag/interaction/node-delete";
-import { focusAgent } from "@/lib/runtime-bridge/dag/interaction/canvas";
+import { fitCanvas, focusAgent } from "@/lib/runtime-bridge/dag/interaction/canvas";
 
 /** Each tool's face. A tool registered without one shows its id. */
 const FACES: Record<string, { Icon: LucideIcon; en: string; zh: string; hintEn: string; hintZh: string }> = {
@@ -102,6 +103,19 @@ function DagToolRail() {
         onClick={() => focusAgent()}
       >
         <LocateFixed size={16} strokeWidth={2} />
+      </button>
+      {/* The rail always shows, while the HUD's Fit can be tucked behind
+          the composer: the camera keeps one way to see everything. */}
+      <button
+        type="button"
+        className="dag-tool-btn"
+        aria-label={text("Show the whole graph", "显示整张图")}
+        aria-keyshortcuts="Shift+1"
+        data-tip={text("Show the whole graph · ⇧1", "显示整张图 · ⇧1")}
+        data-tip-side="right"
+        onClick={() => fitCanvas()}
+      >
+        <Maximize2 size={16} strokeWidth={2} />
       </button>
     </div>
   );

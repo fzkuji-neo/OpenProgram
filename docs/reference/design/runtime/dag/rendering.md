@@ -892,11 +892,11 @@ icon.
 
 The rail is one raised strip of the app's button material (the input box's
 fill and the composer's shadow); the tool in hand is a flat block of the
-accent colour, and each key is in the button's tooltip. Below a hairline sits
+accent colour that glides to the tool you pick, and each key is in the button's tooltip. Below a hairline sits
 the camera: **Find the working
 agent** (F) glides the view to the tile a working agent stands on, keeping the
 zoom; pressed again it moves to the next working agent, and with none at work
-it goes to HEAD (`focusAgent` in `interaction/canvas.ts`). The view keys
+it goes to HEAD (`focusAgent` in `interaction/canvas.ts`). **Show the whole graph** (Shift+1) sits under it. The HUD's Fit can be tucked behind the composer, but the rail is always there. The view keys
 follow design tools: Shift+1 fits the graph, Shift+0 returns to 100%, and
 + / − step the zoom, the same steps as the HUD's buttons (`interaction/keys.ts`).
 
