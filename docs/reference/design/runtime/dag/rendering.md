@@ -53,17 +53,26 @@ the user drives directly.
 
 | Gesture | Effect |
 |---|---|
-| wheel, or pinch | zoom about the cursor, clamped to 25%–300% — the node under the pointer stays under the pointer |
+| mouse wheel, or trackpad pinch | zoom about the cursor, clamped to 25%–300% — the node under the pointer stays under the pointer |
+| two fingers on a trackpad | pan |
 | right (or middle) drag | pan, from anywhere on the graph |
 | left drag on empty canvas | a selection box (§13) |
 | left press on a node | the node's — click and double-click still work |
 
-**Wheel** (`apps/web/lib/runtime-bridge/dag/interaction/canvas.ts`): every wheel
-zooms, the way a map does; panning is a drag. A trackpad pinch arrives as a
-wheel event with `ctrlKey` set and small continuous deltas, so it zooms at its
-own, faster rate. Line- and page-mode deltas (some mice) are turned into pixels
-first. Guessing mouse from trackpad to make one of them pan guessed wrong on
-real mice, and the wheel scrolled when it should have zoomed.
+**Wheel** (`apps/web/lib/runtime-bridge/dag/interaction/canvas.ts`,
+`interaction/wheel.ts`): a mouse wheel zooms, the way a map does; two fingers
+on a trackpad pan, the way a design canvas does; a pinch zooms. All three are
+`wheel` events, so the kind is read from the event: a pinch carries `ctrlKey`
+(⌘ + wheel zooms too); a sideways delta is two fingers; and Chromium, which
+the App runs on, reports a trackpad's legacy `wheelDeltaY` as exactly
+`-3 × deltaY`, while a wheel's notches come as multiples of 120. An earlier
+guess read the size of the delta instead and took real mice for trackpads, so
+the wheel scrolled when it should have zoomed; the `wheelDeltaY` test does not
+look at size. A gesture is judged on its first event and keeps the verdict
+until the events pause (180 ms), so a trackpad's inertial tail never flips to
+zoom. A pinch zooms at its own, faster rate; line- and page-mode deltas (some
+mice) are turned into pixels first. A mouse whose driver sends pixel-smooth
+deltas with `wheelDeltaY = -3 × deltaY` reads as a trackpad and pans.
 
 A box sized to its content decides two things it has no business deciding: how
 big a graph may get before it needs scrollbars, and where the middle is. A wide
@@ -889,10 +898,11 @@ button selecting and the right one moving the camera:
 | Right drag | pan, from anywhere on the graph (the middle button pans too) |
 | Right click a node | its menu (§11) |
 | Wheel, or pinch | zoom about the cursor |
+| Two fingers on a trackpad | pan |
 | Double-click a node | fork & edit (§11) |
 
-The wheel zooms like a map's; it does not scroll. A trackpad pinch zooms at
-its own, faster rate. macOS fires the right-click menu on the press, before a
+The mouse wheel zooms like a map's; two fingers on a trackpad pan; a pinch
+zooms at its own, faster rate. macOS fires the right-click menu on the press, before a
 drag can start, so the canvas holds it and opens it on release when the
 pointer did not move. These are fixed by design, not settings: touching
 selects (no enclose-only mode) (`apps/web/lib/runtime-bridge/dag/interaction/canvas.ts`,

@@ -12,8 +12,9 @@
  * one ``<g>``, and that group carries a translate + scale the user drives
  * directly:
  *
- *   * wheel or pinch → zoom about the cursor, 25%–300% (what is under
- *     the cursor stays under it)
+ *   * mouse wheel or trackpad pinch → zoom about the cursor, 25%–300%
+ *     (what is under the cursor stays under it)
+ *   * two fingers on a trackpad → pan (``./wheel.ts`` tells them apart)
  *   * right (or middle) drag → pan, from anywhere on the graph
  *   * left drag on empty space → a box that selects (``./selection.ts``;
  *     a left press on a node is a click on it)
@@ -33,6 +34,7 @@ import { COL_W, PAD_X, PAD_Y } from "../types";
 import { TILE_R } from "../render/tiles";
 import { closeNodeLayers } from "../render/inspector";
 import { hideTooltip } from "./tooltip";
+import { wheelKind } from "./wheel";
 import { hideMinimap, paintMinimap } from "./minimap";
 import { SelectionBand, clearSelection, releaseEditableFocus, select } from "./selection";
 import {
@@ -321,12 +323,18 @@ function wireGestures(host: HTMLElement): void {
       e.preventDefault();
       dismissOverlays();
       const rect = host.getBoundingClientRect();
-      // The wheel zooms about the cursor, the way a map does; panning is
-      // a drag. A trackpad pinch arrives as a ctrlKey wheel with small
-      // deltas, so it gets its own, faster rate. Line and page deltas
-      // (some mice) are turned into pixels first.
+      // A mouse wheel zooms about the cursor, the way a map does; two
+      // fingers on a trackpad pan, and a pinch zooms at its own, faster
+      // rate (./wheel.ts tells them apart). Line and page deltas (some
+      // mice) are turned into pixels first.
+      const kind = wheelKind(e);
+      if (kind === "pan") {
+        setView(_viewTx - e.deltaX, _viewTy - e.deltaY, _viewScale);
+        applyView();
+        return;
+      }
       const dy = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * 100 : e.deltaY;
-      const rate = e.ctrlKey || e.metaKey ? PINCH_ZOOM_RATE : WHEEL_ZOOM_RATE;
+      const rate = kind === "pinch" ? PINCH_ZOOM_RATE : WHEEL_ZOOM_RATE;
       zoomAt(e.clientX - rect.left, e.clientY - rect.top, Math.exp(-dy * rate));
     },
     { passive: false },

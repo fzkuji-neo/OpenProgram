@@ -18,12 +18,12 @@ import { keySheetOpen, setKeySheet, subscribeKeySheet } from "@/lib/runtime-brid
 type Row = [en: string, zh: string, keys: MenuKeys[]];
 
 const GROUPS: [en: string, zh: string, rows: Row[]][] = [
-  ["Mouse", "鼠标", [
+  ["Mouse and trackpad", "鼠标与触控板", [
     ["Select", "选中", [{ key: "Click" }]],
     ["Select with a box", "框选", [{ key: "Drag" }]],
     ["Add to the selection", "加选 / 取消", [{ key: "Click", shift: true }]],
-    ["Pan", "平移", [{ key: "Right-drag" }]],
-    ["Zoom", "缩放", [{ key: "Wheel" }]],
+    ["Pan", "平移", [{ key: "Right-drag" }, { key: "Two-finger scroll" }]],
+    ["Zoom", "缩放", [{ key: "Wheel" }, { key: "Pinch" }]],
   ]],
   ["Camera", "镜头", [
     ["Find the working agent", "找到正在工作的 agent", [{ key: "F" }]],
@@ -41,7 +41,8 @@ const GROUPS: [en: string, zh: string, rows: Row[]][] = [
 ];
 
 /** Mouse gestures written in words, in the reader's language. */
-const GESTURE: Record<string, string> = { Drag: "拖动", "Right-drag": "右键拖动", Wheel: "滚轮", Click: "单击" };
+const GESTURE: Record<string, string> = { Drag: "拖动", "Right-drag": "右键拖动", Wheel: "滚轮", Click: "单击",
+  "Two-finger scroll": "双指滑动", Pinch: "捏合" };
 
 export function useKeySheetOpen(): boolean {
   return useSyncExternalStore(subscribeKeySheet, keySheetOpen, () => false);

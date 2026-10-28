@@ -34,11 +34,23 @@ test("One mouse, no tools: the rail holds the camera and the key sheet", () => {
   assert.match(rail, /focusAgent\(\)[\s\S]*fitCanvas\(\)[\s\S]*setKeySheet/);
 });
 
-test("The wheel zooms, a right drag pans, a left drag draws a box", () => {
+test("A mouse wheel zooms, two fingers pan, a right drag pans, a left drag draws a box", async () => {
   const canvas = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/canvas.ts", import.meta.url), "utf8");
   const wheel = canvas.slice(canvas.indexOf('"wheel"'), canvas.indexOf('"pointerdown"'));
-  assert.match(wheel, /zoomAt\(/);
-  assert.doesNotMatch(wheel, /setView\(/);
+  assert.match(wheel, /const kind = wheelKind\(e\);[\s\S]*kind === "pan"[\s\S]*setView\([\s\S]*zoomAt\(/);
+  const { wheelKind } = await import("../../lib/runtime-bridge/dag/interaction/wheel.ts");
+  const ev = (o) => ({ deltaMode: 0, deltaX: 0, deltaY: 0, ctrlKey: false, metaKey: false, ...o });
+  // A mouse notch on macOS Chromium: wheelDeltaY 120, deltaY about -4.
+  assert.equal(wheelKind(ev({ timeStamp: 1000, deltaY: -4, wheelDeltaY: 120 })), "zoom");
+  assert.equal(wheelKind(ev({ timeStamp: 2000, deltaY: 100, wheelDeltaY: -120 })), "zoom");
+  // Two fingers: wheelDeltaY is exactly -3 × deltaY, and the inertial
+  // tail keeps panning even when a single event looks like a wheel.
+  assert.equal(wheelKind(ev({ timeStamp: 3000, deltaY: 7, wheelDeltaY: -21 })), "pan");
+  assert.equal(wheelKind(ev({ timeStamp: 3016, deltaY: 1, wheelDeltaY: 120 })), "pan");
+  assert.equal(wheelKind(ev({ timeStamp: 4000, deltaX: 3, deltaY: 0 })), "pan");
+  assert.equal(wheelKind(ev({ timeStamp: 5000, deltaY: 3, ctrlKey: true })), "pinch");
+  // Line-mode deltas only come from a wheel.
+  assert.equal(wheelKind(ev({ timeStamp: 6000, deltaMode: 1, deltaY: 3 })), "zoom");
   assert.match(canvas, /const pans = e\.button === 2 \|\| e\.button === 1;/);
   assert.match(canvas, /if \(!pans\) \{[\s\S]{0,80}new SelectionBand/);
   // A right click that never moved still opens the node's menu.
