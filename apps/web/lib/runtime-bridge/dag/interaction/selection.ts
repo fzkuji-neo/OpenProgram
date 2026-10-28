@@ -102,6 +102,8 @@ export function paintSelection(): void {
     // Selected, the chip itself lights up (dag/nodes.css): no frame.
     g.classList.toggle("is-selected", on);
   });
+  // Zoomed far out, the rest of the graph fades behind a selection.
+  host.classList.toggle("has-selection", drawn.size > 0);
   repaintMinimap();
   if (drawn.size !== want.size) {
     _selected = _selected.filter((id) => drawn.has(id));

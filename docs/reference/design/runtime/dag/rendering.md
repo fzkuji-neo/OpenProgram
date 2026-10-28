@@ -438,13 +438,15 @@ Zoomed that far out the canvas reads like a map, which keeps its place names
 readable and shows fewer of them as you pull back; before this, every label
 shrank with the graph into specks of grey. So below 55%:
 
-- a dot never shrinks below about 10px on screen and a line below 1.5px;
-- **a selected node stays obvious**: like a selected chip up close, its dot
-  fills with its full colour (unselected dots are a paler mix), keeps
-  the dots' size (a larger dot merged with its neighbour) and glows faintly in that colour. Never the ink colour: that is black
-  in the light theme and turned a selection into a blot. The minimap draws
-  selected nodes larger in the accent colour, so a selection off screen
-  still shows there. The press target grows with the dot;
+- a dot is a steady 7px on screen, so neighbours 14px apart never touch,
+  and a line keeps 1.5px; the press target stays about 10px;
+- **a selected node stays obvious**: with something selected, the rest of
+  the graph (dots, lines, labels) fades to 25% and the selected dots keep
+  their full colour (`has-selection` on the canvas, set by
+  `interaction/selection.ts`). Nothing grows or gains an outline: a larger
+  dot merged with its neighbours, and the ink colour, black in the light
+  theme, turned a selection into a blot. The minimap draws selected nodes
+  larger in the accent colour, so a selection off screen still shows there;
 - branch names and the opening words of your messages keep their on-screen
   size (`is-turn` captions, `render/captions.ts`), and
   sit a little further out so a larger dot never covers them;

@@ -79,9 +79,10 @@ test("The fold count steps past an error or cross-session mark on the shoulder",
 
 test("Zoomed far out, a selection stays obvious and labels read like a map", () => {
   const css = readFileSync(new URL("../../app/styles/dag/nodes.css", import.meta.url), "utf8");
-  // A selected dot keeps the dots' size (larger ones merged) and fills with its own colour (not ink: black in the light theme).
-  assert.match(css, /\.is-far \.history-node\.is-selected \.dag-tile \{ transform: scale\(max\(1, calc\(var\(--dag-marker-scale, 1\) \* 0\.35\)\)\); \}/);
-  assert.match(css, /\.is-far \.history-node\.is-selected \.dag-tile > \[data-node-shape\] \{\s*fill: var\(--tone\);/);
+  // A selected dot keeps the dots' 7px and its full colour; the rest fades.
+  assert.match(css, /\.is-far \.dag-tile \{\s*transform: scale\(calc\(var\(--dag-marker-scale, 1\) \* 0\.25\)\);/);
+  assert.match(css, /\.is-far \.history-node\.is-selected \.dag-tile > \[data-node-shape\] \{ fill: var\(--tone\); \}/);
+  assert.match(css, /\.is-far\.has-selection \.history-node:not\(\.is-selected\),[^{]*\{ opacity: 0\.25; \}/);
   // Your messages' words keep their size; call captions hide.
   assert.match(css, /\.is-far \.dag-caption:not\(\.is-turn\) \{ display: none; \}/);
   assert.match(css, /\.is-far \.dag-caption\.is-turn \{[^}]*scale\(var\(--dag-marker-scale/);
@@ -93,4 +94,5 @@ test("Zoomed far out, a selection stays obvious and labels read like a map", () 
   assert.match(map, /\.history-node\.is-selected/);
   const sel = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/selection.ts", import.meta.url), "utf8");
   assert.match(sel, /repaintMinimap\(\);/);
+  assert.match(sel, /host\.classList\.toggle\("has-selection", drawn\.size > 0\)/);
 });

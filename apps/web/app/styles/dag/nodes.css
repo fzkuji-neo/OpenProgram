@@ -79,15 +79,14 @@
 
 /* Zoomed far out (interaction/canvas.ts ``is-far``): an icon at a few
    pixels is noise, so a chip becomes a dot of its colour — the map reads
-   by colour. Like a marker on a map the dot never shrinks below about
-   10px on screen, and the lines keep 1.5px. A selected dot does what a
-   selected chip does up close — it fills with its full colour — and
-   keeps its size (neighbours sit 14px apart; a larger dot merged with
-   the next), with a faint glow of that colour, so it stands out among
-   the paler dots at any zoom, in either theme. */
+   by colour. The dot is a steady 7px on screen, so neighbours 14px apart
+   never touch, and the lines keep 1.5px. With something selected the
+   rest of the graph fades (``has-selection``, interaction/selection.ts)
+   and the selected dots keep their full colour, so a selection reads at
+   a glance in either theme without growing or outlining anything. */
 .is-far .dag-tile-icon { display: none; }
 .is-far .dag-tile {
-  transform: scale(max(1, calc(var(--dag-marker-scale, 1) * 0.35)));
+  transform: scale(calc(var(--dag-marker-scale, 1) * 0.25));
   transition: none; /* it follows the zoom, frame by frame */
 }
 .is-far .dag-tile > [data-node-shape] { fill: var(--tone); }
@@ -95,17 +94,18 @@
   fill: color-mix(in srgb, var(--tone) 40%, var(--bg-primary, #191918));
 }
 .is-far .history-node.is-head .dag-tile > [data-node-shape] { fill: var(--tone); }
-/* The press target grows with the dot, so a dot is as easy to hit as it looks. */
+/* The press target stays about 10px, a little larger than the dot. */
 .is-far .history-node > .dag-hit {
   transform-box: fill-box;
   transform-origin: center;
   transform: scale(max(1, calc(var(--dag-marker-scale, 1) * 0.35)));
 }
-.is-far .history-node.is-selected .dag-tile { transform: scale(max(1, calc(var(--dag-marker-scale, 1) * 0.35))); }
-.is-far .history-node.is-selected .dag-tile > [data-node-shape] {
-  fill: var(--tone);
-  filter: drop-shadow(0 0 2px var(--tone));
-}
+.is-far .history-node.is-selected .dag-tile { transform: scale(calc(var(--dag-marker-scale, 1) * 0.25)); }
+.is-far .history-node.is-selected .dag-tile > [data-node-shape] { fill: var(--tone); }
+.is-far.has-selection .history-node:not(.is-selected),
+.is-far.has-selection .history-edge,
+.is-far.has-selection .dag-caption,
+.is-far.has-selection .history-branch-tag { opacity: 0.25; }
 .is-far .history-edge { stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
 
 /* Running: the icon breathes. */
