@@ -94,38 +94,40 @@ and zoom live in `apps/web/lib/runtime-bridge/dag/store/globals.ts` keyed by ses
 different session re-fits. Resizing the pane never re-fits — the user's angle on
 the graph is theirs to keep.
 
-**Arriving opens readable; the Fit button shows everything.** The opening view
+**Arriving opens readable; Show the whole graph shows everything.** The opening view
 is the fit, floored at 80%: a long session fitted whole shrank to a hairline
 column of specks (a 40-turn chat opened at 37%). When the graph is larger than
 the strip at that floor, the overflowing axis follows HEAD — near the bottom of
-the strip, the way a transcript opens on its latest message. The HUD's Fit
-button keeps the plain fit down to 25%: asking to see everything is a request
+the strip, the way a transcript opens on its latest message. The zoom column's
+Show the whole graph keeps the plain fit down to 25%: asking to see everything is a request
 for exactly that (`fitCanvas(opening)` in `apps/web/lib/runtime-bridge/dag/interaction/canvas.ts`).
 
-**HUD.** At the composer's TOP-RIGHT — the right end of its env-chip row: a
-fit button, a zoom cluster, and the legend popover, portaled into the
-composer's `#dagHudSlot` (`dag-view.tsx`) so they ride the composer wherever
-it sits and however tall it grows, rendered only while the DAG perspective is
-showing. The zoom cluster is one pill holding − · readout · +: the buttons
-step by exactly one wheel notch (`ZOOM_STEP`), and clicking the readout
-resets to 100% — both anchored on the pane's centre, since a button has no
-cursor to anchor on. The readout is written imperatively by `apps/web/lib/runtime-bridge/dag/interaction/canvas.ts` on
+**Zoom column.** On the canvas's right edge, its foot just above the composer:
+one raised strip holding + · readout · − and, under a hairline, **Show the
+whole graph** (Shift+1, a frame icon rather than the outward arrows that read
+as full screen); a second strip under it opens the legend and turns the
+minimap on and off. Both open to the column's left, so the corner holds
+nothing unasked. The buttons step by exactly one wheel notch (`ZOOM_STEP`), and
+clicking the readout resets to 100% — both anchored on the pane's centre,
+since a button has no cursor to anchor on. The readout is written
+imperatively by `apps/web/lib/runtime-bridge/dag/interaction/canvas.ts` on
 every view change, because routing a gesture's every wheel event through
-React state would repaint the tree sixty times a second.
+React state would repaint the tree sixty times a second. The controls used to
+sit in the composer's env-chip row and on the left rail as well; one column
+on one edge replaced both.
 
-The HUD draws no chrome of its own. The chips carry the shadcn `elevated` `sm`
-Button classes (`buttonVariants`), the same recipe as the env chips beside
-them, so they can never drift from them. The legend panel wears `MENU_PANEL`
+The strips are the left rail's material and buttons
+(`apps/web/app/styles/dag/tools.css`). The legend panel wears `MENU_PANEL`
 (`components/chat/top-bar/menu-styles`), the one frame every popover menu in
-the app shares; `apps/web/app/styles/dag/hud.css` keeps only HUD-internal layout (the zoom
-cluster's segments, the legend's upward anchoring and rows).
+the app shares; `apps/web/app/styles/dag/hud.css` keeps only the legend's
+anchoring and rows.
 
 | Piece | Where |
 |---|---|
-| Pan / zoom / fit | `apps/web/lib/runtime-bridge/dag/interaction/canvas.ts` (`zoomStep` / `resetZoom` for the HUD buttons) |
+| Pan / zoom / fit | `apps/web/lib/runtime-bridge/dag/interaction/canvas.ts` (`zoomStep` / `resetZoom` for the zoom column) |
 | View state | `_viewTx` / `_viewTy` / `_viewScale` / `_viewSession` in `apps/web/lib/runtime-bridge/dag/store/globals.ts` |
 | Surface + lattice | `.history-body` in `apps/web/app/styles/dag/canvas.css` |
-| HUD | `DagHud` in `apps/web/components/chat/dag-view.tsx`; pill look from `buttonVariants` (elevated sm), legend frame from `MENU_PANEL`, internals in `apps/web/app/styles/dag/hud.css` |
+| Zoom column | `DagZoomColumn` in `apps/web/components/chat/dag-view.tsx`; strips in `apps/web/app/styles/dag/tools.css`, legend frame from `MENU_PANEL`, legend rows in `apps/web/app/styles/dag/hud.css` |
 
 ### The composer belongs to the pane, not to the transcript
 
@@ -852,7 +854,7 @@ the graph is: they float over an SVG the renderer owns, keyed to node geometry,
 outside React's tree.
 
 **Legend.** A collapsible card names the shapes and the two greys, opened from
-the canvas HUD beside the fit button (`apps/web/components/chat/dag-view.tsx`). It starts
+the zoom column's legend button (`apps/web/components/chat/dag-view.tsx`). It starts
 collapsed — the vocabulary is small and learnable, so the legend is for the
 first few sessions rather than a permanent fixture on the canvas.
 
@@ -945,18 +947,17 @@ selects (no enclose-only mode) (`apps/web/lib/runtime-bridge/dag/interaction/can
 `interaction/nodes.ts`, `interaction/selection.ts`).
 
 The rail on the canvas's left edge is one raised strip of the app's button
-material (the input box's fill and the composer's shadow). It holds the
-camera. **Find the working agent** (F) glides the view to the tile a working
+material (the input box's fill and the composer's shadow). **Find the working
+agent** (F) glides the view to the tile a working
 agent stands on, keeping the zoom. Pressed again it moves to the next working
 agent, and with none at work it goes to HEAD (`focusAgent` in
-`interaction/canvas.ts`). **Show the whole graph** (Shift+1) sits under it. The
-HUD's Fit can be tucked behind the composer, but the rail is always there.
-Under a hairline, the keyboard button opens the **key sheet**: every gesture
+`interaction/canvas.ts`). Zoom and the whole graph are the zoom column on the
+right edge (see "The canvas is infinite"). Under a hairline, the keyboard button opens the **key sheet**: every gesture
 and key the canvas answers to, grouped as mouse, camera and selection, in a
 menu panel beside the rail (`components/chat/dag-key-sheet.tsx`). `?` opens it
 too. Esc, `?` again or a press outside closes it. The view keys follow design
 tools: Shift+1 fits the graph, Shift+0 returns to 100%, and + / − step the
-zoom, the same steps as the HUD's buttons (`interaction/keys.ts`).
+zoom, the same steps as the zoom column's buttons (`interaction/keys.ts`).
 
 **Selection.** View state of the current session's canvas. Each selected node
 lights up in place (`is-selected`): its chip fills solid in its own colour and
@@ -1011,15 +1012,16 @@ both redraw. The undo stack is per session and lasts as long as the page.
 
 ### The minimap
 
-A long session runs off the screen, so the canvas keeps a minimap in its
-lower right, above the composer, in the rail's raised material. Each node is a
+A long session runs off the screen, so the canvas has a minimap left of the
+zoom column, its foot level with the column's, in the rail's raised material. Each node is a
 dot of its tone, and the part on screen is a frame in the accent colour. A
 press or a drag on the map moves the camera there at the same zoom. The map
 frames the graph and the view together, so the frame is never cut off, and it
 holds still while you drag. HEAD is a larger dot ringed in the accent colour,
 the "you are here" of the map, and a wheel over the map zooms the canvas about
-its middle. M hides the map and M again brings it back; the choice is kept in the browser. Otherwise
-it stays on screen whatever the view: a map that faded out whenever the whole graph fitted
+its middle. It starts hidden; the column's map button or M shows it and hides
+it again, and the choice is kept in the browser. Once shown it stays on
+screen whatever the view: a map that faded out whenever the whole graph fitted
 came and went with the zoom and read as a glitch
 (`apps/web/lib/runtime-bridge/dag/interaction/minimap.ts`, repainted by
 `applyView` on every view change).
@@ -1030,7 +1032,7 @@ The whole spec is implemented. Where each part lives:
 
 | Spec item | Implementation |
 |---|---|
-| Infinite canvas (pan / zoom / fit / dot lattice) | `apps/web/lib/runtime-bridge/dag/interaction/canvas.ts` + `.history-body` in `apps/web/app/styles/dag/canvas.css`; view state in `apps/web/lib/runtime-bridge/dag/store/globals.ts`; HUD in `apps/web/components/chat/dag-view.tsx` |
+| Infinite canvas (pan / zoom / fit / dot lattice) | `apps/web/lib/runtime-bridge/dag/interaction/canvas.ts` + `.history-body` in `apps/web/app/styles/dag/canvas.css`; view state in `apps/web/lib/runtime-bridge/dag/store/globals.ts`; zoom column in `apps/web/components/chat/dag-view.tsx` |
 | §1 lane / tier / depth layout | `apps/web/lib/runtime-bridge/dag/layout/geometry.ts::computeGeometry` (tier-packed chain lanes with per-lane tier zeroing, preorder rows, scene-3 fork rows + gap column, recursive thread placement that inserts later chain rows and reserves thread columns); lattice, no-overlap, thread columns/rows and fork geometry all executed and asserted by `apps/web/scripts/runtime/check-dag-subagent.mjs` |
 | §2 rule ③ glyphs are cells | no shape is sized from text; captions take only free cells and never move the layout (`render/captions.ts`) |
 | §4 HEAD breathing glow | `apps/web/lib/runtime-bridge/dag/render/nodes.ts` stamps `data-head` + the branch colour as `color`; `dag-head-glow` keyframes in `apps/web/app/styles/dag/nodes.css` (reduced-motion → steady glow); every glyph stays hollow (`apps/web/lib/runtime-bridge/dag/render/shapes.ts`); HEAD pointing at a merged reply re-seats on its anchor (`apps/web/lib/runtime-bridge/dag/pipeline.ts` via `threadModel.anchorOf`) |
@@ -1051,7 +1053,7 @@ The whole spec is implemented. Where each part lives:
 | §9 fold + pleats + ghosts | `apps/web/lib/runtime-bridge/dag/passes/fold-summaries.ts` (fold), `apps/web/lib/runtime-bridge/dag/render/nodes.ts` (pleats, `Compacted · N turns` caption, ghost stroke), `apps/web/lib/runtime-bridge/dag/render/edges.ts` (dashed ghost edge), `_summaryExpanded` in `apps/web/lib/runtime-bridge/dag/store/globals.ts`; executed by `apps/web/scripts/runtime/check-dag-summary.mjs` |
 | §10 archived failure | `apps/web/lib/runtime-bridge/dag/render/nodes.ts::_isArchivedFailure` — `status=error` AND off the HEAD chain; grey overrides the tone, the `!` stays |
 | §11 one card, two states / fork & edit | `apps/web/lib/runtime-bridge/dag/interaction/tooltip.ts`: `renderNodeInfo` feeds both states, `expandTooltip` deepens the card in place; `apps/web/lib/runtime-bridge/dag/render/inspector.ts` builds only the verb list (+ raw JSON layer), wired in `apps/web/lib/runtime-bridge/dag/interaction/nodes.ts`; the actions go through `POST /api/chat/checkout` |
-| §11 legend | `DagLegend` in `apps/web/components/chat/dag-view.tsx` (inside the canvas HUD), `.dag-legend` in `apps/web/app/styles/dag/hud.css` |
+| §11 legend | `DagLegend` in `apps/web/components/chat/dag-view.tsx` (in the zoom column), `.dag-legend` in `apps/web/app/styles/dag/hud.css` |
 | §12 call thread + agent spawn | `apps/web/lib/runtime-bridge/dag/render/shapes.ts` (spawn → square), `apps/web/lib/runtime-bridge/dag/passes/thread.ts` (model), `apps/web/lib/runtime-bridge/dag/layout/geometry.ts` (recursive placement), `apps/web/lib/runtime-bridge/dag/render/edges.ts` (dotted thread line, centre-to-centre chain edges, scene-3 bridge), `apps/web/lib/runtime-bridge/dag/render/nodes.ts` (`data-thread*`, shoulder count), `apps/web/lib/runtime-bridge/dag/interaction/nodes.ts` (`toggleThreadOpen`); executed by `apps/web/scripts/runtime/check-dag-subagent.mjs` |
 | §12 the name on the wire | `task/runner.py::_update_attach_card` stamps `attach.label` from the task; `ws_actions/session.py::_annotate_spawn_origin` carries it to the spawn root as `spawned_from.label`; tested in `tests/unit/test_task_attach_integration.py` |
 | §13 mouse, rail, selection, delete / undo | selection state, hit-testing and the selection box in `apps/web/lib/runtime-bridge/dag/interaction/selection.ts`; drags in `canvas.ts`, clicks in `nodes.ts`, keys in `keys.ts`; widening and the undo stack in `node-delete.ts`; rail and action bar in `apps/web/components/chat/dag-tools.tsx`, key sheet in `dag-key-sheet.tsx`, minimap in `interaction/minimap.ts`, + `apps/web/app/styles/dag/tools.css`; store splice and journal in `openprogram/store/session/session_store/node_deletion.py`; tested in `tests/component/store/test_node_deletion.py` and `apps/web/tests/execution/dag-selection.test.mjs` |

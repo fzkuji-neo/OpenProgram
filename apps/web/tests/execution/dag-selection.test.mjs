@@ -26,12 +26,24 @@ registerHooks({
 const sel = await import("../../lib/runtime-bridge/dag/interaction/selection.ts");
 const { deletionTargets } = await import("../../lib/runtime-bridge/dag/interaction/node-delete.ts");
 
-test("One mouse, no tools: the rail holds the camera and the key sheet", () => {
+test("One mouse, no tools: the rail finds the agent and opens the key sheet", () => {
   assert.equal(sel.dagTools, undefined);
   assert.equal(sel.registerTool, undefined);
   const rail = readFileSync(new URL("../../components/chat/dag-tools.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(rail, /Lasso|MousePointer2|setTool/);
-  assert.match(rail, /focusAgent\(\)[\s\S]*fitCanvas\(\)[\s\S]*setKeySheet/);
+  assert.match(rail, /focusAgent\(\)[\s\S]*setKeySheet/);
+  assert.doesNotMatch(rail, /fitCanvas/);
+});
+
+test("Zoom, the whole graph, the legend and the minimap are one column on the right edge", () => {
+  const view = readFileSync(new URL("../../components/chat/dag-view.tsx", import.meta.url), "utf8");
+  const column = view.slice(view.indexOf("function DagZoomColumn"), view.indexOf("export function DagView"));
+  assert.match(column, /zoomStep\(1\)[\s\S]*dag-zoom-readout[\s\S]*zoomStep\(-1\)[\s\S]*fitCanvas\(\)[\s\S]*<DagLegend \/>[\s\S]*toggleMinimap\(\)/);
+  // A frame, not the outward arrows that read as full screen.
+  assert.doesNotMatch(view, /Maximize2|createPortal|dagHudSlot/);
+  const css = readFileSync(new URL("../../app/styles/dag/tools.css", import.meta.url), "utf8");
+  assert.match(css, /\.dag-zoom-column \{[^}]*right: 12px;[^}]*bottom: 158px;/);
+  assert.match(css, /\.dag-minimap \{[^}]*right: 58px;[^}]*bottom: 158px;/);
 });
 
 test("A mouse wheel zooms, two fingers pan, a right drag pans, a left drag draws a box", async () => {

@@ -641,7 +641,7 @@ test("open threads on different rows share the column beside their anchors", asy
   assert.equal(geom.pos.t1.x, geom.pos.t2.x);
 });
 
-test("the minimap stays put whatever the view; M turns it off", async () => {
+test("the minimap starts hidden; once on it stays put whatever the view", async () => {
   const { document } = parseHTML(`<!doctype html><html><body><div id="historyPanel">
     <div class="history-body"><svg><g class="history-world"><g class="history-nodes">
       <g class="history-node" transform="translate(0,0)"><g class="dag-tile t-user"></g></g>
@@ -659,14 +659,15 @@ test("the minimap stays put whatever the view; M turns it off", async () => {
   paintMinimap(host, world, { tx: 100, ty: 100, scale: 0.4, w: 800, h: 600 }, jump);
   const map = document.querySelector("#historyPanel > canvas.dag-minimap");
   assert.ok(map, "the map lives beside the graph, outside the host");
-  // Whole graph on screen or not, the map is there.
+  // Off until the map button (or M) turns it on.
+  assert.ok(map.classList.contains("is-hidden"));
+  toggleMinimap();
   assert.ok(!map.classList.contains("is-hidden"));
+  // Whole graph on screen or not, the map is there.
   paintMinimap(host, world, { tx: 100, ty: 100, scale: 1, w: 800, h: 600 }, jump);
   assert.ok(!map.classList.contains("is-hidden"));
   toggleMinimap();
   assert.ok(map.classList.contains("is-hidden"));
-  toggleMinimap();
-  assert.ok(!map.classList.contains("is-hidden"));
   // Repainting reuses the one canvas.
   assert.equal(document.querySelectorAll("canvas.dag-minimap").length, 1);
 });

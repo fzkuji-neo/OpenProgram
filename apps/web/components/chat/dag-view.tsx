@@ -34,9 +34,8 @@
  * coverage is simply what the fill means.
  */
 
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { Maximize2, Minus, Plus, Shapes } from "lucide-react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Map as MapIcon, Minus, Plus, Scan, Shapes } from "lucide-react";
 import { SolarIcon } from "@/components/solar-icons";
 import type { SolarIconName } from "@/components/solar-icons/bodies";
 
@@ -45,10 +44,9 @@ import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
 import { useSessionStore } from "@/lib/session-store";
 import { enterExclusiveCoverageMode, renderHistoryGraph } from "@/lib/runtime-bridge/dag";
 import { fitCanvas, resetZoom, zoomStep } from "@/lib/runtime-bridge/dag/interaction/canvas";
+import { minimapOn, subscribeMinimap, toggleMinimap } from "@/lib/runtime-bridge/dag/interaction/minimap";
 import { MENU_PANEL } from "@/components/chat/top-bar/menu-styles";
 import { DagCanvasTools } from "@/components/chat/dag-tools";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 /** A tile swatch: the same `dag-tile t-<tone>` classes the canvas tiles
  *  carry (render/tiles.ts, app/styles/dag/nodes.css), so the key and the
@@ -74,9 +72,9 @@ function LegendRow({ swatch, label }: { swatch: React.ReactNode; label: string }
   );
 }
 
-/** Key for shape and coverage. Sits in the canvas HUD beside the fit
- *  button and the zoom readout; the body pops upward. Starts collapsed:
- *  the vocabulary is small and learnable. */
+/** Key for shape and coverage. A button in the zoom column; the body
+ *  opens to the column's left. Starts collapsed: the vocabulary is
+ *  small and learnable. */
 function DagLegend() {
   const { text } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -104,17 +102,20 @@ function DagLegend() {
     <div className="dag-legend" ref={rootRef}>
       <button
         type="button"
-        className={`${cn(buttonVariants({ variant: "elevated", size: "sm" }))} dag-hud-chip dag-legend-toggle`}
+        className="dag-tool-btn"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
+        aria-pressed={open}
+        aria-label={text("Legend", "图例")}
+        data-tip={open ? undefined : text("Legend", "图例")}
+        data-tip-side="left"
       >
-        <Shapes size={14} strokeWidth={2} />
-        <span>{text("Legend", "图例")}</span>
+        <Shapes size={16} strokeWidth={2} />
       </button>
       {open && (
         // 面板框架（圆角/描边/底色/阴影/内衬）来自 MENU_PANEL——全应用
         // 弹层菜单共用的那一份视觉定义；.dag-legend-body 只负责锚位
-        // （向上弹）和行的排版。
+        // （在竖列左边展开）和行的排版。
         <div className={`dag-legend-body ${MENU_PANEL}`}>
           <LegendRow swatch={<LegendTile icon="user-rounded" tone="user" />} label={text("your message", "你的消息")} />
           <LegendRow swatch={<LegendTile icon="ghost" tone="llm" />} label={text("agent reply", "agent 回复")} />
@@ -136,84 +137,55 @@ function DagLegend() {
   );
 }
 
-/** Canvas controls at the composer's TOP-RIGHT — the right end of its
- *  env-chip row: fit the graph back into view, step / reset the zoom
- *  (− · readout · +), open the legend. The same shadcn outline xs
- *  Button recipe as the env chips beside them. Portaled
- *  into the composer's `#dagHudSlot` so they ride the composer wherever
- *  it sits and however tall it grows. Rendered only while the DAG
- *  perspective is showing — the slot stays an empty div in chat. The
- *  zoom readout is written by `dag/interaction/canvas.ts` on every view change — it
- *  is the camera's number, and routing it through React state would
- *  repaint the tree on every wheel event of a gesture. */
-function DagHud({ active }: { active: boolean }) {
+/** The zoom column on the canvas's right edge, above the composer
+ *  (dag/rendering.md §13): one raised strip holding zoom in, the
+ *  readout (click: back to 100%), zoom out and, under a hairline, show
+ *  the whole graph; a second strip under it opens the legend and turns
+ *  the minimap on and off. Both open to the column's left, so nothing
+ *  sits in the corner unasked. The readout is written by
+ *  `dag/interaction/canvas.ts` on every view change — it is the
+ *  camera's number, and routing it through React state would repaint
+ *  the tree on every wheel event of a gesture. */
+function DagZoomColumn() {
   const { text } = useTranslation();
-  const [slot, setSlot] = useState<HTMLElement | null>(null);
-  // The slot lives in the composer, which may mount after this view (and
-  // may be replaced on a session switch) — poll a few frames until it is
-  // there, and re-find whenever the one we hold left the document.
-  useEffect(() => {
-    if (!active) return;
-    if (slot && slot.isConnected) return;
-    let raf = 0;
-    let tries = 0;
-    const find = (): void => {
-      const el = document.getElementById("dagHudSlot");
-      if (el) {
-        setSlot(el);
-      } else if (tries++ < 120) {
-        raf = requestAnimationFrame(find);
-      }
-    };
-    find();
-    return () => cancelAnimationFrame(raf);
-  }, [active, slot]);
-  if (!active || !slot || !slot.isConnected) return null;
-  return createPortal(
-    <div className="dag-hud">
-      <button
-        type="button"
-        className={`${cn(buttonVariants({ variant: "elevated", size: "sm" }))} dag-hud-chip`}
-        onClick={() => fitCanvas()}
-        title={text("Fit graph to view (⇧1)", "缩放到全图 (⇧1)")}
-      >
-        <Maximize2 size={14} strokeWidth={2} />
-        <span>{text("Fit", "全图")}</span>
-      </button>
-      {/* 缩放簇：一颗胶囊里 [−] [倍率] [+]。−/+ 步进一个滚轮格，
-          倍率数字本身点击重置 100%——都以画布中心为锚
-          （interaction/canvas.ts::zoomStep / resetZoom）。 */}
-      <div className={`${cn(buttonVariants({ variant: "elevated", size: "sm" }))} dag-hud-chip dag-hud-zoomctl`}>
-        <button
-          type="button"
-          className="dag-hud-zoombtn"
-          onClick={() => zoomStep(-1)}
-          title={text("Zoom out (−)", "缩小 (−)")}
-          aria-label={text("Zoom out", "缩小")}
-        >
-          <Minus size={14} strokeWidth={2} />
+  const mapOn = useSyncExternalStore(subscribeMinimap, minimapOn, minimapOn);
+  return (
+    <div className="dag-zoom-column">
+      <div className="dag-tool-rail" role="toolbar" aria-orientation="vertical"
+        aria-label={text("Zoom", "缩放")}>
+        <button type="button" className="dag-tool-btn" onClick={() => zoomStep(1)}
+          aria-label={text("Zoom in", "放大")} aria-keyshortcuts="+"
+          data-tip={text("Zoom in · +", "放大 · +")} data-tip-side="left">
+          <Plus size={16} strokeWidth={2} />
         </button>
-        <button
-          type="button"
-          className="dag-hud-zoom"
-          onClick={() => resetZoom()}
-          title={text("Reset zoom to 100% (⇧0)", "重置为 100% (⇧0)")}
-        >
+        <button type="button" className="dag-tool-btn dag-zoom-readout" onClick={() => resetZoom()}
+          aria-keyshortcuts="Shift+0"
+          data-tip={text("Back to 100% · ⇧0", "回到 100% · ⇧0")} data-tip-side="left">
           100%
         </button>
-        <button
-          type="button"
-          className="dag-hud-zoombtn"
-          onClick={() => zoomStep(1)}
-          title={text("Zoom in (+)", "放大 (+)")}
-          aria-label={text("Zoom in", "放大")}
-        >
-          <Plus size={14} strokeWidth={2} />
+        <button type="button" className="dag-tool-btn" onClick={() => zoomStep(-1)}
+          aria-label={text("Zoom out", "缩小")} aria-keyshortcuts="-"
+          data-tip={text("Zoom out · −", "缩小 · −")} data-tip-side="left">
+          <Minus size={16} strokeWidth={2} />
+        </button>
+        <span className="dag-tool-sep" aria-hidden="true" />
+        <button type="button" className="dag-tool-btn" onClick={() => fitCanvas()}
+          aria-label={text("Show the whole graph", "显示整张图")} aria-keyshortcuts="Shift+1"
+          data-tip={text("Show the whole graph · ⇧1", "显示整张图 · ⇧1")} data-tip-side="left">
+          <Scan size={16} strokeWidth={2} />
         </button>
       </div>
-      <DagLegend />
-    </div>,
-    slot,
+      <div className="dag-tool-rail" role="toolbar" aria-orientation="vertical"
+        aria-label={text("Legend and minimap", "图例和小地图")}>
+        <DagLegend />
+        <button type="button" className="dag-tool-btn" onClick={() => toggleMinimap()}
+          aria-pressed={mapOn} aria-label={text("Minimap", "小地图")} aria-keyshortcuts="M"
+          data-tip={mapOn ? text("Hide the minimap · M", "隐藏小地图 · M") : text("Show the minimap · M", "显示小地图 · M")}
+          data-tip-side="left">
+          <MapIcon size={16} strokeWidth={2} />
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -259,7 +231,7 @@ export function DagView({ visible }: { visible: boolean }) {
           放分支条——那条横线会横穿右上角的悬浮视角按钮。 */}
       <div className="history-body"></div>
       {visible && <DagCanvasTools />}
-      <DagHud active={visible} />
+      {visible && <DagZoomColumn />}
     </div>
   );
 }

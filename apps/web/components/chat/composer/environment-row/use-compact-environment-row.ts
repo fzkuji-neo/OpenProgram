@@ -106,22 +106,7 @@ export function useCompactEnvironmentRow(ref: RefObject<HTMLDivElement | null>) 
     const mutationObserver =
       typeof MutationObserver === "undefined"
         ? null
-        : new MutationObserver((records) => {
-            const isInside = (node: Node, selector: string) =>
-              node instanceof Element
-                ? Boolean(node.closest(selector))
-                : Boolean(node.parentElement?.closest(selector));
-            if (
-              records.every(
-                (record) =>
-                  isInside(record.target, ".dag-hud-zoom") ||
-                  isInside(record.target, ".dag-legend"),
-              )
-            ) {
-              return;
-            }
-            measure();
-          });
+        : new MutationObserver(() => measure());
     mutationObserver?.observe(row, {
       childList: true,
       characterData: true,

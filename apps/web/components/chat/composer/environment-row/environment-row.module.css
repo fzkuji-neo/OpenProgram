@@ -58,9 +58,7 @@
 .envChips :global(.project-badge .badge-short),
 .envChips :global(.workdir-badge .badge-short),
 .envChips :global(.git-seg-label),
-.envChips :global(.git-seg-badge),
-.envChips :global(.dag-hud-chip > span),
-.envChips :global(.dag-hud-zoom) {
+.envChips :global(.git-seg-badge) {
   flex: 0 0 auto;
   max-width: 40ch;
   opacity: 1;
@@ -81,10 +79,6 @@
   transition: width 170ms ease, margin 170ms ease, opacity 130ms ease;
 }
 
-.envChips :global(.dag-hud-zoom) {
-  max-width: 48px;
-}
-
 /* Level 1: long names capped. */
 .envChips[data-squeeze] .surfaceChipLabel,
 .envChips[data-squeeze] :global(.project-badge .badge-short),
@@ -101,9 +95,7 @@
 .envChips[data-compact="true"] :global(.project-badge .badge-short),
 .envChips[data-compact="true"] :global(.workdir-badge .badge-short),
 .envChips[data-compact="true"] :global(.git-seg-label),
-.envChips[data-compact="true"] :global(.git-seg-badge),
-.envChips[data-compact="true"] :global(.dag-hud-chip > span),
-.envChips[data-compact="true"] :global(.dag-hud-zoom) {
+.envChips[data-compact="true"] :global(.git-seg-badge) {
   max-width: 0;
   min-width: 0;
   padding-left: 0;
@@ -124,8 +116,7 @@
 .envChips[data-squeeze] :global(.status-badge):not(.surfaceChip),
 .envChips[data-compact="true"] > .surfaceChip,
 .envChips[data-compact="true"] :global(.status-badge),
-.envChips[data-compact="true"] :global(.workdir-add-badge),
-.envChips[data-compact="true"] :global(button.dag-hud-chip) {
+.envChips[data-compact="true"] :global(.workdir-add-badge) {
   /* Icon-only chips are the same 28px circle as the icon pills under
      the input box. */
   min-width: 28px;
@@ -148,26 +139,14 @@
 .envChips[data-measuring] > * {
   flex-shrink: 0 !important;
 }
-.envChips[data-measuring] > .surfaceChip,
-.envChips[data-measuring] > .trailingControls {
+.envChips[data-measuring] > .surfaceChip {
   margin-left: 0 !important;
 }
 
-.trailingControls {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-}
-/* The trailing slot is a portal target that is usually empty; an empty
-   slot must not take a row gap, or the right-aligned chips stop short of
-   the input box's right edge. */
-.trailingControls:not(:has(> :not(:empty))) { display: none; }
-
 /* The web chips (tab access + picture-in-picture) are right-aligned: the
-   first one takes the free space, the trailing slot then sits flush. */
+   first one takes the free space. */
 .envChips > .surfaceChip { margin-left: auto; }
 .envChips > .surfaceChip ~ .surfaceChip { margin-left: 0; }
-.envChips:has(> .surfaceChip) > .trailingControls { margin-left: 0; }
 
 .envChips :global(.indicator-dot) {
   width: 8px;
@@ -183,16 +162,13 @@
   .envChips :global(.status-badge .badge-short),
   .envChips :global(.project-badge .badge-short),
   .envChips :global(.workdir-badge .badge-short),
-  .envChips :global(.dag-hud-chip > span),
-  .envChips :global(.dag-hud-zoom),
   .envChips :global(.status-badge),
   .envChips :global(.runtime-badge.project-badge),
   .envChips :global(.runtime-badge.workdir-badge),
   .envChips :global(.git-seg-label),
   .envChips :global(.git-seg-badge),
   .envChips :global(.git-seg-dot),
-  .envChips :global(.folder-pill-seg),
-  .envChips :global(.dag-hud-chip) {
+  .envChips :global(.folder-pill-seg) {
     transition: none;
   }
 }

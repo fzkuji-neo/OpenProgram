@@ -6,9 +6,10 @@
  *
  * The rail runs down the canvas's left edge as one raised strip, the
  * app's button material. There are no tools to switch: one mouse pans,
- * clicks and (with Shift/⌘) selects, so the rail holds the camera —
- * find the working agent, show the whole graph — and, under a hairline,
- * the keyboard button that opens the key sheet (dag-key-sheet.tsx).
+ * clicks and (with Shift/⌘) selects, so the rail holds finding the
+ * working agent and, under a hairline, the keyboard button that opens
+ * the key sheet (dag-key-sheet.tsx). Zoom, the whole graph, the legend
+ * and the minimap are the zoom column on the right edge (dag-view.tsx).
  * The action bar appears at the top left while something is selected,
  * and for a few seconds after a delete, as the way back. The top right
  * belongs to the pane's perspective controls.
@@ -19,7 +20,6 @@ import {
   Copy,
   Keyboard,
   LocateFixed,
-  Maximize2,
   Scan,
   Trash2,
   Undo2,
@@ -40,7 +40,7 @@ import {
   lastDeletion,
   undoDeletion,
 } from "@/lib/runtime-bridge/dag/interaction/node-delete";
-import { fitCanvas, focusAgent, frameSelection } from "@/lib/runtime-bridge/dag/interaction/canvas";
+import { focusAgent, frameSelection } from "@/lib/runtime-bridge/dag/interaction/canvas";
 import { keySheetOpen, setKeySheet } from "@/lib/runtime-bridge/dag/interaction/help";
 import { DagKeySheet, useKeySheetOpen } from "./dag-key-sheet";
 
@@ -64,19 +64,6 @@ function DagToolRail() {
         onClick={() => focusAgent()}
       >
         <LocateFixed size={16} strokeWidth={2} />
-      </button>
-      {/* The rail always shows, while the HUD's Fit can be tucked behind
-          the composer: the camera keeps one way to see everything. */}
-      <button
-        type="button"
-        className="dag-tool-btn"
-        aria-label={text("Show the whole graph", "显示整张图")}
-        aria-keyshortcuts="Shift+1"
-        data-tip={text("Show the whole graph · ⇧1", "显示整张图 · ⇧1")}
-        data-tip-side="right"
-        onClick={() => fitCanvas()}
-      >
-        <Maximize2 size={16} strokeWidth={2} />
       </button>
       <span className="dag-tool-sep" aria-hidden="true" />
       <button

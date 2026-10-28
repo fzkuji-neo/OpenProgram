@@ -604,7 +604,6 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
           sessionId={currentSessionId}
           toolsEnabled={toolsEnabled}
           onToggleAccess={toggleTools}
-          trailingControls={<div id="dagHudSlot" />}
         />
       </TuckRow>
       {/* Messages typed during the run dock directly above the input box. */}

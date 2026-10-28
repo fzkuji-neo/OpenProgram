@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { useRef } from "react";
 
 import { GoalChip } from "../../goal-chip";
 import { ProjectBadge, WorkingDirChips } from "../../top-bar";
@@ -15,14 +15,12 @@ interface EnvironmentRowProps {
   sessionId: string | null;
   toolsEnabled: boolean;
   onToggleAccess(): void;
-  trailingControls?: ReactNode;
 }
 
 export function EnvironmentRow({
   sessionId,
   toolsEnabled,
   onToggleAccess,
-  trailingControls,
 }: EnvironmentRowProps) {
   const rowRef = useRef<HTMLDivElement | null>(null);
   useCompactEnvironmentRow(rowRef);
@@ -41,9 +39,6 @@ export function EnvironmentRow({
         onToggleAccess={onToggleAccess}
       />
       <WebPreviewChip />
-      {trailingControls ? (
-        <div className={styles.trailingControls}>{trailingControls}</div>
-      ) : null}
     </div>
   );
 }

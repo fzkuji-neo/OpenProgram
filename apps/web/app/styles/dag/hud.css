@@ -1,58 +1,14 @@
-/* DAG 画布 HUD：缩放簇（− · 读数 · +）与图例。
-   对应来源：components/chat/dag-view.tsx、lib/runtime-bridge/dag/interaction/canvas.ts */
+/* DAG 画布图例：右侧缩放竖列里的图例按钮弹出的说明卡。
+   对应来源：components/chat/dag-view.tsx */
 
 /* ============ Canvas legend ============ */
-/* A collapsible corner card naming the shapes and the two greys. It
-   floats over the canvas rather than taking a strip of it, and starts
-   collapsed to a single button — the shapes are learnable, so the
-   legend is for the first few sessions, not every one. */
-/* Canvas HUD — fit, the zoom cluster (− · readout · +), legend. Lives
-   at the composer's top-right: portaled into the env-chip row's right
-   end (composer .dagHudSlot), so it rides the composer and needs no
-   positioning of its own. */
-.dag-hud {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-/* The pill look comes from the shadcn outline xs Button classes the
-   chips carry (dag-view.tsx) — the same recipe as the env chips beside
-   them. Here: only what is HUD-internal. */
-/* The zoom cluster: one pill holding [−] [readout] [+]. Tight side
-   padding so the round segments read as one control. */
-.dag-hud .dag-hud-chip.dag-hud-zoomctl {
-  padding: 0 3px;
-  gap: 0;
-}
-.dag-hud-zoombtn,
-.dag-hud-zoom {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 20px;
-  padding: 0;
-  border: none;
-  border-radius: var(--radius);
-  background: transparent;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-}
-.dag-hud-zoombtn { width: 20px; }
-.dag-hud-zoom {
-  min-width: 42px;
-  padding: 0 3px;
-}
-/* Segment hover = the outline Button's hover tint, scoped to the
-   segment instead of the whole pill. */
-.dag-hud-zoombtn:hover,
-.dag-hud-zoom:hover {
-  color: var(--foreground);
-  background: var(--muted);
-}
-
+/* A collapsible card naming the shapes and the two greys, opened from
+   the zoom column's legend button (dag-view.tsx). It floats over the
+   canvas rather than taking a strip of it, and starts collapsed — the
+   shapes are learnable, so the legend is for the first few sessions,
+   not every one. */
 .dag-legend {
-  /* The body pops upward from the HUD chip; the wrapper is only its
+  /* The body opens left of the column; the wrapper is only its
      positioning context and takes no space of its own. */
   position: relative;
   flex-shrink: 0;
@@ -61,11 +17,12 @@
    --surface-popover fill, --shadow-popover, 6px inset) comes from
    MENU_PANEL (chat/top-bar/menu-styles) put on the element by
    dag-view.tsx — the one visual definition every popover panel shares.
-   This block is only the legend's anchoring and its rows. */
+   This block is only the legend's anchoring and its rows: left of the
+   column (its 4px inset + an 8px gap), foot level with the strip's. */
 .dag-legend-body {
   position: absolute;
-  bottom: calc(100% + 8px);
-  right: 0;
+  right: calc(100% + 12px);
+  bottom: -4px;
   z-index: 30;
   width: max-content;
   max-width: 320px;

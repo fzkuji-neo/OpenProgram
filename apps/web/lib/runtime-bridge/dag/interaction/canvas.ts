@@ -139,7 +139,7 @@ export function applyView(): void {
   host.style.setProperty("--dag-marker-scale", String(Math.max(1, 1 / _viewScale)));
   host.classList.toggle("is-far", _viewScale < FAR_SCALE);
   paintFarLabels(world, _viewScale < FAR_SCALE);
-  const pct = document.querySelector<HTMLElement>(".dag-hud-zoom");
+  const pct = document.querySelector<HTMLElement>(".dag-zoom-readout");
   if (pct) pct.textContent = Math.round(_viewScale * 100) + "%";
   const seen = { tx: _viewTx, ty: _viewTy, scale: _viewScale, w: host.clientWidth, h: host.clientHeight - COMPOSER_STRIP };
   paintMinimap(host, world, seen, jumpTo);

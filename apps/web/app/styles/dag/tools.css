@@ -1,5 +1,5 @@
-/* DAG 画布控件：左侧竖条、左上选择操作条、选中虚线框、框选框、快捷键面板、小地图。
-   对应来源：components/chat/dag-tools.tsx、lib/runtime-bridge/dag/interaction/selection.ts */
+/* DAG 画布控件：左侧竖条、右侧缩放竖列、左上选择操作条、选中虚线框、框选框、快捷键面板、小地图。
+   对应来源：components/chat/dag-tools.tsx、components/chat/dag-view.tsx、lib/runtime-bridge/dag/interaction/selection.ts */
 
 /* Rail and action bar are the app's raised material: the input box's
    fill and the composer's shadow, no edge (components/ui/button.tsx
@@ -20,11 +20,32 @@
 /* The rail — a vertical strip on the canvas's left edge, centred
    on the strip above the composer (the composer floats over the bottom
    ~150px of the pane, canvas.ts COMPOSER_STRIP). */
-.dag-tool-rail {
+.dag-tool-rail { flex-direction: column; }
+.dag-view > .dag-tool-rail {
   left: 12px;
   top: calc((100% - 150px) / 2);
   transform: translateY(-50%);
+}
+
+/* The zoom column (dag-view.tsx DagZoomColumn): the same strips stacked
+   on the canvas's right edge, its foot just above the composer. Its
+   popovers — the legend and the minimap — open to its left. */
+.dag-zoom-column {
+  position: absolute;
+  z-index: 3;
+  right: 12px;
+  bottom: 158px;
+  display: flex;
   flex-direction: column;
+  gap: 8px;
+}
+.dag-zoom-column > .dag-tool-rail { position: static; }
+.dag-tool-btn.dag-zoom-readout {
+  height: 24px;
+  font: inherit;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 .dag-tool-btn {
   display: flex;
@@ -126,12 +147,13 @@
   stroke-linejoin: round;
 }
 
-/* The minimap (interaction/minimap.ts): the rail's raised material in
-   the canvas's lower right, just above the composer. M hides it. */
+/* The minimap (interaction/minimap.ts): the rail's raised material,
+   left of the zoom column with their feet level (12px edge + 38px
+   column + 8px gap). The column's map button and M show and hide it. */
 .dag-minimap {
   position: absolute;
   z-index: 3;
-  right: 12px;
+  right: 58px;
   bottom: 158px;
   border-radius: 10px;
   background: var(--bg-input);

@@ -21,12 +21,24 @@ export interface MapView { tx: number; ty: number; scale: number; w: number; h: 
 
 const _data = new WeakMap<SVGGElement, MapData>();
 
-/** M turns the map off and on (keys.ts); the choice outlives the page. */
-const OFF_KEY = "dag-minimap-off";
-let _off = (() => {
-  try { return localStorage.getItem(OFF_KEY) === "1"; } catch { return false; }
+/** The map button and M turn the map on and off (keys.ts); the choice
+ *  outlives the page. */
+const ON_KEY = "dag-minimap-on";
+let _on = (() => {
+  try { return localStorage.getItem(ON_KEY) === "1"; } catch { return false; }
 })();
 let _repaint: (() => void) | null = null;
+const _listeners = new Set<() => void>();
+
+export function minimapOn(): boolean {
+  return _on;
+}
+
+/** The map button's pressed state follows the map. */
+export function subscribeMinimap(fn: () => void): () => void {
+  _listeners.add(fn);
+  return () => { _listeners.delete(fn); };
+}
 
 /** Repaint with the current view (a selection change, selection.ts). */
 export function repaintMinimap(): void {
@@ -34,9 +46,10 @@ export function repaintMinimap(): void {
 }
 
 export function toggleMinimap(): void {
-  _off = !_off;
-  try { localStorage.setItem(OFF_KEY, _off ? "1" : "0"); } catch { /* private mode */ }
+  _on = !_on;
+  try { localStorage.setItem(ON_KEY, _on ? "1" : "0"); } catch { /* private mode */ }
   _repaint?.();
+  _listeners.forEach((fn) => fn());
 }
 
 function readGraph(world: SVGGElement): MapData {
@@ -137,8 +150,8 @@ export function paintMinimap(
   const vy0 = -view.ty / view.scale;
   const vx1 = (view.w - view.tx) / view.scale;
   const vy1 = (view.h - view.ty) / view.scale;
-  // Always there, so it never comes and goes under you; M hides it.
-  const hidden = _off || d.dots.length < 2;
+  // Once on, it never comes and goes under you.
+  const hidden = !_on || d.dots.length < 2;
   c.classList.toggle("is-hidden", hidden);
   if (hidden) return;
   // Under a drag the scale stays put, else the map would slide under
