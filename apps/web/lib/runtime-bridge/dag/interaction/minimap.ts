@@ -17,14 +17,17 @@ const PAD = 8;
 const SLACK = 24;
 
 interface Dot { x: number; y: number; color: string; head: boolean }
-interface MapData { dots: Dot[]; x0: number; y0: number; x1: number; y1: number }
+interface MapData { dots: Dot[]; x0: number; y0: number; x1: number; y1: number; theme: string }
 export interface MapView { tx: number; ty: number; scale: number; w: number; h: number }
 
 const _data = new WeakMap<SVGGElement, MapData>();
 
 function readGraph(world: SVGGElement): MapData {
+  // Tone colours are read once per graph and theme: a theme switch with
+  // no repaint must not leave the old palette on the map.
+  const theme = document.documentElement.getAttribute("data-theme") || "";
   const cached = _data.get(world);
-  if (cached) return cached;
+  if (cached && cached.theme === theme) return cached;
   // One computed-style read per tone, not per node.
   const toneColor = new Map<string, string>();
   const dots: Dot[] = [];
@@ -43,7 +46,7 @@ function readGraph(world: SVGGElement): MapData {
     x0 = Math.min(x0, x); y0 = Math.min(y0, y);
     x1 = Math.max(x1, x); y1 = Math.max(y1, y);
   });
-  const data = { dots, x0, y0, x1, y1 };
+  const data = { dots, x0, y0, x1, y1, theme };
   _data.set(world, data);
   return data;
 }
