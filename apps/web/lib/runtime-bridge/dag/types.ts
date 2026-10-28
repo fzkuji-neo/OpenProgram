@@ -70,4 +70,3 @@ export function layoutParent(n: GNode): string | null | undefined {
   return n._overview_parent || semanticParent(n);
 }
 
-export type HighlightMode = "viewport" | "context";

@@ -51,8 +51,6 @@ import { _assignDepth } from "./layout/depth";
 import { _assignLanes, _headAncestors, _stampPathLanes } from "./layout/assign-lanes";
 import {
   _recomputeVisibility,
-  _wireChatMutationSync,
-  _wireChatScrollSync,
 } from "./render/visibility";
 import { drawNodes, patchHistoryStatus } from "./render/nodes";
 import { drawBadges } from "./render/badges";
@@ -71,7 +69,6 @@ import {
 import {
   _contextSet,
   _coverageSet,
-  _highlightMode,
   _lastGraph,
   _lastHeadId,
   _lastSignature,
@@ -166,7 +163,6 @@ function _signatureInput(graph: GNode[], headId: string | null): DagSignatureInp
         }>)
         : null,
     ),
-    highlightMode: _highlightMode,
   };
 }
 
@@ -415,12 +411,7 @@ export function render(graphIn: GNode[], headIdIn: string | null): void {
   _resetTooltip();
   setVisibleIds(Object.create(null));
 
-  _wireChatScrollSync();
-  _wireChatMutationSync();
   _recomputeVisibility();
-  requestAnimationFrame(_recomputeVisibility);
-  setTimeout(_recomputeVisibility, 250);
-  setTimeout(_recomputeVisibility, 700);
 
   const bodyAny = body as any;
   if (!bodyAny._historyHoverWired) {

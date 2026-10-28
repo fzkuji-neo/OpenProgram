@@ -13,7 +13,7 @@
 
  
 
-import type { GNode, HighlightMode } from "../types";
+import type { GNode } from "../types";
 import type { ThreadModel } from "../passes/thread";
 
 // ── HEAD / context / highlight mode ───────────────────────────────
@@ -36,9 +36,6 @@ export function setCoverageSet(
 ): void {
   _coverageSet = v;
 }
-
-export let _highlightMode: HighlightMode = "viewport";
-export function setHighlightMode(v: HighlightMode): void { _highlightMode = v; }
 
 // ── visibility / ancestry / internal sets ─────────────────────────
 export let _visibleIds: Record<string, boolean> = Object.create(null);
@@ -129,13 +126,4 @@ export function setLastGraph(g: GNode[] | null, h: string | null): void {
 export let _lastThreadModel: ThreadModel | null = null;
 export function setLastThreadModel(v: ThreadModel | null): void {
   _lastThreadModel = v;
-}
-
-// ── chat-sync wiring latches ──────────────────────────────────────
-export let _chatScrollWired = false;
-export function setChatScrollWired(v: boolean): void { _chatScrollWired = v; }
-
-export let _chatMutationObserver: MutationObserver | null = null;
-export function setChatMutationObserver(v: MutationObserver | null): void {
-  _chatMutationObserver = v;
 }

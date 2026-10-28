@@ -23,12 +23,10 @@ import {
 import {
   _contextSet,
   _coverageSet,
-  _highlightMode,
   _lastGraph,
   _lastHeadId,
   setContextSet,
   setCoverageSet,
-  setHighlightMode,
   setLastGraph,
   setLastSignature,
 } from "./store/globals";
@@ -127,17 +125,15 @@ export function refreshHistoryContextRange(sessionId: string | null): void {
 }
 
 /**
- * The graph is showing, and it owns its pane — a lone session tab gets
- * the chat shell plus this graph, and two session tabs split into two
- * `PeerSessionPane`s where the shell is not rendered at all. There is
- * therefore never a transcript beside the graph, so "which bubbles are
- * on screen" has no reading and the white fill means context coverage,
- * full stop (dag/rendering.md §8). No mode to offer, so no switch.
+ * The graph is showing: paint whatever was owed while it was hidden and
+ * fetch the coverage it fills in. The graph owns its pane — there is
+ * never a transcript beside it — so the fill means context coverage,
+ * full stop (dag/rendering.md §8); it never follows a transcript's
+ * scroll.
  *
  * Idempotent: safe to call on every render of the host.
  */
 export function enterExclusiveCoverageMode(): void {
-  if (_highlightMode !== "context") setHighlightMode("context");
   flushPendingHistoryEmit();
   const sid = runtimeState.currentSessionId;
   if (sid) refreshHistoryContextRange(sid);

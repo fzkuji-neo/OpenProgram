@@ -123,7 +123,6 @@ export type DagSignatureInput = {
   coverageSet: CoverageMap | null;
   sessionId: string | null;
   branchTags: string;
-  highlightMode: string;
 };
 
 function nodeGeometryPart(m: DagSigNode): string {
@@ -164,7 +163,6 @@ function viewFingerprint(input: DagSignatureInput): string {
     coveragePaintSignature(input.contextSet, input.coverageSet),
     input.sessionId || "",
     input.branchTags,
-    input.highlightMode,
   ].join("||");
 }
 
