@@ -662,6 +662,9 @@ test("the minimap steps away while the whole graph is on screen", async () => {
   assert.ok(map.classList.contains("is-hidden"));
   paintMinimap(host, world, { tx: 100, ty: 100, scale: 1, w: 800, h: 600 }, jump);
   assert.ok(!map.classList.contains("is-hidden"));
+  // A sliver past the edge does not call the map.
+  paintMinimap(host, world, { tx: 100, ty: 100, scale: 0.5, w: 800, h: 590 }, jump);
+  assert.ok(map.classList.contains("is-hidden"));
   // Repainting reuses the one canvas.
   assert.equal(document.querySelectorAll("canvas.dag-minimap").length, 1);
 });

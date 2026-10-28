@@ -952,7 +952,7 @@ frames the graph and the view together, so the frame is never cut off, and it
 holds still while you drag. HEAD is a larger dot ringed in the accent colour,
 the "you are here" of the map, and a wheel over the map zooms the canvas about
 its middle. When the
-whole graph is already on screen the map fades out: there is nothing to find
+whole graph is already on screen, give or take a tile's width, the map fades out: there is nothing to find
 (`apps/web/lib/runtime-bridge/dag/interaction/minimap.ts`, repainted by
 `applyView` on every view change).
 

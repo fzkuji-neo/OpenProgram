@@ -13,6 +13,8 @@
 const W = 168;
 const H = 112;
 const PAD = 8;
+/** Screen pixels a graph may run past the view before the map shows. */
+const SLACK = 24;
 
 interface Dot { x: number; y: number; color: string; head: boolean }
 interface MapData { dots: Dot[]; x0: number; y0: number; x1: number; y1: number }
@@ -114,7 +116,11 @@ export function paintMinimap(
   const vy0 = -view.ty / view.scale;
   const vx1 = (view.w - view.tx) / view.scale;
   const vy1 = (view.h - view.ty) / view.scale;
-  const allSeen = d.x0 >= vx0 && d.x1 <= vx1 && d.y0 >= vy0 && d.y1 <= vy1;
+  // A sliver past the edge (half a tile behind the composer) is still
+  // "all on screen": the map comes only when a node's worth is hidden.
+  const slack = SLACK / view.scale;
+  const allSeen = d.x0 >= vx0 - slack && d.x1 <= vx1 + slack
+    && d.y0 >= vy0 - slack && d.y1 <= vy1 + slack;
   const hidden = d.dots.length < 2 || allSeen;
   c.classList.toggle("is-hidden", hidden);
   if (hidden) return;
