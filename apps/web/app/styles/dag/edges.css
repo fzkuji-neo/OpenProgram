@@ -38,8 +38,7 @@
   stroke-width: 3.5;
   opacity: 1;
 }
-.history-edge-hit.attach-edge-hit:hover ~ .attach-edge,
-.history-edge-hit.spawn-edge-hit:hover ~ .spawn-edge {
+.history-edge-hit.attach-edge-hit:hover ~ .attach-edge {
   stroke-width: 2.4;
   opacity: 1;
 }

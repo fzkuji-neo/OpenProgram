@@ -165,39 +165,6 @@
    same as top-level nodes. Edges still dim to convey context range. */
 .history-node.out-of-context { opacity: 1; }
 
-/* Inline row labels — message preview / function name beside each node. */
-.history-label {
-  font-size: 11px;
-  font-family: var(--font-sans);
-  fill: var(--text-muted);
-  dominant-baseline: middle;
-  pointer-events: none;
-  user-select: none;
-}
-.history-label.on-head { fill: var(--text-secondary); }
-.history-label.is-head { fill: var(--text-primary); font-weight: 600; }
-
-/* ============ Compaction capsule, ghosts, archived failures ============ */
-/* dag/rendering.md §9 / §10. One grey answers both: a covered turn and
-   an abandoned failed turn are alike on the only axis the graph is
-   about — still on disk, never in the next request. */
-/* The theme contract provides --dag-ghost. Components never branch on a
-   concrete theme id, so every new palette gets the same graph semantics. */
-
-/* The note beside a compaction capsule ("已压缩 · 14 轮"). It is the
-   fold's own affordance — the pleats say a stack is there, this says
-   how deep. Annotation grey: the pill is the glyph, this is what the
-   pill means. */
-.history-summary-label {
-  font-size: 10px;
-  font-family: var(--font-sans);
-  fill: var(--text-muted, var(--text-secondary));
-  dominant-baseline: middle;
-}
-.history-node.is-summary:hover .history-summary-label {
-  fill: var(--text-primary);
-}
-
 /* Ghosts do not brighten on hover: the whole point of the state is
    that these nodes read as receded. They stay clickable. */
 .history-node.is-ghost:hover .dag-tile > [data-node-shape],

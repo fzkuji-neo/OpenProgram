@@ -1,10 +1,10 @@
 /**
  * Labels zoomed out (dag/rendering.md §2, semantic zoom): the way a map
  * keeps its place names readable and shows fewer of them as you pull
- * back. Below 100% the names of branches and the captions keep their
- * on-screen size (app/styles/dag/badges.css, nodes.css) instead of
- * shrinking with the graph; this pass hides the ones that would land on
- * a label already shown. Branch names go first, the current one before
+ * back. Below 100% the names of branches and the captions shrink much
+ * less than the graph does (``--dag-label-scale``, app/styles/dag/
+ * badges.css, nodes.css); this pass hides the ones that would land on a
+ * label already shown. Branch names go first, the current one before
  * the rest, then your messages nearest HEAD, then calls.
  *
  * A hidden label keeps its box (``visibility``), so the next pass can
