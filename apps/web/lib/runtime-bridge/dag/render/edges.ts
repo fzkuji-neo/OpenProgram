@@ -23,8 +23,6 @@ import { coversIds } from "../passes/fold-summaries";
 import { isChainNode, isSpawnRoot } from "../passes/thread";
 import type { Geometry } from "../layout/geometry";
 
-const GHOST_STROKE = "var(--dag-ghost, #c9c7bf)";
-
 function isRunning(node: GNode): boolean {
   return (node as Record<string, unknown>).status === "running";
 }

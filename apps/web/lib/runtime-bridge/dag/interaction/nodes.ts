@@ -21,7 +21,7 @@ import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
  * they survive every re-render of the SVG.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 import type { GNode } from "../types";
 import { getSocket, runtimeState } from "../../state";
@@ -45,7 +45,7 @@ import { _buildTree } from "../layout/build-tree";
 import { releaseEditableFocus, select } from "./selection";
 import type { TNode } from "@/components/chat/messages/tree-types";
 
-export function _chatBubbleFor(msgId: string): Element | null {
+function _chatBubbleFor(msgId: string): Element | null {
   if (!msgId) return null;
   const container = document.getElementById("chatMessages");
   if (!container) return null;

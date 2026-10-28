@@ -27,7 +27,7 @@ import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
  * renderer owns, keyed to node geometry, outside React's tree.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 import type { GNode } from "../types";
 import { getSocket, runtimeState } from "../../state";

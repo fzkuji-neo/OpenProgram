@@ -24,7 +24,6 @@ import {
   Trash2,
   Undo2,
   X,
-  type LucideIcon,
 } from "lucide-react";
 
 import { useTranslation } from "@/lib/i18n";

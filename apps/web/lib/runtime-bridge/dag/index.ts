@@ -9,7 +9,7 @@
  * See ``./README.md`` for the directory layout and the pass pipeline.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 import { type GNode } from "./types";
 import { runtimeState } from "../state";
@@ -124,10 +124,6 @@ export function refreshHistoryContextRange(sessionId: string | null): void {
     .catch(() => {
       /* leave undimmed on failure */
     });
-}
-
-export function recomputeHistoryVisibility(): void {
-  _recomputeVisibility();
 }
 
 /**

@@ -134,7 +134,7 @@ export function rectTouchesBox(r: Box, b: Box): boolean {
 
 /** Ids of the drawn nodes whose glyph ``rect`` touches. ``rect`` is in
  *  viewport (client) coordinates. */
-export function nodesTouched(rect: Box): string[] {
+function nodesTouched(rect: Box): string[] {
   const host = canvasHost();
   if (!host) return [];
   const out: string[] = [];

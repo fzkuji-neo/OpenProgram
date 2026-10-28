@@ -23,11 +23,10 @@
  * node drawer stamped so card and picture cannot disagree.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 import { type GNode } from "../types";
 import {
-  bodyText as _bodyText,
   clampText,
   kindLabel,
   tooltipRows,

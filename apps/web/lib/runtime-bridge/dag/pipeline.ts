@@ -80,13 +80,10 @@ import {
   _threadSession,
   setCurrentHead,
   setHeadAncestorSet,
-  setInternalOwner,
-  setInternalSet,
   setLastGraph,
   setLastThreadModel,
   setLastSignature,
   setLeafOfNode,
-  setParentOf,
   setSummaryExpanded,
   setThreadOpen,
   setThreadSession,
@@ -370,15 +367,6 @@ export function render(graphIn: GNode[], headIdIn: string | null): void {
       }
     }
   });
-  setInternalSet(internalSet);
-  setInternalOwner(internalOwner);
-
-  const parentOf: Record<string, string> = Object.create(null);
-  Object.keys(tree.byId).forEach((nid) => {
-    const pid = (tree.byId[nid] as { predecessor?: string }).predecessor;
-    if (pid) parentOf[nid] = pid;
-  });
-  setParentOf(parentOf);
 
   const fullById: Record<string, GNode> = Object.create(null);
   graphIn.forEach((m) => { fullById[m.id] = m; });

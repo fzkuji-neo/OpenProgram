@@ -24,14 +24,14 @@ import {
   setVisibleIds,
 } from "../store/globals";
 
-export function _applyVisibility(nodeEl: Element, visible: boolean): void {
+function _applyVisibility(nodeEl: Element, visible: boolean): void {
   // Covered = part of what the next request carries (dag/rendering.md §8):
   // the tile is a full block of its tone; outside it, a faint one.
   // The colours live in app/styles/dag/nodes.css.
   nodeEl.classList.toggle("is-covered", visible);
 }
 
-export function _setVisibleSet(newSet: Record<string, boolean>): void {
+function _setVisibleSet(newSet: Record<string, boolean>): void {
   const panel = document.getElementById("historyPanel");
   if (!panel) return;
   const body = panel.querySelector(".history-body") as HTMLElement | null;

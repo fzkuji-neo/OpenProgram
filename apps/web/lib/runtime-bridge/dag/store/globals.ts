@@ -11,7 +11,7 @@
  * the same set of variables, just collected in one file.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 import type { GNode, HighlightMode } from "../types";
 import type { ThreadModel } from "../passes/thread";
@@ -51,18 +51,6 @@ export function setHeadAncestorSet(v: Record<string, boolean>): void {
   _headAncestorSet = v;
 }
 
-export let _internalSet: Record<string, boolean> = Object.create(null);
-export function setInternalSet(v: Record<string, boolean>): void {
-  _internalSet = v;
-}
-
-export let _internalOwner: Record<string, string> = Object.create(null);
-export function setInternalOwner(v: Record<string, string>): void {
-  _internalOwner = v;
-}
-
-export let _parentOf: Record<string, string> = Object.create(null);
-export function setParentOf(v: Record<string, string>): void { _parentOf = v; }
 
 // ── render signature + leaf cache + collapse ──────────────────────
 export let _lastSignature: string | null = null;
@@ -146,11 +134,6 @@ export function setLastThreadModel(v: ThreadModel | null): void {
 // ── chat-sync wiring latches ──────────────────────────────────────
 export let _chatScrollWired = false;
 export function setChatScrollWired(v: boolean): void { _chatScrollWired = v; }
-
-export let _chatMutationWired = false;
-export function setChatMutationWired(v: boolean): void {
-  _chatMutationWired = v;
-}
 
 export let _chatMutationObserver: MutationObserver | null = null;
 export function setChatMutationObserver(v: MutationObserver | null): void {
