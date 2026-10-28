@@ -18,7 +18,7 @@ apps/web/app/styles/
     ... (25 files)
   dag/              one file per DAG-renderer concern
     view-host.css canvas.css nodes.css edges.css badges.css
-    tooltip.css inspector.css hud.css dag-flash.css
+    tooltip.css inspector.css legend.css dag-flash.css
   right-dock/       right-sidebar panels
     view-host.css bookmarks.css branches-panel.css web-history.css
     detail.css

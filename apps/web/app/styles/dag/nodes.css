@@ -1,5 +1,5 @@
-/* DAG 节点：hover/HEAD 辉光/running 呼吸/ghost 灰、行内标签、
-   压缩胶囊注记。
+/* DAG 节点：图块色调、hover/HEAD 辉光/running 呼吸/ghost 灰、
+   旁注文字、缩远时的点与语义缩放。
    对应来源：lib/runtime-bridge/dag/render/nodes.ts */
 
 .history-node { cursor: pointer; }

@@ -1,9 +1,8 @@
 /**
  * History DAG renderer — shared types + constants.
  *
- * Moved from ``apps/web/lib/runtime-bridge/history/types.ts`` as part of the
- * DAG module reorganisation. See ``./README.md`` for the full module
- * layout and ``docs/design/runtime/dag-node-model.md`` for the node-field
+ * See ``./README.md`` for the module layout and
+ * ``docs/reference/design/runtime/dag/rendering.md`` §1 for the node-field
  * semantics (function, role, _tier, _depth, _lane).
  */
 

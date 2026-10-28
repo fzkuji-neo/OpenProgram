@@ -1,10 +1,9 @@
 /**
  * History DAG renderer — SVG primitives + per-node shape / colour helpers.
  *
- * Pure functions, no module-level state. The node tiles themselves are
- * drawn by ``./tiles``.
- *
- * Moved from ``../history/shapes.ts``; see ``../README.md``.
+ * Pure functions; the only module-level state is the text-width cache
+ * and the canvas it measures on. The node tiles themselves are drawn by
+ * ``./tiles``. See ``../README.md``.
  */
 
 import { type GNode, LANE_COLORS } from "../types";

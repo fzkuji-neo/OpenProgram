@@ -90,14 +90,14 @@ fit。改面板尺寸永不重新 fit——用户看图的角度是他自己的�
 
 竖列用的是左侧竖条同一套材质和按钮（`apps/web/app/styles/dag/tools.css`）。图例面板穿 `MENU_PANEL`
 （`components/chat/top-bar/menu-styles`），全应用弹层菜单共用的那一份框架；
-`apps/web/app/styles/dag/hud.css` 只留图例的锚位和行。
+`apps/web/app/styles/dag/legend.css` 只留图例的锚位和行。
 
 | 部件 | 位置 |
 |---|---|
 | 平移 / 缩放 / fit | `apps/web/lib/runtime-bridge/dag/interaction/canvas.ts`（缩放竖列走 `zoomStep` / `resetZoom`） |
 | 视角状态 | `apps/web/lib/runtime-bridge/dag/store/globals.ts` 的 `_viewTx` / `_viewTy` / `_viewScale` / `_viewSession` |
 | 画布与点阵 | `apps/web/app/styles/dag/canvas.css` 的 `.history-body` |
-| 缩放竖列 | `apps/web/components/chat/dag-view.tsx` 的 `DagZoomColumn`；竖条样式在 `apps/web/app/styles/dag/tools.css`，图例框架来自 `MENU_PANEL`，图例的行在 `apps/web/app/styles/dag/hud.css` |
+| 缩放竖列 | `apps/web/components/chat/dag-view.tsx` 的 `DagZoomColumn`；竖条样式在 `apps/web/app/styles/dag/tools.css`，图例框架来自 `MENU_PANEL`，图例的行在 `apps/web/app/styles/dag/legend.css` |
 
 ### 输入框属于面板，不属于会话记录
 
@@ -837,7 +837,7 @@ checkout 成活动分支——接管这个 agent 的对话。徽章永不压住�
 | 第九节 折叠 / 褶皱 / 幽灵 | `apps/web/lib/runtime-bridge/dag/passes/fold-summaries.ts`（折叠）、`apps/web/lib/runtime-bridge/dag/render/nodes.ts`（褶皱、`已压缩 · N 轮` 注记、幽灵描边）、`apps/web/lib/runtime-bridge/dag/render/edges.ts`（幽灵虚线边）、`apps/web/lib/runtime-bridge/dag/store/globals.ts` 的 `_summaryExpanded`；由 `apps/web/scripts/runtime/check-dag-summary.mjs` 实跑 |
 | 第十节 失败留档 | `apps/web/lib/runtime-bridge/dag/render/nodes.ts::_isArchivedFailure`——`status=error` **且**离开 HEAD 链；灰覆盖色调，`!` 保留 |
 | 第十一节 一张卡两个状态 / fork 并编辑 | `apps/web/lib/runtime-bridge/dag/interaction/tooltip.ts`：`renderNodeInfo` 喂两个状态，`expandTooltip` 原地加深；`apps/web/lib/runtime-bridge/dag/render/inspector.ts` 只构建动词列表（+ 原始 JSON 层），`apps/web/lib/runtime-bridge/dag/interaction/nodes.ts` 接线；动作走 `POST /api/chat/checkout` |
-| 第十一节 图例 | `apps/web/components/chat/dag-view.tsx` 的 `DagLegend`（挂在缩放竖列里），`apps/web/app/styles/dag/hud.css` 的 `.dag-legend` |
+| 第十一节 图例 | `apps/web/components/chat/dag-view.tsx` 的 `DagLegend`（挂在缩放竖列里），`apps/web/app/styles/dag/legend.css` 的 `.dag-legend` |
 | 第十二节 调用线程 + agent spawn | `apps/web/lib/runtime-bridge/dag/render/shapes.ts`（spawn → 方块）、`apps/web/lib/runtime-bridge/dag/passes/thread.ts`（模型）、`apps/web/lib/runtime-bridge/dag/layout/geometry.ts`（递归安放）、`apps/web/lib/runtime-bridge/dag/render/edges.ts`（线程点线、中心连线、场景3横桥）、`apps/web/lib/runtime-bridge/dag/render/nodes.ts`（`data-thread*`、肩上折叠数）、`apps/web/lib/runtime-bridge/dag/interaction/nodes.ts`（`toggleThreadOpen`）；由 `apps/web/scripts/runtime/check-dag-subagent.mjs` 实跑 |
 | 第十二节 名字上线 | `task/runner.py::_update_attach_card` 从 task 戳出 `attach.label`；`ws_actions/session.py::_annotate_spawn_origin` 把它带到 spawn 根的 `spawned_from.label`；测试见 `tests/unit/test_task_attach_integration.py` |
 | 第十三节 鼠标、竖条、选择、删除 / 撤销 | 选择状态、命中判定和选择框在 `apps/web/lib/runtime-bridge/dag/interaction/selection.ts`；拖动在 `gestures.ts`，单击在 `nodes.ts`，快捷键在 `keys.ts`；扩展选择与撤销栈在 `node-delete.ts`；竖条与操作条在 `apps/web/components/chat/dag-tools.tsx`，快捷键面板在 `dag-key-sheet.tsx`，小地图在 `interaction/minimap.ts`，+ `apps/web/app/styles/dag/tools.css`；store 拼接与日志在 `openprogram/store/session/session_store/node_deletion.py`；测试见 `tests/component/store/test_node_deletion.py` 与 `apps/web/tests/execution/dag-selection.test.mjs` |

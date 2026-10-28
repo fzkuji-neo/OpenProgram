@@ -16,7 +16,7 @@ apps/web/app/styles/
     …（共 25 个）
   dag/              DAG 渲染器每个关注点一个文件
     view-host.css canvas.css nodes.css edges.css badges.css
-    tooltip.css inspector.css hud.css dag-flash.css
+    tooltip.css inspector.css legend.css dag-flash.css
   right-dock/       右侧栏各面板
     view-host.css bookmarks.css branches-panel.css web-history.css
     detail.css

@@ -120,7 +120,7 @@ on one edge replaced both.
 The strips are the left rail's material and buttons
 (`apps/web/app/styles/dag/tools.css`). The legend panel wears `MENU_PANEL`
 (`components/chat/top-bar/menu-styles`), the one frame every popover menu in
-the app shares; `apps/web/app/styles/dag/hud.css` keeps only the legend's
+the app shares; `apps/web/app/styles/dag/legend.css` keeps only the legend's
 anchoring and rows.
 
 | Piece | Where |
@@ -128,7 +128,7 @@ anchoring and rows.
 | Pan / zoom / fit | `apps/web/lib/runtime-bridge/dag/interaction/canvas.ts` (`zoomStep` / `resetZoom` for the zoom column) |
 | View state | `_viewTx` / `_viewTy` / `_viewScale` / `_viewSession` in `apps/web/lib/runtime-bridge/dag/store/globals.ts` |
 | Surface + lattice | `.history-body` in `apps/web/app/styles/dag/canvas.css` |
-| Zoom column | `DagZoomColumn` in `apps/web/components/chat/dag-view.tsx`; strips in `apps/web/app/styles/dag/tools.css`, legend frame from `MENU_PANEL`, legend rows in `apps/web/app/styles/dag/hud.css` |
+| Zoom column | `DagZoomColumn` in `apps/web/components/chat/dag-view.tsx`; strips in `apps/web/app/styles/dag/tools.css`, legend frame from `MENU_PANEL`, legend rows in `apps/web/app/styles/dag/legend.css` |
 
 ### The composer belongs to the pane, not to the transcript
 
@@ -1081,7 +1081,7 @@ The whole spec is implemented. Where each part lives:
 | §9 fold + pleats + ghosts | `apps/web/lib/runtime-bridge/dag/passes/fold-summaries.ts` (fold), `apps/web/lib/runtime-bridge/dag/render/nodes.ts` (pleats, `Compacted · N turns` caption, ghost stroke), `apps/web/lib/runtime-bridge/dag/render/edges.ts` (dashed ghost edge), `_summaryExpanded` in `apps/web/lib/runtime-bridge/dag/store/globals.ts`; executed by `apps/web/scripts/runtime/check-dag-summary.mjs` |
 | §10 archived failure | `apps/web/lib/runtime-bridge/dag/render/nodes.ts::_isArchivedFailure` — `status=error` AND off the HEAD chain; grey overrides the tone, the `!` stays |
 | §11 one card, two states / fork & edit | `apps/web/lib/runtime-bridge/dag/interaction/tooltip.ts`: `renderNodeInfo` feeds both states, `expandTooltip` deepens the card in place; `apps/web/lib/runtime-bridge/dag/render/inspector.ts` builds only the verb list (+ raw JSON layer), wired in `apps/web/lib/runtime-bridge/dag/interaction/nodes.ts`; the actions go through `POST /api/chat/checkout` |
-| §11 legend | `DagLegend` in `apps/web/components/chat/dag-view.tsx` (in the zoom column), `.dag-legend` in `apps/web/app/styles/dag/hud.css` |
+| §11 legend | `DagLegend` in `apps/web/components/chat/dag-view.tsx` (in the zoom column), `.dag-legend` in `apps/web/app/styles/dag/legend.css` |
 | §12 call thread + agent spawn | `apps/web/lib/runtime-bridge/dag/render/shapes.ts` (spawn → square), `apps/web/lib/runtime-bridge/dag/passes/thread.ts` (model), `apps/web/lib/runtime-bridge/dag/layout/geometry.ts` (recursive placement), `apps/web/lib/runtime-bridge/dag/render/edges.ts` (dotted thread line, centre-to-centre chain edges, scene-3 bridge), `apps/web/lib/runtime-bridge/dag/render/nodes.ts` (`data-thread*`, shoulder count), `apps/web/lib/runtime-bridge/dag/interaction/nodes.ts` (`toggleThreadOpen`); executed by `apps/web/scripts/runtime/check-dag-subagent.mjs` |
 | §12 the name on the wire | `task/runner.py::_update_attach_card` stamps `attach.label` from the task; `ws_actions/session.py::_annotate_spawn_origin` carries it to the spawn root as `spawned_from.label`; tested in `tests/unit/test_task_attach_integration.py` |
 | §13 mouse, rail, selection, delete / undo | selection state, hit-testing and the selection box in `apps/web/lib/runtime-bridge/dag/interaction/selection.ts`; drags in `gestures.ts`, clicks in `nodes.ts`, keys in `keys.ts`; widening and the undo stack in `node-delete.ts`; rail and action bar in `apps/web/components/chat/dag-tools.tsx`, key sheet in `dag-key-sheet.tsx`, minimap in `interaction/minimap.ts`, + `apps/web/app/styles/dag/tools.css`; store splice and journal in `openprogram/store/session/session_store/node_deletion.py`; tested in `tests/component/store/test_node_deletion.py` and `apps/web/tests/execution/dag-selection.test.mjs` |
