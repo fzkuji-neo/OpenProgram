@@ -2,8 +2,8 @@
  * The minimap (dag/rendering.md §13): the whole graph in a corner, the
  * way a strategy game shows its map. Each node is a dot of its tone, the
  * part on screen is a frame in the accent colour, and a press or drag on
- * it moves the camera there. When the whole graph is already on screen
- * there is nothing to find, so the map steps away. M hides it for good,
+ * it moves the camera there. It stays on screen whatever the view (a
+ * map that came and went with the zoom read as a glitch); M hides it,
  * and M again brings it back.
  *
  * It is a canvas beside the graph, outside the SVG, so it never pans or
@@ -14,8 +14,6 @@
 const W = 168;
 const H = 112;
 const PAD = 8;
-/** Screen pixels a graph may run past the view before the map shows. */
-const SLACK = 24;
 
 interface Dot { x: number; y: number; color: string; head: boolean }
 interface MapData { dots: Dot[]; x0: number; y0: number; x1: number; y1: number; theme: string }
@@ -134,12 +132,8 @@ export function paintMinimap(
   const vy0 = -view.ty / view.scale;
   const vx1 = (view.w - view.tx) / view.scale;
   const vy1 = (view.h - view.ty) / view.scale;
-  // A sliver past the edge (half a tile behind the composer) is still
-  // "all on screen": the map comes only when a node's worth is hidden.
-  const slack = SLACK / view.scale;
-  const allSeen = d.x0 >= vx0 - slack && d.x1 <= vx1 + slack
-    && d.y0 >= vy0 - slack && d.y1 <= vy1 + slack;
-  const hidden = _off || d.dots.length < 2 || allSeen;
+  // Always there, so it never comes and goes under you; M hides it.
+  const hidden = _off || d.dots.length < 2;
   c.classList.toggle("is-hidden", hidden);
   if (hidden) return;
   // Under a drag the scale stays put, else the map would slide under

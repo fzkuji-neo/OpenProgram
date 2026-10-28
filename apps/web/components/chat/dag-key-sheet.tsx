@@ -19,10 +19,11 @@ type Row = [en: string, zh: string, keys: MenuKeys[]];
 
 const GROUPS: [en: string, zh: string, rows: Row[]][] = [
   ["Mouse", "鼠标", [
-    ["Pan", "平移", [{ key: "Drag" }]],
-    ["Zoom", "缩放", [{ key: "Wheel" }]],
+    ["Select", "选中", [{ key: "Click" }]],
+    ["Select with a box", "框选", [{ key: "Drag" }]],
     ["Add to the selection", "加选 / 取消", [{ key: "Click", shift: true }]],
-    ["Select with a box", "框选", [{ key: "Drag", shift: true }]],
+    ["Pan", "平移", [{ key: "Right-drag" }]],
+    ["Zoom", "缩放", [{ key: "Wheel" }]],
   ]],
   ["Camera", "镜头", [
     ["Find the working agent", "找到正在工作的 agent", [{ key: "F" }]],
@@ -40,7 +41,7 @@ const GROUPS: [en: string, zh: string, rows: Row[]][] = [
 ];
 
 /** Mouse gestures written in words, in the reader's language. */
-const GESTURE: Record<string, string> = { Drag: "拖动", Wheel: "滚轮", Click: "单击" };
+const GESTURE: Record<string, string> = { Drag: "拖动", "Right-drag": "右键拖动", Wheel: "滚轮", Click: "单击" };
 
 export function useKeySheetOpen(): boolean {
   return useSyncExternalStore(subscribeKeySheet, keySheetOpen, () => false);

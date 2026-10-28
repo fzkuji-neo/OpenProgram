@@ -104,8 +104,7 @@
   background: color-mix(in srgb, var(--destructive) 10%, transparent);
 }
 
-/* Shift or ⌘ held: a drag on empty canvas draws a box (keys.ts). */
-.history-body.is-boxing { cursor: crosshair; }
+
 
 /* A selected node: a dashed box in the accent colour just outside its
    glyph. Drawn in the node's own group, so it pans and zooms with it;
@@ -118,7 +117,7 @@
   vector-effect: non-scaling-stroke;
 }
 
-/* The selection box while Shift-dragging — screen space, over the
+/* The selection box while left-dragging — screen space, over the
    graph, never in the way of the pointer. */
 .dag-select-band {
   position: absolute;

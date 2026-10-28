@@ -17,7 +17,8 @@
   overflow: hidden;
   position: relative;
   touch-action: none;
-  cursor: grab;
+  /* The left button selects (an arrow); a right drag pans (grabbing). */
+  cursor: default;
   /* Lattice colour = the theme's own hairline. A hardcoded white was
      invisible the moment a light theme was active. canvas.ts rewrites
      this on every view change (dot radius rides the zoom); this static

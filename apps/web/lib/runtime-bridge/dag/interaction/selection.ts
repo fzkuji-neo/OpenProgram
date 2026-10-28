@@ -1,13 +1,16 @@
 /**
  * Node selection (dag/rendering.md §13).
  *
- * The canvas has one mouse, no tools to switch between:
+ * The canvas has one mouse, no tools to switch between. The left
+ * button selects, the right one moves the camera:
  *
- *   * drag on empty canvas  — pan;
- *   * click a node          — the node's own action (fold, card);
- *   * Shift/⌘ + click       — add the node to the selection or take it out;
- *   * Shift/⌘ + drag        — a box; every node it touches joins the selection;
- *   * click on empty canvas — clear the selection.
+ *   * click a node            — select it, then its own action (fold, card);
+ *   * Shift/⌘ + click         — add the node to the selection or take it out;
+ *   * drag on empty canvas    — a box; every node it touches is selected
+ *                               (with Shift/⌘, added to the selection);
+ *   * click on empty canvas   — clear the selection;
+ *   * right drag              — pan (a right click without a drag is the
+ *                               node's menu).
  *
  * The selection is view state of the current session's canvas: it
  * holds node ids that are on screen, is pruned to what a repaint still
@@ -173,7 +176,7 @@ export function nodesTouched(rect: Box): string[] {
 
 /* ── the drag overlay ───────────────────────────────────────────── */
 
-/** The box drawn while a Shift-drag is under way. An SVG laid over the
+/** The box drawn while a left drag on empty canvas is under way. An SVG laid over the
  *  canvas in host coordinates; it never carries the camera transform,
  *  because it is a gesture, not part of the graph. */
 export class SelectionBand {

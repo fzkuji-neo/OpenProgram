@@ -79,13 +79,4 @@ function onKeyDown(e: KeyboardEvent): void {
 
 if (typeof document !== "undefined") {
   document.addEventListener("keydown", onKeyDown);
-  // Shift or ⌘ held turns a drag on empty canvas into a box; the cursor
-  // says so before the drag starts.
-  const boxing = (e: KeyboardEvent | FocusEvent): void => {
-    const on = "shiftKey" in e && (e.shiftKey || e.metaKey) && !isEditableFocus();
-    document.querySelector("#historyPanel .history-body")?.classList.toggle("is-boxing", on);
-  };
-  document.addEventListener("keydown", boxing);
-  document.addEventListener("keyup", boxing);
-  window.addEventListener("blur", boxing);
 }

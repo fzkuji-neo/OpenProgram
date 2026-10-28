@@ -34,12 +34,15 @@ test("One mouse, no tools: the rail holds the camera and the key sheet", () => {
   assert.match(rail, /focusAgent\(\)[\s\S]*fitCanvas\(\)[\s\S]*setKeySheet/);
 });
 
-test("The wheel zooms; a drag pans, and Shift/⌘ turns it into a box", () => {
+test("The wheel zooms, a right drag pans, a left drag draws a box", () => {
   const canvas = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/canvas.ts", import.meta.url), "utf8");
   const wheel = canvas.slice(canvas.indexOf('"wheel"'), canvas.indexOf('"pointerdown"'));
   assert.match(wheel, /zoomAt\(/);
   assert.doesNotMatch(wheel, /setView\(/);
-  assert.match(canvas, /e\.button === 0 && \(e\.shiftKey \|\| e\.metaKey\)[\s\S]{0,120}new SelectionBand/);
+  assert.match(canvas, /const pans = e\.button === 2 \|\| e\.button === 1;/);
+  assert.match(canvas, /if \(!pans\) \{[\s\S]{0,80}new SelectionBand/);
+  // A right click that never moved still opens the node's menu.
+  assert.match(canvas, /menuAt && !moved[\s\S]{0,120}new MouseEvent\("contextmenu"/);
 });
 
 test("The selection bar sits top left, clear of the perspective controls", () => {
@@ -78,11 +81,12 @@ test("A followup reply merged into a glyph goes with it", () => {
   assert.deepEqual(deletionTargets(["a1"], graph, anchorOf).ids.sort(), ["a1", "f1"]);
 });
 
-test("Shift/⌘ + click selects; a plain click stays the node's own", () => {
+test("A click selects the node, then runs its own action; Shift/⌘ only toggles", () => {
   const nodes = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/nodes.ts", import.meta.url), "utf8");
   const click = nodes.indexOf("if (e.shiftKey || e.metaKey) {");
   assert.ok(click > 0 && click < nodes.indexOf("showNodeMenu(gn, g)"));
   assert.doesNotMatch(nodes, /activeTool/);
+  assert.ok(nodes.indexOf('select([id], "replace");') > click);
   assert.match(nodes, /addEventListener\("dblclick"[\s\S]{0,200}e\.shiftKey \|\| e\.metaKey/);
 });
 

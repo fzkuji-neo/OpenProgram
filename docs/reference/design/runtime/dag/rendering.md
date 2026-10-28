@@ -53,21 +53,17 @@ the user drives directly.
 
 | Gesture | Effect |
 |---|---|
-| pinch, or ⌘/ctrl + wheel | zoom about the cursor, clamped to 25%–300% — the node under the pointer stays under the pointer |
-| mouse wheel (discrete notches) | the same zoom, at wheel rate — a mouse has no pinch |
-| trackpad two-finger scroll | pan, both axes — scrolling stays scrolling |
-| drag on empty canvas | pan |
-| drag starting on a node | the node's — click and double-click still work |
+| wheel, or pinch | zoom about the cursor, clamped to 25%–300% — the node under the pointer stays under the pointer |
+| right (or middle) drag | pan, from anywhere on the graph |
+| left drag on empty canvas | a selection box (§13) |
+| left press on a node | the node's — click and double-click still work |
 
-**Wheel triage** (`apps/web/lib/runtime-bridge/dag/interaction/canvas.ts`): ctrl/⌘ + wheel zooms — browsers deliver a
-trackpad pinch as a wheel event with `ctrlKey` set, and ⌘+wheel is the
-explicit zoom chord — at a rate tuned for a pinch's small continuous deltas.
-A mouse wheel zooms at wheel rate — a mouse has no pinch. macOS scroll
-acceleration makes its `deltaY` fractional and variable, so the tell is the
-legacy `wheelDeltaY`: Chromium/WebKit report a physical notch as a multiple
-of 120 (trackpads carry arbitrary small values), with line-mode deltas as
-the non-mac fallback. Everything else is a trackpad two-finger scroll and
-pans, both axes — scrolling stays scrolling.
+**Wheel** (`apps/web/lib/runtime-bridge/dag/interaction/canvas.ts`): every wheel
+zooms, the way a map does; panning is a drag. A trackpad pinch arrives as a
+wheel event with `ctrlKey` set and small continuous deltas, so it zooms at its
+own, faster rate. Line- and page-mode deltas (some mice) are turned into pixels
+first. Guessing mouse from trackpad to make one of them pan guessed wrong on
+real mice, and the wheel scrolled when it should have zoomed.
 
 A box sized to its content decides two things it has no business deciding: how
 big a graph may get before it needs scrollbars, and where the middle is. A wide
@@ -866,22 +862,25 @@ chain's, not the node's own flag.
 
 The canvas has one mouse and no tools to switch between. Splitting browsing,
 box-selecting and lasso-selecting into three tools made every first drag a
-question of which tool was in hand. One mouse does all of it:
+question of which tool was in hand. One mouse does all of it, the left
+button selecting and the right one moving the camera:
 
 | Gesture | What it does |
 |---|---|
-| Wheel, or pinch | zoom about the cursor |
-| Drag on empty canvas | pan (the middle button pans too) |
-| Click a node | the node's own action (§11, §12) |
-| Double-click a node | fork & edit (§11) |
-| Shift/⌘ + click a node | add it to the selection, or take it out |
-| Shift/⌘ + drag on empty canvas | a box; every node it touches joins the selection |
+| Click a node | select it, then the node's own action (§11, §12) |
+| Drag on empty canvas | a box; every node it touches is selected |
+| Shift/⌘ + click or drag | add to the selection, or take a node out |
 | Click on empty canvas | clear the selection |
+| Right drag | pan, from anywhere on the graph (the middle button pans too) |
+| Right click a node | its menu (§11) |
+| Wheel, or pinch | zoom about the cursor |
+| Double-click a node | fork & edit (§11) |
 
 The wheel zooms like a map's; it does not scroll. A trackpad pinch zooms at
-its own, faster rate. These are fixed by design, not settings: touching
-selects (no enclose-only mode), and a plain click never selects, so it can
-stay the node's own action (`apps/web/lib/runtime-bridge/dag/interaction/canvas.ts`,
+its own, faster rate. macOS fires the right-click menu on the press, before a
+drag can start, so the canvas holds it and opens it on release when the
+pointer did not move. These are fixed by design, not settings: touching
+selects (no enclose-only mode) (`apps/web/lib/runtime-bridge/dag/interaction/canvas.ts`,
 `interaction/nodes.ts`, `interaction/selection.ts`).
 
 The rail on the canvas's left edge is one raised strip of the app's button
@@ -954,8 +953,9 @@ press or a drag on the map moves the camera there at the same zoom. The map
 frames the graph and the view together, so the frame is never cut off, and it
 holds still while you drag. HEAD is a larger dot ringed in the accent colour,
 the "you are here" of the map, and a wheel over the map zooms the canvas about
-its middle. M hides the map and M again brings it back; the choice is kept in the browser. When the
-whole graph is already on screen, give or take a tile's width, the map fades out: there is nothing to find
+its middle. M hides the map and M again brings it back; the choice is kept in the browser. Otherwise
+it stays on screen whatever the view: a map that faded out whenever the whole graph fitted
+came and went with the zoom and read as a glitch
 (`apps/web/lib/runtime-bridge/dag/interaction/minimap.ts`, repainted by
 `applyView` on every view change).
 

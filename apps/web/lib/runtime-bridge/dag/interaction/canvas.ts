@@ -14,9 +14,9 @@
  *
  *   * wheel or pinch → zoom about the cursor, 25%–300% (what is under
  *     the cursor stays under it)
- *   * drag on empty space → pan; with Shift/⌘ held, a box that selects
- *     (``./selection.ts``; a drag that starts on a node is the node's,
- *     so clicking still works)
+ *   * right (or middle) drag → pan, from anywhere on the graph
+ *   * left drag on empty space → a box that selects (``./selection.ts``;
+ *     a left press on a node is a click on it)
  *
  * The pane's background paints a dot lattice at the layout's own grid
  * pitch, transformed with the same numbers, so the dots ARE the
@@ -332,48 +332,50 @@ function wireGestures(host: HTMLElement): void {
     { passive: false },
   );
 
-  // A drag on empty canvas pans; with Shift or ⌘ held it draws a box
-  // that adds every node it touches to the selection (./selection.ts).
-  // A press that never moves is a click on empty canvas, which clears
-  // the selection — "never moves" meaning less than CLICK_SLOP pixels,
-  // whatever the hand's jitter.
+  // The right (or middle) button pans, from anywhere on the graph; the
+  // left button selects — a drag on empty canvas draws a box (Shift/⌘
+  // adds to the selection), and a press that never moves clears it.
+  // "Never moves" means less than CLICK_SLOP pixels, whatever the hand's
+  // jitter. A right press that never moves is still the right-click
+  // menu: macOS fires ``contextmenu`` on the press, before anyone knows
+  // whether a drag follows, so the canvas holds the event and replays
+  // it on release (``menuAt``).
   const CLICK_SLOP = 3;
-  let drag: { x: number; y: number; sx: number; sy: number; id: number; moved: boolean } | null = null;
-  let band: { b: SelectionBand; id: number; sx: number; sy: number; moved: boolean } | null = null;
+  let drag: { x: number; y: number; sx: number; sy: number; id: number; moved: boolean; menuAt: Element | null } | null = null;
+  let band: { b: SelectionBand; id: number; sx: number; sy: number; moved: boolean; add: boolean } | null = null;
+  let replaying = false;
+  host.addEventListener("contextmenu", (e) => {
+    if (replaying) return;
+    e.preventDefault();
+    e.stopPropagation();
+  }, true);
   host.addEventListener("pointerdown", (e: PointerEvent) => {
-    // Right button is the context menu's; the middle button always pans.
-    if (e.button === 2) return;
-    // A drag that starts on a node belongs to the node — it is how a
-    // click reaches it, and panning from there would swallow every
-    // click on the graph.
     const t = e.target as Element | null;
     // A drag from an overlay card (expanded tooltip, node menu, raw
     // JSON) is the user SELECTING TEXT, not panning — and the pan's
     // dismissOverlays() would eat the card mid-selection.
-    if (t && t.closest && t.closest(
-      ".history-node, .history-branch-tag, .history-tooltip, .dag-inspector, .dag-menu-verbs")) {
-      return;
-    }
+    if (t?.closest?.(".history-tooltip, .dag-inspector, .dag-menu-verbs")) return;
+    const pans = e.button === 2 || e.button === 1;
+    // A left press on a node or a branch name is a click on it.
+    if (!pans && t?.closest?.(".history-node, .history-branch-tag")) return;
     dismissOverlays();
     try {
       host.setPointerCapture(e.pointerId);
     } catch {
       /* a pointer that vanished mid-gesture is not an error */
     }
-    if (e.button === 0 && (e.shiftKey || e.metaKey)) {
+    if (!pans) {
       releaseEditableFocus();
       band = {
         b: new SelectionBand(host, { x: e.clientX, y: e.clientY }),
-        id: e.pointerId,
-        sx: e.clientX,
-        sy: e.clientY,
-        moved: false,
+        id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false,
+        add: e.shiftKey || e.metaKey,
       };
       return;
     }
     drag = {
       x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY,
-      id: e.pointerId, moved: false,
+      id: e.pointerId, moved: false, menuAt: e.button === 2 ? t : null,
     };
     host.classList.add("is-panning");
   });
@@ -401,18 +403,25 @@ function wireGestures(host: HTMLElement): void {
   });
   const endDrag = (e: PointerEvent): void => {
     if (band && e.pointerId === band.id) {
-      const { b, moved } = band;
+      const { b, moved, add } = band;
       band = null;
       const hits = moved && e.type === "pointerup" ? b.hits() : [];
       b.remove();
-      if (hits.length) select(hits, "add");
+      if (hits.length) select(hits, add ? "add" : "replace");
+      else if (!add && e.type === "pointerup") clearSelection();
       return;
     }
     if (!drag || e.pointerId !== drag.id) return;
-    const clicked = !drag.moved && e.type === "pointerup";
+    const { menuAt, moved } = drag;
     drag = null;
     host.classList.remove("is-panning");
-    if (clicked && !e.shiftKey) clearSelection();
+    if (menuAt && !moved && e.type === "pointerup") {
+      replaying = true;
+      menuAt.dispatchEvent(new MouseEvent("contextmenu", {
+        bubbles: true, cancelable: true, clientX: e.clientX, clientY: e.clientY, button: 2,
+      }));
+      replaying = false;
+    }
   };
   host.addEventListener("pointerup", endDrag);
   host.addEventListener("pointercancel", endDrag);
