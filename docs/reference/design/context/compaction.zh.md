@@ -130,6 +130,11 @@ summarizer 接收上一份摘要文本作为输入、吸收它、产出替代品
   `<user_msg_id>_reply` 行）、执行树水合全部写它。镜像永不回写存储：
   `save_meta` 不携带 `head_id`，镜像的任何行都不可能变成存储的 head 或
   新的存储行。存储永远在镜像上游，重启前后皆然。
+- **存储的 HEAD 落在调用上时，读作它的回复。** 调用靠 `caller` 挂在回复下，
+  没有 predecessor，任何 append 都不会把 HEAD 移上去；但加上这条防护之前写下
+  的会话可能留着这样的 HEAD。从它沿对话边往回走只得到一个节点：下一次请求不带
+  任何历史，聊天也加载成空的。所以会话索引把落在调用上的存储 HEAD 读作产生
+  该调用的回复（`store/session/memory_index.py` 的 `_conversation_head`）。
 
 ## 六、图上显示什么
 

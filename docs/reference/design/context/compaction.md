@@ -177,6 +177,13 @@ The design allows exactly one mover:
   mirror never syncs back to the store or the disk: `save_meta` carries no
   `head_id`, and no mirror row can ever become a stored head or a stored
   node. Storage stays upstream of every mirror, across restarts.
+- **A stored HEAD on a call resolves to its reply.** A call hangs off its
+  reply by `caller` with no predecessor, and no append moves HEAD onto one,
+  but sessions written before that guard can carry such a HEAD. Walking the
+  conv edge from it finds a one-node branch, so the next request would carry
+  no history and the chat would load empty. The session index therefore
+  reads a stored HEAD on a call as the reply that made it
+  (`store/session/memory_index.py`, `_conversation_head`).
 
 ## 6. What the graph shows
 

@@ -25,7 +25,7 @@ import threading
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from openprogram.context.nodes import Call
+from openprogram.context.nodes import ROLE_CODE, Call
 from .git_session import read_text_with_retry
 
 
@@ -252,4 +252,24 @@ class SessionMemoryIndex:
                 caller=get_caller(payload),
             )
         self.meta = dict(meta or {})
-        self.head_id = self.meta.get("head_id") or self.meta.get("last_node_id")
+        self.head_id = self._conversation_head(
+            self.meta.get("head_id") or self.meta.get("last_node_id"))
+
+    def _conversation_head(self, head_id: Optional[str]) -> Optional[str]:
+        """HEAD as the conversation knows it.
+
+        A call hangs off its reply by ``caller`` with no predecessor, and
+        appends never move HEAD onto one — but sessions written before
+        that guard can carry such a HEAD. Walking the conv edge from it
+        finds a one-node branch: the next request would carry no history
+        and the chat would load empty. So a stored HEAD on a call resolves
+        to the reply that made it.
+        """
+        cur = head_id
+        for _ in range(10000):
+            node = self.nodes_by_id.get(cur) if cur else None
+            if (node is None or node.role != ROLE_CODE or node.predecessor
+                    or not node.caller or node.caller not in self.nodes_by_id):
+                return cur
+            cur = node.caller
+        return cur
