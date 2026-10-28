@@ -249,9 +249,12 @@ stub off ROOT's line. The branch starts as a line, not as a node. Only
 capsules and superseded relics — lanes with no user turns of their own —
 take the bridge straight to the glyph. Thread items
 (§12) reserve no lane width: their column is chosen after the lanes are down,
-in the first free column right of their anchor, and that column is then
-reserved so a second open thread walks further right — two open threads
-never share a cell.
+in the nearest column right of their anchor that no line runs down across
+at the insertion row (something above it and something at or below it in
+that column). Everything wholly above stays clear and everything below is
+pushed down past the thread, so threads on different rows share a column —
+two open threads still never share a cell, and a stub never runs long past
+lanes that do not reach its row.
 
 ### tier — how many columns to indent within a branch
 

@@ -618,3 +618,25 @@ test("a message's caption reads an attachment as words, not its raw marker", asy
   assert.equal(said('[attachment: Screenshot 1.png (png, 467 KB) @json "/User…'), "Attached Screenshot 1.png");
   assert.equal(said("plain words"), "plain words");
 });
+
+test("open threads on different rows share the column beside their anchors", async () => {
+  const { computeGeometry } = await import("../../lib/runtime-bridge/dag/layout/geometry.ts");
+  const turn = (id, role, predecessor, depth) =>
+    ({ id, role, predecessor, _lane: 0, _tier: 0, _depth: depth });
+  const byId = {
+    u1: turn("u1", "user", "ROOT", 0),
+    a1: turn("a1", "assistant", "u1", 1),
+    u2: turn("u2", "user", "a1", 2),
+    a2: turn("a2", "assistant", "u2", 3),
+    t1: { id: "t1", role: "tool", function: "bash", caller: "a1", _lane: 0 },
+    t2: { id: "t2", role: "tool", function: "bash", caller: "a2", _lane: 0 },
+  };
+  const thread = {
+    events: { a1: [{ id: "t1", kind: "call" }], a2: [{ id: "t2", kind: "call" }] },
+    isOpen: (id) => id === "a1" || id === "a2",
+  };
+  const geom = computeGeometry(byId, thread);
+  assert.equal(geom.threadColOf.a1, 1);
+  assert.equal(geom.threadColOf.a2, 1);
+  assert.equal(geom.pos.t1.x, geom.pos.t2.x);
+});
