@@ -8,9 +8,8 @@
    shapes are learnable, so the legend is for the first few sessions,
    not every one. */
 .dag-legend {
-  /* The body opens left of the column; the wrapper is only its
-     positioning context and takes no space of its own. */
-  position: relative;
+  /* The body is anchored to the zoom column, not to this button: the
+     wrapper takes no space and positions nothing. */
   flex-shrink: 0;
 }
 /* The panel FRAME (10px radius, --border-popover edge,
@@ -18,17 +17,22 @@
    MENU_PANEL (chat/top-bar/menu-styles) put on the element by
    dag-view.tsx — the one visual definition every popover panel shares.
    This block is only the legend's anchoring and its rows: left of the
-   column (its 4px inset + an 8px gap), foot level with the strip's. */
+   column with an 8px gap, its foot level with the column's — or, while
+   the minimap is on (it holds that spot, dag/tools.css .dag-minimap),
+   8px above the map, so the two never overlap. */
 .dag-legend-body {
   position: absolute;
-  right: calc(100% + 12px);
-  bottom: -4px;
+  right: calc(100% + 8px);
+  bottom: 0;
   z-index: 30;
   width: max-content;
   max-width: 320px;
   gap: 2px;
   font-size: 12px;
   color: var(--text-secondary);
+}
+.dag-view:has(> canvas.dag-minimap:not(.is-hidden)) .dag-legend-body {
+  bottom: calc(112px + 8px);
 }
 .dag-legend-row {
   display: flex;
