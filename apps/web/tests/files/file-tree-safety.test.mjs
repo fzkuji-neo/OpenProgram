@@ -16,7 +16,7 @@ const mocks = {
     export const idempotencyKeyFor=()=>"key"; export class MutationRegistryCapacityError extends Error {}
     export const reconcileWsMutation=()=>{}; export const wsMutationRequest=(_key,run)=>run();`,
   '@/lib/session-store': 'export const useSessionStore={getState:()=>({currentSessionId:null})};',
-  '@/lib/navigate': 'export const navigate=()=>{};',
+  '@/lib/nav/navigate': 'export const navigate=()=>{};',
   '@/lib/tabs/center-tabs-store': `const state={tabs:[],activeId:null,openFileTab:()=>{},closeTab:()=>{}};
     export const useCenterTabs=Object.assign(fn=>fn(state),{getState:()=>state});`,
   '@/lib/files/drafts/file-drafts': 'export const hasDocumentDraftsForPath=async()=>false;',

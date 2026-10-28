@@ -12,7 +12,7 @@ import { SolarIcon } from "@/components/solar-icons";
 import { OperationCode } from "./approvals/operation-code";
 import { ComputerUseApproval } from "./approvals/computer-use-approval";
 import { TerminalApproval } from "./approvals/terminal-approval";
-import { appStepArgs } from "@/lib/computer-use-agent-call";
+import { appStepArgs } from "@/lib/computer-use/computer-use-agent-call";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";

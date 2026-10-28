@@ -24,7 +24,7 @@ import {createRoot} from "react-dom/client";
 import {NewTabPage} from "./components/center-tabs/pages/new-tab-page";
 import {PageNavigation} from "./components/center-tabs/browser/toolbar/page-navigation";
 import {useCenterTabs} from "./lib/tabs/center-tabs-store";
-import {setNavigate} from "./lib/navigate";
+import {setNavigate} from "./lib/nav/navigate";
 setNavigate(path=>window.history.pushState(null,"",path));
 useCenterTabs.getState().openNewTabPage();
 function App(){const tabs=useCenterTabs(s=>s.tabs); const tab=useCenterTabs(s=>s.tabs.find(t=>t.id===s.activeId));

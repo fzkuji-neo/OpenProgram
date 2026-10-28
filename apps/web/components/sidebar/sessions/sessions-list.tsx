@@ -38,7 +38,7 @@ import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { useTranslation } from "@/lib/i18n";
 import { activateOnKey } from "@/lib/utils";
 import { useRecentsView, setRecentsView } from "@/lib/prefs/recents-view";
-import { autoRenameSession } from "@/lib/session-auto-rename";
+import { autoRenameSession } from "@/lib/chat/session-auto-rename";
 import { wsRequest } from "@/lib/net/ws/ws-request";
 import { projectGroups, moveProject, filterProjectItems } from "@/lib/projects/project-groups";
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -62,7 +62,7 @@ import { useProjectDrag } from "../sessions-list/use-project-drag";
 import { useChatDrag } from "../sessions-list/use-chat-drag";
 import type { ChatRowProps } from "../sessions-list/use-chat-drag";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { pushPath } from "@/lib/shallow-nav";
+import { pushPath } from "@/lib/nav/shallow-nav";
 import { runtimeState } from "@/lib/runtime-bridge/state";
 import { newSession } from "@/lib/runtime-bridge/session/conversations";
 import {

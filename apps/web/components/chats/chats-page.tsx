@@ -26,7 +26,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useTranslation, type Locale } from "@/lib/i18n";
 import { parseAttachments } from "@/components/chat/messages/attachments/user-attachments";
 import { formatRelativeTime } from "@/lib/format-utils/format";
-import { pushPath } from "@/lib/shallow-nav";
+import { pushPath } from "@/lib/nav/shallow-nav";
 import { useSessionStore, type ConvSummary } from "@/lib/session-store";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import {

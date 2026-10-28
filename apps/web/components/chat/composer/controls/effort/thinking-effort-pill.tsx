@@ -8,9 +8,9 @@ import { EffortLabel } from "./effort-label";
 import type { ThinkingOption } from "./use-thinking-effort";
 import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import { useTranslation } from "@/lib/i18n";
-import { effortLevelColor, formatEffortLabel } from "@/lib/effort-color";
+import { effortLevelColor, formatEffortLabel } from "@/lib/effort/effort-color";
 import { GLASS_SURFACE } from "@/lib/glass";
-import { captionAlignment, THUMB_WIDTH } from "@/lib/effort-matrix";
+import { captionAlignment, THUMB_WIDTH } from "@/lib/effort/effort-matrix";
 import { type AnimatedNavIconHandle, GaugeIcon } from "@/components/animated-icons";
 import { SolarIcon } from "@/components/solar-icons";
 

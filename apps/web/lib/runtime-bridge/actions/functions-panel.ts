@@ -10,7 +10,7 @@
 import { useSessionStore } from "@/lib/session-store";
 import { addAssistantMessage } from "../session/chat-handlers";
 import { runtimeState } from "../state";
-import { navigate } from "@/lib/navigate";
+import { navigate } from "@/lib/nav/navigate";
 import { openFunctionForm, refreshFunctionsList } from "@/lib/abilities/functions-actions";
 import { setPendingRunFunction } from "@/lib/execution/use-pending-run-function";
 import { confirmAction } from "@/components/ui/confirm-dialog";

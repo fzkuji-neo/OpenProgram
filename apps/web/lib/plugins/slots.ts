@@ -15,7 +15,7 @@ import { create } from "zustand";
 
 import { jsonFetch } from "@/lib/net/fetch-client";
 import { waitForOwnerAuthBootstrap } from "@/lib/net/auth/owner-auth-bootstrap";
-import { navigate } from "@/lib/navigate";
+import { navigate } from "@/lib/nav/navigate";
 import { translateText, useTranslation } from "@/lib/i18n";
 
 export const PLUGIN_SLOTS = [

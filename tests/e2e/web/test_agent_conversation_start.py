@@ -16,7 +16,7 @@ import {useCenterTabs} from './lib/tabs/center-tabs-store';
 import {sendChatMessage} from './components/chat/composer/submit/send-chat-message';
 import {applyChatWsMessage} from './lib/net/ws/chat-stream';
 import {setSocket} from './lib/runtime-bridge/state';
-import {setNavigate} from './lib/navigate';
+import {setNavigate} from './lib/nav/navigate';
 import {readSessionDraftState} from './lib/chat/send/session-draft-persistence';
 const makeAgent=(id,model,effort)=>({id,name:id+' agent',description:'Saved',default:false,
   model:{provider:'test',id:model},thinking_effort:effort,system_prompt:'saved '+id,

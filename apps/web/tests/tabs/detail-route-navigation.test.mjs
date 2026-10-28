@@ -5,7 +5,7 @@ registerHooks({resolve(specifier, context, next) {
  if (specifier.startsWith(".") && !/\.[a-z]+$/.test(specifier)) return {url:new URL(specifier+".ts",context.parentURL).href,shortCircuit:true};
  return next(specifier,context);
 }});
-const {setNavigate}=await import("../../lib/navigate.ts");
+const {setNavigate}=await import("../../lib/nav/navigate.ts");
 const route=await import("../../lib/tabs/navigation/route.ts");
 const requested=[];
 globalThis.window={location:{pathname:"/s/chat"},history:{state:null,pushState(_s,_t,path){window.location.pathname=path;},replaceState(state,_t,path){assert.equal(state,null,"Next must observe the replacement instead of bypassing its patched history API");window.location.pathname=path;}}};

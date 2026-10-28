@@ -33,7 +33,7 @@ import {
   repaintBranchTags,
 } from "../dag";
 import { convToChatMsgs } from "@/lib/chat/transcript/conv-mapper";
-import { navigate } from "@/lib/navigate";
+import { navigate } from "@/lib/nav/navigate";
 import { useSessionStore } from "@/lib/session-store";
 import {
   warmContextBreakdown,

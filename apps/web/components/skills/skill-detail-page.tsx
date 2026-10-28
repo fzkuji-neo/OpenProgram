@@ -9,7 +9,7 @@ import type { SkillDetail } from "@/lib/abilities/skills-store";
 import { useTranslation, type Locale } from "@/lib/i18n";
 import { useSessionStore } from "@/lib/session-store";
 import styles from "./skills-page.module.css";
-import { pushPath } from "@/lib/shallow-nav";
+import { pushPath } from "@/lib/nav/shallow-nav";
 import { confirmAction } from "@/components/ui/confirm-dialog";
 
 type Tab = "skill" | "files" | "versions";

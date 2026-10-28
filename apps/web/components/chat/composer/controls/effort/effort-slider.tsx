@@ -3,7 +3,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import * as Slider from "@radix-ui/react-slider";
 import { EffortField } from "./effort-field";
-import { formatEffortLabel } from "@/lib/effort-color";
+import { formatEffortLabel } from "@/lib/effort/effort-color";
 import type { ThinkingOption } from "./use-thinking-effort";
 
 type Drag = { id: number; x: number; offset: number };

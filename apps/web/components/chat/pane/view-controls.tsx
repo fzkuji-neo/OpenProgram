@@ -1,7 +1,7 @@
 "use client";
 import { copyText } from "@/lib/clipboard";
 
-import { autoRenameSession } from "@/lib/session-auto-rename";
+import { autoRenameSession } from "@/lib/chat/session-auto-rename";
 
 /**
  * ViewControls — the pair of buttons at the top-right of the chat pane,

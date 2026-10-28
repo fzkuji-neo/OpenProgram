@@ -42,7 +42,7 @@ import { showToast } from "@/lib/format-utils/toast";
 import { appendToComposer } from "@/components/chat/messages/editing/quote-to-chat";
 import { pageCommentText, pickedElementName, type PickedElement } from "@/lib/browser/capture/page-comment";
 import { regionFile } from "@/lib/browser/capture/region-shot";
-import { queueComposerFiles } from "@/lib/composer-inbox";
+import { queueComposerFiles } from "@/lib/chat/composer-inbox";
 import { targetChat as targetChatFor } from "@/lib/chat/resources/target-chat";
 import { browserPageShortcut } from "@/lib/browser/browser-layout";
 import {

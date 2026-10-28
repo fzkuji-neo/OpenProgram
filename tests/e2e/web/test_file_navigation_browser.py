@@ -36,7 +36,7 @@ const mocks={
   "@/components/ui/tooltip":'export const HoverTip=({children})=>children;',
 };
 build({stdin:{contents:`
-import {setNavigate} from "./lib/navigate";
+import {setNavigate} from "./lib/nav/navigate";
 setNavigate(path=>window.history.pushState(null,"",path));
 import React,{useEffect} from "react";import{createRoot}from"react-dom/client";
 import{PageNavigation}from"./components/center-tabs/browser/toolbar/page-navigation";

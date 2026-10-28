@@ -8,7 +8,7 @@
 // module without the `@/` alias.
 import type { SolarIconName } from "../../../solar-icons/bodies";
 import { guiCapabilityLabel } from "./gui-tool-view.ts";
-import { appStepArgs, computerUseAgentTarget, isFreshCall, screenStep, userBrowser } from "../../../../lib/computer-use-agent-call.ts";
+import { appStepArgs, computerUseAgentTarget, isFreshCall, screenStep, userBrowser } from "../../../../lib/computer-use/computer-use-agent-call.ts";
 
 export type ToolTone =
   | "shell" | "edit" | "read" | "search" | "web" | "agent"

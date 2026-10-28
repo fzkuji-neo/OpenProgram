@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatEffortLabel } from '../../lib/effort-color.ts';
+import { formatEffortLabel } from '../../lib/effort/effort-color.ts';
 
 test('xhigh is a compound token, not Xhigh', () => {
   assert.equal(formatEffortLabel('xhigh'), 'XHigh');

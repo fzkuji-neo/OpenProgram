@@ -26,7 +26,7 @@ import {
   draftChannelChoiceHost,
   dropDraftChannelChoice,
 } from "@/lib/runtime-bridge/actions/draft-channel-choice";
-import { pushPath } from "@/lib/shallow-nav";
+import { pushPath } from "@/lib/nav/shallow-nav";
 import { cancelTabRouteNavigation, navigateTabRoute } from "@/lib/tabs/navigation/route";
 import { useTranslation } from "@/lib/i18n";
 import { selectTabsReadyForHumanClose } from "@/lib/browser/control/browser-control";

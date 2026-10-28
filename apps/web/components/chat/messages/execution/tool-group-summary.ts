@@ -7,7 +7,7 @@
 import type { AssistantBlock, TurnFileSummary } from "../../../../lib/session-store/types.ts";
 import { parseToolArgs, presentTool } from "./tool-presentation.ts";
 import { GUI_TOOL_NAMES, isGuiToolCall } from "./gui-tool-view.ts";
-import { appStepArgs, computerUseAgentTarget, isFreshCall, userBrowser } from "../../../../lib/computer-use-agent-call.ts";
+import { appStepArgs, computerUseAgentTarget, isFreshCall, userBrowser } from "../../../../lib/computer-use/computer-use-agent-call.ts";
 
 type Text = (en: string, zh: string) => string;
 type Args = Record<string, unknown>;

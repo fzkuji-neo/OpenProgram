@@ -562,7 +562,7 @@ assert.doesNotMatch(compactControls, /\.(?:permission-badge|agent-badge|effort-p
 assert.match(workingDirChips, /className="workdir-remove"/);
 assert.match(workingDirChips, /aria-label=\{text\("Remove folder", "移除文件夹"\)\}/);
 assert.match(workingDirChips, /tabIndex=\{0\}/);
-const { effortLevelColor } = await import("../../lib/effort-color.ts");
+const { effortLevelColor } = await import("../../lib/effort/effort-color.ts");
 const effortOptions = ["low", "medium", "high", "max"].map((value) => ({ value }));
 const nonMaxColors = effortOptions
   .filter(({ value }) => value !== "max")

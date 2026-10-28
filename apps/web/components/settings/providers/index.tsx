@@ -29,7 +29,7 @@ import { SearchInput } from "@/components/ui/search-input";
 import { cachedFetch, invalidate, readCachedSettings } from "@/lib/prefs/settings-cache";
 import { refreshAgentChip } from "./types";
 import { useTranslation } from "@/lib/i18n";
-import { pushPath } from "@/lib/shallow-nav";
+import { pushPath } from "@/lib/nav/shallow-nav";
 
 // Re-export ApiKey for search-providers-section.tsx (the only other
 // consumer outside this subdirectory).

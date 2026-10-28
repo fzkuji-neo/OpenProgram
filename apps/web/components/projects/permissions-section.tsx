@@ -16,7 +16,7 @@ import { XIcon } from "lucide-react";
 import { ManageIconButton } from "@/components/ui/manage-page";
 import { SettingsRow, SettingsSection } from "@/components/settings/settings-ui";
 import { cn } from "@/lib/utils";
-import { computerUseRuleApp } from "@/lib/computer-use-rule";
+import { computerUseRuleApp } from "@/lib/computer-use/computer-use-rule";
 
 type Behavior = "deny" | "ask" | "allow";
 type Rules = Record<Behavior, string[]>;

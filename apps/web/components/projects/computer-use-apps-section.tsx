@@ -14,7 +14,7 @@ import { useComputerUseApps } from "@/lib/net/computer-use-apps";
 import { useTranslation } from "@/lib/i18n";
 import { wsRequest } from "@/lib/net/ws/ws-request";
 
-import { computerUseRuleApp } from "@/lib/computer-use-rule";
+import { computerUseRuleApp } from "@/lib/computer-use/computer-use-rule";
 import { XIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ManageIconButton } from "@/components/ui/manage-page";

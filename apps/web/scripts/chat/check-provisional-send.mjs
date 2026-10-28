@@ -841,7 +841,7 @@ assert.match(
 assert.match(composer, /useCenterTabs\.getState\(\)\.markSessionReady\(sid\);/);
 assert.match(
   composer,
-  // Navigation is shallow now (lib/shallow-nav pushPath), not router.push.
+  // Navigation is shallow now (lib/nav/shallow-nav pushPath), not router.push.
   /if \(shouldActivate\) \{[\s\S]*setCurrentConv\(sid\);[\s\S]*pushPath\(`\/s\//,
 );
 assert.match(composer, /const submitOwnerKey = activeChatKey \?\? currentSessionId;/);

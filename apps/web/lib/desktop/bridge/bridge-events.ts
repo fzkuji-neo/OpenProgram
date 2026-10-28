@@ -17,7 +17,7 @@ import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import "@/lib/net/ws/ws-events";
 import { ingestBrowserResource, type BackendResource } from "@/lib/chat/resources/session-resources";
 import { recordOperationCue, showActionsEnabled } from "@/lib/browser/control/browser-control";
-import { hasNavigate, navigate } from "@/lib/navigate";
+import { hasNavigate, navigate } from "@/lib/nav/navigate";
 import type { DesktopWebTabApi } from "@/lib/desktop/desktop-bridge-types";
 import { getSocket } from "@/lib/runtime-bridge/state";
 import { type DesktopBridge } from "./bridge-api";

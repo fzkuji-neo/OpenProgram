@@ -1,5 +1,5 @@
-import { navigate } from "../../navigate";
-import { pushPath } from "../../shallow-nav";
+import { navigate } from "../../nav/navigate";
+import { pushPath } from "../../nav/shallow-nav";
 
 function detailHost(path: string): string | null {
   return ["/skills", "/plugin", "/settings/providers"].find(

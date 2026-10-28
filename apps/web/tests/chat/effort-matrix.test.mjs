@@ -4,7 +4,7 @@ import {
   THUMB_WIDTH,
   captionAlignment,
   thumbCenterX,
-} from '../../lib/effort-matrix.ts';
+} from '../../lib/effort/effort-matrix.ts';
 
 const WIDTH = 200;
 const COUNT = 5;

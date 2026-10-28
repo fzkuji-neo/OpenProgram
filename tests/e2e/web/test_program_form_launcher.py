@@ -25,7 +25,7 @@ import {useSessionStore} from './lib/session-store';
 import {useCenterTabs} from './lib/tabs/center-tabs-store';
 import {openFunctionForm} from './lib/abilities/functions-actions';
 import {runtimeState,setSocket} from './lib/runtime-bridge/state';
-import {setNavigate} from './lib/navigate';
+import {setNavigate} from './lib/nav/navigate';
 const weekly={name:'weekly_report',description:'Prepare a report',
  params_detail:[{name:'task',type:'str',required:true,description:'Report requirements'}]};
 window.writes=[];window.frames=[];window.unexpected=[];

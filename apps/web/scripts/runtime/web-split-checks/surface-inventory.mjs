@@ -9,7 +9,7 @@ export async function run(testContext) {
 
 globalThis.window.openprogramDesktop = { isDesktop: true, windowId: "main" };
 
-(testContext.navigateModule = await import("../../../lib/navigate.ts"));
+(testContext.navigateModule = await import("../../../lib/nav/navigate.ts"));
 
 (testContext.popupNavigations = []);
 

@@ -52,7 +52,7 @@ import { useFileMention } from "./attach/mention/use-file-mention";
 import type { MentionSources } from "./attach/mention/mention-sources";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { runningApps } from "@/lib/net/computer-use-apps";
-import { onComposerFiles, takeComposerFiles } from "@/lib/composer-inbox";
+import { onComposerFiles, takeComposerFiles } from "@/lib/chat/composer-inbox";
 import { useFnFormState } from "./modes/fn-form/use-fn-form-state";
 import { useFnFormWrapper } from "./modes/fn-form/use-fn-form-wrapper";
 import { useFnFormSubmit } from "./modes/fn-form/use-fn-form-submit";

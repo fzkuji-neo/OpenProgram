@@ -28,7 +28,7 @@ import {
   reconcileWsMutation,
   wsRequest,
 } from "@/lib/net/ws/ws-request";
-import { navigate } from "@/lib/navigate";
+import { navigate } from "@/lib/nav/navigate";
 import { useSessionStore } from "@/lib/session-store";
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";

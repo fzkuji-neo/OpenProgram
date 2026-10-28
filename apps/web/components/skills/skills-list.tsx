@@ -7,7 +7,7 @@ import { SearchInput } from "@/components/ui/search-input";
 import { ManageEmptyState, ManageIconButton, ManageRow, managePageStyles as shared } from "@/components/ui/manage-page";
 import { ChevronRight, ChevronsDownUp, ChevronsUpDown, TextSearch } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
-import { pushPath } from "@/lib/shallow-nav";
+import { pushPath } from "@/lib/nav/shallow-nav";
 import {
   type AnimatedNavIconHandle,
   FileTextIcon,

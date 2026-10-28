@@ -9,7 +9,7 @@ const stubs={
  "@tanstack/react-query":"export const useQueryClient=()=>({invalidateQueries(){}});",
  "@/lib/i18n":"export const useTranslation=()=>({t:x=>x,text:x=>x});",
  "@/lib/prefs/settings-cache":"export const readCachedSettings=()=>globalThis.cachedProviders;export const cachedFetch=()=>globalThis.loadProviders();export const invalidate=()=>{};",
- "@/lib/shallow-nav":"export const pushPath=()=>{};",
+ "@/lib/nav/shallow-nav":"export const pushPath=()=>{};",
  "@/components/ui/search-input":"export const SearchInput=()=>null;",
  "./detail":"export const Detail=({provider})=>globalThis.providerElement('output',{},provider.id);",
  "./provider-item":"export const ProviderItem=()=>null;",

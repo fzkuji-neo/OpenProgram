@@ -48,7 +48,7 @@ import {
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
 import { newSession } from "@/lib/runtime-bridge/session/conversations";
 import { completeTabRouteNavigation } from "@/lib/tabs/navigation/route";
-import { setNavigate } from "@/lib/navigate";
+import { setNavigate } from "@/lib/nav/navigate";
 import { loadPluginClients } from "@/lib/plugins/slots";
 import { startAttentionBridge } from "@/lib/desktop/attention";
 import { openSession } from "@/lib/tabs/navigation/open-session";

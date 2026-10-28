@@ -4,7 +4,7 @@ import { displayTitle } from "@/components/sidebar/sessions-list/helpers";
 import { newSession } from "@/lib/runtime-bridge/session/conversations";
 import { useSessionStore } from "@/lib/session-store";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
-import { pushPath } from "@/lib/shallow-nav";
+import { pushPath } from "@/lib/nav/shallow-nav";
 
 /** Mirrors a sidebar row click: the active session tab navigates (a web or
  *  file tab gets a session tab), then the route follows. */

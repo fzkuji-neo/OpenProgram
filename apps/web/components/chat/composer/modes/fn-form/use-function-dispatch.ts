@@ -16,7 +16,7 @@ import { setRunning } from "@/lib/runtime-bridge/ui";
 import type { AgenticFunction } from "@/lib/session-store";
 import { useSessionStore } from "@/lib/session-store";
 import { sessionAckIsActive, useCenterTabs } from "@/lib/tabs/center-tabs-store";
-import { pushPath } from "@/lib/shallow-nav";
+import { pushPath } from "@/lib/nav/shallow-nav";
 
 import { resolveFnFormSessionId, shouldClearLegacyRunning } from "./session-target";
 

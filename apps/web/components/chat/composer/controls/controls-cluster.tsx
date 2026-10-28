@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import { useTranslation } from "@/lib/i18n";
-import { effortLevelColor, formatEffortLabel } from "@/lib/effort-color";
+import { effortLevelColor, formatEffortLabel } from "@/lib/effort/effort-color";
 import { GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR } from "../../top-bar/menu-styles";
 import { AgentBadge, PermissionBadge } from "../../top-bar";
 import { ContextBadge } from "../../badges/context-badge";

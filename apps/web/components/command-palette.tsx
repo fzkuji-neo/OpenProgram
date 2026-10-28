@@ -32,7 +32,7 @@ import {
 import { activityTs, displayTitle } from "@/components/sidebar/sessions-list/helpers";
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";
 import { useTranslation } from "@/lib/i18n";
-import { navigate } from "@/lib/navigate";
+import { navigate } from "@/lib/nav/navigate";
 import { useSessionStore } from "@/lib/session-store";
 import { formatRelativeTime } from "@/lib/format-utils/format";
 import { openNewChat, openSession } from "@/lib/tabs/navigation/open-session";

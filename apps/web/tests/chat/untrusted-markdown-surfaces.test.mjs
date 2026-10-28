@@ -16,7 +16,7 @@ const mocks = {
     '@/lib/session-store': 'export const useSessionStore=selector=>selector(globalThis.auditState);',
     '@/lib/chat/history/chat-scroll': 'export const whenAreaScrollSettles=()=>{};',
     '@/lib/files/files-shared': 'export const absRawFileUrl=()=>{throw Error("No file access expected")};',
-    '@/lib/shallow-nav': 'export const pushPath=()=>{};',
+    '@/lib/nav/shallow-nav': 'export const pushPath=()=>{};',
     'next/navigation': 'export const useRouter=()=>({push(){}});',
     'next/link': 'export default function Link(){return null;}',
     './attachment-preview': 'export const AttachmentPreview=()=>{throw Error("No attachment should render")};',
