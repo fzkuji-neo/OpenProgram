@@ -860,45 +860,41 @@ switch, exactly as in §9. A spawn head is visible only while every thread
 above it is open; its items likewise — visibility is the whole ancestor
 chain's, not the node's own flag.
 
-## 13. Tools, selection and deleting nodes
+## 13. The mouse, the rail, selection and deleting nodes
 
-The canvas has a tool, the way a drawing board does. A tool decides two
-things and nothing else: what a click on a node means and what a drag on empty
-canvas does. Wheel and pinch, the right-click card, the HUD and the branch tags
-behave the same under every tool. The tools sit in a vertical rail on the
-canvas's left edge:
+The canvas has one mouse and no tools to switch between. Splitting browsing,
+box-selecting and lasso-selecting into three tools made every first drag a
+question of which tool was in hand. One mouse does all of it:
 
-| Tool | Key | Click on a node | Drag on empty canvas |
-|---|---|---|---|
-| Browse (hand, the default) | H | the node's own action (§11, §12) | pan |
-| Select (pointer) | V | select it; Shift/⌘ adds or removes | a rectangle; every node it touches is selected |
-| Lasso | L | as Select | a free shape; every node it touches is selected |
+| Gesture | What it does |
+|---|---|
+| Wheel, or pinch | zoom about the cursor |
+| Drag on empty canvas | pan (the middle button pans too) |
+| Click a node | the node's own action (§11, §12) |
+| Double-click a node | fork & edit (§11) |
+| Shift/⌘ + click a node | add it to the selection, or take it out |
+| Shift/⌘ + drag on empty canvas | a box; every node it touches joins the selection |
+| Click on empty canvas | clear the selection |
 
-Clicking and box-selecting are one tool, as in every drawing app: a press on
-a node picks it, a press on empty canvas starts a box. Under the selecting
-tools a drag on empty canvas therefore does not pan. Space held turns any tool
-into the hand for the drag, the middle mouse button always pans, and a
-trackpad scroll pans under every tool. A click on empty canvas clears the selection; Shift keeps
-it, and a Shift-drag adds to it. Under a selecting tool a double click does
-nothing, so fork & edit stays a browse gesture. These are fixed by design, not
-settings: touching selects (no enclose-only mode), and clicking a user circle
-selects that circle alone.
+The wheel zooms like a map's; it does not scroll. A trackpad pinch zooms at
+its own, faster rate. These are fixed by design, not settings: touching
+selects (no enclose-only mode), and a plain click never selects, so it can
+stay the node's own action (`apps/web/lib/runtime-bridge/dag/interaction/canvas.ts`,
+`interaction/nodes.ts`, `interaction/selection.ts`).
 
-Tools live in a registry (`registerTool` in
-`apps/web/lib/runtime-bridge/dag/interaction/selection.ts`): an id, a key,
-whether a click selects, and what a drag does. The rail renders whatever is
-registered, so a later tool (notes, annotations) is one registration plus its
-icon.
-
-The rail is one raised strip of the app's button material (the input box's
-fill and the composer's shadow); the tool in hand is a flat block of the
-accent colour that glides to the tool you pick, and each key is in the button's tooltip. Below a hairline sits
-the camera: **Find the working
-agent** (F) glides the view to the tile a working agent stands on, keeping the
-zoom; pressed again it moves to the next working agent, and with none at work
-it goes to HEAD (`focusAgent` in `interaction/canvas.ts`). **Show the whole graph** (Shift+1) sits under it. The HUD's Fit can be tucked behind the composer, but the rail is always there. The last button, under a second hairline, opens the **key sheet**: every key the canvas answers to, grouped as tools, camera and selection, in a menu panel beside the rail (`components/chat/dag-key-sheet.tsx`). `?` opens it too. Esc, `?` again or a press outside closes it. The view keys
-follow design tools: Shift+1 fits the graph, Shift+0 returns to 100%, and
-+ / − step the zoom, the same steps as the HUD's buttons (`interaction/keys.ts`).
+The rail on the canvas's left edge is one raised strip of the app's button
+material (the input box's fill and the composer's shadow). It holds the
+camera. **Find the working agent** (F) glides the view to the tile a working
+agent stands on, keeping the zoom. Pressed again it moves to the next working
+agent, and with none at work it goes to HEAD (`focusAgent` in
+`interaction/canvas.ts`). **Show the whole graph** (Shift+1) sits under it. The
+HUD's Fit can be tucked behind the composer, but the rail is always there.
+Under a hairline, the keyboard button opens the **key sheet**: every gesture
+and key the canvas answers to, grouped as mouse, camera and selection, in a
+menu panel beside the rail (`components/chat/dag-key-sheet.tsx`). `?` opens it
+too. Esc, `?` again or a press outside closes it. The view keys follow design
+tools: Shift+1 fits the graph, Shift+0 returns to 100%, and + / − step the
+zoom, the same steps as the HUD's buttons (`interaction/keys.ts`).
 
 **Selection.** View state of the current session's canvas. Each selected node
 gets a dashed accent box just outside its glyph. The set is re-applied after
@@ -954,8 +950,8 @@ dot of its tone, and the part on screen is a frame in the accent colour. A
 press or a drag on the map moves the camera there at the same zoom. The map
 frames the graph and the view together, so the frame is never cut off, and it
 holds still while you drag. HEAD is a larger dot ringed in the accent colour,
-the "you are here" of the map, and a wheel over the map scrolls or zooms the
-canvas about its middle. When the
+the "you are here" of the map, and a wheel over the map zooms the canvas about
+its middle. When the
 whole graph is already on screen the map fades out: there is nothing to find
 (`apps/web/lib/runtime-bridge/dag/interaction/minimap.ts`, repainted by
 `applyView` on every view change).
@@ -990,4 +986,4 @@ The whole spec is implemented. Where each part lives:
 | §11 legend | `DagLegend` in `apps/web/components/chat/dag-view.tsx` (inside the canvas HUD), `.dag-legend` in `apps/web/app/styles/dag/hud.css` |
 | §12 call thread + agent spawn | `apps/web/lib/runtime-bridge/dag/render/shapes.ts` (spawn → square), `apps/web/lib/runtime-bridge/dag/passes/thread.ts` (model), `apps/web/lib/runtime-bridge/dag/layout/geometry.ts` (recursive placement), `apps/web/lib/runtime-bridge/dag/render/edges.ts` (dotted thread line, centre-to-centre chain edges, scene-3 bridge), `apps/web/lib/runtime-bridge/dag/render/nodes.ts` (`data-thread*`, shoulder count), `apps/web/lib/runtime-bridge/dag/interaction/nodes.ts` (`toggleThreadOpen`); executed by `apps/web/scripts/runtime/check-dag-subagent.mjs` |
 | §12 the name on the wire | `task/runner.py::_update_attach_card` stamps `attach.label` from the task; `ws_actions/session.py::_annotate_spawn_origin` carries it to the spawn root as `spawned_from.label`; tested in `tests/unit/test_task_attach_integration.py` |
-| §13 tools, selection, delete / undo | tool registry, selection state, hit-testing and the rubber band in `apps/web/lib/runtime-bridge/dag/interaction/selection.ts`; drags in `canvas.ts`, clicks in `nodes.ts`, keys in `keys.ts`; widening and the undo stack in `node-delete.ts`; rail and action bar in `apps/web/components/chat/dag-tools.tsx` + `apps/web/app/styles/dag/tools.css`; store splice and journal in `openprogram/store/session/session_store/node_deletion.py`; tested in `tests/component/store/test_node_deletion.py` and `apps/web/tests/execution/dag-selection.test.mjs` |
+| §13 mouse, rail, selection, delete / undo | selection state, hit-testing and the selection box in `apps/web/lib/runtime-bridge/dag/interaction/selection.ts`; drags in `canvas.ts`, clicks in `nodes.ts`, keys in `keys.ts`; widening and the undo stack in `node-delete.ts`; rail and action bar in `apps/web/components/chat/dag-tools.tsx`, key sheet in `dag-key-sheet.tsx`, minimap in `interaction/minimap.ts`, + `apps/web/app/styles/dag/tools.css`; store splice and journal in `openprogram/store/session/session_store/node_deletion.py`; tested in `tests/component/store/test_node_deletion.py` and `apps/web/tests/execution/dag-selection.test.mjs` |

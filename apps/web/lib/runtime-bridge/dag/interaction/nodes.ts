@@ -2,8 +2,8 @@ import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
 /**
  * Renderer: click / dblclick / contextmenu / chat-scroll glue.
  *
- * * Under a selecting tool (``./selection``) a click selects the node
- *   and a double click does nothing; what follows is the hand tool's.
+ * * Shift/⌘ + click adds the node to the selection or takes it out
+ *   (``./selection``); a plain click is the node's own, as follows.
  * * Single click on a node → the inspector popover (``./inspector``),
  *   plus the node's own click behaviour: a compaction capsule folds or
  *   unfolds the range it covers, a node with an execution subtree
@@ -42,7 +42,7 @@ import {
   showNodeMenu,
 } from "../render/inspector";
 import { _buildTree } from "../layout/build-tree";
-import { activeTool, releaseEditableFocus, select } from "./selection";
+import { releaseEditableFocus, select } from "./selection";
 import type { TNode } from "@/components/chat/messages/tree-types";
 
 export function _chatBubbleFor(msgId: string): Element | null {
@@ -225,12 +225,11 @@ export function _installInteractionHandlers(rerender: () => void): void {
     // A node click starts the node's own action — an expanded card
     // left over from a right-click would sit on top of the change.
     closeNodeLayers();
-    // Under a selecting tool the click is the selection's
-    // (./selection.ts): it picks this one node, and Shift/⌘ adds or
-    // removes it. Folding and fork & edit stay with the hand tool.
-    if (activeTool().selects) {
+    // Shift/⌘ + click is the selection's (./selection.ts): it adds the
+    // node or takes it out. A plain click stays the node's own action.
+    if (e.shiftKey || e.metaKey) {
       releaseEditableFocus();
-      select([id], e.shiftKey || e.metaKey ? "toggle" : "replace");
+      select([id], "toggle");
       return;
     }
     // A click is the node's own ACTION, not an info request — info
@@ -295,10 +294,6 @@ export function _installInteractionHandlers(rerender: () => void): void {
 
   document.addEventListener("dblclick", (e) => {
     const tgt = e.target as HTMLElement;
-    if (activeTool().selects
-        && tgt.closest && tgt.closest(".history-body")) {
-      return;
-    }
     const node = tgt.closest && tgt.closest(".history-node");
     const edgeHit = node
       ? null

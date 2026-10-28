@@ -1,30 +1,18 @@
 /**
- * Canvas keyboard (dag/rendering.md §13): the tool keys, Delete,
+ * Canvas keyboard (dag/rendering.md §13): the camera keys, Delete,
  * Esc and ⌘Z. Active only while the graph is on screen and the keyboard
  * is not in a text field — typing "v" in the composer is a "v".
  *
- *   H / V / L        switch tool (hand, select, lasso — any registered
- *                    tool's ``key``)
  *   F                camera to the next working agent (else HEAD)
  *   Shift+1 / Shift+0  fit the graph / zoom back to 100%
  *   + / −            zoom in / out one step
  *   Delete / ⌫       delete the selection
  *   Esc              clear the selection
  *   ⌘Z / Ctrl+Z      undo the last delete in this session
- *   Space (held)     pan with a drag under any tool
  *   ?                open / close the key sheet
  */
 
-import {
-  activeTool,
-  clearSelection,
-  dagTools,
-  dagVisible,
-  isEditableFocus,
-  selectedIds,
-  setSpaceHeld,
-  setTool,
-} from "./selection";
+import { clearSelection, dagVisible, isEditableFocus, selectedIds } from "./selection";
 import { fitCanvas, focusAgent, resetZoom, zoomStep } from "./canvas";
 import { canUndoDeletion, deleteSelection, undoDeletion } from "./node-delete";
 import { keySheetOpen, setKeySheet } from "./help";
@@ -61,12 +49,6 @@ function onKeyDown(e: KeyboardEvent): void {
     clearSelection();
     return;
   }
-  if (e.key === " ") {
-    // A focused button would also "click" on Space — the canvas owns it.
-    e.preventDefault();
-    if (!e.repeat) setSpaceHeld(true);
-    return;
-  }
   // View keys, as design tools have them. By physical key, so Shift+1
   // is Shift+1 on every layout ("!" on US, something else elsewhere).
   const view = e.shiftKey && e.code === "Digit1" ? fitCanvas
@@ -83,19 +65,9 @@ function onKeyDown(e: KeyboardEvent): void {
   if (e.key.toLowerCase() === "f") {
     e.preventDefault();
     focusAgent();
-    return;
-  }
-  const tool = dagTools().find((t) => t.key === e.key.toLowerCase());
-  if (tool && tool.id !== activeTool().id) {
-    e.preventDefault();
-    setTool(tool.id);
   }
 }
 
 if (typeof document !== "undefined") {
   document.addEventListener("keydown", onKeyDown);
-  document.addEventListener("keyup", (e) => {
-    if (e.key === " ") setSpaceHeld(false);
-  });
-  window.addEventListener("blur", () => setSpaceHeld(false));
 }

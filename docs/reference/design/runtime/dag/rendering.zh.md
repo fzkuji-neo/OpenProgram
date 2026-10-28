@@ -682,35 +682,35 @@ checkout 成活动分支——接管这个 agent 的对话。徽章永不压住�
 上方整条线程链都展开时可见；它的条目同理——可见性属于整条祖先链，不属于节点
 自己的开关。
 
-## 十三、工具、选择与删除节点
+## 十三、鼠标、竖条、选择与删除节点
 
-画布像画板一样有"当前工具"。工具只决定两件事：单击节点是什么意思，在空白处拖动做
-什么。滚轮与捏合、右键卡片、HUD、分支标签在任何工具下都一样。工具排成画布左缘的一列
-竖条：
+画布只有一个鼠标，没有可切换的工具。以前把浏览、框选、套索拆成三个工具，每次拖动前
+都得先想手里拿的是哪个。现在一个鼠标全包：
 
-| 工具 | 快捷键 | 单击节点 | 在空白处拖动 |
-|---|---|---|---|
-| 浏览（抓手，默认） | H | 节点自己的动作（第十一、十二节） | 平移 |
-| 选择（指针） | V | 选中它；Shift/⌘ 增减 | 画矩形，碰到的节点全部选中 |
-| 套索 | L | 同选择 | 画任意形状，碰到的节点全部选中 |
+| 手势 | 做什么 |
+|---|---|
+| 滚轮或捏合 | 以光标为中心缩放 |
+| 在空白处拖动 | 平移（鼠标中键也平移） |
+| 单击节点 | 节点自己的动作（第十一、十二节） |
+| 双击节点 | fork 并编辑（第十一节） |
+| Shift/⌘ + 单击节点 | 加入选择，或从选择中去掉 |
+| Shift/⌘ + 在空白处拖动 | 画框，碰到的节点全部加入选择 |
+| 单击空白处 | 清空选择 |
 
-点选和框选是同一个工具，和各种画图软件一样：按在节点上是选它，按在空白处是开始拉框。
-所以选择类工具下在空白处拖动不平移。按住空格时任何工具的拖动都是平移，鼠标中键始终
-平移，触控板滚动在任何工具下都是平移。单击空白处清空选择；按住 Shift
-单击保留选择，Shift 拖动则追加选择。选择类工具下双击不做任何事，fork 并编辑仍是浏览
-手势。这些是设计定死的，不是设置项：碰到即选（没有"必须全包住"模式），单击用户圆点只
-选这一个圆点。
+滚轮像地图一样缩放，不滚动。触控板捏合用自己的、更快的速率缩放。这些是设计定死的，
+不是设置项：碰到即选（没有"必须全包住"模式）；普通单击永远不选择，所以它始终是节点
+自己的动作（`apps/web/lib/runtime-bridge/dag/interaction/canvas.ts`、
+`interaction/nodes.ts`、`interaction/selection.ts`）。
 
-工具放在注册表里（`apps/web/lib/runtime-bridge/dag/interaction/selection.ts` 的
-`registerTool`）：一个 id、一个快捷键、单击是否选择、拖动做什么。竖条渲染所有已注册
-的工具，以后加工具（便签、批注）只需注册一次再配一个图标。
-
-竖条是一整条应用按钮材质的凸起条（输入框底色加 composer 阴影）；手里的工具是一块强调色
-的扁平色块，换工具时滑到新工具上，快捷键写在按钮的 tooltip 里。一道发丝线下面是镜头按钮：**找到正在工作的 agent**（F）
-保持缩放，把视图平滑移到正在工作的 agent 站着的图块；再按换到下一个正在工作的 agent，
-没人工作时移到 HEAD（`interaction/canvas.ts` 的 `focusAgent`）。它下面是**显示整张图**（Shift+1）。HUD 的 Fit 可能随输入框一起收起，竖条却一直在。再隔一道发丝线，最后一个按钮打开**快捷键面板**：画布认的所有按键，按工具、镜头、选择分组，显示在竖条旁的菜单面板里（`components/chat/dag-key-sheet.tsx`）。按 `?` 也能打开；按 Esc、再按 `?` 或点面板外即关闭。视图快捷键沿用设计
-工具的习惯：Shift+1 缩放到全图，Shift+0 回到 100%，+ / − 按一档放大缩小，和 HUD 按钮
-同一步长（`interaction/keys.ts`）。
+画布左缘的竖条是一整条应用按钮材质的凸起条（输入框底色加 composer 阴影），放镜头按钮。
+**找到正在工作的 agent**（F）保持缩放，把视图平滑移到正在工作的 agent 站着的图块；再按
+换到下一个正在工作的 agent，没人工作时移到 HEAD（`interaction/canvas.ts` 的
+`focusAgent`）。它下面是**显示整张图**（Shift+1）。HUD 的 Fit 可能随输入框一起收起，
+竖条却一直在。隔一道发丝线，键盘按钮打开**快捷键面板**：画布认的所有手势和按键，按鼠标、
+镜头、选择分组，显示在竖条旁的菜单面板里（`components/chat/dag-key-sheet.tsx`）。按 `?`
+也能打开；按 Esc、再按 `?` 或点面板外即关闭。视图快捷键沿用设计工具的习惯：Shift+1
+缩放到全图，Shift+0 回到 100%，+ / − 按一档放大缩小，和 HUD 按钮同一步长
+（`interaction/keys.ts`）。
 
 **选择。** 选择是当前会话画布的视图状态。每个被选节点的字形外侧画一圈强调色虚线框。
 每次重绘后重新套用，并裁剪到画布仍画着的节点，所以被删除或被折叠掉的节点会自动离开
@@ -748,7 +748,7 @@ checkout 成活动分支——接管这个 agent 的对话。徽章永不压住�
 
 长会话会超出屏幕，所以画布右下角、输入框上方放一张小地图，材质与左侧工具栏相同。每个
 节点是一个其色调的点，屏幕上看到的部分是一个强调色的框。在地图上按下或拖动，镜头就以当前
-缩放移到那里。地图框住的是整张图加上当前视野，所以视野框不会被裁掉；拖动期间地图保持不动。HEAD 画成带强调色描边的大点，就是地图上的"你在这里"；在地图上滚动滚轮，画布以视野中心平移或缩放。整张图都在屏幕上时地图淡出：没有要找的东西
+缩放移到那里。地图框住的是整张图加上当前视野，所以视野框不会被裁掉；拖动期间地图保持不动。HEAD 画成带强调色描边的大点，就是地图上的"你在这里"；在地图上滚动滚轮，画布以视野中心缩放。整张图都在屏幕上时地图淡出：没有要找的东西
 （`apps/web/lib/runtime-bridge/dag/interaction/minimap.ts`，每次视图变化由 `applyView`
 重绘）。
 
@@ -782,4 +782,4 @@ checkout 成活动分支——接管这个 agent 的对话。徽章永不压住�
 | 第十一节 图例 | `apps/web/components/chat/dag-view.tsx` 的 `DagLegend`（挂在画布 HUD 里），`apps/web/app/styles/dag/hud.css` 的 `.dag-legend` |
 | 第十二节 调用线程 + agent spawn | `apps/web/lib/runtime-bridge/dag/render/shapes.ts`（spawn → 方块）、`apps/web/lib/runtime-bridge/dag/passes/thread.ts`（模型）、`apps/web/lib/runtime-bridge/dag/layout/geometry.ts`（递归安放）、`apps/web/lib/runtime-bridge/dag/render/edges.ts`（线程点线、中心连线、场景3横桥）、`apps/web/lib/runtime-bridge/dag/render/nodes.ts`（`data-thread*`、肩上折叠数）、`apps/web/lib/runtime-bridge/dag/interaction/nodes.ts`（`toggleThreadOpen`）；由 `apps/web/scripts/runtime/check-dag-subagent.mjs` 实跑 |
 | 第十二节 名字上线 | `task/runner.py::_update_attach_card` 从 task 戳出 `attach.label`；`ws_actions/session.py::_annotate_spawn_origin` 把它带到 spawn 根的 `spawned_from.label`；测试见 `tests/unit/test_task_attach_integration.py` |
-| 第十三节 工具、选择、删除 / 撤销 | 工具注册表、选择状态、命中判定和橡皮筋在 `apps/web/lib/runtime-bridge/dag/interaction/selection.ts`；拖动在 `canvas.ts`，单击在 `nodes.ts`，快捷键在 `keys.ts`；扩展选择与撤销栈在 `node-delete.ts`；竖条与操作条在 `apps/web/components/chat/dag-tools.tsx` + `apps/web/app/styles/dag/tools.css`；store 拼接与日志在 `openprogram/store/session/session_store/node_deletion.py`；测试见 `tests/component/store/test_node_deletion.py` 与 `apps/web/tests/execution/dag-selection.test.mjs` |
+| 第十三节 鼠标、竖条、选择、删除 / 撤销 | 选择状态、命中判定和选择框在 `apps/web/lib/runtime-bridge/dag/interaction/selection.ts`；拖动在 `canvas.ts`，单击在 `nodes.ts`，快捷键在 `keys.ts`；扩展选择与撤销栈在 `node-delete.ts`；竖条与操作条在 `apps/web/components/chat/dag-tools.tsx`，快捷键面板在 `dag-key-sheet.tsx`，小地图在 `interaction/minimap.ts`，+ `apps/web/app/styles/dag/tools.css`；store 拼接与日志在 `openprogram/store/session/session_store/node_deletion.py`；测试见 `tests/component/store/test_node_deletion.py` 与 `apps/web/tests/execution/dag-selection.test.mjs` |

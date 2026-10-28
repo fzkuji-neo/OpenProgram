@@ -1,30 +1,25 @@
 "use client";
 
 /**
- * The DAG canvas's tool rail and selection action bar
+ * The DAG canvas's rail and selection action bar
  * (dag/rendering.md §13).
  *
  * The rail runs down the canvas's left edge as one raised strip, the
- * app's button material: one icon per registered tool
- * (lib/runtime-bridge/dag/interaction/selection.ts owns what each tool
- * DOES; this file only gives it a face), then the camera buttons: find
- * the working agent, show the whole graph; last the keyboard button
- * that opens the key sheet (dag-key-sheet.tsx). The action bar appears at
- * the top left, above the rail, while something is selected — and for a
- * few seconds after a delete, as the way back. The top right belongs to
- * the pane's perspective controls.
+ * app's button material. There are no tools to switch: one mouse pans,
+ * clicks and (with Shift/⌘) selects, so the rail holds the camera —
+ * find the working agent, show the whole graph — and, under a hairline,
+ * the keyboard button that opens the key sheet (dag-key-sheet.tsx).
+ * The action bar appears at the top left while something is selected,
+ * and for a few seconds after a delete, as the way back. The top right
+ * belongs to the pane's perspective controls.
  */
 
 import { useSyncExternalStore } from "react";
-import { motion } from "framer-motion";
 import {
   Copy,
-  Hand,
   Keyboard,
-  Lasso,
   LocateFixed,
   Maximize2,
-  MousePointer2,
   Trash2,
   Undo2,
   X,
@@ -33,12 +28,9 @@ import {
 
 import { useTranslation } from "@/lib/i18n";
 import {
-  activeTool,
   clearSelection,
-  dagTools,
   selectedIds,
   selectionVersion,
-  setTool,
   subscribeSelection,
 } from "@/lib/runtime-bridge/dag/interaction/selection";
 import {
@@ -51,53 +43,16 @@ import { fitCanvas, focusAgent } from "@/lib/runtime-bridge/dag/interaction/canv
 import { keySheetOpen, setKeySheet } from "@/lib/runtime-bridge/dag/interaction/help";
 import { DagKeySheet, useKeySheetOpen } from "./dag-key-sheet";
 
-/** Each tool's face. A tool registered without one shows its id. */
-const FACES: Record<string, { Icon: LucideIcon; en: string; zh: string; hintEn: string; hintZh: string }> = {
-  hand: { Icon: Hand, en: "Browse", zh: "浏览", hintEn: "Drag to pan", hintZh: "拖动平移画布" },
-  pointer: { Icon: MousePointer2, en: "Select", zh: "选择", hintEn: "Click, or drag a box", hintZh: "单击或拖框选择" },
-  lasso: { Icon: Lasso, en: "Lasso", zh: "套索", hintEn: "Draw around nodes to select", hintZh: "圈出要选的节点" },
-};
-
-function useCanvasTools(): number {
+function useSelectionVersion(): number {
   return useSyncExternalStore(subscribeSelection, selectionVersion, selectionVersion);
 }
 
 function DagToolRail() {
   const { text } = useTranslation();
-  useCanvasTools();
-  const current = activeTool().id;
   const sheetOpen = useKeySheetOpen();
   return (
     <div className="dag-tool-rail" role="toolbar" aria-orientation="vertical"
-      aria-label={text("Canvas tools", "画布工具")}>
-      {dagTools().map((tool) => {
-        const face = FACES[tool.id];
-        const label = face ? text(face.en, face.zh) : tool.id;
-        const hint = face ? `\n${text(face.hintEn, face.hintZh)}` : "";
-        const Icon = face?.Icon;
-        return (
-          <button
-            key={tool.id}
-            type="button"
-            className="dag-tool-btn"
-            aria-pressed={tool.id === current}
-            aria-label={label}
-            aria-keyshortcuts={tool.key.toUpperCase()}
-            data-tip={`${label} · ${tool.key.toUpperCase()}${hint}`}
-            data-tip-side="right"
-            onClick={() => setTool(tool.id)}
-          >
-            {/* The block under the tool in hand glides to the new one, the
-                way a hotbar's cursor moves between slots. */}
-            {tool.id === current && (
-              <motion.span layoutId="dag-tool-pill" className="dag-tool-pill" aria-hidden="true"
-                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }} />
-            )}
-            {Icon ? <Icon size={16} strokeWidth={2} /> : <span>{tool.id.slice(0, 1)}</span>}
-          </button>
-        );
-      })}
-      <span className="dag-tool-sep" aria-hidden="true" />
+      aria-label={text("Canvas", "画布")}>
       <button
         type="button"
         className="dag-tool-btn"
@@ -142,7 +97,7 @@ function DagToolRail() {
 
 function DagSelectionBar() {
   const { text } = useTranslation();
-  useCanvasTools();
+  useSelectionVersion();
   const ids = selectedIds();
   const pending = deletionPending();
   const last = lastDeletion();

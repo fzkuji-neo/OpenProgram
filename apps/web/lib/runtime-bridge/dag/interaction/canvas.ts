@@ -12,13 +12,11 @@
  * one ``<g>``, and that group carries a translate + scale the user drives
  * directly:
  *
- *   * pinch, or ⌘/ctrl + wheel → zoom about the cursor, 25%–300%
- *     (what is under the cursor stays under it)
- *   * any other wheel/scroll (trackpad two-finger, mouse wheel) → pan,
- *     both axes — scrolling stays scrolling
- *   * drag on empty space → the active tool's drag: pan, or a marquee /
- *     lasso selection (``./selection.ts``; a drag that starts on a node
- *     is the node's, so clicking still works)
+ *   * wheel or pinch → zoom about the cursor, 25%–300% (what is under
+ *     the cursor stays under it)
+ *   * drag on empty space → pan; with Shift/⌘ held, a box that selects
+ *     (``./selection.ts``; a drag that starts on a node is the node's,
+ *     so clicking still works)
  *
  * The pane's background paints a dot lattice at the layout's own grid
  * pitch, transformed with the same numbers, so the dots ARE the
@@ -36,14 +34,7 @@ import { TILE_R } from "../render/tiles";
 import { closeNodeLayers } from "../render/inspector";
 import { hideTooltip } from "./tooltip";
 import { hideMinimap, paintMinimap } from "./minimap";
-import {
-  SelectionBand,
-  activeTool,
-  clearSelection,
-  releaseEditableFocus,
-  select,
-  spaceHeld,
-} from "./selection";
+import { SelectionBand, clearSelection, releaseEditableFocus, select } from "./selection";
 import {
   _viewSession,
   _viewScale,
@@ -312,52 +303,25 @@ function wireGestures(host: HTMLElement): void {
       e.preventDefault();
       dismissOverlays();
       const rect = host.getBoundingClientRect();
-      // Gesture triage:
-      //   * ctrl/⌘ + wheel: browsers deliver a trackpad PINCH as a
-      //     wheel event with ctrlKey set (and ⌘+wheel is the explicit
-      //     zoom chord) — zoom about the cursor at pinch rate;
-      //   * a MOUSE wheel — discrete notches: line-mode deltas, or
-      //     integer deltaY of a notch's size with no deltaX — zooms,
-      //     the only zoom gesture a mouse has besides the HUD;
-      //   * everything else is a trackpad two-finger scroll — a PAN,
-      //     both axes. Scrolling stays scrolling.
-      // macOS scroll acceleration makes a mouse wheel's deltaY
-      // fractional and variable, so delta values can't tell the two
-      // devices apart. The legacy ``wheelDeltaY`` can: Chromium and
-      // WebKit report a physical wheel notch as a multiple of 120,
-      // while trackpad scrolls carry arbitrary small values.
-      const wd = (e as unknown as { wheelDeltaY?: number }).wheelDeltaY;
-      const isMouseWheel = e.deltaMode !== 0
-        || (e.deltaX === 0 && typeof wd === "number" && wd !== 0
-            && wd % 120 === 0);
-      if (e.ctrlKey || e.metaKey) {
-        zoomAt(
-          e.clientX - rect.left,
-          e.clientY - rect.top,
-          Math.exp(-e.deltaY * PINCH_ZOOM_RATE),
-        );
-      } else if (isMouseWheel) {
-        zoomAt(
-          e.clientX - rect.left,
-          e.clientY - rect.top,
-          Math.exp(-e.deltaY * WHEEL_ZOOM_RATE),
-        );
-      } else {
-        setView(_viewTx - e.deltaX, _viewTy - e.deltaY, _viewScale);
-        applyView();
-      }
+      // The wheel zooms about the cursor, the way a map does; panning is
+      // a drag. A trackpad pinch arrives as a ctrlKey wheel with small
+      // deltas, so it gets its own, faster rate. Line and page deltas
+      // (some mice) are turned into pixels first.
+      const dy = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * 100 : e.deltaY;
+      const rate = e.ctrlKey || e.metaKey ? PINCH_ZOOM_RATE : WHEEL_ZOOM_RATE;
+      zoomAt(e.clientX - rect.left, e.clientY - rect.top, Math.exp(-dy * rate));
     },
     { passive: false },
   );
 
-  // A drag on empty canvas is the active tool's (./selection.ts): a pan
-  // under the hand — or under any tool while Space is held — a rubber
-  // band (rectangle or lasso) under the selecting tools. A press that never moves is a
-  // click on empty canvas, which clears the selection — "never moves"
-  // meaning less than CLICK_SLOP pixels, whatever the hand's jitter.
+  // A drag on empty canvas pans; with Shift or ⌘ held it draws a box
+  // that adds every node it touches to the selection (./selection.ts).
+  // A press that never moves is a click on empty canvas, which clears
+  // the selection — "never moves" meaning less than CLICK_SLOP pixels,
+  // whatever the hand's jitter.
   const CLICK_SLOP = 3;
   let drag: { x: number; y: number; sx: number; sy: number; id: number; moved: boolean } | null = null;
-  let band: { b: SelectionBand; id: number; sx: number; sy: number; additive: boolean; moved: boolean } | null = null;
+  let band: { b: SelectionBand; id: number; sx: number; sy: number; moved: boolean } | null = null;
   host.addEventListener("pointerdown", (e: PointerEvent) => {
     // Right button is the context menu's; the middle button always pans.
     if (e.button === 2) return;
@@ -373,20 +337,18 @@ function wireGestures(host: HTMLElement): void {
       return;
     }
     dismissOverlays();
-    const tool = activeTool();
-    if (tool.selects) releaseEditableFocus();
     try {
       host.setPointerCapture(e.pointerId);
     } catch {
       /* a pointer that vanished mid-gesture is not an error */
     }
-    if (tool.drag !== "pan" && !spaceHeld() && e.button === 0) {
+    if (e.button === 0 && (e.shiftKey || e.metaKey)) {
+      releaseEditableFocus();
       band = {
-        b: new SelectionBand(host, tool.drag, { x: e.clientX, y: e.clientY }),
+        b: new SelectionBand(host, { x: e.clientX, y: e.clientY }),
         id: e.pointerId,
         sx: e.clientX,
         sy: e.clientY,
-        additive: e.shiftKey || e.metaKey,
         moved: false,
       };
       return;
@@ -421,12 +383,11 @@ function wireGestures(host: HTMLElement): void {
   });
   const endDrag = (e: PointerEvent): void => {
     if (band && e.pointerId === band.id) {
-      const { b, additive, moved } = band;
+      const { b, moved } = band;
       band = null;
       const hits = moved && e.type === "pointerup" ? b.hits() : [];
       b.remove();
-      if (hits.length) select(hits, additive ? "add" : "replace");
-      else if (!additive && e.type === "pointerup") clearSelection();
+      if (hits.length) select(hits, "add");
       return;
     }
     if (!drag || e.pointerId !== drag.id) return;

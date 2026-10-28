@@ -26,14 +26,20 @@ registerHooks({
 const sel = await import("../../lib/runtime-bridge/dag/interaction/selection.ts");
 const { deletionTargets } = await import("../../lib/runtime-bridge/dag/interaction/node-delete.ts");
 
-test("Three canvas tools: browse, select (click or box) and lasso", () => {
-  assert.deepEqual(sel.dagTools().map((t) => [t.id, t.key, t.drag]), [
-    ["hand", "h", "pan"],
-    ["pointer", "v", "marquee"],
-    ["lasso", "l", "lasso"],
-  ]);
-  assert.equal(sel.activeTool().id, "hand");
-  assert.equal(sel.activeTool().selects, false);
+test("One mouse, no tools: the rail holds the camera and the key sheet", () => {
+  assert.equal(sel.dagTools, undefined);
+  assert.equal(sel.registerTool, undefined);
+  const rail = readFileSync(new URL("../../components/chat/dag-tools.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(rail, /Lasso|MousePointer2|setTool/);
+  assert.match(rail, /focusAgent\(\)[\s\S]*fitCanvas\(\)[\s\S]*setKeySheet/);
+});
+
+test("The wheel zooms; a drag pans, and Shift/⌘ turns it into a box", () => {
+  const canvas = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/canvas.ts", import.meta.url), "utf8");
+  const wheel = canvas.slice(canvas.indexOf('"wheel"'), canvas.indexOf('"pointerdown"'));
+  assert.match(wheel, /zoomAt\(/);
+  assert.doesNotMatch(wheel, /setView\(/);
+  assert.match(canvas, /e\.button === 0 && \(e\.shiftKey \|\| e\.metaKey\)[\s\S]{0,120}new SelectionBand/);
 });
 
 test("The selection bar sits top left, clear of the perspective controls", () => {
@@ -41,28 +47,11 @@ test("The selection bar sits top left, clear of the perspective controls", () =>
   assert.match(css, /\.dag-select-bar \{[^}]*top: 8px;[^}]*left: 12px;/);
 });
 
-test("A new tool is one registration away", () => {
-  sel.registerTool({ id: "note", key: "n", selects: false, drag: "pan" });
-  assert.ok(sel.dagTools().some((t) => t.id === "note"));
-  sel.setTool("note");
-  assert.equal(sel.activeTool().id, "note");
-  sel.setTool("hand");
-});
-
 const box = { left: 10, top: 10, right: 20, bottom: 20 };
 
 test("A marquee selects what it touches, not only what it encloses", () => {
   assert.ok(sel.rectTouchesBox({ left: 18, top: 0, right: 40, bottom: 12 }, box));
   assert.ok(!sel.rectTouchesBox({ left: 21, top: 0, right: 40, bottom: 40 }, box));
-});
-
-test("A lasso selects a node it encloses, crosses or passes through", () => {
-  const around = [{ x: 0, y: 0 }, { x: 30, y: 0 }, { x: 30, y: 30 }, { x: 0, y: 30 }];
-  assert.ok(sel.lassoTouchesBox(around, box));
-  const through = [{ x: 0, y: 15 }, { x: 40, y: 15 }];
-  assert.ok(sel.lassoTouchesBox(through, box));
-  const near = [{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 40, y: 5 }];
-  assert.ok(!sel.lassoTouchesBox(near, box));
 });
 
 test("Deleting a spawn square deletes the call that opened it; structure is skipped", () => {
@@ -89,11 +78,11 @@ test("A followup reply merged into a glyph goes with it", () => {
   assert.deepEqual(deletionTargets(["a1"], graph, anchorOf).ids.sort(), ["a1", "f1"]);
 });
 
-test("Select tools take the click; folding and fork & edit stay with the hand", () => {
+test("Shift/⌘ + click selects; a plain click stays the node's own", () => {
   const nodes = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/nodes.ts", import.meta.url), "utf8");
-  const click = nodes.indexOf("if (activeTool().selects) {");
-  assert.ok(click > 0 && click < nodes.indexOf("toggleThreadOpen(id)"));
-  assert.match(nodes, /addEventListener\("dblclick"[\s\S]{0,200}activeTool\(\)\.selects/);
+  const click = nodes.indexOf("if (e.shiftKey || e.metaKey) {");
+  assert.ok(click > 0 && click < nodes.indexOf("showNodeMenu(gn, g)"));
+  assert.doesNotMatch(nodes, /activeTool/);
 });
 
 test("The delete and undo replies reach the canvas", () => {
