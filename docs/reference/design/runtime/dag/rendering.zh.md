@@ -348,12 +348,15 @@ agent，否则属于主 agent；每个 agent 显示它最新的运行中节点�
 
 - **锚定**：分支**当前可见的最深节点**的**正下方一行**。默认（折叠）视图下就是
   最后一个对话层节点；调用线程展开时徽章跟到线程最底下的条目，收起时自动回去。
-  分支归属按 lane（线程条目与锚轮同 lane）。
+  分支归属按 lane（线程条目与锚轮同 lane），但只跟到本分支自己的后代：同 lane 的
+  兄弟分支（从某一轮挂出去的定时任务回复）保留自己的末端。名字从图块左边缘开始
+  向右排，读作上面那个图块的标签。以前居中摆放，长名字会伸到左边的泳道，再被
+  碰撞规则推到别的分支末端下面。
 - **spawn 的 agent 分支不立徽章**：agent 就是线程上的那个三角形（第十二节），
   再立分支药丸是同一事实的第二种画法。从分支行的 head 爬链撞到 spawn 根就
   直接不放。
-- **避让**：锚位被边穿过时（对话延续的下行竖线）才向左偏移半格——徽标永不
-  压边。
+- **避让**：锚位被边穿过时（对话延续的下行竖线），名字改从那条线的右侧开始——
+  徽标永不压边。
 - **碰撞**：按**实测像素盒**判定（badge 底宽＝名字实测宽度 + 内边距，不是按格子）。
   短名字在方格间距下几乎碰不上；分支名自动取自消息/任务描述时很长，同行锚位的
   盒子会叠——后到者（按分支序）向下顺延一行，直至无碰撞。
@@ -374,7 +377,7 @@ agent，否则属于主 agent；每个 agent 显示它最新的运行中节点�
 | 10 | spawn 派活 → 返回 | 子 agent 头是发起轮线程上的一个条目（第十二节）：落在派活实际发生的序列位置，前后是它前后的调用。返回不需要额外的线——它触发的 followup 回复归并进同一个锚轮（第〇节），派活、干活、返回从上到下读一列（聊天流仍渲染 Spawned 卡片，显示序提前——见 `ui/invariants.md` 规则 9） |
 | 11 | 调用线程默认聚合 | 见第〇节/第十二节：默认收成肩上折叠数，点击展开进布局，收起按规则② 即时回收；各节点展开状态互不影响、可递归 |
 | 12 | 状态与徽标图例 | 见第四节：status 画在节点色块上，不画占位框；跨会话 spawn 两侧都标 ↗ |
-| 13 | badge 锚定·避让·碰撞·已合并 | 见第五节：锚对话层末节点正下方、锚位被边占才左偏半格、碰撞下移一行、合并即消名（来源进 merge tooltip） |
+| 13 | badge 锚定·避让·碰撞·已合并 | 见第五节：锚本分支可见末节点正下方、名字从图块左边缘向右排（锚位被边占时从线右侧起）、碰撞下移一行、合并即消名（来源进 merge tooltip） |
 
 **回送节点与切换器（语义补充，无独立布局场景）**：send_message 的回送
 （子分支答复作为 user 节点回到发起方 lane，`predecessor=发起点`）若与用户等待
@@ -765,7 +768,7 @@ checkout 成活动分支——接管这个 agent 的对话。徽章永不压住�
 | 第〇节/第十二节 调用线程聚合 | `apps/web/lib/runtime-bridge/dag/passes/thread.ts`（`buildThreadModel`：锚归并、事件归属、递归可见性）；`apps/web/lib/runtime-bridge/dag/render/nodes.ts` 画肩上折叠数（`history-thread-count`）；`apps/web/lib/runtime-bridge/dag/store/globals.ts` 的 `_threadOpen` |
 | 规则②推论（不画占位框） | `apps/web/lib/runtime-bridge/dag/render/shapes.ts`：无 `square_outline`；task 渲染为普通方块 |
 | 第四节 状态画在描边上 | `graph_builder` 下发 status；`nodes.ts` 把它设成图块的 CSS 状态（running 呼吸 / error 红+! / cancelled 灰化） |
-| 第五节 badge 锚定 | `apps/web/lib/runtime-bridge/dag/render/badges.ts`：锚对话层末节点、锚位有竖线左偏半格、实测像素盒碰撞下移一行 |
+| 第五节 badge 锚定 | `apps/web/lib/runtime-bridge/dag/render/badges.ts`：锚本分支可见末节点、名字左对齐向右排、锚位有竖线时从线右侧起、实测像素盒碰撞下移一行 |
 | 场景 8 merge 形状与连线 | `apps/web/lib/runtime-bridge/dag/render/shapes.ts` `merge_dot`（◉）；`edges.ts` 汇入线 peer 色 2.4px 实线 |
 | 场景 8/10 attach 指针 | 后端 display=runtime 过滤 + `graph_builder` 把 ref 戳到嵌入位置（`attach_returns`），`edges.ts` 画回流长虚线 |
 | 第四节 跨会话 ↗ | `graph_builder` 根据目标根 provenance 打 `spawn_remote`，根据源 attach 的目标 session 打 `spawn_out`；`nodes.ts` 在两侧画 ↗。跨会话徽标点击跳转尚未实现 |

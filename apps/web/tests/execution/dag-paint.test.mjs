@@ -668,3 +668,39 @@ test("the minimap steps away while the whole graph is on screen", async () => {
   // Repainting reuses the one canvas.
   assert.equal(document.querySelectorAll("canvas.dag-minimap").length, 1);
 });
+
+test("a branch's tag stays under its own tip, not a sibling's in the same lane", async () => {
+  const { document } = parseHTML(`<!doctype html><html><body><svg id="s"></svg></body></html>`);
+  globalThis.document = document;
+  const { drawBadges } = await import("../../lib/runtime-bridge/dag/render/badges.ts");
+  const { runtimeState } = await import("../../lib/runtime-bridge/state.ts");
+  // u1 → r1 → u2 → r2 (HEAD) on lane 0; a scheduled job's reply jr
+  // hangs off r1 on the same lane and is a branch of its own.
+  const nodes = {
+    u1: { id: "u1", role: "user", predecessor: "ROOT", _lane: 0 },
+    r1: { id: "r1", role: "assistant", predecessor: "u1", _lane: 0 },
+    ju: { id: "ju", role: "user", caller: "r1", preview: "nightly digest", _lane: 0 },
+    jr: { id: "jr", role: "assistant", predecessor: "ju", _lane: 0 },
+    u2: { id: "u2", role: "user", predecessor: "r1", preview: "go on", _lane: 0 },
+    r2: { id: "r2", role: "assistant", predecessor: "u2", _lane: 0 },
+  };
+  const at = { u1: [70, 70], r1: [110, 110], jr: [150, 150], u2: [70, 150], r2: [110, 190] };
+  const tree = { byId: Object.fromEntries(Object.entries(nodes).filter(([id]) => at[id])) };
+  runtimeState._branchesByConv.s = [
+    { head_msg_id: "r2", name: "main", is_named: true, active: true },
+    { head_msg_id: "jr", name: "jr", active: false },
+  ];
+  const svg = document.getElementById("s");
+  try {
+    drawBadges(svg, tree, (n) => ({ x: at[n.id][0], y: at[n.id][1] }), {}, "s", nodes);
+  } finally { delete runtimeState._branchesByConv.s; }
+  const tags = [...svg.querySelectorAll(".history-branch-tag")].map((t) => t.getAttribute("transform"));
+  assert.equal(tags.length, 2);
+  const x = (t) => Number(/translate\(([-\d.]+)/.exec(t)[1]);
+  const y = (t) => Number(/,([-\d.]+)\)/.exec(t)[1]);
+  // The job branch's tag starts at its own tip's left edge, right under
+  // it (y 150 + 28): its long name runs right, clear of the main line.
+  assert.equal(x(tags[1]), 138);
+  assert.equal(y(tags[1]), 178);
+  assert.equal(x(tags[0]), 98);
+});

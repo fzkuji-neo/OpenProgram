@@ -43,18 +43,24 @@ function _drawPill(
   onClick: (() => void) | null,
   headAttr: string,
   small = false,
+  /** "start": the pill begins at ``bx`` and runs right, a label for the
+   *  tile above; "middle": centred on ``bx``. */
+  align: "middle" | "start" = "middle",
 ): void {
   const ROW_STEP = 32;
   const font = small ? BADGE_FONT_SMALL : BADGE_FONT;
   const bw = Math.max(
     Math.ceil(_textWidth(label, font)) + (small ? 18 : 28), small ? 40 : 56);
+  const PAD = 4;
+  const x1 = align === "start" ? bx - PAD : bx - bw / 2;
+  const x2 = align === "start" ? bx + bw - PAD : bx + bw / 2;
   const overlaps = (): boolean =>
     placed.some((r) =>
-      bx - bw / 2 < r.x2 && bx + bw / 2 > r.x1
+      x1 < r.x2 && x2 > r.x1
       && by - 10 < r.y2 && by + 10 > r.y1);
   let guard = 0;
   while (overlaps() && guard < 50) { by += ROW_STEP; guard++; }
-  placed.push({ x1: bx - bw / 2, x2: bx + bw / 2, y1: by - 10, y2: by + 10 });
+  placed.push({ x1, x2, y1: by - 10, y2: by + 10 });
   const tg = _svg("g", {
     class: "history-branch-tag" + (isActive ? " active" : ""),
     transform: "translate(" + bx + "," + by + ")",
@@ -64,7 +70,7 @@ function _drawPill(
   const bh = small ? 17 : 22;
   tg.appendChild(_svg("rect", {
     class: "history-branch-tag-bg",
-    x: String(-bw / 2),
+    x: String(x1 - bx),
     y: String(-bh / 2),
     width: String(bw),
     height: String(bh),
@@ -80,7 +86,7 @@ function _drawPill(
   const text = _svg("text", {
     x: "0",
     y: "0",
-    "text-anchor": "middle",
+    "text-anchor": align,
     "dominant-baseline": "central",
     "font-size": small ? "9" : "10.5",
     "font-family": "var(--font-sans)",
@@ -193,15 +199,28 @@ export function drawBadges(
     // rendering.md §5）：执行子树展开时徽章跟到最底下的节点，
     // 收起时自动回到会话层节点。分支归属按 lane——展开的执行节点
     // 与所属轮次同 lane。查预扫表，不再逐行全图扫。
+    // Only into the branch's OWN descendants: a sibling branch sharing
+    // the lane (a scheduled job's reply threaded off a turn) would
+    // otherwise drag this pill down under the other branch's tip.
     const lane = (node as any)._lane ?? 0;
-    node = deepestByLane[lane] ?? node;
+    const deepest = deepestByLane[lane];
+    if (deepest && deepest !== node) {
+      let up: string | undefined = deepest.id;
+      for (let i = 0; up && i < 10000; i++) {
+        if (up === node.id) { node = deepest; break; }
+        const m: GNode | undefined = fullById[up] || tree.byId[up];
+        up = m ? ((m.predecessor as string) || (m.caller as string) || undefined) : undefined;
+      }
+    }
     const p = pos(node);
-    let bx = p.x;
-    const by = p.y + 28;
-    // 避让：锚位正下方有竖线穿过（对话延续 / 展开的执行子树在同一列往
-    // 下走）时左偏半格——徽标永不压边。
+    // The name starts at the tile's left edge and runs right, a label
+    // for the tile above it. Centred, a long name reached left over the
+    // neighbouring lane and the collision loop pushed it down until it
+    // sat under a different tip. A line going on down the same column
+    // moves the name to its right, so the name never sits on a line.
     const hasLineBelow = maxYByX[p.x] !== undefined && maxYByX[p.x] > p.y;
-    if (hasLineBelow) bx -= 16;
+    const bx = hasLineBelow ? p.x + 10 : p.x - 12;
+    const by = p.y + 28;
     // The server names an unnamed branch by its head id; the canvas says
     // what you asked on it instead — your words, never a reply's.
     let asked: GNode | undefined;
@@ -221,6 +240,8 @@ export function drawBadges(
         : translateText("Click to switch to this branch", "点击切换到此分支"),
       isActive ? null : () => _sendCheckout(sessionId, hid),
       hid,
+      false,
+      "start",
     );
   });
 

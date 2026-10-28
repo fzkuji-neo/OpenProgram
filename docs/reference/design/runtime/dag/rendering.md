@@ -431,14 +431,18 @@ placeholder box:
 - **Anchoring**: **directly below the branch's deepest currently visible node**, one row
   down. In the default (folded) view that is the last conversation-layer node; when a
   call thread is open the badge follows the bottom-most thread item and moves back up
-  on fold. Branch membership = lane (thread items share their anchor's lane).
+  on fold. It follows only the branch's own descendants: a sibling branch sharing the
+  lane (a scheduled job's reply threaded off a turn) keeps its own tip. The name
+  starts at the tile's left edge and runs right, a label for the tile above it.
+  Centred, a long name reached over the neighbouring lane and the collision below
+  pushed it under another branch's tip.
 - **No badge for a spawned agent's branch**: the agent is its triangle on the
   thread (§12); a branch pill for the same fact would be a second drawing of it.
   The climb from a branch row's head that passes a spawn root stops without
   placing anything.
 - **Edge avoidance**: only when an edge crosses the anchor cell (the descending line of
-  an expanded execution subtree, or the conversation continuing) does the badge shift
-  half a column left — a badge never sits on an edge. Expanding/collapsing the execution
+  an expanded execution subtree, or the conversation continuing) does the name start
+  just right of that line instead — a badge never sits on an edge. Expanding/collapsing the execution
   layer only toggles this half-column shift; it never changes the anchor node.
 - **Collision**: judged on **measured pixel boxes** (badge backing width = measured text
   width + padding, not grid cells). Short names almost never collide across the grid
@@ -465,7 +469,7 @@ placeholder box:
 | 10 | spawn dispatch → return | the sub-agent's head is an item ON its caller's thread (§12): it sits in the sequence position the spawn actually happened at, between the calls before and after it. Its return needs no extra line — the followup reply it triggers merges into the same anchor (§0), so dispatch, work and return are one column read top to bottom (the chat stream still renders the Spawned card, display order moved ahead — see `ui/invariants.md` rule 9) |
 | 11 | call-thread default aggregation | see §0/§12: folded to a shoulder count by default, click to open into layout, fold reclaims rows/cols per rule ②; open state is per-node independent and recursive |
 | 12 | status & badge legend | see §4: status drawn on the node's own block, no placeholder boxes; both sides of a cross-session spawn carry the ↗ corner mark |
-| 13 | badge anchoring · avoidance · collision · merged | see §5: anchor directly below the branch's last conversation-layer node, half-column left shift only when an edge crosses the anchor cell, collision shifts down one row, merging erases the badge (provenance moves into the merge node's tooltip) |
+| 13 | badge anchoring · avoidance · collision · merged | see §5: anchor directly below the branch's own last visible node, name running right from the tile's left edge (from just right of the line when an edge crosses the anchor cell), collision shifts down one row, merging erases the badge (provenance moves into the merge node's tooltip) |
 
 **Send-back nodes and the switcher (semantic note, no dedicated layout scene)**: a
 send_message send-back (the child branch's answer returning to the initiator's lane
