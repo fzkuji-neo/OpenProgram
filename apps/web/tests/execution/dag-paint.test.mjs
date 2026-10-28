@@ -582,3 +582,31 @@ test("branches_list does not repaint tags before a payload graph", () => {
   );
   assert.doesNotMatch(src, /repaintBranchTags\(\);\s*renderBranchesPanel/);
 });
+
+test("a caption steps past a fork line running down where it would start", async () => {
+  const { document } = parseHTML(`<!doctype html><html><body>
+    <svg><g class="history-world">
+      <g class="history-edges">
+        <path d="M 70 70 Q 90 70 90 90 L 90 182 Q 90 190 98 190 L 150 190"></path>
+      </g>
+      <g class="history-nodes">
+        <g class="history-node" data-msg-id="t1" transform="translate(70,110)"></g>
+        <g class="history-node" data-msg-id="t2" transform="translate(70,230)"></g>
+      </g>
+      <g class="dag-agents"></g>
+    </g></svg>
+  </body></html>`);
+  globalThis.document = document;
+  const call = (id) => ({ id, role: "tool", function: "bash", input: "npm test", caller: "a" });
+  for (const id of ["t1", "t2"]) {
+    document.querySelector(`[data-msg-id="${id}"]`)._nodeData = call(id);
+  }
+  const { drawCaptions } = await import("../../lib/runtime-bridge/dag/render/captions.ts");
+  const world = document.querySelector(".history-world");
+  drawCaptions(world, world.querySelector(".history-nodes"));
+  const x = (id) => Number(world.querySelector(`.dag-caption[data-for="${id}"]`).getAttribute("x"));
+  // The fork line runs down x=90 past t1's row: the caption starts past it.
+  assert.equal(x("t1"), 96);
+  // Below the line's end the caption keeps its place beside the tile.
+  assert.equal(x("t2"), 90);
+});

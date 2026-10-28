@@ -316,8 +316,9 @@ between neighbours so the belt between them stays visible.
 A call or a message of yours carries a caption in annotation grey to the
 right of its icon ("Ran npm test", "Read a.ts", the start of what you wrote;
 `render/captions.ts`). A caption only takes room nobody uses: it runs along
-its row up to the next tile or branch tag and is dropped when there is too
-little room, so it never pushes the layout. The tile an agent stands on shows
+its row up to the next tile, branch tag or line crossing it, steps past a
+fork line that runs down right where it would start, and is dropped when
+there is too little room, so it never pushes the layout. The tile an agent stands on shows
 the agent's bubble instead, and zoomed far out captions are hidden.
 
 ---

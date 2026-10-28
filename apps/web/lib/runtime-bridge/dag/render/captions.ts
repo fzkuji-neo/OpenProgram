@@ -6,8 +6,10 @@
  * of what you wrote — so an open thread reads like a log without hovering.
  *
  * A caption only takes room nobody else uses: it runs right along its
- * row until the next tile or branch tag, and a tile with too little room
- * goes without. The tile an agent stands on carries the agent's bubble
+ * row until the next tile, branch tag or line running down across it,
+ * and a tile with too little room goes without. A line passing right
+ * where the caption would start (a fork bridge down the gap beside a
+ * thread) pushes it past the line instead. The tile an agent stands on carries the agent's bubble
  * instead (render/agents.ts hides its caption).
  */
 
@@ -36,8 +38,42 @@ function fit(text: string, width: number): string {
   return chars.length > 1 ? chars.join("") + "…" : "";
 }
 
-/** Draw the caption layer above ``nodeG``, avoiding tiles and the branch
- *  tags already in ``world``. */
+type Run = { x: number; y1: number; y2: number };
+type Runs = { down: Run[]; across: Array<{ y: number; x1: number }> };
+
+/** The straight runs of every edge in ``world`` — lines, and the legs of
+ *  the paths (absolute M/L/Q/C commands, edges.ts): the vertical ones,
+ *  and where each horizontal one starts. */
+function edgeRuns(world: Element): Runs {
+  const runs: Runs = { down: [], across: [] };
+  const add = (x1: number, y1: number, x2: number, y2: number) => {
+    if (x1 === x2 && y1 !== y2) runs.down.push({ x: x1, y1: Math.min(y1, y2), y2: Math.max(y1, y2) });
+    else if (y1 === y2 && x1 !== x2) runs.across.push({ y: y1, x1: Math.min(x1, x2) });
+  };
+  world.querySelectorAll(".history-edges line").forEach((l) => {
+    const n = (a: string) => Number(l.getAttribute(a));
+    add(n("x1"), n("y1"), n("x2"), n("y2"));
+  });
+  world.querySelectorAll(".history-edges path").forEach((p) => {
+    const tokens = (p.getAttribute("d") || "").match(/[MLQC]|-?[\d.]+/g) || [];
+    let cx = NaN;
+    let cy = NaN;
+    for (let i = 0; i < tokens.length;) {
+      const cmd = tokens[i++];
+      const n = cmd === "Q" ? 4 : cmd === "C" ? 6 : 2;
+      const nums = tokens.slice(i, i + n).map(Number);
+      i += n;
+      const [x, y] = nums.slice(-2);
+      if (cmd === "L") add(cx, cy, x, y);
+      cx = x;
+      cy = y;
+    }
+  });
+  return runs;
+}
+
+/** Draw the caption layer above ``nodeG``, avoiding tiles, the branch
+ *  tags and the edges already in ``world``. */
 export function drawCaptions(world: Element, nodeG: Element): void {
   world.querySelector(`:scope > g.${LAYER}`)?.remove();
   const layer = _svg("g", { class: LAYER, "pointer-events": "none" });
@@ -59,6 +95,7 @@ export function drawCaptions(world: Element, nodeG: Element): void {
     const h = Number(r.getAttribute("height")) || 0;
     tags.push({ x1: at.x - w / 2, y1: at.y - h / 2, y2: at.y + h / 2 });
   });
+  const runs = edgeRuns(world);
 
   for (const { g, at } of nodes) {
     const node = g._nodeData;
@@ -68,10 +105,16 @@ export function drawCaptions(world: Element, nodeG: Element): void {
     // Room to the right: up to the next tile on this row.
     let free = 0;
     while (free < LOOKAHEAD && !cells.has(`${at.x + (free + 1) * COL_W},${at.y}`)) free++;
-    const x = at.x + TILE_R + GAP;
+    let x = at.x + TILE_R + GAP;
     let right = free >= LOOKAHEAD ? x + MAX_W : at.x + (free + 1) * COL_W - TILE_R - GAP;
     for (const t of tags) {
       if (t.y1 < at.y + 7 && t.y2 > at.y - 7 && t.x1 > at.x) right = Math.min(right, t.x1 - GAP);
+    }
+    const down = runs.down.filter((r) => r.y1 < at.y + 7 && r.y2 > at.y - 7 && r.x > at.x + TILE_R);
+    for (const r of down) if (Math.abs(r.x - x) <= 4) x = r.x + 6;
+    for (const r of down) if (r.x > x) right = Math.min(right, r.x - 6);
+    for (const r of runs.across) {
+      if (Math.abs(r.y - at.y) < 6 && r.x1 > x) right = Math.min(right, r.x1 - 6);
     }
     const shown = fit(text, Math.min(MAX_W, right - x));
     if (!shown || right - x < MIN_W) continue;
