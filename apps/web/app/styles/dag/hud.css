@@ -16,14 +16,14 @@
    --surface-popover fill, --shadow-popover, 6px inset) comes from
    MENU_PANEL (chat/top-bar/menu-styles) put on the element by
    dag-view.tsx — the one visual definition every popover panel shares.
-   This block is only the legend's anchoring and its rows: left of the
-   column with an 8px gap, its foot level with the column's — or, while
-   the minimap is on (it holds that spot, dag/tools.css .dag-minimap),
-   8px above the map, so the two never overlap. */
+   This block is only the legend's anchoring and its rows: anchored to
+   the zoom column (top 86px, dag/tools.css), 8px to its left, its top
+   level with the pane's top-right strip (12px) — or, while the minimap
+   holds that spot, 8px under the map, so the two never overlap. */
 .dag-legend-body {
   position: absolute;
   right: calc(100% + 8px);
-  bottom: 0;
+  top: calc(12px - 86px);
   z-index: 30;
   width: max-content;
   max-width: 320px;
@@ -32,7 +32,7 @@
   color: var(--text-secondary);
 }
 .dag-view:has(> canvas.dag-minimap:not(.is-hidden)) .dag-legend-body {
-  bottom: calc(112px + 8px);
+  top: calc(12px + 112px + 8px - 86px);
 }
 .dag-legend-row {
   display: flex;

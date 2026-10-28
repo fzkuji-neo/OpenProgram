@@ -35,13 +35,15 @@
 }
 
 /* The zoom column (dag-view.tsx DagZoomColumn): the same strips stacked
-   on the canvas's right edge, its foot just above the composer. Its
-   popovers — the legend and the minimap — open to its left. */
+   in the canvas's top-right corner, right under the pane's perspective
+   strip (chat/center-pane.css .chat-view-controls: 12px from the top,
+   66px tall, then an 8px gap). Every view control lives in that one
+   column; the minimap and the legend open to its left, from the top. */
 .dag-zoom-column {
   position: absolute;
   z-index: 3;
   right: 12px;
-  bottom: 158px;
+  top: 86px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -156,14 +158,15 @@
   stroke-linejoin: round;
 }
 
-/* The minimap (interaction/minimap.ts): the rail's raised material,
-   left of the zoom column with their feet level (12px edge + 36px
-   column + 8px gap). The column's map button and M show and hide it. */
+/* The minimap (interaction/minimap.ts): the rail's raised material in
+   the top-right corner, left of the right-hand column (12px edge + 36px
+   column + 8px gap), its top level with the column's. The column's map
+   button and M show and hide it. */
 .dag-minimap {
   position: absolute;
   z-index: 3;
   right: 56px;
-  bottom: 158px;
+  top: 12px;
   border-radius: 10px;
   background: var(--bg-input);
   box-shadow: var(--shadow-raised);

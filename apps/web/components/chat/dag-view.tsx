@@ -34,7 +34,7 @@
  * coverage is simply what the fill means.
  */
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Map as MapIcon, Minus, Plus, Scan, Shapes } from "lucide-react";
 import { SolarIcon } from "@/components/solar-icons";
 import type { SolarIconName } from "@/components/solar-icons/bodies";
@@ -72,34 +72,15 @@ function LegendRow({ swatch, label }: { swatch: React.ReactNode; label: string }
   );
 }
 
-/** Key for shape and coverage. A button in the zoom column; the body
- *  opens to the column's left. Starts collapsed: the vocabulary is
- *  small and learnable. */
+/** Key for shape and coverage. A switch in the zoom column, like the
+ *  minimap's: it stays open until its button is pressed again — a
+ *  click on the canvas or on the map button leaves it open. Starts
+ *  closed: the vocabulary is small and learnable. */
 function DagLegend() {
   const { text } = useTranslation();
   const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  // 标准弹层收尾：点面板外任意处或按 Esc 关闭。pointerdown 在 click
-  // 之前，命中图例自身（含按钮）时跳过，按钮自己的 onClick 负责开关。
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (e: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
   return (
-    <div className="dag-legend" ref={rootRef}>
+    <div className="dag-legend">
       <button
         type="button"
         className="dag-tool-btn"
@@ -115,7 +96,7 @@ function DagLegend() {
       {open && (
         // 面板框架（圆角/描边/底色/阴影/内衬）来自 MENU_PANEL——全应用
         // 弹层菜单共用的那一份视觉定义；.dag-legend-body 只负责锚位
-        // （在竖列左边展开）和行的排版。
+        // （在右上竖列左边展开）和行的排版。
         <div className={`dag-legend-body ${MENU_PANEL}`}>
           <LegendRow swatch={<LegendTile icon="user-rounded" tone="user" />} label={text("your message", "你的消息")} />
           <LegendRow swatch={<LegendTile icon="ghost" tone="llm" />} label={text("agent reply", "agent 回复")} />
@@ -137,12 +118,12 @@ function DagLegend() {
   );
 }
 
-/** The zoom column on the canvas's right edge, above the composer
- *  (dag/rendering.md §13): one raised strip holding zoom in, the
- *  readout (click: back to 100%), zoom out and, under a hairline, show
- *  the whole graph; a second strip under it opens the legend and turns
- *  the minimap on and off. Both open to the column's left, so nothing
- *  sits in the corner unasked. The readout is written by
+/** The zoom column in the canvas's top-right corner, right under the
+ *  pane's perspective strip (dag/rendering.md §13): one raised strip
+ *  holding zoom in, the readout (click: back to 100%), zoom out and,
+ *  under a hairline, show the whole graph; a second strip under it
+ *  turns the legend and the minimap on and off. Both open to the
+ *  column's left from the top, the map above the legend. The readout is written by
  *  `dag/interaction/canvas.ts` on every view change — it is the
  *  camera's number, and routing it through React state would repaint
  *  the tree on every wheel event of a gesture. */

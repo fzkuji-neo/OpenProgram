@@ -35,15 +35,15 @@ test("One mouse, no tools: the rail finds the agent and opens the key sheet", ()
   assert.doesNotMatch(rail, /fitCanvas/);
 });
 
-test("Zoom, the whole graph, the legend and the minimap are one column on the right edge", () => {
+test("Zoom, the whole graph, the legend and the minimap are one column in the top-right corner", () => {
   const view = readFileSync(new URL("../../components/chat/dag-view.tsx", import.meta.url), "utf8");
   const column = view.slice(view.indexOf("function DagZoomColumn"), view.indexOf("export function DagView"));
   assert.match(column, /zoomStep\(1\)[\s\S]*dag-zoom-readout[\s\S]*zoomStep\(-1\)[\s\S]*fitCanvas\(\)[\s\S]*<DagLegend \/>[\s\S]*toggleMinimap\(\)/);
   // A frame, not the outward arrows that read as full screen.
   assert.doesNotMatch(view, /Maximize2|createPortal|dagHudSlot/);
   const css = readFileSync(new URL("../../app/styles/dag/tools.css", import.meta.url), "utf8");
-  assert.match(css, /\.dag-zoom-column \{[^}]*right: 12px;[^}]*bottom: 158px;/);
-  assert.match(css, /\.dag-minimap \{[^}]*right: 56px;[^}]*bottom: 158px;/);
+  assert.match(css, /\.dag-zoom-column \{[^}]*right: 12px;[^}]*top: 86px;/);
+  assert.match(css, /\.dag-minimap \{[^}]*right: 56px;[^}]*top: 12px;/);
 });
 
 test("A mouse wheel zooms, two fingers pan, a right drag pans, a left drag draws a box", async () => {

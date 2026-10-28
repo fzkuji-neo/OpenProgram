@@ -102,12 +102,13 @@ the strip, the way a transcript opens on its latest message. The zoom column's
 Show the whole graph keeps the plain fit down to 25%: asking to see everything is a request
 for exactly that (`fitCanvas(opening)` in `apps/web/lib/runtime-bridge/dag/interaction/canvas.ts`).
 
-**Zoom column.** On the canvas's right edge, its foot just above the composer:
-one raised strip holding + · readout · − and, under a hairline, **Show the
-whole graph** (Shift+1, a frame icon rather than the outward arrows that read
-as full screen); a second strip under it opens the legend and turns the
-minimap on and off. Both open to the column's left, so the corner holds
-nothing unasked. The buttons step by exactly one wheel notch (`ZOOM_STEP`), and
+**Zoom column.** In the canvas's top-right corner, right under the pane's
+perspective strip, so every view control is one column in one corner: one
+raised strip holding + · readout · − and, under a hairline, **Show the whole
+graph** (Shift+1, a frame icon rather than the outward arrows that read as
+full screen); a second strip under it turns the legend and the minimap on and
+off. Both open to the column's left from the top, the map above the legend,
+and both stay open until their button is pressed again. The buttons step by exactly one wheel notch (`ZOOM_STEP`), and
 clicking the readout resets to 100% — both anchored on the pane's centre,
 since a button has no cursor to anchor on. The readout is written
 imperatively by `apps/web/lib/runtime-bridge/dag/interaction/canvas.ts` on
@@ -859,9 +860,10 @@ The inspector and menu are built imperatively (`apps/web/lib/runtime-bridge/dag/
 the graph is: they float over an SVG the renderer owns, keyed to node geometry,
 outside React's tree.
 
-**Legend.** A collapsible card names the shapes and the two greys, opened from
-the zoom column's legend button (`apps/web/components/chat/dag-view.tsx`). It starts
-collapsed — the vocabulary is small and learnable, so the legend is for the
+**Legend.** A card names the shapes and the two greys, switched on and off by
+the zoom column's legend button (`apps/web/components/chat/dag-view.tsx`); a
+click on the canvas leaves it open. It starts
+closed — the vocabulary is small and learnable, so the legend is for the
 first few sessions rather than a permanent fixture on the canvas.
 
 ## 12. The call thread: what a turn did is one sequence, folded into one count
@@ -1022,8 +1024,8 @@ both redraw. The undo stack is per session and lasts as long as the page.
 
 ### The minimap
 
-A long session runs off the screen, so the canvas has a minimap left of the
-zoom column, its foot level with the column's, in the rail's raised material. Each node is a
+A long session runs off the screen, so the canvas has a minimap in its
+top-right corner, left of the zoom column, in the rail's raised material. Each node is a
 dot of its tone, and the part on screen is a frame in the accent colour. A
 press or a drag on the map moves the camera there at the same zoom. The map
 frames the graph and the view together, so the frame is never cut off, and it
