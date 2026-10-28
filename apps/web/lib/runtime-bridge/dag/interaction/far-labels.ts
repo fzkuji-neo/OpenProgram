@@ -16,8 +16,10 @@ let _frame = 0;
 
 interface Box { l: number; t: number; r: number; b: number }
 
+/** Labels need air between them, not just no overlap: a column of
+ *  labels touching line on line read as a wall of text. */
 function hits(a: Box, placed: Box[]): boolean {
-  return placed.some((p) => a.l < p.r + 6 && a.r > p.l - 6 && a.t < p.b + 2 && a.b > p.t - 2);
+  return placed.some((p) => a.l < p.r + 8 && a.r > p.l - 8 && a.t < p.b + 8 && a.b > p.t - 8);
 }
 
 function seatY(el: Element): number {

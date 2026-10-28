@@ -83,16 +83,18 @@ test("Zoomed far out, a selection stays obvious and labels read like a map", () 
   assert.match(css, /\.is-far \.dag-tile \{\s*transform: scale\(calc\(var\(--dag-marker-scale, 1\) \* 0\.25\)\);/);
   assert.match(css, /\.is-far \.history-node\.is-selected \.dag-tile > \[data-node-shape\] \{ fill: var\(--tone\); \}/);
   assert.match(css, /\.is-far\.has-selection \.history-node:not\(\.is-selected\),[^{]*\{ opacity: 0\.25; \}/);
-  // Labels keep their on-screen size at every zoom below 100% (no jump at
+  // Labels follow one gentle curve at every zoom below 100% (no jump at
   // the far scale); far out, call captions hide.
   assert.match(css, /\.is-far \.dag-caption:not\(\.is-turn\) \{ display: none; \}/);
-  assert.match(css, /\n\.dag-caption \{\s*transform-box: fill-box;[^}]*scale\(var\(--dag-marker-scale/);
+  assert.match(css, /\n\.dag-caption \{\s*transform-box: fill-box;[^}]*scale\(var\(--dag-label-scale/);
   const badges = readFileSync(new URL("../../app/styles/dag/badges.css", import.meta.url), "utf8");
-  assert.match(badges, /\n\.history-branch-tag text,\n\.history-thread-count \{[^}]*scale\(var\(--dag-marker-scale/);
+  assert.match(badges, /\n\.history-branch-tag text,\n\.history-thread-count \{[^}]*scale\(var\(--dag-label-scale/);
   const captions = readFileSync(new URL("../../lib/runtime-bridge/dag/render/captions.ts", import.meta.url), "utf8");
   assert.match(captions, /tile\.tone === "user" \? "dag-caption is-turn"/);
   const canvas = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/canvas.ts", import.meta.url), "utf8");
   assert.match(canvas, /paintFarLabels\(world, _viewScale < 1\)/);
+  // Labels shrink only gently: 12px at 100%, about 8.5px at the least zoom.
+  assert.match(canvas, /--dag-label-scale", String\(Math\.max\(1, _viewScale \*\* -0\.75\)\)/);
   const map = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/minimap.ts", import.meta.url), "utf8");
   assert.match(map, /\.history-node\.is-selected/);
   const sel = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/selection.ts", import.meta.url), "utf8");

@@ -448,13 +448,15 @@ shrank with the graph into specks of grey. So below 55%:
   theme, turned a selection into a blot. The minimap draws selected nodes
   larger in the accent colour, so a selection off screen still shows there;
 - branch names and the opening words of your messages (`is-turn` captions,
-  `render/captions.ts`) stay readable. In fact every label — captions,
-  branch names, fold counts — keeps its on-screen size at any zoom below
-  100%, not only far out: a label that shrank with the graph and then
-  jumped back to full size at 55% read as a glitch. From 100% down,
-  `interaction/far-labels.ts` hides any label that would land on one
-  already shown — branch names first, the current branch before the rest,
-  then your messages nearest HEAD, then calls;
+  `render/captions.ts`) stay readable. Every label — captions, branch
+  names, fold counts — follows one gentle curve at any zoom below 100%
+  (`--dag-label-scale`): 12px at 100%, about 8.5px at the least zoom. A
+  label that shrank with the graph and jumped back to full size at 55%
+  read as a glitch; one held at 12px all the way down read as a wall of
+  text. From 100% down, `interaction/far-labels.ts` hides any label that
+  would come within 8px of one already shown — branch names first, the
+  current branch before the rest, then your messages nearest HEAD, then
+  calls;
 - call captions, fold counts and corner marks are detail and hide; zoom back
   in for them.
 
