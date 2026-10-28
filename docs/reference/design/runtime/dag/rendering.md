@@ -528,7 +528,10 @@ covered tile (`is-covered`, set in
 `apps/web/lib/runtime-bridge/dag/render/visibility.ts`) shows its icon at full
 ink; an uncovered tile's icon is faint (38%), an aged one a step back (70%).
 A node is just its icon — no frame and no background (the plate under it is
-the canvas colour, there only to bury belt ends). Bubbles, captions and branch
+the canvas colour, there only to bury belt ends). The one exception is your
+own message, the node you press to fork or edit: it is the app's raised
+button, the input box's fill with the composer's shadow, so a first-time
+reader sees what can be clicked. Bubbles, captions and branch
 tags are words with no chip behind them, each with a canvas-colour halo so a
 line passing behind breaks around the letters. The same rule holds in both themes, and the
 legend swatch is a covered tile.
@@ -883,9 +886,10 @@ whether a click selects, and what a drag does. The rail renders whatever is
 registered, so a later tool (notes, annotations) is one registration plus its
 icon.
 
-The rail reads like a game's hotbar: bare icons with no surface behind them,
-each tool's key in its corner, the tool in hand in the accent colour with a
-short bar at its left. Below the tools sits the camera: **Find the working
+The rail is one raised strip of the app's button material (the input box's
+fill and the composer's shadow); the tool in hand is a flat block of the
+accent colour, and each key is in the button's tooltip. Below a hairline sits
+the camera: **Find the working
 agent** (F) glides the view to the tile a working agent stands on, keeping the
 zoom; pressed again it moves to the next working agent, and with none at work
 it goes to HEAD (`focusAgent` in `interaction/canvas.ts`).
@@ -901,8 +905,7 @@ Esc reach the selection rather than the draft.
 left reads `N selected | Copy ID · Delete · ✕`, with Delete in the danger
 colour. After a delete it reads `Deleted N nodes | Undo` for a few seconds.
 It sits on the rail's left edge rather than at the top right, which belongs to
-the pane's perspective controls. The bar is a flat chip of the input box's
-fill, with no edge and no shadow.
+the pane's perspective controls. It is the same raised material as the rail.
 
 **Deleting.** Delete or ⌫ deletes the selection at once, with no
 confirmation, and ⌘Z undoes it. The store

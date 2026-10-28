@@ -34,6 +34,22 @@
   fill: var(--bg-primary, #191918);
   stroke: none;
 }
+/* Your messages are the one node you press (fork, edit): the app's
+   raised button — the input box's fill and the composer's shadow
+   (components/ui/button.tsx ``elevated``), deeper on hover. */
+.history-body { --dag-raise: rgb(0 0 0 / 0.32); --dag-raise-hover: rgb(0 0 0 / 0.45); }
+:root[data-theme-mode="light"] .history-body {
+  --dag-raise: rgb(0 0 0 / 0.12);
+  --dag-raise-hover: rgb(0 0 0 / 0.2);
+}
+.dag-tile.t-user > rect[data-node-shape] {
+  fill: var(--bg-input, #262624);
+  filter: drop-shadow(0 1px 1.5px var(--dag-raise));
+  transition: filter 0.15s ease-out;
+}
+.history-node:hover .dag-tile.t-user > rect[data-node-shape] {
+  filter: drop-shadow(0 2px 3px var(--dag-raise-hover));
+}
 .dag-tile-icon {
   opacity: 0.38;
   transition: opacity 0.15s ease-out, filter 0.1s ease-out;

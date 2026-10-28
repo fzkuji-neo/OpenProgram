@@ -1,79 +1,58 @@
 /* DAG 画布工具：左侧工具竖条、右上选择操作条、选中虚线框、框选/套索橡皮筋。
    对应来源：components/chat/dag-tools.tsx、lib/runtime-bridge/dag/interaction/selection.ts */
 
-/* The action bar is a flat chip of the input box's fill: no edge and no
-   shadow. The rail has no surface at all — just its icons, over the
-   canvas, the way the graph itself is drawn. */
+/* Rail and action bar are the app's raised material: the input box's
+   fill and the composer's shadow, no edge (components/ui/button.tsx
+   ``elevated``). */
 .dag-tool-rail,
 .dag-select-bar {
   position: absolute;
   z-index: 3;
   display: flex;
+  padding: 4px;
   gap: 2px;
-}
-.dag-select-bar {
-  padding: 3px;
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--bg-input);
+  box-shadow: var(--shadow-raised);
 }
+.dag-select-bar { padding: 3px; border-radius: 10px; }
 
-/* The tool rail — a vertical hotbar on the canvas's left edge, centred
+/* The tool rail — a vertical strip on the canvas's left edge, centred
    on the strip above the composer (the composer floats over the bottom
    ~150px of the pane, canvas.ts COMPOSER_STRIP). */
 .dag-tool-rail {
-  left: 10px;
+  left: 12px;
   top: calc((100% - 150px) / 2);
   transform: translateY(-50%);
   flex-direction: column;
 }
 .dag-tool-btn {
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   border: none;
+  border-radius: 8px;
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  transition: color 0.12s, transform 0.12s;
+  transition: background 0.12s, color 0.12s;
 }
-.dag-tool-btn svg {
-  /* A canvas-colour halo, so a belt passing behind breaks around it. */
-  filter: drop-shadow(0 0 2px var(--bg-primary)) drop-shadow(0 0 2px var(--bg-primary));
+.dag-tool-btn:hover {
+  background: var(--bg-hover);
+  color: var(--foreground);
 }
-.dag-tool-btn:hover { color: var(--text-bright); }
-.dag-tool-btn:active { transform: scale(0.92); }
-/* The tool in hand: the accent colour and a short bar at its left, the
-   way a hotbar marks the slot you are holding. */
-.dag-tool-btn[aria-pressed="true"] { color: var(--accent-primary, #4a7dfc); }
-.dag-tool-btn[aria-pressed="true"]::before {
-  content: "";
-  position: absolute;
-  left: -6px;
-  top: 9px;
-  bottom: 9px;
-  width: 3px;
-  border-radius: 2px;
-  background: var(--accent-primary, #4a7dfc);
+/* The tool in hand: a flat block of the accent colour. */
+.dag-tool-btn[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--accent-primary, #4a7dfc) 16%, transparent);
+  color: var(--accent-primary, #4a7dfc);
 }
-.dag-tool-key {
-  position: absolute;
-  right: 1px;
-  bottom: 0;
-  font: 600 9px/1 var(--font-mono, ui-monospace, monospace);
-  color: var(--text-muted);
-  opacity: 0.75;
-  pointer-events: none;
-  text-shadow: 0 0 2px var(--bg-primary), 0 0 2px var(--bg-primary);
-}
-.dag-tool-btn:hover .dag-tool-key,
-.dag-tool-btn[aria-pressed="true"] .dag-tool-key { opacity: 1; }
-.dag-tool-gap { height: 10px; }
-@media (prefers-reduced-motion: reduce) {
-  .dag-tool-btn:active { transform: none; }
+.dag-tool-sep {
+  height: 1px;
+  margin: 3px 6px;
+  background: var(--border-light);
 }
 
 /* The selection action bar — top left, on the rail's left edge. The

@@ -103,15 +103,19 @@ export function taskLabel(root: GNode | undefined): string {
  *  breathes (app/styles/dag/nodes.css). */
 export function buildTile(tile: Tile): SVGElement {
   const g = _svg("g", { class: `dag-tile t-${tile.tone}`, "pointer-events": "none" });
-  // The plate hugs the icon, so a belt runs right up to it.
-  const plate = ICON / 2 + 1;
+  // The plate hugs the icon, so a belt runs right up to it. Your own
+  // messages are buttons you can press (fork, edit), so theirs is the
+  // app's raised button: a full tile with a shadow (nodes.css).
+  const raised = tile.tone === "user";
+  const plate = raised ? TILE_R : ICON / 2 + 1;
   g.appendChild(_svg("rect", {
     x: -plate, y: -plate, width: plate * 2, height: plate * 2,
-    rx: 5, ry: 5, "data-node-shape": "1", "data-shape": "tile",
+    rx: raised ? 7 : 5, ry: raised ? 7 : 5, "data-node-shape": "1", "data-shape": "tile",
   }));
   const box = SOLAR_VIEWBOXES[tile.icon] ?? "0 0 24 24";
+  const size = raised ? ICON - 2 : ICON;
   const icon = _svg("svg", {
-    x: -ICON / 2, y: -ICON / 2, width: ICON, height: ICON,
+    x: -size / 2, y: -size / 2, width: size, height: size,
     viewBox: box, class: "dag-tile-icon", "aria-hidden": "true",
   });
   icon.innerHTML = SOLAR_BODIES[tile.icon];
