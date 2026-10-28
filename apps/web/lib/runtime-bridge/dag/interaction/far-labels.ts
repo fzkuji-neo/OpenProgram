@@ -8,10 +8,16 @@
  * the rest, then your messages nearest HEAD, then calls.
  *
  * A hidden label keeps its box (``visibility``), so the next pass can
- * measure it again when the view moves.
+ * measure it again. Which labels clash depends on the zoom alone — a pan
+ * moves them all together — so ``canvas.ts`` calls this only when the
+ * scale or the drawn graph changes.
  */
 
+import { seatOf } from "../render/seat";
+
 const CULLED = "is-culled";
+/** Air between two labels, in screen pixels. */
+const GAP = 8;
 let _frame = 0;
 
 interface Box { l: number; t: number; r: number; b: number }
@@ -19,19 +25,14 @@ interface Box { l: number; t: number; r: number; b: number }
 /** Labels need air between them, not just no overlap: a column of
  *  labels touching line on line read as a wall of text. */
 function hits(a: Box, placed: Box[]): boolean {
-  return placed.some((p) => a.l < p.r + 8 && a.r > p.l - 8 && a.t < p.b + 8 && a.b > p.t - 8);
-}
-
-function seatY(el: Element): number {
-  const m = /translate\(([-\d.]+),([-\d.]+)\)/.exec(el.getAttribute("transform") || "");
-  return m ? Number(m[2]) : 0;
+  return placed.some((p) => a.l < p.r + GAP && a.r > p.l - GAP && a.t < p.b + GAP && a.b > p.t - GAP);
 }
 
 function cull(world: SVGGElement): void {
   const tags = Array.from(world.querySelectorAll<SVGGElement>(".history-branch-tag:not(.is-hidden)"));
   tags.sort((a, b) => Number(b.classList.contains("active")) - Number(a.classList.contains("active")));
   const head = world.querySelector("[data-head='1']")?.closest(".history-node");
-  const headY = head ? seatY(head) : Infinity;
+  const headY = seatOf(head)?.y ?? Infinity;
   // Your messages before calls, each nearest HEAD first.
   const turns = Array.from(world.querySelectorAll<SVGTextElement>(".dag-caption:not(.is-hidden)"));
   const rank = (el: Element): number => (el.classList.contains("is-turn") ? 0 : 1e9)

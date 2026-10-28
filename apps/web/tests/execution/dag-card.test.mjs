@@ -65,7 +65,7 @@ test("Every node is one tinted round chip; states restyle the chip, never frame 
 test("A session opens readable and framed on HEAD; only the Fit button shows everything", () => {
   const canvas = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/canvas.ts", import.meta.url), "utf8");
   assert.match(canvas, /const OPEN_MIN_SCALE = 0\.8;/);
-  assert.match(canvas, /requestAnimationFrame\(\(\) => fitCanvas\(true\)\)/);
+  assert.match(canvas, /_fitFrame \|\|= requestAnimationFrame\(\(\) => fitCanvas\(true\)\)/);
   const view = readFileSync(new URL("../../components/chat/dag-view.tsx", import.meta.url), "utf8");
   assert.match(view, /onClick=\{\(\) => fitCanvas\(\)\}/);
 });

@@ -22,6 +22,7 @@ import { type GNode } from "../types";
 import { isSpawnRoot } from "../passes/thread-nodes";
 import { _branchColor, _svg, _textWidth } from "./shapes";
 import { TILE_R, taskLabel, tileFor } from "./tiles";
+import { seatOf as seat } from "./seat";
 
 const LAYER = "dag-agents";
 const BUBBLE_FONT = "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif";
@@ -73,11 +74,6 @@ function agentName(agent: string, byId: Record<string, GNode>, drawn: Map<string
   const label = (root?.spawned_from as { label?: string } | undefined)?.label
     || (root?.branch_name as string | undefined);
   return label?.trim() || taskLabel(byId[agent]) || translateText("Sub-agent", "子 agent");
-}
-
-function seat(g: Element): { x: number; y: number } | null {
-  const m = /translate\(([-\d.]+),([-\d.]+)\)/.exec(g.getAttribute("transform") || "");
-  return m ? { x: Number(m[1]), y: Number(m[2]) } : null;
 }
 
 /** A marker pinned to a point on its tile (``at``, world units). The

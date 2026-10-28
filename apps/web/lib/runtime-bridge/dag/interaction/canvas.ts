@@ -10,14 +10,8 @@
  *
  * So there is no box. The SVG fills the pane, everything is drawn inside
  * one ``<g>``, and that group carries a translate + scale the user drives
- * directly:
- *
- *   * mouse wheel or trackpad pinch → zoom about the cursor, 25%–300%
- *     (what is under the cursor stays under it)
- *   * two fingers on a trackpad → pan (``./wheel.ts`` tells them apart)
- *   * right (or middle) drag → pan, from anywhere on the graph
- *   * left drag on empty space → a box that selects (``./selection.ts``;
- *     a left press on a node is a click on it)
+ * directly — wheel, pinch and drags (``./gestures.ts``), zooming 25%–300%
+ * about the cursor so what is under it stays under it.
  *
  * The pane's background paints a dot lattice at the layout's own grid
  * pitch, transformed with the same numbers, so the dots ARE the
@@ -32,12 +26,12 @@
 import { animate, type AnimationPlaybackControls } from "framer-motion";
 import { COL_W, PAD_X, PAD_Y } from "../types";
 import { TILE_R } from "../render/tiles";
+import { seatOf } from "../render/seat";
 import { closeNodeLayers } from "../render/inspector";
 import { hideTooltip } from "./tooltip";
-import { wheelKind } from "./wheel";
+import { WHEEL_ZOOM_RATE, wireGestures } from "./gestures";
 import { hideMinimap, paintMinimap } from "./minimap";
 import { paintFarLabels } from "./far-labels";
-import { SelectionBand, clearSelection, releaseEditableFocus, select } from "./selection";
 import {
   _viewSession,
   _viewScale,
@@ -61,13 +55,9 @@ const MAX_SCALE = 3;
 /** Below this the tiles draw as solid blocks (``is-far``). */
 const FAR_SCALE = 0.55;
 
-/** Zoom rates. A pinch (ctrlKey wheel) delivers small continuous
- *  deltas while a plain wheel delivers ±100-ish notches — one shared
- *  rate would make one of the two violent. ``ZOOM_STEP`` is exactly
- *  one standard wheel notch (deltaY = 100), so the HUD's −/+ buttons
- *  and the wheel are the same control at the same pace. */
-const PINCH_ZOOM_RATE = 0.01;
-const WHEEL_ZOOM_RATE = 0.002;
+/** One HUD −/+ press is exactly one standard wheel notch (deltaY =
+ *  100), so the buttons and the wheel are the same control at the same
+ *  pace. */
 const ZOOM_STEP = Math.exp(100 * WHEEL_ZOOM_RATE);
 
 /** Padding around the graph when fitting, in screen pixels. */
@@ -77,7 +67,7 @@ const FIT_PAD = 72;
  *  pane. The canvas runs underneath them; only ``fitCanvas`` cares,
  *  because a fit that centres behind the composer is a fit you have to
  *  undo by hand. */
-const COMPOSER_STRIP = 150;
+export const COMPOSER_STRIP = 150;
 
 interface CanvasHandle {
   world: SVGGElement;
@@ -93,12 +83,42 @@ let _handle: CanvasHandle | null = null;
  *  rest of the session. Re-renders and resizes retry while this is
  *  set; the first successful fit clears it. */
 let _fitPending = false;
+/** The frame the owed fit is booked on. A session opening re-renders
+ *  several times in one task (coverage, branch names, unfolds); each
+ *  attach asks for the fit, and one frame answers them all. */
+let _fitFrame = 0;
 
-/** Push the current view onto the world group, the backdrop lattice and
- *  the zoom readout. One function so the three can never disagree. */
+/** What the last ``paintView`` wrote, so a pan — the common case, one
+ *  call per pointer event — rewrites only the two translations and
+ *  leaves the scale-bound work (CSS variables, label culling, lattice
+ *  pitch) alone. Reset whenever a new graph is attached. */
+let _painted: { world: SVGGElement | null; scale: number; dotR: string } = {
+  world: null, scale: NaN, dotR: "",
+};
+let _viewFrame = 0;
+
+/** Ask for the current view to be painted on the next frame. Gestures
+ *  fire faster than the screen refreshes (a trackpad sends 120 wheel
+ *  events a second); they all move the store, and one paint per frame
+ *  shows where they ended up. */
 export function applyView(): void {
+  if (_viewFrame || !_handle) return;
+  _viewFrame = requestAnimationFrame(() => {
+    _viewFrame = 0;
+    paintView();
+  });
+}
+
+/** Push the current view onto the world group, the backdrop lattice,
+ *  the semantic-zoom variables, the zoom readout and the minimap — in
+ *  one function, in one frame, so they can never disagree. Sizes are
+ *  read before anything is written, so painting never forces a layout. */
+function paintView(): void {
   if (!_handle) return;
   const { world, host } = _handle;
+  const w = host.clientWidth;
+  const h = host.clientHeight;
+  const rescaled = _painted.scale !== _viewScale || _painted.world !== world;
   world.setAttribute(
     "transform",
     `translate(${_viewTx},${_viewTy}) scale(${_viewScale})`,
@@ -124,26 +144,36 @@ export function applyView(): void {
   host.style.backgroundPosition =
     `${_viewTx + (PAD_X - step / 2) * _viewScale}px `
     + `${_viewTy + (PAD_Y - step / 2) * _viewScale}px`;
-  host.style.backgroundSize = `${pitch}px ${pitch}px`;
-  // The dot radius rides the zoom too: fixed at 1.2px it vanishes into
-  // a 100px tile when zoomed in. Clamped so zoomed-out views don't
-  // dissolve into noise. The colour is the theme's own hairline — a
-  // hardcoded white was invisible on light themes.
-  const dotR = Math.min(3, Math.max(1, 1.2 * _viewScale)).toFixed(2);
-  host.style.backgroundImage =
-    `radial-gradient(var(--border-light, rgba(255, 255, 255, 0.10)) `
-    + `${dotR}px, transparent ${dotR}px)`;
-  // Semantic zoom (dag/rendering.md §4): zoomed out, the agents keep their
-  // on-screen size like markers on a map, labels shrink only gently (12px
-  // at 100%, about 8.5px at the least zoom), and below FAR_SCALE the
-  // tiles turn into solid blocks of their tone, too small for an icon.
-  host.style.setProperty("--dag-marker-scale", String(Math.max(1, 1 / _viewScale)));
-  host.style.setProperty("--dag-label-scale", String(Math.max(1, _viewScale ** -0.75)));
-  host.classList.toggle("is-far", _viewScale < FAR_SCALE);
-  paintFarLabels(world, _viewScale < 1);
+  if (rescaled) {
+    host.style.backgroundSize = `${pitch}px ${pitch}px`;
+    // The dot radius rides the zoom too: fixed at 1.2px it vanishes into
+    // a 100px tile when zoomed in. Clamped so zoomed-out views don't
+    // dissolve into noise. The colour is the theme's own hairline — a
+    // hardcoded white was invisible on light themes.
+    const dotR = Math.min(3, Math.max(1, 1.2 * _viewScale)).toFixed(2);
+    if (dotR !== _painted.dotR) {
+      host.style.backgroundImage =
+        `radial-gradient(var(--border-light, rgba(255, 255, 255, 0.10)) `
+        + `${dotR}px, transparent ${dotR}px)`;
+    }
+    // Semantic zoom (dag/rendering.md §4): zoomed out, the agents keep
+    // their on-screen size like markers on a map, labels shrink only
+    // gently (12px at 100%, about 8.5px at the least zoom), and below
+    // FAR_SCALE the tiles turn into solid blocks of their tone, too
+    // small for an icon. Each variable restyles the whole graph, so
+    // they are written only when the scale moves.
+    host.style.setProperty("--dag-marker-scale", String(Math.max(1, 1 / _viewScale)));
+    host.style.setProperty("--dag-label-scale", String(Math.max(1, _viewScale ** -0.75)));
+    host.classList.toggle("is-far", _viewScale < FAR_SCALE);
+    paintFarLabels(world, _viewScale < 1);
+    _painted = { world, scale: _viewScale, dotR };
+  }
+  // React draws the readout as "100%"; a remount with no zoom since
+  // must still show the real figure, so it is checked every paint.
   const pct = document.querySelector<HTMLElement>(".dag-zoom-readout");
-  if (pct) pct.textContent = Math.round(_viewScale * 100) + "%";
-  const seen = { tx: _viewTx, ty: _viewTy, scale: _viewScale, w: host.clientWidth, h: host.clientHeight - COMPOSER_STRIP };
+  const label = Math.round(_viewScale * 100) + "%";
+  if (pct && pct.textContent !== label) pct.textContent = label;
+  const seen = { tx: _viewTx, ty: _viewTy, scale: _viewScale, w, h: h - COMPOSER_STRIP };
   paintMinimap(host, world, seen, jumpTo);
 }
 
@@ -175,6 +205,7 @@ const OPEN_MIN_SCALE = 0.8;
  *  every node sits a fraction of a pixel off its background dot, and the
  *  lattice stops reading as the coordinate system it is. */
 export function fitCanvas(opening = false, only?: DOMRect): void {
+  _fitFrame = 0;
   if (!_handle) return;
   dismissOverlays();
   const { world, host } = _handle;
@@ -215,10 +246,7 @@ export function fitCanvas(opening = false, only?: DOMRect): void {
 /** HEAD's anchor in world space — the node drawer stamps ``data-head``
  *  on its glyph, and the glyph's group carries the node's translate. */
 function headPoint(world: SVGGElement): { x: number; y: number } | null {
-  const g = world.querySelector("[data-head='1']")?.closest(".history-node");
-  const m = /translate\(\s*([-\d.]+)[ ,]+([-\d.]+)/.exec(
-    g?.getAttribute("transform") || "");
-  return m ? { x: Number(m[1]), y: Number(m[2]) } : null;
+  return seatOf(world.querySelector("[data-head='1']")?.closest(".history-node"));
 }
 
 /** Zoom by ``factor`` about the screen-space anchor ``(px, py)``: the
@@ -260,9 +288,9 @@ export function resetZoom(): void {
 function agentSpots(world: SVGGElement): { x: number; y: number }[] {
   const spots: { x: number; y: number }[] = [];
   world.querySelectorAll(".dag-agents > .dag-agent-token:not(.is-idle)").forEach((t) => {
-    const m = /translate\(([-\d.]+),([-\d.]+)\)/.exec(t.getAttribute("transform") || "");
     // A dot is pinned to its tile's centre (render/agents.ts).
-    if (m) spots.push({ x: Number(m[1]), y: Number(m[2]) });
+    const at = seatOf(t);
+    if (at) spots.push(at);
   });
   if (!spots.length) {
     const head = headPoint(world);
@@ -278,10 +306,10 @@ export function frameSelection(ids: readonly string[]): void {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   _handle.world.querySelectorAll(".history-node").forEach((g) => {
     if (!want.has(g.getAttribute("data-msg-id") || "")) return;
-    const m = /translate\(([-\d.]+),([-\d.]+)\)/.exec(g.getAttribute("transform") || "");
-    if (!m) return;
-    x0 = Math.min(x0, +m[1] - TILE_R); y0 = Math.min(y0, +m[2] - TILE_R);
-    x1 = Math.max(x1, +m[1] + TILE_R); y1 = Math.max(y1, +m[2] + TILE_R);
+    const at = seatOf(g);
+    if (!at) return;
+    x0 = Math.min(x0, at.x - TILE_R); y0 = Math.min(y0, at.y - TILE_R);
+    x1 = Math.max(x1, at.x + TILE_R); y1 = Math.max(y1, at.y + TILE_R);
   });
   if (x0 > x1) return;
   fitCanvas(false, new DOMRect(x0, y0, x1 - x0, y1 - y0));
@@ -310,133 +338,9 @@ export function focusAgent(): void {
     ease: [0.22, 1, 0.36, 1],
     onUpdate: (k) => {
       setView(from.tx + (to.tx - from.tx) * k, from.ty + (to.ty - from.ty) * k, _viewScale);
-      applyView();
+      paintView(); // framer-motion already calls this once a frame
     },
   });
-}
-
-/** Wire the pan / zoom gestures onto ``host`` once. */
-function wireGestures(host: HTMLElement): void {
-  const h = host as HTMLElement & { _dagCanvasWired?: boolean };
-  if (h._dagCanvasWired) return;
-  h._dagCanvasWired = true;
-
-  host.addEventListener(
-    "wheel",
-    (e: WheelEvent) => {
-      e.preventDefault();
-      dismissOverlays();
-      const rect = host.getBoundingClientRect();
-      // A mouse wheel zooms about the cursor, the way a map does; two
-      // fingers on a trackpad pan, and a pinch zooms at its own, faster
-      // rate (./wheel.ts tells them apart). Line and page deltas (some
-      // mice) are turned into pixels first.
-      const kind = wheelKind(e);
-      if (kind === "pan") {
-        setView(_viewTx - e.deltaX, _viewTy - e.deltaY, _viewScale);
-        applyView();
-        return;
-      }
-      const dy = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * 100 : e.deltaY;
-      const rate = kind === "pinch" ? PINCH_ZOOM_RATE : WHEEL_ZOOM_RATE;
-      zoomAt(e.clientX - rect.left, e.clientY - rect.top, Math.exp(-dy * rate));
-    },
-    { passive: false },
-  );
-
-  // The right (or middle) button pans, from anywhere on the graph; the
-  // left button selects — a drag on empty canvas draws a box (Shift/⌘
-  // adds to the selection), and a press that never moves clears it.
-  // "Never moves" means less than CLICK_SLOP pixels, whatever the hand's
-  // jitter. A right press that never moves is still the right-click
-  // menu: macOS fires ``contextmenu`` on the press, before anyone knows
-  // whether a drag follows, so the canvas holds the event and replays
-  // it on release (``menuAt``).
-  const CLICK_SLOP = 3;
-  let drag: { x: number; y: number; sx: number; sy: number; id: number; moved: boolean; menuAt: Element | null } | null = null;
-  let band: { b: SelectionBand; id: number; sx: number; sy: number; moved: boolean; add: boolean } | null = null;
-  let replaying = false;
-  host.addEventListener("contextmenu", (e) => {
-    if (replaying) return;
-    e.preventDefault();
-    e.stopPropagation();
-  }, true);
-  host.addEventListener("pointerdown", (e: PointerEvent) => {
-    const t = e.target as Element | null;
-    // A drag from an overlay card (expanded tooltip, node menu, raw
-    // JSON) is the user SELECTING TEXT, not panning — and the pan's
-    // dismissOverlays() would eat the card mid-selection.
-    if (t?.closest?.(".history-tooltip, .dag-inspector, .dag-menu-verbs")) return;
-    const pans = e.button === 2 || e.button === 1;
-    // A left press on a node or a branch name is a click on it.
-    if (!pans && t?.closest?.(".history-node, .history-branch-tag")) return;
-    dismissOverlays();
-    try {
-      host.setPointerCapture(e.pointerId);
-    } catch {
-      /* a pointer that vanished mid-gesture is not an error */
-    }
-    if (!pans) {
-      releaseEditableFocus();
-      band = {
-        b: new SelectionBand(host, { x: e.clientX, y: e.clientY }),
-        id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false,
-        add: e.shiftKey || e.metaKey,
-      };
-      return;
-    }
-    drag = {
-      x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY,
-      id: e.pointerId, moved: false, menuAt: e.button === 2 ? t : null,
-    };
-    host.classList.add("is-panning");
-  });
-  host.addEventListener("pointermove", (e: PointerEvent) => {
-    if (band && e.pointerId === band.id) {
-      if (!band.moved
-          && Math.hypot(e.clientX - band.sx, e.clientY - band.sy) < CLICK_SLOP) {
-        return;
-      }
-      band.moved = true;
-      band.b.move({ x: e.clientX, y: e.clientY });
-      return;
-    }
-    if (!drag || e.pointerId !== drag.id) return;
-    setView(
-      _viewTx + (e.clientX - drag.x),
-      _viewTy + (e.clientY - drag.y),
-      _viewScale,
-    );
-    drag.x = e.clientX;
-    drag.y = e.clientY;
-    drag.moved = drag.moved
-      || Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) >= CLICK_SLOP;
-    applyView();
-  });
-  const endDrag = (e: PointerEvent): void => {
-    if (band && e.pointerId === band.id) {
-      const { b, moved, add } = band;
-      band = null;
-      const hits = moved && e.type === "pointerup" ? b.hits() : [];
-      b.remove();
-      if (hits.length) select(hits, add ? "add" : "replace");
-      else if (!add && e.type === "pointerup") clearSelection();
-      return;
-    }
-    if (!drag || e.pointerId !== drag.id) return;
-    const { menuAt, moved } = drag;
-    drag = null;
-    host.classList.remove("is-panning");
-    if (menuAt && !moved && e.type === "pointerup") {
-      replaying = true;
-      menuAt.dispatchEvent(new MouseEvent("contextmenu", {
-        bubbles: true, cancelable: true, clientX: e.clientX, clientY: e.clientY, button: 2,
-      }));
-      replaying = false;
-    }
-  };
-  host.addEventListener("pointerup", endDrag);
-  host.addEventListener("pointercancel", endDrag);
 }
 
 /**
@@ -456,17 +360,19 @@ export function attachCanvas(
 ): void {
   host.replaceChildren(svg);
   _handle = { world, host };
-  wireGestures(host);
+  wireGestures(host, { zoomAt, dismiss: dismissOverlays, moved: applyView });
   wireFitRetryOnResize(host);
   const fresh = _viewSession !== sessionId;
   setViewSession(sessionId);
   if (fresh) _fitPending = true;
-  applyView();
+  // A new graph is painted now, not next frame: until it carries the
+  // view's transform it would flash at the origin.
+  paintView();
   if (_fitPending) {
     // getBBox needs the element laid out; a frame later it is. If the
     // pane still has no size (hidden tab, mid-layout), the fit stays
     // pending and the next render or resize retries it.
-    requestAnimationFrame(() => fitCanvas(true));
+    _fitFrame ||= requestAnimationFrame(() => fitCanvas(true));
   }
 }
 
@@ -491,4 +397,6 @@ function wireFitRetryOnResize(host: HTMLElement): void {
 export function detachCanvas(): void {
   if (_handle) hideMinimap(_handle.host);
   _handle = null;
+  cancelAnimationFrame(_viewFrame);
+  _viewFrame = 0;
 }

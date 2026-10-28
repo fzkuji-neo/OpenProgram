@@ -47,9 +47,9 @@ test("Zoom, the whole graph, the legend and the minimap are one column in the to
 });
 
 test("A mouse wheel zooms, two fingers pan, a right drag pans, a left drag draws a box", async () => {
-  const canvas = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/canvas.ts", import.meta.url), "utf8");
+  const canvas = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/gestures.ts", import.meta.url), "utf8");
   const wheel = canvas.slice(canvas.indexOf('"wheel"'), canvas.indexOf('"pointerdown"'));
-  assert.match(wheel, /const kind = wheelKind\(e\);[\s\S]*kind === "pan"[\s\S]*setView\([\s\S]*zoomAt\(/);
+  assert.match(wheel, /const kind = wheelKind\(e\);[\s\S]*kind === "pan"[\s\S]*setView\([\s\S]*camera\.zoomAt\(/);
   const { wheelKind } = await import("../../lib/runtime-bridge/dag/interaction/wheel.ts");
   const ev = (o) => ({ deltaMode: 0, deltaX: 0, deltaY: 0, ctrlKey: false, metaKey: false, ...o });
   // A mouse notch on macOS Chromium: wheelDeltaY 120, deltaY about -4.

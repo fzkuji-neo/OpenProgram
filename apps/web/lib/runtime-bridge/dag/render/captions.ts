@@ -16,6 +16,7 @@
 import { type GNode, COL_W } from "../types";
 import { _svg, _textWidth } from "./shapes";
 import { TILE_R, tileFor } from "./tiles";
+import { seatOf as seat } from "./seat";
 
 const LAYER = "dag-captions";
 const FONT = "10.5px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif";
@@ -25,11 +26,6 @@ const MIN_W = 36;
 const LOOKAHEAD = 8;
 
 type NodeG = SVGGElement & { _nodeData?: GNode };
-
-function seat(g: Element): { x: number; y: number } | null {
-  const m = /translate\(([-\d.]+),([-\d.]+)\)/.exec(g.getAttribute("transform") || "");
-  return m ? { x: Number(m[1]), y: Number(m[2]) } : null;
-}
 
 function fit(text: string, width: number): string {
   if (_textWidth(text, FONT) <= width) return text;
