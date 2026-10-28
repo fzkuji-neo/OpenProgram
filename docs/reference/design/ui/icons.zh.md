@@ -8,7 +8,7 @@ Web 端用三族图标。每一族有自己的地盘，一个界面里不会无�
 | **pqoqubbw 动效线性图标** | 输入框以外的外壳：左侧 rail、中央标签页、侧栏、设置导航、功能卡片 | `apps/web/components/animated-icons` | MIT |
 | **lucide-react** | 其余不需要动效的地方：设置正文、对话框、时间线行尾的展开箭头 | `lucide-react` | ISC |
 
-供应商 logo 来自 LobeHub（`components/settings/lobe-icons.ts`），头像来自 DiceBear identicon，二者不在本约定之内。
+供应商 logo 来自 LobeHub（`components/settings/providers/icons/lobe-icons.ts`），头像来自 DiceBear identicon，二者不在本约定之内。
 
 没有人手画图标 SVG。要加一个 Solar 图标，就在 `fetch-solar.mjs` 的 `ICONS` 里加一项再跑一遍；生成文件提交进仓库，构建不依赖网络。
 

@@ -6,7 +6,7 @@ import vm from "node:vm";
 
 const require = createRequire(import.meta.url);
 const ts = require("typescript");
-const source = fs.readFileSync(new URL("../../components/settings/providers/connectivity.tsx", import.meta.url), "utf8");
+const source = fs.readFileSync(new URL("../../components/settings/providers/auth/connectivity.tsx", import.meta.url), "utf8");
 const javascript = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 },
 }).outputText;

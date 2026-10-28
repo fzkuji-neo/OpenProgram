@@ -5,7 +5,7 @@ import { forwardRef, useImperativeHandle, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/lib/i18n";
 
-import styles from "../settings-page.module.css";
+import styles from "../../settings-page.module.css";
 
 /** Imperative handle so the parent can "click Check" programmatically
  *  (e.g. auto-run after an API key is saved) and await the result. */

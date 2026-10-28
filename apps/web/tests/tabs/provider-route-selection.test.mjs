@@ -15,7 +15,7 @@ const stubs={
  "./provider-item":"export const ProviderItem=()=>null;",
  "./add-custom-provider":"export const AddCustomProvider=()=>null;",
  "./types":"export const refreshAgentChip=()=>{};",
- "./api-key":"export const ApiKey=()=>null;"
+ "./auth/api-key":"export const ApiKey=()=>null;"
 };
 registerHooks({resolve(s,c,next){
  if(s in stubs)return {url:'data:text/javascript,'+encodeURIComponent(stubs[s]),shortCircuit:true};

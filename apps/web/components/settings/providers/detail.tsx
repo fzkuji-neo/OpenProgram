@@ -7,13 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
-import { ProviderIcon } from "../provider-icon";
+import { ProviderIcon } from "./icons/provider-icon";
 
-import { AccountManager } from "./account-manager";
-import { BaseUrl } from "./base-url";
-import { Connectivity, type ConnectivityHandle } from "./connectivity";
+import { AccountManager } from "./auth/account-manager";
+import { BaseUrl } from "./auth/base-url";
+import { Connectivity, type ConnectivityHandle } from "./auth/connectivity";
 import { ModelList } from "./model-list";
-import { CliInfo, SetupHint } from "./setup-hint";
+import { CliInfo, SetupHint } from "./auth/setup-hint";
 import styles from "../settings-page.module.css";
 import type { Model, Provider } from "./types";
 import { useTranslation } from "@/lib/i18n";

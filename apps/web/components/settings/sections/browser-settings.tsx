@@ -12,7 +12,7 @@ import {
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";
 import { useTranslation } from "@/lib/i18n";
 import { BrowserImportDialog } from "@/components/center-tabs/browser/browser-home-page";
-import styles from "./settings-page.module.css";
+import styles from "../settings-page.module.css";
 
 export function BrowserSettings() {
   const { t, text } = useTranslation();

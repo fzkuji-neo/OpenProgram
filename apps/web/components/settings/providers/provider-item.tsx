@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 
-import { ProviderIcon } from "../provider-icon";
+import { ProviderIcon } from "./icons/provider-icon";
 
 import styles from "../settings-page.module.css";
 import type { Provider } from "./types";

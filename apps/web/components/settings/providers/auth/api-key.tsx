@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useTranslation } from "@/lib/i18n";
 import { normalizeSecretReplacement } from "@/lib/net/auth/secret-replacement";
 
-import styles from "../settings-page.module.css";
+import styles from "../../settings-page.module.css";
 
 /** Single API-key input — masked status plus explicit replacement. Used by
  *  web-search providers (Tavily / Exa / …). LLM providers use <AccountManager>

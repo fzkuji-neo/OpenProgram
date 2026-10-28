@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
-import styles from "./settings-page.module.css";
+import styles from "../settings-page.module.css";
 import { managePageStyles as shared } from "@/components/ui/manage-page";
 
 type Capability = {

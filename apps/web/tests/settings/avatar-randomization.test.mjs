@@ -61,7 +61,7 @@ test("letter initial and color live inside the picker", () => {
     "utf8",
   );
   const settings = readFileSync(
-    new URL("../../components/settings/general-section.tsx", import.meta.url),
+    new URL("../../components/settings/sections/general-section.tsx", import.meta.url),
     "utf8",
   );
 
@@ -77,7 +77,7 @@ test("letter initial and color live inside the picker", () => {
 
 test("User settings use the shared picker and its style registry", () => {
   const settings = readFileSync(
-    new URL("../../components/settings/general-section.tsx", import.meta.url),
+    new URL("../../components/settings/sections/general-section.tsx", import.meta.url),
     "utf8",
   );
   const runtimeStyles = readFileSync(

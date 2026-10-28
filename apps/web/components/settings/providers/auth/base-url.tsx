@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTranslation } from "@/lib/i18n";
 
-import styles from "../settings-page.module.css";
-import type { Provider } from "./types";
+import styles from "../../settings-page.module.css";
+import type { Provider } from "../types";
 
 /** Optional API-base-URL override — used for self-hosted OpenAI-
  *  compatible endpoints (LiteLLM, OpenRouter, vLLM, etc.). Saving an

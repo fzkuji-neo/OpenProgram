@@ -12,8 +12,8 @@ import { normalizeSecretReplacement } from "@/lib/net/auth/secret-replacement";
 
 import { ProviderLogin } from "./provider-login";
 import { SimpleSelect } from "@/components/ui/select";
-import styles from "../settings-page.module.css";
-import type { Provider, ProviderAccountView } from "./types";
+import styles from "../../settings-page.module.css";
+import type { Provider, ProviderAccountView } from "../types";
 
 /** ONE management panel for every provider's accounts. An *account* is a profile
  *  holding one credential. EVERY provider uses the same account-row structure;

@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { CUSTOM_CSS_TEMPLATE, THEME_STYLES } from "../../lib/prefs/theme-config.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
-const settings = readFileSync(join(root, "components/settings/general-section.tsx"), "utf8");
+const settings = readFileSync(join(root, "components/settings/sections/general-section.tsx"), "utf8");
 const ui = readFileSync(join(root, "components/settings/settings-ui.tsx"), "utf8");
 const picker = readFileSync(join(root, "components/avatar/AvatarPicker.tsx"), "utf8");
 
@@ -53,7 +53,7 @@ test("snippet template targets html / current packages, not a Custom skin", () =
 });
 
 test("General is built from the shared settings blocks and official components", () => {
-  assert.match(settings, /from "\.\/settings-ui"/);
+  assert.match(settings, /from "\.\.\/settings-ui"/);
   assert.match(settings, /<SettingsPage/);
   assert.match(settings, /<SettingsSection/);
   assert.match(settings, /<SettingsRow/);

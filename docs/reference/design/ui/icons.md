@@ -9,7 +9,7 @@ screen never mixes a filled glyph next to a line glyph by accident.
 | **pqoqubbw animated line icons** | App chrome outside the composer: left rail, center tabs, sidebar, settings nav, function cards | `apps/web/components/animated-icons` | MIT |
 | **lucide-react** | Everything else that needs no motion: settings bodies, dialogs, the timeline's disclosure chevron | `lucide-react` | ISC |
 
-Provider logos come from LobeHub (`components/settings/lobe-icons.ts`) and
+Provider logos come from LobeHub (`components/settings/providers/icons/lobe-icons.ts`) and
 avatars from DiceBear identicons; neither is part of this contract.
 
 Nobody hand-authors icon SVGs. A new Solar icon is added by extending

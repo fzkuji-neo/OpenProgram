@@ -10,7 +10,7 @@ const read = (path) => readFileSync(join(root, path), "utf8");
 const themeConfig = read("lib/prefs/theme-config.ts");
 const globals = read("app/globals.css");
 const base = read("app/styles/base.css");
-const settings = read("components/settings/general-section.tsx");
+const settings = read("components/settings/sections/general-section.tsx");
 const composer = read("components/chat/composer/composer.module.css");
 const settingsCss = read("components/settings/settings-page.module.css");
 const dagNodes = read("app/styles/dag/graph/nodes.css");

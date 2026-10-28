@@ -34,7 +34,7 @@ import {
 import { useVisualEffectsPref } from "@/lib/prefs/visual-effects-pref";
 import { CODE_RAIN_DENSITY, useWelcomeBackdropPref } from "@/lib/prefs/welcome-backdrop-pref";
 import { DRAG_SURFACE_STYLE, VISUAL_EFFECTS_LIMITS, type VisualEffectKey } from "@/lib/prefs/visual-effects-config";
-import styles from "./settings-page.module.css";
+import styles from "../settings-page.module.css";
 import { DesktopAttentionSection } from "./desktop-attention-section";
 import { SimpleSelect } from "@/components/ui/select";
 import { setDefaultTranscriptView, useDefaultTranscriptView } from "@/lib/prefs/transcript-view";
@@ -44,7 +44,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Field, FieldContent, FieldGroup, FieldLabel, FieldTitle } from "@/components/ui/field";
-import { SettingsPage, SettingsRow, SettingsSection } from "./settings-ui";
+import { SettingsPage, SettingsRow, SettingsSection } from "../settings-ui";
 
 const FONT_OPTIONS: FontKey[] = ["system", "inter", "serif", "mono"];
 

@@ -33,7 +33,7 @@ import { pushPath } from "@/lib/shallow-nav";
 
 // Re-export ApiKey for search-providers-section.tsx (the only other
 // consumer outside this subdirectory).
-export { ApiKey } from "./api-key";
+export { ApiKey } from "./auth/api-key";
 export type { Provider, Model } from "./types";
 
 export function ProvidersSection({ initialProviderId }: { initialProviderId?: string } = {}) {

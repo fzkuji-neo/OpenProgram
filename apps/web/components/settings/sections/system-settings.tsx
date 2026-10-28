@@ -13,7 +13,7 @@ import { SystemAccess } from "./system-access";
 import { Switch } from "@/components/ui/switch";
 import { SimpleSelect } from "@/components/ui/select";
 import { useTranslation } from "@/lib/i18n";
-import styles from "./settings-page.module.css";
+import styles from "../settings-page.module.css";
 
 interface Row {
   key: string;

@@ -7,7 +7,7 @@ import { SimpleSelect } from "@/components/ui/select";
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";
 import type { DesktopAttentionApi, DesktopAttentionPrefs } from "@/lib/desktop/desktop-bridge-types";
 import { FieldError } from "@/components/ui/field";
-import { SettingsRow, SettingsSection } from "./settings-ui";
+import { SettingsRow, SettingsSection } from "../settings-ui";
 
 /** Desktop notifications and keep-awake. Rendered only inside the desktop shell. */
 export function DesktopAttentionSection() {

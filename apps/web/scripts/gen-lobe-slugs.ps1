@@ -135,7 +135,7 @@ $($entries -join "`n")
 };
 "@
 
-$outPath = Join-Path $PSScriptRoot "..\components\settings\lobe-icons.ts"
+$outPath = Join-Path $PSScriptRoot "..\components\settings\providers\icons\lobe-icons.ts"
 # Write as UTF-8 without BOM (Set-Content with explicit utf8 emits
 # BOM on PowerShell 5.1; use .NET to bypass).
 [System.IO.File]::WriteAllText($outPath, $out, [System.Text.UTF8Encoding]::new($false))

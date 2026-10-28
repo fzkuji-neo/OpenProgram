@@ -8,7 +8,7 @@ const read = (path) => readFileSync(new URL(path, root), "utf8");
 const runtimeFiles = [
   "components/app-shell.tsx",
   "components/chat/messages/bubbles/markdown.ts",
-  "components/settings/provider-icon.tsx",
+  "components/settings/providers/icons/provider-icon.tsx",
   "lib/format-utils/markdown.tsx",
   "lib/net/ws/use-ws.ts",
   "lib/runtime-bridge/session/conversations.ts",
@@ -57,7 +57,7 @@ assert.equal(
 
 console.log("local runtime assets contract: ok");
 
-const providerIcons = JSON.parse(read("components/settings/provider-icons.json"));
+const providerIcons = JSON.parse(read("components/settings/providers/icons/provider-icons.json"));
 for (const [provider, icon] of Object.entries(providerIcons)) {
   assert.match(icon.file, /^[a-z0-9-]+\.svg$/, `${provider}: local SVG filename`);
   const svg = read(`public/images/providers/${icon.file}`);

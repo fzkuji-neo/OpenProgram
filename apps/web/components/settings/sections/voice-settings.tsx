@@ -13,7 +13,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { useTranslation } from "@/lib/i18n";
 import { SettingsDropdown, type DropdownOption } from "./general-section";
-import styles from "./settings-page.module.css";
+import styles from "../settings-page.module.css";
 
 type Engine = "auto" | "openai" | "groq" | "local";
 type Language = "auto" | "zh" | "en" | "ja" | "ko" | "fr" | "de" | "es";

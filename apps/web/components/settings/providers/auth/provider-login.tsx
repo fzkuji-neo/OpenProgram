@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTranslation } from "@/lib/i18n";
 
-import styles from "../settings-page.module.css";
-import type { Provider } from "./types";
+import styles from "../../settings-page.module.css";
+import type { Provider } from "../types";
 
 /** Generic native-login panel for any provider with a non-key login method
  *  (OAuth / device-code / import-from-CLI). Drives the unified worker endpoints

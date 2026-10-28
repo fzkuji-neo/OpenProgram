@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const general = fs.readFileSync(path.join(root, "components/settings/general-section.tsx"), "utf8");
+const general = fs.readFileSync(path.join(root, "components/settings/sections/general-section.tsx"), "utf8");
 const bridge = readDesktopBridgeSource();
 const bridgeTypes = fs.readFileSync(path.join(root, "lib/desktop/desktop-bridge-types.ts"), "utf8");
 

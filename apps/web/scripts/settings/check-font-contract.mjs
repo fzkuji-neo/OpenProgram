@@ -16,7 +16,7 @@ const OWNERS = new Set([
   "app/styles/base.css",
   "lib/prefs/font-stacks.ts",
   "lib/prefs/font-pref.ts",
-  "components/settings/general-section.tsx",
+  "components/settings/sections/general-section.tsx",
 ]);
 
 function* walk(dir) {

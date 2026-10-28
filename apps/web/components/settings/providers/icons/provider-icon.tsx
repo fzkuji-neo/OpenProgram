@@ -1,7 +1,7 @@
 "use client";
 
 import icons from "./provider-icons.json";
-import styles from "./settings-page.module.css";
+import styles from "../../settings-page.module.css";
 
 /** Brand assets ship with the App; unknown/custom providers keep an initial. */
 export function ProviderIcon({ id, size = 24 }: { id: string; size?: number }) {

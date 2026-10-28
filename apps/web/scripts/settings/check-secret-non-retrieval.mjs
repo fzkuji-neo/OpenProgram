@@ -53,8 +53,8 @@ assert.deepEqual(
 const root = new URL("../../", import.meta.url);
 const targetPaths = [
   "components/providers/provider-detail.tsx",
-  "components/settings/providers/api-key.tsx",
-  "components/settings/providers/account-manager.tsx",
+  "components/settings/providers/auth/api-key.tsx",
+  "components/settings/providers/auth/account-manager.tsx",
   "lib/net/api.ts",
 ];
 

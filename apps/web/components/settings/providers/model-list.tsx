@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 
-import { ProviderIcon } from "../provider-icon";
+import { ProviderIcon } from "./icons/provider-icon";
 
 import styles from "../settings-page.module.css";
 import { SearchInput } from "@/components/ui/search-input";

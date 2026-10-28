@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 
-import styles from "../settings-page.module.css";
-import type { Provider } from "./types";
+import styles from "../../settings-page.module.css";
+import type { Provider } from "../types";
 import { useTranslation } from "@/lib/i18n";
 
 

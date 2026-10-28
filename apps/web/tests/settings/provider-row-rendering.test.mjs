@@ -5,7 +5,7 @@ import test from 'node:test';
 import ts from 'typescript';
 import {parseHTML} from 'linkedom';
 registerHooks({resolve(s,c,next){
- const source=s==='../provider-icon'?"export const ProviderIcon=()=>{globalThis.iconRenders++;return null;}":s==='@/lib/i18n'?"export const useTranslation=()=>({text:x=>x});":s.endsWith('.css')?'export default {}':null;
+ const source=s==='./icons/provider-icon'?"export const ProviderIcon=()=>{globalThis.iconRenders++;return null;}":s==='@/lib/i18n'?"export const useTranslation=()=>({text:x=>x});":s.endsWith('.css')?'export default {}':null;
  return source?{url:'data:text/javascript,'+encodeURIComponent(source),shortCircuit:true}:next(s,c);
 },load(url,c,next){return url.endsWith('.tsx')?{format:'module',shortCircuit:true,source:ts.transpileModule(readFileSync(new URL(url),'utf8'),{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText}:next(url,c);}});
 const {window}=parseHTML('<html><body><div id="root"></div></body></html>');
