@@ -46,10 +46,10 @@ import {
 import { focusAgent } from "@/lib/runtime-bridge/dag/interaction/canvas";
 
 /** Each tool's face. A tool registered without one shows its id. */
-const FACES: Record<string, { Icon: LucideIcon; en: string; zh: string }> = {
-  hand: { Icon: Hand, en: "Browse", zh: "浏览" },
-  pointer: { Icon: MousePointer2, en: "Select — click, or drag a box", zh: "选择：单击或拖框" },
-  lasso: { Icon: Lasso, en: "Lasso", zh: "套索" },
+const FACES: Record<string, { Icon: LucideIcon; en: string; zh: string; hintEn: string; hintZh: string }> = {
+  hand: { Icon: Hand, en: "Browse", zh: "浏览", hintEn: "Drag to pan", hintZh: "拖动平移画布" },
+  pointer: { Icon: MousePointer2, en: "Select", zh: "选择", hintEn: "Click, or drag a box", hintZh: "单击或拖框选择" },
+  lasso: { Icon: Lasso, en: "Lasso", zh: "套索", hintEn: "Draw around nodes to select", hintZh: "圈出要选的节点" },
 };
 
 function useCanvasTools(): number {
@@ -66,6 +66,7 @@ function DagToolRail() {
       {dagTools().map((tool) => {
         const face = FACES[tool.id];
         const label = face ? text(face.en, face.zh) : tool.id;
+        const hint = face ? `\n${text(face.hintEn, face.hintZh)}` : "";
         const Icon = face?.Icon;
         return (
           <button
@@ -75,7 +76,8 @@ function DagToolRail() {
             aria-pressed={tool.id === current}
             aria-label={label}
             aria-keyshortcuts={tool.key.toUpperCase()}
-            data-tip={`${label} · ${tool.key.toUpperCase()}`}
+            data-tip={`${label} · ${tool.key.toUpperCase()}${hint}`}
+            data-tip-side="right"
             onClick={() => setTool(tool.id)}
           >
             {Icon ? <Icon size={16} strokeWidth={2} /> : tool.id.slice(0, 1)}
@@ -88,7 +90,8 @@ function DagToolRail() {
         className="dag-tool-btn"
         aria-label={text("Find the working agent", "找到正在工作的 agent")}
         aria-keyshortcuts="F"
-        data-tip={text("Find the working agent · F", "找到正在工作的 agent · F")}
+        data-tip={text("Find the agent · F\nAgain for the next one", "找到 agent · F\n再按换下一个")}
+        data-tip-side="right"
         onClick={() => focusAgent()}
       >
         <LocateFixed size={16} strokeWidth={2} />

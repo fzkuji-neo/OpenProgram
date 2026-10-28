@@ -10,7 +10,8 @@ import { createPortal } from "react-dom";
  *  - Any other control with a `title` (or `data-tip`) shows that instead
  *    of the native tooltip: the title moves to `data-tip` on first hover,
  *    and becomes the aria-label when the control has none.
- *  Only controls and glyph-only marks get tips; text keeps no hover tip,
+ *  A vertical strip puts `data-tip-side="right"` (or left) on its
+ *  controls. Only controls and glyph-only marks get tips; text keeps no hover tip,
  *  and no element carries a native `title`. The first tip waits so
  *  a pointer passing over never flashes them; moving on to the next
  *  control swaps it at once. */
@@ -46,6 +47,12 @@ function placeTip(el: HTMLElement, label: string): Tip {
   if (el.closest(".sidebar")) {
     const right = !!el.closest(".right-sidebar");
     return { label, y: r.top + r.height / 2, x: right ? r.left - 10 : r.right + 10, side: right ? "left" : "right" };
+  }
+  // A vertical strip of controls names them beside it, where the tip
+  // covers no neighbour: `data-tip-side`.
+  const side = el.dataset.tipSide;
+  if (side === "right" || side === "left") {
+    return { label, y: r.top + r.height / 2, x: side === "right" ? r.right + 10 : r.left - 10, side };
   }
   // Below a control near the top of the window (the tab strip), above
   // anything else.
