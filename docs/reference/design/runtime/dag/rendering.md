@@ -949,7 +949,11 @@ selects (no enclose-only mode) (`apps/web/lib/runtime-bridge/dag/interaction/can
 `interaction/nodes.ts`, `interaction/selection.ts`).
 
 The rail on the canvas's left edge is one raised strip of the app's button
-material (the input box's fill and the composer's shadow). **Find the working
+material (the input box's fill and the composer's shadow, which deepens under
+the pointer as the composer's buttons do; the zoom column, the action bar,
+the minimap and the pane's top-right controls behave the same). Its middle sits
+at 45% of the pane's height, the same height as the transcript's message rail,
+so swapping perspectives leaves the left-edge controls in place. **Find the working
 agent** (F) glides the view to the tile a working
 agent stands on, keeping the zoom. Pressed again it moves to the next working
 agent, and with none at work it goes to HEAD (`focusAgent` in

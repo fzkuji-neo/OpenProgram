@@ -14,16 +14,23 @@
   border-radius: 12px;
   background: var(--bg-input);
   box-shadow: var(--shadow-raised);
+  transition: box-shadow 0.15s ease;
 }
+/* Under the pointer the shadow deepens, as the composer's buttons do
+   (``elevated``: shadow-raised → shadow-raised-hover). */
+.dag-tool-rail:hover,
+.dag-select-bar:hover,
+.dag-minimap:hover { box-shadow: var(--shadow-raised-hover); }
 .dag-select-bar { padding: 3px; border-radius: 10px; }
 
-/* The rail — a vertical strip on the canvas's left edge, centred
-   on the strip above the composer (the composer floats over the bottom
-   ~150px of the pane, canvas.ts COMPOSER_STRIP). */
+/* The rail — a vertical strip on the canvas's left edge, its middle at
+   45% of the pane's height: the same height as the transcript's message
+   rail (chat/message-rail.css .msg-rail-anchor), so swapping between
+   the two perspectives leaves the left-edge controls where they were. */
 .dag-tool-rail { flex-direction: column; }
 .dag-view > .dag-tool-rail {
   left: 12px;
-  top: calc((100% - 150px) / 2);
+  top: 45%;
   transform: translateY(-50%);
 }
 
@@ -159,7 +166,7 @@
   background: var(--bg-input);
   box-shadow: var(--shadow-raised);
   cursor: pointer;
-  transition: opacity 0.18s ease;
+  transition: opacity 0.18s ease, box-shadow 0.15s ease;
 }
 .dag-minimap.is-hidden {
   opacity: 0;
@@ -167,11 +174,11 @@
 }
 
 /* The key sheet (components/chat/dag-key-sheet.tsx): a menu panel just
-   right of the rail, centred on the same strip. */
+   right of the rail, centred on the same height. */
 .dag-key-sheet {
   position: absolute;
   z-index: 4;
   left: 60px;
-  top: calc((100% - 150px) / 2);
+  top: 45%;
   transform: translateY(-50%);
 }

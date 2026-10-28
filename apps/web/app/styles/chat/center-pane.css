@@ -36,7 +36,10 @@
 }
 
 /* Obsidian-style pane controls: perspective toggle + `…` overflow,
-   floating at the pane's top-right over whichever surface is showing. */
+   floating at the pane's top-right over whichever surface is showing.
+   The same raised strip as the DAG canvas's rails (dag/tools.css
+   .dag-tool-rail): the input box's fill and the composer's shadow,
+   deepening under the pointer as the composer's buttons do. */
 .chat-view-controls {
   position: absolute;
   top: 8px;
@@ -47,17 +50,24 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--bg-input);
+  box-shadow: var(--shadow-raised);
+  transition: box-shadow 0.15s ease;
 }
+.chat-view-controls:hover,
+.chat-view-controls:has([aria-expanded="true"]) { box-shadow: var(--shadow-raised-hover); }
 .chat-view-control-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   border: none;
   /* 圆角方形，不是圆形。 */
-  border-radius: 6px;
+  border-radius: 8px;
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -96,9 +106,3 @@
 }
 .center-empty-btn:hover { background: var(--bg-hover); }
 
-/* Quiet until the pane is in use: the two floating controls stay
-   discoverable but no longer compete with the transcript. */
-.chat-view-controls { opacity: 0.45; transition: opacity 0.15s ease; }
-.center-pane-chat:hover .chat-view-controls,
-.chat-view-controls:focus-within,
-.chat-view-controls:has([aria-expanded="true"]) { opacity: 1; }

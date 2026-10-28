@@ -237,7 +237,7 @@ HTMLElement.prototype.getBoundingClientRect = function getBoundingClientRect() {
   }
   if (this.hasAttribute("data-pip-dock")) return box(0, 80, stageWidth, 520);
   if (this.getAttribute("data-pip") === "true") {
-    return box(stageWidth - 372, 78, 360, 280);
+    return box(stageWidth - 372, 90, 360, 280);
   }
   return box(0, 0, stageWidth, 700);
 };
