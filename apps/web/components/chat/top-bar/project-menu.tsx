@@ -39,7 +39,8 @@ import { wsRequest } from "@/lib/net/ws-request";
 import { duplicateNamePrefixes } from "@/lib/projects/duplicate-names";
 import { canConfirmInPlace, confirmProjectFolder, locationMessage, locationProblem, relocateProject, type RelocateReply } from "@/lib/projects/project-location";
 import { useBoundChat } from "./bound-chat";
-import { CHECK_SLOT, CHECK_SLOT_PAD, GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR, itemCls } from "./menu-styles";
+import { CHECK_SLOT, CHECK_SLOT_PAD, GROUP_LABEL, MENU_NOTE, MENU_NOTE_ERROR, MENU_PANEL, MENU_SEPARATOR, itemCls } from "./menu-styles";
+import { cn } from "@/lib/utils";
 import { MenuCheck } from "./menu-check";
 import { GitChip } from "./git-chip";
 import { FOLDER_PILL } from "./folder-pill";
@@ -252,7 +253,7 @@ export function ProjectMenu({
   const missing = problem !== null;
 
   const errorLine = err ? (
-    <div className="px-[8px] pb-[3px] pt-[1px] text-[11px] text-[var(--accent-orange)]">
+    <div className={cn(MENU_NOTE, MENU_NOTE_ERROR)}>
       {err}
     </div>
   ) : null;
@@ -263,12 +264,10 @@ export function ProjectMenu({
         <div className={GROUP_LABEL}>
           {text("Main working directory", "主工作目录")}
         </div>
-        <div
-          className="px-[8px] pb-[4px] pt-[1px] text-[12px] text-[var(--text-secondary)]"
-        >
+        <div className={cn(MENU_NOTE, "text-text-secondary")}>
           <div className="truncate">{activeProject ? activeProject.name : "—"}</div>
           {activeProject?.path ? (
-            <div className="truncate text-[11px] opacity-60">
+            <div className="truncate text-text-muted">
               {activeProject.path}
             </div>
           ) : null}
@@ -297,7 +296,7 @@ export function ProjectMenu({
             </div>
           </>
         ) : (
-          <div className="px-[8px] pb-[4px] text-[11px] text-[var(--text-secondary)] opacity-70">
+          <div className={MENU_NOTE}>
             {text(
               "Fixed for this conversation. Extra folders can still be added below.",
               "本会话已固定。仍可在下方添加额外目录。",

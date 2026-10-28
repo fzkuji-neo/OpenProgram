@@ -29,7 +29,7 @@ import { useTranslation } from "@/lib/i18n";
 import { wsRequest } from "@/lib/net/ws-request";
 import { closeAllPopovers } from "@/lib/runtime-bridge/ui";
 import { useBoundChat } from "./bound-chat";
-import { GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR, itemCls } from "./menu-styles";
+import { GROUP_LABEL, MENU_NOTE, MENU_NOTE_ERROR, MENU_PANEL, MENU_SEPARATOR, itemCls } from "./menu-styles";
 import { activateOnKey, cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { GitChip } from "./git-chip";
@@ -296,7 +296,7 @@ export function WorkingDirChips() {
               </span>
             </div>
             {pickerError ? (
-              <div className="px-[8px] pb-[3px] pt-[4px] text-[11px] text-[var(--accent-orange)]" role="alert">
+              <div className={cn(MENU_NOTE, MENU_NOTE_ERROR, "pt-1")} role="alert">
                 {pickerError}
               </div>
             ) : null}

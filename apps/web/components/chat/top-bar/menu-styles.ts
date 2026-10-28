@@ -25,6 +25,10 @@
  *  Two-line row (ITEM_TWO_LINE): title over a text-xs description.
  *  Section label (GROUP_LABEL): px-1.5 py-1 · text-xs font-medium ·
  *    `--text-muted`.
+ *  Note (MENU_NOTE): a sentence under a label or below the rows (a
+ *    fixed-choice explanation, an empty state, an error) · px-1.5 pb-1 ·
+ *    text-xs · `--text-muted` · wraps within max-w-64, so its text lines
+ *    up with the label's. An error swaps only the colour.
  *  Separator (MENU_SEPARATOR): full-bleed (-mx-1) · my-1 · 1px
  *    `--border`. Trailing column (MENU_TRAILING): after the
  *    content, check then key hint (SHORTCUT, text-xs tracking-widest) ·
@@ -49,6 +53,12 @@ export const MENU_PANEL =
 
 export const GROUP_LABEL =
   "flex items-center gap-1.5 px-1.5 py-1 text-xs font-medium text-text-muted";
+
+export const MENU_NOTE =
+  "max-w-64 px-1.5 pb-1 text-xs whitespace-normal text-text-muted";
+
+/** MENU_NOTE in the warning colour, for a menu's error line. */
+export const MENU_NOTE_ERROR = "text-[var(--accent-orange)]";
 
 export const CHECK = "shrink-0 text-[var(--accent-blue)]";
 

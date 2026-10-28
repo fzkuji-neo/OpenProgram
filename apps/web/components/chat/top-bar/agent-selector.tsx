@@ -28,6 +28,7 @@ import {
   CHECK_SLOT_PAD,
   GROUP_LABEL,
   MENU_ITEM_STATES,
+  MENU_NOTE,
   MENU_PANEL,
   itemCls,
 } from "./menu-styles";
@@ -122,7 +123,7 @@ export function AgentSelector({
       <div className={GROUP_LABEL}>{text("Models", "模型")}</div>
       {/* Nothing until the list arrives, or the empty-state note flashes. */}
       {!models ? null : models.length === 0 ? (
-        <div className="px-[8px] py-[8px] text-[12px] text-text-muted">
+        <div className={MENU_NOTE}>
           {t("agent.no_enabled_models")}{" "}
           <a
             href="/settings/providers"

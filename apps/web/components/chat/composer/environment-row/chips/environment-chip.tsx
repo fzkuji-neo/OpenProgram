@@ -27,6 +27,7 @@ import { useBoundChat } from "../../../top-bar/bound-chat";
 import {
   CHECK_SLOT_PAD,
   GROUP_LABEL,
+  MENU_NOTE,
   MENU_PANEL,
   MENU_SEPARATOR,
   itemCls,
@@ -161,7 +162,7 @@ export function EnvironmentChip() {
         <div className={MENU_PANEL}>
           <div className={GROUP_LABEL}>{text("Environment", "运行环境")}</div>
           {locked ? (
-            <div className="max-w-[260px] px-[8px] pb-[4px] text-[12px] leading-[17px] text-text-muted">
+            <div className={MENU_NOTE}>
               {text("Fixed for this conversation. Start a new chat to use another environment.",
                     "这个会话的环境已固定。新建会话可以选别的环境。")}
             </div>
