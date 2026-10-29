@@ -24,15 +24,17 @@
 .inputArea[data-tucked] > .composerStack {
   z-index: 6;
 }
-/* The box's rim is the tuck switch (use-tucked-controls.ts): a hand
-   there; the rest of the box belongs to the text field. */
+/* The band along the box's edge, a little inside and outside it, is the
+   tuck switch (use-tucked-controls.ts): a hand there; the rest of the
+   box belongs to the text field. */
 .inputWrapper[data-tuckable] {
   cursor: text;
 }
 .inputWrapper[data-tuckable] button {
   cursor: pointer;
 }
-.inputWrapper[data-tuckable][data-tuck-rim] {
+.inputArea[data-tuck-rim],
+.inputArea[data-tuck-rim] .inputWrapper[data-tuckable] {
   cursor: pointer;
 }
 .inputArea:has([data-environment-row] [aria-expanded="true"]) > *,

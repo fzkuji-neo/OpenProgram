@@ -584,6 +584,9 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
       className={styles.inputArea}
       data-composer-input-area
       data-tucked={tuck.covering ? "" : undefined}
+      onPointerDown={tuck.onAreaPointerDown}
+      onPointerMove={tuck.onAreaPointerMove}
+      onPointerLeave={tuck.onAreaPointerLeave}
     >
       {/* Drop overlay scoped to the chat main column (#chatArea) —
           covers the conversation surface but lets the sidebars stay
@@ -633,9 +636,6 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
           composerRootRef.current = el;
         }}
         className={`${styles.inputWrapper} ${morphed ? styles.morphed : ""}`}
-        onPointerDown={tuck.onBoxPointerDown}
-        onPointerMove={tuck.onBoxPointerMove}
-        onPointerLeave={tuck.onBoxPointerLeave}
         data-tuckable={tuck.enabled ? "" : undefined}
         data-voice={voice.state !== "idle" ? voice.state : undefined}
       >

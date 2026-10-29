@@ -6,19 +6,22 @@ import { fileURLToPath } from "node:url";
 
 // The rows tucked on any click in the box's padding, including the 12px
 // above and below the text and the gaps beside the mic and send, so the
-// switch sat well inside the box. Only the outer rim tucks now; the inner
-// padding belongs to the text field.
+// switch sat well inside the box. Only a band along the edge tucks now,
+// 6px inside and 6px outside the box; the inner padding belongs to the
+// text field.
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (path) => readFileSync(join(root, path), "utf8");
 
-test("only the input box's rim tucks the rows", () => {
+test("only a band along the input box's edge tucks the rows", () => {
   const hook = read("components/chat/composer/controls/use-tucked-controls.ts");
-  assert.match(hook, /const RIM_PX = 6;/);
-  assert.match(hook, /Math\.min\(x, y, r\.width - x, r\.height - y\) <= RIM_PX/);
-  assert.match(hook, /if \(!onRim\(event\)\) \{[\s\S]*?field\.focus\(\);[\s\S]*?return;\n\s+\}\n\s+setCovering\(true\);/);
-  const box = read("components/chat/composer/index.tsx");
-  assert.match(box, /onPointerMove=\{tuck\.onBoxPointerMove\}/);
+  assert.match(hook, /const RIM_IN = 6;\nconst RIM_OUT = 6;/);
+  assert.match(hook, /return inside <= RIM_IN \? "band" : "inner";/);
+  assert.match(hook, /return empty && -inside <= RIM_OUT \? "band" : null;/);
+  assert.match(hook, /if \(spot === "inner"\) \{[\s\S]*?field\.focus\(\);[\s\S]*?return;\n\s+\}\n\s+setCovering\(true\);/);
+  // On the area, so the band's outer half reaches the handler.
+  const area = read("components/chat/composer/index.tsx");
+  assert.match(area, /data-composer-input-area[\s\S]{0,120}onPointerDown=\{tuck\.onAreaPointerDown\}/);
   const css = read("components/chat/composer/composer.module.css");
   assert.match(css, /\.inputWrapper\[data-tuckable\] \{\n\s+cursor: text;/);
-  assert.match(css, /\.inputWrapper\[data-tuckable\]\[data-tuck-rim\] \{\n\s+cursor: pointer;/);
+  assert.match(css, /\.inputArea\[data-tuck-rim\],\n\.inputArea\[data-tuck-rim\] \.inputWrapper\[data-tuckable\] \{\n\s+cursor: pointer;/);
 });
