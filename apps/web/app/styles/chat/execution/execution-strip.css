@@ -43,8 +43,12 @@
 /* GPT 式纯文字开关：与正文左对齐，无按钮底色，hover 只提亮文字。 */
 .tl-toggle {
   display: inline-flex;
-  align-items: center;
+  /* The smaller failure note and › sit on the label's baseline; centring
+     them lifted them by up to a pixel. Each part's line box is the row's
+     28px, so the label stays centred in the row. */
+  align-items: baseline;
   height: 28px;
+  line-height: 28px;
   gap: 8px;
   color: var(--text-muted);
   /* Same size as the reply body (Claude Code transcript style): the
