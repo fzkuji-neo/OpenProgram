@@ -805,6 +805,32 @@ function hydrateTranscriptForTreeUpdate(data: ChatResponseData): void {
   }
 }
 
+/** The turn is over: its reply rows stop being live. A running_task can
+ *  land after the turn's result (the server still holds the slot while it
+ *  finalizes) and stamp the finished reply "running" again; left there,
+ *  every later session load keeps the row as in-flight progress
+ *  (session-load.ts retainChangedRows) — even once the server has deleted
+ *  it — and it trails under whatever the transcript shows next. */
+function settleClearedTurnRows(
+  sessionId: string,
+  cleared: ClearedTaskIdentity | undefined,
+  current: { msg_id?: string; execution_id?: string } | undefined,
+): void {
+  const store = useSessionStore.getState();
+  const ids = new Set<string>();
+  for (const task of [cleared, current]) {
+    if (task?.execution_id) ids.add(task.execution_id);
+    if (task?.msg_id) ids.add(task.msg_id + "_reply");
+  }
+  const owned = new Set(store.messageOrder[sessionId] ?? []);
+  ids.forEach((id) => {
+    const row = owned.has(id) ? store.messagesById[id] : undefined;
+    if (row && (row.status === "running" || row.status === "streaming" || row.status === "pending")) {
+      store.updateMessage(sessionId, id, { status: "done" });
+    }
+  });
+}
+
 export function handleRunningTaskClear(
   sessionId: string | undefined,
   cleared?: ClearedTaskIdentity & { force?: boolean },
@@ -815,6 +841,7 @@ export function handleRunningTaskClear(
   if (!cleared?.force && !shouldHonorRunningTaskClear(current, cleared)) {
     return false;
   }
+  settleClearedTurnRows(sessionId, cleared, current);
   store.setRunningTaskFor(sessionId, null, "always");
   warmContextBreakdown(sessionId, store.heads[sessionId] ?? null);
   // If the clear is for the currently-active session, also drop the

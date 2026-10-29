@@ -47,6 +47,8 @@ session 槽位是 `_running_tasks` **加上** active runtime。只 pop 任务表
 
 迟到的、属于已取消 `execution_id` 的 `running_task` / `stream_event` 不得把任务救活，也不得再追加 token。消息状态 `cancelled`（或 `cancelling`）就是守卫。
 
+`running_task` 也可能在一轮已经出了 `result` 之后才到（服务端还占着槽位在收尾），把回复重新标成 `running`。被采纳的 `running_task_clear` 会把这一轮的行（`{msg_id}_reply` 和它的 `execution_id`）从 `running` / `streaming` / `pending` 落成 `done`（`chat-handlers.ts` 的 `settleClearedTurnRows`）。否则这条回复在客户端一直是“进行中”，之后每次加载会话都会把它当成在途进度保留下来（`session-load.ts` 的 `retainChangedRows`），哪怕服务端已经删掉它——它就会挂在对话接下来显示的内容后面。
+
 `runningTask` 一旦是 null，`showStop` / `isCancelling` 为假，发送可用。这是预期。不要再为旧的收尾把发送禁用。
 
 ## HTTP 中止 — 不要等下一个 token

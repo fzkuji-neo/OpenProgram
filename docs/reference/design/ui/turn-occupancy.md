@@ -108,6 +108,16 @@ Late `running_task` / `stream_event` frames for the cancelled
 `execution_id` must not revive the task or append more tokens. The
 message status `cancelled` (or `cancelling`) is the guard.
 
+A `running_task` can also land after a finished turn's `result`, while
+the server still holds the slot to finalize, and stamp the reply
+`running` again. The honored `running_task_clear` settles that turn's
+rows (`{msg_id}_reply`, its `execution_id`) from `running` / `streaming`
+/ `pending` to `done` (`chat-handlers.ts settleClearedTurnRows`).
+Otherwise the reply stays live on the client, and every later session
+load keeps it as in-flight progress (`session-load.ts retainChangedRows`)
+even after the server deleted it — it trails under whatever the
+transcript shows next.
+
 Once `runningTask` is null, `showStop` / `isCancelling` are false and
 send is enabled. That is intended. Do not disable send for the old
 unwind.
