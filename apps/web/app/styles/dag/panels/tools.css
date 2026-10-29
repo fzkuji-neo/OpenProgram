@@ -191,15 +191,41 @@
 
 /* Full screen (interaction/view/fullscreen.ts): the graph takes the
    window — the left sidebar, the right sidebar and the center tab strip
-   step aside; the canvas, its column and the composer stay. */
+   step aside; the canvas, its column and the composer stay. They fold
+   away rather than vanish: the sidebars narrow to nothing and the strip
+   to no height, on the sidebars' own collapse curve, and fade as they
+   go; leaving full screen plays it back. */
 html[data-canvas-fullscreen] #sidebar,
-html[data-canvas-fullscreen] .app > :has(> #rightSidebar),
-html[data-canvas-fullscreen] [data-center-tab-strip] {
-  display: none !important;
+html[data-canvas-fullscreen] #rightSidebar {
+  width: 0 !important;
+  min-width: 0 !important;
+  padding-inline: 0 !important;
+  overflow: hidden !important;
+  opacity: 0;
+  visibility: hidden;
 }
-/* The sidebars' 8px padding was the pane's gap to the window's side
-   edges; with them gone, the pane keeps the same gap it has at the top
-   and bottom (the center column's 7px margin). */
+html[data-canvas-fullscreen] [data-center-tab-strip] {
+  height: 0 !important;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+}
+/* The fold's transition is only on while it runs (fullscreen.ts holds
+   data-canvas-fullscreen-moving for its length): the rails' inline
+   transition, which a drag-resize turns off, is otherwise theirs. */
+html[data-canvas-fullscreen-moving] #sidebar,
+html[data-canvas-fullscreen-moving] #rightSidebar,
+html[data-canvas-fullscreen-moving] [data-center-tab-strip],
+html[data-canvas-fullscreen-moving] .center-col {
+  transition:
+    width 0.2s cubic-bezier(0.165, 0.84, 0.44, 1),
+    min-width 0.2s cubic-bezier(0.165, 0.84, 0.44, 1),
+    padding 0.2s cubic-bezier(0.165, 0.84, 0.44, 1),
+    height 0.2s cubic-bezier(0.165, 0.84, 0.44, 1),
+    margin 0.2s cubic-bezier(0.165, 0.84, 0.44, 1),
+    opacity 0.15s ease-out,
+    visibility 0.2s !important;
+}
 html[data-canvas-fullscreen] .center-col {
   margin-inline: 7px;
 }

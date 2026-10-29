@@ -112,7 +112,9 @@ legend; the legend and the map stay open until their button is pressed again.
 The controls sheet opens in the legend's spot, under the map while it is
 shown, so the two take turns: opening either closes the other.
 **Full screen** gives the window to the graph: the app's left sidebar, right
-sidebar and center tab strip step aside, and the canvas, its column and the
+sidebar and center tab strip fold away — the sidebars narrowing and the strip
+flattening over 0.2s on the sidebars' own collapse curve, fading as they go,
+and unfolding the same way on the way back — and the canvas, its column and the
 composer stay, and the pane keeps the same 7px gap to the window's sides it
 has at the top and bottom. It is a mode of the app, not the browser's full screen — the
 window keeps its size. Pressed again, Esc (once nothing is selected), leaving

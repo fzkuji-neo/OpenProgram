@@ -57,7 +57,7 @@ test("Every view control is one column of Solar glyphs in the top-right corner",
   assert.doesNotMatch(css, /\.dag-view > \.dag-tool-rail/);
 });
 
-test("Full screen hides the sidebars and the tab strip; Esc, leaving the graph or a reload ends it", async () => {
+test("Full screen folds the sidebars and the tab strip away; Esc, leaving the graph or a reload ends it", async () => {
   const fs = await import("../../lib/runtime-bridge/dag/interaction/view/fullscreen.ts");
   let calls = 0;
   const off = fs.subscribeCanvasFullscreen(() => calls++);
@@ -68,7 +68,14 @@ test("Full screen hides the sidebars and the tab strip; Esc, leaving the graph o
   assert.equal(calls, 2);
   off();
   const css = readFileSync(new URL("../../app/styles/dag/panels/tools.css", import.meta.url), "utf8");
-  assert.match(css, /html\[data-canvas-fullscreen\] #sidebar,[\s\S]*#rightSidebar[\s\S]*\[data-center-tab-strip\] \{\s*display: none/);
+  // They fold away (width / height to 0), not vanish, and only while the
+  // fold runs does the transition apply.
+  assert.match(css, /html\[data-canvas-fullscreen\] #sidebar,\s*html\[data-canvas-fullscreen\] #rightSidebar \{\s*width: 0 !important;/);
+  assert.match(css, /html\[data-canvas-fullscreen\] \[data-center-tab-strip\] \{\s*height: 0 !important;/);
+  assert.match(css, /html\[data-canvas-fullscreen-moving\] #sidebar,[\s\S]*?transition:[\s\S]*?width 0\.2s/);
+  assert.doesNotMatch(css, /data-canvas-fullscreen\][^{]*\{\s*display: none/);
+  const store = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/view/fullscreen.ts", import.meta.url), "utf8");
+  assert.match(store, /setAttribute\("data-canvas-fullscreen-moving"[\s\S]*removeAttribute\("data-canvas-fullscreen-moving"\)/);
   const strip = readFileSync(new URL("../../components/center-tabs/strip/center-tab-strip.tsx", import.meta.url), "utf8");
   assert.match(strip, /data-center-tab-strip=""/);
   const keys = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/selection/keys.ts", import.meta.url), "utf8");
