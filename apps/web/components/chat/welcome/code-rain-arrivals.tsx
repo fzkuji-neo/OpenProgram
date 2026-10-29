@@ -223,6 +223,24 @@ function startArrivals(mount: HTMLElement): () => void {
     observe(t);
     wake();
   }
+  /** A message sent while a reply runs shows twice for a moment: its own
+   *  row, and the steering bubble inside the reply where it ends up. The
+   *  rain follows the steering bubble, and finds the message again if its
+   *  row goes away first. */
+  function follow(t: Tracker) {
+    const text = textOf(t);
+    let next: HTMLElement | null = null;
+    for (const el of mount.querySelectorAll<HTMLElement>(".message.user")) {
+      if (el === t.el || trackers.some((o) => o.el === el)) continue;
+      if ((el.querySelector(ROOTS.user)?.textContent ?? "") !== text) continue;
+      if (el.closest(".steering-input")) { next = el; break; }
+      if (!t.el.isConnected) next = el;
+    }
+    if (!next || (t.el.isConnected && t.el.closest(".steering-input"))) return;
+    t.el = next;
+    t.lostAt = null;
+    observe(t);
+  }
   function observe(t: Tracker) {
     t.observer?.disconnect();
     t.observer = new MutationObserver(() => { t.dirty = true; wake(); });
@@ -255,6 +273,7 @@ function startArrivals(mount: HTMLElement): () => void {
   function frame() {
     const t = now();
     for (const tr of trackers) {
+      if (tr.role === "user" && tr.chars.size) follow(tr);
       if (!tr.el.isConnected) { if (tr.lostAt === null) tr.lostAt = t; continue; }
       if (tr.dirty) schedule(tr);
     }
@@ -343,6 +362,10 @@ function startArrivals(mount: HTMLElement): () => void {
       const { tracker, index, length } = d.anchor;
       const rect = tracker.lostAt === null && tracker.el.isConnected
         ? locate(tracker)(index, length)?.getClientRects()[0] : undefined;
+      // A stream whose message is between elements waits, unseen, rather
+      // than landing where the old element was.
+      if (!rect && !trackers.includes(tracker)) return false;
+      if (!rect && tracker.lostAt !== null) return true;
       if (rect) {
         const stopY = rect.top + rect.height / 2 - box.top;
         d.y0 += stopY - d.stopY;
