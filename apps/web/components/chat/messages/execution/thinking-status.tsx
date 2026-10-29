@@ -2,10 +2,11 @@
 
 /**
  * The "thinking…" status shown while a reply has not started: the spinner
- * and a grey label. With the code rain style on it is the same "Thinking… ›"
- * row a running tool group shows (execution-strip.tsx), its label decoding
- * from code (components/chat/welcome/code-rain-style.tsx); it has nothing to
- * open yet, so it is not a button.
+ * and a grey label. With the code rain style on it is the green "Thinking…"
+ * of a running tool group's row (execution-strip.tsx), raining in like a
+ * new message (components/chat/welcome/code-rain-style.tsx). It has nothing
+ * to open yet, so it is no button and has no ›; the row that can open
+ * comes with the reply's first thinking or tool call.
  */
 import { useTranslation } from "@/lib/i18n";
 import { CodeRainText, useCodeRainStyle } from "../../welcome/code-rain-style";
@@ -18,7 +19,6 @@ export function ThinkingStatus() {
     return (
       <span className="tl-toggle is-static">
         <CodeRainText className="tl-label" text={text("Thinking…", "思考中…")} />
-        <span className="tl-chev" aria-hidden="true">›</span>
       </span>
     );
   }
