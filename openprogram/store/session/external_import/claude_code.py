@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any, Iterator, Optional
 
@@ -28,7 +29,8 @@ from .model import CLAUDE_CODE, Candidate, ExternalSession, ToolBlock, Turn
 from .sanitize import clean_user_text, is_command
 from .timeparse import fallback_title, last_message_time, parse_timestamp
 
-_TITLE_MARKERS = ('"custom-title"', '"ai-title"', '"summary"')
+_TITLE_MARKER = re.compile(rb'"(?:custom-title|ai-title|summary)"')
+_CHUNK = 8 << 20
 
 
 def default_home() -> Path:
@@ -66,45 +68,80 @@ def _title_from(record: dict[str, Any], titles: dict[str, str]) -> None:
         titles["summary"] = record["summary"].strip()
 
 
+def _absorb(raw: bytes, scan: dict[str, Any]) -> None:
+    """Take title, cwd and the first user message from one record line."""
+    try:
+        record = json.loads(raw.decode("utf-8", errors="replace"))
+    except json.JSONDecodeError:
+        return
+    if not isinstance(record, dict):
+        return
+    _title_from(record, scan["titles"])
+    scan["cwd"] = scan["cwd"] or record.get("cwd")
+    if not scan["first_user"] and _is_user_turn_record(record):
+        scan["first_user"] = _user_text(record.get("message", {}).get("content"))
+
+
 def _pick_title(titles: dict[str, str], first_user: str) -> str:
     return (titles.get("custom") or titles.get("ai") or titles.get("summary")
             or fallback_title(first_user))
 
 
-def summarize(path: Path) -> Optional[Candidate]:
+def summarize(path: Path, scan: Optional[dict[str, Any]] = None) -> Optional[Candidate]:
     """Title, cwd and recency without parsing every record.
 
     Only lines that can hold a title, plus the leading records up to the
     first real user message, are decoded; a long transcript is mostly
     tool output and does not need to be.
+
+    ``scan`` carries what an earlier call found and where it stopped.
+    Transcripts only grow, so a later call reads just the bytes appended
+    since — listing gigabytes of history stays cheap. The dict is
+    updated in place; a file that shrank or was replaced is rescanned.
     """
-    titles: dict[str, str] = {}
-    cwd = None
-    first_user = ""
+    if scan is None:
+        scan = {}
     try:
-        with open(path, encoding="utf-8", errors="replace") as fh:
-            for line in fh:
-                need_head = not first_user or cwd is None
-                if not need_head and not any(m in line for m in _TITLE_MARKERS):
-                    continue
-                try:
-                    record = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if not isinstance(record, dict):
-                    continue
-                _title_from(record, titles)
-                cwd = cwd or record.get("cwd")
-                if not first_user and _is_user_turn_record(record):
-                    first_user = _user_text(record.get("message", {}).get("content"))
         stat = path.stat()
+        if (scan.get("inode") != stat.st_ino
+                or int(scan.get("offset") or 0) > stat.st_size):
+            scan.clear()
+            scan.update(inode=stat.st_ino, offset=0, titles={}, cwd=None, first_user="")
+        offset = int(scan["offset"])
+        with open(path, "rb") as fh:
+            fh.seek(offset)
+            # Until the first user message and cwd are known, every record.
+            while not scan["first_user"] or scan["cwd"] is None:
+                raw = fh.readline()
+                if not raw.endswith(b"\n"):
+                    break  # end of file, or a record still being written
+                offset += len(raw)
+                _absorb(raw, scan)
+            else:
+                # After that only title records matter: search big chunks
+                # for their markers rather than splitting every line.
+                pending = b""
+                while chunk := fh.read(_CHUNK):
+                    buf = pending + chunk
+                    end = buf.rfind(b"\n") + 1  # complete lines only
+                    done = 0
+                    for hit in _TITLE_MARKER.finditer(buf, 0, end):
+                        if hit.start() < done:
+                            continue
+                        start = buf.rfind(b"\n", 0, hit.start()) + 1
+                        done = buf.index(b"\n", hit.end()) + 1
+                        _absorb(buf[start:done], scan)
+                    offset += end
+                    pending = buf[end:]
+        scan["offset"] = offset
     except OSError:
         return None
+    cwd, first_user = scan["cwd"], scan["first_user"]
     if not first_user:
         return None
     return Candidate(
         agent=CLAUDE_CODE, source_id=path.stem, path=path,
-        cwd=cwd, title=_pick_title(titles, first_user),
+        cwd=cwd, title=_pick_title(scan["titles"], first_user),
         updated_at=last_message_time(path, ("user", "assistant")) or stat.st_mtime,
         size=stat.st_size,
     )

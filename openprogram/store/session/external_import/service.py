@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, Iterable, Optional
 
 from . import claude_code, codex
-from .ledger import locked
+from .ledger import load_scans, locked, save_scans
 from .model import AGENT_LABELS, AGENTS, CLAUDE_CODE, CODEX, Candidate, ExternalSession
 from .writer import node_prefix, reply_id, write_turns
 
@@ -37,9 +37,17 @@ def _homes(homes: Optional[dict[str, Path]]) -> dict[str, Path]:
     }
 
 
-def _summaries(agent: str, home: Path) -> list[Candidate]:
+def _summaries(agent: str, home: Path, ledger_root: Optional[Path] = None) -> list[Candidate]:
     if agent == CLAUDE_CODE:
-        found = (claude_code.summarize(p) for p in claude_code.discover(home))
+        # Claude Code titles can sit anywhere in a transcript; resume each
+        # file's scan where the last listing stopped instead of rereading it.
+        cached = load_scans(ledger_root)
+        scans = {}
+        found = []
+        for path in claude_code.discover(home):
+            scans[str(path)] = cached.get(str(path)) or {}
+            found.append(claude_code.summarize(path, scans[str(path)]))
+        save_scans(scans, ledger_root)
     else:
         titles = codex.thread_titles(home)
         found = (codex.summarize(p, titles) for p in codex.discover(home))
@@ -91,7 +99,7 @@ def list_candidates(
     ledger = Ledger(ledger_root).load()
     rows = []
     for agent in agents:
-        for candidate in _summaries(agent, roots[agent]):
+        for candidate in _summaries(agent, roots[agent], ledger_root):
             if since is not None and candidate.updated_at < since:
                 continue
             entry = ledger.get(agent, candidate.source_id)
@@ -253,7 +261,7 @@ def import_transcripts(
     results: list[dict[str, Any]] = []
     with locked(ledger_root) as ledger:
         for agent in agents:
-            for candidate in _summaries(agent, roots[agent]):
+            for candidate in _summaries(agent, roots[agent], ledger_root):
                 if wanted is not None and str(candidate.path.resolve()) not in wanted:
                     continue
                 if since is not None and candidate.updated_at < since:

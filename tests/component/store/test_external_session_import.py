@@ -267,3 +267,23 @@ def test_turn_running_at_import_is_completed_later(homes, store, tmp_path):
     branch = store.get_branch(sid, head)
     assert [m["content"] for m in branch][-1] == "Tests added."
     assert len([m for m in store.get_messages(sid) if m["role"] == "user" and m["id"] != "ROOT"]) == 2
+
+
+def test_summary_scan_resumes_where_it_stopped(tmp_path):
+    path = tmp_path / "s.jsonl"
+    records = [r for r in _claude_records() if r["type"] != "custom-title"]
+    _jsonl(path, records)
+    scan = {}
+    assert claude_code.summarize(path, scan).title == "Fix the parser"
+    stopped = scan["offset"]
+    assert stopped == path.stat().st_size
+
+    with open(path, "a", encoding="utf-8") as fh:
+        fh.write(json.dumps({"type": "ai-title", "aiTitle": "Parser work"}) + "\n")
+        fh.write('{"type": "custom-title", "customTitle": "half')  # still being written
+    assert claude_code.summarize(path, scan).title == "Parser work"
+    assert scan["offset"] < path.stat().st_size
+
+    _jsonl(path, records[:2])  # replaced by a shorter file
+    assert claude_code.summarize(path, scan).title == "Fix the parser"
+    assert scan["offset"] == path.stat().st_size

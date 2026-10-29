@@ -57,6 +57,32 @@ class Ledger:
         self.entries[key(agent, source_id)] = entry
 
 
+_SCANS = "transcript_scans.json"
+
+
+def load_scans(root: Optional[Path] = None) -> dict[str, dict[str, Any]]:
+    """Where each transcript's summary scan stopped, keyed by path.
+
+    A cache only: losing it costs one full rescan, so it is read and
+    written without the ledger lock.
+    """
+    path = Path(root or default_root()) / _SCANS
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def save_scans(scans: dict[str, dict[str, Any]], root: Optional[Path] = None) -> None:
+    root = Path(root or default_root())
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+        atomic_write_text(root / _SCANS, json.dumps(scans, ensure_ascii=False))
+    except OSError:
+        pass
+
+
 @contextlib.contextmanager
 def locked(root: Optional[Path] = None) -> Iterator[Ledger]:
     """The ledger, loaded under its lock and saved on a clean exit."""
