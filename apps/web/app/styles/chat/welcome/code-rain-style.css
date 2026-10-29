@@ -4,7 +4,7 @@
    - the empty-chat backdrop (components/chat/welcome/welcome-backdrop.tsx);
    - new messages raining in (components/chat/welcome/code-rain-arrivals.tsx);
    - anything in progress shown as code (components/chat/welcome/code-rain-style.tsx):
-     the thinking label, a running tool group's label, running steps'
+     the thinking status, a running tool group's label, running steps'
      icons and titles, and the cursor of a streaming sub-call. */
 :root { --code-rain-ink: #118a3a; --code-rain-head: #063d18; }
 :root[data-theme-mode="dark"] { --code-rain-ink: #22e35b; --code-rain-head: #eafff0; }

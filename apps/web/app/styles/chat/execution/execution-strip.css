@@ -61,6 +61,9 @@
   min-width: 0;
 }
 .tl-toggle:hover { color: var(--text-secondary); }
+/* The same row as a status with nothing to open yet (thinking-status.tsx). */
+.tl-toggle.is-static { cursor: default; }
+.tl-toggle.is-static:hover { color: var(--text-muted); }
 /* Tool-group summary (docs/reference/design/ui/tool-group-summary.html):
    one line, the sentence gives way first; the failure note, the +N −N
    badge (the turn file card's .turn-files-diff pill) and › never shrink. */
