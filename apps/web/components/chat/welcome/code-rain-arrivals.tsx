@@ -27,6 +27,8 @@ const FADE_STEPS = 6;
 /** Drop geometry: glyph spacing in a falling column, and column width. */
 const STEP = 18;
 const BAND = 16;
+/** Seconds a stream takes to fade out once its head has landed. */
+const LAND_FADE = 0.15;
 /** Pieces this long (or the first text of a message) fall from above. */
 const BURST = 40;
 /** Past this many new characters, only those on screen are animated. */
@@ -162,11 +164,13 @@ function startArrivals(mount: HTMLElement): () => void {
   }
 
   /** Whole messages: one drop per column falls from above the text and
-   *  decodes it line by line as it passes. */
+   *  decodes it line by line as it passes. A sent message's rain stays
+   *  inside its bubble, starting at the bubble's top edge. */
   function fallFromAbove(t: Tracker, fresh: Fresh[], box: DOMRect, t0: number) {
-    const v = 1100;
     const top = Math.min(...fresh.map((f) => f.rect.top));
-    const y0 = Math.max(box.top, top - 240) - box.top;
+    const bubble = t.role === "user" ? t.el.querySelector(".message-content")?.getBoundingClientRect() : undefined;
+    const v = bubble ? 520 : 1100;
+    const y0 = Math.max(box.top, bubble ? Math.min(bubble.top, top) : top - 240) - box.top;
     const bands = new Map<number, typeof fresh>();
     for (const f of fresh) {
       const key = Math.floor((f.rect.left + f.rect.width / 2 - box.left) / BAND);
@@ -175,11 +179,12 @@ function startArrivals(mount: HTMLElement): () => void {
     }
     for (const [key, list] of bands) {
       const start = t0 + Math.random() * 0.25;
-      // The drop sinks into the column's first character; the characters
-      // below it keep decoding at the same speed, as if it went on.
-      const head = list.reduce((a, b) => (b.rect.top < a.rect.top ? b : a));
-      const first = head.rect.top + head.rect.height / 2 - box.top;
-      drops.push(drop(t, head, key * BAND + BAND / 2, y0, start, first, v, 10 + Math.floor(Math.random() * 9)));
+      // The drop runs down the whole column and sinks into its last
+      // character, so every character decodes as the drop reaches it.
+      const end = list.reduce((a, b) => (b.rect.top > a.rect.top ? b : a));
+      const last = end.rect.top + end.rect.height / 2 - box.top;
+      const len = bubble ? 4 + Math.floor(Math.random() * 4) : 10 + Math.floor(Math.random() * 9);
+      drops.push(drop(t, end, key * BAND + BAND / 2, y0, start, last, v, len));
       for (const f of list) {
         const reveal = start + (f.rect.top + f.rect.height / 2 - box.top - y0) / v;
         t.chars.set(f.index, state(f, reveal, reveal + 0.18 + Math.random() * 0.32));
@@ -205,7 +210,7 @@ function startArrivals(mount: HTMLElement): () => void {
       if (fall === undefined) {
         fall = Math.min(y, (6 + Math.random() * 6) * STEP);
         landed.set(key, fall);
-        drops.push(drop(t, f, x, y - fall, t0, y, v, 8 + Math.floor(Math.random() * 7)));
+        drops.push(drop(t, f, x, y - fall, t0, y, v, 5 + Math.floor(Math.random() * 5)));
       }
       const reveal = t0 + fall / v;
       t.chars.set(f.index, state(f, reveal, reveal + 0.12 + Math.random() * 0.22));
@@ -362,8 +367,8 @@ function startArrivals(mount: HTMLElement): () => void {
       }
     }
 
-    // Drops: a bright head and a fading tail that keep falling and sink
-    // into the text, so nothing ever rises back up.
+    // Drops: a bright head and a fading tail that fall onto the text and
+    // fade where they land, so nothing ever rises back up.
     ctx!.font = `600 15px ${CODE_RAIN_FONT}`;
     drops = drops.filter((d) => {
       // Follow the character: same fall length, landing where it is now.
@@ -378,13 +383,17 @@ function startArrivals(mount: HTMLElement): () => void {
       }
       const head = d.y0 + (t - d.start) * d.v;
       if (head < d.y0) return true;
-      if (head - (d.len - 1) * STEP > d.stopY) return false;
+      // Once the head lands, the stream stops where it is and fades out
+      // instead of pouring its tail onto text that has already decoded.
+      const landed = (head - d.stopY) / d.v;
+      if (landed >= LAND_FADE) return false;
+      const keep = landed > 0 ? 1 - landed / LAND_FADE : 1;
+      const tip = Math.min(head, d.stopY);
       for (let k = 0; k < d.len; k++) {
-        const y = head - k * STEP;
+        const y = tip - k * STEP;
         if (y < d.y0) break;
-        if (y > d.stopY) continue;
         // Streams fade in where they start instead of popping into view.
-        const enter = Math.min(1, 0.25 + (y - d.y0) / (3 * STEP));
+        const enter = keep * Math.min(1, 0.25 + (y - d.y0) / (3 * STEP));
         if (k === 0) {
           ctx!.fillStyle = pal.head;
           ctx!.globalAlpha = enter;
