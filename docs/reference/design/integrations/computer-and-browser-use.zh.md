@@ -41,12 +41,12 @@ computer_use_agent(target, action?, args?, actions?, code?, timeout?, context?, 
 | 目标 | 后端 | 打开时返回 |
 |---|---|---|
 | `app` | `openprogram/computer_use/`（macOS、Linux X11、Windows） | 给了 `args.app`：它的状态（树和截图）；否则应用列表 |
-| `browser` | `web_use` 运行时（App 的 Page、无头 Chromium）；`args.browser` 为 `chrome` 或 `edge` 时，是连接到用户浏览器的扩展模式 Playwright MCP | 网页列表（用户浏览器里是标签页列表） |
+| `browser` | 操作 App 内置标签页的标签页驱动（见下文）；`args.browser` 为 `chrome` 或 `edge` 时，是连接到用户浏览器的扩展模式 Playwright MCP | 标签页列表 |
 | `vm` | `computer_use.vm_url` 指向的 OSWorld 兼容服务 | 一张截图 |
 
 每个目标有一份指南（`guides/<target>.md`；app 指南按 macOS、Linux、Windows 改写）：它的动作、参数、结果长什么样，以及确认策略。`tool.py` 把它们注册为工具指南：`computer_use_agent.<target>` 附在第一次操作该目标的调用结果里（`context` 不是 `fresh`）；`computer_use_agent.code` 和 `computer_use_agent.describe` 是查阅型指南，带 `code` 或步骤里带 `describe` 的调用需要它们，这样的调用先被拒绝一次并附上指南。指南是否已知取决于 agent loop 最近一次发出的请求，所以上下文压缩、工具结果被清理和 worker 重启都会让指南重新送达；fresh agent 的提示里已经带着带标记的指南，不会再收到第二遍。`action: "guide"` 和 `help("computer_use_agent.<target>")` 按需返回它们。
 
-`app` 的动作就是下文应用后端的动作，参数相同；`browser` 的动作是 `web_use` 运行时的命令：`list_pages`、`observe`、`verify` 和 `close` 保持原名，每个 `act` 动作（`navigate`、`click`、`type`……）各自成为一个动作。与 Codex 一样，先选浏览器，动作不随浏览器改变。不写 `args.browser` 是经由 `web_use` 的内置浏览器；`chrome` 或 `edge` 是用户自己的浏览器，`web_use` 的后端都到达不了它。对这两者，`targets/browser.py` 把每一步交给 `workflow/browser/extension_browser.py`，它通过 `_SyncMCPClient` 运行 `@playwright/mcp --extension --browser chrome|msedge`（与 `web_use` 固定的版本相同），每个会话、每个浏览器一个服务器，在调用之间保持。服务器在该浏览器里打开带有其中继地址的 `chrome-extension://<id>/connect.html`，Playwright Extension 回连，并为用户共享的标签页中继 CDP；设置了 `computer_use.chrome_extension_token` 时，服务器传入 `PLAYWRIGHT_MCP_EXTENSION_TOKEN`，扩展不再询问直接连接。`list_pages`、`observe`、`close`、`screenshot`、`upload`、`evaluate`、日志和 `verify` 映射到服务器的标签页、快照、截图、文件、evaluate 和日志工具；所有元素和指针动作都经过 `OfficialMCPPageBackend._action_call`，即 `playwright_mcp` 后端对 App Page 使用的同一套翻译。ref 是服务器快照里的 ref。代码模式不为用户的浏览器注册资源。
+`app` 的动作就是下文应用后端的动作，参数相同；`browser` 的动作是标签页驱动的动作（`tabs`、`open`、`read`、`click`、`type`……，见[浏览器目标：标签页驱动](#浏览器目标标签页驱动)）。与 Codex 一样，先选浏览器，动作不随浏览器改变。不写 `args.browser` 是经由标签页驱动的内置浏览器；`chrome` 或 `edge` 是用户自己的浏览器，标签页驱动到达不了它。对这两者，`targets/browser.py` 把每一步交给 `workflow/browser/extension_browser.py`，它通过 `_SyncMCPClient` 运行 `@playwright/mcp --extension --browser chrome|msedge`（与 `web_use` 固定的版本相同），每个会话、每个浏览器一个服务器，在调用之间保持。服务器在该浏览器里打开带有其中继地址的 `chrome-extension://<id>/connect.html`，Playwright Extension 回连，并为用户共享的标签页中继 CDP；设置了 `computer_use.chrome_extension_token` 时，服务器传入 `PLAYWRIGHT_MCP_EXTENSION_TOKEN`，扩展不再询问直接连接。`tabs`、`read`（`tab` 为序号时会选中那个标签页）、`open`、`close`、`screenshot`、`upload`、`evaluate` 和日志映射到服务器的标签页、快照、截图、文件、evaluate 和日志工具；所有元素和指针动作都经过 `OfficialMCPPageBackend._action_call`，即 `playwright_mcp` 后端对 App Page 使用的同一套翻译。ref 是服务器快照里的 ref。代码模式不为用户的浏览器注册资源。
 
 ### 定位
 
@@ -89,7 +89,7 @@ computer_use_agent(target, action?, args?, actions?, code?, timeout?, context?, 
 | `openprogram/programs/tools/system/computer_use_agent/tool.py` | 注册的工具：schema、目标清单、路由、指南注册、审批原因 |
 | `…/computer_use_agent/guides/` | 各目标的指南 |
 | `…/computer_use_agent/targets/app.py` | 基于 `openprogram/computer_use/` 的应用动作 |
-| `…/computer_use_agent/targets/browser.py` | 基于 `web_use` 运行时的网页动作 |
+| `…/computer_use_agent/targets/browser.py` | 浏览器动作：标签页驱动（`workflow/browser/tabs.py`），或用户的浏览器 |
 | `…/computer_use_agent/targets/vm.py` | 经虚拟机服务 HTTP API 的截图和 pyautogui 输入 |
 | `…/computer_use_agent/grounding.py` | 目标解析，包括 `describe` |
 | `…/computer_use_agent/code.py` | 基于 `backend/gui_runner.py` 和 `gui_broker.py` 的代码模式 |
@@ -238,51 +238,23 @@ app 指南在发送时按 Windows 改写（`_WINDOWS_GUIDE`）；对组合键和
 
 `lib/computer-use/computer-use-agent-call.ts` 解读 `computer_use_agent` 调用：`appStepArgs` 把 `app` 调用变成应用渲染器接受的扁平步骤（`{action, app, …}`；多个步骤成为 batch，代码和 fresh agent 各成一个动作），`screenStep` 给出浏览器或虚拟机调用的动作。`tool-presentation.ts` 用显示器图标和 system 色调渲染 `app` 步骤；标题写动作和应用（"在 Calculator 中点击"），目标行在给了按键、文本、动作名或窗口时显示它们。浏览器调用显示动作和 URL，虚拟机调用显示动作，代码显示"在 <app> 中运行代码"，fresh agent 显示"交给新代理"及简报首行。审批卡片的范围按钮在"允许一次"和"始终允许"之间加入"允许此对话"，答案摘要打印"允许此对话"。早先工具（`computer_use`、`web_use`、`gui_agent`）记录的调用保留各自的渲染器，旧对话照常可读。
 
-## 浏览器目标：`web_use` 运行时
+## 浏览器目标：标签页驱动
 
-`browser` 目标运行在 `web_use` 运行时上（`openprogram/programs/workflow/browser/` 的 `run_web_use`），其他程序仍直接调用它。它提供：`observe`，`act` 含 `screenshot`、`navigate`、`click`、`type`、`press`、`scroll`、`hover`、`select`、`upload`，`verify` 含文本、URL、标题、元素和文件断言，三个后端（Playwright MCP、Chrome DevTools MCP、App 自带 Chrome）。
+`workflow/browser/tabs.py` 为 `browser` 目标驱动 App 的内置标签页。对这个目标而言，它取代了 `web_use` 运行时的 page context token、会话、frame、租约和修订号校验，这些都不再出现在模型面前。`web_use` 运行时仍保留，供仍直接调用它的程序和 MCP 客户端使用。
 
-相对 Codex 目标 API，它覆盖：
+**标签页。** 一个标签页就是渲染进程列出的 `(window_id, tab_id)`（`surface_context.capture_pages_for_listing`，现在也带上每个标签页的 CDP `target_id`）。驱动从一个进程级计数器给它分配短 id（`t1`、`t2`……），所以只要服务在运行，同一个标签页在每个轮次、每个对话、每个子 agent 里都是同一个 id，按任何顺序重新列出也不会重新编号。每个对话记住它最近用过的标签页；不带 `tab` 的动作发往那里，否则发往获得焦点的标签页，再否则发往唯一可见的标签页。`open` 请渲染进程新开一个后台标签页（`surface_context.open_page`）并把它设为当前标签页；`close` 和 `screenshot` 经过标签页的绑定（`request_close_tab`、`request_bound_screenshot`），绑定过期时重新列出一次即可续上。
 
-| 能力 | Codex | `web_use` |
-|---|---|---|
-| 右键/中键/双击、带修饰键点击 | `click(target, {mouseButton, clickCount, key})` | `click` 带 `mouse_button`、`click_count`、`modifiers` |
-| 拖拽 | `drag(from, to)` | 在 ref 或点之间 `drag` |
-| 滚动指定元素 | `scroll(index, direction, pages)` | `scroll` 带 `ref` 和 `direction` |
-| 追加输入 vs 替换值 | `typeText` / `setValue` | `type_text` / `type` |
-| 粘贴文本、Markdown 或 HTML | `paste(text, {format})` | `paste` 带 `format` |
-| 选中文本或放置光标 | `selectText` | `select_text` |
-| 带时长的按键、无目标的按键 | `pressKey(key, {durationMs})` | `press` 带 `duration`，`ref` 可选 |
-| 后退/前进/刷新 | 标签页方法 | `back`、`forward`、`reload` |
-| 在页面里运行 JavaScript | `evaluate` | `evaluate` 带 `script`，逐次审批 |
-| 控制台与网络（Claude in Chrome 的 `read_console_messages`、`read_network_requests`） | — | `console_messages`、`network_requests` |
+**连接。** Playwright 的同步 API 属于单个线程，所以由一个所有者线程持有到 App 的 `connect_over_cdp`（`desktop_app_ws_url`），并执行所有页面调用；调用方带着自己的上下文变量等待它。页面通过 `Target.getTargetInfo` 与标签页的 `target_id` 匹配来找到。一个连接不一定能得知 App 在它之后打开的标签页，所以找不到目标时驱动会重新连接再找一次；断开的连接在下一次调用时重连。第一次接上页面监听时，驱动开始记录它的控制台、页面错误和请求（各保留最近 300 条），并统计文档导航次数和进行中的 fetch/XHR 请求。
 
-参数名沿用 `app` 目标的（`mouse_button`、`click_count`、`direction`、`format`、`prefix`、`suffix`、`selection_type`、`duration`），让两个目标读起来一致；只有点击时按住的键叫 `modifiers`，因为 `key` 已经是 `press` 的按键。
+**读取。** `read` 返回 Playwright 的 AI 快照：ARIA 树，每个元素带一个 ref（`e12`，框架内为 `f1e3`）。Playwright 1.60 以 `Frame.ariaSnapshot(mode="ai", track)` 提供它，返回一段文本：同一文档已有被跟踪的快照时是增量；更早的版本以 `Page.snapshotForAI` 提供，两者一并返回。文档是新的或需要整页时，驱动请求整页，否则只请求变化。变化的行标为 `<changed>`，`[unchanged]` 代表已经发送过的部分。两者都会遮盖密码字段的值，整页截断在 40,000 字符。
 
-`page_actions.py` 承载页面一侧：参数解析和五段脚本（`POINTER_SCRIPT`、`SCROLL_SCRIPT`、`INSERT_TEXT_SCRIPT`、`PASTE_SCRIPT`、`SELECT_TEXT_SCRIPT`），每段都是 `(element, options)` 的函数。控制器在 ref 的句柄上用 `evaluate` 运行它们；MCP 后端经 `browser_evaluate` / `evaluate_script` 运行，选项以 JSON 内联，并带一个 `require` 守卫，页面报告失败时抛错，由后端自己的错误路径上报。各路径的取舍：
+**ref。** Playwright 按最近一次快照解析 `aria-ref=<ref>`，只要元素还在，它的 ref 就不变，所以 ref 能跨任意多个动作和轮次。驱动从快照里记下每个 ref 的角色和名称。解析不到的 ref 按这对角色和名称重新查找，直接用 `role` 和 `name` 指定的元素也这样找。仍然找不到时，动作以 `element_gone` 失败，并附上页面的当前状态。
 
-- 绑定的 App 标签页保持后台规则：普通点击仍用原有的后台点击脚本；其他点击在页面内派发 pointer 和 mouse 事件；拖拽和坐标点击照旧经页面的输入派发并使用标签页的输入缩放。
-- 无头 Chromium 用原生 Playwright 调用：`click(button, click_count, modifiers)`、拖拽用 `mouse.move(steps=12)`、按住按键用 `keyboard.down/up`、`go_back` / `go_forward` / `reload`。
-- Playwright MCP 用原生的 `browser_click` 选项、`browser_drag`、`browser_mouse_drag_xy`、双轴的 `browser_mouse_wheel` 和 `browser_navigate_back`；Chrome DevTools MCP 用 `click(dblClick)`、`drag` 和 `navigate_page(back|forward|reload)`。后端做不到的选项在发送任何东西之前抛出 `unsupported_option`，而不是退而执行一个更弱的动作。
-- `paste` 派发一个携带 `DataTransfer` 的 `ClipboardEvent`；页面不处理时，用 `insertHTML`（富文本编辑器，`md`/`html`）或 `insertText` 插入。系统剪贴板从不被触碰。
+**操作。** 点击、悬停、按键、输入（`fill`，或 `clear: false` 时用 `insert_text`）、`select_option`、`drag_to` 和 `set_input_files` 都是 Playwright 自己的可信输入。它们送达后台标签页时不会把它调到前台，这一点在 App 上核实过：后台标签页收到的指针、鼠标和点击事件都是 `isTrusted`。滚动用 `page_actions.SCROLL_SCRIPT`，`paste` 用 `PASTE_SCRIPT`。按 `x`、`y` 点击时，用截图时测得的比例把截图像素换算成 CSS 像素。点击前会激活 App 的 agent 光标并把它放到元素上。动作之后，驱动最多等 0.3 秒看是否开始导航；开始了就等 `domcontentloaded`。之后再最多等 2 秒，让动作发起的 fetch/XHR 请求完成。然后返回变化；URL 变了或文档是新的时，返回整页。异常会变成带原因码和页面当前状态的结果，从不以原始错误返回。
 
-标签页对应已有命令：`list_pages` 即 `listTabs`，从它拿到的 Page 别名即 `getTab`，带 `url` 的 `observe` 会打开一个隐藏的后台标签页（即隐藏的 `createBrowserTab`），除非已绑定的 Page 正显示同一来源；`close` 结束会话。带 `visible: true` 的 `observe` 在前台打开标签页；它会挪走用户的焦点，所以 schema 只允许在用户要求看着操作时使用。带 `changes_only: true` 的 `observe`（`observe_diff.py`）就是 diff 形式：它按角色、名字、标签、值、禁用状态和输入类型，把新一帧与同一 URL 的上一次观察比较，完整列出新增和变化的元素，没变的元素各占一行并带上新 ref，省略没变的文字和 ARIA 快照，并列出消失的元素。每次观察仍为全部元素签发 ref，ref 只属于它所在的那一帧，过期 ref 正是靠这一点被拒绝；diff 只缩短展示的内容，没有 ref 需要跨帧存活。MCP 后端用自己的 ARIA 快照替换，元素里只列文件输入，所以这个选项对它们不适用。
+**审批。** App 的标签页不需要审批。`open` 和 `navigate` 到本机之外的源会询问；`upload` 会询问；`evaluate` 每次都询问，见下文。代码模式的校验器拒绝这三者，它的只读动作（`tabs`、`read`、`wait`、`screenshot`、`console`、`network`）对代理标记为读取。
 
-帧在字段编辑之后继续有效。`type`、`select`，以及对复选框、单选按钮、开关或选项的普通单击（`page_actions.is_choice_control`，按 ref 的角色或输入类型判断）调用 `_mutated(keep_frame=True)`：只要页面的 URL、标签页和导航仍与该帧一致，帧和它的 ref 就保留，结果带回同一个 `frame_id` 和 `observe_required: false`。每个 ref 在使用时仍会被检查（`_ref` 比较角色、名字和标签），被这次编辑替换掉的元素会作为过期 ref 被拒绝。MCP 后端从自己的快照读出 ref 的角色（`snapshot_roles`）。其他写操作（按钮、链接、按键、富文本编辑器）照旧作废这一帧。这样一个 `actions` 列表就能填完一张表单；此前每一批的第二步都拿不到帧。
-
-不带 `page_context_token` 的 `observe` 先在本轮已绑定的界面里解析 `page`。该名字下没有任何绑定时（新的一轮、派生的 agent，或 `list_pages` 给出的 `p2` 这类名字），`_listed_page_token` 执行 `list_pages`，再通过匹配 Page 的 token 观察：匹配名字、标签页 id 或任一别名；不给名字时取唯一获得焦点的 Page，否则取唯一在中间区域可见的 Page。没有匹配或匹配多个时，以 `page_not_found` 或 `page_required` 失败，并列出各 Page 及其 token。
-
-一个 Page 同时只租给一个会话。所有者是 `turn:<chat>:<turn>`，同一对话的各轮从不同时操作：派生的 agent 工作时，派生它的那一轮在等待；新的一轮在上一轮结束后才开始。所以 `_hand_over` 会把同一对话另一轮在两次动作之间占着的 Page 交给调用方；原持有者的会话关闭，它下一次调用时重新观察。正在执行动作的持有者，或另一个对话的会话，保留该 Page，调用方得到带说明的 `page_in_use`：等待后重新观察。
-
-通过 token 进行的第一次 `observe` 采用绑定当前的页面和几何版本，所以 `list_pages` 与 `observe` 之间发生的导航或窗格移动，就是这次观察看到的内容；列出之后访问权限的变化仍以 `page_context_stale` 失败。在第一次观察之前就没通过校验的会话，会从打开它时的页面上下文里给出它的标签页，`run_web_use` 因此会自己重新观察那个标签页。
-
-在任何操作到达页面之前就作出的拒绝（`stale_observation`、`desktop_response_timeout`、`page_in_use` 以及 `_NOT_DISPATCHED_REASONS` 中的其他代码）带有 `action_dispatched: false`。代码模式的 broker 把这样的调用结算为未提交，而不是留下一个结果未知的 effect；否则 agent 会停下等待核对，而且该对话之后的每次调用都要求审批，bypass 模式也不例外。在 MCP 后端上，带 ref 的 `press` 会先聚焦该元素，因为它们的按键工具把按键发给页面当前焦点；在复选框或单选按钮上按空格与单击一样保留帧。
-
-`context="fresh"` 的 agent 作为同步 Job 运行。当 Job 的执行没有完成就停下（暂停，或 `reconciliation_required`）且没有正在运行的尝试时，`JobRunner.await_job_durable` 也会结束等待，`run_agent_turn` 把它报告为失败并说明原因；此前调用方要一直等到工具超时。
-
-`evaluate` 能读到已登录页面持有的一切，包括观察结果里被脱敏的内容，所以它的门控放在权限策略里而不是工具里：含 `evaluate` 步骤（单步或在 `actions` 里）的 `computer_use_agent` 浏览器调用由 `force_approval` 在任何模式下都询问，先于允许规则、bypass 和绑定页面授权；`one_shot_approval` 让卡片只有“本次”范围，从不保存规则，并完整展示参数。非交互来源直接拒绝。脚本在每个后端上都经由控制器运行，MCP 后端也一样，因为控制器持有同一个标签页及其字段的密码值：结果经过与观察相同的脱敏，并经过 `_mutated`，因此当前帧失效，下一步重新观察。表达式被包成 `() => (expr)`；脚本最多 8000 个字符，结果最多 20,000 个字符。
-
-`console_messages` 和 `network_requests`（`page_logs.py`）读取 Playwright 为每个 Page 自带的历史（`console_messages()`、`page_errors()`、`requests()`），所以第一次读取前不需要事先挂监听。它们和 `evaluate` 一样在每个后端上都经由控制器运行，只读，不会让当前帧失效。控制台文字经过密码脱敏；请求按方法、去掉查询和片段的 URL、状态码（浏览器从未收到响应时为 `no response`）和资源类型列出，从不包含请求头或请求体。
+`evaluate` 能读到已登录页面持有的一切，包括快照遮盖掉的内容，所以由权限策略而不是工具来把关：`force_approval` 让带 `evaluate` 步骤（单步或在 `actions` 里）的 `computer_use_agent` 浏览器调用在任何模式下都询问，先于允许规则和 bypass；`one_shot_approval` 把卡片限定在“仅此一次”，从不保存规则，并完整展示参数。非交互来源会被拒绝。结果经过同样的密码遮盖。表达式包成 `() => (expr)`；脚本上限 8000 字符，结果上限 20,000 字符。
 
 ## 界面工作
 
@@ -299,7 +271,7 @@ app 指南在发送时按 Windows 改写（`_WINDOWS_GUIDE`）；对组合键和
 
 - 已实现：`computer_use_agent` 及 `app`、`browser`、`vm` 三个目标，首次使用时的目标指南，多个步骤，代码模式，带临时会话规则的 `fresh` agent，经 gui_harness 的 `describe` 定位，经 OSWorld HTTP API 的虚拟机目标（作为 `computer_use.vm` consumer 走出站策略），以及 Web 展示；单元测试覆盖路由、指南、虚拟机脚本、定位和审批，沙箱测试用替身目标运行代码。尚未连接真实虚拟机服务运行，也未在 App 里装上 gui_harness 检测器运行。
 - 已实现：macOS 上 `app` 目标的上述读取与执行动作，稳定序号，自适应等待，后台指针与键盘投递，树 diff，四个范围的按应用审批，系统访问门控，Web 展示，按键/树编号/菜单匹配/多个步骤/规则/审批接线的单元测试。
-- 浏览器目标已实现：上面对照表的每一行，三个后端都支持，并有在 Chromium 里运行页面脚本的测试，以及 `evaluate` 的逐次审批。
+- 已实现：`browser` 目标的标签页驱动，选择标签页、ref 恢复、两种快照协议和结果形状有单元测试；并在 App 里做了两次端到端运行：agent 通过后台标签页填写并提交了一份本地两页表单（文本、邮箱、单选、复选、下拉、多行文本、确认框）。其他程序调用的 `web_use` 运行时未改动。
 - 已实现：为树稀疏的窗口提供 OCR 文字，并作为 `find` 的回退，附带一个经 Vision 识别渲染图像的测试。
 - 已实现：按应用录音，输出 WAV，并用语音引擎转写。
 - 已实现：可见标签页，以及原生后端上的 `changes_only` 观察。
@@ -310,6 +282,6 @@ app 指南在发送时按 Windows 改写（`_WINDOWS_GUIDE`）；对组合键和
 - 已实现：另一个桌面空间里的窗口。测试时从桌面 1 操作桌面 2 上的计算器（列出窗口、截图、按元素算出 7×6、坐标点击、滚动、按键报错），鼠标指针和前台应用都没变，窗口留在原桌面空间；向那里的输入框插入文字没有测到，因为计算器没有输入框。
 - 已实现、尚未在 Windows 上运行：上文所述的 Windows 后端。构建它的 macOS 机器没有 Windows 客户机，所以只有与主机无关的部分（PNG 编码、按键映射、HTML 剪贴板内容、开始菜单解析、控件类型表、拒绝列表、录音格式）有单元测试。
 - macOS 上已实现：桌面应用上的 agent 光标，步骤坐标帧和桌面光标窗口有单元测试。未实现：Linux 和 Windows 后端不发出步骤坐标，那里不会显示光标。
-- 已实现：`browser` 目标里经 Playwright MCP 扩展模式接入的用户 Chrome 和 Edge，动作映射、Edge、遇错停止、`verify` 和审批主体有单元测试。尚未在真实浏览器中配合 Playwright Extension 运行过。
+- 已实现：`browser` 目标里经 Playwright MCP 扩展模式接入的用户 Chrome 和 Edge，动作映射、Edge、遇错停止、标签页列表和审批主体有单元测试。尚未在真实浏览器中配合 Playwright Extension 运行过。
 - macOS 上已实现：窗口标识，监视、切换和空闲释放有单元测试。Linux 和 Windows 上未实现。
 - 未实现：经 Responses 和 Anthropic API 的音频输入（这两个接口的模型不收音频）；把窗口从另一个桌面空间移过来，以及用按键向它输入（见上文）；从轮廓直接认出图标的名字（模型看截图分辨）。
