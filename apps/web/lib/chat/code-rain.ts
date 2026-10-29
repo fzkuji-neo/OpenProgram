@@ -27,11 +27,14 @@ export function codeRainPalette(): CodeRainPalette {
     : { dark, tail: "#118a3a", head: "#063d18" };
 }
 
-/** Draws one glyph mirrored, centred on (x, y). */
-export function drawMirrored(ctx: CanvasRenderingContext2D, ch: string, x: number, y: number): void {
-  ctx.save();
-  ctx.translate(x, y);
+/** Glyphs are always mirrored. Flip the context once for a whole pass
+ *  (inside save/restore) and draw each glyph with ``fillMirrored``, rather
+ *  than saving and restoring the context around every glyph. */
+export function mirror(ctx: CanvasRenderingContext2D): void {
   ctx.scale(-1, 1);
-  ctx.fillText(ch, 0, 0);
-  ctx.restore();
+}
+
+/** Draws one glyph centred on (x, y) in a context ``mirror`` flipped. */
+export function fillMirrored(ctx: CanvasRenderingContext2D, ch: string, x: number, y: number): void {
+  ctx.fillText(ch, -x, y);
 }

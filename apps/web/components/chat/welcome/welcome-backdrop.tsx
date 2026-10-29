@@ -11,7 +11,7 @@
 
 import { useEffect, useRef } from "react";
 
-import { CODE_RAIN_FONT, codeRainPalette, drawMirrored, randomGlyph, type CodeRainPalette } from "@/lib/chat/code-rain";
+import { CODE_RAIN_FONT, codeRainPalette, fillMirrored, mirror, randomGlyph, type CodeRainPalette } from "@/lib/chat/code-rain";
 import { useWelcomeBackdropPref } from "@/lib/prefs/appearance/welcome-backdrop-pref";
 
 import styles from "./welcome-screen.module.css";
@@ -88,6 +88,8 @@ function codeRain(initialDensity: number): Scene {
       ctx.font = `600 ${CELL - 3}px ${CODE_RAIN_FONT}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
+      ctx.save();
+      mirror(ctx);
       for (let i = drops.length - 1; i >= 0; i--) {
         const d = drops[i];
         d.y += d.speed * dt;
@@ -122,10 +124,10 @@ function codeRain(initialDensity: number): Scene {
             ctx.globalAlpha = Math.max(0.06, fade) * (dark ? 0.92 : 0.78);
             ctx.shadowBlur = 0;
           }
-          // 所有字都镜像。
-          drawMirrored(ctx, g.ch, x, y);
+          fillMirrored(ctx, g.ch, x, y);
         }
       }
+      ctx.restore();
       ctx.shadowBlur = 0;
     },
   };

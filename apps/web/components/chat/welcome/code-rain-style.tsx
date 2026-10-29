@@ -10,15 +10,13 @@
  */
 import { useEffect, useRef } from "react";
 
-import { CODE_RAIN_FONT, codeRainPalette, drawMirrored, randomGlyph } from "@/lib/chat/code-rain";
+import { CODE_RAIN_FONT, codeRainPalette, fillMirrored, mirror, randomGlyph } from "@/lib/chat/code-rain";
 import { useWelcomeBackdropPref } from "@/lib/prefs/appearance/welcome-backdrop-pref";
 
 /** Whether the code rain style is on. */
 export function useCodeRainStyle(): boolean {
   return useWelcomeBackdropPref().enabled;
 }
-
-const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** Three columns of falling glyphs in a square ``size`` px wide. */
 export function CodeRainIcon({ size = 18, className = "" }: { size?: number; className?: string }) {
@@ -38,6 +36,7 @@ export function CodeRainIcon({ size = 18, className = "" }: { size?: number; cla
       v: size * (1.8 + Math.random() * 1.4),
       glyphs: Array.from({ length: tail }, randomGlyph),
     }));
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let raf = 0;
     let last = performance.now();
     const draw = (now: number) => {
@@ -49,6 +48,7 @@ export function CodeRainIcon({ size = 18, className = "" }: { size?: number; cla
       ctx.font = `700 ${Math.round(step * 1.15)}px ${CODE_RAIN_FONT}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
+      mirror(ctx);
       for (const c of columns) {
         c.head += c.v * dt;
         if (c.head - (tail - 1) * step > size) { c.head = 0; c.v = size * (1.8 + Math.random() * 1.4); }
@@ -58,11 +58,11 @@ export function CodeRainIcon({ size = 18, className = "" }: { size?: number; cla
           if (Math.random() < 0.04) c.glyphs[k] = randomGlyph();
           ctx.globalAlpha = k === 0 ? 1 : 1 - k / tail;
           ctx.fillStyle = k === 0 ? pal.head : pal.tail;
-          drawMirrored(ctx, c.glyphs[k], c.x, y);
+          fillMirrored(ctx, c.glyphs[k], c.x, y);
         }
       }
       ctx.globalAlpha = 1;
-      if (!reducedMotion()) raf = requestAnimationFrame(draw);
+      if (!still) raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
@@ -74,8 +74,9 @@ export function CodeRainIcon({ size = 18, className = "" }: { size?: number; cla
   );
 }
 
-/** A label that decodes left to right, then a character now and then
- *  flickers back into a glyph. The real text stays for screen readers. */
+/** A green monospace label. Its characters rain in, and now and then one
+ *  flickers back into code, through code-rain-arrivals.tsx; the DOM text
+ *  itself never changes, so screen readers read it as it is. */
 export function CodeRainText({ text, className = "" }: { text: string; className?: string }) {
   return <span className={`code-rain-text ${className}`.trim()}>{text}</span>;
 }

@@ -21,7 +21,7 @@
 :root[data-theme-mode="dark"] .code-rain-text {
   text-shadow: 0 0 6px color-mix(in srgb, var(--code-rain-ink) 55%, transparent);
 }
-.code-rain-text:is(.pending-label, .tl-label, .tl-step-title) {
+.code-rain-text:is(.tl-label, .tl-step-title) {
   color: var(--code-rain-ink);
   font-size: 12.5px;
   font-style: normal;

@@ -22,7 +22,7 @@
 
 import { useEffect } from "react";
 
-import { CODE_RAIN_FONT, codeRainPalette, drawMirrored, randomGlyph } from "@/lib/chat/code-rain";
+import { CODE_RAIN_FONT, codeRainPalette, fillMirrored, mirror, randomGlyph } from "@/lib/chat/code-rain";
 import { useWelcomeBackdropPref } from "@/lib/prefs/appearance/welcome-backdrop-pref";
 
 /** Seconds a decoded character takes to fade from green to its colour. */
@@ -60,7 +60,14 @@ type Tracker = {
   dirty: boolean;
   /** When the element left the DOM; a re-keyed row is picked up again. */
   lostAt: number | null;
+  /** Text positions, kept until the element's DOM changes: rebuilding
+   *  them walks every text node of a long reply. */
+  locate: Locator | null;
+  ranges: Map<number, Range>;
+  /** A label's next flicker. */
+  nextFlicker: number;
 };
+type Locator = (index: number, length: number) => Range | null;
 type Fresh = { index: number; ch: string; rect: DOMRect; fade: number };
 /** A drop lands on one character (``anchor``) and is re-aimed at it every
  *  frame: the chat scrolls while a reply streams, and text reflows. */
@@ -110,9 +117,10 @@ function startArrivals(mount: HTMLElement): () => void {
   function textOf(t: Tracker): string {
     return roots(t).map((r) => r.textContent ?? "").join("");
   }
-  /** Maps text offsets to DOM positions; built once per use, since a
-   *  streamed reply's markdown replaces its text nodes on every piece. */
-  function locator(t: Tracker) {
+  /** Maps text offsets to DOM positions. A streamed reply's markdown
+   *  replaces its text nodes on every piece, so the element's observer
+   *  drops it (and the ranges made from it) on every change. */
+  function locator(t: Tracker): Locator {
     const nodes: Text[] = [];
     const starts: number[] = [];
     let total = 0;
@@ -140,6 +148,16 @@ function startArrivals(mount: HTMLElement): () => void {
       return range;
     };
   }
+  /** The same Range for a character from frame to frame, so the
+   *  highlights only change where a character's state does. */
+  function rangeAt(t: Tracker, index: number, length: number): Range | null {
+    const cached = t.ranges.get(index);
+    if (cached) return cached;
+    t.locate ??= locator(t);
+    const range = t.locate(index, length);
+    if (range) t.ranges.set(index, range);
+    return range;
+  }
 
   // ---- New characters get their timing ----
   function schedule(t: Tracker) {
@@ -161,7 +179,6 @@ function startArrivals(mount: HTMLElement): () => void {
     t.seen = text.length;
     const box = area()?.getBoundingClientRect();
     if (!box) return;
-    const locate = locator(t);
     const fresh: Fresh[] = [];
     for (let i = from; i < text.length; i++) {
       let ch = text[i];
@@ -170,7 +187,7 @@ function startArrivals(mount: HTMLElement): () => void {
       const at = i;
       i += ch.length - 1;
       if (!ch.trim()) continue;
-      const range = locate(at, ch.length);
+      const range = rangeAt(t, at, ch.length);
       const rect = range?.getClientRects()[0];
       if (!range || !rect || !rect.width) continue;
       // Off-screen text is not animated: it would decode unseen.
@@ -234,7 +251,10 @@ function startArrivals(mount: HTMLElement): () => void {
       observe(lost);
       return;
     }
-    const t: Tracker = { el, role, seen: 0, last: "", chars: new Map(), observer: null, dirty: true, lostAt: null };
+    const t: Tracker = {
+      el, role, seen: 0, last: "", chars: new Map(), observer: null, dirty: true, lostAt: null,
+      locate: null, ranges: new Map(), nextFlicker: 0,
+    };
     trackers.push(t);
     // Older replies stop decoding after a while; keep the work bounded.
     // Labels go once they leave the DOM.
@@ -252,27 +272,39 @@ function startArrivals(mount: HTMLElement): () => void {
    *  rain follows the steering bubble, and finds the message again if its
    *  row goes away first. */
   function follow(t: Tracker) {
+    // Runs every frame while the message rains in, so it looks only at
+    // steering bubbles unless the message has lost its element.
+    const connected = t.el.isConnected;
+    if (connected && t.el.closest(".steering-input")) return;
+    const candidates = mount.querySelectorAll<HTMLElement>(connected ? ".steering-input .message.user" : ".message.user");
+    if (!candidates.length) return;
     const text = textOf(t);
     let next: HTMLElement | null = null;
-    for (const el of mount.querySelectorAll<HTMLElement>(".message.user")) {
+    for (const el of candidates) {
       if (el === t.el || trackers.some((o) => o.el === el)) continue;
       if ((el.querySelector(ROOTS.user)?.textContent ?? "") !== text) continue;
-      if (el.closest(".steering-input")) { next = el; break; }
-      if (!t.el.isConnected) next = el;
+      next = el;
+      if (el.closest(".steering-input")) break;
     }
-    if (!next || (t.el.isConnected && t.el.closest(".steering-input"))) return;
+    if (!next) return;
     t.el = next;
     t.lostAt = null;
     observe(t);
   }
   function observe(t: Tracker) {
     t.observer?.disconnect();
-    t.observer = new MutationObserver(() => { t.dirty = true; wake(); });
+    forget(t);
+    t.observer = new MutationObserver(() => { t.dirty = true; forget(t); wake(); });
     t.observer.observe(t.el, { childList: true, subtree: true, characterData: true });
+  }
+  function forget(t: Tracker) {
+    t.locate = null;
+    t.ranges.clear();
   }
   function dispose(t: Tracker) {
     t.observer?.disconnect();
     t.chars.clear();
+    forget(t);
   }
   const rows = new MutationObserver((records) => {
     for (const record of records) {
@@ -291,7 +323,11 @@ function startArrivals(mount: HTMLElement): () => void {
   rows.observe(mount, { childList: true, subtree: true });
 
   // ---- Drawing ----
+  /** Between flickers, with nothing else moving, the loop sleeps on a
+   *  timer instead of drawing empty frames. */
+  let nap = 0;
   function wake() {
+    window.clearTimeout(nap);
     if (running) return;
     running = true;
     raf = requestAnimationFrame(frame);
@@ -299,42 +335,51 @@ function startArrivals(mount: HTMLElement): () => void {
   /** A label that has stopped being one (its row finished running). */
   const retired = (tr: Tracker) =>
     tr.role === "label" && !tr.el.matches(".code-rain-text") && !tr.el.querySelector(".code-rain-text");
-  let lastFrame = 0;
   function frame() {
     const t = now();
-    const dt = lastFrame ? Math.min(0.1, t - lastFrame) : 0;
-    lastFrame = t;
     for (const tr of trackers) {
       if (tr.role === "user" && tr.chars.size) follow(tr);
       if (!tr.el.isConnected || retired(tr)) { if (tr.lostAt === null) tr.lostAt = t; continue; }
       if (tr.dirty) schedule(tr);
-      if (tr.role === "label") flicker(tr, t, dt);
+      if (tr.role === "label" && t >= tr.nextFlicker) flicker(tr, t);
     }
     for (let i = trackers.length - 1; i >= 0; i--) {
       const tr = trackers[i];
       if (tr.lostAt !== null && t - tr.lostAt > 1) { dispose(tr); trackers.splice(i, 1); }
     }
-    // A label keeps the loop going for its flicker while it is up.
-    const busy = paint(t) || trackers.some((tr) => tr.role === "label" && tr.lostAt === null);
-    if (busy) raf = requestAnimationFrame(frame);
-    else { running = false; lastFrame = 0; clear(); }
+    if (paint(t)) { raf = requestAnimationFrame(frame); return; }
+    running = false;
+    clear();
+    // Wake for the next flicker, or to let go of an element that left.
+    const due = trackers.map((tr) => tr.lostAt !== null ? tr.lostAt + 1.05 : tr.role === "label" ? tr.nextFlicker : Infinity);
+    const next = Math.min(...due);
+    if (next < Infinity) nap = window.setTimeout(wake, Math.max(0, next - now()) * 1000);
   }
-  /** Settled label characters flicker back into code for a moment, the
-   *  way text scrambles in The Matrix. */
-  function flicker(tr: Tracker, t: number, dt: number) {
+  /** Now and then a settled label character flickers back into code for a
+   *  moment, the way text scrambles in The Matrix: on average FLICKER_RATE
+   *  times a second for each character. */
+  function flicker(tr: Tracker, t: number) {
     const text = textOf(tr);
-    for (let i = 0; i < text.length; i++) {
-      const ch = text[i];
-      if (!ch.trim() || tr.chars.has(i) || Math.random() >= dt * FLICKER_RATE) continue;
-      const until = t + FLICKER[0] + Math.random() * (FLICKER[1] - FLICKER[0]);
-      // Revealed already, so it shows as code at once, without the bright head.
-      tr.chars.set(i, { ch, reveal: t - 1, settle: until, glyph: randomGlyph(), next: 0, fade: 0 });
-    }
+    const settled: number[] = [];
+    for (let i = 0; i < text.length; i++) if (text[i].trim() && !tr.chars.has(i)) settled.push(i);
+    const first = tr.nextFlicker === 0;
+    tr.nextFlicker = t - Math.log(1 - Math.random()) / (FLICKER_RATE * Math.max(1, settled.length));
+    // A new label rains in first; its flicker starts afterwards.
+    if (first || !settled.length) return;
+    const i = settled[Math.floor(Math.random() * settled.length)];
+    const until = t + FLICKER[0] + Math.random() * (FLICKER[1] - FLICKER[0]);
+    // Revealed already, so it shows as code at once, without the bright head.
+    tr.chars.set(i, { ch: text[i], reveal: t - 1, settle: until, glyph: randomGlyph(), next: 0, fade: 0 });
   }
   function clear() {
     ctx!.clearRect(0, 0, canvas.width, canvas.height);
     hidden.clear();
     fades.forEach((h) => h.clear());
+  }
+  /** Brings a highlight to exactly ``want``, touching only what changed. */
+  function sync(highlight: Highlight, want: Set<AbstractRange>) {
+    for (const range of highlight) if (!want.has(range)) highlight.delete(range);
+    for (const range of want) highlight.add(range);
   }
 
   function paint(t: number): boolean {
@@ -344,10 +389,14 @@ function startArrivals(mount: HTMLElement): () => void {
     const dpr = window.devicePixelRatio || 1;
     const w = Math.round(box.width * dpr), h = Math.round(box.height * dpr);
     if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
-    canvas.style.left = `${box.left}px`;
-    canvas.style.top = `${box.top}px`;
-    canvas.style.width = `${box.width}px`;
-    canvas.style.height = `${box.height}px`;
+    // Style writes only when the area moved, not on every frame.
+    const place = `${box.left},${box.top},${box.width},${box.height}`;
+    if (canvas.dataset.place !== place) {
+      canvas.dataset.place = place;
+      Object.assign(canvas.style, {
+        left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px`,
+      });
+    }
     ctx!.setTransform(1, 0, 0, 1, 0, 0);
     ctx!.clearRect(0, 0, w, h);
     ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -361,31 +410,25 @@ function startArrivals(mount: HTMLElement): () => void {
     const pal = codeRainPalette();
     ctx!.textAlign = "center";
     ctx!.textBaseline = "middle";
+    mirror(ctx!);
 
-    hidden.clear();
-    fades.forEach((hl) => hl.clear());
+    const wantHidden = new Set<Range>();
+    const wantFades = fades.map(() => new Set<Range>());
     let busy = drops.length > 0;
-    const locators = new Map<Tracker, ReturnType<typeof locator>>();
-    const locate = (tr: Tracker) => {
-      let fn = locators.get(tr);
-      if (!fn) { fn = locator(tr); locators.set(tr, fn); }
-      return fn;
-    };
 
     // Characters: hidden until reached, code while decoding, then green.
     for (const tr of trackers) {
       if (!tr.chars.size || tr.lostAt !== null) continue;
       busy = true;
-      const locateIn = locate(tr);
       for (const [index, c] of tr.chars) {
         if (t >= c.settle + c.fade) { tr.chars.delete(index); continue; }
-        const range = locateIn(index, c.ch.length);
+        const range = rangeAt(tr, index, c.ch.length);
         if (!range) { tr.chars.delete(index); continue; }
         if (t >= c.settle) {
-          fades[Math.min(FADE_STEPS - 1, Math.floor(((t - c.settle) / FADE) * FADE_STEPS))].add(range);
+          wantFades[Math.min(FADE_STEPS - 1, Math.floor(((t - c.settle) / FADE) * FADE_STEPS))].add(range);
           continue;
         }
-        hidden.add(range);
+        wantHidden.add(range);
         if (t < c.reveal) continue;
         const rect = range.getClientRects()[0];
         if (!rect) continue;
@@ -396,9 +439,11 @@ function startArrivals(mount: HTMLElement): () => void {
         ctx!.globalAlpha = 1;
         ctx!.shadowColor = pal.tail;
         ctx!.shadowBlur = pal.dark ? (hot ? 10 : 5) : 0;
-        drawMirrored(ctx!, c.glyph, rect.left + rect.width / 2 - box.left, rect.top + rect.height / 2 - box.top);
+        fillMirrored(ctx!, c.glyph, rect.left + rect.width / 2 - box.left, rect.top + rect.height / 2 - box.top);
       }
     }
+    sync(hidden, wantHidden);
+    fades.forEach((highlight, i) => sync(highlight, wantFades[i]));
 
     // Drops: a bright head and a fading tail that fall onto the text and
     // fade where they land, so nothing ever rises back up.
@@ -407,7 +452,7 @@ function startArrivals(mount: HTMLElement): () => void {
       // Follow the character: same fall length, landing where it is now.
       const { tracker, index, length } = d.anchor;
       const rect = tracker.lostAt === null && tracker.el.isConnected
-        ? locate(tracker)(index, length)?.getClientRects()[0] : undefined;
+        ? rangeAt(tracker, index, length)?.getClientRects()[0] : undefined;
       // A stream whose message is between elements waits, unseen, rather
       // than landing where the old element was.
       if (!rect && !trackers.includes(tracker)) return false;
@@ -442,7 +487,7 @@ function startArrivals(mount: HTMLElement): () => void {
           ctx!.shadowBlur = 0;
         }
         if (Math.random() < 0.03) d.glyphs[k] = randomGlyph();
-        drawMirrored(ctx!, d.glyphs[k], d.x, y);
+        fillMirrored(ctx!, d.glyphs[k], d.x, y);
       }
       return true;
     });
@@ -454,6 +499,7 @@ function startArrivals(mount: HTMLElement): () => void {
 
   return () => {
     cancelAnimationFrame(raf);
+    window.clearTimeout(nap);
     rows.disconnect();
     trackers.forEach(dispose);
     CSS.highlights.delete("code-rain-hidden");
