@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import threading
 import uuid
 from contextlib import suppress
@@ -36,6 +37,19 @@ def _structured(result: Any) -> dict[str, Any]:
     if value is None:
         value = getattr(result, "structured_content", None)
     return value if isinstance(value, dict) else {}
+
+
+# One snapshot line names a role and a ref: Playwright MCP writes
+# `- checkbox "Agree" [ref=e85]`, Chrome DevTools MCP `uid=1_5 checkbox "Agree"`.
+_PLAYWRIGHT_REF_LINE = re.compile(r"^\s*-\s+([a-z]+)\b[^\n]*?\[ref=([^\]\s]+)\]", re.MULTILINE)
+_DEVTOOLS_REF_LINE = re.compile(r"^\s*uid=(\S+)\s+([a-z]+)\b", re.MULTILINE)
+
+
+def snapshot_roles(text: str) -> dict[str, str]:
+    """The role of each ref in an upstream snapshot."""
+    roles = {ref: role for role, ref in _PLAYWRIGHT_REF_LINE.findall(text or "")}
+    roles.update(_DEVTOOLS_REF_LINE.findall(text or ""))
+    return roles
 
 
 def _is_error(result: Any) -> bool:
@@ -299,6 +313,7 @@ class OfficialMCPPageBackend:
             return _result_text(upstream)
         upstream_text = controller.capture_observation(capture)
         session.state["frame_id"] = identity["frame_id"]
+        session.state["ref_roles"] = snapshot_roles(upstream_text)
         # File capabilities are issued by the same controller that reads and
         # transmits the bytes. Never reinterpret an upstream eN/uid as a native
         # ref, or resolve a file input by its label/order after observation.
@@ -573,7 +588,14 @@ class OfficialMCPPageBackend:
                 hover_attribute, frame_id,
                 **({"before_dispatch": before_dispatch} if before_dispatch is not None else {}),
             )
-        mutation = controller.record_external_mutation(f"{self.name}:{action}")
+        mutation = controller.record_external_mutation(
+            f"{self.name}:{action}",
+            keep_frame=bool(ref) and (
+                action in {"type", "select"}
+                or (action == "click" and pa.is_plain_click(click)
+                    and pa.is_choice_control(session.state.get("ref_roles", {}).get(ref)))
+            ),
+        )
         return {
             **mutation,
             "result": _result_text(result),

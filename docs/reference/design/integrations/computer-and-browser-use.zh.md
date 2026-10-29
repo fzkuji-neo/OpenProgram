@@ -268,6 +268,12 @@ app 指南在发送时按 Windows 改写（`_WINDOWS_GUIDE`）；对组合键和
 
 标签页对应已有命令：`list_pages` 即 `listTabs`，从它拿到的 Page 别名即 `getTab`，带 `url` 的 `observe` 会打开一个隐藏的后台标签页（即隐藏的 `createBrowserTab`），除非已绑定的 Page 正显示同一来源；`close` 结束会话。带 `visible: true` 的 `observe` 在前台打开标签页；它会挪走用户的焦点，所以 schema 只允许在用户要求看着操作时使用。带 `changes_only: true` 的 `observe`（`observe_diff.py`）就是 diff 形式：它按角色、名字、标签、值、禁用状态和输入类型，把新一帧与同一 URL 的上一次观察比较，完整列出新增和变化的元素，没变的元素各占一行并带上新 ref，省略没变的文字和 ARIA 快照，并列出消失的元素。每次观察仍为全部元素签发 ref，ref 只属于它所在的那一帧，过期 ref 正是靠这一点被拒绝；diff 只缩短展示的内容，没有 ref 需要跨帧存活。MCP 后端用自己的 ARIA 快照替换，元素里只列文件输入，所以这个选项对它们不适用。
 
+帧在字段编辑之后继续有效。`type`、`select`，以及对复选框、单选按钮、开关或选项的普通单击（`page_actions.is_choice_control`，按 ref 的角色或输入类型判断）调用 `_mutated(keep_frame=True)`：只要页面的 URL、标签页和导航仍与该帧一致，帧和它的 ref 就保留，结果带回同一个 `frame_id` 和 `observe_required: false`。每个 ref 在使用时仍会被检查（`_ref` 比较角色、名字和标签），被这次编辑替换掉的元素会作为过期 ref 被拒绝。MCP 后端从自己的快照读出 ref 的角色（`snapshot_roles`）。其他写操作（按钮、链接、按键、富文本编辑器）照旧作废这一帧。这样一个 `actions` 列表就能填完一张表单；此前每一批的第二步都拿不到帧。
+
+不带 `page_context_token` 的 `observe` 先在本轮已绑定的界面里解析 `page`。该名字下没有任何绑定时（新的一轮、派生的 agent，或 `list_pages` 给出的 `p2` 这类名字），`_listed_page_token` 执行 `list_pages`，再通过匹配 Page 的 token 观察：匹配名字、标签页 id 或任一别名；不给名字时取唯一获得焦点的 Page，否则取唯一在中间区域可见的 Page。没有匹配或匹配多个时，以 `page_not_found` 或 `page_required` 失败，并列出各 Page 及其 token。
+
+一个 Page 同时只租给一个会话。所有者是 `turn:<chat>:<turn>`，同一对话的各轮从不同时操作：派生的 agent 工作时，派生它的那一轮在等待；新的一轮在上一轮结束后才开始。所以 `_hand_over` 会把同一对话另一轮在两次动作之间占着的 Page 交给调用方；原持有者的会话关闭，它下一次调用时重新观察。正在执行动作的持有者，或另一个对话的会话，保留该 Page，调用方得到带说明的 `page_in_use`：等待后重新观察。
+
 `evaluate` 能读到已登录页面持有的一切，包括观察结果里被脱敏的内容，所以它的门控放在权限策略里而不是工具里：含 `evaluate` 步骤（单步或在 `actions` 里）的 `computer_use_agent` 浏览器调用由 `force_approval` 在任何模式下都询问，先于允许规则、bypass 和绑定页面授权；`one_shot_approval` 让卡片只有“本次”范围，从不保存规则，并完整展示参数。非交互来源直接拒绝。脚本在每个后端上都经由控制器运行，MCP 后端也一样，因为控制器持有同一个标签页及其字段的密码值：结果经过与观察相同的脱敏，并经过 `_mutated`，因此当前帧失效，下一步重新观察。表达式被包成 `() => (expr)`；脚本最多 8000 个字符，结果最多 20,000 个字符。
 
 `console_messages` 和 `network_requests`（`page_logs.py`）读取 Playwright 为每个 Page 自带的历史（`console_messages()`、`page_errors()`、`requests()`），所以第一次读取前不需要事先挂监听。它们和 `evaluate` 一样在每个后端上都经由控制器运行，只读，不会让当前帧失效。控制台文字经过密码脱敏；请求按方法、去掉查询和片段的 URL、状态码（浏览器从未收到响应时为 `no response`）和资源类型列出，从不包含请求头或请求体。

@@ -979,7 +979,7 @@ def test_same_owner_repeated_observe_reuses_exact_page_session():
 
     assert repeated["web_session_id"] == first["web_session_id"]
     assert repeated["session_reused"] is True
-    assert other_owner == {"ok": False, "reason_code": "page_in_use"}
+    assert other_owner["ok"] is False and other_owner["reason_code"] == "page_in_use"
     registry.execute(
         command="close",
         web_session_id=first["web_session_id"],

@@ -417,6 +417,40 @@ def test_geometry_changed_during_activation_blocks_backend_action(monkeypatch):
 
 
 
+def test_a_page_passes_between_turns_of_one_chat_but_not_across_chats():
+    from openprogram.programs.workflow.browser.web_use_runtime import (
+        WebUseSessionRegistry,
+    )
+
+    adapters = {name: _Adapter(name) for name in (
+        "playwright_mcp", "chrome_devtools_mcp", "open_claude_chrome",
+    )}
+    registry = WebUseSessionRegistry(
+        adapters=adapters,
+        page_key_resolver=lambda binding: "page-1",
+        binding_validator=_allow_binding,
+        release_context=lambda _context: None,
+    )
+
+    def observe(owner, binding):
+        return registry.execute(command="observe", backend="playwright_mcp",
+                                binding_id=binding, owner_id=owner)
+
+    parent = observe("turn:chat-1:t1", "binding-1")
+    # The agent the turn spawned takes the Page while the turn waits for it.
+    spawned = observe("turn:chat-1:j1_user_reply", "binding-2")
+    assert spawned["web_session_id"] != parent["web_session_id"]
+    gone = registry.execute(command="act", web_session_id=parent["web_session_id"],
+                            owner_id="turn:chat-1:t1",
+                            arguments={"action": "click", "expected_frame_id": "frame-1"})
+    assert gone["reason_code"] == "web_session_not_found"
+    # Another chat never takes it.
+    other = observe("turn:chat-2:t9", "binding-3")
+    assert other["reason_code"] == "page_in_use"
+    # The parent takes it back when it next observes.
+    assert observe("turn:chat-1:t1", "binding-4").get("web_session_id")
+
+
 def test_registry_leases_one_exact_page_to_one_session_until_close():
     from openprogram.programs.workflow.browser.web_use_runtime import (
         WebUseSessionRegistry,
@@ -442,7 +476,8 @@ def test_registry_leases_one_exact_page_to_one_session_until_close():
         binding_id="binding-2", owner_id="owner-2",
     )
 
-    assert second == {"ok": False, "reason_code": "page_in_use"}
+    assert second["ok"] is False and second["reason_code"] == "page_in_use"
+    assert "observe again" in second["message"]
     assert adapters["playwright_mcp"].calls == []
 
     registry.execute(
@@ -971,14 +1006,17 @@ def test_temporary_page_capture_is_released_when_binding_resolution_fails(
         surface_context, "release_bindings", lambda value: released.append(value),
     )
 
-    with pytest.raises(RuntimeError, match="binding failed"):
-        if route == "harness":
+    if route == "harness":
+        with pytest.raises(RuntimeError, match="binding failed"):
             run_on(SimpleNamespace(), module._run_browser_task_commands,
                 task="observe", backend="playwright_mcp",
                 max_steps=1, max_seconds=10,
             )
-        else:
-            module.web_use(command="observe", backend="playwright_mcp")
+    else:
+        # web_use looks the Page up in list_pages instead; none is open here.
+        monkeypatch.setattr(surface_context, "capture_pages_for_listing", lambda *_args: {})
+        result = module.web_use(command="observe", backend="playwright_mcp")
+        assert result.json_data["reason_code"] == "page_required"
     assert released == [context]
 
 

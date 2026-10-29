@@ -59,6 +59,13 @@ _NO_FRAME_MESSAGE = (
 )
 
 
+_PAGE_IN_USE_MESSAGE = (
+    "Another task is acting on this page right now (another conversation, or "
+    "an action still running). Nothing was sent. The page itself is fine: "
+    "wait for that task to finish, then call observe again."
+)
+
+
 def _unresolved_session_id(value: str) -> bool:
     return str(value or "").strip().lower() in {"", "pending"}
 
@@ -367,6 +374,34 @@ class WebUseSessionRegistry:
             ]
         for parked in stale:
             self.release_owner(parked)
+
+    def _hand_over(self, owner_id: str, page_key: str) -> None:
+        """Give a Page to another turn of the same chat.
+
+        A chat's turns do not act at once: a spawned agent works while the
+        turn that spawned it waits, and a new turn starts after the last one.
+        So a Page another turn of this chat holds between actions passes to
+        the caller; the holder observes again when it next needs the Page. A
+        holder in the middle of an action keeps it (page_in_use).
+        """
+        scope = _owner_scope(owner_id)
+        if not page_key or not scope.startswith("turn:"):
+            return
+        with self._lock:
+            holder = self._sessions.get(self._page_leases.get(page_key, ""))
+            if (
+                holder is None or holder.owner_id == owner_id
+                or holder.closing or holder.closed or holder.inflight_ops
+                or _owner_scope(holder.owner_id) != scope
+            ):
+                return
+        if not holder.operation_lock.acquire(blocking=False):
+            return
+        try:
+            if not holder.closing and not holder.closed and not holder.inflight_ops:
+                self._cleanup_session(holder, suppress_errors=True)
+        finally:
+            holder.operation_lock.release()
 
     def _latest_owner_session_id(self, owner_id: str) -> str:
         if not owner_id:
@@ -732,6 +767,7 @@ class WebUseSessionRegistry:
                 return {"ok": False, "reason_code": "page_context_required"}
             page_key = page_key or self._page_key_resolver(binding_id) or binding_id
             self._unpark(owner_id, page_key)
+            self._hand_over(owner_id, page_key)
             revisions = revisions or self._binding_revision_resolver(binding_id)
             if not revisions and page_context:
                 revisions = next((
@@ -758,14 +794,16 @@ class WebUseSessionRegistry:
                 leased_session = self._sessions.get(leased_session_id)
                 if leased_session_id:
                     if leased_session is None:
-                        return {"ok": False, "reason_code": "page_in_use"}
+                        return {"ok": False, "reason_code": "page_in_use",
+                                "message": _PAGE_IN_USE_MESSAGE}
                     if (
                         leased_session.owner_id != owner_id
                         or leased_session.backend != selected
                         or leased_session.closing
                         or leased_session.closed
                     ):
-                        return {"ok": False, "reason_code": "page_in_use"}
+                        return {"ok": False, "reason_code": "page_in_use",
+                                "message": _PAGE_IN_USE_MESSAGE}
                     session = leased_session
                     created_session = False
                     reused_session = True

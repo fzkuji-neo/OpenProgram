@@ -102,7 +102,7 @@ def test_official_backend_action_uses_controller_thread_boundary():
             assert arguments["expected_frame_id"] == "frame-1"
             return None
 
-        def record_external_mutation(self, detail):
+        def record_external_mutation(self, detail, keep_frame=False):
             return {"ok": True, "detail": detail, "observe_required": True}
 
     class Client:

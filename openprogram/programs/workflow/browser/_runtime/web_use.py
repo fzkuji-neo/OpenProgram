@@ -175,15 +175,29 @@ def _execute_web_use(
     page_key = ""
     if command == "observe" and not web_session_id and not page_context_token:
         token = surface_context.bind(context)
+        unbound = False
         try:
             binding_id = surface_context.resolve_binding(page)
             page_key = surface_context.resolve_page_key(page)
+        except RuntimeError:
+            # Nothing is bound under that name in this turn: a new turn, a
+            # spawned agent, or a page name from list_pages. Find it there.
+            if captured_here:
+                surface_context.release_bindings(context)
+            unbound = True
         except BaseException:
             if captured_here:
                 surface_context.release_bindings(context)
             raise
         finally:
             surface_context.reset(token)
+        if unbound:
+            listed = _listed_page_token(page)
+            if isinstance(listed, dict):
+                return listed
+            return _execute_web_use(
+                "observe", backend, "", listed, "", arguments,
+            )
     try:
         result = get_registry().execute(
             command=command,
@@ -206,6 +220,40 @@ def _execute_web_use(
     ):
         surface_context.release_bindings(context)
     return result
+
+
+def _listed_page_token(page: str) -> str | dict:
+    """The page_context_token of ``page`` (a name or alias from list_pages), or,
+    with no name, of the one Page the user is looking at. A failure lists the
+    Pages to choose from."""
+    listed = _execute_web_use("list_pages")
+    if not isinstance(listed, dict) or listed.get("ok") is not True:
+        return listed if isinstance(listed, dict) else {
+            "ok": False, "reason_code": "page_context_required"}
+    pages = [item for item in listed.get("pages") or [] if isinstance(item, dict)]
+    name = (page or "").strip()
+    if name:
+        matches = [item for item in pages if name == item.get("page")
+                   or name == item.get("tab_id") or name in (item.get("aliases") or [])]
+    else:
+        matches = ([item for item in pages if item.get("focused")]
+                   or [item for item in pages if item.get("visible")
+                       and item.get("region") == "center"])
+    if len(matches) == 1 and matches[0].get("page_context_token"):
+        return str(matches[0]["page_context_token"])
+    return {
+        "ok": False,
+        "reason_code": "page_not_found" if name else "page_required",
+        "pages": [{key: item.get(key) for key in (
+            "page", "title", "origin", "visible", "focused", "page_context_token",
+        )} for item in pages],
+        "recovery_command": "observe",
+        "message": (
+            (f"No Page named {name!r} is open. " if name else
+             "Several Pages are open and none is in front. ")
+            + "Call observe with the page_context_token of the task page from pages."
+        ),
+    }
 
 
 def execute_direct_web_use(arguments: dict, *, owner_id: str):

@@ -147,7 +147,7 @@ class _Controller:
     def evaluate_bound_page(self, script, argument=None):
         return self.page.evaluate(script, argument)
 
-    def record_external_mutation(self, detail):
+    def record_external_mutation(self, detail, keep_frame=False):
         action = detail.rsplit(":", 1)[-1]
         self.mutations.append(action)
         self.frame = None

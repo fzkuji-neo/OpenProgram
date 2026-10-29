@@ -245,8 +245,8 @@ class BrowserPageController:
     def invalidate_external_frame(self) -> dict[str, state.Any]:
         return self._submit(self._invalidate_frame)
 
-    def record_external_mutation(self, detail: str) -> dict[str, state.Any]:
-        return self._submit(self._mutated, detail)
+    def record_external_mutation(self, detail: str, *, keep_frame: bool = False) -> dict[str, state.Any]:
+        return self._submit(self._mutated, detail, keep_frame=keep_frame)
 
     def pointer_scale(self) -> float | None:
         return self._submit(self._pointer_scale)
@@ -525,7 +525,14 @@ class BrowserPageController:
             return None, "stale_observation"
         return target, None
 
-    def _mutated(self, detail: str, *, point: dict | None = None, extra: dict | None = None) -> dict[str, state.Any]:
+    def _mutated(
+        self, detail: str, *, point: dict | None = None, extra: dict | None = None,
+        keep_frame: bool = False,
+    ) -> dict[str, state.Any]:
+        """Record a write. ``keep_frame`` is for a field edit (typing, choosing an
+        option, ticking a box): when the page is still the observed one, its refs
+        stay usable, so a form can be filled without observing after every field.
+        Refs are still checked one by one when they are used."""
         from openprogram.programs.tools.web.browser._privacy import password_values, redact_password_values
         secrets = self._frame_passwords
         identity: dict[str, state.Any] = {}
@@ -546,6 +553,17 @@ class BrowserPageController:
         except Exception:
             identity = {}
         self._mutations += 1
+        kept = ""
+        with state.suppress(Exception):
+            if keep_frame and self._frame and self._fresh(self._frame["frame_id"]):
+                kept = self._frame["frame_id"]
+        if kept:
+            payload = {"ok": True, "detail": detail, "observe_required": False,
+                       "frame_id": kept, **identity}
+            if point is not None:
+                payload["point"] = point
+            payload.update(extra or {})
+            return redact_password_values(payload, secrets)
         self._frame = None
         self._dispose_refs()
         self._ref_meta = {}
@@ -874,10 +892,13 @@ class BrowserPageController:
                 self._agent_click(lambda: run(
                     target.click, button=click["button"], click_count=click["count"],
                     modifiers=click["modifiers"]))
-            bounds = (self._ref_meta.get((ref or "").lstrip("@")) or {}).get("bounds")
+            meta = self._ref_meta.get((ref or "").lstrip("@")) or {}
+            bounds = meta.get("bounds")
             return self._mutated(
                 f"{self._click_words(click)} {ref}",
                 point=dict(bounds) if isinstance(bounds, dict) else None,
+                keep_frame=pa.is_plain_click(click) and pa.is_choice_control(
+                    meta.get("role"), meta.get("input_type")),
             )
         if action == "upload":
             from .file_inputs import file_payload
@@ -925,7 +946,7 @@ class BrowserPageController:
                     result.update(ok=False, reason_code="editable_value_mismatch")
                 return result
             run(target.fill, text)
-            return self._mutated(f"typed {len(text)} character(s) into {ref}")
+            return self._mutated(f"typed {len(text)} character(s) into {ref}", keep_frame=True)
         if action == "press":
             hold = pa.hold_seconds(options)
             if hold:
@@ -956,7 +977,7 @@ class BrowserPageController:
             return self._mutated(f"hovered {ref}")
         if action == "select":
             run(target.select_option, value)
-            return self._mutated(f"selected an option in {ref}")
+            return self._mutated(f"selected an option in {ref}", keep_frame=True)
         return {"ok": False, "reason_code": "unsupported_action"}
 
     @staticmethod

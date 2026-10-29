@@ -77,6 +77,14 @@ def is_plain_click(options: dict[str, Any]) -> bool:
     return options["button"] == "left" and options["count"] == 1 and not options["modifiers"]
 
 
+# Ticking one of these changes only its own state, so the observation stays usable.
+CHOICE_ROLES = frozenset({"checkbox", "radio", "switch", "option", "menuitemcheckbox", "menuitemradio"})
+
+
+def is_choice_control(role: Any, input_type: Any = None) -> bool:
+    return str(role or "").lower() in CHOICE_ROLES or str(input_type or "").lower() in {"checkbox", "radio"}
+
+
 def mouse_options(options: dict[str, Any]) -> dict[str, Any]:
     """Playwright mouse arguments that differ from a single left click."""
     out: dict[str, Any] = {}
@@ -327,5 +335,5 @@ __all__ = [
     "ActionError", "EVALUATE_ACTION", "INSERT_TEXT_SCRIPT", "MAX_RESULT_CHARS", "MAX_SCRIPT_CHARS", "PARITY_ACTIONS", "PASTE_SCRIPT", "POINTER_SCRIPT",
     "SCROLL_SCRIPT", "SELECT_TEXT_SCRIPT", "bound_call", "click_options", "evaluate_source", "mouse_options", "evaluation_text",
     "hold_seconds",
-    "is_plain_click", "modifiers", "paste_payload", "scroll_delta", "selection_request",
+    "CHOICE_ROLES", "is_choice_control", "is_plain_click", "modifiers", "paste_payload", "scroll_delta", "selection_request",
 ]

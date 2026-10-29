@@ -66,6 +66,7 @@ class _Controller:
             "target": {"tab_id": "tab-1", "target_id": "target-1"},
         }
         self.invalidated = 0
+        self.kept = []
         self.closed = 0
 
     def _page(self):
@@ -104,7 +105,11 @@ class _Controller:
         self.invalidated += 1
         return {"ok": True, "detail": detail, "observe_required": True}
 
-    def record_external_mutation(self, detail):
+    def record_external_mutation(self, detail, keep_frame=False):
+        self.kept.append(keep_frame)
+        if keep_frame:
+            return {"ok": True, "detail": detail, "observe_required": False,
+                    "frame_id": self.frame["frame_id"]}
         return self._mutated(detail)
 
     def close(self):

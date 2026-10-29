@@ -43,6 +43,36 @@ def test_official_playwright_adapter_binds_marker_and_routes_one_action(monkeypa
     assert controller.invalidated == 1
 
 
+def test_official_adapter_keeps_the_frame_for_form_fields(monkeypatch):
+    from openprogram.programs.workflow.browser.web_use_runtime import WebUseSession
+    from openprogram.programs.workflow.browser.mcp_backends import (
+        OfficialMCPPageBackend, snapshot_roles,
+    )
+    from openprogram.programs.tools.web.browser import _chrome_bootstrap
+
+    assert snapshot_roles(
+        '- checkbox "Agree" [ref=e85]\n  - radio "Volunteer" [checked] [ref=e107]\n'
+        '- button "Next" [ref=e9]\nuid=1_5 checkbox "Agree"'
+    ) == {"e85": "checkbox", "e107": "radio", "e9": "button", "1_5": "checkbox"}
+    controller = _Controller()
+    client = _PlaywrightClient(controller.page)
+    monkeypatch.setattr(_chrome_bootstrap, "desktop_app_ws_url", lambda: "ws://cdp")
+    adapter = OfficialMCPPageBackend(
+        "playwright_mcp", lambda: controller, client_factory=lambda command: client,
+    )
+    session = WebUseSession("cs-1", "playwright_mcp", "binding-1")
+    adapter.observe(session, {})
+    session.state["ref_roles"].update(e85="checkbox")
+    for step in ({"action": "type", "ref": "e3", "text": "Ada"},
+                 {"action": "click", "ref": "e85"},
+                 {"action": "click", "ref": "e7"}):
+        result = adapter.act(session, {"expected_frame_id": "frame-1", **step})
+        assert result["ok"] is True
+    # A field and a checkbox keep the observation; the Save button retires it.
+    assert controller.kept == [True, True, False]
+    assert controller.invalidated == 1
+
+
 
 def test_sync_mcp_client_cleans_thread_when_start_fails(monkeypatch):
     from openprogram.programs.workflow.browser import mcp_backends
