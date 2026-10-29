@@ -539,5 +539,10 @@
   "Emit a JSON report": "输出 JSON 报告",
   "Re-read a plugin's manifest and code and load it again": "重新读取插件的 manifest 和代码并再次加载",
   "Plugin name to reload": "要重新加载的插件名",
-  "Show what a plugin can register: setup(ctx) methods, manifest keys, events, services, Web slots": "显示插件能注册的内容：setup(ctx) 方法、manifest 键、事件、服务、Web 插槽"
+  "Show what a plugin can register: setup(ctx) methods, manifest keys, events, services, Web slots": "显示插件能注册的内容：setup(ctx) 方法、manifest 键、事件、服务、Web 插槽",
+  "Import Claude Code / Codex conversations as sessions (re-running only adds what is new)": "将 Claude Code / Codex 对话导入为会话（重复运行只会补充新增内容）",
+  "Transcript files to import (default: every one found)": "要导入的对话记录文件（默认：找到的全部）",
+  "Which agent's conversations to import (default: all)": "导入哪个 agent 的对话（默认：全部）",
+  "Only conversations active in the last DAYS days": "只导入最近 DAYS 天内有活动的对话",
+  "List what would be imported, and what already was, without importing": "只列出将要导入和已导入的对话，不执行导入"
 }

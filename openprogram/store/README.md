@@ -37,6 +37,9 @@ store/
 │                           update / load) onto one session repo
 │    _msg_adapter.py        message-dict ⇄ Call-node translation
 │    search.py              cross-session message search (ripgrep)
+│    external_import/       import Claude Code / Codex transcripts as
+│                           native sessions; a ledger makes re-imports
+│                           skip unchanged sources and append grown ones
 │
 ├─ project/   ─ ② PROJECT ENTITY LAYER + AUTO-COMMIT — user's working dir as git
 │    project_store.py       Project + ProjectGit. A project = a real working

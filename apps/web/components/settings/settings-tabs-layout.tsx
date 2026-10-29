@@ -5,6 +5,7 @@ import {
   Bot,
   ChartNoAxesColumn,
   Brain,
+  Import,
   Mic,
   MonitorCog,
   RadioTower,
@@ -19,7 +20,7 @@ import { ChromeIcon } from "../animated-icons";
 import { ManagePageHeader } from "../ui/manage-page";
 import { RailItem, RailSplit, RailToggle, SecondaryRail } from "../ui/secondary-rail";
 
-export type SettingsTab = "providers" | "usage" | "search" | "environments" | "channels" | "browser" | "voice" | "memory" | "general" | "system";
+export type SettingsTab = "providers" | "usage" | "search" | "environments" | "channels" | "browser" | "voice" | "memory" | "import" | "general" | "system";
 
 /** Keeps the pre-rail storage key, `settingsNavOpen`. */
 const SETTINGS_RAIL = "settings";
@@ -30,7 +31,7 @@ const SETTINGS_RAIL = "settings";
  * into URL-routed subpages so refresh/back-button persist the active
  * tab.
  *
- * Each subpage at /settings/{providers,search,environments,channels,general}
+ * Each subpage at /settings/{providers,search,environments,channels,import,general,…}
  * renders one of these with the matching `active` prop and the
  * section component as `children`.
  */
@@ -53,6 +54,7 @@ export function SettingsTabsLayout({
     if (pathname.startsWith("/settings/browser")) return "browser";
     if (pathname.startsWith("/settings/voice")) return "voice";
     if (pathname.startsWith("/settings/memory")) return "memory";
+    if (pathname.startsWith("/settings/import")) return "import";
     if (pathname.startsWith("/settings/general")) return "general";
     if (pathname.startsWith("/settings/system")) return "system";
     // Credential pools (/settings/auth) belong with LLM Providers.
@@ -70,6 +72,7 @@ export function SettingsTabsLayout({
     { id: "voice" as const, href: "/settings/voice", label: t("settings.tab.voice"), Icon: Mic },
     { id: "environments" as const, href: "/settings/environments", label: t("settings.tab.environments"), Icon: Server },
     { id: "channels" as const, href: "/settings/channels", label: t("settings.tab.channels"), Icon: RadioTower },
+    { id: "import" as const, href: "/settings/import", label: t("settings.tab.import"), Icon: Import },
     { id: "usage" as const, href: "/settings/usage", label: t("settings.tab.usage"), Icon: ChartNoAxesColumn },
     { id: "system" as const, href: "/settings/system", label: t("settings.tab.system"), Icon: MonitorCog },
   ];

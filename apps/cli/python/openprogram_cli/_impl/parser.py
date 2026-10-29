@@ -474,6 +474,19 @@ def build_parser() -> argparse.ArgumentParser:
     p_ss_exp.add_argument("--output", default=None,
         help="Write here instead of ./<session-id>.<format>")
 
+    p_ss_imp = sessions_sub.add_parser("import",
+        help="Import Claude Code / Codex conversations as sessions "
+             "(re-running only adds what is new)")
+    p_ss_imp.add_argument("paths", nargs="*",
+        help="Transcript files to import (default: every one found)")
+    p_ss_imp.add_argument("--from", dest="import_from", default="all",
+        choices=["all", "claude-code", "codex"],
+        help="Which agent's conversations to import (default: all)")
+    p_ss_imp.add_argument("--since", type=float, default=None, metavar="DAYS",
+        help="Only conversations active in the last DAYS days")
+    p_ss_imp.add_argument("--list", action="store_true", dest="list_only",
+        help="List what would be imported, and what already was, without importing")
+
     # ---- execution --------------------------------------------------------
     p_execution = sub.add_parser(
         "execution",

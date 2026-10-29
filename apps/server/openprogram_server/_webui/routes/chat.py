@@ -125,6 +125,36 @@ def register(app):
         """Return an archived session to the default list."""
         return await _set_archived(body, False)
 
+    @app.get("/api/sessions/import/candidates")
+    async def get_import_candidates(agent: str | None = None, since: float | None = None):
+        """Claude Code / Codex transcripts on this machine, with import state."""
+        from openprogram.store.session import external_import as _ext
+        agents = [agent] if agent in _ext.AGENTS else list(_ext.AGENTS)
+        rows = await asyncio.to_thread(_ext.list_candidates, agents, since=since)
+        return JSONResponse(content={"candidates": rows})
+
+    @app.post("/api/sessions/import")
+    async def post_session_import(body: dict = None):
+        """Import transcripts as sessions; ``paths`` picks which, else all.
+
+        Body: ``agents`` (list, default both), ``paths`` (list of
+        transcript files), ``since`` (epoch seconds). Re-importing is
+        safe — unchanged sources are skipped, grown ones appended.
+        """
+        from openprogram.store.session import external_import as _ext
+        from openprogram.webui.ws_actions.session import broadcast_sessions_list
+        body = body or {}
+        agents = [a for a in (body.get("agents") or _ext.AGENTS) if a in _ext.AGENTS]
+        paths = body.get("paths")
+        if paths is not None and not isinstance(paths, list):
+            return JSONResponse(content={"error": "paths must be a list"}, status_code=400)
+        results = await asyncio.to_thread(
+            _ext.import_transcripts, agents, paths=paths, since=body.get("since"),
+        )
+        if any(r["status"] in ("created", "appended") for r in results):
+            broadcast_sessions_list()
+        return JSONResponse(content={"results": results})
+
     @app.post("/api/function/{name}")
     async def post_function(name: str, body: dict = None):
         """Directly invoke an Agent method through the forced

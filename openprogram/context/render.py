@@ -193,6 +193,21 @@ def render_dag_messages(graph: Graph, read_ids: list[str],
             if expose == "hidden":
                 continue
             tool_call_id = md.get("tool_call_id")
+            imported = md.get("imported_from")
+            if imported:
+                # A call made by another agent before the conversation was
+                # imported (store/session/external_import). Its tool does
+                # not exist here, so a structured ToolCall would invite the
+                # model to call it again; replay it as part of the reply.
+                if last_assistant is None:
+                    last_assistant = _assistant("", ts_ms)
+                    messages.append(last_assistant)
+                agent = imported.get("agent") if isinstance(imported, dict) else ""
+                text = f"[{agent} tool call] {_format_call_signature(node)}"
+                if node.output is not None:
+                    text += f"\n[result]\n{_result_text_for(node)}"
+                last_assistant.content.append(TextContent(type="text", text=text))
+                continue
             if tool_call_id:
                 # Model-emitted tool_use: round-trip as a real
                 # ToolCall (inside the owning assistant turn) + a

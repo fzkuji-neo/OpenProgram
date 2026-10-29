@@ -721,6 +721,9 @@ def main():
         elif verb == "export":
             _cmd_sessions_export(args.session_id, args.export_format,
                                  args.output)
+        elif verb == "import":
+            _cmd_sessions_import(args.paths, args.import_from, args.since,
+                                 args.list_only)
         elif verb == "aliases":
             from openprogram.agent.management import session_aliases as _a
             rows = _a.list_all()
@@ -1220,6 +1223,7 @@ from openprogram.cli.commands.sessions import (  # noqa: E402,F401
     _cmd_session_archive,
     _cmd_sessions,
     _cmd_sessions_export,
+    _cmd_sessions_import,
 )
 from openprogram.cli.commands.agents import (  # noqa: E402,F401
     _dispatch_agents_verb,

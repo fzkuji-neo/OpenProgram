@@ -1,4 +1,4 @@
-"""``openprogram sessions`` handlers (list / resume / export / archive)."""
+"""``openprogram sessions`` handlers (list / resume / export / archive / import)."""
 from __future__ import annotations
 
 import json
@@ -104,3 +104,69 @@ def _cmd_sessions_export(session_id, export_format="md", output=None):
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(document, encoding="utf-8")
     print(f"Exported session {session_id} → {target}")
+
+
+_IMPORT_BATCH = 8
+
+
+def _cmd_sessions_import(paths, import_from="all", since_days=None, list_only=False):
+    """Import Claude Code / Codex conversations, or list what is importable.
+
+    A running worker does the writes, in small batches so each request
+    stays well inside the HTTP timeout and its sidebar refreshes as they
+    land; without one the store is written directly.
+    """
+    import time
+    from openprogram.store.session import external_import as ext
+    from openprogram.backend_endpoint import OwnerAuthError, resolve_backend_endpoint
+
+    agents = list(ext.AGENTS) if import_from == "all" else [import_from]
+    since = time.time() - since_days * 86400 if since_days else None
+    rows = ext.list_candidates(agents, since=since)
+    if paths:
+        wanted = {str(Path(p).expanduser().resolve()): p for p in paths}
+        rows = [r for r in rows if str(Path(r["path"]).resolve()) in wanted]
+        found = {str(Path(r["path"]).resolve()) for r in rows}
+        for resolved, given in wanted.items():
+            if resolved not in found:
+                print(f"[warn] not a {' or '.join(ext.AGENT_LABELS[a] for a in agents)} "
+                      f"conversation: {given}", file=sys.stderr)
+    if list_only:
+        if not rows:
+            print("No Claude Code or Codex conversations found.")
+            return
+        print(f"{len(rows)} conversation(s):\n")
+        for r in rows:
+            day = time.strftime("%Y-%m-%d", time.localtime(r["updated_at"]))
+            print(f"  [{r['state']:>8}] {r['agent_label']:<11} {day}  {r['title'][:60]}")
+        return
+    todo = [r["path"] for r in rows if r["state"] in ("new", "updated")]
+    if not todo:
+        print("Nothing new to import.")
+        return
+
+    try:
+        resolve_backend_endpoint()
+    except OwnerAuthError:
+        def run(batch):
+            return ext.import_transcripts(agents, paths=batch)
+    else:
+        from .execution import _worker_request
+
+        def run(batch):
+            status, payload = _worker_request(
+                "POST", "/api/sessions/import", {"agents": agents, "paths": batch})
+            if status != 200:
+                print(f"[error] worker refused: {payload}", file=sys.stderr)
+                sys.exit(1)
+            return payload["results"]
+
+    counts: dict[str, int] = {}
+    for i in range(0, len(todo), _IMPORT_BATCH):
+        for r in run(todo[i:i + _IMPORT_BATCH]):
+            counts[r["status"]] = counts.get(r["status"], 0) + 1
+            if r["status"] in ("created", "appended"):
+                print(f"  {r['status']:>8}  {r['title'][:60]}  (+{r['turns_added']} turns)")
+            elif r["status"] == "failed":
+                print(f"  {'failed':>8}  {r['title'][:60]}: {r.get('error')}", file=sys.stderr)
+    print("\n" + ", ".join(f"{n} {s}" for s, n in sorted(counts.items())))
