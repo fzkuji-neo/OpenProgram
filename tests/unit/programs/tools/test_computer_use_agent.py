@@ -81,26 +81,32 @@ def test_fresh_prompt_names_the_target_and_carries_the_guide():
 
 # ----------------------------------------------------------------- browser
 
-def test_browser_actions_map_to_web_use_commands(monkeypatch):
-    import openprogram.programs.workflow.browser as web
+def test_browser_actions_reach_the_tab_driver_and_read_as_text(monkeypatch):
+    from openprogram.programs.workflow.browser import tabs
 
     calls = []
-    monkeypatch.setattr(web, "run_web_use", lambda *a: calls.append(a) or {"ok": True})
-    browser.run([("observe", {"page": "p1"})], {}, "s")
-    browser.run([("click", {"ref": "e2"})], {"web_session_id": "w1"}, "s")
-    browser.run([("verify", {"text": "Saved"})], {}, "s")
-    assert calls[0] == ("observe", "", "p1", "", "", None)
-    assert calls[1] == ("act", "", "", "", "w1", {"action": "click", "ref": "e2"})
-    assert calls[2][0] == "verify" and calls[2][5] == {"action": "verify", "text": "Saved"}
+
+    class _Driver:
+        def run(self, action, args, session):
+            calls.append((action, args, session))
+            return {"ok": True, "tab": "t2", "url": "https://a.test/", "title": "A", "done": "clicked e2",
+                    "changes": '- <changed> button "Go" [ref=e2]'}
+
+    monkeypatch.setattr(tabs, "driver", lambda: _Driver())
+    result = browser.run([("click", {"ref": "e2"})], {"tab": "t2"}, "s")
+    assert calls == [("click", {"tab": "t2", "ref": "e2"}, "s")]
+    assert result.text.splitlines()[:3] == ["clicked e2", "tab t2 · A · https://a.test/", "changes:"]
 
 
 def test_browser_steps_stop_at_the_first_failure(monkeypatch):
-    import openprogram.programs.workflow.browser as web
+    from openprogram.programs.workflow.browser import tabs
 
-    replies = iter([{"ok": True}, {"ok": False, "error": "gone"}, {"ok": True}])
-    monkeypatch.setattr(web, "run_web_use", lambda *a: next(replies))
-    result = browser.run([("click", {}), ("type", {}), ("press", {})], {}, "s")
-    assert result.is_error and [item.get("step") for item in result.json_data] == [1, 2, None]
+    replies = iter([{"ok": True, "done": "typed"}, {"ok": False, "reason_code": "element_gone", "error": "gone"},
+                    {"ok": True}])
+    monkeypatch.setattr(tabs, "driver", lambda: type("D", (), {"run": lambda self, *a: next(replies)})())
+    result = browser.run([("type", {}), ("click", {}), ("press", {})], {}, "s")
+    assert result.is_error and len(result.json_data) == 2
+    assert result.text.endswith("step 2 failed; the steps after it did not run")
 
 
 def test_browser_approval_asks_for_uploads_and_external_origins_only():

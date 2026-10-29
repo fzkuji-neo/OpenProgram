@@ -87,7 +87,7 @@ computer_use_agent(target="app", args={"app": "Calculator"}, actions=[
 ])
 ```
 
-需要循环、条件判断和数据处理时，模型改为发送 `code`：带顶层 `await` 的 Python，在没有文件、网络和进程权限的隔离解释器里运行，变量在本轮内保留。每个目标是一个对象，它的方法就是它的动作：`await cu.app.click(app="Numbers", element_index=3)`、`await cu.browser.observe()`、`await cu.vm.screenshot()`。在代码里，`dir(cu.app)` 列出一个目标的动作，`help(cu.app.click)` 显示一个动作的参数。代码只能操作本次调用指定的应用，不能运行页面脚本、上传文件或打开新网站，每次调用最多运行 120 秒、执行 100 个动作。代码模式只支持 macOS。
+需要循环、条件判断和数据处理时，模型改为发送 `code`：带顶层 `await` 的 Python，在没有文件、网络和进程权限的隔离解释器里运行，变量在本轮内保留。每个目标是一个对象，它的方法就是它的动作：`await cu.app.click(app="Numbers", element_index=3)`、`await cu.browser.read()`、`await cu.vm.screenshot()`。在代码里，`dir(cu.app)` 列出一个目标的动作，`help(cu.app.click)` 显示一个动作的参数。代码只能操作本次调用指定的应用，不能运行页面脚本、上传文件或打开新网站，每次调用最多运行 120 秒、执行 100 个动作。代码模式只支持 macOS。
 
 `context` 决定由谁来做。默认的 `inherit` 表示模型在这个对话里亲自操作，看到每一步结果。`fresh` 把任务交给一个使用相同模型和设置的新 agent：它从 `brief`（任务、已知信息、要汇报什么）和该目标的指南开始，用自己的 `computer_use_agent` 调用完成工作，只有最终回复回到对话。适合中间画面对话不需要看的长操作。新 agent 不能再启动新的 agent。
 
@@ -99,25 +99,29 @@ computer_use_agent(target="app", args={"app": "Calculator"}, actions=[
 
 ## 网页
 
-`browser` 目标驱动 App 内置浏览器的 Page：`list_pages` 列出它们，`observe` 返回 ref，其他动作都作用在 ref 上。除了 `navigate`、`click`、`type`、`press`、`scroll`、`hover`、`select`、`upload` 和 `screenshot`，它还提供与应用窗口相同的词汇：
+`browser` 目标驱动 App 内置浏览器的标签页。每个标签页有一个短 id，例如 `t2`，在 App 服务运行期间保持不变，跨轮次、跨子 agent 都一样。`tabs` 列出它们，`open(url)` 新开一个，其他动作默认作用于最近用过的标签页，用 `tab` 可以指定别的。
 
-| 动作 | 参数 | 效果 |
+`read` 返回 Playwright 的无障碍大纲：每个元素一行，带角色、名称、状态和 ref，例如 `- button "Next" [ref=e12]`。只要元素还在页面上，它的 ref 就一直有效，跨任意多个动作和轮次。也可以不用 ref，用 `role` 加 `name` 指定元素。每个动作都返回它改变了什么：变化的行标为 `<changed>`，`[unchanged]` 代表已经看过的部分；动作让标签页跳到了另一个地址时，返回整个新页面。所以一整张表单可以在一个动作列表里填完。ref 对应的元素被重新渲染时，会按角色和名称重新找到；元素已经不在时，错误里附带页面的当前状态。
+
+| 动作 | 参数 | 作用 |
 |---|---|---|
-| `click` | `ref` 或 `x`,`y`、`mouse_button?`、`click_count?`、`modifiers?` | 右键、中键、双击和带修饰键的点击，如 `modifiers="cmd"` |
-| `drag` | `ref` 和 `to_ref`，或 `x`,`y` 和 `to_x`,`to_y` | 按下、分步移动、松开 |
-| `scroll` | `ref?`、`direction?`、`amount?` | 给了 `ref` 时滚动该元素最近的可滚动容器；`amount` 以像素计 |
-| `type` / `type_text` | `ref`、`text` / `ref?`、`text` | `type` 替换字段的值；`type_text` 在光标处插入，不给 `ref` 时插入到页面当前焦点 |
-| `paste` | `text`、`format?`、`ref?` | 以粘贴的方式把文字交给页面：`md` 和 `html` 在富文本编辑器里插入带格式的文字，自己处理粘贴的页面会收到它 |
-| `select_text` | `ref`、`text`、`prefix?`、`suffix?`、`selection_type?` | 选中元素里的文字，或把光标放到它前后 |
-| `press` | `key`、`ref?`、`duration?` | 不给 `ref` 时按键发给页面当前焦点；`duration` 是按住的秒数 |
-| `back` / `forward` / `reload` | — | 历史导航；无处可去时返回 `no_history` |
-| `console_messages` | `pattern?`、`only_errors?`、`limit?` | 页面的控制台输出和未捕获错误，从旧到新，默认最新 50 条；密码字段的值会被脱敏 |
-| `network_requests` | `pattern?`、`only_errors?`、`limit?` | 页面发出的请求及其方法、状态码和资源类型；URL 不带查询参数，也不含请求体 |
-| `evaluate` | `script` | 在页面里运行一个 JavaScript 表达式或函数（如 `() => document.title`），以 JSON 返回结果，最多 20,000 个字符；结果里的密码字段值会被脱敏 |
+| `tabs` / `open` / `close` | — / `url`、`visible?` / `tab?` | 列出标签页；新开标签页（默认在后台，`visible: true` 时在前台）；关闭标签页 |
+| `read` | `changes_only?` | 整个页面，或只返回上次结果之后的变化 |
+| `click` | `ref` 或 `role`、`name` 或 `x`、`y`，`mouse_button?`、`click_count?`、`modifiers?` | 右键、中键、双击和带修饰键的点击，例如 `modifiers="cmd"`；`x`、`y` 是上一张截图的像素 |
+| `type` | `ref?`、`text`、`clear?`、`submit?` | 替换字段内容；`clear: false` 在光标处插入；`submit: true` 输入后按回车；不带 `ref` 时输入到当前焦点元素 |
+| `paste` | `text`、`format?`、`ref?` | 以粘贴的方式把文字交给页面：`md` 和 `html` 在富文本编辑器里插入带格式的内容，自己处理粘贴的页面会收到这次粘贴 |
+| `select` | `ref`、`value` | 按值或标签选择下拉框的选项 |
+| `press` | `key`、`ref?` | 不带 `ref` 时按键发给页面的焦点 |
+| `hover` / `drag` / `scroll` | `ref` / `ref`、`to_ref` / `ref?`、`direction?`、`amount?` | 带 `ref` 时 `scroll` 滚动该元素最近的可滚动容器；`amount` 以像素计 |
+| `navigate` / `back` / `forward` / `reload` / `wait` | `url` / — / `text?`、`seconds?` | 历史导航；`wait` 等到某段文字出现，或等待若干秒 |
+| `upload` | `ref`、`path` | 把不超过 50 MiB 的本地文件放进文件输入框 |
+| `screenshot` | — | 标签页的截图，截取时不把它调到前台 |
+| `console` / `network` | `pattern?`、`only_errors?`、`limit?` | agent 第一次使用该标签页以来的控制台输出和网络请求 |
+| `evaluate` | `script` | 在页面里运行 JavaScript 表达式或函数（如 `() => document.title`），以 JSON 返回结果，最多 20,000 字符；结果里的密码字段值会被遮盖 |
 
-App 浏览器里的页面全程留在后台：事件在页面内派发，标签页不会被激活。带 `url` 的 `observe` 打开的标签页同样在你的工作后面；`visible: true` 则把它放到前台，用于你要求看着它操作的时候。`file://` 地址同样能打开本地文件，前提是沙箱允许 agent 读取该文件。`changes_only: true` 只完整列出相对同一页面上一次观察新增或变化的元素：没变的元素只占一行并带上新 ref，没变的页面文字和无障碍快照会省略，消失的元素会列出名字。ref 始终属于最新一次观察。
+App 浏览器里的标签页全程留在后台：输入送达时不会激活它，`open` 打开的标签页也在你的工作后面；`visible: true` 则把它放到前台，用于你要求看着它操作的时候。`file://` 地址同样能打开本地文件，前提是沙箱允许 agent 读取该文件。密码字段的值不会出现在模型读到的内容里。
 
-对话自己的 Page 不需要审批。打开你电脑之外的网站、上传文件会先询问。脚本能读取和修改已登录页面持有的一切，所以每次 `evaluate` 调用都会先问你并展示完整脚本，任何权限模式下都如此，即使有规则允许 `computer_use_agent` 也一样。批准只覆盖这一次调用：它没有“始终允许”，无法询问的定时任务或频道轮次会被拒绝。等待批准期间，这一轮的浏览器会话保持打开，批准后脚本就在它所针对的页面上运行。
+App 内置浏览器的标签页不需要审批。打开你电脑之外的网站、上传文件会先询问。脚本能读取和修改已登录页面持有的一切，所以每次 `evaluate` 调用都会先问你并展示完整脚本，任何权限模式下都如此，即使有规则允许 `computer_use_agent` 也一样。批准只覆盖这一次调用：它没有“始终允许”，无法询问的定时任务或频道轮次会被拒绝。批准后脚本在它所针对的标签页上运行。
 
 ## 查看和接管网页
 
@@ -141,7 +145,7 @@ Agent 的网页打开的弹窗或新窗口会作为独立的 Page 在后台加�
 
 ## 你自己的 Chrome 或 Edge
 
-调用把 `args.browser` 设为 `chrome` 或 `edge` 时，`browser` 目标就在你平时浏览用的浏览器里工作，页面带着你的登录状态和 Cookie 打开。动作与内置浏览器相同：`list_pages` 按序号列出你的标签页，`observe(page=<序号>)` 切到其中一个，`observe(url=…)` 打开新标签页，`click`、`type`、`press`、`scroll`、`screenshot`、`verify` 等作用在那次观察给出的 ref 上。模型被要求只在你点名或任务需要你的登录状态时才用你的浏览器，并且只用你点名的那一个。
+调用把 `args.browser` 设为 `chrome` 或 `edge` 时，`browser` 目标就在你平时浏览用的浏览器里工作，页面带着你的登录状态和 Cookie 打开。动作与内置浏览器相同：`tabs` 按序号列出你的标签页，带 `tab=<序号>` 的 `read` 切到其中一个，`open(url)` 打开新标签页，`click`、`type`、`press`、`scroll`、`screenshot` 等作用在最新快照给出的 ref 上。模型被要求只在你点名或任务需要你的登录状态时才用你的浏览器，并且只用你点名的那一个。
 
 它以扩展模式运行微软的 Playwright MCP 服务器（`@playwright/mcp --extension`），由你浏览器里的 [Playwright Extension](https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm) 连接过来；Edge 也从 Chrome 应用商店安装同一个扩展。安装一次即可；服务器本身通过 `npx` 获取，所以需要装有 Node.js。第一次动作时扩展会询问共享哪个标签页。要免去这一步，复制扩展里显示的令牌并设置：
 

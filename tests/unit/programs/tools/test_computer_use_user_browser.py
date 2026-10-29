@@ -34,7 +34,7 @@ def _install(monkeypatch, browser_name="chrome"):
 
 def test_the_same_actions_reach_the_users_chrome(monkeypatch):
     fake = _install(monkeypatch)
-    result = browser.run([("observe", {"url": "https://example.com"}), ("click", {"ref": "e5"}),
+    result = browser.run([("open", {"url": "https://example.com"}), ("click", {"ref": "e5"}),
                           ("type", {"ref": "e7", "text": "hi"}), ("press", {"key": "Enter"})],
                          {"browser": "chrome"}, "s")
     assert not result.is_error
@@ -61,10 +61,11 @@ def test_a_failed_step_stops_the_rest(monkeypatch):
     assert result.is_error and len(fake.calls) == 1
 
 
-def test_verify_reads_the_page(monkeypatch):
-    _install(monkeypatch)
-    result = browser.run([("verify", {"assertion": "title_contains", "value": "example"})], {"browser": "chrome"}, "s")
-    assert result.json_data["passed"] is True
+def test_tabs_and_read_are_the_extensions_tab_list_and_snapshot(monkeypatch):
+    fake = _install(monkeypatch)
+    browser.run([("tabs", {}), ("read", {"tab": 1})], {"browser": "chrome"}, "s")
+    assert fake.calls == [("browser_tabs", {"action": "list"}), ("browser_tabs", {"action": "select", "index": 1}),
+                          ("browser_snapshot", {})]
 
 
 def test_the_users_browser_is_one_grant_outside_the_page_grant():

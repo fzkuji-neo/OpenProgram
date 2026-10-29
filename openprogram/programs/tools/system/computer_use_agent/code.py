@@ -148,17 +148,13 @@ def _adapter(target, action: str, call_args: dict, session: str) -> Callable:
     return method
 
 
-_BROWSER_READS = frozenset({"list_pages", "verify", "screenshot", "console_messages", "network_requests"})
-
-
 def _reads(name: str) -> Callable[[str, dict], bool]:
     """Which of a target's actions only read, so a failed one applied nothing."""
     def reads(action: str, arguments: dict) -> bool:
         if name == "app":
             return action in app_target.READING_ACTIONS
         if name == "browser":
-            # observe(url) opens a tab; without one it reads the current Page.
-            return action in _BROWSER_READS or action == "observe" and not arguments.get("url")
+            return action in browser_target.READS
         return action == "screenshot"
     return reads
 

@@ -87,7 +87,7 @@ computer_use_agent(target="app", args={"app": "Calculator"}, actions=[
 ])
 ```
 
-For loops, conditions and data handling the model sends `code` instead: Python with top-level `await`, run in an isolated interpreter without files, network or processes, whose variables last for the turn. Each target is an object whose methods are its actions: `await cu.app.click(app="Numbers", element_index=3)`, `await cu.browser.observe()`, `await cu.vm.screenshot()`. Inside the code, `dir(cu.app)` lists a target's actions and `help(cu.app.click)` shows one action's arguments. Code acts only on the app the call names, cannot run page scripts, upload files or open a new website, and runs at most 120 seconds and 100 actions per call. Code runs on macOS only.
+For loops, conditions and data handling the model sends `code` instead: Python with top-level `await`, run in an isolated interpreter without files, network or processes, whose variables last for the turn. Each target is an object whose methods are its actions: `await cu.app.click(app="Numbers", element_index=3)`, `await cu.browser.read()`, `await cu.vm.screenshot()`. Inside the code, `dir(cu.app)` lists a target's actions and `help(cu.app.click)` shows one action's arguments. Code acts only on the app the call names, cannot run page scripts, upload files or open a new website, and runs at most 120 seconds and 100 actions per call. Code runs on macOS only.
 
 `context` says who does the work. `inherit`, the default, means the model operates the screen itself in this conversation and sees every result. `fresh` hands the task to a new agent of the same model and settings: it starts from a `brief` (the task, what is already known, what to report back) and the target's guide, does the work with its own `computer_use_agent` calls, and only its final reply comes back. Use it for long operations whose intermediate screens the conversation does not need. A fresh agent cannot start another one.
 
@@ -99,25 +99,29 @@ The package is the [GUI-Agent-Harness](https://github.com/Fzkuji/GUI-Agent-Harne
 
 ## Web pages
 
-The `browser` target drives the Pages of the App's built-in browser: `list_pages` lists them, `observe` returns refs, and every other action acts on a ref. Besides `navigate`, `click`, `type`, `press`, `scroll`, `hover`, `select`, `upload` and `screenshot`, it offers the same vocabulary as application windows:
+The `browser` target drives the tabs of the App's built-in browser. Each tab has a short id such as `t2` that stays the same for as long as the App's server runs, in every turn and in sub-agents. `tabs` lists them, `open(url)` opens a new one, and every other action goes to the tab used last unless it names another with `tab`.
+
+`read` returns the page as Playwright's accessibility outline: one line per element with its role, name, state and a ref, such as `- button "Next" [ref=e12]`. A ref keeps working as long as its element is on the page, through any number of actions and turns. An element can also be named by `role` and `name` instead of a ref. Every action returns what it changed: changed lines are marked `<changed>`, and `[unchanged]` stands for parts already seen. When the action moved the tab to another address, the whole new page comes back instead. A whole form can therefore be filled in one list of actions. If a ref's element was rendered again, it is found again by its role and name; if it is gone, the error carries the page as it is now.
 
 | Action | Arguments | Effect |
 |---|---|---|
-| `click` | `ref` or `x`,`y`, `mouse_button?`, `click_count?`, `modifiers?` | Right, middle, double and modifier clicks, e.g. `modifiers="cmd"` |
-| `drag` | `ref` and `to_ref`, or `x`,`y` and `to_x`,`to_y` | Press, move in steps, release |
-| `scroll` | `ref?`, `direction?`, `amount?` | With `ref`, the nearest scrollable container of that element scrolls; `amount` is in pixels |
-| `type` / `type_text` | `ref`, `text` / `ref?`, `text` | `type` replaces the field's value; `type_text` inserts at the caret, or at the page's focus without `ref` |
+| `tabs` / `open` / `close` | — / `url`, `visible?` / `tab?` | List tabs; open a tab (in the background unless `visible: true`); close one |
+| `read` | `changes_only?` | The whole page, or only what changed since the last result |
+| `click` | `ref` or `role`,`name` or `x`,`y`, `mouse_button?`, `click_count?`, `modifiers?` | Right, middle, double and modifier clicks, e.g. `modifiers="cmd"`; `x`,`y` are pixels of the last screenshot |
+| `type` | `ref?`, `text`, `clear?`, `submit?` | Replaces the field's text; `clear: false` inserts at the caret; `submit: true` presses Enter after; without `ref` it types into the focused element |
 | `paste` | `text`, `format?`, `ref?` | Offers the text to the page as a paste: `md` and `html` insert formatted text in rich editors, and a page that handles paste itself receives it |
-| `select_text` | `ref`, `text`, `prefix?`, `suffix?`, `selection_type?` | Select text inside an element, or place the caret before or after it |
-| `press` | `key`, `ref?`, `duration?` | Without `ref` the key goes to the page's focus; `duration` holds it |
-| `back` / `forward` / `reload` | — | History navigation; `no_history` when there is nowhere to go |
-| `console_messages` | `pattern?`, `only_errors?`, `limit?` | The page's console output and uncaught errors, oldest first, newest 50 by default; password field values are redacted |
-| `network_requests` | `pattern?`, `only_errors?`, `limit?` | Requests the page made with method, status and resource type; URLs are shown without query strings, and no bodies |
+| `select` | `ref`, `value` | Chooses options of a select box by value or label |
+| `press` | `key`, `ref?` | Without `ref` the key goes to the page's focus |
+| `hover` / `drag` / `scroll` | `ref` / `ref`, `to_ref` / `ref?`, `direction?`, `amount?` | With `ref`, `scroll` moves the nearest scrollable container of that element; `amount` is in pixels |
+| `navigate` / `back` / `forward` / `reload` / `wait` | `url` / — / `text?`, `seconds?` | History navigation; `wait` waits until a text appears, or for some seconds |
+| `upload` | `ref`, `path` | Puts a local file of at most 50 MiB into a file input |
+| `screenshot` | — | The tab as an image, captured without bringing it forward |
+| `console` / `network` | `pattern?`, `only_errors?`, `limit?` | The page's console output and requests since the agent first used the tab |
 | `evaluate` | `script` | Runs a JavaScript expression or function such as `() => document.title` in the page and returns its result as JSON, at most 20,000 characters; password field values in the result are redacted |
 
-A page in the App's browser stays in the background throughout: the events are dispatched inside the page and the tab is not activated. `observe` with a `url` opens its tab behind your work too; `visible: true` brings it to the front instead, for when you asked to watch. A `file://` URL opens a local file the same way, when the sandbox lets the agent read that file. `changes_only: true` lists in full only the elements that are new or changed since the previous observation of the same page: an unchanged element is one line with its new ref, an unchanged page text or accessibility snapshot is left out, and elements that disappeared are named. Refs always belong to the latest observation.
+A tab in the App's browser stays in the background throughout: input reaches it without activating it, and `open` puts its tab behind your work; `visible: true` brings it to the front instead, for when you asked to watch. A `file://` URL opens a local file the same way, when the sandbox lets the agent read that file. Password field values never appear in what the model reads.
 
-The conversation's Pages need no approval. Opening a website outside your computer, and uploading a file, ask first. A script can read and change everything a signed-in page holds, so every `evaluate` call asks you first and shows the whole script, in every permission mode and even when a rule allows `computer_use_agent`. That approval covers the one call: there is no "always allow" for it, and scheduled or channel turns that cannot ask are refused. While the approval waits, the turn's browser sessions stay open, so the approved script runs on the page it was written for.
+The App's built-in tabs need no approval. Opening a website outside your computer, and uploading a file, ask first. A script can read and change everything a signed-in page holds, so every `evaluate` call asks you first and shows the whole script, in every permission mode and even when a rule allows `computer_use_agent`. That approval covers the one call: there is no "always allow" for it, and scheduled or channel turns that cannot ask are refused. The approved script runs on the tab it was written for.
 
 ## Watching and taking over Pages
 
@@ -141,7 +145,7 @@ These controls operate on exact OpenProgram Pages. Application windows and VM di
 
 ## Your own Chrome or Edge
 
-The `browser` target works in the browser you browse with when a call sets `args.browser` to `chrome` or `edge`, so pages open with your sign-ins and cookies. The actions are the same as in the built-in browser: `list_pages` lists your tabs by index, `observe(page=<index>)` switches to one and `observe(url=…)` opens a new tab, and `click`, `type`, `press`, `scroll`, `screenshot`, `verify` and the rest act on refs from that observation. The model is told to use your browser only when you name it or the task needs your signed-in state, and to stay in the browser you named.
+The `browser` target works in the browser you browse with when a call sets `args.browser` to `chrome` or `edge`, so pages open with your sign-ins and cookies. The actions are the same as in the built-in browser: `tabs` lists your tabs by index, `read` with `tab=<index>` switches to one and `open(url)` opens a new tab, and `click`, `type`, `press`, `scroll`, `screenshot` and the rest act on refs from the latest snapshot. The model is told to use your browser only when you name it or the task needs your signed-in state, and to stay in the browser you named.
 
 It runs Microsoft's Playwright MCP server in extension mode (`@playwright/mcp --extension`), and the [Playwright Extension](https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm) in your browser connects to it; Edge installs the same extension from the Chrome Web Store. Install it once; the server itself is fetched with `npx`, so Node.js must be installed. On the first action the extension asks which tab to share. To connect without that prompt, copy the token the extension shows and set it:
 

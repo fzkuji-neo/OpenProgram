@@ -40,7 +40,8 @@ def test_playwright_spellings_are_rewritten():
 
 def test_unknown_arguments_and_actions_fail_with_the_signature():
     _, _, error = params.check_step("browser", "click", {"ref": "e1", "selector": "#go"})
-    assert error == "click does not take selector; it is click(ref, x, y, mouse_button, click_count, modifiers)."
+    assert error == ("click does not take selector; it is "
+                     "click(ref, role, name, x, y, mouse_button, click_count, modifiers).")
     _, _, error = params.check_step("app", "clik", {})
     assert "Did you mean click(" in error
 
