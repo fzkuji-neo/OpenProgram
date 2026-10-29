@@ -24,13 +24,16 @@
 .inputArea[data-tucked] > .composerStack {
   z-index: 6;
 }
-/* The box's own surface is the tuck switch: a hand over it, the text
-   cursor over the text. */
+/* The box's rim is the tuck switch (use-tucked-controls.ts): a hand
+   there; the rest of the box belongs to the text field. */
 .inputWrapper[data-tuckable] {
+  cursor: text;
+}
+.inputWrapper[data-tuckable] button {
   cursor: pointer;
 }
-.inputWrapper[data-tuckable] :global([data-composer-text]) {
-  cursor: text;
+.inputWrapper[data-tuckable][data-tuck-rim] {
+  cursor: pointer;
 }
 .inputArea:has([data-environment-row] [aria-expanded="true"]) > *,
 .inputArea:has([data-effort-expanded="true"]) > * {

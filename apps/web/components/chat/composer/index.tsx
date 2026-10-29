@@ -634,6 +634,8 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
         }}
         className={`${styles.inputWrapper} ${morphed ? styles.morphed : ""}`}
         onPointerDown={tuck.onBoxPointerDown}
+        onPointerMove={tuck.onBoxPointerMove}
+        onPointerLeave={tuck.onBoxPointerLeave}
         data-tuckable={tuck.enabled ? "" : undefined}
         data-voice={voice.state !== "idle" ? voice.state : undefined}
       >
