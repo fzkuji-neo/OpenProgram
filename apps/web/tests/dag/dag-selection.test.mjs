@@ -190,3 +190,12 @@ test("The minimap, the legend and the controls sheet come and go like the app's 
   const css = readFileSync(new URL("../../app/styles/dag/panels/tools.css", import.meta.url), "utf8");
   assert.match(css, /\.dag-minimap\.is-hidden \{\s*opacity: 0;\s*transform: translateX\(8px\) scale\(0\.95\);/);
 });
+
+test("Entering the graph view, the map comes in once and the strips slide in", () => {
+  const map = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/view/minimap.ts", import.meta.url), "utf8");
+  assert.match(map, /export function stowMinimap\(panel: HTMLElement\)[\s\S]*?c\.style\.transition = "none";\s*c\.classList\.add\("is-hidden"\);/);
+  const view = readFileSync(new URL("../../components/chat/dag/dag-view.tsx", import.meta.url), "utf8");
+  assert.match(view, /useLayoutEffect\(\(\)=>\{ if\(visible && rootRef\.current\) stowMinimap\(rootRef\.current\); \},\[visible,sessionId\]\);\s*useEffect\(\(\)=>\{\s*const send=/);
+  const css = readFileSync(new URL("../../app/styles/dag/panels/tools.css", import.meta.url), "utf8");
+  assert.match(css, /\.dag-zoom-column > \.dag-tool-rail \{\s*animation: dag-strip-in 0\.15s ease-out backwards;/);
+});

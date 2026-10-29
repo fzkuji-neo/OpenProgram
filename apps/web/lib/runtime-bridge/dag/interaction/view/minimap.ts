@@ -245,6 +245,20 @@ export function paintMinimap(
   ctx.strokeRect(...frame);
 }
 
+/** The graph view is coming on screen: put the map away at once, without
+ *  its exit motion. It is whatever the last visit left — and the first
+ *  frames of this one draw the emptied cache before the graph arrives —
+ *  so a visible map here would shrink away and pop back in. Hidden, it
+ *  comes in once, on the first paint that has a graph. */
+export function stowMinimap(panel: HTMLElement): void {
+  const c = panel.querySelector<HTMLCanvasElement>(":scope > canvas.dag-minimap");
+  if (!c || c.classList.contains("is-hidden")) return;
+  c.style.transition = "none";
+  c.classList.add("is-hidden");
+  void c.offsetWidth;
+  c.style.transition = "";
+}
+
 /** The canvas is gone (empty session): so is its map. */
 export function hideMinimap(host: HTMLElement): void {
   (host.parentElement || host).querySelector(":scope > canvas.dag-minimap")?.classList.add("is-hidden");

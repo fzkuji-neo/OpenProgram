@@ -34,7 +34,7 @@
  * coverage is simply what the fill means.
  */
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { SolarIcon } from "@/components/solar-icons";
 import type { SolarIconName } from "@/components/solar-icons/bodies";
@@ -44,7 +44,7 @@ import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
 import { useSessionStore } from "@/lib/session-store";
 import { enterExclusiveCoverageMode, renderHistoryGraph } from "@/lib/runtime-bridge/dag";
 import { focusAgent, resetZoom, zoomStep } from "@/lib/runtime-bridge/dag/interaction/view/canvas";
-import { minimapOn, subscribeMinimap, toggleMinimap } from "@/lib/runtime-bridge/dag/interaction/view/minimap";
+import { minimapOn, stowMinimap, subscribeMinimap, toggleMinimap } from "@/lib/runtime-bridge/dag/interaction/view/minimap";
 import {
   canvasFullscreen,
   setCanvasFullscreen,
@@ -211,6 +211,10 @@ function DagZoomColumn() {
 
 export function DagView({ visible }: { visible: boolean }) {
   const sessionId=useSessionStore(s=>s.currentSessionId);
+  const rootRef=useRef<HTMLDivElement|null>(null);
+  // Before the effect below asks for the graph: the map comes in once,
+  // when the graph does (minimap.ts stowMinimap).
+  useLayoutEffect(()=>{ if(visible && rootRef.current) stowMinimap(rootRef.current); },[visible,sessionId]);
   useEffect(()=>{
     const send=()=>{
       const sock=getSocket();
@@ -244,6 +248,7 @@ export function DagView({ visible }: { visible: boolean }) {
   useEffect(() => () => setCanvasFullscreen(false), []);
   return (
     <div
+      ref={rootRef}
       id="historyPanel"
       className="dag-view"
       style={{ display: visible ? "flex" : "none" }}
