@@ -94,24 +94,31 @@ and zoom live in `apps/web/lib/runtime-bridge/dag/store/globals.ts` keyed by ses
 different session re-fits. Resizing the pane never re-fits — the user's angle on
 the graph is theirs to keep.
 
-**Arriving opens readable; Show the whole graph shows everything.** The opening view
+**Arriving opens readable; Shift+1 shows everything.** The opening view
 is the fit, floored at 80%: a long session fitted whole shrank to a hairline
 column of specks (a 40-turn chat opened at 37%). When the graph is larger than
 the strip at that floor, the overflowing axis follows HEAD — near the bottom of
-the strip, the way a transcript opens on its latest message. The zoom column's
-Show the whole graph keeps the plain fit down to 25%: asking to see everything is a request
+the strip, the way a transcript opens on its latest message. Showing the whole graph
+(Shift+1) keeps the plain fit down to 25%: asking to see everything is a request
 for exactly that (`fitCanvas(opening)` in `apps/web/lib/runtime-bridge/dag/interaction/view/canvas.ts`).
 
 **Zoom column.** In the canvas's top-right corner, right under the pane's
 perspective strip, so every view control is one column in one corner: one
-raised strip holding + · readout · − and, under a hairline, **Show the whole
-graph** (Shift+1, a frame icon rather than the outward arrows that read as
-full screen) and **Find the working agent** (F); a second strip under it turns
+raised strip holding + · readout · − and, under a hairline, **Full screen**
+and **Find the working agent** (F); a second strip under it turns
 the legend and the minimap on and off and, under a hairline, opens the
 controls sheet. All open to the column's left from the top, the map above the
 legend; the legend and the map stay open until their button is pressed again.
 The controls sheet opens in the legend's spot, under the map while it is
 shown, so the two take turns: opening either closes the other.
+**Full screen** gives the window to the graph: the app's left sidebar, right
+sidebar and center tab strip step aside, and the canvas, its column and the
+composer stay. It is a mode of the app, not the browser's full screen — the
+window keeps its size. Pressed again, Esc (once nothing is selected), leaving
+the graph view or a reload ends it (`interaction/view/fullscreen.ts`; the
+hiding is `html[data-canvas-fullscreen]` in `app/styles/dag/panels/tools.css`).
+Showing the whole graph used to hold this spot; it was a fit that, on a small
+graph, looked just like the readout's 100%, so it is Shift+1 alone now.
 A toggle that is on holds the hover grey, never an accent colour. Every glyph
 in the column and in the pane's perspective strip is Solar Bold Duotone with
 the composer's hover pop (`docs/reference/design/ui/icons.md`). The buttons step by exactly one wheel notch (`ZOOM_STEP`), and
@@ -982,13 +989,14 @@ the pane's top-right controls. There is no left rail. **Find the working
 agent** (F, in the zoom column) glides the view to the tile a working
 agent stands on, keeping the zoom. Pressed again it moves to the next working
 agent, and with none at work it goes to HEAD (`focusAgent` in
-`interaction/view/canvas.ts`). Zoom and the whole graph are the zoom column on the
+`interaction/view/canvas.ts`). Zoom and full screen are the zoom column on the
 right edge (see "The canvas is infinite"). The column's last button (a notes
 glyph, since half the sheet is mouse gestures, not keys) opens the **controls
 sheet**: every gesture and key the canvas answers to, grouped as mouse, camera
 and selection, in a menu panel left of the column, from the top
 (`components/chat/dag/dag-key-sheet.tsx`). `?` opens it
-too. Esc, `?` again or a press outside closes it. The view keys follow design
+too. Esc, `?` again or a press outside closes it. Esc runs down one
+thing at a time: the sheet, then the selection, then full screen. The view keys follow design
 tools: Shift+1 fits the graph, Shift+0 returns to 100%, and + / − step the
 zoom, the same steps as the zoom column's buttons (`interaction/selection/keys.ts`).
 

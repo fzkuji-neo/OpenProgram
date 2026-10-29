@@ -188,3 +188,12 @@
   top: calc(12px + 160px + 8px); /* the map is 160px tall (minimap.ts H) */
   max-height: calc(100% - 12px - 160px - 8px - 12px);
 }
+
+/* Full screen (interaction/view/fullscreen.ts): the graph takes the
+   window — the left sidebar, the right sidebar and the center tab strip
+   step aside; the canvas, its column and the composer stay. */
+html[data-canvas-fullscreen] #sidebar,
+html[data-canvas-fullscreen] .app > :has(> #rightSidebar),
+html[data-canvas-fullscreen] [data-center-tab-strip] {
+  display: none !important;
+}

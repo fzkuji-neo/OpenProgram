@@ -9,7 +9,8 @@
  *   Shift+2          fit the selection
  *   + / −            zoom in / out one step
  *   Delete / ⌫       delete the selection
- *   Esc              clear the selection
+ *   Esc              close the key sheet, else clear the selection,
+ *                    else leave full screen
  *   ⌘Z / Ctrl+Z      undo the last delete in this session
  *   ?                open / close the key sheet
  */
@@ -19,6 +20,7 @@ import { fitCanvas, focusAgent, frameSelection, resetZoom, zoomStep } from "../v
 import { canUndoDeletion, deleteSelection, undoDeletion } from "./node-delete";
 import { keySheetOpen, setKeySheet } from "./key-sheet";
 import { toggleMinimap } from "../view/minimap";
+import { canvasFullscreen, setCanvasFullscreen } from "../view/fullscreen";
 
 function onKeyDown(e: KeyboardEvent): void {
   if (e.defaultPrevented || isEditableFocus() || !dagVisible()) return;
@@ -47,9 +49,15 @@ function onKeyDown(e: KeyboardEvent): void {
       setKeySheet(false);
       return;
     }
-    if (!selectedIds().length) return;
-    e.preventDefault();
-    clearSelection();
+    if (selectedIds().length) {
+      e.preventDefault();
+      clearSelection();
+      return;
+    }
+    if (canvasFullscreen()) {
+      e.preventDefault();
+      setCanvasFullscreen(false);
+    }
     return;
   }
   // View keys, as design tools have them. By physical key, so Shift+1

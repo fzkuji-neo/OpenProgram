@@ -62,12 +62,12 @@ test("Every node is one tinted round chip; states restyle the chip, never frame 
   assert.match(legend, /className=\{`dag-tile t-\$\{tone\} dag-legend-tile`\}/);
 });
 
-test("A session opens readable and framed on HEAD; only the Fit button shows everything", () => {
+test("A session opens readable and framed on HEAD; only Shift+1 shows everything", () => {
   const canvas = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/view/canvas.ts", import.meta.url), "utf8");
   assert.match(canvas, /const OPEN_MIN_SCALE = 0\.8;/);
   assert.match(canvas, /_fitFrame \|\|= requestAnimationFrame\(\(\) => fitCanvas\(true\)\)/);
-  const view = readFileSync(new URL("../../components/chat/dag/dag-view.tsx", import.meta.url), "utf8");
-  assert.match(view, /onClick=\{\(\) => fitCanvas\(\)\}/);
+  const keys = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/selection/keys.ts", import.meta.url), "utf8");
+  assert.match(keys, /e\.code === "Digit1" \? fitCanvas/);
 });
 
 test("The fold count steps past an error or cross-session mark on the shoulder", () => {

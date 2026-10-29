@@ -306,6 +306,7 @@ export function CenterTabStrip() {
     <div
       ref={stripRef}
       className={styles.strip}
+      data-center-tab-strip=""
       data-transfer-hover={transferHover || undefined}
       // Leaving the strip ends the click run → release the frozen widths
       // and let the normal rules (plus the .tab transition) reflow. The

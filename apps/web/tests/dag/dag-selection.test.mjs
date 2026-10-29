@@ -36,7 +36,7 @@ test("One mouse, no tools, and no left rail", () => {
 test("Every view control is one column of Solar glyphs in the top-right corner", () => {
   const view = readFileSync(new URL("../../components/chat/dag/dag-view.tsx", import.meta.url), "utf8");
   const column = view.slice(view.indexOf("function DagZoomColumn"), view.indexOf("export function DagView"));
-  assert.match(column, /zoomStep\(1\)[\s\S]*dag-zoom-readout[\s\S]*zoomStep\(-1\)[\s\S]*fitCanvas\(\)[\s\S]*focusAgent\(\)[\s\S]*<DagLegend \/>[\s\S]*toggleMinimap\(\)[\s\S]*setKeySheet/);
+  assert.match(column, /zoomStep\(1\)[\s\S]*dag-zoom-readout[\s\S]*zoomStep\(-1\)[\s\S]*setCanvasFullscreen\(!full\)[\s\S]*focusAgent\(\)[\s\S]*<DagLegend \/>[\s\S]*toggleMinimap\(\)[\s\S]*setKeySheet/);
   assert.doesNotMatch(view, /lucide-react/);
   // A frame, not the outward arrows that read as full screen.
   assert.doesNotMatch(view, /Maximize2|createPortal|dagHudSlot/);
@@ -55,6 +55,26 @@ test("Every view control is one column of Solar glyphs in the top-right corner",
   assert.match(legend, /\.dag-legend-body \{[^}]*width: 280px;/);
   assert.match(css, /\.dag-key-sheet \{[^}]*width: 280px;/);
   assert.doesNotMatch(css, /\.dag-view > \.dag-tool-rail/);
+});
+
+test("Full screen hides the sidebars and the tab strip; Esc, leaving the graph or a reload ends it", async () => {
+  const fs = await import("../../lib/runtime-bridge/dag/interaction/view/fullscreen.ts");
+  let calls = 0;
+  const off = fs.subscribeCanvasFullscreen(() => calls++);
+  fs.setCanvasFullscreen(true);
+  assert.equal(fs.canvasFullscreen(), true);
+  fs.setCanvasFullscreen(true);
+  fs.setCanvasFullscreen(false);
+  assert.equal(calls, 2);
+  off();
+  const css = readFileSync(new URL("../../app/styles/dag/panels/tools.css", import.meta.url), "utf8");
+  assert.match(css, /html\[data-canvas-fullscreen\] #sidebar,[\s\S]*#rightSidebar[\s\S]*\[data-center-tab-strip\] \{\s*display: none/);
+  const strip = readFileSync(new URL("../../components/center-tabs/strip/center-tab-strip.tsx", import.meta.url), "utf8");
+  assert.match(strip, /data-center-tab-strip=""/);
+  const keys = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/selection/keys.ts", import.meta.url), "utf8");
+  assert.match(keys, /clearSelection\(\);[\s\S]{0,60}\}[\s\S]{0,40}if \(canvasFullscreen\(\)\)[\s\S]{0,60}setCanvasFullscreen\(false\)/);
+  const view = readFileSync(new URL("../../components/chat/dag/dag-view.tsx", import.meta.url), "utf8");
+  assert.match(view, /else setCanvasFullscreen\(false\);/);
 });
 
 test("A mouse wheel zooms, two fingers pan, a right drag pans, a left drag draws a box", async () => {

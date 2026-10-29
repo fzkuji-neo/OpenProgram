@@ -42,8 +42,13 @@ import { useTranslation } from "@/lib/i18n";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
 import { useSessionStore } from "@/lib/session-store";
 import { enterExclusiveCoverageMode, renderHistoryGraph } from "@/lib/runtime-bridge/dag";
-import { fitCanvas, focusAgent, resetZoom, zoomStep } from "@/lib/runtime-bridge/dag/interaction/view/canvas";
+import { focusAgent, resetZoom, zoomStep } from "@/lib/runtime-bridge/dag/interaction/view/canvas";
 import { minimapOn, subscribeMinimap, toggleMinimap } from "@/lib/runtime-bridge/dag/interaction/view/minimap";
+import {
+  canvasFullscreen,
+  setCanvasFullscreen,
+  subscribeCanvasFullscreen,
+} from "@/lib/runtime-bridge/dag/interaction/view/fullscreen";
 import { MENU_PANEL } from "@/components/chat/top-bar/menu-styles";
 import { DagCanvasTools } from "@/components/chat/dag/dag-tools";
 import { useKeySheetOpen } from "@/components/chat/dag/dag-key-sheet";
@@ -127,7 +132,7 @@ function DagLegend() {
 /** The zoom column in the canvas's top-right corner, right under the
  *  pane's perspective strip (dag/rendering.md §13): one raised strip
  *  holding zoom in, the readout (click: back to 100%), zoom out and,
- *  under a hairline, show the whole graph and find the working agent;
+ *  under a hairline, full screen and find the working agent;
  *  a second strip under it turns the legend and the minimap on and off
  *  and, under a hairline, opens the controls sheet (dag-key-sheet.tsx).
  *  All open to the column's left from the top, the map above the
@@ -140,6 +145,7 @@ function DagZoomColumn() {
   const { text } = useTranslation();
   const mapOn = useSyncExternalStore(subscribeMinimap, minimapOn, minimapOn);
   const sheetOpen = useKeySheetOpen();
+  const full = useSyncExternalStore(subscribeCanvasFullscreen, canvasFullscreen, () => false);
   return (
     <div className="dag-zoom-column">
       <div className="dag-tool-rail" role="toolbar" aria-orientation="vertical"
@@ -160,10 +166,13 @@ function DagZoomColumn() {
           <SolarIcon name="magnifer-zoom-out" size={16} />
         </button>
         <span className="dag-tool-sep" aria-hidden="true" />
-        <button type="button" className="dag-tool-btn" onClick={() => fitCanvas()}
-          aria-label={text("Show the whole graph", "显示整张图")} aria-keyshortcuts="Shift+1"
-          data-tip={text("Show the whole graph", "显示整张图")} data-tip-keys="⇧ 1" data-tip-side="left">
-          <SolarIcon name="full-screen-square" size={16} />
+        {/* Showing the whole graph is Shift+1 alone (keys.ts); this
+            spot hides the sidebars and the tab strip instead. */}
+        <button type="button" className="dag-tool-btn" onClick={() => setCanvasFullscreen(!full)}
+          aria-pressed={full} aria-label={text("Full screen", "全屏")}
+          data-tip={full ? text("Leave full screen", "退出全屏") : text("Full screen", "全屏")}
+          data-tip-keys={full ? "Esc" : undefined} data-tip-side="left">
+          <SolarIcon name={full ? "quit-full-screen-square" : "full-screen-square"} size={16} />
         </button>
         <button type="button" className="dag-tool-btn" onClick={() => focusAgent()}
           aria-label={text("Find the working agent", "找到正在工作的 agent")} aria-keyshortcuts="F"
@@ -224,7 +233,10 @@ export function DagView({ visible }: { visible: boolean }) {
   },[visible,sessionId]);
   useEffect(() => {
     if (visible) enterExclusiveCoverageMode();
+    // Full screen belongs to the graph: leaving the view ends it.
+    else setCanvasFullscreen(false);
   }, [visible]);
+  useEffect(() => () => setCanvasFullscreen(false), []);
   return (
     <div
       id="historyPanel"

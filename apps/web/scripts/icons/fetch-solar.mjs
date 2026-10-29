@@ -143,6 +143,7 @@ const ICONS = {
   "git-graph": "bold-duotone",
   "menu-dots": "bold-duotone",
   "full-screen-square": "bold-duotone",
+  "quit-full-screen-square": "bold-duotone",
   "gps": "bold-duotone",
   "notes": "bold-duotone",
 };

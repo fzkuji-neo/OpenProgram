@@ -31,6 +31,7 @@ const GROUPS: [en: string, zh: string, rows: Row[]][] = [
     ["Back to 100%", "回到 100%", [{ key: "0", shift: true }]],
     ["Zoom in / out", "放大 / 缩小", [{ key: "+" }, { key: "−" }]],
     ["Hide / show the minimap", "隐藏 / 显示小地图", [{ key: "M" }]],
+    ["Leave full screen", "退出全屏", [{ key: "Esc" }]],
   ]],
   ["Selection", "选择", [
     ["Fit the selection", "缩放到所选", [{ key: "2", shift: true }]],
