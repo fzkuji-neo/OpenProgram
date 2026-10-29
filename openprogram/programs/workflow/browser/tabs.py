@@ -333,19 +333,28 @@ class Driver:
         self._connect()
         page = self._pages.get(tab.target_id)
         if page is None or page.is_closed():
-            for context in self._browser.contexts:
-                for candidate in context.pages:
-                    if id(candidate) not in self._known:
-                        target = _target_id(candidate)
-                        self._known[id(candidate)] = target
-                        if target:
-                            self._pages[target] = candidate
-            page = self._pages.get(tab.target_id)
-        if page is None or page.is_closed():
+            page = self._scan(tab.target_id)
+        if page is None:
+            # A connection does not always learn of tabs the App opens after it: connect again.
+            self._disconnect()
+            self._connect()
+            page = self._scan(tab.target_id)
+        if page is None:
             raise BrowserError("tab_gone", "the tab is no longer in the App")
         if tab.target_id not in self._watches:
             self._watch(page, tab.target_id)
         return page
+
+    def _scan(self, target_id: str):
+        for context in self._browser.contexts:
+            for candidate in context.pages:
+                if id(candidate) not in self._known:
+                    target = _target_id(candidate)
+                    if target:
+                        self._known[id(candidate)] = target
+                        self._pages[target] = candidate
+        page = self._pages.get(target_id)
+        return page if page is not None and not page.is_closed() else None
 
     def _watch(self, page, target: str) -> None:
         watch = self._watches[target] = _Watch()
