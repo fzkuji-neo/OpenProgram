@@ -9,8 +9,9 @@
  * shortly after their character arrives, so text shows roughly in the
  * order it was written with neighbours landing in random order. History
  * that loads or comes back into view shows as it is. In-progress labels
- * (the "Thinking… ›" row, a running step's title: CodeRainText) rain in
- * the same way, again whenever their text changes.
+ * (the "Thinking… ›" row, › included, and a running step's title:
+ * CodeRainText) rain in the same way, again whenever their text changes,
+ * and while they stay up a character now and then flickers back into code.
  *
  * Nothing in the transcript DOM changes. The characters not yet decoded
  * are hidden and tinted through CSS custom highlights (transcript.css),
@@ -39,6 +40,10 @@ const LEN = [6, 11] as const;
 /** Seconds after a character arrives within which its stream starts, at a
  *  random moment: the spread that shuffles neighbouring characters. */
 const WINDOW = 0.7;
+/** How often a settled label character flickers back into code (per
+ *  second), and for how long (s). */
+const FLICKER_RATE = 0.22;
+const FLICKER = [0.09, 0.21] as const;
 /** Past this many new characters, only those on screen are animated. */
 const MAX_ANIMATED = 900;
 
@@ -214,6 +219,8 @@ function startArrivals(mount: HTMLElement): () => void {
   function track(el: HTMLElement) {
     const role = el.classList.contains("code-rain-text") ? "label"
       : el.classList.contains("user") ? "user" : el.classList.contains("assistant") ? "assistant" : null;
+    // A label in a fold row rains in with its whole row, › included.
+    if (role === "label") el = el.closest<HTMLElement>(".tl-toggle") ?? el;
     if (!role || trackers.some((t) => t.el === el)) return;
     // A row re-keyed by the server (the sent turn's local id replaced by
     // its real one) mounts again with the same text: keep its timing.
@@ -289,20 +296,40 @@ function startArrivals(mount: HTMLElement): () => void {
     running = true;
     raf = requestAnimationFrame(frame);
   }
+  /** A label that has stopped being one (its row finished running). */
+  const retired = (tr: Tracker) =>
+    tr.role === "label" && !tr.el.matches(".code-rain-text") && !tr.el.querySelector(".code-rain-text");
+  let lastFrame = 0;
   function frame() {
     const t = now();
+    const dt = lastFrame ? Math.min(0.1, t - lastFrame) : 0;
+    lastFrame = t;
     for (const tr of trackers) {
       if (tr.role === "user" && tr.chars.size) follow(tr);
-      if (!tr.el.isConnected) { if (tr.lostAt === null) tr.lostAt = t; continue; }
+      if (!tr.el.isConnected || retired(tr)) { if (tr.lostAt === null) tr.lostAt = t; continue; }
       if (tr.dirty) schedule(tr);
+      if (tr.role === "label") flicker(tr, t, dt);
     }
     for (let i = trackers.length - 1; i >= 0; i--) {
       const tr = trackers[i];
       if (tr.lostAt !== null && t - tr.lostAt > 1) { dispose(tr); trackers.splice(i, 1); }
     }
-    const busy = paint(t);
+    // A label keeps the loop going for its flicker while it is up.
+    const busy = paint(t) || trackers.some((tr) => tr.role === "label" && tr.lostAt === null);
     if (busy) raf = requestAnimationFrame(frame);
-    else { running = false; clear(); }
+    else { running = false; lastFrame = 0; clear(); }
+  }
+  /** Settled label characters flicker back into code for a moment, the
+   *  way text scrambles in The Matrix. */
+  function flicker(tr: Tracker, t: number, dt: number) {
+    const text = textOf(tr);
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (!ch.trim() || tr.chars.has(i) || Math.random() >= dt * FLICKER_RATE) continue;
+      const until = t + FLICKER[0] + Math.random() * (FLICKER[1] - FLICKER[0]);
+      // Revealed already, so it shows as code at once, without the bright head.
+      tr.chars.set(i, { ch, reveal: t - 1, settle: until, glyph: randomGlyph(), next: 0, fade: 0 });
+    }
   }
   function clear() {
     ctx!.clearRect(0, 0, canvas.width, canvas.height);
