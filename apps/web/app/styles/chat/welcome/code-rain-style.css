@@ -30,6 +30,12 @@
 /* A green label's › is green too. The thinking row keeps no time of its
    own: like a tool group's row, its time shows under the finished reply. */
 .tl-toggle:has(> .code-rain-text) .tl-chev { color: var(--code-rain-ink); }
+/* The failure note keeps its red but takes the green label's type. */
+.tl-toggle:has(> .code-rain-text) .tl-fail {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12.5px;
+  letter-spacing: 0.3px;
+}
 .pending-body > .tl-toggle ~ .message-timestamp { display: none; }
 /* A running step's tile turns green and shows falling glyphs. */
 :root[data-code-rain="on"] .tl-step-icon.is-running { --tone: var(--code-rain-ink); }
