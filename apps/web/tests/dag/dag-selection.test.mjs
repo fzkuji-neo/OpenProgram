@@ -75,6 +75,17 @@ test("Full screen hides the sidebars and the tab strip; Esc, leaving the graph o
   assert.match(keys, /clearSelection\(\);[\s\S]{0,60}\}[\s\S]{0,40}if \(canvasFullscreen\(\)\)[\s\S]{0,60}setCanvasFullscreen\(false\)/);
   const view = readFileSync(new URL("../../components/chat/dag/dag-view.tsx", import.meta.url), "utf8");
   assert.match(view, /else setCanvasFullscreen\(false\);/);
+  // Without the sidebars the pane keeps its 7px gap to the window's sides.
+  assert.match(css, /html\[data-canvas-fullscreen\] \.center-col \{\s*margin-inline: 7px;/);
+});
+
+test("The zoom buttons and keys glide; the wheel and pinch stay immediate", () => {
+  const canvas = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/view/canvas.ts", import.meta.url), "utf8");
+  const step = canvas.slice(canvas.indexOf("export function zoomStep"), canvas.indexOf("/** Where the camera can go"));
+  assert.match(step, /const base = _glideScale \?\? _viewScale;[\s\S]*glideZoom\(/);
+  assert.match(step, /export function resetZoom[\s\S]*glideZoom\([^)]*, 1\)/);
+  assert.match(canvas, /function zoomAt\([^)]*\): void \{\s*_glide\?\.stop\(\);/);
+  assert.match(canvas, /const s = from \* Math\.pow\(to \/ from, k\);/);
 });
 
 test("A mouse wheel zooms, two fingers pan, a right drag pans, a left drag draws a box", async () => {

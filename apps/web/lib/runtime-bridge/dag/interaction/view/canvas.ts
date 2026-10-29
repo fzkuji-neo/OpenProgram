@@ -177,6 +177,7 @@ function paintView(): void {
 function jumpTo(x: number, y: number): void {
   if (!_handle) return;
   _glide?.stop();
+  _glideScale = null;
   const { host } = _handle;
   setView(Math.round(host.clientWidth / 2 - x * _viewScale),
     Math.round((host.clientHeight - COMPOSER_STRIP) / 2 - y * _viewScale), _viewScale);
@@ -203,6 +204,8 @@ const OPEN_MIN_SCALE = 0.8;
 export function fitCanvas(opening = false, only?: DOMRect): void {
   _fitFrame = 0;
   if (!_handle) return;
+  _glide?.stop();
+  _glideScale = null;
   dismissOverlays();
   const { world, host } = _handle;
   const w = host.clientWidth;
@@ -252,8 +255,11 @@ function headPoint(world: SVGGElement): { x: number; y: number } | null {
 }
 
 /** Zoom by ``factor`` about the screen-space anchor ``(px, py)``: the
- *  world point under the anchor stays under it before and after. */
+ *  world point under the anchor stays under it before and after. At
+ *  once — the wheel and pinch call it on every event of a gesture. */
 function zoomAt(px: number, py: number, factor: number): void {
+  _glide?.stop();
+  _glideScale = null;
   const next = Math.min(MAX_SCALE, Math.max(MIN_SCALE, _viewScale * factor));
   setView(
     px - (px - _viewTx) * (next / _viewScale),
@@ -263,26 +269,52 @@ function zoomAt(px: number, py: number, factor: number): void {
   applyView();
 }
 
-/** One HUD −/+ press: one wheel notch of zoom. The buttons have no
- *  cursor position to anchor on, so they anchor on the pane's centre. */
+/** Where a running zoom glide is headed, so a second press while the
+ *  first is still moving steps on from there, not from mid-flight. */
+let _glideScale: number | null = null;
+
+/** Glide the zoom to ``target`` about the anchor ``(px, py)``, the way
+ *  ``zoomAt`` jumps there: the world point under the anchor stays put
+ *  every frame, and the scale moves evenly in log space, so zooming in
+ *  and out feel the same speed. A button press or key is one discrete
+ *  step, so it animates; a gesture already moves continuously. */
+function glideZoom(px: number, py: number, target: number): void {
+  const to = Math.min(MAX_SCALE, Math.max(MIN_SCALE, target));
+  const from = _viewScale;
+  const wx = (px - _viewTx) / from;
+  const wy = (py - _viewTy) / from;
+  _glide?.stop();
+  _glideScale = to;
+  _glide = animate(0, 1, {
+    duration: 0.22,
+    ease: [0.22, 1, 0.36, 1],
+    onUpdate: (k) => {
+      const s = from * Math.pow(to / from, k);
+      setView(px - wx * s, py - wy * s, s);
+      paintView(); // framer-motion already calls this once a frame
+    },
+    onComplete: () => { _glideScale = null; },
+  });
+}
+
+/** One HUD −/+ press: one wheel notch of zoom, glided. The buttons have
+ *  no cursor position to anchor on, so they anchor on the pane's centre. */
 export function zoomStep(dir: 1 | -1): void {
   if (!_handle) return;
   dismissOverlays();
   const { host } = _handle;
-  zoomAt(
-    host.clientWidth / 2,
-    host.clientHeight / 2,
-    dir > 0 ? ZOOM_STEP : 1 / ZOOM_STEP,
-  );
+  const base = _glideScale ?? _viewScale;
+  glideZoom(host.clientWidth / 2, host.clientHeight / 2,
+    base * (dir > 0 ? ZOOM_STEP : 1 / ZOOM_STEP));
 }
 
-/** The HUD's zoom readout doubles as the reset: back to 100%, pane
- *  centre anchored, pan otherwise kept. */
+/** The HUD's zoom readout doubles as the reset: glide back to 100%,
+ *  pane centre anchored, pan otherwise kept. */
 export function resetZoom(): void {
   if (!_handle) return;
   dismissOverlays();
   const { host } = _handle;
-  zoomAt(host.clientWidth / 2, host.clientHeight / 2, 1 / _viewScale);
+  glideZoom(host.clientWidth / 2, host.clientHeight / 2, 1);
 }
 
 /** Where the camera can go to find someone: each working agent's tile,
@@ -335,6 +367,7 @@ export function focusAgent(): void {
   const from = { tx: _viewTx, ty: _viewTy };
   const to = { tx: Math.round(w / 2 - at.x * _viewScale), ty: Math.round(h / 2 - at.y * _viewScale) };
   _glide?.stop();
+  _glideScale = null;
   _glide = animate(0, 1, {
     duration: 0.32,
     ease: [0.22, 1, 0.36, 1],
@@ -362,7 +395,12 @@ export function attachCanvas(
 ): void {
   host.replaceChildren(svg);
   _handle = { world, host };
-  wireGestures(host, { zoomAt, dismiss: dismissOverlays, moved: applyView });
+  // A pan takes the camera from a glide still in flight.
+  wireGestures(host, {
+    zoomAt,
+    dismiss: dismissOverlays,
+    moved: () => { _glide?.stop(); _glideScale = null; applyView(); },
+  });
   wireFitRetryOnResize(host);
   const fresh = _viewSession !== sessionId;
   setViewSession(sessionId);

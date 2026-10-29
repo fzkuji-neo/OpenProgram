@@ -197,3 +197,9 @@ html[data-canvas-fullscreen] .app > :has(> #rightSidebar),
 html[data-canvas-fullscreen] [data-center-tab-strip] {
   display: none !important;
 }
+/* The sidebars' 8px padding was the pane's gap to the window's side
+   edges; with them gone, the pane keeps the same gap it has at the top
+   and bottom (the center column's 7px margin). */
+html[data-canvas-fullscreen] .center-col {
+  margin-inline: 7px;
+}

@@ -113,7 +113,8 @@ The controls sheet opens in the legend's spot, under the map while it is
 shown, so the two take turns: opening either closes the other.
 **Full screen** gives the window to the graph: the app's left sidebar, right
 sidebar and center tab strip step aside, and the canvas, its column and the
-composer stay. It is a mode of the app, not the browser's full screen — the
+composer stay, and the pane keeps the same 7px gap to the window's sides it
+has at the top and bottom. It is a mode of the app, not the browser's full screen — the
 window keeps its size. Pressed again, Esc (once nothing is selected), leaving
 the graph view or a reload ends it (`interaction/view/fullscreen.ts`; the
 hiding is `html[data-canvas-fullscreen]` in `app/styles/dag/panels/tools.css`).
@@ -123,7 +124,12 @@ A toggle that is on holds the hover grey, never an accent colour. Every glyph
 in the column and in the pane's perspective strip is Solar Bold Duotone with
 the composer's hover pop (`docs/reference/design/ui/icons.md`). The buttons step by exactly one wheel notch (`ZOOM_STEP`), and
 clicking the readout resets to 100% — both anchored on the pane's centre,
-since a button has no cursor to anchor on. The readout is written
+since a button has no cursor to anchor on. A press, like the + / − and
+Shift+0 keys, glides there in 0.22s, the scale moving evenly in log space so
+in and out feel alike; a press during a glide steps on from where it is
+headed. The wheel and pinch stay immediate — a gesture already moves
+continuously — and a wheel or a pan takes over a glide in flight
+(`glideZoom` in `canvas.ts`). The readout is written
 imperatively by `apps/web/lib/runtime-bridge/dag/interaction/view/canvas.ts` on
 every view change, because routing a gesture's every wheel event through
 React state would repaint the tree sixty times a second. The controls used to
