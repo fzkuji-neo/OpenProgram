@@ -164,3 +164,10 @@ test("The delete and undo replies reach the canvas", () => {
   const ws = readFileSync(new URL("../../lib/net/ws/use-ws.ts", import.meta.url), "utf8");
   assert.match(ws, /case "nodes_deleted":\s*case "nodes_restored":[\s\S]{0,400}"op:dag-nodes"/);
 });
+
+test("The minimap, the legend and the controls sheet share one frame", () => {
+  const css = readFileSync(new URL("../../app/styles/dag/panels/tools.css", import.meta.url), "utf8");
+  const map = css.slice(css.indexOf(".dag-minimap {"));
+  assert.match(map, /border-radius: 10px;\s*background: var\(--bg-input\);\s*box-shadow: var\(--shadow-raised\);/);
+  assert.match(css, /\.dag-key-sheet,\s*\.dag-legend-body \{\s*background: var\(--bg-input\);\s*box-shadow: var\(--shadow-raised\);\s*border-radius: 10px;/);
+});

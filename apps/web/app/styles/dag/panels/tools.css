@@ -184,6 +184,16 @@
   max-height: calc(100% - 24px);
   overflow-y: auto;
 }
+/* The legend and the controls sheet stack under the minimap as one column
+   of panels, so they wear the map's frame — fill and raised shadow, the
+   zoom column's strips' too — not the menu panel's: its 1px outer ring
+   drew them a pixel wider than the map on each side. Same 10px corners. */
+.dag-key-sheet,
+.dag-legend-body {
+  background: var(--bg-input);
+  box-shadow: var(--shadow-raised);
+  border-radius: 10px;
+}
 .dag-view:has(> canvas.dag-minimap:not(.is-hidden)) .dag-key-sheet {
   top: calc(12px + 160px + 8px); /* the map is 160px tall (minimap.ts H) */
   max-height: calc(100% - 12px - 160px - 8px - 12px);

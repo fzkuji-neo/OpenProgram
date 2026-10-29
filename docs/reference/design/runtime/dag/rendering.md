@@ -141,17 +141,20 @@ sit in the composer's env-chip row and on a left rail as well; one column
 on one edge replaced both.
 
 The strips share one material and button style
-(`apps/web/app/styles/dag/panels/tools.css`). The legend panel wears `MENU_PANEL`
-(`components/chat/top-bar/menu-styles`), the one frame every popover menu in
-the app shares; `apps/web/app/styles/dag/panels/legend.css` keeps only the legend's
-anchoring and rows.
+(`apps/web/app/styles/dag/panels/tools.css`). The legend panel and the controls sheet take
+their padding and scrolling from `MENU_PANEL`
+(`components/chat/top-bar/menu-styles`) but wear the minimap's frame — fill,
+raised shadow, 10px corners, no outer ring — since the three stack as one
+280px column and a ring would draw them a pixel wider than the map;
+`apps/web/app/styles/dag/panels/legend.css` keeps only the legend's anchoring
+and rows.
 
 | Piece | Where |
 |---|---|
 | Pan / zoom / fit | `apps/web/lib/runtime-bridge/dag/interaction/view/canvas.ts` (`zoomStep` / `resetZoom` for the zoom column) |
 | View state | `_viewTx` / `_viewTy` / `_viewScale` / `_viewSession` in `apps/web/lib/runtime-bridge/dag/store/globals.ts` |
 | Surface + lattice | `.history-body` in `apps/web/app/styles/dag/graph/canvas.css` |
-| Zoom column | `DagZoomColumn` in `apps/web/components/chat/dag/dag-view.tsx`; strips in `apps/web/app/styles/dag/panels/tools.css`, legend frame from `MENU_PANEL`, legend rows in `apps/web/app/styles/dag/panels/legend.css` |
+| Zoom column | `DagZoomColumn` in `apps/web/components/chat/dag/dag-view.tsx`; strips in `apps/web/app/styles/dag/panels/tools.css`, legend and sheet padding from `MENU_PANEL`, frame shared with the minimap, legend rows in `apps/web/app/styles/dag/panels/legend.css` |
 
 ### The composer belongs to the pane, not to the transcript
 

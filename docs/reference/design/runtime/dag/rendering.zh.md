@@ -90,8 +90,8 @@ fit。改面板尺寸永不重新 fit——用户看图的角度是他自己的�
 一次手势的每个 wheel 事件走 React state 会让整棵树每秒重绘六十次。这些控件以前分散在
 输入框的 env chip 行和左侧竖条上，现在合成右缘这一列，左侧竖条已经去掉。
 
-竖列的几条共用同一套材质和按钮（`apps/web/app/styles/dag/panels/tools.css`）。图例面板穿 `MENU_PANEL`
-（`components/chat/top-bar/menu-styles`），全应用弹层菜单共用的那一份框架；
+竖列的几条共用同一套材质和按钮（`apps/web/app/styles/dag/panels/tools.css`）。图例面板和操作说明面板的内边距与滚动来自 `MENU_PANEL`
+（`components/chat/top-bar/menu-styles`），外框却和小地图一致——同样的底色、浮起阴影、10px 圆角、没有外圈描边——因为三者叠成一列 280px，带描边会比小地图左右各宽出 1px；
 `apps/web/app/styles/dag/panels/legend.css` 只留图例的锚位和行。
 
 | 部件 | 位置 |
@@ -99,7 +99,7 @@ fit。改面板尺寸永不重新 fit——用户看图的角度是他自己的�
 | 平移 / 缩放 / fit | `apps/web/lib/runtime-bridge/dag/interaction/view/canvas.ts`（缩放竖列走 `zoomStep` / `resetZoom`） |
 | 视角状态 | `apps/web/lib/runtime-bridge/dag/store/globals.ts` 的 `_viewTx` / `_viewTy` / `_viewScale` / `_viewSession` |
 | 画布与点阵 | `apps/web/app/styles/dag/graph/canvas.css` 的 `.history-body` |
-| 缩放竖列 | `apps/web/components/chat/dag/dag-view.tsx` 的 `DagZoomColumn`；竖条样式在 `apps/web/app/styles/dag/panels/tools.css`，图例框架来自 `MENU_PANEL`，图例的行在 `apps/web/app/styles/dag/panels/legend.css` |
+| 缩放竖列 | `apps/web/components/chat/dag/dag-view.tsx` 的 `DagZoomColumn`；竖条样式在 `apps/web/app/styles/dag/panels/tools.css`，图例和操作说明的内边距来自 `MENU_PANEL`、外框和小地图共用，图例的行在 `apps/web/app/styles/dag/panels/legend.css` |
 
 ### 输入框属于面板，不属于会话记录
 

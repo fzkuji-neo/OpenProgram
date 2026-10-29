@@ -12,14 +12,14 @@
      wrapper takes no space and positions nothing. */
   flex-shrink: 0;
 }
-/* The panel FRAME (10px radius, --border-popover edge,
-   --surface-popover fill, --shadow-popover, 6px inset) comes from
-   MENU_PANEL (chat/top-bar/menu-styles) put on the element by
-   dag-view.tsx — the one visual definition every popover panel shares.
-   This block is only the legend's anchoring and its rows: anchored to
-   the zoom column (top 86px, dag/panels/tools.css), 8px to its left, its top
-   level with the pane's top-right strip (12px) — or, while the minimap
-   holds that spot, 8px under the map, so the two never overlap. */
+/* The panel's padding and scrolling come from MENU_PANEL
+   (chat/top-bar/menu-styles) put on the element by dag-view.tsx; its
+   frame is the minimap's (dag/panels/tools.css), since the two stack as
+   one column. This block is only the legend's anchoring and its rows:
+   anchored to the zoom column (top 86px, dag/panels/tools.css), 8px to
+   its left, its top level with the pane's top-right strip (12px) — or,
+   while the minimap holds that spot, 8px under the map, so the two never
+   overlap. */
 .dag-legend-body {
   position: absolute;
   right: calc(100% + 8px);
