@@ -182,8 +182,7 @@ function DagZoomColumn() {
         </button>
       </div>
       <div className="dag-tool-rail" role="toolbar" aria-orientation="vertical"
-        aria-label={text("Legend and minimap", "图例和小地图")}>
-        <DagLegend />
+        aria-label={text("Minimap and guides", "小地图和指南")}>
         <button type="button" className="dag-tool-btn" onClick={() => toggleMinimap()}
           aria-pressed={mapOn} aria-label={text("Minimap", "小地图")} aria-keyshortcuts="M"
           data-tip={mapOn ? text("Hide the minimap", "隐藏小地图") : text("Show the minimap", "显示小地图")}
@@ -192,6 +191,9 @@ function DagZoomColumn() {
           <SolarIcon name="map" size={16} />
         </button>
         <span className="dag-tool-sep" aria-hidden="true" />
+        {/* The two guides — what the marks mean, what the canvas answers
+            to — share a group, and only one of them is open at a time. */}
+        <DagLegend />
         <button type="button" className="dag-tool-btn" data-key-sheet-toggle=""
           onClick={() => setKeySheet(!keySheetOpen())}
           aria-pressed={sheetOpen} aria-label={text("Controls", "操作说明")} aria-keyshortcuts="?"

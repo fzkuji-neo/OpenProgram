@@ -106,8 +106,9 @@ for exactly that (`fitCanvas(opening)` in `apps/web/lib/runtime-bridge/dag/inter
 perspective strip, so every view control is one column in one corner: one
 raised strip holding + · readout · − and, under a hairline, **Full screen**
 and **Find the working agent** (F); a second strip under it turns
-the legend and the minimap on and off and, under a hairline, opens the
-controls sheet. All open to the column's left from the top, the map above the
+the minimap on and off and, under a hairline, holds the two guides — the
+legend (what the marks mean) and the controls sheet (what the canvas answers
+to), one open at a time. All open to the column's left from the top, the map above the
 legend; the legend and the map stay open until their button is pressed again.
 The controls sheet opens in the legend's spot, under the map while it is
 shown, so the two take turns: opening either closes the other.

@@ -36,7 +36,7 @@ test("One mouse, no tools, and no left rail", () => {
 test("Every view control is one column of Solar glyphs in the top-right corner", () => {
   const view = readFileSync(new URL("../../components/chat/dag/dag-view.tsx", import.meta.url), "utf8");
   const column = view.slice(view.indexOf("function DagZoomColumn"), view.indexOf("export function DagView"));
-  assert.match(column, /zoomStep\(1\)[\s\S]*dag-zoom-readout[\s\S]*zoomStep\(-1\)[\s\S]*setCanvasFullscreen\(!full\)[\s\S]*focusAgent\(\)[\s\S]*<DagLegend \/>[\s\S]*toggleMinimap\(\)[\s\S]*setKeySheet/);
+  assert.match(column, /zoomStep\(1\)[\s\S]*dag-zoom-readout[\s\S]*zoomStep\(-1\)[\s\S]*setCanvasFullscreen\(!full\)[\s\S]*focusAgent\(\)[\s\S]*toggleMinimap\(\)[\s\S]*dag-tool-sep[\s\S]*<DagLegend \/>[\s\S]*setKeySheet/);
   assert.doesNotMatch(view, /lucide-react/);
   // A frame, not the outward arrows that read as full screen.
   assert.doesNotMatch(view, /Maximize2|createPortal|dagHudSlot/);
