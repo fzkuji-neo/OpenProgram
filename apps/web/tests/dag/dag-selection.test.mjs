@@ -180,3 +180,13 @@ test("The controls sheet, like the legend, closes only from its toggles", () => 
   assert.doesNotMatch(esc.slice(0, esc.indexOf("return;\n  }\n")), /setKeySheet/);
   assert.match(keys, /e\.key === "\?"[\s\S]{0,60}setKeySheet\(!keySheetOpen\(\)\)/);
 });
+
+test("The minimap, the legend and the controls sheet come and go like the app's popovers", () => {
+  const sheet = readFileSync(new URL("../../components/chat/dag/dag-key-sheet.tsx", import.meta.url), "utf8");
+  assert.match(sheet, /export const PANEL_MOTION = \{\s*initial: \{ opacity: 0, scale: 0\.95, x: 8 \}/);
+  assert.match(sheet, /<AnimatePresence>\s*\{open && \(\s*<motion\.div key="sheet" \{\.\.\.PANEL_MOTION\}/);
+  const view = readFileSync(new URL("../../components/chat/dag/dag-view.tsx", import.meta.url), "utf8");
+  assert.match(view, /<motion\.div key="legend" \{\.\.\.PANEL_MOTION\}/);
+  const css = readFileSync(new URL("../../app/styles/dag/panels/tools.css", import.meta.url), "utf8");
+  assert.match(css, /\.dag-minimap\.is-hidden \{\s*opacity: 0;\s*transform: translateX\(8px\) scale\(0\.95\);/);
+});

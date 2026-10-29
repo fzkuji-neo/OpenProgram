@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useSyncExternalStore } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 
 import { useTranslation } from "@/lib/i18n";
 import { GROUP_LABEL, MENU_PANEL, MENU_TRAILING } from "@/components/chat/top-bar/menu-styles";
@@ -47,6 +48,19 @@ const GROUPS: [en: string, zh: string, rows: Row[]][] = [
 const GESTURE: Record<string, string> = { Drag: "拖动", "Right-drag": "右键拖动", Wheel: "滚轮", Click: "单击",
   "Two-finger scroll": "双指滑动", Pinch: "捏合" };
 
+/** How the canvas's panels (this sheet, the legend) come and go: the
+ *  app's popovers' motion — fade, 95% scale, a 2-step slide in from the
+ *  side they open from (the zoom column, to their right) — over the
+ *  same 100ms, both ways. The minimap's CSS (dag/panels/tools.css)
+ *  matches it. */
+export const PANEL_MOTION = {
+  initial: { opacity: 0, scale: 0.95, x: 8 },
+  animate: { opacity: 1, scale: 1, x: 0 },
+  exit: { opacity: 0, scale: 0.95, x: 8 },
+  transition: { duration: 0.1, ease: "easeOut" },
+  style: { transformOrigin: "top right" },
+} as const;
+
 export function useKeySheetOpen(): boolean {
   return useSyncExternalStore(subscribeKeySheet, keySheetOpen, () => false);
 }
@@ -55,9 +69,10 @@ export function DagKeySheet() {
   const { text } = useTranslation();
   const open = useKeySheetOpen();
   useEffect(() => () => setKeySheet(false), []);
-  if (!open) return null;
   return (
-    <div className={`dag-key-sheet ${MENU_PANEL}`} role="dialog"
+    <AnimatePresence>
+    {open && (
+    <motion.div key="sheet" {...PANEL_MOTION} className={`dag-key-sheet ${MENU_PANEL}`} role="dialog"
       aria-label={text("Keyboard shortcuts", "快捷键")}>
       {GROUPS.map(([gEn, gZh, rows]) => (
         <div key={gEn} className="flex flex-col">
@@ -74,6 +89,8 @@ export function DagKeySheet() {
           ))}
         </div>
       ))}
-    </div>
+    </motion.div>
+    )}
+    </AnimatePresence>
   );
 }

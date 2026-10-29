@@ -111,7 +111,11 @@ legend (what the marks mean) and the controls sheet (what the canvas answers
 to), one open at a time. All open to the column's left from the top, the map above the
 legend; the legend and the map stay open until their button is pressed again.
 The controls sheet opens in the legend's spot, under the map while it is
-shown, so the two take turns: opening either closes the other.
+shown, so the two take turns: opening either closes the other. The three
+panels come and go like the app's popovers: a fade, a 95% scale and an 8px
+slide in from the column's side over 100ms, played back on the way out
+(`PANEL_MOTION` in `components/chat/dag/dag-key-sheet.tsx`; the minimap's
+`.is-hidden` in `app/styles/dag/panels/tools.css`).
 **Full screen** gives the window to the graph: the center body — the panes,
 the canvas, its column and the composer — lifts out of the layout and grows
 over the app's left sidebar, right sidebar and center tab strip, which stay

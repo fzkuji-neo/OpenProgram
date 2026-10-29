@@ -163,10 +163,15 @@
   background: var(--bg-input);
   box-shadow: var(--shadow-raised);
   cursor: pointer;
-  transition: opacity 0.18s ease, box-shadow 0.15s ease;
+  /* Comes and goes like the panels under it and the app's popovers
+     (dag-key-sheet.tsx PANEL_MOTION): fade, 95% scale, an 8px slide from
+     the zoom column's side, 100ms. */
+  transform-origin: top right;
+  transition: opacity 0.1s ease-out, transform 0.1s ease-out, box-shadow 0.15s ease;
 }
 .dag-minimap.is-hidden {
   opacity: 0;
+  transform: translateX(8px) scale(0.95);
   pointer-events: none;
 }
 

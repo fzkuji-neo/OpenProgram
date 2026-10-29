@@ -35,6 +35,7 @@
  */
 
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { SolarIcon } from "@/components/solar-icons";
 import type { SolarIconName } from "@/components/solar-icons/bodies";
 
@@ -51,7 +52,7 @@ import {
 } from "@/lib/runtime-bridge/dag/interaction/view/fullscreen";
 import { MENU_PANEL } from "@/components/chat/top-bar/menu-styles";
 import { DagCanvasTools } from "@/components/chat/dag/dag-tools";
-import { useKeySheetOpen } from "@/components/chat/dag/dag-key-sheet";
+import { PANEL_MOTION, useKeySheetOpen } from "@/components/chat/dag/dag-key-sheet";
 import { keySheetOpen, setKeySheet } from "@/lib/runtime-bridge/dag/interaction/selection/key-sheet";
 
 /** A tile swatch: the same `dag-tile t-<tone>` classes the canvas tiles
@@ -104,10 +105,12 @@ function DagLegend() {
       >
         <SolarIcon name="widget-2" size={16} />
       </button>
+      <AnimatePresence>
       {open && (
         // 内衬和滚动来自 MENU_PANEL；外框和小地图一致（dag/panels/tools.css），
-        // .dag-legend-body 负责锚位（在右上竖列左边展开）和行的排版。
-        <div className={`dag-legend-body ${MENU_PANEL}`}>
+        // .dag-legend-body 负责锚位（在右上竖列左边展开）和行的排版；
+        // 出现和收起的动效同 PANEL_MOTION（app 弹层的那一套）。
+        <motion.div key="legend" {...PANEL_MOTION} className={`dag-legend-body ${MENU_PANEL}`}>
           <LegendRow swatch={<LegendTile icon="user-rounded" tone="user" />} label={text("your message", "你的消息")} />
           <LegendRow swatch={<LegendTile icon="ghost" tone="llm" />} label={text("agent reply", "agent 回复")} />
           <LegendRow swatch={<LegendTile icon="programming" tone="shell" />}
@@ -122,8 +125,9 @@ function DagLegend() {
             label={text("an agent, on the step it is working on", "agent 站在它正在做的那一步上")} />
           <LegendRow swatch={<span className="dag-legend-belt" aria-hidden="true" />}
             label={text("goods on a belt: work is under way there", "传送带运货：那里正在工作")} />
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }
