@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 import contextvars
+import inspect
 from dataclasses import dataclass, field
 import itertools
 import re
@@ -79,6 +80,8 @@ class Tab:
     roles: dict[str, tuple[str, str]] = field(default_factory=dict)
     # CSS pixels per pixel of the last screenshot.
     shot_scale: float = 0.0
+    # The document (navigation count) of the last snapshot; another one has no baseline for changes.
+    document: int = -1
 
     def row(self, url: str = "") -> dict[str, Any]:
         return {"tab": self.id, "title": self.title, "url": url or self.origin,
@@ -171,6 +174,9 @@ class Driver:
             return exc.result()
         except pa.ActionError as exc:
             return {"ok": False, "reason_code": exc.reason_code, "error": str(exc)}
+        except Exception as exc:
+            return {"ok": False, "reason_code": "browser_error",
+                    "error": f"{type(exc).__name__}: {str(exc).splitlines()[0] if str(exc) else ''}"}
         raise AssertionError("unreachable")
 
     def _dispatch(self, tab: Tab, action: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -394,30 +400,53 @@ class Driver:
                 pass
         return urls
 
-    def _snapshot(self, page, tab: Tab) -> tuple[str, str | None]:
+    def _snapshot(self, page, tab: Tab, *, full: bool) -> tuple[str | None, str | None]:
+        """The whole page (when asked for, or when its document is new) and the changes since the last one.
+
+        Playwright 1.60 serves the AI snapshot as ``Frame.ariaSnapshot(mode="ai")``, one text that is
+        incremental when ``track`` has an earlier snapshot of the same document; earlier versions
+        serve ``Page.snapshotForAI``, which returns both."""
         from openprogram.programs.tools.web.browser._privacy import password_values, redact_password_values
         impl = page._impl_obj
-        raw = page._sync(impl._channel.send_return_as_dict(
-            "snapshotForAI", impl._timeout_settings.timeout, {"track": _TRACK}))
-        full, incremental = str(raw.get("full") or ""), raw.get("incremental")
-        tab.roles = {ref: (role, name.replace('\\"', '"')) for role, name, ref in _REF_LINE.findall(full)}
+        documents = self._watches[tab.target_id].documents if tab.target_id in self._watches else 0
+        new_document = tab.document != documents
+        if "mode" in inspect.signature(impl.aria_snapshot).parameters:
+            frame = impl._main_frame
+
+            def aria(params: dict[str, Any]) -> str:
+                return str(page._sync(frame._channel.send("ariaSnapshot", frame._timeout, {"mode": "ai", **params}))
+                           or "")
+            tracked = aria({"track": _TRACK})
+            whole, changes = (tracked, None) if new_document else ((aria({}) if full else None), tracked)
+        else:
+            raw = page._sync(impl._channel.send_return_as_dict(
+                "snapshotForAI", impl._timeout_settings.timeout, {"track": _TRACK}))
+            whole, changes = str(raw.get("full") or ""), raw.get("incremental")
+            changes = None if new_document or changes is None else str(changes)
+        tab.document = documents
+        if whole is not None:
+            tab.roles = {}
+        tab.roles.update({ref: (role, name.replace('\\"', '"'))
+                          for role, name, ref in _REF_LINE.findall(whole if whole is not None else changes or "")})
         secrets = password_values(page)
-        return redact_password_values(full, secrets), (
-            None if incremental is None else redact_password_values(str(incremental), secrets))
+        return (None if whole is None else redact_password_values(whole, secrets),
+                None if changes is None else redact_password_values(changes, secrets))
 
     def _state(self, page, tab: Tab, *, full: bool, before_url: str | None = None) -> dict[str, Any]:
-        snapshot, changes = self._snapshot(page, tab)
+        whole, changes = self._snapshot(page, tab, full=full)
         url = page.url
+        if whole is None and (changes is None or (before_url is not None and url != before_url)):
+            whole, _ = self._snapshot(page, tab, full=True)
         try:
             title = page.title()
         except Exception:
             title = tab.title
         out: dict[str, Any] = {"ok": True, "tab": tab.id, "url": url, "title": title}
         tab.title = out["title"] or tab.title
-        if full or changes is None or (before_url is not None and url != before_url):
-            out["page"] = _cut(snapshot)
+        if whole is not None and (full or changes is None or (before_url is not None and url != before_url)):
+            out["page"] = _cut(whole)
         else:
-            out["changes"] = _cut(changes)
+            out["changes"] = _cut(changes or "")
         return out
 
     def _locate(self, page, tab: Tab, args: dict[str, Any], prefix: str = ""):
@@ -427,7 +456,7 @@ class Driver:
         name = str(args.get(f"{prefix}name") or "")
         if ref:
             if not tab.roles:
-                self._snapshot(page, tab)
+                self._snapshot(page, tab, full=True)
             locator = page.locator(f"aria-ref={ref}")
             if locator.count() == 1:
                 return locator, ref

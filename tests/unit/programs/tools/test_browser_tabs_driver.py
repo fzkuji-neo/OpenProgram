@@ -74,7 +74,7 @@ def test_a_ref_whose_element_was_rendered_again_is_found_by_role_and_name(driver
     assert label == "e4"
     _, label = driver._locate(_Page(roles={("button", "Next"): 1}), tab, {"ref": "e4"})
     assert label == 'button "Next"'
-    monkeypatch.setattr(driver, "_snapshot", lambda page, tab: ('- button "Back" [ref=e9]', ""))
+    monkeypatch.setattr(driver, "_snapshot", lambda page, tab, full: ('- button "Back" [ref=e9]', ""))
     with pytest.raises(tabs.BrowserError) as gone:
         driver._locate(_Page(), tab, {"ref": "e4"})
     assert gone.value.reason_code == "element_gone" and "Back" in gone.value.extra["page"]
@@ -82,8 +82,46 @@ def test_a_ref_whose_element_was_rendered_again_is_found_by_role_and_name(driver
 
 def test_a_result_carries_the_changes_or_the_whole_page_after_moving(driver, monkeypatch):
     tab = tabs.Tab(id="t1", window_id="main", tab_id="a")
-    monkeypatch.setattr(driver, "_snapshot", lambda page, tab: ("- full", "- <changed> part"))
+    monkeypatch.setattr(driver, "_snapshot", lambda page, tab, full: (None, "- <changed> part") if not full
+                        else ("- full", ""))
     assert driver._state(_Page(), tab, full=False, before_url="https://x.test/form")["changes"] == "- <changed> part"
     assert driver._state(_Page(), tab, full=False, before_url="https://x.test/start")["page"] == "- full"
-    monkeypatch.setattr(driver, "_snapshot", lambda page, tab: ("- full", None))
-    assert "page" in driver._state(_Page(), tab, full=False, before_url="https://x.test/form")
+    monkeypatch.setattr(driver, "_snapshot", lambda page, tab, full: ("- new document", None))
+    assert driver._state(_Page(), tab, full=False, before_url="https://x.test/form")["page"] == "- new document"
+
+
+class _Impl:
+    """Playwright 1.60's page: the AI snapshot is Frame.ariaSnapshot(mode="ai"), incremental with track."""
+
+    def __init__(self):
+        self.calls = []
+        self._main_frame = self
+        self._timeout = None
+        self._channel = self
+
+    def aria_snapshot(self, timeout=None, depth=None, mode=None, boxes=None):
+        raise AssertionError("the channel is used")
+
+    def send(self, method, timeout, params):
+        self.calls.append(params)
+        if "track" in params:
+            return '- button "Go" [ref=e1]' if len(self.calls) == 1 else '- <changed> button "Gone" [ref=e2]'
+        return '- button "Go" [ref=e1]\n- button "Gone" [ref=e2]'
+
+
+def test_playwright_160_snapshots_track_changes_and_read_the_whole_page_apart(driver, monkeypatch):
+    from openprogram.programs.tools.web.browser import _privacy
+
+    monkeypatch.setattr(_privacy, "password_values", lambda page: ())
+    impl = _Impl()
+    page = type("P", (), {"_impl_obj": impl, "_sync": staticmethod(lambda value: value)})()
+    tab = tabs.Tab(id="t1", window_id="main", tab_id="a", target_id="T")
+    driver._watches["T"] = tabs._Watch()
+    # The first snapshot of a document is the whole page.
+    assert driver._snapshot(page, tab, full=False) == ('- button "Go" [ref=e1]', None)
+    assert driver._snapshot(page, tab, full=False) == (None, '- <changed> button "Gone" [ref=e2]')
+    assert tab.roles == {"e1": ("button", "Go"), "e2": ("button", "Gone")}
+    whole, _ = driver._snapshot(page, tab, full=True)
+    assert "Gone" in whole and impl.calls[-1] == {"mode": "ai"}
+    driver._watches["T"].documents += 1
+    assert driver._snapshot(page, tab, full=False)[1] is None
