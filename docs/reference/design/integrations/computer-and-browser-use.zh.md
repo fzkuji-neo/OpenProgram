@@ -274,6 +274,12 @@ app 指南在发送时按 Windows 改写（`_WINDOWS_GUIDE`）；对组合键和
 
 一个 Page 同时只租给一个会话。所有者是 `turn:<chat>:<turn>`，同一对话的各轮从不同时操作：派生的 agent 工作时，派生它的那一轮在等待；新的一轮在上一轮结束后才开始。所以 `_hand_over` 会把同一对话另一轮在两次动作之间占着的 Page 交给调用方；原持有者的会话关闭，它下一次调用时重新观察。正在执行动作的持有者，或另一个对话的会话，保留该 Page，调用方得到带说明的 `page_in_use`：等待后重新观察。
 
+通过 token 进行的第一次 `observe` 采用绑定当前的页面和几何版本，所以 `list_pages` 与 `observe` 之间发生的导航或窗格移动，就是这次观察看到的内容；列出之后访问权限的变化仍以 `page_context_stale` 失败。在第一次观察之前就没通过校验的会话，会从打开它时的页面上下文里给出它的标签页，`run_web_use` 因此会自己重新观察那个标签页。
+
+在任何操作到达页面之前就作出的拒绝（`stale_observation`、`desktop_response_timeout`、`page_in_use` 以及 `_NOT_DISPATCHED_REASONS` 中的其他代码）带有 `action_dispatched: false`。代码模式的 broker 把这样的调用结算为未提交，而不是留下一个结果未知的 effect；否则 agent 会停下等待核对，而且该对话之后的每次调用都要求审批，bypass 模式也不例外。在 MCP 后端上，带 ref 的 `press` 会先聚焦该元素，因为它们的按键工具把按键发给页面当前焦点；在复选框或单选按钮上按空格与单击一样保留帧。
+
+`context="fresh"` 的 agent 作为同步 Job 运行。当 Job 的执行没有完成就停下（暂停，或 `reconciliation_required`）且没有正在运行的尝试时，`JobRunner.await_job_durable` 也会结束等待，`run_agent_turn` 把它报告为失败并说明原因；此前调用方要一直等到工具超时。
+
 `evaluate` 能读到已登录页面持有的一切，包括观察结果里被脱敏的内容，所以它的门控放在权限策略里而不是工具里：含 `evaluate` 步骤（单步或在 `actions` 里）的 `computer_use_agent` 浏览器调用由 `force_approval` 在任何模式下都询问，先于允许规则、bypass 和绑定页面授权；`one_shot_approval` 让卡片只有“本次”范围，从不保存规则，并完整展示参数。非交互来源直接拒绝。脚本在每个后端上都经由控制器运行，MCP 后端也一样，因为控制器持有同一个标签页及其字段的密码值：结果经过与观察相同的脱敏，并经过 `_mutated`，因此当前帧失效，下一步重新观察。表达式被包成 `() => (expr)`；脚本最多 8000 个字符，结果最多 20,000 个字符。
 
 `console_messages` 和 `network_requests`（`page_logs.py`）读取 Playwright 为每个 Page 自带的历史（`console_messages()`、`page_errors()`、`requests()`），所以第一次读取前不需要事先挂监听。它们和 `evaluate` 一样在每个后端上都经由控制器运行，只读，不会让当前帧失效。控制台文字经过密码脱敏；请求按方法、去掉查询和片段的 URL、状态码（浏览器从未收到响应时为 `no response`）和资源类型列出，从不包含请求头或请求体。

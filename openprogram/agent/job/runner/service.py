@@ -530,17 +530,39 @@ class JobRunner(AdmissionOperations, ProjectionOperations, BorrowedOperations, C
         timeout: shared.Optional[float] = None,
         on_poll: shared.Callable[[], None] | None = None,
     ) -> shared.Optional[shared.Job]:
-        """Wait on JobStore state that another worker process can update."""
+        """Wait on JobStore state that another worker process can update.
+
+        A Job whose execution stopped without finishing (paused, or waiting for
+        an operation of unknown outcome to be reconciled) also ends the wait:
+        nothing runs it until someone acts, so the caller hears now, not at
+        its tool timeout."""
         deadline = shared.time.monotonic() + timeout if timeout is not None else None
+        next_check = 0.0
         while True:
             job = self.get_job(job_id)
             if job is None or shared.is_terminal(job.status):
                 return job
+            if shared.time.monotonic() >= next_check:
+                next_check = shared.time.monotonic() + 1.0
+                if self.stopped_execution(job_id) is not None:
+                    return job
             if deadline is not None and shared.time.monotonic() >= deadline:
                 return job
             if on_poll is not None:
                 on_poll()
             shared.time.sleep(0.05)
+
+
+    def stopped_execution(self, job_id: str):
+        """The Job's execution when it is stopped short of finishing and idle."""
+        try:
+            execution = self._execution_store.get_execution(job_id)
+        except Exception:
+            return None
+        if (execution is not None and execution.current_attempt_id is None
+                and execution.status.value in {"paused", "reconciliation_required"}):
+            return execution
+        return None
 
 
     def retire_external_waiter(self, job_id: str) -> None:

@@ -768,6 +768,13 @@ class WebUseSessionRegistry:
             page_key = page_key or self._page_key_resolver(binding_id) or binding_id
             self._unpark(owner_id, page_key)
             self._hand_over(owner_id, page_key)
+            live = self._binding_revision_resolver(binding_id) if revisions else {}
+            if live:
+                # A new session has no observation to protect yet: navigation or
+                # a moved pane since list_pages is what this observe will show.
+                # Access granted or revoked since then still counts.
+                revisions = {**revisions, **{key: live[key] for key in (
+                    "page_revision", "geometry_revision") if key in live}}
             revisions = revisions or self._binding_revision_resolver(binding_id)
             if not revisions and page_context:
                 revisions = next((
@@ -975,7 +982,12 @@ class WebUseSessionRegistry:
                             **_session_fields(session),
                         }
                     recovery_url = session.state.get("last_url") or _controller_display(session).get("target", "")
-                    recovery_identity = session.state.get("page_identity") or {}
+                    # A session stopped before its first observation still
+                    # knows its tab from the page context it was opened with.
+                    recovery_identity = session.state.get("page_identity") or next((
+                        item for item in (session.page_context or {}).get("surfaces") or []
+                        if isinstance(item, dict) and item.get("binding_id") == session.binding_id
+                    ), {})
                     self._cleanup_session(session, suppress_errors=True)
                     return {
                         "ok": False,

@@ -308,6 +308,43 @@ def test_page_capability_revisions_cross_the_session_validation_boundary(monkeyp
 
 
 
+@pytest.mark.parametrize("changed, ok", [
+    ({"geometry_revision": 44}, True), ({"page_revision": 50}, True),
+    ({"access_revision": 43}, False),
+])
+def test_first_observe_from_a_token_follows_page_and_pane_changes_since_listing(
+    monkeypatch, changed, ok,
+):
+    from openprogram.programs.workflow.browser.web_use_runtime import (
+        WebUseSessionRegistry,
+    )
+    from openprogram.webui.ws_actions import webtab
+
+    listed = {"page_revision": 41, "access_revision": 42, "geometry_revision": 43}
+    live = {**listed, **changed}
+    adapters = {name: _Adapter(name) for name in (
+        "playwright_mcp", "chrome_devtools_mcp", "open_claude_chrome",
+    )}
+    monkeypatch.setattr(webtab, "request_bound_tab", lambda _binding, **expected: (
+        {"ok": True} if expected == {f"expected_{key}": value for key, value in live.items()}
+        else {"ok": False, "reason_code": "page_context_stale"}))
+    registry = WebUseSessionRegistry(
+        adapters=adapters, binding_revision_resolver=lambda _binding: dict(live),
+    )
+    token = registry.list_pages(context={"context_id": "ctx-1", "surfaces": [{
+        "surface_key": "p1", "binding_id": "binding-1", "page_key": "page:1",
+        "window_id": "main", "tab_id": "tab-1", **listed,
+    }]}, owner_id="owner-1")["pages"][0]["page_context_token"]
+    observed = registry.execute(command="observe", backend="open_claude_chrome",
+                                owner_id="owner-1", page_context_token=token)
+    if ok:
+        assert observed.get("ok") is not False
+    else:
+        # Access changed since listing still stops it, and names the tab to observe again.
+        assert observed["reason_code"] == "page_context_stale"
+        assert (observed["recovery_window_id"], observed["recovery_tab_id"]) == ("main", "tab-1")
+
+
 def test_first_observe_rejects_stale_geometry_before_backend(monkeypatch):
     from openprogram.programs.workflow.browser.web_use_runtime import (
         WebUseSessionRegistry,

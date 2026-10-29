@@ -187,6 +187,9 @@ class _Client:
             and "globalThis" in str(arguments.get("function") or "")
         ):
             return _Result(self.controller.page.marker_value)
+        if arguments.get("function") == "(element) => element.focus()":
+            # press with a ref focuses it first; the key is the write.
+            return _Result("done")
         assert name in EXPECTED_MCP_WRITES[self.backend]
         self._validate_write(name, arguments)
         self.write_calls.append((name, arguments))

@@ -322,7 +322,7 @@ def run_agent_turn(
             error=f"session {session_id!r} not found",
         )
     from openprogram.agent.job import get_runner
-    from openprogram.agent.job.types import JobStatus, mint_job_id
+    from openprogram.agent.job.types import JobStatus, is_terminal, mint_job_id
     from openprogram.worker.lock import WorkerLock
 
     runner = get_runner()
@@ -404,6 +404,16 @@ def run_agent_turn(
                 claim_scope.__exit__(None, None, None)
     if job is None:
         return AgentTurnResult(failed=True, error=f"job {job_id!r} not found")
+    stopped = None if is_terminal(job.status) else runner.stopped_execution(job_id)
+    if stopped is not None:
+        why = ("an operation's outcome is unknown and needs checking"
+               if stopped.status.value == "reconciliation_required" else "it was paused")
+        return AgentTurnResult(
+            head_id=job.head_id, final_text="", failed=True,
+            error=(f"the agent stopped before finishing: {why} "
+                   f"({stopped.reason_code or stopped.status.value}). "
+                   "Check the page or app before repeating its work."),
+        )
     return AgentTurnResult(
         head_id=job.head_id,
         final_text=job.result_text or "",

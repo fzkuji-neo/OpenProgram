@@ -562,7 +562,10 @@ class OfficialMCPPageBackend:
         try:
             if before_dispatch is not None:
                 before_dispatch()
-            result = client.call(call[0], call[1])
+            # The key tools press into the page's focus: give it to the ref first.
+            focused = client.call(*self._evaluate(session, ref, "(element) => element.focus()")) \
+                if action == "press" and ref else None
+            result = focused if focused is not None and _is_error(focused) else client.call(call[0], call[1])
         except Exception:
             if hover_attribute is not None:
                 with suppress(Exception):
@@ -592,6 +595,8 @@ class OfficialMCPPageBackend:
             f"{self.name}:{action}",
             keep_frame=bool(ref) and (
                 action in {"type", "select"}
+                or (action == "press" and str(arguments.get("key") or "") in {"Space", " "}
+                    and pa.is_choice_control(session.state.get("ref_roles", {}).get(ref)))
                 or (action == "click" and pa.is_plain_click(click)
                     and pa.is_choice_control(session.state.get("ref_roles", {}).get(ref)))
             ),

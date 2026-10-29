@@ -495,6 +495,21 @@ _ENDED_HANDLE_REASONS = frozenset({
 })
 
 
+# Refusals decided before anything reaches the page. A failure with one of
+# these applied nothing, so it is never an operation of unknown outcome.
+_NOT_DISPATCHED_REASONS = frozenset({
+    "stale_observation", "invalid_arguments", "desktop_response_timeout",
+    "target_lost", "page_context_stale", "page_closed", "binding_not_found",
+    "page_in_use", "page_context_required", "page_context_not_found",
+    "page_context_consumed", "page_context_owner_mismatch", "page_not_found",
+    "page_required", "web_session_not_found", "web_session_owner_mismatch",
+    "owner_closing", "backend_mismatch", "unsupported_backend", "unsupported_action",
+    "guarded_dispatch_unsupported", "observation_failed", "ref_not_found",
+    "target_disabled", "file_input_required", "file_ref_action_required",
+    "desktop_unavailable",
+})
+
+
 def _with_current_pages(failure: dict) -> dict:
     try:
         listed = _execute_web_use("list_pages")
@@ -651,6 +666,8 @@ def run_web_use(
             and not result.get("live_web_session_id")
         ):
             result = _with_current_pages(result)
+        if result.get("reason_code") in _NOT_DISPATCHED_REASONS:
+            result.setdefault("action_dispatched", False)
         return ToolReturn(json_data=result, is_error=True)
     return result
 

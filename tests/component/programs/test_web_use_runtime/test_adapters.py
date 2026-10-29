@@ -65,11 +65,15 @@ def test_official_adapter_keeps_the_frame_for_form_fields(monkeypatch):
     session.state["ref_roles"].update(e85="checkbox")
     for step in ({"action": "type", "ref": "e3", "text": "Ada"},
                  {"action": "click", "ref": "e85"},
+                 {"action": "press", "ref": "e85", "key": "Space"},
                  {"action": "click", "ref": "e7"}):
         result = adapter.act(session, {"expected_frame_id": "frame-1", **step})
         assert result["ok"] is True
     # A field and a checkbox keep the observation; the Save button retires it.
-    assert controller.kept == [True, True, False]
+    assert controller.kept == [True, True, True, False]
+    # A key aimed at a ref goes to that element, not to whatever has focus.
+    focus = client.calls.index(("browser_evaluate", {"target": "e85", "function": "(element) => element.focus()"}))
+    assert client.calls[focus + 1] == ("browser_press_key", {"key": "Space"})
     assert controller.invalidated == 1
 
 

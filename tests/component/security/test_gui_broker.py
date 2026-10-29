@@ -96,6 +96,18 @@ def test_a_failed_read_applied_nothing_and_leaves_nothing_to_resolve(environment
     assert [effect.metadata["method"] for effect in unresolved] == ["click"]
 
 
+def test_a_refused_action_applied_nothing_and_leaves_nothing_to_resolve(environment):
+    from openprogram.programs import ToolReturn
+    broker, effects, _ = environment
+    handle = broker.register(target="owned-page", methods={
+        "press": lambda *args: ToolReturn(text="no reply", is_error=True, json_data={
+            "ok": False, "reason_code": "desktop_response_timeout", "action_dispatched": False}),
+    }, validate=lambda *args: None)
+    with GuiPythonRunner(broker=broker) as runner:
+        assert "no reply" in runner.execute(f"await ui.call({handle!r}, 'press')").error
+    assert effects.list_unresolved("exec") == []
+
+
 def test_rpc_without_broker_fails_closed():
     with GuiPythonRunner() as runner:
         with pytest.raises(GuiRunnerError, match="broker"):

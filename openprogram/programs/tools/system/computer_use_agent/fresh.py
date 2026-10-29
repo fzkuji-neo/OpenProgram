@@ -86,7 +86,7 @@ def run(target: str, args: dict, brief: str, guide: str, session: str, *, needs_
         if carried:
             _take_back(session, carried)
     text = str(reply or "").strip()
-    failed = text.startswith(("[agent error]", "[agent refused]"))
+    failed = text.startswith(("[agent error", "[agent refused"))
     return ToolReturn(text=text or "The agent finished without a reply.", is_error=failed)
 
 

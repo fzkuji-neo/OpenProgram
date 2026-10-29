@@ -192,6 +192,8 @@ class GuiBroker:
             receipt = json.loads(json.dumps(receipt, allow_nan=False))
             if adapter_error is not None:
                 diagnostic = {**receipt, "state": "uncertain"}
+                if _refused(value):
+                    started = False
                 raise RuntimeError(adapter_error)
             check()
             with self._lock:
@@ -226,6 +228,12 @@ class GuiBroker:
             except Exception:
                 _log.warning("failed to resolve GUI effect effect_id=%s", effect.effect_id, exc_info=True)
             raise
+
+
+def _refused(value) -> bool:
+    """The adapter reports that the operation never reached its target."""
+    data = value.get("json_data") if isinstance(value, dict) else None
+    return isinstance(data, dict) and data.get("action_dispatched") is False
 
 
 def _reads(resource: _Resource, method: str, arguments: dict) -> bool:
