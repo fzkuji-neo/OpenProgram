@@ -212,7 +212,7 @@ export function sendChatMessage({
   // Hide the welcome panel right away — before the ack round-trip.
   // Skipped for background sends: the welcome panel belongs to the
   // focused chat shell, not to the peer session being written to.
-  if (ownsFocusedShell()) setWelcomeVisible(false);
+  if (ownsFocusedShell()) setWelcomeVisible(false, true);
 
   // Exact registered `name(...)` input is intercepted by useChatSubmit and
   // never reaches this chat bridge. The removed legacy `run ...` syntax is

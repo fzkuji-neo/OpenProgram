@@ -90,7 +90,7 @@ export function useFunctionDispatch({
       dispatchSessionId,
     );
     if (!background) {
-      setWelcomeVisible(false);
+      setWelcomeVisible(false, true);
       setRunning(true);
     }
 

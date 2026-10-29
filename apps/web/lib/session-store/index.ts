@@ -222,7 +222,11 @@ interface ConvState {
    *  logo / title / example buttons. Owned by React; legacy
    *  setWelcomeVisible() in helpers.js writes through here. */
   welcomeVisible: boolean;
-  setWelcomeVisible: (v: boolean) => void;
+  /** The welcome screen hid because this chat sent its first message, so
+   *  its code rain stops and fades; any other hide (another chat opening)
+   *  removes it at once. */
+  welcomeFade: boolean;
+  setWelcomeVisible: (v: boolean, fade?: boolean) => void;
 
   /** Session id whose transcript is still in flight (load_session sent,
    *  no full capture cached). MessageList shows a skeleton for it
@@ -509,6 +513,7 @@ function switchChat(
     fnFormForkOf: null,
     fnFormSubmitAction: null,
     welcomeVisible: currentSessionId === null,
+    welcomeFade: false,
   };
 }
 
@@ -923,7 +928,8 @@ export const useSessionStore = createWithEqualityFn<ConvState>((set) => ({
   // flips it false once a turn goes out; setCurrentConv(null) flips
   // it back true on New chat.
   welcomeVisible: true,
-  setWelcomeVisible: (v) => set({ welcomeVisible: v }),
+  welcomeFade: false,
+  setWelcomeVisible: (v, fade = false) => set({ welcomeVisible: v, welcomeFade: !v && fade }),
 
   transcriptReadStatus: {},
   setTranscriptReadStatus: (id, status) => set(s => ({ transcriptReadStatus: { ...s.transcriptReadStatus, [id]: status }, ...(status !== 'loading' && s.transcriptLoadingId === id ? { transcriptLoadingId: null } : {}) })),

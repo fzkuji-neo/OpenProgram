@@ -315,8 +315,13 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
       run: () => {
         wsSend({ action: "delete_session", session_id: id });
         delete runtimeState.conversations[id];
+        // Another open tab takes over when the deleted chat's tab closes
+        // (use-tab-lifecycle reaps it); resetting to an empty chat first
+        // would flash the welcome screen, code rain included, over it.
+        const takesOver = useCenterTabs.getState().tabs
+          .some((tab) => !(tab.kind === "session" && tab.sessionId === id));
         removeConversation(id);
-        if (runtimeState.currentSessionId === id) newSession();
+        if (runtimeState.currentSessionId === id && !takesOver) newSession();
       },
     });
   }

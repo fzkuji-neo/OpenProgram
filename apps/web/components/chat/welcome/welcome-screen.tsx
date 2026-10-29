@@ -5,8 +5,9 @@
  * area, or over the code rain when the "Code rain style" setting is on.
  * Visible whenever the session store says so; mounted as a portal inside
  * the #welcome-mount placeholder that PageShell leaves in the chat area.
- * When the chat gets its first message the rain is kept a moment longer
- * so it can stop and fade instead of vanishing.
+ * When the chat sends its first message the rain is kept a moment longer
+ * so it can stop and fade instead of vanishing; when another chat opens
+ * instead, the rain goes at once rather than falling over its messages.
  */
 "use client";
 
@@ -21,11 +22,12 @@ const STOP_MS = 1200;
 
 export function WelcomeScreen() {
   const visible = useSessionStore((s) => s.welcomeVisible);
+  const fade = useSessionStore((s) => s.welcomeFade);
   const [stopping, setStopping] = useState(false);
   const [wasVisible, setWasVisible] = useState(visible);
   if (visible !== wasVisible) {
     setWasVisible(visible);
-    setStopping(!visible);
+    setStopping(!visible && fade);
   }
   useEffect(() => {
     if (!stopping) return;

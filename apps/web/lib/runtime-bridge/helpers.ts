@@ -34,7 +34,9 @@ export function autoResize(el: HTMLTextAreaElement): void {
   el.style.height = Math.min(el.scrollHeight, 200) + "px";
 }
 
-export function setWelcomeVisible(show: boolean): void {
+/** ``fade``: hiding because the chat sent its first message (see
+ *  WelcomeScreen). */
+export function setWelcomeVisible(show: boolean, fade = false): void {
   // Pure write-through to the React store — the NEW framework owns the
   // welcome layout end-to-end from here. `<WelcomeScreen />` renders (or
   // unmounts) the `.welcome` node off `welcomeVisible`, and the
@@ -44,7 +46,7 @@ export function setWelcomeVisible(show: boolean): void {
   // writes (inline `padding-bottom:150px`, the `.welcome-visible` class)
   // fought the stylesheet and only cleared on hide, which floated the
   // example row ~60px up and kept it there until a reload.
-  useSessionStore.getState().setWelcomeVisible(!!show);
+  useSessionStore.getState().setWelcomeVisible(!!show, fade);
 }
 
 export function addSystemMessage(text: string): void {
