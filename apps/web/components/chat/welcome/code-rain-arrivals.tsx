@@ -8,7 +8,9 @@
  * and fades from green to the text colour. Streams start at random moments
  * shortly after their character arrives, so text shows roughly in the
  * order it was written with neighbours landing in random order. History
- * that loads or comes back into view shows as it is.
+ * that loads or comes back into view shows as it is. In-progress labels
+ * (the "Thinking… ›" row, a running step's title: CodeRainText) rain in
+ * the same way, again whenever their text changes.
  *
  * Nothing in the transcript DOM changes. The characters not yet decoded
  * are hidden and tinted through CSS custom highlights (transcript.css),
@@ -43,9 +45,11 @@ const MAX_ANIMATED = 900;
 type CharState = { ch: string; reveal: number; settle: number; glyph: string; next: number; fade: number };
 type Tracker = {
   el: HTMLElement;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "label";
   /** Characters of its text already handed out (decoded or in flight). */
   seen: number;
+  /** Its text when last scheduled; a label whose text changes rains anew. */
+  last: string;
   chars: Map<number, CharState>;
   observer: MutationObserver | null;
   dirty: boolean;
@@ -95,6 +99,7 @@ function startArrivals(mount: HTMLElement): () => void {
 
   // ---- Text model: a message's text is the concatenation of its roots ----
   function roots(t: Tracker): HTMLElement[] {
+    if (t.role === "label") return [t.el];
     return Array.from(t.el.querySelectorAll<HTMLElement>(ROOTS[t.role]));
   }
   function textOf(t: Tracker): string {
@@ -135,6 +140,11 @@ function startArrivals(mount: HTMLElement): () => void {
   function schedule(t: Tracker) {
     t.dirty = false;
     const text = textOf(t);
+    if (t.role === "label" && !text.startsWith(t.last)) {
+      t.chars.clear();
+      t.seen = 0;
+    }
+    t.last = text;
     if (text.length < t.seen) {
       // The markdown re-rendered shorter (a closing marker consumed text).
       for (const i of t.chars.keys()) if (i >= text.length) t.chars.delete(i);
@@ -202,7 +212,8 @@ function startArrivals(mount: HTMLElement): () => void {
 
   // ---- Tracking messages that arrive live ----
   function track(el: HTMLElement) {
-    const role = el.classList.contains("user") ? "user" : el.classList.contains("assistant") ? "assistant" : null;
+    const role = el.classList.contains("code-rain-text") ? "label"
+      : el.classList.contains("user") ? "user" : el.classList.contains("assistant") ? "assistant" : null;
     if (!role || trackers.some((t) => t.el === el)) return;
     // A row re-keyed by the server (the sent turn's local id replaced by
     // its real one) mounts again with the same text: keep its timing.
@@ -216,10 +227,16 @@ function startArrivals(mount: HTMLElement): () => void {
       observe(lost);
       return;
     }
-    const t: Tracker = { el, role, seen: 0, chars: new Map(), observer: null, dirty: true, lostAt: null };
+    const t: Tracker = { el, role, seen: 0, last: "", chars: new Map(), observer: null, dirty: true, lostAt: null };
     trackers.push(t);
     // Older replies stop decoding after a while; keep the work bounded.
-    while (trackers.length > 4) dispose(trackers.shift()!);
+    // Labels go once they leave the DOM.
+    const messages = () => trackers.filter((o) => o.role !== "label");
+    while (messages().length > 4) {
+      const oldest = messages()[0];
+      dispose(oldest);
+      trackers.splice(trackers.indexOf(oldest), 1);
+    }
     observe(t);
     wake();
   }
@@ -254,6 +271,8 @@ function startArrivals(mount: HTMLElement): () => void {
     for (const record of records) {
       for (const node of record.addedNodes) {
         if (!(node instanceof HTMLElement)) continue;
+        if (node.matches(".code-rain-text")) track(node);
+        node.querySelectorAll<HTMLElement>(".code-rain-text").forEach(track);
         const row = node.matches("[data-appear]") ? node : node.querySelector<HTMLElement>("[data-appear]");
         if (!row) continue;
         for (const message of row.querySelectorAll<HTMLElement>(".message.user, .message.assistant")) {

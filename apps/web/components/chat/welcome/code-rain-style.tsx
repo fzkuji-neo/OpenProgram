@@ -4,10 +4,9 @@
  * The code rain style's in-progress pieces (styles in code-rain-style.css):
  * with the style on, anything still running is shown as code. A spinner
  * becomes a few columns of falling glyphs (CodeRainIcon), and a status
- * label becomes a green monospace line that decodes from glyphs into its
- * letters, then flickers back into code now and then, the way text
- * scrambles in The Matrix (CodeRainText). Under reduced motion both hold
- * still.
+ * label becomes a green monospace line (CodeRainText) whose characters
+ * rain in like a new message's (code-rain-arrivals.tsx). Under reduced
+ * motion both hold still.
  */
 import { useEffect, useRef } from "react";
 
@@ -78,42 +77,5 @@ export function CodeRainIcon({ size = 18, className = "" }: { size?: number; cla
 /** A label that decodes left to right, then a character now and then
  *  flickers back into a glyph. The real text stays for screen readers. */
 export function CodeRainText({ text, className = "" }: { text: string; className?: string }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    const host = ref.current;
-    if (!host || reducedMotion()) return;
-    const cells = Array.from(host.querySelectorAll<HTMLElement>("[data-ch]"));
-    const start = performance.now();
-    // Long labels decode faster, so every label is readable within ~0.8s.
-    const gap = Math.min(70, 650 / Math.max(1, cells.length));
-    const decodeAt = cells.map((_, i) => 80 + i * gap + Math.random() * 80);
-    const flickerUntil = cells.map(() => 0);
-    const timer = window.setInterval(() => {
-      const t = performance.now() - start;
-      cells.forEach((cell, i) => {
-        const real = cell.dataset.ch!;
-        let shown = real, state = "";
-        if (real.trim()) {
-          if (t < decodeAt[i] || t < flickerUntil[i]) { shown = randomGlyph(); state = "code"; }
-          else if (t < decodeAt[i] + 140) state = "head";
-          else if (Math.random() < 0.012) flickerUntil[i] = t + 90 + Math.random() * 120;
-        }
-        if (cell.textContent !== shown) cell.textContent = shown;
-        if ((cell.dataset.state ?? "") !== state) cell.dataset.state = state;
-      });
-    }, 55);
-    return () => window.clearInterval(timer);
-  }, [text]);
-  return (
-    <span className={`code-rain-text ${className}`.trim()}>
-      <span className="sr-only">{text}</span>
-      <span ref={ref} aria-hidden="true">
-        {Array.from(text).map((ch, i) => (
-          // Wide characters keep a 1em cell so a glyph in their place
-          // does not shift the rest of the label.
-          <span key={`${i}:${ch}`} data-ch={ch} className={ch.charCodeAt(0) > 0x2e7f ? "wide" : undefined}>{ch}</span>
-        ))}
-      </span>
-    </span>
-  );
+  return <span className={`code-rain-text ${className}`.trim()}>{text}</span>;
 }

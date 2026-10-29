@@ -6,8 +6,8 @@
    - anything in progress shown as code (components/chat/welcome/code-rain-style.tsx):
      the thinking status, a running tool group's label, running steps'
      icons and titles, and the cursor of a streaming sub-call. */
-:root { --code-rain-ink: #118a3a; --code-rain-head: #063d18; }
-:root[data-theme-mode="dark"] { --code-rain-ink: #22e35b; --code-rain-head: #eafff0; }
+:root { --code-rain-ink: #118a3a; }
+:root[data-theme-mode="dark"] { --code-rain-ink: #22e35b; }
 
 /* ---- In progress ---- */
 .code-rain-icon { display: inline-flex; flex: none; }
@@ -21,10 +21,6 @@
 :root[data-theme-mode="dark"] .code-rain-text {
   text-shadow: 0 0 6px color-mix(in srgb, var(--code-rain-ink) 55%, transparent);
 }
-.code-rain-text [data-ch] { display: inline-block; min-width: 1ch; text-align: center; white-space: pre; }
-.code-rain-text [data-ch].wide { min-width: 1em; }
-.code-rain-text [data-state="code"] { transform: scaleX(-1); opacity: 0.8; }
-.code-rain-text [data-state="head"] { color: var(--code-rain-head); }
 .code-rain-text:is(.pending-label, .tl-label, .tl-step-title) {
   color: var(--code-rain-ink);
   font-size: 12.5px;
