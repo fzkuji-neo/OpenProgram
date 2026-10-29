@@ -19,7 +19,7 @@ from openprogram.memory.runtime.derived_views import rebuild_derived_views
 
 TYPES_TS = (
     pathlib.Path(__file__).resolve().parents[3]
-    / "apps" / "web" / "components" / "memory" / "types.ts"
+    / "apps" / "web" / "components" / "memory" / "data" / "types.ts"
 )
 
 
