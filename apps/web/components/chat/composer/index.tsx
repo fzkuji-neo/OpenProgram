@@ -65,7 +65,7 @@ import { useToolProfiles } from "./controls/toggles/use-tool-profiles";
 import { useUnattendedMode } from "./controls/toggles/use-unattended-mode";
 import { useSandboxToggle } from "./controls/toggles/use-sandbox-toggle";
 import { ControlsCluster } from "./controls/controls-cluster";
-import { useTuckedControls } from "./controls/use-tucked-controls";
+import { RIM_OUT, useTuckedControls } from "./controls/use-tucked-controls";
 import { TuckRow } from "./controls/tuck-row";
 import { usePasteTokens } from "./paste/use-paste-tokens";
 import { useHistoryRecall } from "./input/use-history-recall";
@@ -618,6 +618,9 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
           height (slashClip is absolute, doesn't contribute), so
           slashClip's bottom:100% lands exactly at the wrapper top. */}
       <div className={styles.composerStack} data-composer-session={currentSessionId}>
+      {/* The tuck band's outer half: a transparent ring behind the box
+          (use-tucked-controls.ts). */}
+      {tuck.enabled ? <div ref={tuck.bandRef} className={styles.tuckBand} style={{ borderRadius: `calc(var(--radius-lg) + ${RIM_OUT}px)` }} data-tuck-band aria-hidden="true" /> : null}
       <div className={styles.slashClip}>
         <SlashMenu
           visible={slash.visible}

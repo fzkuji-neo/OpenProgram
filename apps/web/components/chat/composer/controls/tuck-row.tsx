@@ -25,7 +25,6 @@ export function TuckRow({ tucked, side, onSettled, children }: {
     onAnimationComplete={onSettled}
     inert={tucked}
     data-tucked={tucked ? "" : undefined}
-    data-tuck-row=""
   >
     {children}
   </motion.div>;

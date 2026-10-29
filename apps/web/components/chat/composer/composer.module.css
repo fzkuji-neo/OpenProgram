@@ -37,6 +37,12 @@
 .inputArea[data-tuck-rim] .inputWrapper[data-tuckable] {
   cursor: pointer;
 }
+/* The band's outer half: a transparent ring RIM_OUT past the box on
+   every side (placed on the box's rectangle by use-tucked-controls.ts),
+   painted under the box because it comes earlier in the stack. */
+.tuckBand {
+  position: absolute;
+}
 .inputArea:has([data-environment-row] [aria-expanded="true"]) > *,
 .inputArea:has([data-effort-expanded="true"]) > * {
   z-index: 51;
