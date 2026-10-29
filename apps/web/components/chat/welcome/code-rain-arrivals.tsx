@@ -2,12 +2,13 @@
  * CodeRainArrivals — with the code rain on (Settings → General → Welcome
  * animation), a message that arrives live comes in through the rain.
  *
- * A sent message: drops fall from above into every column its text
- * covers, and each character shows as code once a drop reaches it, then
- * decodes into the real character and fades from green to the text
- * colour. A streamed reply: every new piece gets short drops that land on
- * the new characters, which decode the same way. History that loads or
- * comes back into view shows as it is.
+ * Every new character, in a sent message or a streamed reply alike, gets
+ * its own stream falling from above. It stays hidden until its stream
+ * lands, shows as code for a moment, then decodes into the real character
+ * and fades from green to the text colour. Streams start at random moments
+ * shortly after their character arrives, so text shows roughly in the
+ * order it was written with neighbours landing in random order. History
+ * that loads or comes back into view shows as it is.
  *
  * Nothing in the transcript DOM changes. The characters not yet decoded
  * are hidden and tinted through CSS custom highlights (transcript.css),
@@ -24,13 +25,18 @@ import { useWelcomeBackdropPref } from "@/lib/prefs/appearance/welcome-backdrop-
 /** Seconds a decoded character takes to fade from green to its colour. */
 const FADE = 0.6;
 const FADE_STEPS = 6;
-/** Drop geometry: glyph spacing in a falling column, and column width. */
+/** Glyph spacing in a falling stream. */
 const STEP = 18;
-const BAND = 16;
 /** Seconds a stream takes to fade out once its head has landed. */
 const LAND_FADE = 0.15;
-/** Pieces this long (or the first text of a message) fall from above. */
-const BURST = 40;
+/** Each character's stream: how far it falls (px), how fast (px/s), and
+ *  how many glyphs long it is. */
+const FALL = [150, 240] as const;
+const SPEED = 700;
+const LEN = [6, 11] as const;
+/** Seconds after a character arrives within which its stream starts, at a
+ *  random moment: the spread that shuffles neighbouring characters. */
+const WINDOW = 0.7;
 /** Past this many new characters, only those on screen are animated. */
 const MAX_ANIMATED = 900;
 
@@ -158,62 +164,24 @@ function startArrivals(mount: HTMLElement): () => void {
     }
     if (fresh.length > MAX_ANIMATED) fresh.length = MAX_ANIMATED;
     if (!fresh.length) return;
-    const t0 = now();
-    if (from === 0 || fresh.length > BURST) fallFromAbove(t, fresh, box, t0);
-    else fallOnto(t, fresh, t0);
+    rainOnto(t, fresh, box, now());
   }
 
-  /** Whole messages: one drop per column falls from above the text and
-   *  decodes it line by line as it passes. A sent message's rain stays
-   *  inside its bubble, starting at the bubble's top edge. */
-  function fallFromAbove(t: Tracker, fresh: Fresh[], box: DOMRect, t0: number) {
-    const top = Math.min(...fresh.map((f) => f.rect.top));
-    const bubble = t.role === "user" ? t.el.querySelector(".message-content")?.getBoundingClientRect() : undefined;
-    const v = bubble ? 520 : 1100;
-    const y0 = Math.max(box.top, bubble ? Math.min(bubble.top, top) : top - 240) - box.top;
-    const bands = new Map<number, typeof fresh>();
-    for (const f of fresh) {
-      const key = Math.floor((f.rect.left + f.rect.width / 2 - box.left) / BAND);
-      const list = bands.get(key);
-      if (list) list.push(f); else bands.set(key, [f]);
-    }
-    for (const [key, list] of bands) {
-      const start = t0 + Math.random() * 0.25;
-      // The drop runs down the whole column and sinks into its last
-      // character, so every character decodes as the drop reaches it.
-      const end = list.reduce((a, b) => (b.rect.top > a.rect.top ? b : a));
-      const last = end.rect.top + end.rect.height / 2 - box.top;
-      const len = bubble ? 4 + Math.floor(Math.random() * 4) : 10 + Math.floor(Math.random() * 9);
-      drops.push(drop(t, end, key * BAND + BAND / 2, y0, start, last, v, len));
-      for (const f of list) {
-        const reveal = start + (f.rect.top + f.rect.height / 2 - box.top - y0) / v;
-        t.chars.set(f.index, state(f, reveal, reveal + 0.18 + Math.random() * 0.32));
-      }
-    }
-  }
-
-  /** Streamed pieces: drops land on the new characters. They fall as far
-   *  and as slowly as a sent message's, so a reply rains as visibly while
-   *  it streams; the canvas blends behind the lines already written. */
-  function fallOnto(t: Tracker, fresh: Fresh[], t0: number) {
-    const box = area()?.getBoundingClientRect();
-    if (!box) return;
-    const v = 650;
-    // One drop per column and line; the characters it covers decode when
-    // it lands.
-    const landed = new Map<string, number>();
+  /** Every new character gets its own stream from above, sent and
+   *  streamed text alike. Each one falls at a random moment within WINDOW
+   *  of its arrival, so text shows roughly in the order it was written
+   *  while neighbouring characters land in random order; faster text only
+   *  means more streams at once. A character decodes as its stream lands. */
+  function rainOnto(t: Tracker, fresh: Fresh[], box: DOMRect, t0: number) {
     for (const f of fresh) {
       const x = f.rect.left + f.rect.width / 2 - box.left;
       const y = f.rect.top + f.rect.height / 2 - box.top;
-      const key = `${Math.floor(x / BAND)}:${Math.round(y)}`;
-      let fall = landed.get(key);
-      if (fall === undefined) {
-        fall = Math.min(y, (6 + Math.random() * 6) * STEP);
-        landed.set(key, fall);
-        drops.push(drop(t, f, x, y - fall, t0, y, v, 5 + Math.floor(Math.random() * 5)));
-      }
-      const reveal = t0 + fall / v;
-      t.chars.set(f.index, state(f, reveal, reveal + 0.12 + Math.random() * 0.22));
+      const start = t0 + Math.random() * WINDOW;
+      const fall = FALL[0] + Math.random() * (FALL[1] - FALL[0]);
+      const len = LEN[0] + Math.floor(Math.random() * (LEN[1] - LEN[0] + 1));
+      drops.push(drop(t, f, x, y - fall, start, y, SPEED, len));
+      const reveal = start + fall / SPEED;
+      t.chars.set(f.index, state(f, reveal, reveal + 0.12 + Math.random() * 0.13));
     }
   }
 
