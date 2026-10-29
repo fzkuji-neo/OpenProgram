@@ -105,9 +105,8 @@ function DagLegend() {
         <SolarIcon name="widget-2" size={16} />
       </button>
       {open && (
-        // 面板框架（圆角/描边/底色/阴影/内衬）来自 MENU_PANEL——全应用
-        // 弹层菜单共用的那一份视觉定义；.dag-legend-body 只负责锚位
-        // （在右上竖列左边展开）和行的排版。
+        // 内衬和滚动来自 MENU_PANEL；外框和小地图一致（dag/panels/tools.css），
+        // .dag-legend-body 负责锚位（在右上竖列左边展开）和行的排版。
         <div className={`dag-legend-body ${MENU_PANEL}`}>
           <LegendRow swatch={<LegendTile icon="user-rounded" tone="user" />} label={text("your message", "你的消息")} />
           <LegendRow swatch={<LegendTile icon="ghost" tone="llm" />} label={text("agent reply", "agent 回复")} />

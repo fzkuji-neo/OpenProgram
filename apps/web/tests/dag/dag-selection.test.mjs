@@ -171,3 +171,12 @@ test("The minimap, the legend and the controls sheet share one frame", () => {
   assert.match(map, /border-radius: 10px;\s*background: var\(--bg-input\);\s*box-shadow: var\(--shadow-raised\);/);
   assert.match(css, /\.dag-key-sheet,\s*\.dag-legend-body \{\s*background: var\(--bg-input\);\s*box-shadow: var\(--shadow-raised\);\s*border-radius: 10px;/);
 });
+
+test("The controls sheet, like the legend, closes only from its toggles", () => {
+  const sheet = readFileSync(new URL("../../components/chat/dag/dag-key-sheet.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(sheet, /pointerdown/);
+  const keys = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/selection/keys.ts", import.meta.url), "utf8");
+  const esc = keys.slice(keys.indexOf('e.key === "Escape"'));
+  assert.doesNotMatch(esc.slice(0, esc.indexOf("return;\n  }\n")), /setKeySheet/);
+  assert.match(keys, /e\.key === "\?"[\s\S]{0,60}setKeySheet\(!keySheetOpen\(\)\)/);
+});

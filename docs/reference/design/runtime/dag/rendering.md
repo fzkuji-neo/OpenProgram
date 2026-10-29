@@ -1007,10 +1007,12 @@ agent, and with none at work it goes to HEAD (`focusAgent` in
 right edge (see "The canvas is infinite"). The column's last button (a notes
 glyph, since half the sheet is mouse gestures, not keys) opens the **controls
 sheet**: every gesture and key the canvas answers to, grouped as mouse, camera
-and selection, in a menu panel left of the column, from the top
+and selection, in a panel left of the column, from the top
 (`components/chat/dag/dag-key-sheet.tsx`). `?` opens it
-too. Esc, `?` again or a press outside closes it. Esc runs down one
-thing at a time: the sheet, then the selection, then full screen. The view keys follow design
+too. It is a guide like the legend and behaves like it: it stays open until
+its button or `?` is pressed again, or the legend takes its spot — clicks on
+the canvas and Esc leave it be. Esc runs down one thing at a time: the
+selection, then full screen. The view keys follow design
 tools: Shift+1 fits the graph, Shift+0 returns to 100%, and + / − step the
 zoom, the same steps as the zoom column's buttons (`interaction/selection/keys.ts`).
 

@@ -9,8 +9,8 @@
  *   Shift+2          fit the selection
  *   + / −            zoom in / out one step
  *   Delete / ⌫       delete the selection
- *   Esc              close the key sheet, else clear the selection,
- *                    else leave full screen
+ *   Esc              clear the selection, else leave full screen (the
+ *                    key sheet is a guide and stays until toggled)
  *   ⌘Z / Ctrl+Z      undo the last delete in this session
  *   ?                open / close the key sheet
  */
@@ -44,11 +44,6 @@ function onKeyDown(e: KeyboardEvent): void {
     return;
   }
   if (e.key === "Escape") {
-    if (keySheetOpen()) {
-      e.preventDefault();
-      setKeySheet(false);
-      return;
-    }
     if (selectedIds().length) {
       e.preventDefault();
       clearSelection();

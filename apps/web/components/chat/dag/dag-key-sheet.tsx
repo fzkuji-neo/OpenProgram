@@ -3,12 +3,14 @@
 /**
  * The canvas's key sheet (dag/rendering.md §13): every key and mouse
  * gesture the graph answers to, in one panel left of the zoom column, the way a game lists
- * its controls. ``?`` or the column's controls button opens it; Esc, ``?``
- * again or a press outside closes it. The frame and the key tags are the
- * app's menu parts, so it reads as one of its menus.
+ * its controls. It is a guide, like the legend beside its button, and
+ * behaves like it: ``?`` or the column's controls button opens it, and
+ * only those (or opening the legend, which takes its spot) close it —
+ * clicks on the canvas and Esc leave it be. The key tags are the app's
+ * menu parts; the frame is the minimap's (dag/panels/tools.css).
  */
 
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 import { useTranslation } from "@/lib/i18n";
 import { GROUP_LABEL, MENU_PANEL, MENU_TRAILING } from "@/components/chat/top-bar/menu-styles";
@@ -52,22 +54,10 @@ export function useKeySheetOpen(): boolean {
 export function DagKeySheet() {
   const { text } = useTranslation();
   const open = useKeySheetOpen();
-  const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!open) return;
-    // A press outside closes it; the column's button toggles it itself.
-    const onDown = (e: PointerEvent) => {
-      const t = e.target as Element;
-      if (ref.current?.contains(t) || t.closest?.("[data-key-sheet-toggle]")) return;
-      setKeySheet(false);
-    };
-    document.addEventListener("pointerdown", onDown);
-    return () => document.removeEventListener("pointerdown", onDown);
-  }, [open]);
   useEffect(() => () => setKeySheet(false), []);
   if (!open) return null;
   return (
-    <div ref={ref} className={`dag-key-sheet ${MENU_PANEL}`} role="dialog"
+    <div className={`dag-key-sheet ${MENU_PANEL}`} role="dialog"
       aria-label={text("Keyboard shortcuts", "快捷键")}>
       {GROUPS.map(([gEn, gZh, rows]) => (
         <div key={gEn} className="flex flex-col">
