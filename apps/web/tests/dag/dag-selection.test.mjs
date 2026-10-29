@@ -57,7 +57,7 @@ test("Every view control is one column of Solar glyphs in the top-right corner",
   assert.doesNotMatch(css, /\.dag-view > \.dag-tool-rail/);
 });
 
-test("Full screen folds the sidebars and the tab strip away; Esc, leaving the graph or a reload ends it", async () => {
+test("Full screen grows the panes over the sidebars and the tab strip; Esc, leaving the graph or a reload ends it", async () => {
   const fs = await import("../../lib/runtime-bridge/dag/interaction/view/fullscreen.ts");
   let calls = 0;
   const off = fs.subscribeCanvasFullscreen(() => calls++);
@@ -68,22 +68,19 @@ test("Full screen folds the sidebars and the tab strip away; Esc, leaving the gr
   assert.equal(calls, 2);
   off();
   const css = readFileSync(new URL("../../app/styles/dag/panels/tools.css", import.meta.url), "utf8");
-  // They fold away (width / height to 0), not vanish, and only while the
-  // fold runs does the transition apply.
-  assert.match(css, /html\[data-canvas-fullscreen\] #sidebar,\s*html\[data-canvas-fullscreen\] #rightSidebar \{\s*width: 0 !important;/);
-  assert.match(css, /html\[data-canvas-fullscreen\] \[data-center-tab-strip\] \{\s*height: 0 !important;/);
-  assert.match(css, /html\[data-canvas-fullscreen-moving\] #sidebar,[\s\S]*?transition:[\s\S]*?width 0\.2s/);
-  assert.doesNotMatch(css, /data-canvas-fullscreen\][^{]*\{\s*display: none/);
+  // The center body grows over the sidebars and the strip, which stay put,
+  // from its slot (the --fs-* rect fullscreen.ts pins) out to the window.
+  assert.match(css, /html\[data-canvas-fullscreen\] \.center-body \{\s*position: fixed !important;[\s\S]*?top: var\(--fs-top, 7px\);[\s\S]*?transition:/);
+  assert.doesNotMatch(css, /data-canvas-fullscreen\][^{]*#sidebar/);
   const store = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/view/fullscreen.ts", import.meta.url), "utf8");
-  assert.match(store, /setAttribute\("data-canvas-fullscreen-moving"[\s\S]*removeAttribute\("data-canvas-fullscreen-moving"\)/);
+  assert.match(store, /pin\(root, [^;]*slot\(body\)\);\s*root\.setAttribute\("data-canvas-fullscreen", ""\);\s*void body\.offsetWidth;\s*pin\(root, null\);/);
+  assert.match(store, /pin\(root, slot\(body\)\);\s*_glideTimer = setTimeout/);
   const strip = readFileSync(new URL("../../components/center-tabs/strip/center-tab-strip.tsx", import.meta.url), "utf8");
   assert.match(strip, /data-center-tab-strip=""/);
   const keys = readFileSync(new URL("../../lib/runtime-bridge/dag/interaction/selection/keys.ts", import.meta.url), "utf8");
   assert.match(keys, /clearSelection\(\);[\s\S]{0,60}\}[\s\S]{0,40}if \(canvasFullscreen\(\)\)[\s\S]{0,60}setCanvasFullscreen\(false\)/);
   const view = readFileSync(new URL("../../components/chat/dag/dag-view.tsx", import.meta.url), "utf8");
   assert.match(view, /else setCanvasFullscreen\(false\);/);
-  // Without the sidebars the pane keeps its 7px gap to the window's sides.
-  assert.match(css, /html\[data-canvas-fullscreen\] \.center-col \{\s*margin-inline: 7px;/);
 });
 
 test("The zoom buttons and keys glide; the wheel and pinch stay immediate", () => {

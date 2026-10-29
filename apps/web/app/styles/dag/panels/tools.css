@@ -190,42 +190,30 @@
 }
 
 /* Full screen (interaction/view/fullscreen.ts): the graph takes the
-   window — the left sidebar, the right sidebar and the center tab strip
-   step aside; the canvas, its column and the composer stay. They fold
-   away rather than vanish: the sidebars narrow to nothing and the strip
-   to no height, on the sidebars' own collapse curve, and fade as they
-   go; leaving full screen plays it back. */
-html[data-canvas-fullscreen] #sidebar,
-html[data-canvas-fullscreen] #rightSidebar {
-  width: 0 !important;
-  min-width: 0 !important;
-  padding-inline: 0 !important;
-  overflow: hidden !important;
-  opacity: 0;
-  visibility: hidden;
-}
-html[data-canvas-fullscreen] [data-center-tab-strip] {
-  height: 0 !important;
+   window. The center body — every pane, the canvas and the composer —
+   lifts out of the layout and grows over the sidebars and the tab strip,
+   which stay where they are underneath; it keeps the 7px gap to the
+   window's edges the panes have everywhere else. fullscreen.ts starts it
+   at its slot (the --fs-* rect) and lets go, so it glides out to the
+   window; on the way back it glides into the slot before it drops back
+   into the layout. */
+/* !important: app-shell.tsx sets the body's position inline. */
+html[data-canvas-fullscreen] .center-body {
+  position: fixed !important;
+  z-index: 30;
+  top: var(--fs-top, 7px);
+  left: var(--fs-left, 7px);
+  width: var(--fs-width, calc(100vw - 14px));
+  height: var(--fs-height, calc(100vh - 14px));
+  /* The card (fill, corners, shadow) is the column's; lifted out of it,
+     the body wears the same. */
+  background: inherit;
+  border-radius: inherit;
+  box-shadow: inherit;
   overflow: hidden;
-  opacity: 0;
-  visibility: hidden;
-}
-/* The fold's transition is only on while it runs (fullscreen.ts holds
-   data-canvas-fullscreen-moving for its length): the rails' inline
-   transition, which a drag-resize turns off, is otherwise theirs. */
-html[data-canvas-fullscreen-moving] #sidebar,
-html[data-canvas-fullscreen-moving] #rightSidebar,
-html[data-canvas-fullscreen-moving] [data-center-tab-strip],
-html[data-canvas-fullscreen-moving] .center-col {
   transition:
-    width 0.2s cubic-bezier(0.165, 0.84, 0.44, 1),
-    min-width 0.2s cubic-bezier(0.165, 0.84, 0.44, 1),
-    padding 0.2s cubic-bezier(0.165, 0.84, 0.44, 1),
-    height 0.2s cubic-bezier(0.165, 0.84, 0.44, 1),
-    margin 0.2s cubic-bezier(0.165, 0.84, 0.44, 1),
-    opacity 0.15s ease-out,
-    visibility 0.2s !important;
-}
-html[data-canvas-fullscreen] .center-col {
-  margin-inline: 7px;
+    top 0.25s cubic-bezier(0.165, 0.84, 0.44, 1),
+    left 0.25s cubic-bezier(0.165, 0.84, 0.44, 1),
+    width 0.25s cubic-bezier(0.165, 0.84, 0.44, 1),
+    height 0.25s cubic-bezier(0.165, 0.84, 0.44, 1);
 }

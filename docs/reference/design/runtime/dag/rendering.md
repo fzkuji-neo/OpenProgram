@@ -111,15 +111,17 @@ controls sheet. All open to the column's left from the top, the map above the
 legend; the legend and the map stay open until their button is pressed again.
 The controls sheet opens in the legend's spot, under the map while it is
 shown, so the two take turns: opening either closes the other.
-**Full screen** gives the window to the graph: the app's left sidebar, right
-sidebar and center tab strip fold away — the sidebars narrowing and the strip
-flattening over 0.2s on the sidebars' own collapse curve, fading as they go,
-and unfolding the same way on the way back — and the canvas, its column and the
-composer stay, and the pane keeps the same 7px gap to the window's sides it
-has at the top and bottom. It is a mode of the app, not the browser's full screen — the
-window keeps its size. Pressed again, Esc (once nothing is selected), leaving
-the graph view or a reload ends it (`interaction/view/fullscreen.ts`; the
-hiding is `html[data-canvas-fullscreen]` in `app/styles/dag/panels/tools.css`).
+**Full screen** gives the window to the graph: the center body — the panes,
+the canvas, its column and the composer — lifts out of the layout and grows
+over the app's left sidebar, right sidebar and center tab strip, which stay
+where they are underneath, until it sits 7px inside the window on every side,
+the gap it has everywhere else. The growth is a 0.25s glide on the sidebars'
+collapse curve from the body's slot; leaving glides it back into the slot
+before it drops into the layout again. It is a mode of the app, not the
+browser's full screen — the window keeps its size. Pressed again, Esc (once
+nothing is selected), leaving the graph view or a reload ends it
+(`interaction/view/fullscreen.ts` pins the glide's ends; the look is
+`html[data-canvas-fullscreen]` in `app/styles/dag/panels/tools.css`).
 Showing the whole graph used to hold this spot; it was a fit that, on a small
 graph, looked just like the readout's 100%, so it is Shift+1 alone now.
 A toggle that is on holds the hover grey, never an accent colour. Every glyph
