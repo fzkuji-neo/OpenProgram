@@ -282,7 +282,7 @@
     <h2>现状：已有持久化，缺少一致的恢复决策</h2>
     <div class="matrix-wrap"><table><thead><tr><th>已检查的代码</th><th>当前行为</th><th>需要改变或验证的部分</th></tr></thead><tbody>
       <tr><td><code>execution/startup.py</code>、<code>execution/control/recovery.py</code></td><td>已有 owner 核查、canonical 恢复、wait 回执恢复和投影重送；不是空白实现。</td><td>未确认 effect 可使整个 execution 进入 reconciliation_required；要把“操作待核查”和“会话可继续”分开。</td></tr>
-      <tr><td><code>execution/restart.py</code></td><td>已有重启暂停意图、去重续接命令和资源准入；默认无恢复期限，显式禁用和有限期限保留，要求无未决 effect。</td><td>全状态恢复尚待验收；旧记录已保存的有限期限不自动延长，未决效果不因取消默认期限而获得重放权限。</td></tr>
+      <tr><td><code>execution/restart.py</code></td><td>已有重启暂停意图、去重续接命令和资源准入；默认无恢复期限，显式禁用和有限期限保留，要求无未决 effect。只有同一会话中活着的轮次（queued、running、pausing、cancelling）会让续接等待；卡在 reconciliation_required 的轮次不会。用户在中断之后开始的新轮次会取代它：意图以 superseded 结算，执行保持暂停，等用户显式继续。</td><td>全状态恢复尚待验收；旧记录已保存的有限期限不自动延长，未决效果不因取消默认期限而获得重放权限。</td></tr>
       <tr><td><code>workflow/goal/chat.py</code>、<code>_webui/_exec_dag.py</code></td><td>聊天 Goal 不因停机或显示投影修复而暂停；执行完成前持久化通知，重启后按原策略续轮。缺失恢复来源的旧记录保留显式 Resume。</td><td>完成通知与检查点恢复已有针对性测试；未知效果、新轮次恢复和完整子任务路径仍待实现及验收。</td></tr>
       <tr><td><code>agent/job/runner/recovery.py</code>、<code>execution/control/waits.py</code></td><td>已有 Job 恢复、延后 inbox、持久回答与去重 continue；普通聊天部分重启路径排除 spawn/merge。</td><td>统一父子任务恢复决策及结果投递，不能假设已保存 Job 等于已完整恢复子 agent。</td></tr>
       <tr><td><code>execution/waits.py</code></td><td>durable wait 与 live producer wait 不同；失去 producer 的 live wait 会取消。</td><td>可恢复的审批和问题不能只依赖进程回调；失效的问题保留记录，重新确认而不是默认批准。</td></tr>

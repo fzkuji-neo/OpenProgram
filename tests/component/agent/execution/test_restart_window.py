@@ -457,3 +457,56 @@ def test_shutdown_pause_race_with_completed_action(real_agent_chat, monkeypatch)
     )
     assert h.tools.calls == ["first", "second"]
     assert h.provider.call_count == 2
+
+
+@pytest.mark.parametrize("other", ["stuck", "newer"])
+def test_restart_resume_skips_stuck_turns_and_yields_to_newer_ones(
+    real_agent_chat, monkeypatch, other
+):
+    """A turn stuck awaiting reconciliation does not hold the conversation, but a
+    turn the user started after the interruption means they moved on."""
+    from contextlib import closing
+    from openprogram.execution import restart
+    from tests.component.providers.scripted_provider import (
+        ScriptedToolCall,
+        ScriptedText,
+    )
+
+    h = real_agent_chat
+    monkeypatch.setattr("openprogram.setup._read_config", lambda: {"execution": {}})
+    h.provider.add_response(ScriptedToolCall("first", {}, "first-call"))
+    h.provider.add_response(ScriptedText("done"))
+    h.tools.blocked.add("first")
+    execution = _chat(h)
+    _wait(lambda: "first" in h.tools.calls)
+    restart.prepare_shutdown(_runner(h))
+    h.tools.release["first"].set()
+    _wait(lambda: h.store.get_execution(execution.execution_id).status.value == "paused")
+    intent = next(
+        e for e in h.store.list_events(execution.execution_id) if e.kind == restart._REQUEST
+    )
+    with closing(h.store._connect()) as connection:
+        columns = [row[1] for row in connection.execute("PRAGMA table_info(executions)")]
+        row = dict(zip(columns, connection.execute(
+            "SELECT * FROM executions WHERE execution_id = ?", (execution.execution_id,),
+        ).fetchone()))
+        row.update(
+            execution_id="exec_other", run_id="run_other", current_attempt_id=None,
+            parent_execution_id=None,
+            status="reconciliation_required" if other == "stuck" else "completed",
+            created_at=intent.payload["interrupted_at"] + (-100 if other == "stuck" else 1),
+        )
+        connection.execute(
+            f"INSERT INTO executions ({','.join(row)}) VALUES ({','.join('?' for _ in row)})",
+            list(row.values()),
+        )
+        connection.commit()
+    restart.reconcile(_runner(h))
+    if other == "stuck":
+        _wait(lambda: h.store.get_execution(execution.execution_id).status.value == "completed",
+              detail=lambda: h.activation_errors)
+    else:
+        assert h.store.get_execution(execution.execution_id).status.value == "paused"
+        settled = [e for e in h.store.list_events(execution.execution_id)
+                   if e.kind == restart._SETTLED]
+        assert [e.payload["outcome"] for e in settled] == ["superseded"]

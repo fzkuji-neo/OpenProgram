@@ -153,6 +153,26 @@ def prepare_shutdown(runner) -> None:
                 break
 
 
+_LIVE = frozenset({
+    ExecutionStatus.QUEUED, ExecutionStatus.RUNNING,
+    ExecutionStatus.PAUSING, ExecutionStatus.CANCELLING,
+})
+
+
+def _superseded(store, execution, interrupted_at) -> bool:
+    """Whether another turn of the conversation began after ``interrupted_at``."""
+    if not execution.session_id:
+        return False
+    from contextlib import closing
+    with closing(store._connect()) as connection:
+        return connection.execute(
+            "SELECT 1 FROM executions WHERE session_id = ? AND execution_id != ? "
+            "AND COALESCE(parent_execution_id, '') != ? AND created_at > ? LIMIT 1",
+            (execution.session_id, execution.execution_id,
+             execution.execution_id, interrupted_at),
+        ).fetchone() is not None
+
+
 def _settle(store, execution, event, outcome):
     with store._transaction() as connection:
         store._append_event(
@@ -271,13 +291,20 @@ def reconcile(runner) -> None:
         ):
             _settle(store, execution, event, "expired")
             continue
+        # The user has moved on: a later turn of this conversation started
+        # after the interruption, so continuing this one now would act out
+        # of turn. It stays paused for the user to continue by hand.
+        if _superseded(store, execution, data["interrupted_at"]):
+            _settle(store, execution, event, "superseded")
+            continue
         service = _service(runner, execution.execution_id)
         if service.effects.list_unresolved(execution.execution_id):
             continue
         # A current user turn/wait in this conversation retains its ownership.
+        # One stuck awaiting reconciliation is not current and blocks nothing.
         if any(
             e.execution_id != execution.execution_id
-            and e.status is not ExecutionStatus.PAUSED
+            and e.status in _LIVE
             for e in store.list_nonterminal(session_id=execution.session_id)
         ):
             continue
