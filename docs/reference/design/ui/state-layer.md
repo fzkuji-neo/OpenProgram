@@ -120,7 +120,8 @@ values.
 
 ## 3. The other stores
 
-Beyond the main session store, `apps/web/lib/state/` holds several smaller stores.
+Beyond the main session store, several smaller stores live in the `apps/web/lib/`
+folder for their area.
 None of them is on the critical path for session scoping, but knowing what
 lives where prevents duplicating state later.
 

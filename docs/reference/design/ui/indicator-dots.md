@@ -88,9 +88,9 @@ CSS — drop  .pulse, .pending-pulse, .status-dot[.ok/.warn/.err],
 
 Call sites (8 JSX, 2 CSS files):
 
-- `apps/web/components/chat/messages/execution-dag/index.tsx` (header `●`)
+- `apps/web/components/chat/messages/execution-dag/index.tsx` (header `●`; file since removed)
 - `apps/web/components/chat/messages/runtime/runtime-block.tsx` (header `●` + pending body)
-- `apps/web/components/chat/messages/tool-card.tsx` (2× header `●`)
+- `apps/web/components/chat/messages/tool-card.tsx` (2× header `●`; file since removed)
 - `apps/web/components/chat/messages/list/message-list.tsx` (pending bubble)
 - `apps/web/components/chat/messages/bubbles/assistant-bubble.tsx` (nested pending)
 - `apps/web/components/chat/messages/cards/attach-card.tsx` (status dot)

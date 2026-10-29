@@ -150,7 +150,7 @@ openprogram/
 | providers | provider 注册表（对应 openprogram provider 体系，opencode 风格） |
 | agents | subagent 注册表 |
 | hooks | 事件总线（PreToolUse / PostToolUse / SessionStart / Stop 等） |
-| web | 静态资源通过 worker 的 SPA fallback 提供；`apps/web/app/plugin/page.tsx` 从 `pathname` 解析 `/plugin/<name>/<slug...>`，后端提供 plugin web entrypoint |
+| web | 静态资源通过 worker 的 SPA fallback 提供；`apps/web/app/(shell)/plugin/page.tsx` 从 `pathname` 解析 `/plugin/<name>/<slug...>`，后端提供 plugin web entrypoint |
 | sidebar | 推到 sidebar store 的 plugin section（独有） |
 
 ### 沙箱（分层）
@@ -186,7 +186,7 @@ Chats
   - Installed：`UnifiedInstalledCell`-style 行
   - Marketplace：marketplace 选择器 + 卡片浏览 + 安装（移植 `BrowseMarketplace / AddMarketplace / DiscoverPlugins`）
   - Errors：移植 `PluginErrors`
-- `/plugin/<name>/<slug...>` — `apps/web/app/plugin/page.tsx` 在客户端解析 plugin 名称和 slug；后端提供来自 `web/dist` 的 plugin web entrypoint
+- `/plugin/<name>/<slug...>` — `apps/web/app/(shell)/plugin/page.tsx` 在客户端解析 plugin 名称和 slug；后端提供来自 `web/dist` 的 plugin web entrypoint
 - `/skills/[name]/trace` — Skill 调用记录可视化（独有）
 
 ### 组件
@@ -205,7 +205,7 @@ apps/web/components/plugins/
 两个技能详情视图均将 SKILL.md 正文作为不可信 Markdown 渲染。原始 HTML 及数学内容中的 HTML 文本按字面显示。详情视图不添加本地资源读取解析器，技能链接不授予文件系统访问权限。
 
 ### 存储
-`lib/skills-store.ts`、`lib/plugins-store.ts`，WS 订阅 `skills:changed` / `plugins:changed` / `plugins:error`。
+`apps/web/lib/abilities/skills-store.ts`、`apps/web/lib/abilities/plugins-store.ts`，WS 订阅 `skills:changed` / `plugins:changed` / `plugins:error`。
 
 ---
 

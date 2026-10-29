@@ -145,7 +145,7 @@ openprogram/
 | providers | The provider registry (corresponding to the openprogram provider system, opencode style) |
 | agents | The subagent registry |
 | hooks | The event bus (PreToolUse / PostToolUse / SessionStart / Stop, etc.) |
-| web | Static assets are served through the worker's SPA fallback; `apps/web/app/plugin/page.tsx` parses `/plugin/<name>/<slug...>` from `pathname` and the backend serves the plugin web entrypoint |
+| web | Static assets are served through the worker's SPA fallback; `apps/web/app/(shell)/plugin/page.tsx` parses `/plugin/<name>/<slug...>` from `pathname` and the backend serves the plugin web entrypoint |
 | sidebar | Pushed to the plugin section of the sidebar store (unique) |
 
 ### Sandbox (layered)
@@ -181,7 +181,7 @@ Chats
   - Installed: `UnifiedInstalledCell`-style rows
   - Marketplace: marketplace selector + card browsing + install (porting `BrowseMarketplace / AddMarketplace / DiscoverPlugins`)
   - Errors: porting `PluginErrors`
-- `/plugin/<name>/<slug...>` — `apps/web/app/plugin/page.tsx` resolves the plugin name and slug client-side; the backend serves the plugin web entrypoint from `web/dist`
+- `/plugin/<name>/<slug...>` — `apps/web/app/(shell)/plugin/page.tsx` resolves the plugin name and slug client-side; the backend serves the plugin web entrypoint from `web/dist`
 - `/skills/[name]/trace` — Skill invocation record visualization (unique)
 
 ### Components
@@ -198,7 +198,7 @@ apps/web/components/plugins/
 Both skill detail views render SKILL.md bodies as untrusted Markdown. Raw HTML and HTML-like math are displayed as text. These views do not add local-resource resolvers or grant filesystem access through skill links.
 
 ### Store
-`lib/skills-store.ts`, `lib/plugins-store.ts`, subscribing over WS to `skills:changed` / `plugins:changed` / `plugins:error`.
+`apps/web/lib/abilities/skills-store.ts`, `apps/web/lib/abilities/plugins-store.ts`, subscribing over WS to `skills:changed` / `plugins:changed` / `plugins:error`.
 
 ---
 

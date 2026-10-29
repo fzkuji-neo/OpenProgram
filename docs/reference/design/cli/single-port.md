@@ -67,7 +67,7 @@ route markers that render null or resolve params client-side from
 `pathname`. Static export rejects them without `generateStaticParams`, so
 those page files do not exist; the SPA fallback (3.2) serves the shell for
 those paths and client-side routing handles the rest. The plugin page is
-`apps/web/app/plugin/page.tsx`; it resolves the name and slug from `pathname`.
+`apps/web/app/(shell)/plugin/page.tsx`; it resolves the name and slug from `pathname`.
 A segment that does
 real work keeps a `generateStaticParams` returning one placeholder instead.
 
@@ -92,10 +92,11 @@ the current backend routes are served by the Python worker.
 The current worker path does not spawn or watch a Node process. The active
 entry is `openprogram/worker/runner.py`, which calls `openprogram.webui.start_web`
 and `apps/server/openprogram_server/_webui/frontend.py:ensure_frontend_built`.
-The older `openprogram/worker/web.py` module and
-`apps/web/scripts/with-parent-watch.mjs` remain in the checkout as legacy
+The older `openprogram/worker/web.py` module remains in the checkout as legacy
 dual-port code, including `start_web_frontend`, but the current runner does not
-call them. They are retained for a separate cleanup decision.
+call it. Its watcher script `apps/web/scripts/with-parent-watch.mjs` has already
+been removed, although `web.py` still names it. The module is retained for a
+separate cleanup decision.
 
 ### 3.4 Port semantics
 

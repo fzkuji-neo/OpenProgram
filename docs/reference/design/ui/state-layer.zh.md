@@ -102,7 +102,7 @@ web 前端的状态存放方式是：**每个会话一个 Zustand store 实例�
 
 ## 3. 其他 store
 
-除主 session store 外，`apps/web/lib/state/` 下还有若干较小的 store。它们都不在会话隔离的
+除主 session store 外，还有若干较小的 store，分别放在 `apps/web/lib/` 下各自领域的文件夹里。它们都不在会话隔离的
 关键路径上，但知道各自管什么可以避免以后重复造状态。
 
 - **`apps/web/lib/tabs/center-tabs-store.ts`**（1020 行）—— 标签条与窗格布局：`tabs`、
