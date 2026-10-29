@@ -7,6 +7,7 @@
 - **`group_guard.py`** — Keep a POSIX process-group identity alive until its ordinary children exit
 - **`notices.py`** — Tell the agent when a command it left running in the background ends
 - **`presentation.py`** — Conservative command labels for process inspection, never execution
+- **`progress.py`** — What a managed process is doing, read from its output
 - **`store.py`** — Durable managed-process records, bounded output and supervisor commands
 - **`supervisor.py`** — Detached owner of one managed process and its pipes
 

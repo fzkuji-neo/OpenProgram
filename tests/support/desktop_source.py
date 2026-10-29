@@ -10,7 +10,7 @@ def read_desktop_source(root: Path) -> str:
 
 def read_desktop_bridge_source(root: Path) -> str:
     folder = root / "apps/web/lib/desktop"
-    paths = [folder / "desktop-bridge.ts", *sorted(folder.glob("bridge-*.ts"))]
+    paths = [folder / "desktop-bridge.ts", *sorted((folder / "bridge").glob("bridge-*.ts"))]
     return "\n".join(path.read_text(encoding="utf-8") for path in paths)
 
 
