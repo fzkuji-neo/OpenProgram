@@ -60,4 +60,11 @@ assert.deepEqual(win.sent.at(-1), ["webtab:action-cue", { play: "never", playSeq
 timers.filter((timer) => timer.ms === 2800 && !timer.cleared).at(-1).fn();
 assert.equal(win.visible, false);
 assert.equal(cues.nativeCueSender({ sender: win.webContents }), true);
-console.log("native action cue: placed, deduped and hidden");
+// A theme change paints App windows only: a background colour on this
+// transparent window would draw the cursor on an opaque tile.
+const mainSource = require("node:fs").readFileSync(require("node:path").join(__dirname, "..", "main.js"), "utf8");
+const start = mainSource.indexOf("function applyWindowChrome");
+const chrome = mainSource.slice(start, mainSource.indexOf("\n}\n", start));
+assert.ok(chrome.includes("setBackgroundColor") && !chrome.includes("getAllWindows"),
+  "applyWindowChrome repaints the App's own windows, not the transparent overlays");
+console.log("native action cue: placed, deduped, hidden and kept transparent");

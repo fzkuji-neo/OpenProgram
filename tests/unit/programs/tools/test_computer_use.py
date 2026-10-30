@@ -850,3 +850,25 @@ def test_a_step_reports_its_screen_point_for_the_agent_cursor(monkeypatch):
     monkeypatch.setattr(computer, "_onscreen_ids", lambda pid: set())
     computer._cue(app, state, "click", {"x": 100, "y": 60})
     assert len(points) == 1, "a window on another Space shows no cursor here"
+
+
+def _row(wid, pid, x=0, y=0, w=100, h=100, layer=0):
+    return {"kCGWindowNumber": wid, "kCGWindowOwnerPID": pid, "kCGWindowLayer": layer,
+            "kCGWindowBounds": {"X": x, "Y": y, "Width": w, "Height": h}}
+
+
+def test_the_windows_a_click_would_bring_forward_past_are_listed_deepest_first():
+    rows = [_row(1, 10), _row(2, 20, layer=25), _row(3, 30), _row(4, 40, x=500), _row(5, 50), _row(6, 60)]
+    # Front to back: 1 is the front app's, 2 a menu-bar layer, 4 lies beside the target, 6 lies below it.
+    assert [r["kCGWindowNumber"] for r in macos.covering_rows(rows, 5, front_pid=10)] == [3]
+    assert [r["kCGWindowNumber"] for r in macos.covering_rows(rows, 5, front_pid=99)] == [3, 1]
+    assert macos.covering_rows(rows, 77, front_pid=10) == []
+
+
+def test_a_background_click_restores_the_windows_it_brought_forward_past(monkeypatch):
+    computer = macos.MacComputer.__new__(macos.MacComputer)
+    order = []
+    monkeypatch.setattr(computer, "_covering", lambda state: ["deep", "near"])
+    monkeypatch.setattr(computer, "_perform", lambda window, action: order.append((window, action)))
+    computer._restore_order(computer._covering(None))
+    assert order == [("deep", "AXRaise"), ("near", "AXRaise")]

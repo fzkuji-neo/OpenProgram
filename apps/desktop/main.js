@@ -323,7 +323,9 @@ function applyWindowChrome(payload = {}) {
   const background = themeChrome.colorToHex(payload.backgroundColor) || fromTheme.bg;
   currentChrome = { ...fromTheme, bg: background };
   if (accentColor) currentChrome.link = accentColor;
-  for (const win of BrowserWindow.getAllWindows()) {
+  // App windows only: the agent cursor and other overlays are transparent
+  // windows, and a background colour would paint them as an opaque tile.
+  for (const { win } of windows.values()) {
     try {
       if (win.isDestroyed()) continue;
       win.setBackgroundColor(currentChrome.bg);

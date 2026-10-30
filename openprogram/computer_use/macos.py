@@ -848,6 +848,35 @@ class MacComputer:
             raise ComputerUseError("The window has no window-server id to route pointer input to; use element_index actions.")
         return sky
 
+    def _covering(self, state: WindowState) -> list[Any]:
+        """Other windows stacked over the operated one, deepest first, as Accessibility windows.
+
+        An app orders its window to the front when it handles a mouse-down,
+        even one delivered in the background. Raising these again after the
+        gesture puts the stack back as the user left it. The front app's
+        windows stay above the operated one anyway and are left alone.
+        """
+        try:
+            appkit, ax, cg, _ = _frameworks()
+            front = appkit.NSWorkspace.sharedWorkspace().frontmostApplication()
+            rows = cg.CGWindowListCopyWindowInfo(cg.kCGWindowListOptionOnScreenOnly, cg.kCGNullWindowID) or []
+            above = covering_rows(rows, state.window_id, int(front.processIdentifier()) if front is not None else -1)
+            sky, windows, found = skylight(), {}, []
+            for row in above:
+                pid = int(row["kCGWindowOwnerPID"])
+                if pid not in windows:
+                    windows[pid] = list(self._attr(ax.AXUIElementCreateApplication(pid), "AXWindows") or [])
+                wid = int(row["kCGWindowNumber"])
+                found.extend(w for w in windows[pid] if sky.window_id(w) == wid)
+            return found
+        except Exception:
+            # The order is a courtesy; a step never fails because of it.
+            return []
+
+    def _restore_order(self, covering: list[Any]) -> None:
+        for window in covering:
+            self._perform(window, "AXRaise")
+
     def _mouse_event(self, cg, kind, point, button_code, flags=0):
         source = cg.CGEventSourceCreate(cg.kCGEventSourceStateHIDSystemState)
         event = cg.CGEventCreateMouseEvent(source, kind, point, button_code)
@@ -911,30 +940,41 @@ class MacComputer:
                 if count > 1:
                     time.sleep(0.08)
 
-        self._with_modifiers(pid, flags, gesture)
+        covering = self._covering(state)
+        try:
+            self._with_modifiers(pid, flags, gesture)
+        finally:
+            self._restore_order(covering)
 
     def _background_drag(self, state: WindowState, pid: int, start, end) -> None:
         sky = self._route(state)
         _, _, cg, _ = _frameworks()
         left = cg.kCGMouseButtonLeft
+        covering = self._covering(state)
         sky.focus_without_raise(pid, state.window_id)
         time.sleep(0.05)
         group = sky.next_group()
-        self._primer(sky, cg, state, pid, start, group)
-        event = self._mouse_event(cg, cg.kCGEventLeftMouseDown, start, left)
-        self._post_mouse(sky, cg, state, pid, event, start, click_state=1, button=0, subtype=SUBTYPE_DEFAULT, group=group)
-        time.sleep(0.12)
-        distance = math.hypot(end[0] - start[0], end[1] - start[1])
-        steps = max(2, min(MAX_DRAG_STEPS, int(distance / 12) + 1))
-        for step in range(1, steps + 1):
-            t = step / steps
-            point = (start[0] + (end[0] - start[0]) * t, start[1] + (end[1] - start[1]) * t)
-            event = self._mouse_event(cg, cg.kCGEventLeftMouseDragged, point, left)
-            self._post_mouse(sky, cg, state, pid, event, point, click_state=1, button=0, subtype=SUBTYPE_DEFAULT, group=group)
-            time.sleep(0.016)
-        time.sleep(0.08)
-        event = self._mouse_event(cg, cg.kCGEventLeftMouseUp, end, left)
-        self._post_mouse(sky, cg, state, pid, event, end, click_state=1, button=0, subtype=SUBTYPE_DEFAULT, group=group)
+        try:
+            self._primer(sky, cg, state, pid, start, group)
+            event = self._mouse_event(cg, cg.kCGEventLeftMouseDown, start, left)
+            self._post_mouse(sky, cg, state, pid, event, start, click_state=1, button=0, subtype=SUBTYPE_DEFAULT,
+                             group=group)
+            time.sleep(0.12)
+            distance = math.hypot(end[0] - start[0], end[1] - start[1])
+            steps = max(2, min(MAX_DRAG_STEPS, int(distance / 12) + 1))
+            for step in range(1, steps + 1):
+                t = step / steps
+                point = (start[0] + (end[0] - start[0]) * t, start[1] + (end[1] - start[1]) * t)
+                event = self._mouse_event(cg, cg.kCGEventLeftMouseDragged, point, left)
+                self._post_mouse(sky, cg, state, pid, event, point, click_state=1, button=0,
+                                 subtype=SUBTYPE_DEFAULT, group=group)
+                time.sleep(0.016)
+            time.sleep(0.08)
+            event = self._mouse_event(cg, cg.kCGEventLeftMouseUp, end, left)
+            self._post_mouse(sky, cg, state, pid, event, end, click_state=1, button=0, subtype=SUBTYPE_DEFAULT,
+                             group=group)
+        finally:
+            self._restore_order(covering)
 
     def _background_scroll(self, state: WindowState, pid: int, point, direction: str, pages: float,
                            pixels: float = 0.0) -> None:
@@ -1718,6 +1758,27 @@ class MacComputer:
 
 
 # ---------------------------------------------------------------------- helpers
+
+def _bounds(row: dict) -> tuple[float, float, float, float]:
+    b = row.get("kCGWindowBounds") or {}
+    x, y = float(b.get("X", 0)), float(b.get("Y", 0))
+    return x, y, x + float(b.get("Width", 0)), y + float(b.get("Height", 0))
+
+
+def covering_rows(rows: list[dict], window_id: int, front_pid: int) -> list[dict]:
+    """The windows above ``window_id`` that overlap it, deepest first, without the front app's.
+
+    ``rows`` is the window server's on-screen list, front to back.
+    """
+    rows = [r for r in rows if r.get("kCGWindowLayer") == 0]
+    ids = [int(r.get("kCGWindowNumber", 0)) for r in rows]
+    if not window_id or window_id not in ids:
+        return []
+    target = _bounds(rows[ids.index(window_id)])
+    above = [r for r in rows[:ids.index(window_id)] if int(r.get("kCGWindowOwnerPID", -1)) != front_pid]
+    return [r for r in reversed(above) if (lambda b: b[0] < target[2] and target[0] < b[2]
+                                           and b[1] < target[3] and target[1] < b[3])(_bounds(r))]
+
 
 def _await(start):
     done, result = threading.Event(), []
