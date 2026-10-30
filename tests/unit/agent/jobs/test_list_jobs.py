@@ -14,9 +14,13 @@ def _task(tid: str, status: JobStatus, prompt: str = "do a thing") -> Job:
 
 
 class _FakeRunner:
-    def __init__(self, tasks):
+    def __init__(self, tasks, stopped=None):
         self._tasks = tasks
+        self._stopped = stopped or {}
         self.await_calls = []
+
+    def stopped_execution(self, job_id):
+        return self._stopped.get(job_id)
 
     def list_jobs(self, session_id, limit=None):
         return [t for t in self._tasks if t.parent_session_id == session_id]
@@ -106,3 +110,14 @@ def test_job_output_timeout_is_milliseconds_and_capped(monkeypatch) -> None:
     result = _job_output_impl("t1", timeout=5_000_000)
     assert "done!" in _text(result)
     assert runner.await_calls == [600.0]
+
+
+def test_job_output_reports_a_task_that_stopped_for_reconciliation(monkeypatch) -> None:
+    from types import SimpleNamespace
+    stopped = SimpleNamespace(status=SimpleNamespace(value="reconciliation_required"),
+                              reason_code="effect_reconciliation")
+    runner = _FakeRunner([_task("t1", JobStatus.RUNNING)], stopped={"t1": stopped})
+    _with_runner(monkeypatch, runner)
+    result = _job_output_impl("t1")
+    assert "stopped before finishing" in _text(result) and "timed out" not in _text(result)
+    assert result.details["status"] == "reconciliation_required"

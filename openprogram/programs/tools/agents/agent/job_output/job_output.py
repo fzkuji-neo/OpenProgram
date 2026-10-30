@@ -52,7 +52,16 @@ def _job_output_impl(
     if task is None:
         return f"[job_output error] unknown execution_id={job_id!r}"
     status = task.status.value
-    if status == "completed":
+    # A task whose execution stopped short of finishing (an unknown outcome, or a pause) waits for a
+    # person, not for time: report it instead of asking the caller to wait again.
+    stopped = None if status in ("completed", "cancelled", "errored") else runner.stopped_execution(task.id)
+    if stopped is not None:
+        why = ("an operation's outcome is unknown and needs checking"
+               if stopped.status.value == "reconciliation_required" else "it was paused")
+        status = stopped.status.value
+        text = (f"[task {job_id} stopped] the agent stopped before finishing: {why} "
+                f"({stopped.reason_code or status}). Check the page or app before repeating its work.")
+    elif status == "completed":
         from openprogram.memory.policy import consume_node
         consume_node(task.parent_session_id, task.head_id)
         out = task.result_text or "(spawned agent returned no text)"
