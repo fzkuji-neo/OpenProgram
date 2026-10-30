@@ -214,3 +214,19 @@ def test_linux_worker_process_probe_treats_zombie_as_stopped(monkeypatch) -> Non
     )
     assert lifecycle._process_alive(123) is False
 
+
+
+def test_launchd_named_profile_gets_its_own_job(monkeypatch) -> None:
+    from openprogram.worker.services import launchd
+
+    monkeypatch.delenv("OPENPROGRAM_PROFILE", raising=False)
+    default_plist = launchd._plist_path()
+    assert launchd._build_plist()["Label"] == launchd.LABEL
+    assert "OPENPROGRAM_PROFILE" not in launchd._build_plist()["EnvironmentVariables"]
+
+    monkeypatch.setenv("OPENPROGRAM_PROFILE", "demo")
+    plist = launchd._build_plist()
+    assert plist["Label"] != launchd.LABEL
+    assert launchd._plist_path() != default_plist
+    assert launchd._plist_path().name == f"{plist['Label']}.plist"
+    assert plist["EnvironmentVariables"]["OPENPROGRAM_PROFILE"] == "demo"

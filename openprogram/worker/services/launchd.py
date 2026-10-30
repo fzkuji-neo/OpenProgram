@@ -1,7 +1,7 @@
 """macOS launchd integration for the persistent worker.
 
-Writes ``~/Library/LaunchAgents/ai.openprogram.worker.plist`` and
-loads it with ``launchctl``. The plist runs ``<python> -m openprogram
+Writes ``~/Library/LaunchAgents/ai.openprogram.worker.plist`` (or a
+profile-specific job for a named profile) and loads it with ``launchctl``. The plist runs ``<python> -m openprogram
 worker run`` under the current user's session, KeepAlive=true so it
 restarts if it crashes, RunAtLoad=true so it starts at login.
 
@@ -11,6 +11,7 @@ worker was launched.
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import plistlib
 import shutil
@@ -18,26 +19,43 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from openprogram.paths import get_active_profile
 from openprogram.worker import paths as worker_paths
 
 LABEL = "ai.openprogram.worker"
 
 
+def _label() -> str:
+    """Return the launchd label for the active profile.
+
+    The default profile keeps the historical label. A named profile gets its
+    own job, so installing or restarting it never rewrites or restarts the
+    default profile's worker.
+    """
+
+    profile = get_active_profile()
+    if profile is None:
+        return LABEL
+    digest = hashlib.sha256(profile.encode("utf-8")).hexdigest()[:16]
+    return f"{LABEL}.profile-{digest}"
+
+
 def _plist_path() -> Path:
-    return Path.home() / "Library" / "LaunchAgents" / f"{LABEL}.plist"
+    return Path.home() / "Library" / "LaunchAgents" / f"{_label()}.plist"
 
 
 def _build_plist() -> dict[str, Any]:
     from openprogram.worker.lifecycle import _detached_worker_command
+    from openprogram.worker.services.systemd import _service_environment
 
     log = str(worker_paths.log_path())
+    environment = _service_environment()
+    environment.setdefault("PATH", "/usr/local/bin:/usr/bin:/bin")
+    environment["HOME"] = str(Path.home())
     return {
-        "Label": LABEL,
+        "Label": _label(),
         "ProgramArguments": _detached_worker_command(),
-        "EnvironmentVariables": {
-            "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
-            "HOME": str(Path.home()),
-        },
+        "EnvironmentVariables": environment,
         "WorkingDirectory": str(Path.home()),
         "RunAtLoad": True,
         "KeepAlive": True,
@@ -62,7 +80,7 @@ def _launchctl(*args: str) -> tuple[int, str]:
 
 
 def _loaded_state() -> tuple[bool | None, int, str]:
-    rc, msg = _launchctl("list", LABEL)
+    rc, msg = _launchctl("list", _label())
     if rc == 0:
         return True, rc, msg
     if rc == 113 or "could not find service" in msg.lower():
@@ -99,7 +117,7 @@ def install() -> int:
         print(f"launchctl load failed (rc={rc}): {msg}")
         return rc
 
-    print(f"openprogram worker installed as launchd service ({LABEL}).")
+    print(f"openprogram worker installed as launchd service ({_label()}).")
     print(f"  plist: {plist_file}")
     print(f"  logs:  {worker_paths.log_path()}")
     print()
@@ -149,7 +167,7 @@ def stop_if_installed() -> int | None:
 
     if current_worker_pid() is not None:
         return stop_worker(prefer_service=False)
-    print(f"openprogram worker stopped via launchd ({LABEL}).")
+    print(f"openprogram worker stopped via launchd ({_label()}).")
     return 0
 
 
@@ -190,7 +208,7 @@ def status() -> int:
     print(f"  installed: {'yes' if plist_file.exists() else 'no'}")
     if not plist_file.exists():
         return 0
-    rc, msg = _launchctl("list", LABEL)
+    rc, msg = _launchctl("list", _label())
     if rc == 0:
         print("  loaded:    yes")
         # launchctl list <label> prints a property-list-like dict; skim it
