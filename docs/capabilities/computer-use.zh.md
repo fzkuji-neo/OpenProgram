@@ -99,7 +99,7 @@ computer_use_agent(target="app", args={"app": "Calculator"}, actions=[
 
 ## 网页
 
-`browser` 目标驱动 App 内置浏览器的标签页。每个标签页有一个短 id，例如 `t2`，在 App 服务运行期间保持不变，跨轮次、跨子 agent 都一样。`tabs` 列出它们，`open(url)` 新开一个，其他动作默认作用于最近用过的标签页，用 `tab` 可以指定别的。
+`browser` 目标驱动 App 内置浏览器的标签页。每个标签页有一个短 id，例如 `tk3fa`，由 App 的窗口和标签页推导而来，所以在每个轮次、子 agent 和工作流程序里都一样。`tabs` 列出它们，`open(url)` 新开一个，其他动作默认作用于最近用过的标签页，用 `tab` 可以指定别的。
 
 `read` 返回 Playwright 的无障碍大纲：每个元素一行，带角色、名称、状态和 ref，例如 `- button "Next" [ref=e12]`。只要元素还在页面上，它的 ref 就一直有效，跨任意多个动作和轮次。也可以不用 ref，用 `role` 加 `name` 指定元素。每个动作都返回它改变了什么：变化的行标为 `<changed>`，`[unchanged]` 代表已经看过的部分；动作让标签页跳到了另一个地址时，返回整个新页面。所以一整张表单可以在一个动作列表里填完。ref 对应的元素被重新渲染时，会按角色和名称重新找到；元素已经不在时，错误里附带页面的当前状态。
 
@@ -107,7 +107,7 @@ computer_use_agent(target="app", args={"app": "Calculator"}, actions=[
 |---|---|---|
 | `tabs` / `open` / `close` | — / `url`、`visible?` / `tab?` | 列出标签页；新开标签页（默认在后台，`visible: true` 时在前台）；关闭标签页 |
 | `read` | `changes_only?` | 整个页面，或只返回上次结果之后的变化 |
-| `click` | `ref` 或 `role`、`name` 或 `x`、`y`，`mouse_button?`、`click_count?`、`modifiers?` | 右键、中键、双击和带修饰键的点击，例如 `modifiers="cmd"`；`x`、`y` 是上一张截图的像素 |
+| `click` | `ref` 或 `role`、`name` 或 `x`、`y`，`mouse_button?`、`click_count?`、`modifiers?` | 右键、中键、双击和带修饰键的点击，例如 `modifiers="cmd"`；`x`、`y` 是该 agent 上一张截图的像素，截图之后页面被操作、跳转或滚动过就不再可用 |
 | `type` | `ref?`、`text`、`clear?`、`submit?` | 替换字段内容；`clear: false` 在光标处插入；`submit: true` 输入后按回车；不带 `ref` 时输入到当前焦点元素 |
 | `paste` | `text`、`format?`、`ref?` | 以粘贴的方式把文字交给页面：`md` 和 `html` 在富文本编辑器里插入带格式的内容，自己处理粘贴的页面会收到这次粘贴 |
 | `select` | `ref`、`value` | 按值或标签选择下拉框的选项 |
@@ -118,6 +118,10 @@ computer_use_agent(target="app", args={"app": "Calculator"}, actions=[
 | `screenshot` | — | 标签页的截图，截取时不把它调到前台 |
 | `console` / `network` | `pattern?`、`only_errors?`、`limit?` | agent 第一次使用该标签页以来的控制台输出和网络请求 |
 | `evaluate` | `script` | 在页面里运行 JavaScript 表达式或函数（如 `() => document.title`），以 JSON 返回结果，最多 20,000 字符；结果里的密码字段值会被遮盖 |
+
+多个 agent 可以同时使用浏览器，同一对话的子 agent 也一样。一个动作在读到结果之前一直占着它的标签页，一组动作在结束之前占着它碰到的所有标签页，所以别的 agent 的输入不会插进正在填写的表单中间；一个标签页被占用一分钟仍未释放时，动作以 `tab_busy` 失败。每个 agent 有自己的当前标签页，看到的是自己上次查看之后的全部变化，不论是谁改的；期间若有别的 agent 操作过同一个标签页，结果里会注明。一个 agent 在等页面时不会挡住其他 agent。
+
+任何动作都不会被发送两次。动作在输入可能已经到达页面之后失败（例如超时）时，错误会说明这一点并附上页面的当前状态，且不会再试一次。动作打开了新标签页（例如在新窗口打开的链接）时，结果会给出那个标签页；agent 的当前标签页不变，直到它指定新的那个。在工作流程序里，浏览器限于程序启动时所在的窗口，程序打开的标签页在它结束时关闭。你关闭了某个对话对页面的 agent 访问时，浏览器在那里拒绝所有动作。
 
 App 浏览器里的标签页全程留在后台：输入送达时不会激活它，`open` 打开的标签页也在你的工作后面；`visible: true` 则把它放到前台，用于你要求看着它操作的时候。`file://` 地址同样能打开本地文件，前提是沙箱允许 agent 读取该文件。密码字段的值不会出现在模型读到的内容里。
 

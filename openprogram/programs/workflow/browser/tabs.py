@@ -1,7 +1,7 @@
 """The built-in browser's tabs, operated directly through Playwright.
 
-A tab keeps one short id (``t1``, ``t2`` …) for as long as the server runs,
-the same in every turn and sub-agent of every conversation. Reading a tab
+A tab keeps one short id (``tk3fa``) derived from the App's window and tab,
+the same in every turn, sub-agent and process of every conversation. Reading a tab
 returns Playwright's AI snapshot: the page's ARIA tree, each element with a
 ref (``e12``; ``f1e3`` inside a frame). A ref stays valid while its element
 exists, through any number of actions, and every action returns what it
@@ -10,19 +10,40 @@ nothing that expires between calls. A ref whose element is gone is found
 again by its role and name; failing that, the action fails with the page as
 it is now.
 
-Playwright's sync API belongs to one thread, so one owner thread holds the
-CDP connection to the App and reconnects when the App restarts. Tabs are
+Several agents may use the browser at once, also on one tab. An action
+holds its tab from the first page call until its result is read, and a list
+of actions holds every tab it touches until the list ends, so another
+agent's input never lands in the middle; a tab held for a minute fails with
+``tab_busy``. Each agent (a conversation's execution) has its own current
+tab and its own baseline for changes, so a result shows everything that
+changed since that agent last looked, whoever changed it, and says when
+another agent acted on the tab in between. No write is ever sent twice: a
+failure after the input was sent says the input may have taken effect and
+carries the page as it is. Coordinates belong to one screenshot and stop
+working once the page moved or was acted on. Playwright's sync API
+belongs to one thread, so one owner thread holds the CDP connection to the
+App, reconnects when the App restarts, and runs each page call; waiting
+(``wait``, and settling after an action) happens on the caller's thread in
+short owner calls, so one agent's wait does not hold up the others. Tabs are
 listed, opened, captured and closed through the App's renderer
 (``surface_context`` / ``webtab``). Input is Playwright's own, trusted
 input; it reaches a tab in the background without bringing it forward.
+
+In a workflow subprocess the same code runs in the child: the renderer
+calls go through the parent's bridge, which confines them to the
+originating window and closes the tabs the child opened when it ends.
 """
 from __future__ import annotations
 
+import base64
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 import contextvars
+import hashlib
 import inspect
 from dataclasses import dataclass, field
 import itertools
+import os
 import re
 import struct
 import threading
@@ -35,6 +56,11 @@ from ._runtime import page_actions as pa
 SNAPSHOT_LIMIT = 40_000
 ACTION_TIMEOUT_MS = 10_000
 _TRACK = "openprogram"
+# The agent a call acts for: "<session>/<execution>", or the session outside an execution.
+_VIEWER: contextvars.ContextVar[str] = contextvars.ContextVar("browser_tab_viewer", default="")
+# The tab locks a list of actions holds until it ends; None outside a list.
+_HELD: contextvars.ContextVar[list | None] = contextvars.ContextVar("browser_tab_held", default=None)
+TAB_WAIT_SECONDS = 60.0
 _LOG_LIMIT = 300
 # "- button "Next" [ref=e12]" -> role, name, ref.
 _REF_LINE = re.compile(r'^\s*- (?:<changed> )?([\w-]+)(?: "((?:[^"\\]|\\.)*)")?[^\n]*?\[ref=(\w+)\]', re.M)
@@ -49,7 +75,7 @@ element => {
 }
 """
 
-_VIEWPORT_WIDTH = "() => window.innerWidth"
+_VIEWPORT = "() => [window.innerWidth, Math.round(window.scrollX), Math.round(window.scrollY)]"
 
 
 class BrowserError(Exception):
@@ -78,10 +104,22 @@ class Tab:
     focused: bool = False
     # ref -> (role, name) from the latest snapshot, to find an element again.
     roles: dict[str, tuple[str, str]] = field(default_factory=dict)
-    # CSS pixels per pixel of the last screenshot.
-    shot_scale: float = 0.0
-    # The document (navigation count) of the last snapshot; another one has no baseline for changes.
-    document: int = -1
+    # Per agent, its last screenshot: CSS pixels per image pixel, the last write before it, url and scroll.
+    shots: dict[str, tuple[float, int, str, int, int]] = field(default_factory=dict)
+    # Per agent: the document (navigation count) of its last snapshot; another one has no baseline.
+    documents: dict[str, int] = field(default_factory=dict)
+    # Write actions as (sequence, agent), and per agent the sequence it last saw.
+    writes: list[tuple[int, str]] = field(default_factory=list)
+    seen: dict[str, int] = field(default_factory=dict)
+    opener_tab_id: str = ""
+    lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
+
+    def last_write(self) -> int:
+        return self.writes[-1][0] if self.writes else 0
+
+    def forget_page(self) -> None:
+        """Another page behind the same tab (the App restarted): nothing seen of the old one holds."""
+        self.roles, self.documents, self.shots = {}, {}, {}
 
     def row(self, url: str = "") -> dict[str, Any]:
         return {"tab": self.id, "title": self.title, "url": url or self.origin,
@@ -95,6 +133,51 @@ class _Watch:
     network: list[dict[str, Any]] = field(default_factory=list)
     pending: set = field(default_factory=set)
     documents: int = 0
+
+
+@dataclass
+class _Acted:
+    """An action done on the owner thread, before its effects have settled."""
+    done: str
+    before_url: str
+    documents: int
+    pending: set
+    created: int
+
+
+_writes = itertools.count(1)
+
+
+def _tab_name(window_id: str, tab_id: str, taken: set[str]) -> str:
+    """A short id that every process derives alike from the App's window and tab."""
+    digest = base64.b32encode(hashlib.sha1(f"{window_id}\0{tab_id}".encode()).digest()).decode().lower()
+    return next(f"t{digest[:size]}" for size in range(4, len(digest)) if f"t{digest[:size]}" not in taken)
+
+
+@contextmanager
+def batch():
+    """A list of actions: each tab it touches stays held until the list ends."""
+    held: list[threading.Lock] = []
+    token = _HELD.set(held)
+    try:
+        yield
+    finally:
+        _HELD.reset(token)
+        for lock in reversed(held):
+            lock.release()
+
+
+def _check_cancelled() -> None:
+    from openprogram.agent.run_control import check_cancelled
+    check_cancelled()
+
+
+def _access_disabled() -> bool:
+    """Whether the user turned off agent access to the page of this conversation's turn."""
+    from openprogram.agent import surface_context
+    context = surface_context.current() or {}
+    return any(isinstance(surface, dict) and surface.get("preview_status") == "disabled"
+               for surface in context.get("surfaces") or [])
 
 
 def _target_id(page) -> str:
@@ -140,18 +223,47 @@ class Driver:
         self._owner = ThreadPoolExecutor(max_workers=1, thread_name_prefix="browser-tabs")
         self._lock = threading.Lock()
         self._tabs: dict[tuple[str, str], Tab] = {}
-        self._ids = itertools.count(1)
         self._last: dict[str, str] = {}
         self._playwright = None
         self._browser = None
         self._pages: dict[str, Any] = {}
         self._known: dict[int, str] = {}
         self._watches: dict[str, _Watch] = {}
+        # Page targets the App created since connecting, to notice tabs an action opened.
+        self._created = 0
 
     # -- the conversation's side: listing, choosing, opening, closing ------
 
     def run(self, action: str, args: dict[str, Any], session: str) -> dict[str, Any]:
         """One action; a failure is a result with ``ok: False``, never an exception."""
+        from openprogram.agent.run_control import get_current_execution_id
+        execution = get_current_execution_id() or ""
+        token = _VIEWER.set(f"{session}/{execution}" if execution else session)
+        try:
+            if _access_disabled():
+                return BrowserError("page_access_disabled",
+                                    "the user turned off agent access to the browser in this conversation").result()
+            return self._run(action, args, session)
+        finally:
+            _VIEWER.reset(token)
+
+    def _hold(self, tab: Tab) -> bool:
+        """Hold the tab for this action; True when the caller releases it (outside a list)."""
+        held = _HELD.get()
+        if held is not None and tab.lock in held:
+            return False
+        deadline = time.monotonic() + TAB_WAIT_SECONDS
+        while not tab.lock.acquire(timeout=0.25):
+            _check_cancelled()
+            if time.monotonic() >= deadline:
+                raise BrowserError("tab_busy", f"another agent has been acting on tab {tab.id} for "
+                                   f"{TAB_WAIT_SECONDS:g}s; try again, or open a tab of your own")
+        if held is not None:
+            held.append(tab.lock)
+            return False
+        return True
+
+    def _run(self, action: str, args: dict[str, Any], session: str) -> dict[str, Any]:
         try:
             if action == "tabs":
                 return self._list(session)
@@ -159,17 +271,22 @@ class Driver:
                 return self._open(args, session)
             tab = self._tab(args.get("tab"), session)
             for attempt in (1, 2):
+                release = self._hold(tab)
                 try:
                     return self._dispatch(tab, action, args)
                 except BrowserError as exc:
+                    # tab_gone is raised only before any input was sent, so trying again sends nothing twice.
                     if exc.reason_code != "tab_gone" or attempt == 2:
                         raise
-                    # The tab may have moved to another window, or the App restarted.
-                    self._refresh()
-                    tab = self._find(tab.id)
-                    if tab is None:
-                        raise BrowserError("tab_closed", "that tab is closed",
-                                           tabs=[item.row() for item in self._refresh()]) from None
+                finally:
+                    if release:
+                        tab.lock.release()
+                # The tab may have moved to another window, or the App restarted.
+                self._refresh()
+                tab = self._find(tab.id)
+                if tab is None:
+                    raise BrowserError("tab_closed", "that tab is closed",
+                                       tabs=[item.row() for item in self._refresh()])
         except BrowserError as exc:
             return exc.result()
         except pa.ActionError as exc:
@@ -184,9 +301,79 @@ class Driver:
             return self._close(tab)
         if action == "screenshot":
             return self._screenshot(tab)
-        result = self._on_owner(self._operate, tab, action, args)
+        if action == "wait":
+            result = self._wait(tab, args)
+        else:
+            result = self._on_owner(self._operate, tab, action, args)
+            if isinstance(result, _Acted):
+                result = self._after(tab, result)
         self._publish(tab, result)
         return result
+
+    def _after(self, tab: Tab, acted: "_Acted") -> dict[str, Any]:
+        """The result of an action already sent: never an error that would send it again."""
+        try:
+            self._settle(tab, acted)
+            result = {**self._on_owner(self._report, tab, acted.before_url), "done": acted.done}
+        except BrowserError as exc:
+            if exc.reason_code != "tab_gone":
+                return {"ok": True, "tab": tab.id, "done": acted.done, "note": f"reading the page after it failed: {exc}"}
+            return {"ok": True, "tab": tab.id, "done": acted.done,
+                    "note": "the tab closed or left the App right after the action; tabs lists the tabs now"}
+        except Exception as exc:
+            return {"ok": True, "tab": tab.id, "done": acted.done,
+                    "note": f"reading the page after it failed ({type(exc).__name__}); read shows it"}
+        if self._created != acted.created:
+            opened = self._opened(tab)
+            if opened:
+                result["opened"] = opened
+        return result
+
+    def _opened(self, tab: Tab) -> list[dict[str, Any]]:
+        """Tabs the action opened (a link to a new window): listed, and left for the agent to choose."""
+        with self._lock:
+            before = set(self._tabs)
+        try:
+            listed = self._refresh()
+        except BrowserError:
+            return []
+        return [item.row() for item in listed if (item.window_id, item.tab_id) not in before
+                and (not item.opener_tab_id or item.opener_tab_id == tab.tab_id)]
+
+    def _wait(self, tab: Tab, args: dict[str, Any]) -> dict[str, Any]:
+        """Until a text is on the page, or for some seconds, without holding the browser for others."""
+        seconds = max(0.0, min(float(args.get("seconds") or (10 if args.get("text") else 1)), 30.0))
+        text = str(args.get("text") or "")
+        deadline = time.monotonic() + seconds
+        found = False
+        while True:
+            found = bool(text) and self._on_owner(self._shows, tab, text)
+            if found or time.monotonic() >= deadline:
+                break
+            _check_cancelled()
+            time.sleep(min(0.25, max(0.0, deadline - time.monotonic())))
+        state = self._on_owner(self._report, tab, None)
+        if text and not found:
+            raise BrowserError("text_not_found", f"{text!r} did not appear within {seconds:g}s", **state)
+        return {**state, "done": f"{text!r} is on the page" if text else f"waited {seconds:g}s"}
+
+    def _settle(self, tab: Tab, acted: "_Acted") -> None:
+        """Wait for what an action started: a new document, then its requests (2 s at most)."""
+        deadline = time.monotonic() + 0.3
+        documents, busy = self._on_owner(self._activity, tab, acted.pending)
+        while documents == acted.documents and time.monotonic() < deadline:
+            time.sleep(0.05)
+            documents, busy = self._on_owner(self._activity, tab, acted.pending)
+        if documents != acted.documents:
+            deadline = time.monotonic() + ACTION_TIMEOUT_MS / 1000
+            while not self._on_owner(self._loaded, tab) and time.monotonic() < deadline:
+                _check_cancelled()
+                time.sleep(0.1)
+        deadline = time.monotonic() + 2
+        while busy and time.monotonic() < deadline:
+            _check_cancelled()
+            time.sleep(0.05)
+            _, busy = self._on_owner(self._activity, tab, acted.pending)
 
     def _refresh(self) -> list[Tab]:
         from openprogram.agent import surface_context
@@ -199,13 +386,30 @@ class Driver:
 
     def _remember(self, surface: dict[str, Any]) -> Tab:
         key = (str(surface["window_id"]), str(surface["tab_id"]))
+        target = str(surface.get("target_id") or "")
         with self._lock:
             tab = self._tabs.get(key)
             if tab is None:
-                tab = self._tabs[key] = Tab(id=f"t{next(self._ids)}", window_id=key[0], tab_id=key[1])
-        tab.binding_id = str(surface.get("binding_id") or tab.binding_id)
+                # A tab moved to another window keeps its page, and its id with it.
+                moved = next((item for item in self._tabs.values() if target and item.target_id == target), None)
+                if moved is not None:
+                    self._tabs.pop((moved.window_id, moved.tab_id), None)
+                    moved.window_id, moved.tab_id = key
+                    tab = self._tabs[key] = moved
+                else:
+                    taken = {item.id for item in self._tabs.values()}
+                    tab = self._tabs[key] = Tab(id=_tab_name(*key, taken), window_id=key[0], tab_id=key[1])
+        binding = str(surface.get("binding_id") or "")
+        if binding and tab.binding_id and binding != tab.binding_id:
+            # Each listing binds the page again; the binding it replaces is not used any more.
+            from openprogram.webui.ws_actions.webtab import release_binding
+            release_binding(tab.binding_id)
+        tab.binding_id = binding or tab.binding_id
         tab.page_key = str(surface.get("page_key") or tab.page_key)
-        tab.target_id = str(surface.get("target_id") or tab.target_id)
+        if target and tab.target_id and target != tab.target_id:
+            tab.forget_page()
+        tab.target_id = target or tab.target_id
+        tab.opener_tab_id = str(surface.get("opener_tab_id") or tab.opener_tab_id)
         tab.title = str(surface.get("title") or "")
         tab.origin = str(surface.get("origin") or "")
         tab.visible = bool(surface.get("visible"))
@@ -219,27 +423,36 @@ class Driver:
         with self._lock:
             return next((tab for tab in self._tabs.values() if tab.id == name), None)
 
+    def _current(self, session: str) -> str:
+        """The tab this agent used last, else the one its conversation used last."""
+        return self._last.get(_VIEWER.get(), "") or self._last.get(session, "")
+
+    def _use(self, tab: Tab, session: str) -> None:
+        self._last[session] = tab.id
+        if _VIEWER.get():
+            self._last[_VIEWER.get()] = tab.id
+
     def _tab(self, name: Any, session: str) -> Tab:
-        """The named tab, else the one this conversation used last, else the focused one."""
+        """The named tab, else the one this agent used last, else its conversation's, else the focused one."""
         wanted = str(name or "").strip()
-        tab = self._find(wanted or self._last.get(session, ""))
+        tab = self._find(wanted or self._current(session))
         if tab is None:
             listed = self._refresh()
             tab = self._find(wanted) if wanted else (
-                self._find(self._last.get(session, ""))
+                self._find(self._current(session))
                 or next((item for item in listed if item.focused), None)
                 or next((item for item in listed if item.visible), None)
                 or (listed[0] if listed else None))
             if tab is None:
                 message = f"there is no tab {wanted}" if wanted else "no tab is open; open(url) opens one"
                 raise BrowserError("tab_not_found", message, tabs=[item.row() for item in listed])
-        self._last[session] = tab.id
+        self._use(tab, session)
         return tab
 
     def _list(self, session: str) -> dict[str, Any]:
         listed = self._refresh()
         urls = self._on_owner(self._urls, listed)
-        current = self._last.get(session, "")
+        current = self._current(session)
         return {"ok": True, "tabs": [{**tab.row(urls.get(tab.id, "")), **({"current": True} if tab.id == current else {})}
                                      for tab in listed]}
 
@@ -252,44 +465,54 @@ class Driver:
             raise BrowserError(str(opened.get("reason_code") or "open_failed"),
                                str(opened.get("error") or f"the App did not open {url}"))
         tab = self._remember(surfaces[0])
-        self._last[session] = tab.id
+        self._use(tab, session)
         result = self._on_owner(self._operate, tab, "read", {"wait_for_load": True})
         self._publish(tab, result)
         return result
 
     def _close(self, tab: Tab) -> dict[str, Any]:
         from openprogram.webui.ws_actions.webtab import request_close_tab
-        closed = request_close_tab(tab.binding_id) if tab.binding_id else {"ok": False}
+        from openprogram.webui.ws_actions.webtab import RESPONSE_TIMEOUT_REASON_CODE
+        closed = request_close_tab(tab.binding_id) if tab.binding_id else {"reason_code": "page_context_stale"}
+        if closed.get("reason_code") == RESPONSE_TIMEOUT_REASON_CODE:
+            raise BrowserError("close_uncertain", "the App did not answer whether it closed the tab; tabs shows "
+                               "whether it is still open")
+        if closed.get("reason_code") == "page_context_stale":
+            raise BrowserError("tab_gone", "the tab's binding expired")
         if not closed.get("ok"):
-            raise BrowserError("tab_gone", str(closed.get("error") or "the App did not close the tab"))
+            raise BrowserError("close_failed", str(closed.get("error") or "the App did not close the tab"))
         with self._lock:
             self._tabs.pop((tab.window_id, tab.tab_id), None)
-        for session, name in list(self._last.items()):
+        for agent, name in list(self._last.items()):
             if name == tab.id:
-                self._last.pop(session, None)
+                self._last.pop(agent, None)
         return {"ok": True, "tab": tab.id, "done": "closed the tab"}
 
     def _screenshot(self, tab: Tab) -> dict[str, Any]:
         """The tab as the user would see it, captured by the App without bringing it forward."""
-        import base64
         from openprogram.webui.ws_actions.webtab import request_bound_screenshot
+        written = tab.last_write()
         captured = request_bound_screenshot(tab.binding_id) if tab.binding_id else {}
         data = str(captured.get("image_data_url") or "")
         if captured.get("ok") and data.startswith("data:image/png;base64,"):
             image = base64.b64decode(data.split(",", 1)[1])
-            width = self._on_owner(lambda: self._page(tab).evaluate(_VIEWPORT_WIDTH))
+            url, (width, scroll_x, scroll_y) = self._on_owner(self._viewport, tab)
         elif captured.get("reason_code") == "page_context_stale" or not tab.binding_id:
             raise BrowserError("tab_gone", "the tab's binding expired")
         else:
-            image, width = self._on_owner(self._page_screenshot, tab)
+            image, (url, (width, scroll_x, scroll_y)) = self._on_owner(self._page_screenshot, tab)
         pixels = _png_width(image)
-        tab.shot_scale = (float(width) / pixels) if pixels and width else 1.0
+        tab.shots[_VIEWER.get()] = ((float(width) / pixels) if pixels and width else 1.0, written, url,
+                                    scroll_x, scroll_y)
         return {"ok": True, "tab": tab.id, "done": "took a screenshot; x,y of pointer actions are its pixels",
                 "_images": [image]}
 
-    def _page_screenshot(self, tab: Tab) -> tuple[bytes, int]:
+    def _page_screenshot(self, tab: Tab) -> tuple[bytes, tuple[str, list[int]]]:
+        return self._page(tab).screenshot(scale="css", timeout=5000), self._viewport(tab)
+
+    def _viewport(self, tab: Tab) -> tuple[str, list[int]]:
         page = self._page(tab)
-        return page.screenshot(scale="css", timeout=5000), page.evaluate(_VIEWPORT_WIDTH)
+        return page.url, page.evaluate(_VIEWPORT)
 
     def _publish(self, tab: Tab, result: dict[str, Any]) -> None:
         """Show the conversation which tab it is operating."""
@@ -322,6 +545,16 @@ class Driver:
         except Exception as exc:
             self._disconnect()
             raise BrowserError("app_unavailable", f"cannot reach the App's browser ({type(exc).__name__})") from None
+        try:
+            targets = self._browser.new_browser_cdp_session()
+
+            def created(event: dict) -> None:
+                if (event.get("targetInfo") or {}).get("type") in {"page", "webview"}:
+                    self._created += 1
+            targets.on("Target.targetCreated", created)
+            targets.send("Target.setDiscoverTargets", {"discover": True})
+        except Exception:
+            pass
 
     def _disconnect(self) -> None:
         for close in (getattr(self._browser, "close", None), getattr(self._playwright, "stop", None)):
@@ -408,22 +641,24 @@ class Driver:
         serve ``Page.snapshotForAI``, which returns both."""
         from openprogram.programs.tools.web.browser._privacy import password_values, redact_password_values
         impl = page._impl_obj
+        viewer = _VIEWER.get()
+        track = f"{_TRACK}:{viewer}" if viewer else _TRACK
         documents = self._watches[tab.target_id].documents if tab.target_id in self._watches else 0
-        new_document = tab.document != documents
+        new_document = tab.documents.get(viewer) != documents
         if "mode" in inspect.signature(impl.aria_snapshot).parameters:
             frame = impl._main_frame
 
             def aria(params: dict[str, Any]) -> str:
                 return str(page._sync(frame._channel.send("ariaSnapshot", frame._timeout, {"mode": "ai", **params}))
                            or "")
-            tracked = aria({"track": _TRACK})
+            tracked = aria({"track": track})
             whole, changes = (tracked, None) if new_document else ((aria({}) if full else None), tracked)
         else:
             raw = page._sync(impl._channel.send_return_as_dict(
-                "snapshotForAI", impl._timeout_settings.timeout, {"track": _TRACK}))
+                "snapshotForAI", impl._timeout_settings.timeout, {"track": track}))
             whole, changes = str(raw.get("full") or ""), raw.get("incremental")
             changes = None if new_document or changes is None else str(changes)
-        tab.document = documents
+        tab.documents[viewer] = documents
         if whole is not None:
             tab.roles = {}
         tab.roles.update({ref: (role, name.replace('\\"', '"'))
@@ -443,6 +678,12 @@ class Driver:
             title = tab.title
         out: dict[str, Any] = {"ok": True, "tab": tab.id, "url": url, "title": title}
         tab.title = out["title"] or tab.title
+        viewer = _VIEWER.get()
+        others = sum(1 for sequence, agent in tab.writes if agent != viewer and sequence > tab.seen.get(viewer, 0))
+        if others:
+            out["note"] = (f"another agent acted on this tab {others} time(s) since you last looked; "
+                           "what it changed is in this result")
+        tab.seen[viewer] = tab.writes[-1][0] if tab.writes else 0
         if whole is not None and (full or changes is None or (before_url is not None and url != before_url)):
             out["page"] = _cut(whole)
         else:
@@ -473,21 +714,31 @@ class Driver:
         raise BrowserError("element_gone", f"{ref or role} is not on the page any more; the page as it is now follows",
                            **self._state(page, tab, full=True))
 
-    def _settle(self, page, watch: _Watch, documents: int, pending: set) -> None:
-        """Wait for what the action started: a new document, then its requests (2 s at most)."""
-        deadline = time.monotonic() + 0.3
-        while time.monotonic() < deadline and watch.documents == documents:
-            page.wait_for_timeout(50)
-        if watch.documents != documents:
-            try:
-                page.wait_for_load_state("domcontentloaded", timeout=ACTION_TIMEOUT_MS)
-            except Exception:
-                pass
-        deadline = time.monotonic() + 2
-        while watch.pending - pending and time.monotonic() < deadline:
-            page.wait_for_timeout(50)
+    def _activity(self, tab: Tab, pending: set) -> tuple[int, bool]:
+        """The tab's document count, and whether requests started after ``pending`` are still running."""
+        page = self._page(tab)
+        page.wait_for_timeout(1)  # lets Playwright deliver the page's events
+        watch = self._watches[tab.target_id]
+        return watch.documents, bool(watch.pending - pending)
 
-    def _operate(self, tab: Tab, action: str, args: dict[str, Any]) -> dict[str, Any]:
+    def _loaded(self, tab: Tab) -> bool:
+        try:
+            self._page(tab).wait_for_load_state("domcontentloaded", timeout=100)
+            return True
+        except Exception:
+            return False
+
+    def _shows(self, tab: Tab, text: str) -> bool:
+        try:
+            return self._page(tab).get_by_text(text).count() > 0
+        except Exception:
+            return False
+
+    def _report(self, tab: Tab, before_url: str | None) -> dict[str, Any]:
+        return self._state(self._page(tab), tab, full=False, before_url=before_url)
+
+    def _operate(self, tab: Tab, action: str, args: dict[str, Any]) -> dict[str, Any] | _Acted:
+        """A read, or an action done; the caller waits for an action to settle, then reports."""
         page = self._page(tab)
         watch = self._watches[tab.target_id]
         if action == "read":
@@ -502,21 +753,28 @@ class Driver:
         if action == "evaluate":
             from openprogram.programs.tools.web.browser._privacy import password_values, redact_password_values
             value = page.evaluate(pa.evaluate_source(args))
+            # A script may change the page like any action.
+            tab.writes.append((next(_writes), _VIEWER.get()))
             return {"ok": True, "tab": tab.id,
                     "result": redact_password_values(pa.evaluation_text(value), password_values(page))}
-        before_url, documents, pending = page.url, watch.documents, set(watch.pending)
+        before_url, documents, pending, created = page.url, watch.documents, set(watch.pending), self._created
         try:
             done = self._act(page, tab, action, args)
         except (BrowserError, pa.ActionError):
             raise
         except Exception as exc:
+            # Playwright may have sent the input before failing: count it as a write, and never send it again.
+            tab.writes.append((next(_writes), _VIEWER.get()))
             if page.is_closed():
-                raise BrowserError("tab_gone", "the tab closed during the action") from None
+                raise BrowserError("tab_closed", f"the tab closed during {action}; it may have taken effect") from None
             message = str(exc).split("\n", 1)[0]
+            if "Timeout" in type(exc).__name__ or "Timeout" in message:
+                message += "; it may have taken effect, so check the page below before trying again"
             raise BrowserError("action_failed", f"{action} failed: {message}",
                                **self._state(page, tab, full=False, before_url=before_url)) from None
-        self._settle(page, watch, documents, pending)
-        return {**self._state(page, tab, full=False, before_url=before_url), "done": done}
+        tab.writes.append((next(_writes), _VIEWER.get()))
+        del tab.writes[:-50]
+        return _Acted(done=done, before_url=before_url, documents=documents, pending=pending, created=created)
 
     def _act(self, page, tab: Tab, action: str, args: dict[str, Any]) -> str:
         if action == "navigate":
@@ -529,14 +787,6 @@ class Driver:
             if response is None and action != "reload":
                 return f"there is no page to go {action} to"
             return {"back": "went back", "forward": "went forward", "reload": "reloaded"}[action]
-        if action == "wait":
-            seconds = max(0.0, min(float(args.get("seconds") or (10 if args.get("text") else 1)), 30.0))
-            text = str(args.get("text") or "")
-            if text:
-                page.get_by_text(text).first.wait_for(timeout=seconds * 1000)
-                return f"{text!r} is on the page"
-            page.wait_for_timeout(seconds * 1000)
-            return f"waited {seconds:g}s"
         if action == "press":
             key = str(args.get("key") or "").strip()
             if not key:
@@ -619,10 +869,16 @@ class Driver:
         return done
 
     def _click_point(self, page, tab: Tab, args: dict[str, Any]) -> str:
-        if not tab.shot_scale:
+        shot = tab.shots.get(_VIEWER.get())
+        if shot is None:
             raise BrowserError("screenshot_required", "x,y are pixels of a screenshot; take one first, or use a ref")
+        scale, written, url, scroll_x, scroll_y = shot
+        _, now_x, now_y = page.evaluate(_VIEWPORT)
+        if tab.last_write() != written or page.url != url or (now_x, now_y) != (scroll_x, scroll_y):
+            raise BrowserError("screenshot_stale", "the page was acted on, moved or scrolled since your screenshot, "
+                               "so its x,y may point elsewhere now; take a new screenshot, or use a ref")
         click = pa.click_options(args)
-        x, y = float(args["x"]) * tab.shot_scale, float(args.get("y") or 0) * tab.shot_scale
+        x, y = float(args["x"]) * scale, float(args.get("y") or 0) * scale
         for key in click["modifiers"]:
             page.keyboard.down(key)
         try:
@@ -657,6 +913,16 @@ _driver: Driver | None = None
 _driver_lock = threading.Lock()
 
 
+def _forget_in_child() -> None:
+    """A forked workflow subprocess starts its own driver: the owner thread and the connection stay the parent's."""
+    global _driver, _driver_lock
+    _driver, _driver_lock = None, threading.Lock()
+
+
+if hasattr(os, "register_at_fork"):
+    os.register_at_fork(after_in_child=_forget_in_child)
+
+
 def driver() -> Driver:
     global _driver
     with _driver_lock:
@@ -669,4 +935,4 @@ ACTIONS = ("tabs", "open", "read", "click", "type", "paste", "select", "press", 
            "upload", "navigate", "back", "forward", "reload", "wait", "screenshot", "console", "network",
            "evaluate", "close")
 
-__all__ = ["ACTIONS", "BrowserError", "Driver", "Tab", "driver"]
+__all__ = ["ACTIONS", "BrowserError", "Driver", "Tab", "batch", "driver"]

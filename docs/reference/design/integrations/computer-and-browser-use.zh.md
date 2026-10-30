@@ -242,15 +242,27 @@ app 指南在发送时按 Windows 改写（`_WINDOWS_GUIDE`）；对组合键和
 
 `workflow/browser/tabs.py` 为 `browser` 目标驱动 App 的内置标签页。对这个目标而言，它取代了 `web_use` 运行时的 page context token、会话、frame、租约和修订号校验，这些都不再出现在模型面前。`web_use` 运行时仍保留，供仍直接调用它的程序和 MCP 客户端使用。
 
-**标签页。** 一个标签页就是渲染进程列出的 `(window_id, tab_id)`（`surface_context.capture_pages_for_listing`，现在也带上每个标签页的 CDP `target_id`）。驱动从一个进程级计数器给它分配短 id（`t1`、`t2`……），所以只要服务在运行，同一个标签页在每个轮次、每个对话、每个子 agent 里都是同一个 id，按任何顺序重新列出也不会重新编号。每个对话记住它最近用过的标签页；不带 `tab` 的动作发往那里，否则发往获得焦点的标签页，再否则发往唯一可见的标签页。`open` 请渲染进程新开一个后台标签页（`surface_context.open_page`）并把它设为当前标签页；`close` 和 `screenshot` 经过标签页的绑定（`request_close_tab`、`request_bound_screenshot`），绑定过期时重新列出一次即可续上。
+**标签页。** 一个标签页就是渲染进程列出的 `(window_id, tab_id)`（`surface_context.capture_pages_for_listing`，现在也带上每个标签页的 CDP `target_id`）。驱动给它起名为 `t` 加上 `window_id` 与 `tab_id` 的 SHA-1 的前四个 base32 字母（冲突时多取一个），所以每个进程——worker 和 fork 出的工作流子进程一样——在每个轮次、每个对话、每个子 agent 里都给同一个标签页同一个 id，按任何顺序重新列出也不会改名。移到另一个窗口的标签页保留它的 id：列出的标签页的 `target_id` 属于某个已知标签页时，就接管那个标签页。`target_id` 变了的标签页（App 重启过）会忘掉它的 ref、文档基线和截图。每次列出都会重新绑定每个页面，所以新绑定替换旧绑定时旧绑定会被释放。不带 `tab` 的动作发往其 agent 最近用过的标签页（见下），否则发往获得焦点的标签页，再否则发往唯一可见的标签页。`open` 请渲染进程新开一个后台标签页（`surface_context.open_page`）并把它设为当前标签页；`close` 和 `screenshot` 经过标签页的绑定（`request_close_tab`、`request_bound_screenshot`），绑定过期时重新列出一次即可续上。
 
 **连接。** Playwright 的同步 API 属于单个线程，所以由一个所有者线程持有到 App 的 `connect_over_cdp`（`desktop_app_ws_url`），并执行所有页面调用；调用方带着自己的上下文变量等待它。页面通过 `Target.getTargetInfo` 与标签页的 `target_id` 匹配来找到。一个连接不一定能得知 App 在它之后打开的标签页，所以找不到目标时驱动会重新连接再找一次；断开的连接在下一次调用时重连。第一次接上页面监听时，驱动开始记录它的控制台、页面错误和请求（各保留最近 300 条），并统计文档导航次数和进行中的 fetch/XHR 请求。
+
+**多个 agent。** 同一对话的 agent 共用会话 id，子 agent 可以并行运行，所以标签页被一个 agent 占用的时间不超过一个动作或一组动作：之前的运行时会拒绝自己对话的轮次，正是跨轮次持有的租约和它的交接造成的。每个 `Tab` 有一把锁。动作在第一次页面调用前拿到它，并一直持有到等待结束、结果读出，所以别的 agent 的输入不会落在一个动作和它报告的状态之间。一组动作（`targets/browser.run` 带多个步骤，在 `tabs.batch()` 里）持有它拿到的所有锁直到结束，所以一组动作里填写的表单不会被插入。等锁时轮询并检查取消，超过 `TAB_WAIT_SECONDS`（60 秒）以 `tab_busy` 失败；两组动作互相等对方的标签页时也这样结束，而不会死锁。一次调用代表的 agent 是 `<session>/<execution>`（`_VIEWER` 上下文变量，随调用带进所有者线程）。每个 agent 记住自己的当前标签页；还没有的 agent 从它所在对话最近用过的标签页开始。快照按 agent 跟踪（`track` = `openprogram:<agent>`，以及每个 agent 自己的文档基线），所以一个 agent 看到的变化涵盖它上次查看之后的一切，包括其他 agent 做的。每个标签页记录写操作及其执行者；自本 agent 上次结果以来有别的 agent 操作过该标签页时，结果会附上 `note`。只有单个页面调用在所有者线程上执行。`wait` 和动作后的等待在调用方线程上轮询，每次只占用所有者线程很短的时间（`_shows`、`_activity`、`_loaded`），所以一个 agent 的等待不会挡住另一个 agent 在另一个标签页上的点击。
+
+**写操作只发送一次。** 只有 `_page` 在任何输入之前抛出的 `tab_gone` 会让驱动重新列出标签页并再试一次。在 Playwright 可能已经发出输入之后失败的动作算作一次写操作；超时时错误会说明它可能已经生效，并附上页面当前状态；动作期间标签页关闭为 `tab_closed`。动作成功之后，等待或读取页面时的任何失败都作为带 `note` 的成功结果返回，绝不成为调用方会重试的错误。`close` 把渲染进程的响应超时视为 `close_uncertain`，把过期绑定视为 `tab_gone`（什么都没发出），其他失败视为 `close_failed`。`evaluate` 算作写操作。
+
+**动作打开的标签页。** 连接会发现目标（`Target.setDiscoverTargets`）并为每个新页面目标计数。动作期间计数变化时，驱动列出标签页，结果的 `opened` 给出 `opener_tab_id` 是被操作标签页或未知的新标签页。agent 的当前标签页保持不变。
+
+**坐标。** 截图按 agent 记下 CSS 像素与图像像素之比、标签页最后一次写操作、URL 和滚动位置。按 `x`,`y` 点击需要该 agent 的截图；截图之后有任何 agent 写过这个标签页、它跳转过或滚动过时，以 `screenshot_stale` 失败。
+
+**工作流子进程。** fork 出的子进程丢弃父进程的驱动（`os.register_at_fork`），因为它的所有者线程和连接属于父进程，然后启动自己的驱动。它的渲染进程调用（`capture_pages_for_listing`、`open_page`、`request_close_tab`、`request_bound_screenshot`）经过父进程的 webtab 桥，桥把它们限制在发起的窗口内、只认可它发出的绑定，并在子进程结束时关闭子进程打开的标签页。标签页锁和写记录是按进程的，所以子进程和 worker 在同一个标签页上会在单次页面调用的粒度上交错。
+
+**访问与取消。** 本轮的页面关闭了 agent 访问（`preview_status` 为 `disabled`）时，内置浏览器的所有动作都以 `page_access_disabled` 被拒绝。等锁、`wait`、动作后的等待和一组动作的每一步都会检查取消。
 
 **读取。** `read` 返回 Playwright 的 AI 快照：ARIA 树，每个元素带一个 ref（`e12`，框架内为 `f1e3`）。Playwright 1.60 以 `Frame.ariaSnapshot(mode="ai", track)` 提供它，返回一段文本：同一文档已有被跟踪的快照时是增量；更早的版本以 `Page.snapshotForAI` 提供，两者一并返回。文档是新的或需要整页时，驱动请求整页，否则只请求变化。变化的行标为 `<changed>`，`[unchanged]` 代表已经发送过的部分。两者都会遮盖密码字段的值，整页截断在 40,000 字符。
 
 **ref。** Playwright 按最近一次快照解析 `aria-ref=<ref>`，只要元素还在，它的 ref 就不变，所以 ref 能跨任意多个动作和轮次。驱动从快照里记下每个 ref 的角色和名称。解析不到的 ref 按这对角色和名称重新查找，直接用 `role` 和 `name` 指定的元素也这样找。仍然找不到时，动作以 `element_gone` 失败，并附上页面的当前状态。
 
-**操作。** 点击、悬停、按键、输入（`fill`，或 `clear: false` 时用 `insert_text`）、`select_option`、`drag_to` 和 `set_input_files` 都是 Playwright 自己的可信输入。它们送达后台标签页时不会把它调到前台，这一点在 App 上核实过：后台标签页收到的指针、鼠标和点击事件都是 `isTrusted`。滚动用 `page_actions.SCROLL_SCRIPT`，`paste` 用 `PASTE_SCRIPT`。按 `x`、`y` 点击时，用截图时测得的比例把截图像素换算成 CSS 像素。点击前会激活 App 的 agent 光标并把它放到元素上。动作之后，驱动最多等 0.3 秒看是否开始导航；开始了就等 `domcontentloaded`。之后再最多等 2 秒，让动作发起的 fetch/XHR 请求完成。然后返回变化；URL 变了或文档是新的时，返回整页。异常会变成带原因码和页面当前状态的结果，从不以原始错误返回。
+**操作。** 点击、悬停、按键、输入（`fill`，或 `clear: false` 时用 `insert_text`）、`select_option`、`drag_to` 和 `set_input_files` 都是 Playwright 自己的可信输入。它们送达后台标签页时不会把它调到前台，这一点在 App 上核实过：后台标签页收到的指针、鼠标和点击事件都是 `isTrusted`。滚动用 `page_actions.SCROLL_SCRIPT`，`paste` 用 `PASTE_SCRIPT`。按 `x`、`y` 点击时，用截图时测得的比例把截图像素换算成 CSS 像素，前提是截图仍然有效（见上）。点击前会激活 App 的 agent 光标并把它放到元素上。动作之后，驱动最多等 0.3 秒看是否开始导航；开始了就等 `domcontentloaded`。之后再最多等 2 秒，让动作发起的 fetch/XHR 请求完成。然后返回变化；URL 变了或文档是新的时，返回整页。异常会变成带原因码和页面当前状态的结果，从不以原始错误返回。
 
 **审批。** App 的标签页不需要审批。`open` 和 `navigate` 到本机之外的源会询问；`upload` 会询问；`evaluate` 每次都询问，见下文。代码模式的校验器拒绝这三者，它的只读动作（`tabs`、`read`、`wait`、`screenshot`、`console`、`network`）对代理标记为读取。
 

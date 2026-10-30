@@ -94,6 +94,11 @@ def render(result: dict[str, Any]) -> str:
         lines.append(f"tab {result['tab']} · {result.get('title') or '(untitled)'} · {result['url']}")
     elif result.get("tab") and not lines:
         lines.append(f"tab {result['tab']}")
+    if result.get("note"):
+        lines.append(f"note: {result['note']}")
+    for row in result.get("opened") or []:
+        lines.append(f"it opened a new tab {row['tab']} · {row.get('title') or '(untitled)'} · {row.get('url') or ''}; "
+                     f"pass tab=\"{row['tab']}\" to use it")
     for key, label in (("result", "result"), ("console", "console"), ("network", "network")):
         if key in result:
             value = result[key]
@@ -150,8 +155,17 @@ def run(steps: list[tuple[str, dict]], args: dict, session: str) -> ToolReturn:
                               is_error=True)
     if len(steps) == 1:
         return _one(steps[0][0], steps[0][1], args, session)
+    from openprogram.agent.run_control import check_cancelled
+    from openprogram.programs.workflow.browser.tabs import batch
+    with batch():
+        return _steps(steps, args, session, check_cancelled)
+
+
+def _steps(steps: list[tuple[str, dict]], args: dict, session: str, check_cancelled) -> ToolReturn:
+    """Several actions in order; the tabs they touch stay held by this list until it ends."""
     texts, results, images = [], [], []
     for number, (action, step) in enumerate(steps, 1):
+        check_cancelled()
         result = _one(action, step, args, session)
         images.extend(result.images)
         results.append(result.json_data)

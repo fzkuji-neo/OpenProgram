@@ -99,7 +99,7 @@ The package is the [GUI-Agent-Harness](https://github.com/Fzkuji/GUI-Agent-Harne
 
 ## Web pages
 
-The `browser` target drives the tabs of the App's built-in browser. Each tab has a short id such as `t2` that stays the same for as long as the App's server runs, in every turn and in sub-agents. `tabs` lists them, `open(url)` opens a new one, and every other action goes to the tab used last unless it names another with `tab`.
+The `browser` target drives the tabs of the App's built-in browser. Each tab has a short id such as `tk3fa`, derived from the App's window and tab, so it is the same in every turn, in sub-agents and in workflow programs. `tabs` lists them, `open(url)` opens a new one, and every other action goes to the tab used last unless it names another with `tab`.
 
 `read` returns the page as Playwright's accessibility outline: one line per element with its role, name, state and a ref, such as `- button "Next" [ref=e12]`. A ref keeps working as long as its element is on the page, through any number of actions and turns. An element can also be named by `role` and `name` instead of a ref. Every action returns what it changed: changed lines are marked `<changed>`, and `[unchanged]` stands for parts already seen. When the action moved the tab to another address, the whole new page comes back instead. A whole form can therefore be filled in one list of actions. If a ref's element was rendered again, it is found again by its role and name; if it is gone, the error carries the page as it is now.
 
@@ -107,7 +107,7 @@ The `browser` target drives the tabs of the App's built-in browser. Each tab has
 |---|---|---|
 | `tabs` / `open` / `close` | — / `url`, `visible?` / `tab?` | List tabs; open a tab (in the background unless `visible: true`); close one |
 | `read` | `changes_only?` | The whole page, or only what changed since the last result |
-| `click` | `ref` or `role`,`name` or `x`,`y`, `mouse_button?`, `click_count?`, `modifiers?` | Right, middle, double and modifier clicks, e.g. `modifiers="cmd"`; `x`,`y` are pixels of the last screenshot |
+| `click` | `ref` or `role`,`name` or `x`,`y`, `mouse_button?`, `click_count?`, `modifiers?` | Right, middle, double and modifier clicks, e.g. `modifiers="cmd"`; `x`,`y` are pixels of the agent's last screenshot, and stop working once the page was acted on, navigated or scrolled since |
 | `type` | `ref?`, `text`, `clear?`, `submit?` | Replaces the field's text; `clear: false` inserts at the caret; `submit: true` presses Enter after; without `ref` it types into the focused element |
 | `paste` | `text`, `format?`, `ref?` | Offers the text to the page as a paste: `md` and `html` insert formatted text in rich editors, and a page that handles paste itself receives it |
 | `select` | `ref`, `value` | Chooses options of a select box by value or label |
@@ -118,6 +118,10 @@ The `browser` target drives the tabs of the App's built-in browser. Each tab has
 | `screenshot` | — | The tab as an image, captured without bringing it forward |
 | `console` / `network` | `pattern?`, `only_errors?`, `limit?` | The page's console output and requests since the agent first used the tab |
 | `evaluate` | `script` | Runs a JavaScript expression or function such as `() => document.title` in the page and returns its result as JSON, at most 20,000 characters; password field values in the result are redacted |
+
+Several agents can use the browser at the same time, sub-agents of one conversation included. An action holds its tab until its result is read, and a list of actions holds the tabs it touches until it ends, so another agent's input never lands in the middle of a form being filled; a tab held for a minute fails with `tab_busy`. Each agent has its own current tab, and each sees everything that changed since it last looked, whoever changed it; when another agent acted on the same tab in between, the result says so. One agent waiting for a page does not hold up the others.
+
+No action is ever sent twice. When an action fails after its input may already have reached the page, such as a timeout, the error says so and carries the page as it is, and the tab is not tried again. When an action opens a new tab, such as a link to a new window, the result names that tab; the agent keeps its current tab until it passes the new one. In a workflow program, the browser is confined to the window the program started from, and the tabs it opened close when it ends. When you turned off agent access to the page of a conversation, the browser refuses every action there.
 
 A tab in the App's browser stays in the background throughout: input reaches it without activating it, and `open` puts its tab behind your work; `visible: true` brings it to the front instead, for when you asked to watch. A `file://` URL opens a local file the same way, when the sandbox lets the agent read that file. Password field values never appear in what the model reads.
 
