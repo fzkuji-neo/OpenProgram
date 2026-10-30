@@ -4,8 +4,6 @@
 
 不离开终端使用 OpenProgram 的完整聊天界面。本页覆盖进入退出、按键和斜杠命令。
 
-![终端 TUI](../images/tui_hero.png)
-
 ## 进入与退出
 
 ```bash

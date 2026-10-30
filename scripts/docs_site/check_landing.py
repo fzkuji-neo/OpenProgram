@@ -34,6 +34,18 @@ SITE_DESCRIPTION = (
 )
 SOCIAL_IMAGE = "https://openprogram.io/docs/images/openprogram-social-card.png"
 RELEASE_FEED = "https://github.com/fzkuji-neo/OpenProgram/releases.atom"
+HERO_ALT = "OpenProgram workspace showing an agent session that ran two sub-agents"
+HERO_AVIFS = ("chat_hero-home.avif", "chat_hero-home-light.avif")
+HERO_AVIF_SIZE = (1600, 1000)
+THEME_COLORS = {
+    "(prefers-color-scheme: dark)": "#0e0f17",
+    "(prefers-color-scheme: light)": "#f8f9fc",
+}
+# The landing's indigo palettes, taken from the logo.
+PALETTE_BACKGROUNDS = {
+    "dark": ("#0e0f17", "#141622", "#1a1c2b"),
+    "light": ("#f8f9fc", "#f1f3f9", "#ffffff"),
+}
 
 
 class LandingParser(HTMLParser):
@@ -284,42 +296,47 @@ def main() -> int:
             "Twitter image is not the canonical social card", failures)
     require(named_meta.get("twitter:card") == "summary_large_image",
             "missing large Twitter card", failures)
-    require(named_meta.get("theme-color") == "#07080a",
-            "missing dark browser theme color", failures)
-    hero = next(
-        (
-            image
-            for image in page.image_attrs
-            if image.get("alt")
-            == "OpenProgram Web UI showing an agent session with a conversation summary"
-        ),
-        None,
-    )
-    hero_picture = next(
-        (picture for picture in page.pictures if hero in picture["images"]),
-        None,
-    )
-    require(
-        hero_picture is not None
-        and any(
-            item.get("srcset") == "/docs/images/chat_hero-home.avif"
-            and item.get("type") == "image/avif"
-            and item.get("width") == "800"
-            and item.get("height") == "500"
-            for item in hero_picture["sources"]
-        ),
-        "landing hero does not offer the optimized AVIF image",
-        failures,
-    )
+    theme_colors = {
+        (item.get("media"), item.get("content"))
+        for item in page.meta if item.get("name") == "theme-color"
+    }
+    for media, color in THEME_COLORS.items():
+        require((media, color) in theme_colors,
+                f"missing {media} browser theme color", failures)
+    # The dark and light screenshots are separate pictures; the dark one comes
+    # first and is the page's one high-priority image.
+    heroes = [
+        image
+        for image in page.image_attrs
+        if image.get("alt") == HERO_ALT
+    ]
+    hero = heroes[0] if heroes else None
+    require(len(heroes) == len(HERO_AVIFS),
+            "landing hero needs one picture per theme", failures)
+    for image, avif in zip(heroes, HERO_AVIFS):
+        hero_picture = next(
+            (picture for picture in page.pictures if image in picture["images"]),
+            None,
+        )
+        require(
+            hero_picture is not None
+            and any(
+                item.get("srcset") == "/docs/images/" + avif
+                and item.get("type") == "image/avif"
+                and item.get("width") == str(HERO_AVIF_SIZE[0])
+                and item.get("height") == str(HERO_AVIF_SIZE[1])
+                for item in hero_picture["sources"]
+            ),
+            f"landing hero does not offer the optimized AVIF image {avif}",
+            failures,
+        )
+        require(
+            image.get("width") == "3024" and image.get("height") == "1890",
+            "landing PNG fallback dimensions differ from its intrinsic dimensions",
+            failures,
+        )
     require(hero is not None and hero.get("fetchpriority") == "high",
             "landing LCP image is not high priority", failures)
-    require(
-        hero is not None
-        and hero.get("width") == "3024"
-        and hero.get("height") == "1890",
-        "landing PNG fallback dimensions differ from its intrinsic dimensions",
-        failures,
-    )
     require(sum(image.get("fetchpriority") == "high"
                 for image in page.image_attrs) == 1,
             "landing must have exactly one high-priority image", failures)
@@ -336,14 +353,14 @@ def main() -> int:
         "copy button accessible name overrides its visible text",
         failures,
     )
-    faint_match = re.search(r"--faint\s*:\s*(#[0-9a-fA-F]{6})", css)
-    require(faint_match is not None,
-            "landing secondary-text color is missing", failures)
-    if faint_match:
-        faint = faint_match.group(1)
-        for background in ("#07080a", "#0d1014", "#11151b"):
+    # The first --faint belongs to the dark base palette, the second to light.
+    faint_colors = re.findall(r"--faint\s*:\s*(#[0-9a-fA-F]{6})", css)
+    require(len(faint_colors) == len(PALETTE_BACKGROUNDS),
+            "landing secondary-text color is missing from a theme", failures)
+    for faint, (theme, backgrounds) in zip(faint_colors, PALETTE_BACKGROUNDS.items()):
+        for background in backgrounds:
             require(_contrast_ratio(faint, background) >= 4.5,
-                    f"secondary text fails 4.5:1 contrast on {background}", failures)
+                    f"{theme} secondary text fails 4.5:1 contrast on {background}", failures)
     require(f"<b>{README_HERO}</b>" in readme,
             "README hero differs from the canonical tagline", failures)
     require(f"<b>{SITE_TITLE}</b>" in docs_readme,
@@ -420,7 +437,13 @@ def main() -> int:
         "/docs/images/logo-lockup-dark.svg",
         "/docs/images/code_hero.png",
         "/docs/images/chat_hero.png",
-        "/docs/images/tui_hero.png",
+        "/docs/images/browser_hero.png",
+        "/docs/images/chat_edit.png",
+        "/docs/images/logo-lockup-light.svg",
+        "/docs/images/code_hero_light.png",
+        "/docs/images/chat_hero_light.png",
+        "/docs/images/browser_hero_light.png",
+        "/docs/images/chat_edit_light.png",
     ):
         require(image in page.images, f"missing product image {image}", failures)
 
@@ -457,19 +480,21 @@ def main() -> int:
         require(built_social_card.read_bytes()
                 == (ROOT / "docs/images/openprogram-social-card.png").read_bytes(),
                 "built social card differs from the source asset", failures)
-    optimized_hero = ROOT / "docs/images/chat_hero-home.avif"
-    require(optimized_hero.is_file(), "optimized landing hero is missing", failures)
-    if optimized_hero.is_file():
+    for avif in HERO_AVIFS:
+        optimized_hero = ROOT / "docs/images" / avif
+        require(optimized_hero.is_file(), f"optimized landing hero {avif} is missing", failures)
+        if not optimized_hero.is_file():
+            continue
         require(optimized_hero.stat().st_size < 150_000,
-                "optimized landing hero exceeds 150 KiB", failures)
-        require(_avif_dimensions(optimized_hero) == (800, 500),
-                "optimized landing hero dimensions differ from 800x500", failures)
-        built_optimized_hero = BUILT_SITE / "images/chat_hero-home.avif"
+                f"optimized landing hero {avif} exceeds 150 KiB", failures)
+        require(_avif_dimensions(optimized_hero) == HERO_AVIF_SIZE,
+                f"optimized landing hero {avif} dimensions differ from 1600x1000", failures)
+        built_optimized_hero = BUILT_SITE / "images" / avif
         require(built_optimized_hero.is_file(),
-                "docs build did not copy the optimized landing hero", failures)
+                f"docs build did not copy the optimized landing hero {avif}", failures)
         if built_optimized_hero.is_file():
             require(built_optimized_hero.read_bytes() == optimized_hero.read_bytes(),
-                    "built optimized hero differs from its source", failures)
+                    f"built optimized hero {avif} differs from its source", failures)
 
     redirect_source = BUILT_SITE.parent / "redirects.json"
     redirects = json.loads(redirect_source.read_text(encoding="utf-8")) if redirect_source.exists() else {}

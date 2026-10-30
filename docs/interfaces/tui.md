@@ -4,8 +4,6 @@ See [tool permission modes and live changes](../capabilities/permissions.md) for
 
 The full chat interface for using OpenProgram without leaving the terminal. This page covers entering and exiting, keyboard shortcuts, and slash commands.
 
-![Terminal TUI](../images/tui_hero.png)
-
 ## Entering and exiting
 
 ```bash
