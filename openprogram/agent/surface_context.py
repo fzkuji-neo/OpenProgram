@@ -285,16 +285,16 @@ def render_for_model(
 ) -> str:
     available = web_use_available(context) if web_use_enabled is None else web_use_enabled
     usage = (
-        'Operate these Pages with computer_use_agent(target="browser"): list_pages first, then observe '
-        "the selected Page using its page_context_token. Never put a URL in page; navigate with the "
-        "navigate action."
+        'Operate the App\'s browser tabs with computer_use_agent(target="browser"): tabs lists them, '
+        "open(url) opens one, read returns the page with a ref on each element, and actions name "
+        "elements by ref; navigate(url) moves the current tab."
     )
     if not context or not context.get("surfaces"):
         if not available:
             return ""
         return (
             '<browser_pages trust="runtime_page_inventory">\n'
-            "OpenProgram browser Page inventory is available. "
+            "The App's built-in browser is available. "
             f"{usage}\n"
             "</browser_pages>"
         )
@@ -303,8 +303,8 @@ def render_for_model(
         detail = "Agent access is disabled; page content and the browser target are unavailable."
     elif surface.get("preview_status") != "ready":
         detail = (
-            "The paired Page preview is unavailable, but registered OpenProgram Pages "
-            "remain discoverable through computer_use_agent(target=\"browser\") list_pages."
+            "The paired Page preview is unavailable, but the App's tabs "
+            "remain listed by computer_use_agent(target=\"browser\", action=\"tabs\")."
             if available else
             "The surface exists, but its current page preview is unavailable."
         )
