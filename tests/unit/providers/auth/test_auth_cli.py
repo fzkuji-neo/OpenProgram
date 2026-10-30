@@ -557,3 +557,14 @@ def test_setup_wizard_adopts_detected_env_var(isolated, monkeypatch):
     pool = store.find_pool("openai", "default")
     assert pool is not None
     assert pool.credentials[0].payload.auth_value == "sk-wizard-adopted-12345"
+
+
+def test_bare_providers_command_lists_pools(isolated, monkeypatch):
+    from openprogram_cli._impl import application
+
+    _, _, _, cap = isolated
+    monkeypatch.setattr(sys, "argv", ["openprogram", "providers"])
+    with pytest.raises(SystemExit) as exited:
+        application.main()
+    assert exited.value.code in (0, None)
+    assert "No credential pools yet" in cap.readouterr().out

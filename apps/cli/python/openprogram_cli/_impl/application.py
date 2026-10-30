@@ -1136,7 +1136,7 @@ def main():
         from openprogram.auth.cli import dispatch as _providers_dispatch
         if getattr(args, "providers_cmd", None) is None:
             args.providers_cmd = "list"
-            args.profile = None
+            args.account = None
             args.json = False
             rc = _providers_dispatch(args)
             print(
