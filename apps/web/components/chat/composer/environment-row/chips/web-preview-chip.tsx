@@ -11,6 +11,7 @@ import {
 } from "@/lib/browser/web-tab/web-tab-pip-store";
 import styles from "../environment-row.module.css";
 import { buttonVariants } from "@/components/ui/button";
+import { restorePagePreview } from "@/lib/browser/browser-resource-projection";
 import { cn } from "@/lib/utils";
 
 /** Re-open the agent preview after the user closed the floating pane.
@@ -21,7 +22,6 @@ export function WebPreviewChip() {
   const tabId = useWebTabPip((s) => s.tabId);
   const backgroundTabId = useWebTabPip((s) => s.backgroundTabId);
   const backgroundOwnerTabId = useWebTabPip((s) => s.backgroundOwnerTabId);
-  const show = useWebTabPip((s) => s.show);
   const tabs = useCenterTabs((s) => s.tabs);
   const activeId = useCenterTabs((s) => s.activeId);
   const groups = useCenterTabs((s) => s.groups);
@@ -46,7 +46,7 @@ export function WebPreviewChip() {
         type="button"
         className={`${cn(buttonVariants({ variant: "elevated", size: "sm" }))} status-badge ${styles.surfaceChip}`}
         aria-label={label}
-        onClick={() => show(restoreId, backgroundOwnerTabId)}
+        onClick={() => restorePagePreview(restoreId, backgroundOwnerTabId)}
       >
         <SolarIcon name="pip-2" size={14} aria-hidden="true" />
         <span className={styles.surfaceChipLabel}>{label}</span>

@@ -9,7 +9,9 @@ import {
   recoverSessionResources,
   resourceSessionId,
   setBrowserConnection,
+  showResourcePreview,
   useBrowserResourceStore,
+  viewedBranchFor,
 } from "@/lib/chat/resources/session-resources";
 import {
   clearYieldingOnDisconnect,
@@ -91,6 +93,14 @@ export function applyFollowPreview(
   }
   if (pip.tabId) pip.hide();
   return null;
+}
+
+/** Float a page again after the user closed its preview. Closing hid the preview for the
+ *  conversation; showing it again undoes that, or the projection hides the page at once. */
+export function restorePagePreview(tabId: string, ownerTabId: string): void {
+  const sessionId = useCenterTabs.getState().tabs.find(tab => tab.id === ownerTabId)?.sessionId;
+  if (sessionId) showResourcePreview(sessionId, viewedBranchFor(sessionId));
+  useWebTabPip.getState().show(tabId, ownerTabId);
 }
 
 export function applyBrowserConnection(connected: boolean): void {
