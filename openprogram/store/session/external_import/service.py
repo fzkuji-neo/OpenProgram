@@ -7,11 +7,13 @@ source that only grew gets its new turns appended to the same session,
 and one that was rewound (or whose imported session was continued here)
 becomes a new session, so nothing already in OpenProgram is rewritten.
 
-A conversation joins the registered project whose folder holds its
-working directory. Unregistered folders are not registered on the fly —
-importing old history must not scatter project markers across the disk —
-so those conversations land in the default project, with the original
-directory kept in ``imported_from.cwd``.
+A conversation joins the project of its working directory: the
+registered project whose folder holds it, or a new project for that
+folder, as opening the folder here would make. Only a conversation
+held in the home folder, or in a folder that no longer exists, lands in
+the default project; ``imported_from.cwd`` keeps the original directory
+either way. An earlier import that landed in the default project before
+its folder had a project moves there when it is imported again.
 """
 from __future__ import annotations
 
@@ -113,11 +115,14 @@ def list_candidates(
 
 
 def _project_for(cwd: Optional[str]) -> Optional[str]:
-    """The registered project whose folder is, or encloses, ``cwd``."""
+    """The project of ``cwd``: the registered one whose folder is, or encloses, it, else a new one.
+
+    ``None`` (the default project) for the home folder, a folder that is
+    gone, or when the registry cannot be read."""
     if not cwd:
         return None
     try:
-        from openprogram.store.project.project_store import list_projects
+        from openprogram.store.project.project_store import list_projects, resolve_project
         target = Path(cwd).expanduser().resolve()
         best, depth = None, -1
         for project in list_projects():
@@ -126,10 +131,32 @@ def _project_for(cwd: Optional[str]) -> Optional[str]:
             root = Path(project.path).expanduser().resolve()
             if (target == root or root in target.parents) and len(root.parts) > depth:
                 best, depth = project.id, len(root.parts)
-        return best
+        if best or not target.is_dir() or target == Path.home().resolve():
+            return best
+        return resolve_project(target).id
     except Exception:  # noqa: BLE001 — placement falls back to the default project
         _log.warning("project lookup failed for %s", cwd, exc_info=True)
         return None
+
+
+def _place(store, session_id: str, cwd: Optional[str]) -> bool:
+    """Move an earlier import out of the default project into its folder's project.
+
+    A conversation the user put in a project, or one with a turn running,
+    stays where it is. Whether it moved."""
+    from openprogram.agent.run_control import is_turn_running
+    from openprogram.store.project import project_store as _projects
+    from openprogram.store.project.relocate_node import record_move
+    current = _projects.project_for_session(session_id)
+    if (current is not None and not current.is_default) or is_turn_running(session_id):
+        return False
+    project_id = _project_for(cwd)
+    target = _projects.get_project(project_id) if project_id else None
+    if target is None or not store.move_session(session_id, project_id).get("moved"):
+        return False
+    record_move(store, session_id, old_project_id=current.id if current else "", new_project_id=project_id,
+                old_name=current.name if current else "", new_name=target.name)
+    return True
 
 
 def _default_agent_id() -> str:
@@ -181,7 +208,8 @@ def _import_one(store, candidate: Candidate, home: Path, ledger, agent_id: str) 
     entry = ledger.get(candidate.agent, candidate.source_id)
     state = _state(candidate, entry, store)
     if state == "imported":
-        return {**result, "status": "unchanged", "session_id": entry["session_id"]}
+        return {**result, "status": "unchanged", "session_id": entry["session_id"],
+                "moved": _place(store, entry["session_id"], candidate.cwd)}
     if state == "empty":
         return {**result, "status": "empty"}
 
@@ -212,8 +240,11 @@ def _import_one(store, candidate: Candidate, home: Path, ledger, agent_id: str) 
                 prefix = node_prefix(session.agent, session.source_id)
                 predecessor = reply_id(prefix, done - 2) if done >= 2 else "ROOT"
 
+    moved = False
     if session_id is None:
         session_id = _create(store, session, agent_id)
+    else:
+        moved = _place(store, session_id, session.cwd)
     last = (entry or {}).get("last_node_id")
     if status != "unchanged":
         last = write_turns(store, session_id, session, start=start, predecessor=predecessor) or last
@@ -233,7 +264,7 @@ def _import_one(store, candidate: Candidate, home: Path, ledger, agent_id: str) 
         "imported_at": time.time(),
     })
     done_before = 0 if status == "created" else int(entry.get("turns") or 0)
-    return {**result, "status": status, "session_id": session_id,
+    return {**result, "status": status, "session_id": session_id, "moved": moved,
             "turns_added": len(session.turns) - done_before}
 
 
@@ -252,7 +283,8 @@ def import_transcripts(
     ``paths`` limits the run to those transcript files; otherwise every
     transcript of ``agents`` (newer than ``since``) is imported. Each
     row's ``status`` is ``created``, ``appended``, ``unchanged``,
-    ``empty`` (no reply to import) or ``failed`` (with ``error``).
+    ``empty`` (no reply to import) or ``failed`` (with ``error``);
+    ``moved`` says an earlier import moved into its folder's project.
     """
     store = store or _default_store()
     roots = _homes(homes)

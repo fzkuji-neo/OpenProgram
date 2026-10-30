@@ -199,8 +199,8 @@ export function ImportSettings() {
       {rows?.length ? (
         <p className="text-sm text-muted-foreground">
           {text(
-            "Conversations join the project registered for their folder; others go to your default project.",
-            "对话会归入其文件夹对应的已注册项目，其余放进默认项目。",
+            "Each conversation joins the project of the folder it ran in, which is added when it has none; conversations from your home folder go to your default project.",
+            "每条对话归入它所在文件夹的项目，文件夹还不是项目时会自动添加；在主目录里的对话放进默认项目。",
           )}
         </p>
       ) : null}

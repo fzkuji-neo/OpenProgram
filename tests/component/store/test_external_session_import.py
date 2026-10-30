@@ -287,3 +287,49 @@ def test_summary_scan_resumes_where_it_stopped(tmp_path):
     _jsonl(path, records[:2])  # replaced by a shorter file
     assert claude_code.summarize(path, scan).title == "Fix the parser"
     assert scan["offset"] == path.stat().st_size
+
+
+def _claude_in(homes, folder, source_id="cc-2"):
+    records = [_cc(f"{source_id}-u", None, "user", "Draft the slides", 1, cwd=str(folder), sessionId=source_id),
+               _cc(f"{source_id}-a", f"{source_id}-u", "assistant", [{"type": "text", "text": "Drafted."}], 2,
+                   cwd=str(folder), sessionId=source_id)]
+    path = homes["claude-code"] / "projects" / "-drs" / f"{source_id}.jsonl"
+    _jsonl(path, records)
+    return path
+
+
+def test_a_conversation_joins_its_folder_project_which_is_added_when_missing(homes, store, tmp_path):
+    from pathlib import Path
+    from openprogram.store.project import project_store
+
+    folder = tmp_path / "Joint Modeling in DRS"
+    folder.mkdir()
+    created = _import(homes, store, tmp_path, paths=[_claude_in(homes, folder)])[0]
+    project = project_store.project_for_session(created["session_id"])
+    assert project is not None and not project.is_default and Path(project.path) == folder.resolve()
+    # The same folder is not added twice.
+    other = _import(homes, store, tmp_path, paths=[_claude_in(homes, folder, "cc-3")])[0]
+    assert project_store.project_for_session(other["session_id"]).id == project.id
+    # The home folder, and a folder that is gone, stay in the default project.
+    for cwd, source_id in ((Path.home(), "cc-4"), (tmp_path / "gone", "cc-5")):
+        row = _import(homes, store, tmp_path, paths=[_claude_in(homes, cwd, source_id)])[0]
+        placed = project_store.project_for_session(row["session_id"])
+        assert placed is None or placed.is_default
+
+
+def test_an_earlier_import_in_the_default_project_moves_when_imported_again(homes, store, tmp_path, monkeypatch):
+    from openprogram.store.project import project_store
+
+    folder = tmp_path / "drs"
+    folder.mkdir()
+    path = _claude_in(homes, folder)
+    monkeypatch.setattr(service, "_project_for", lambda cwd: None)
+    first = _import(homes, store, tmp_path, paths=[path])[0]
+    monkeypatch.undo()
+    again = _import(homes, store, tmp_path, paths=[path])[0]
+    assert again["status"] == "unchanged" and again["moved"] is True
+    project = project_store.project_for_session(first["session_id"])
+    assert project is not None and project.path == str(folder.resolve())
+    assert store.get_session(first["session_id"])["project_id"] == project.id
+    # A conversation already in a project stays there.
+    assert _import(homes, store, tmp_path, paths=[path])[0]["moved"] is False

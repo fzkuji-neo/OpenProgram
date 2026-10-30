@@ -139,7 +139,9 @@ def register(app):
 
         Body: ``agents`` (list, default both), ``paths`` (list of
         transcript files), ``since`` (epoch seconds). Re-importing is
-        safe — unchanged sources are skipped, grown ones appended.
+        safe — unchanged sources are skipped, grown ones appended. Each
+        conversation goes to the project of the folder it ran in, which
+        is registered when it has none yet.
         """
         from openprogram.store.session import external_import as _ext
         from openprogram.webui.ws_actions.session import broadcast_sessions_list
@@ -151,8 +153,12 @@ def register(app):
         results = await asyncio.to_thread(
             _ext.import_transcripts, agents, paths=paths, since=body.get("since"),
         )
-        if any(r["status"] in ("created", "appended") for r in results):
+        if any(r["status"] in ("created", "appended") or r.get("moved") for r in results):
             broadcast_sessions_list()
+            # An import can register the folders its conversations ran in.
+            import json
+            from openprogram.webui import server
+            server._broadcast(json.dumps({"type": "projects_changed", "data": {}}))
         return JSONResponse(content={"results": results})
 
     @app.post("/api/function/{name}")
