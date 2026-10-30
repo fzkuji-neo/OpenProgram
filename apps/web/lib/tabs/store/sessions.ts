@@ -3,7 +3,7 @@ import { draftTab, replaceGroupTabId } from "@/lib/tabs/center-tabs-persistence"
 import type { StoreApi } from "zustand";
 import { mapTabPages, recordTabPage } from "../navigation/page-history";
 import { sessionHistory, withSessionHistory } from "../navigation/session-history";
-import { commitCenterTabsState } from "./core";
+import { commitCenterTabsState, insertNextTo } from "./core";
 import type { CenterTab, CenterTabsState } from "./types";
 
 /** A session tab that shows a page (Settings, History…) opened from it
@@ -60,7 +60,7 @@ export function sessionsActions(set: StoreApi<CenterTabsState>["setState"], get:
         const tab: CenterTab = { id, kind: "session", title, sessionId };
         const replace = active?.kind === "ntp";
         return commitCenterTabsState(s, {
-          tabs: replace ? s.tabs.map(item => item.id === active.id ? recordTabPage(item, tab) : item) : [...s.tabs, tab],
+          tabs: replace ? s.tabs.map(item => item.id === active.id ? recordTabPage(item, tab) : item) : insertNextTo(s.tabs, s.activeId, tab),
           activeId: id,
           groups: replace ? replaceGroupTabId(s.groups, active.id, id) : s.groups,
         });

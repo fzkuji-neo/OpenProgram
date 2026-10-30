@@ -42,7 +42,8 @@ test("agent pages retain session ownership, pinning and popup provenance", () =>
   store.openWebTab("https://manual.test/");
   let state = useCenterTabs.getState();
   assert.equal(topLevelTabs(state.tabs, state.groups).length, 1);
-  assert.deepEqual(groupWebPages(state.tabs).map(g => g.sessionId), ["session-a", "session-b", null]);
+  // The manual page opened from the active tab sits right of it.
+  assert.deepEqual(groupWebPages(state.tabs).map(g => g.sessionId), ["session-a", null, "session-b"]);
   store.setWebTabPinned(a, true);
   assert.equal(topLevelTabs(useCenterTabs.getState().tabs, []).length, 2);
   const popup = store.openPopupWebTab("https://popup.test/", a);
@@ -250,4 +251,16 @@ test("dismissal removes a retained page from splits and closes only unassociated
   store.closeTab(manual.id, { retainSessionResources: true });
   assert.equal(useCenterTabs.getState().activeId, null);
   assert.deepEqual(useCenterTabs.getState().tabs.map(tab => tab.id), [page.id]);
+});
+
+test("a tab opened from another one goes to its right, after the ones it opened before", () => {
+  const tab = id => ({ id, kind: "web", title: id, url: `https://${id}.test/` });
+  useCenterTabs.setState({ tabs: [tab("a"), tab("b"), tab("c")], groups: [], activeId: "a", splitWebTabId: null });
+  const store = useCenterTabs.getState();
+  const first = store.openPopupWebTab("https://one.test/", "a");
+  const second = store.openPopupWebTab("https://two.test/", "a");
+  assert.deepEqual(useCenterTabs.getState().tabs.map(t => t.id), ["a", first, second, "b", "c"]);
+  useCenterTabs.setState({ activeId: "b" });
+  store.openWebTab("https://link.test/");
+  assert.deepEqual(useCenterTabs.getState().tabs.map(t => t.url).slice(3, 5), ["https://b.test/", "https://link.test/"]);
 });

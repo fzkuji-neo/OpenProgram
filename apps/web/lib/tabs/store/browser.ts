@@ -2,7 +2,7 @@ import { hostnameOf, nextBrowserHomeId, nextPopupWebTabId, webTabId } from "@/li
 import { replaceGroupTabId } from "@/lib/tabs/center-tabs-persistence";
 import type { StoreApi } from "zustand";
 import { recordTabPage } from "../navigation/page-history";
-import { commitCenterTabsState, focusOrCreate } from "./core";
+import { commitCenterTabsState, focusOrCreate, insertNextTo } from "./core";
 import type { CenterTab, CenterTabsState } from "./types";
 
 export function browserActions(set: StoreApi<CenterTabsState>["setState"], get: StoreApi<CenterTabsState>["getState"]): Pick<CenterTabsState, "openWebTab" | "openPopupWebTab" | "markAgentWebTab" | "setWebTabPinned" | "ensureWebTab" | "ensureExclusiveWebTab" | "updateWebTab" | "replaceWebTabWithNewTabPage"> {
@@ -23,16 +23,13 @@ export function browserActions(set: StoreApi<CenterTabsState>["setState"], get: 
       set((s) => {
         const opener = s.tabs.find((tab) => tab.id === openerTabId);
         return commitCenterTabsState(s, {
-          tabs: [
-            ...s.tabs,
-            {
-              id, kind: "web", title: hostnameOf(url), url, openerTabId,
-              agentOpened: opener?.agentOpened,
-              agentSessionId: opener?.agentSessionId,
-              agentBranchId: opener?.agentBranchId,
-              agentExecutionId: opener?.agentExecutionId,
-            },
-          ],
+          tabs: insertNextTo(s.tabs, openerTabId, {
+            id, kind: "web", title: hostnameOf(url), url, openerTabId,
+            agentOpened: opener?.agentOpened,
+            agentSessionId: opener?.agentSessionId,
+            agentBranchId: opener?.agentBranchId,
+            agentExecutionId: opener?.agentExecutionId,
+          }),
           activeId: opener?.agentOpened ? s.activeId : id,
         });
       });

@@ -1,6 +1,7 @@
 import { findCenterTabGroup, groupCenterTabs, normalizeCenterTabLayout } from "../center-tab-groups.ts";
 import { webTabId } from "../center-tab-ids.ts";
 import { replaceGroupTabId } from "../center-tabs-persistence.ts";
+import { insertNextTo } from "../store/core.ts";
 import type { CenterTabsState } from "../store/types.ts";
 
 export interface FilePreviewTarget { projectId: string; path: string; readOnly?: boolean; }
@@ -20,12 +21,12 @@ export function filePreviewLayout(state: Pick<CenterTabsState, "tabs" | "groups"
     && peers[0]?.previewOwnerSessionId === sessionId;
   if (automatic && group && (!ownedSplit || peers.some(tab => tab?.dirty))) return null;
   const id = "url" in target ? webTabId(target.url) : filePreviewId(sessionId, target);
-  let tabs = state.tabs.some(tab => tab.id === id) ? state.tabs : [...state.tabs, "url" in target ? {
+  let tabs = state.tabs.some(tab => tab.id === id) ? state.tabs : insertNextTo(state.tabs, chat.id, "url" in target ? {
     id, kind: "web" as const, title: target.title, url: target.url, webPinned: true, previewOwnerSessionId: sessionId,
   } : {
     id, kind: "file" as const, title: target.path.replace(/\\/g, "/").split("/").pop() || target.path,
     ...target, fileSessionId: sessionId, previewOwnerSessionId: sessionId,
-  }];
+  });
   const existingGroup = findCenterTabGroup(state.groups, id);
   // An explicit open can focus an existing/manual layout without replacing it.
   if ((group && !ownedSplit) || (existingGroup && existingGroup.id !== group?.id)) {

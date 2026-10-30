@@ -47,6 +47,19 @@ export function detachesSplitPair(state: CenterTabsState, tabId: string): boolea
   return !!findCenterTabGroup(state.groups, tabId)?.memberIds.includes(splitId);
 }
 
+// The tab the last insertNextTo placed, and the tab it was opened from.
+let lastOpened: { from: string; id: string } | null = null;
+
+/** A tab opened from another one goes to its right, after the tabs it opened before. */
+export function insertNextTo(tabs: readonly CenterTab[], fromId: string | null | undefined, tab: CenterTab): CenterTab[] {
+  const from = tabs.findIndex(item => item.id === fromId);
+  if (from < 0 || !fromId) return [...tabs, tab];
+  const previous = lastOpened?.from === fromId ? tabs.findIndex(item => item.id === lastOpened?.id) : -1;
+  const at = previous > from ? previous + 1 : from + 1;
+  lastOpened = { from: fromId, id: tab.id };
+  return [...tabs.slice(0, at), tab, ...tabs.slice(at)];
+}
+
 export function focusOrCreate(
   s: CenterTabsState,
   id: string,
@@ -67,7 +80,7 @@ export function focusOrCreate(
     tabs: updateExisting ? s.tabs.map(tab => tab.id === id ? updateExisting(tab) : tab) : s.tabs,
     activeId: id,
   });
-  return commitCenterTabsState(s, { tabs: [...s.tabs, make()], activeId: id });
+  return commitCenterTabsState(s, { tabs: insertNextTo(s.tabs, s.activeId, make()), activeId: id });
 }
 
 
